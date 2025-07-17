@@ -1,6 +1,10 @@
 
 
-# Scratch Runtime for 3DS
+# Scratch Runtime for Wii U
+
+This is a fork of Scratch-3DS adding Wii U support while hopefully maintaining 3DS support. If possible I would like to merge this back into the original Scratch-3DS project. I might also add support for say and think blocks.
+
+## Original README
 
 A W.I.P. runtime made in C++ aimed to bring any Scratch 3 project over to the Nintendo 3DS.
 
