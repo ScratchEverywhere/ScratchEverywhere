@@ -11,6 +11,7 @@ A W.I.P. runtime made in C++ aimed to bring any Scratch 3 project over to the Ni
 ![Controls](https://raw.githubusercontent.com/NateXS/Scratch-3DS/refs/heads/main/scratch%203ds%20controls.png)
 
 To use the mouse you must enter mouse mode by holding L. use the D-pad to move the mouse, and press R to click.
+To make a game with dual screens you must set the stage resolution to 400x480 in turbowarp.
 
 ## Limitations
 
