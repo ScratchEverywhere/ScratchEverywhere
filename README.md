@@ -1,6 +1,6 @@
 
 
-# Scratch Runtime for Wii U
+# Scratch Runtime for the Wii U
 
 This is a fork of Scratch-3DS adding Wii U support while hopefully maintaining 3DS support. If possible I would like to merge this back into the original Scratch-3DS project. I might also add support for say and think blocks.
 
