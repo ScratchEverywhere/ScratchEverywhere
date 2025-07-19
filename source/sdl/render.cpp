@@ -1,6 +1,11 @@
 #include "../scratch/render.hpp"
 #include "render.hpp"
 #include "interpret.hpp"
+
+#ifdef __WIIU__
+#include <romfs-wiiu.h>
+#endif
+
 int windowWidth = 480;
 int windowHeight = 360;
 SDL_Window* window = nullptr;
@@ -9,17 +14,24 @@ SDL_Renderer* renderer = nullptr;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 
 void Render::Init(){
+#ifdef __WIIU__
+    romfsInit();
+#endif
+
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     window = SDL_CreateWindow("Scratch Runtime",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,windowWidth,windowHeight,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
-
 }
 void Render::deInit(){
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
     SDL_Quit();
+
+#ifdef __WIIU__
+    romfsExit();
+#endif
 }
 void Render::renderSprites(){
     SDL_GetWindowSizeInPixels(window,&windowWidth,&windowHeight);

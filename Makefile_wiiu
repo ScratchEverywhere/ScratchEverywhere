@@ -31,6 +31,16 @@ WHUB_NAME        :=  Scratch WiiU
 WHUB_SHORT_NAME  :=  $(WHUB_NAME)
 WUHB_AUTHOR			 :=  NateXS and Grady Link
 
+# RomFS
+
+ROMFS	:=	romfs
+
+include $(PORTLIBS_PATH)/wiiu/share/romfs-wiiu.mk
+CFLAGS		+=	$(ROMFS_CFLAGS)
+CXXFLAGS	+=	$(ROMFS_CFLAGS)
+LIBS			+=	$(ROMFS_LIBS)
+OFILES		+=	$(ROMFS_TARGET)
+
 #-------------------------------------------------------------------------------
 # options for code generation
 #-------------------------------------------------------------------------------
