@@ -27,8 +27,9 @@ INCLUDES	     :=	 include source/scratch source/scratch/blocks source/sdl includ
 
 WHUB_TOOL        :=  /opt/devkitpro/tools/bin/wuhbtool
 
-WHUB_NAME        :=  Scratch Runtime
+WHUB_NAME        :=  Scratch WiiU
 WHUB_SHORT_NAME  :=  $(WHUB_NAME)
+WUHB_AUTHOR			 :=  NateXS and Grady Link
 
 #-------------------------------------------------------------------------------
 # options for code generation
@@ -94,7 +95,7 @@ mkdir:
 		@mkdir -p $(BUILD)
 
 wuhb:
-		@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).wuhb --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME)
+		@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).wuhb --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME) --author=$(WHUB_AUTHOR)
 
 test:
 		Cemu -g $(TARGET).rpx
