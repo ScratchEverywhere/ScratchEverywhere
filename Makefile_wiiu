@@ -102,13 +102,13 @@ OFILES		+=	$(ROMFS_TARGET)
 
 .PHONY: $(BUILD) clean all
 
-all: mkdir $(OUTPUT).rpx wuhb
+all: mkdir $(OUTPUT).rpx whub
 
 mkdir:
 		@mkdir -p $(BUILD)
 
-wuhb:
-		@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).wuhb --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME) --author=$(WHUB_AUTHOR)
+whub:
+		@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).whub --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME) --author=$(WHUB_AUTHOR)
 
 test:
 		Cemu -g $(TARGET).rpx
