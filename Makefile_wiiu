@@ -27,7 +27,7 @@ INCLUDES	     :=	 include source/scratch source/scratch/blocks source/sdl includ
 
 WHUB_TOOL        :=  /opt/devkitpro/tools/bin/wuhbtool
 
-WHUB_NAME        :=  Scratch WiiU
+WHUB_NAME        :=  Scratch Wii U
 WHUB_SHORT_NAME  :=  $(WHUB_NAME)
 WHUB_AUTHOR			 :=  NateXS and Grady Link
 
