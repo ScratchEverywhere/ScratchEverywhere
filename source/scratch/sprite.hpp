@@ -81,6 +81,9 @@ struct Block {
         LOOKS_SETSIZETO,
         LOOKS_GO_FORWARD_BACKWARD_LAYERS,
         LOOKS_GO_TO_FRONT_BACK,
+        LOOKS_SET_EFFECT_TO,
+        LOOKS_CHANGE_EFFECT_BY,
+        LOOKS_CLEAR_GRAPHIC_EFFECTS,
         SOUND_VOLUME,
         SENSING_TIMER,
         SENSING_RESETTIMER,
@@ -134,6 +137,8 @@ struct Block {
         SENSING_CURRENT,
         SENSING_ASK_AND_WAIT,
         SENSING_ANSWER,
+        SENSING_USERNAME,
+        SENSING_SET_DRAG_MODE,
         OPERATOR_EQUALS,
         OPERATOR_GT,
         OPERATOR_LT,
@@ -194,6 +199,9 @@ struct Block {
         if(opCodeString == "looks_setsizeto")return LOOKS_SETSIZETO;
         if(opCodeString == "looks_goforwardbackwardlayers")return LOOKS_GO_FORWARD_BACKWARD_LAYERS;
         if(opCodeString == "looks_gotofrontback")return LOOKS_GO_TO_FRONT_BACK;
+        if(opCodeString == "looks_seteffectto") return LOOKS_SET_EFFECT_TO;
+        if(opCodeString == "looks_changeeffectby") return LOOKS_CHANGE_EFFECT_BY;
+        if(opCodeString == "looks_cleargraphiceffects") return LOOKS_CLEAR_GRAPHIC_EFFECTS;
         if(opCodeString == "sound_volume")return SOUND_VOLUME;
         if(opCodeString == "sensing_timer")return SENSING_TIMER;
         if(opCodeString == "sensing_resettimer")return SENSING_RESETTIMER;
@@ -247,6 +255,8 @@ struct Block {
         if(opCodeString == "sensing_current") return SENSING_CURRENT;
         if(opCodeString == "sensing_askandwait") return SENSING_ASK_AND_WAIT;
         if(opCodeString == "sensing_answer") return SENSING_ANSWER;
+        if(opCodeString == "sensing_username") return SENSING_USERNAME;
+        if(opCodeString == "sensing_setdragmode") return SENSING_SET_DRAG_MODE;
         if(opCodeString == "operator_equals")return OPERATOR_EQUALS;
         if(opCodeString == "operator_gt")return OPERATOR_GT;
         if(opCodeString == "operator_lt")return OPERATOR_LT;
@@ -369,14 +379,18 @@ class Sprite {
         bool toDelete;
         bool isDeleted = false;
         int currentCostume;
+        std::string lastCostumeId = "";
         int volume;
         double xPosition;
         double yPosition;
         int rotationCenterX;
         int rotationCenterY;
         int size;
-        int rotation;
+        double rotation;
         int layer;
+
+        int ghostEffect;
+        double colorEffect = -99999;
 
         enum RotationStyle{
             NONE,

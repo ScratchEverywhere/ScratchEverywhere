@@ -20,8 +20,8 @@ include $(DEVKITARM)/3ds_rules
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
-APP_TITLE 	:=	Scratch 3DS Runtime
-APP_DESCRIPTION := Scratch runtime for the Nintendo 3DS.
+APP_TITLE 	:=	Scratch 3DS
+APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 5]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
@@ -29,9 +29,10 @@ SOURCES		:=	source source/3ds source/scratch source/scratch/blocks include/miniz
 DATA		:=	data
 INCLUDES	:=	include source/3ds source/scratch source/scratch/blocks
 GRAPHICS	:=	gfx
-GFXBUILD	:=	$(BUILD)/gfx
+#GFXBUILD	:=	$(BUILD)/gfx
 ROMFS		:=	romfs
-#GFXBUILD	:=	$(ROMFS)/gfx
+ICON		:=	gfx/icon.png
+GFXBUILD	:=	$(ROMFS)/gfx
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -42,7 +43,7 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -D__3DS__  -g -Wall -O0 -mword-relocations -fomit-frame-pointer -ffast-math $(ARCH)
+CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer $(ARCH)
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
 

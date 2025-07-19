@@ -1,10 +1,4 @@
-
-
-# Scratch Runtime for the Wii U
-
-This is a fork of Scratch-3DS adding Wii U support while hopefully maintaining 3DS support. If possible I would like to merge this back into the original Scratch-3DS project. I might also add support for say and think blocks.
-
-## Original README
+# Scratch-3DS
 
 A W.I.P. runtime made in C++ aimed to bring any Scratch 3 project over to the Nintendo 3DS.
 
@@ -24,13 +18,13 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 
 **List of known limitations:**
 - Sound is not yet implemented.
-- Performance on old 3DS starts to tank with alot of blocks running.
+- Performance on old 3DS starts to tank with many blocks running.
 - There is no vector/svg sprite rendering. Images will only render if converted to bitmap beforehand, otherwise the sprite will show as a black square.
-- Images will only work if it's in png or jpg format.
+- Images will only work if it's in .png or .jpg format.
 - If you have a bunch of large images, some may not load.
 - Images cannot be over 1024x1024 in resolution.
 - Extensions (eg: pen and music extensions) are not yet supported.
-- Some blocks may lead to crashing / unintended behavior. (Please open an issue if you know a block that's causing problems...,,.,, 🥺)
+- Some blocks may lead to crashing / unintended behavior. (Please open an issue if you know a block that's causing problems.)
 
 
 ## Unimplimented blocks
@@ -40,27 +34,36 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - Show/hide variable | Show/hide list
 - When backdrop switches to
 - When this sprite clicked
-- When backdrop switches to
 - When loudness > ___
-- all Color touching blocks
+- All Color touching blocks
 - Set drag mode
 - Loudness
 
+## Roadmap / to-do list
+- Pen support (Highly Requested!)
+- Better start menu
+- File picker for Scratch projects
+- Ability to remap controls
+- Get all blocks working
+- Audio support
+- Turbowarp extensions
+- Cloud variables (maybe.....)
 
+## Installation
+There are 2 methods to install the runtime.
+- Download the release (easy)
+- Build the file yourself (harder)
+### Get up and running the easy way
 
+Download the .3dsx file in the Releases tab.
 
-
-## Get up and running the easy way
-
-Download the 3dsx file in the Releases tab.
-
-Place the 3dsx file in the `3ds/` folder of your 3DS SD card, along with the Scratch project you want to run.
+Place the .3dsx file in the `3ds/` folder of your 3DS SD card, along with the Scratch project you want to run.
 - The Scratch project MUST be named `project.sb3` , all lowercase.
 
 Then it should be as simple as opening the homebrew launcher on your 3DS and running the app.
 
 
-## Building
+### Building
 
 In order to embed a Scratch project in the 3dsx executable, you'll need to compile the source code.
 

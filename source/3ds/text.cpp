@@ -49,6 +49,10 @@ void TextObject::setText(std::string txt){
     textParse(txt,&Text,x,y,Text.scale);
 }
 
+std::string TextObject::getText(){
+    return Text.text;
+}
+
 void TextObject::setScale(float scl){
     Text.scale = scl;
 }
@@ -59,11 +63,11 @@ std::vector<float> TextObject::getSize(){
     return {width,height};
 }
 
-void TextObject::render(){
+void TextObject::render(int xPos, int yPos){
     float totalScale = ((scale - 1.0) + (Text.scale));
     u32 flags = C2D_WithColor;
     if(Text.centerAligned){
         flags |= C2D_AlignCenter;
     }
-    C2D_DrawText(&Text.StaticText, flags, x, y, 0, totalScale, totalScale, color);
+    C2D_DrawText(&Text.StaticText, flags, xPos, yPos, 0, totalScale, totalScale, color);
 }

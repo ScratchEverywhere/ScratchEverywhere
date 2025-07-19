@@ -191,21 +191,40 @@ Value OperatorBlocks::lessThan(Block& block, Sprite* sprite){
 Value OperatorBlocks::and_(Block& block, Sprite* sprite){
     auto oper1 = block.parsedInputs.find("OPERAND1");
     auto oper2 = block.parsedInputs.find("OPERAND2");
+
+    if (oper1 == block.parsedInputs.end() || oper2 == block.parsedInputs.end()){
+        return Value(false);
+    }
+
     Value value1 = executor.getBlockValue(*findBlock(oper1->second.blockId), sprite);
     Value value2 = executor.getBlockValue(*findBlock(oper2->second.blockId), sprite);
     return Value(value1.asInt() == 1 && value2.asInt() == 1);
 }
 
-Value OperatorBlocks::or_(Block& block, Sprite* sprite){
+Value OperatorBlocks::or_(Block& block, Sprite* sprite) {
+    int result1 = 0;
+    int result2 = 0;
+
     auto oper1 = block.parsedInputs.find("OPERAND1");
+    if (oper1 != block.parsedInputs.end()) {
+        Value value1 = executor.getBlockValue(*findBlock(oper1->second.blockId), sprite);
+        result1 = value1.asInt();
+    }
+
     auto oper2 = block.parsedInputs.find("OPERAND2");
-    Value value1 = executor.getBlockValue(*findBlock(oper1->second.blockId), sprite);
-    Value value2 = executor.getBlockValue(*findBlock(oper2->second.blockId), sprite);
-    return Value(value1.asInt() == 1 || value2.asInt() == 1);
+    if (oper2 != block.parsedInputs.end()) {
+        Value value2 = executor.getBlockValue(*findBlock(oper2->second.blockId), sprite);
+        result2 = value2.asInt();
+    }
+
+    return Value(result1 == 1 || result2 == 1);
 }
 
 Value OperatorBlocks::not_(Block& block, Sprite* sprite){
     auto oper = block.parsedInputs.find("OPERAND");
+    if (oper == block.parsedInputs.end()) {
+        return Value(true);
+    }
     Value value = executor.getBlockValue(*findBlock(oper->second.blockId), sprite);
     return Value(value.asInt() != 1);
 }

@@ -40,9 +40,11 @@ public:
 
     void setText(std::string txt);
 
+    std::string getText();
+
     void setScale(float scl);
 
-    void render();
+    void render(int xPos, int yPos);
 
     /**
      * Gets the size of the text in pixels.

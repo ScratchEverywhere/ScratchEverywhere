@@ -53,7 +53,7 @@ BlockResult MotionBlocks::goToXY(Block& block, Sprite* sprite, Block** waitingBl
 BlockResult MotionBlocks::turnLeft(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
     Value value = Scratch::getInputValue(block,"DEGREES",sprite);
     if (value.isNumeric()) {
-        sprite->rotation -= value.asInt();
+        sprite->rotation -= value.asDouble();
     }
     return BlockResult::CONTINUE;
 }
@@ -61,7 +61,7 @@ BlockResult MotionBlocks::turnLeft(Block& block, Sprite* sprite, Block** waiting
 BlockResult MotionBlocks::turnRight(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
     Value value = Scratch::getInputValue(block,"DEGREES",sprite);
     if (value.isNumeric()) {
-        sprite->rotation += value.asInt();
+        sprite->rotation += value.asDouble();
     }
     return BlockResult::CONTINUE;
 }
@@ -69,7 +69,7 @@ BlockResult MotionBlocks::turnRight(Block& block, Sprite* sprite, Block** waitin
 BlockResult MotionBlocks::pointInDirection(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
     Value value = Scratch::getInputValue(block,"DIRECTION", sprite);
     if (value.isNumeric()) {
-        sprite->rotation = value.asInt();
+        sprite->rotation = value.asDouble();
     }
     return BlockResult::CONTINUE;
 }
@@ -290,17 +290,74 @@ BlockResult MotionBlocks::setRotationStyle(Block& block, Sprite* sprite, Block**
 BlockResult MotionBlocks::ifOnEdgeBounce(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh) {
     double halfWidth = Scratch::projectWidth / 2.0;
     double halfHeight = Scratch::projectHeight / 2.0;
-    
-    // Check if the current sprite is touching the edge of the screen
-    if (sprite->xPosition <= -halfWidth || sprite->xPosition >= halfWidth ||
-        sprite->yPosition <= -halfHeight || sprite->yPosition >= halfHeight) {
-        sprite->rotation *= -1;
+
+    double spriteHalfWidth = sprite->spriteWidth / 2.0;
+    double spriteHalfHeight = sprite->spriteHeight / 2.0;
+
+    // Compute bounds of the sprite
+    double left = sprite->xPosition - spriteHalfWidth;
+    double right = sprite->xPosition + spriteHalfWidth;
+    double top = sprite->yPosition + spriteHalfHeight;
+    double bottom = sprite->yPosition - spriteHalfHeight;
+
+    // Compute distances from edges (positive when far from edge, zero or negative when overlapping)
+    double distLeft = std::max(0.0, halfWidth + left);
+    double distRight = std::max(0.0, halfWidth - right);
+    double distTop = std::max(0.0, halfHeight - top);
+    double distBottom = std::max(0.0, halfHeight + bottom);
+
+    // Determine the nearest edge being touched
+    std::string nearestEdge = "";
+    double minDist = INFINITY;
+
+    if (distLeft < minDist) { minDist = distLeft; nearestEdge = "left"; }
+    if (distTop < minDist) { minDist = distTop; nearestEdge = "top"; }
+    if (distRight < minDist) { minDist = distRight; nearestEdge = "right"; }
+    if (distBottom < minDist) { minDist = distBottom; nearestEdge = "bottom"; }
+
+    // Not touching any edge
+    if (minDist > 0.0) {
+        return BlockResult::CONTINUE;
     }
+
+    // Convert current direction to radians
+    double radians = (90.0 - sprite->rotation) * (M_PI / 180.0);
+    double dx = std::cos(radians);
+    double dy = -std::sin(radians);
+
+    // Reflect the direction based on the edge hit
+    if (nearestEdge == "left") {
+        dx = std::max(0.2, std::abs(dx));
+    } else if (nearestEdge == "right") {
+        dx = -std::max(0.2, std::abs(dx));
+    } else if (nearestEdge == "top") {
+        dy = std::max(0.2, std::abs(dy));
+    } else if (nearestEdge == "bottom") {
+        dy = -std::max(0.2, std::abs(dy));
+    }
+
+    // Calculate new direction from reflected vector
+    sprite->rotation = std::atan2(dy, dx) * (180.0 / M_PI) + 90.0;
+
+    // Clamp sprite back into stage bounds
+    double dxCorrection = 0;
+    double dyCorrection = 0;
+
+    if (left < -halfWidth) dxCorrection += -halfWidth - left;
+    if (right > halfWidth) dxCorrection += halfWidth - right;
+    if (top > halfHeight) dyCorrection += halfHeight - top;
+    if (bottom < -halfHeight) dyCorrection += -halfHeight - bottom;
+
+    sprite->xPosition += dxCorrection;
+    sprite->yPosition += dyCorrection;
+
     return BlockResult::CONTINUE;
 }
 
+
+
 Value MotionBlocks::xPosition(Block& block,Sprite*sprite){
-   return Value(sprite->xPosition); 
+   return Value(sprite->xPosition);
 }
 
 Value MotionBlocks::yPosition(Block& block,Sprite*sprite){

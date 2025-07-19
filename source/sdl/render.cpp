@@ -6,6 +6,7 @@ int windowHeight = 360;
 SDL_Window* window = nullptr;
 SDL_Renderer* renderer = nullptr;
 
+Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 
 void Render::Init(){
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
@@ -129,5 +130,15 @@ void LoadingScreen::renderLoadingScreen(){
 
 }
 void LoadingScreen::cleanup(){
+
+}
+// or these,,,
+void MainMenu::init(){
+
+}
+void MainMenu::render(){
+
+}
+void MainMenu::cleanup(){
 
 }

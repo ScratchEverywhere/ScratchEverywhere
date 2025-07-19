@@ -4,8 +4,9 @@
 
 volatile int Unzip::projectOpened = 0;
 volatile bool Unzip::threadFinished = false;
+std::string Unzip::filePath = "";
 
-bool Unzip::openFile(std::ifstream *file){
+int Unzip::openFile(std::ifstream *file){
     std::cout<<"Unzipping Scratch Project..."<<std::endl;
 
     // load Scratch project into memory
@@ -25,19 +26,28 @@ bool Unzip::openFile(std::ifstream *file){
         if (!(*file)){
             std::cerr<<"No embedded Scratch project, trying SD card"<<std::endl;
 
+            if(filePath == "") return -1;
+
             // then try SD card location
-            file->open(filename, std::ios::binary | std::ios::ate); // loads file from location of executable
+            file->open(filePath, std::ios::binary | std::ios::ate); // loads file from location of executable
             projectType = UNEMBEDDED;
             if (!(*file)){
                 std::cerr<<"Couldnt find file. jinkies." << std::endl;
-                return false;
+                return 0;
             }
         }
+        else{
+            filePath = "romfs:/"+std::string(filename);
+        }
     }
-    return true;
+    return 1;
 }
 
 bool Unzip::load(){
+
+    Unzip::threadFinished = false;
+	Unzip::projectOpened = 0;
+
     s32 mainPrio = 0;
     svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
 
@@ -65,31 +75,9 @@ bool Unzip::load(){
 	threadJoin(projectThread, U64_MAX);
     threadFree(projectThread);
 	if(Unzip::projectOpened != 1){
-
-		//if(Unzip::projectOpened == -1)
-		// loading.text->setText("Loading failed!\nCouldn't find a scratch project...\nis it named 'project.sb3'??\nStart to exit.");
-		// else if(Unzip::projectOpened == -2)
-		// loading.text->setText("Loading failed!\nproject.json is empty...\nStart to exit.");
-		// else if(Unzip::projectOpened == -2)
-		// loading.text->setText("Loading failed!\nThread loading failed...\nPlease restart.\nStart to exit.");
-		// else
-		// loading.text->setText("Loading failed!\nStart to exit.");
-
-		// loading.text->x = 200;
-		// loading.text->y = 120;
-		loading.renderLoadingScreen();
-
-		// while(Render::appShouldRun()){
-		// 	hidScanInput();
-		// 	if(hidKeysDown() & KEY_START){
-		// 		break;
-		// 	}
-		// 	gspWaitForVBlank();
-		// }
 		loading.cleanup();
 		return false;
 	}
-
 	loading.cleanup();
     // disable new 3ds clock speeds for a bit cus it crashes for some reason otherwise????
 	osSetSpeedupEnable(false);

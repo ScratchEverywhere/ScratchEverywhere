@@ -1,20 +1,29 @@
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include "interpret.hpp"
 
 class Unzip{
 public:
     static volatile int projectOpened;
     static volatile bool threadFinished;
+    static std::string filePath;
     
     static void openScratchProject(void* arg){
         std::ifstream file;
-        if(!openFile(&file)){
+        int isFileOpen = openFile(&file);
+        if(isFileOpen == 0){
             std::cerr<<"Failed to open Scratch project."<<std::endl;
             Unzip::projectOpened = -1;
             Unzip::threadFinished = true;
             return;
         }
+        else if(isFileOpen == -1){
+            std::cout<<"Main Menu Activated."<<std::endl;
+            Unzip::projectOpened = -3;
+            Unzip::threadFinished = true;
+            return;
+        } 
         nlohmann::json project_json = unzipProject(&file);
         if(project_json.empty()){
             std::cerr<<"Project.json is empty."<<std::endl;
@@ -27,6 +36,21 @@ public:
         Unzip::threadFinished = true;
         return;
     }
+
+    static std::vector<std::string> getProjectFiles(const std::string directory){
+
+        std::vector<std::string> projectFiles;
+
+        for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".sb3") {
+                std::string fileName = entry.path().filename().string();
+                projectFiles.push_back(fileName);
+            }
+        }
+    return projectFiles;
+
+    }
+
 
     static nlohmann::json unzipProject(std::ifstream *file){
 
@@ -78,7 +102,7 @@ public:
     return project_json;
     }
 
-    static bool openFile(std::ifstream *file);
+    static int openFile(std::ifstream *file);
 
     static bool load();
 

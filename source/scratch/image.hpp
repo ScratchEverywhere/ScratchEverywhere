@@ -15,9 +15,10 @@ public:
     static void loadImages(mz_zip_archive *zip);
     static void loadImageFromFile(std::string filePath);
     static void freeImage(const std::string& costumeId);
+    static void queueFreeImage(const std::string& costumeId);
     static void FlushImages();
 
-    static std::vector<ImageRGBA> imageRBGAs;
+    static std::vector<ImageRGBA> imageRGBAS;
 
 
 };

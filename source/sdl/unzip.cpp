@@ -2,8 +2,9 @@
 
 volatile int Unzip::projectOpened;
 volatile bool Unzip::threadFinished;
+std::string Unzip::filePath = "";
 
-bool Unzip::openFile(std::ifstream *file){
+int Unzip::openFile(std::ifstream *file){
     std::cout<<"Unzipping Scratch Project..."<<std::endl;
 
     // load Scratch project into memory
@@ -22,10 +23,10 @@ bool Unzip::openFile(std::ifstream *file){
         projectType = EMBEDDED;
         if (!(*file)){
             std::cerr<<"Couldnt find file. jinkies."<<std::endl;
-            return false;
+            return 0;
         }
     }
-    return true;
+    return 1;
 }
 
 

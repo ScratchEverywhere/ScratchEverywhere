@@ -13,6 +13,9 @@ public:
     static BlockResult goToFrontBack(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh);
     static BlockResult setSizeTo(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh);
     static BlockResult changeSizeBy(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh);
+    static BlockResult setEffectTo(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh);
+    static BlockResult changeEffectBy(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh);
+    static BlockResult clearGraphicEffects(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh);
 
     static Value size(Block& block, Sprite* sprite);
     static Value costume(Block& block, Sprite* sprite);

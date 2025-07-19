@@ -27,7 +27,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block& block, Sprite* sprite, Block** w
         for (size_t i = 0; i < sprite->costumes.size(); i++) {
             if (sprite->costumes[i].name == inputString) {
                 if((size_t)sprite->currentCostume != i){
-                    //freeImage(sprite->costumes[sprite->currentCostume].id);
+                   // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
                 }
                 sprite->currentCostume = i;
                 foundImage = true;
@@ -38,7 +38,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block& block, Sprite* sprite, Block** w
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < sprite->costumes.size()) {
                 if(sprite->currentCostume != costumeIndex){
-                    //freeImage(sprite->costumes[sprite->currentCostume].id);
+                   // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
             }
             foundImage = true;
             sprite->currentCostume = costumeIndex;
@@ -53,7 +53,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block& block, Sprite* sprite, Block** w
 }
 
 BlockResult LooksBlocks::nextCostume(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh) {
-    //freeImage(sprite->costumes[sprite->currentCostume].id);
+    //Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
     sprite->currentCostume++;
     if (sprite->currentCostume >= static_cast<int>(sprite->costumes.size())) {
         sprite->currentCostume = 0;
@@ -86,7 +86,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block& block, Sprite* sprite, Block** 
         for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
             if (currentSprite->costumes[i].name == inputString) {
                 if((size_t)currentSprite->currentCostume != i){
-                    //freeImage(currentSprite->costumes[currentSprite->currentCostume].id);
+                   // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
                 }
                 currentSprite->currentCostume = i;
                 foundImage = true;
@@ -97,7 +97,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block& block, Sprite* sprite, Block** 
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
                 if(currentSprite->currentCostume != costumeIndex){
-                    //freeImage(currentSprite->costumes[currentSprite->currentCostume].id);
+                    //Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
                 }
                 foundImage = true;
                 currentSprite->currentCostume = costumeIndex;
@@ -117,7 +117,7 @@ BlockResult LooksBlocks::nextBackdrop(Block& block, Sprite* sprite, Block** wait
         if(!currentSprite->isStage){
             continue;
         }
-        //freeImage(currentSprite->costumes[currentSprite->currentCostume].id);
+        //Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
         currentSprite->currentCostume++;
         if (currentSprite->currentCostume >= static_cast<int>(currentSprite->costumes.size())) {
             currentSprite->currentCostume = 0;
@@ -198,18 +198,96 @@ BlockResult LooksBlocks::goToFrontBack(Block& block, Sprite* sprite, Block** wai
 }
 
 BlockResult LooksBlocks::setSizeTo(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh) {
-    Value value = Scratch::getInputValue(block,"SIZE",sprite);
+    Value value = Scratch::getInputValue(block, "SIZE", sprite);
     if (value.isNumeric()) {
-        sprite->size = value.asDouble();
+        const double inputSizePercent = value.asDouble();
+
+        const double minScale = std::min(1.0, std::max(5.0 / sprite->spriteWidth, 5.0 / sprite->spriteHeight));
+
+        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprite->spriteWidth, (1.5 * Scratch::projectHeight) / sprite->spriteHeight);
+
+        const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
+        sprite->size = clampedScale * 100.0;
     }
     return BlockResult::CONTINUE;
 }
+
 BlockResult LooksBlocks::changeSizeBy(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh) {
-    Value value = Scratch::getInputValue(block,"CHANGE",sprite);
+    Value value = Scratch::getInputValue(block, "CHANGE", sprite);
     if (value.isNumeric()) {
         sprite->size += value.asDouble();
+
+        double minScale = std::min(1.0, std::max(5.0 / sprite->spriteWidth, 5.0 / sprite->spriteHeight)) * 100.0;
+
+        double maxScale = std::min((1.5 * Scratch::projectWidth) / sprite->spriteWidth, (1.5 * Scratch::projectHeight) / sprite->spriteHeight) * 100.0;
+
+        sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
     }
     return BlockResult::CONTINUE;
+}
+
+BlockResult LooksBlocks::setEffectTo(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
+    
+    std::string effect = block.fields.at("EFFECT")[0];
+    Value amount = Scratch::getInputValue(block,"VALUE",sprite);
+
+    if(!amount.isNumeric()) return BlockResult::CONTINUE;
+
+    if (effect == "COLOR") {
+        // doable....
+    } else if (effect == "FISHEYE") {
+        // blehhh
+    } else if (effect == "WHIRL") {
+        // blehhh
+    }else if (effect == "PIXELATE") {
+        // blehhh
+    }else if (effect == "MOSAIC") {
+        // blehhh
+    }else if (effect == "BRIGHTNESS") {
+        // doable....
+    }else if (effect == "GHOST") {
+        sprite->ghostEffect = std::clamp(amount.asInt(),0,100);
+    }
+    else {
+       std::cerr << "what effect did you even put??" << std::endl;
+    }
+    
+return BlockResult::CONTINUE;
+
+}
+BlockResult LooksBlocks::changeEffectBy(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
+    std::string effect = block.fields.at("EFFECT")[0];
+    Value amount = Scratch::getInputValue(block,"CHANGE",sprite);
+
+    if(!amount.isNumeric()) return BlockResult::CONTINUE;
+
+    if (effect == "COLOR") {
+        // doable....
+    } else if (effect == "FISHEYE") {
+        // blehhh
+    } else if (effect == "WHIRL") {
+        // blehhh
+    }else if (effect == "PIXELATE") {
+        // blehhh
+    }else if (effect == "MOSAIC") {
+        // blehhh
+    }else if (effect == "BRIGHTNESS") {
+        // doable....
+    }else if (effect == "GHOST") {
+        sprite->ghostEffect += amount.asInt();
+        sprite->ghostEffect = std::clamp(sprite->ghostEffect,0,100);
+    }
+    else {
+       std::cerr << "what effect did you even put??" << std::endl;
+    }
+return BlockResult::CONTINUE;
+}
+BlockResult LooksBlocks::clearGraphicEffects(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
+
+sprite->ghostEffect = 0;
+sprite->colorEffect = -99999;
+
+return BlockResult::CONTINUE;
 }
 
 Value LooksBlocks::size(Block& block, Sprite* sprite) {

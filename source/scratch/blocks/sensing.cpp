@@ -15,6 +15,21 @@ BlockResult SensingBlocks::askAndWait(Block& block, Sprite* sprite, Block** wait
     return BlockResult::CONTINUE;
 }
 
+BlockResult SensingBlocks::setDragMode(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
+
+    std::string mode = block.fields.at("DRAG_MODE")[0];
+
+    if(mode == "draggable"){
+        sprite->draggable = true;
+    }
+    else if(mode == "not draggable"){
+        sprite->draggable = false;
+    }
+
+
+    return BlockResult::CONTINUE;
+}
+
 Value SensingBlocks::sensingTimer(Block& block, Sprite* sprite) {
     auto now = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(now - BlockExecutor::timer).count();
@@ -202,4 +217,8 @@ Value SensingBlocks::touchingObject(Block& block, Sprite* sprite){
 
 Value SensingBlocks::mouseDown(Block& block, Sprite* sprite){
     return Value(Input::mousePointer.isPressed);
+}
+
+Value SensingBlocks::username(Block& block, Sprite* sprite){
+    return Value(Input::getUsername());
 }

@@ -45,6 +45,7 @@ main.code-workspace
 *.smdh
 *.bat
 *.sb3
+*.t3x
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
