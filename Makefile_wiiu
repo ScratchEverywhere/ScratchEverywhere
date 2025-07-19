@@ -23,6 +23,7 @@ WHUB_TOOL        :=  /opt/devkitpro/tools/bin/wuhbtool
 WHUB_NAME				:=	Scratch Wii U
 WHUB_SHORT_NAME	:=	$(WHUB_NAME)
 WHUB_AUTHOR			:=	NateXS and Grady Link
+WHUB_ICON				:=	gfx/icon.png
 
 # Flags
 
@@ -85,7 +86,7 @@ mkdir:
 	@mkdir -p $(BUILD)
 
 whub:
-	@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).whub --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME) --author=$(WHUB_AUTHOR)
+	@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).whub --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME) --author=$(WHUB_AUTHOR) --icon=$(WHUB_ICON)
 
 test:
 	Cemu -g $(TARGET).rpx
@@ -93,10 +94,6 @@ test:
 clean:
 	@echo clean ...
 	@rm -rf $(BUILD) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).elf $(BUILD)/$(TARGET).wuhb $(BUILD)/*
-
-#-------------------------------------------------------------------------------
-# Main compilation rules (These typically go at the bottom and are always active)
-#-------------------------------------------------------------------------------
 
 DEPENDS	:=	$(OFILES:.o=.d)
 
