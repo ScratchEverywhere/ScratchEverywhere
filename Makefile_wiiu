@@ -16,14 +16,14 @@ BUILD			:=	build/wiiu
 SOURCES		:=	source source/scratch source/scratch/blocks source/sdl include/miniz include/nlohmann
 INCLUDES	:=	include source/scratch source/scratch/blocks source/sdl include/nlohmann
 
-# WHUB Info
+# WUHB Info
 
-WHUB_TOOL        :=  /opt/devkitpro/tools/bin/wuhbtool
+WUHB_TOOL        :=  /opt/devkitpro/tools/bin/wuhbtool
 
-WHUB_NAME				:=	Scratch Wii U
-WHUB_SHORT_NAME	:=	$(WHUB_NAME)
-WHUB_AUTHOR			:=	NateXS and Grady Link
-WHUB_ICON				:=	gfx/icon.png
+WUHB_NAME				:=	Scratch Wii U
+WUHB_SHORT_NAME	:=	$(WUHB_NAME)
+WUHB_AUTHOR			:=	NateXS and Grady Link
+WUHB_ICON				:=	gfx/icon.png
 
 # Flags
 
@@ -80,13 +80,13 @@ OFILES		+=	$(ROMFS_TARGET)
 
 .PHONY: $(BUILD) clean all
 
-all: mkdir $(OUTPUT).rpx whub
+all: mkdir $(OUTPUT).rpx wuhb
 
 mkdir:
 	@mkdir -p $(BUILD)
 
-whub:
-	@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).whub --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME) --author=$(WHUB_AUTHOR) --icon=$(WHUB_ICON)
+wuhb:
+	@$(WUHB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).wuhb --name=$(WUHB_NAME) --short-name=$(WUHB_SHORT_NAME) --author=$(WUHB_AUTHOR) --icon=$(WUHB_ICON)
 
 test:
 	Cemu -g $(TARGET).rpx
