@@ -23,7 +23,9 @@ WUHB_TOOL        :=  /opt/devkitpro/tools/bin/wuhbtool
 WUHB_NAME				:=	Scratch Wii U
 WUHB_SHORT_NAME	:=	$(WUHB_NAME)
 WUHB_AUTHOR			:=	NateXS and Grady Link
-WUHB_ICON				:=	gfx/icon.png
+WUHB_ICON				:=	gfx/wiiu/icon.png
+WUHB_TV_SPLASH	:=	gfx/wiiu/tv-splash.png
+WUHB_DRC_SPLASH	:=	gfx/wiiu/drc-splash.png
 
 # Flags
 
@@ -86,10 +88,10 @@ mkdir:
 	@mkdir -p $(BUILD)
 
 wuhb:
-	@$(WUHB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).wuhb --name=$(WUHB_NAME) --short-name=$(WUHB_SHORT_NAME) --author=$(WUHB_AUTHOR) --icon=$(WUHB_ICON)
+	@$(WUHB_TOOL) $(OUTPUT).rpx $(OUTPUT).wuhb --name=$(WUHB_NAME) --short-name=$(WUHB_SHORT_NAME) --author=$(WUHB_AUTHOR) --icon=$(WUHB_ICON) --tv-image=$(WUHB_TV_SPLASH) --drc-image=$(WUHB_DRC_SPLASH)
 
 test:
-	Cemu -g $(TARGET).rpx
+	cemu -g $(OUTPUT).rpx
 
 clean:
 	@echo clean ...
