@@ -23,23 +23,13 @@ BUILD		     	 :=	 build/wiiu
 SOURCES		     :=	 source source/scratch source/scratch/blocks source/sdl include/miniz include/nlohmann
 INCLUDES	     :=	 include source/scratch source/scratch/blocks source/sdl include/nlohmann
 
-# WUHB
+# WHUB
 
 WHUB_TOOL        :=  /opt/devkitpro/tools/bin/wuhbtool
 
 WHUB_NAME        :=  Scratch WiiU
 WHUB_SHORT_NAME  :=  $(WHUB_NAME)
-WUHB_AUTHOR			 :=  NateXS and Grady Link
-
-# RomFS
-
-ROMFS	:=	romfs
-
-include $(PORTLIBS_PATH)/wiiu/share/romfs-wiiu.mk
-CFLAGS		+=	$(ROMFS_CFLAGS)
-CXXFLAGS	+=	$(ROMFS_CFLAGS)
-LIBS			+=	$(ROMFS_LIBS)
-OFILES		+=	$(ROMFS_TARGET)
+WHUB_AUTHOR			 :=  NateXS and Grady Link
 
 #-------------------------------------------------------------------------------
 # options for code generation
@@ -96,6 +86,19 @@ endif
 export SRCFILES	:=	$(CPPFILES) $(CFILES) $(SFILES)
 export OFILES		:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
+# RomFS
+
+ROMFS	:=	romfs
+
+include $(PORTLIBS_PATH)/wiiu/share/romfs-wiiu.mk
+
+CFLAGS		+=	$(ROMFS_CFLAGS)
+CXXFLAGS	+=	$(ROMFS_CFLAGS)
+LIBS			+=	$(ROMFS_LIBS)
+OFILES		+=	$(ROMFS_TARGET)
+
+
 
 .PHONY: $(BUILD) clean all
 

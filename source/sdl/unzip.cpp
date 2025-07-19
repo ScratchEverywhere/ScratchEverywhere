@@ -9,17 +9,23 @@ int Unzip::openFile(std::ifstream *file){
 
     // load Scratch project into memory
     std::cout<<"Loading SB3 into memory..."<<std::endl;
-    const char* filename = "project.sb3";
-    const char* unzippedPath = "project/project.json";
+    std::string filename = "project.sb3";
+    std::string unzippedPath = "project/project.json";
 
-    //first try embedded unzipped project
+#ifdef __WIIU__
+    file->open("romfs:/" + unzippedPath, std::ios::binary | std::ios::ate);
+#else
     file->open(unzippedPath, std::ios::binary | std::ios::ate);
+#endif
     projectType = UNZIPPED;
     if(!(*file)){
         std::cerr<<"No unzipped project, trying embedded."<<std::endl;
 
-        // try embedded zipped sb3
-        file->open(std::string(filename), std::ios::binary | std::ios::ate); // loads file from romfs
+#ifdef __WIIU__
+        file->open("romfs:/" + filename, std::ios::binary | std::ios::ate);
+#else
+        file->open(filename, std::ios::binary | std::ios::ate);
+#endif
         projectType = EMBEDDED;
         if (!(*file)){
             std::cerr<<"Couldnt find file. jinkies."<<std::endl;
