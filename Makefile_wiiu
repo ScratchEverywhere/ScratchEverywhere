@@ -109,12 +109,8 @@ clean:
 
 DEPENDS	:=	$(OFILES:.o=.d)
 
-$(OUTPUT).rpx: $(OUTPUT).elf
-		@echo "Linking executable..."
-		$(LD) $(LDFLAGS) $(addprefix $(BUILD)/,$(OFILES)) $(LIBS) $(LIBPATHS) -o $@
-
 $(OUTPUT).elf: $(addprefix $(BUILD)/,$(OFILES))
-		
+		$(LD) $(LDFLAGS) $(addprefix $(BUILD)/,$(OFILES)) $(LIBS) $(LIBPATHS) -o $@
 
 $(BUILD)/%.o: %.cpp
 		@echo "Compiling $< ..."
