@@ -1,7 +1,4 @@
-#-------------------------------------------------------------------------------
 .SUFFIXES:
-#-------------------------------------------------------------------------------
-
 ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
@@ -9,68 +6,50 @@ endif
 TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/wut/share/wut_rules
 
-PKGCONF          :=  /opt/devkitpro/portlibs/ppc/bin/powerpc-eabi-pkg-config
-PKGCONF_WIIU     :=  /opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
+PKGCONF				:=	/opt/devkitpro/portlibs/ppc/bin/powerpc-eabi-pkg-config
+PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
 
-#-------------------------------------------------------------------------------
-# TARGET is the name of the output
-# BUILD is the directory where object files & intermediate files will be placed
-# SOURCES is a list of directories containing source code
-# INCLUDES is a list of directories containing header files
-#-------------------------------------------------------------------------------
-TARGET		     :=	 scratch-runtime
-BUILD		     	 :=	 build/wiiu
-SOURCES		     :=	 source source/scratch source/scratch/blocks source/sdl include/miniz include/nlohmann
-INCLUDES	     :=	 include source/scratch source/scratch/blocks source/sdl include/nlohmann
+# Build Info
 
-# WHUB
+TARGET		:=	scratch-runtime
+BUILD			:=	build/wiiu
+SOURCES		:=	source source/scratch source/scratch/blocks source/sdl include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/sdl include/nlohmann
+
+# WHUB Info
 
 WHUB_TOOL        :=  /opt/devkitpro/tools/bin/wuhbtool
 
-WHUB_NAME        :=  Scratch Wii U
-WHUB_SHORT_NAME  :=  $(WHUB_NAME)
-WHUB_AUTHOR			 :=  NateXS and Grady Link
+WHUB_NAME				:=	Scratch Wii U
+WHUB_SHORT_NAME	:=	$(WHUB_NAME)
+WHUB_AUTHOR			:=	NateXS and Grady Link
 
-#-------------------------------------------------------------------------------
-# options for code generation
-#-------------------------------------------------------------------------------
-CFLAGS		:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections \
-			-ffast-math \
-			$(MACHDEP)
+# Flags
 
-export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
-                             $(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-                             -I$(CURDIR)/$(BUILD)
+CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP)
 
-CFLAGS		+=	$(INCLUDE) -D__WIIU__ -D__WUT__
-CFLAGS      +=  `$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
+export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
+CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__
+CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
 CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -D__PC__-fexceptions
 
-ASFLAGS		:=	-g $(MACHDEP)
-LDFLAGS		:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
+ASFLAGS	:=	-g $(MACHDEP)
+LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
-LIBS        :=  `$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2` \
-					`$(PKGCONF) --libs zlib libpng`
-LIBS        +=  -lharfbuzz -lfreetype
-#-------------------------------------------------------------------------------
-# list of directories containing libraries, this must be the top level
-# containing include and lib
-#-------------------------------------------------------------------------------
-LIBDIRS		:=	$(PORTLIBS) $(WUT_ROOT)
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2` `$(PKGCONF) --libs zlib libpng`
+LIBS	+=	-lharfbuzz -lfreetype
 
+LIBDIRS	:=	$(PORTLIBS) $(WUT_ROOT)
 
-#-------------------------------------------------------------------------------
-# no real need to edit anything past this point unless you need to add additional
-# rules for different file extensions
-#-------------------------------------------------------------------------------
+# Compiling
 
 export OUTPUT	:=	$(CURDIR)/$(BUILD)/$(TARGET)
 export TOPDIR	:=	$(CURDIR)
 
-export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
+export VPATH		:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir))
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
@@ -78,9 +57,9 @@ CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 
 ifeq ($(strip $(CPPFILES)),)
-    export LD	:=	$(CC)
+	export LD	:=	$(CC)
 else
-    export LD	:=	$(CXX)
+  export LD	:=	$(CXX)
 endif
 
 export SRCFILES	:=	$(CPPFILES) $(CFILES) $(SFILES)
@@ -98,24 +77,22 @@ CXXFLAGS	+=	$(ROMFS_CFLAGS)
 LIBS			+=	$(ROMFS_LIBS)
 OFILES		+=	$(ROMFS_TARGET)
 
-
-
 .PHONY: $(BUILD) clean all
 
 all: mkdir $(OUTPUT).rpx whub
 
 mkdir:
-		@mkdir -p $(BUILD)
+	@mkdir -p $(BUILD)
 
 whub:
-		@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).whub --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME) --author=$(WHUB_AUTHOR)
+	@$(WHUB_TOOL) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).whub --name=$(WHUB_NAME) --short-name=$(WHUB_SHORT_NAME) --author=$(WHUB_AUTHOR)
 
 test:
-		Cemu -g $(TARGET).rpx
+	Cemu -g $(TARGET).rpx
 
 clean:
-		@echo clean ...
-		@rm -rf $(BUILD) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).elf $(BUILD)/$(TARGET).wuhb $(BUILD)/*
+	@echo clean ...
+	@rm -rf $(BUILD) $(BUILD)/$(TARGET).rpx $(BUILD)/$(TARGET).elf $(BUILD)/$(TARGET).wuhb $(BUILD)/*
 
 #-------------------------------------------------------------------------------
 # Main compilation rules (These typically go at the bottom and are always active)
@@ -124,21 +101,21 @@ clean:
 DEPENDS	:=	$(OFILES:.o=.d)
 
 $(OUTPUT).elf: $(addprefix $(BUILD)/,$(OFILES))
-		$(LD) $(LDFLAGS) $(addprefix $(BUILD)/,$(OFILES)) $(LIBS) $(LIBPATHS) -o $@
+	$(LD) $(LDFLAGS) $(addprefix $(BUILD)/,$(OFILES)) $(LIBS) $(LIBPATHS) -o $@
 
 $(BUILD)/%.o: %.cpp
-		@echo "Compiling $< ..."
-		@mkdir -p $(@D)
-		@$(CXX) $(CXXFLAGS) -MMD -o $@ -c $<
+	@echo "Compiling $< ..."
+	@mkdir -p $(@D)
+	@$(CXX) $(CXXFLAGS) -MMD -o $@ -c $<
 
 $(BUILD)/%.o: %.c
-		@echo "Compiling $< ..."
-		@mkdir -p $(@D)
-		@$(CC) $(CFLAGS) -MMD -o $@ -c $<
+	@echo "Compiling $< ..."
+	@mkdir -p $(@D)
+	@$(CC) $(CFLAGS) -MMD -o $@ -c $<
 
 $(BUILD)/%.o: %.s
-		@echo "Assembling $< ..."
-		@mkdir -p $(@D)
-		@$(AS) $(ASFLAGS) -o $@ -c $<
+	@echo "Assembling $< ..."
+	@mkdir -p $(@D)
+	@$(AS) $(ASFLAGS) -o $@ -c $<
 
 -include $(DEPENDS)
