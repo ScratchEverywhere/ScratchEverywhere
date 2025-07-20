@@ -4,6 +4,10 @@
 #include <SDL2/SDL.h>
 #include <algorithm>
 
+#ifdef __WIIU__
+#include <nn/act.h>
+#endif
+
 Input::Mouse Input::mousePointer;
 
 std::vector<std::string> Input::inputButtons;
@@ -152,5 +156,10 @@ void Input::getInput() {
 }
 
 std::string Input::getUsername() {
+#ifdef __WIIU__
+    int16_t miiName[256];
+    nn::act::GetMiiName(miiName);
+    return std::string(miiName, miiName + sizeof(miiName) / sizeof(miiName[0]));
+#endif
     return "Player";
 }

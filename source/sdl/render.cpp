@@ -3,6 +3,7 @@
 #include "render.hpp"
 
 #ifdef __WIIU__
+#include <nn/act.h>
 #include <romfs-wiiu.h>
 #include <whb/sdcard.h>
 #endif
@@ -20,6 +21,7 @@ void Render::Init() {
 #ifdef __WIIU__
     romfsInit();      // TODO: Error handling
     WHBMountSdCard(); // TODO: Error handling
+    nn::act::Initialize();
 #endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
@@ -38,6 +40,7 @@ void Render::deInit() {
 #ifdef __WIIU__
     romfsExit();
     WHBUnmountSdCard();
+    nn::act::Finalize();
 #endif
 }
 void Render::renderSprites() {
