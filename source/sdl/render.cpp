@@ -3,6 +3,7 @@
 #include "render.hpp"
 
 #ifdef __WIIU__
+#include <coreinit/debug.h>
 #include <nn/act.h>
 #include <romfs-wiiu.h>
 #include <whb/sdcard.h>
@@ -26,7 +27,7 @@ int Render::Init() {
     }
     if (!WHBMountSdCard()) {
         OSReportFatal("Failed to mount sd card.");
-        return -1
+        return -1;
     }
     nn::act::Initialize();
 #endif
