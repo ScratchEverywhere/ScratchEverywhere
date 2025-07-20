@@ -22,11 +22,11 @@ int Render::Init() {
 #ifdef __WIIU__
     int err = romfsInit();
     if (err) {
-        OSReportFatal("Failed to init romfs.");
+        OSFatal("Failed to init romfs.");
         return err;
     }
     if (!WHBMountSdCard()) {
-        OSReportFatal("Failed to mount sd card.");
+        OSFatal("Failed to mount sd card.");
         return -1;
     }
     nn::act::Initialize();
