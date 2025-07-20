@@ -14,6 +14,8 @@ std::vector<std::string> Input::inputButtons;
 static int keyHeldFrames = 0;
 
 extern SDL_GameController *controller;
+extern bool touchActive;
+extern SDL_Point touchPosition;
 
 #define CONTROLLER_DEADZONE_X 10000
 #define CONTROLLER_DEADZONE_Y 18000
@@ -144,6 +146,13 @@ void Input::getInput() {
         if (keyHeldFrames == 1 || keyHeldFrames > 13)
             BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHEN_KEY_PRESSED);
     } else keyHeldFrames = 0;
+
+    if (SDL_GetNumTouchDevices() > 0) {
+        mousePointer.x = touchPosition.x - windowWidth / 2;
+        mousePointer.y = windowHeight / 2 - touchPosition.y;
+        mousePointer.isPressed = touchActive;
+        return;
+    }
 
     SDL_GetMouseState(&mousePointer.x, &mousePointer.y);
     mousePointer.x -= windowWidth / 2;

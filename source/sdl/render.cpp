@@ -16,7 +16,10 @@ SDL_Renderer *renderer = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 
+// TODO: properly export these to input.cpp
 SDL_GameController *controller;
+bool touchActive = false;
+SDL_Point touchPosition;
 
 int Render::Init() {
 #ifdef __WIIU__
@@ -139,10 +142,26 @@ void Render::renderSprites() {
 bool Render::appShouldRun() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
+        switch (event.type) {
+        case SDL_QUIT:
             return false;
+            break;
+        case SDL_CONTROLLERDEVICEADDED:
+            controller = SDL_GameControllerOpen(0);
+            break;
+        case SDL_FINGERDOWN:
+            touchActive = true;
+            touchPosition = {event.tfinger.x * windowWidth,
+                             event.tfinger.y * windowHeight};
+            break;
+        case SDL_FINGERMOTION:
+            touchPosition = {event.tfinger.x * windowWidth,
+                             event.tfinger.y * windowHeight};
+            break;
+        case SDL_FINGERUP:
+            touchActive = false;
+            break;
         }
-        if (event.type == SDL_CONTROLLERDEVICEADDED) controller = SDL_GameControllerOpen(0);
     }
     return true;
 }
