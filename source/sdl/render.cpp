@@ -71,8 +71,8 @@ void Render::renderSprites() {
             SDL_RendererFlip flip = SDL_FLIP_NONE;
 
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
-            currentSprite->spriteWidth = image->renderRect.w;
-            currentSprite->spriteHeight = image->renderRect.h;
+            currentSprite->spriteWidth = image->textureRect.w / 2;
+            currentSprite->spriteHeight = image->textureRect.h / 2;
             image->renderRect.x = currentSprite->xPosition;
             image->renderRect.y = currentSprite->yPosition;
             image->setRotation(Math::degreesToRadians(currentSprite->rotation - 90.0f));
@@ -134,7 +134,10 @@ bool Render::appShouldRun() {
     return true;
 }
 
-// i dont think we need these tbh
+// TODO create functionality for these in the SDL version.
+// Would probably need to share more code between the two
+// versions first (eg; text renderer for SDL version)
+
 void LoadingScreen::init() {
 }
 void LoadingScreen::renderLoadingScreen() {

@@ -1,4 +1,5 @@
 #include "../scratch/input.hpp"
+#include "../scratch/blockExecutor.hpp"
 #include "render.hpp"
 #include <SDL2/SDL.h>
 #include <algorithm>
@@ -6,6 +7,7 @@
 Input::Mouse Input::mousePointer;
 
 std::vector<std::string> Input::inputButtons;
+static int keyHeldFrames = 0;
 
 extern SDL_GameController *controller;
 
@@ -133,8 +135,11 @@ void Input::getInput() {
     }
 
     if (anyKeyPressed) {
+        keyHeldFrames++;
         inputButtons.push_back("any");
-    }
+        if (keyHeldFrames == 1 || keyHeldFrames > 13)
+            BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHEN_KEY_PRESSED);
+    } else keyHeldFrames = 0;
 
     SDL_GetMouseState(&mousePointer.x, &mousePointer.y);
     mousePointer.x -= windowWidth / 2;

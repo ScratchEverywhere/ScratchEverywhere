@@ -1,29 +1,30 @@
 #pragma once
-#include <vector>
 #include <cmath>
+#include <vector>
 
-class Render{
-public:
-    
+class Render {
+  public:
     static void Init();
+
     static void deInit();
+
     static void renderSprites();
+
     static bool appShouldRun();
 
-    enum RenderModes{
+    enum RenderModes {
         TOP_SCREEN_ONLY,
         BOTTOM_SCREEN_ONLY,
         BOTH_SCREENS
     };
 
     static RenderModes renderMode;
-
 };
 
-class LoadingScreen{
-private:
-    struct squareObject{
-        float x,y;
+class LoadingScreen {
+  private:
+    struct squareObject {
+        float x, y;
         float size;
     };
     std::vector<squareObject> squares;
@@ -36,18 +37,17 @@ private:
             squares.push_back(square);
         }
     }
-public:
-    //TextObject* text;
+
+  public:
+    // TextObject* text;
     void init();
     void renderLoadingScreen();
     void cleanup();
 };
 
-class MainMenu{
-private:
-
-public:
-
+class MainMenu {
+  private:
+  public:
     int cameraX;
     int cameraY;
     bool hasProjects;
@@ -57,7 +57,7 @@ public:
     void render();
     void cleanup();
 
-    MainMenu(){
+    MainMenu() {
         init();
     }
 };

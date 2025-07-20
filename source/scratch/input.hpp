@@ -1,10 +1,10 @@
 #pragma once
-#include <vector>
 #include <string>
+#include <vector>
 
-class Input{
-public:
-    struct Mouse{
+class Input {
+  public:
+    struct Mouse {
         int x;
         int y;
         bool isPressed;
@@ -12,9 +12,7 @@ public:
     };
     static Mouse mousePointer;
 
-
     static std::vector<std::string> inputButtons;
     static void getInput();
     static std::string getUsername();
-
 };

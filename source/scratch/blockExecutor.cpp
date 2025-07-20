@@ -1,22 +1,22 @@
 #include "blockExecutor.hpp"
-#include "blocks/motion.hpp"
-#include "blocks/events.hpp"
-#include "blocks/looks.hpp"
 #include "blocks/control.hpp"
 #include "blocks/data.hpp"
-#include "blocks/sensing.hpp"
+#include "blocks/events.hpp"
+#include "blocks/looks.hpp"
+#include "blocks/motion.hpp"
 #include "blocks/operator.hpp"
 #include "blocks/procedure.hpp"
+#include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
 
 size_t blocksRun = 0;
 std::chrono::_V2::system_clock::time_point BlockExecutor::timer;
 
-BlockExecutor::BlockExecutor(){
+BlockExecutor::BlockExecutor() {
     registerHandlers();
 }
 
-void BlockExecutor::registerHandlers(){
+void BlockExecutor::registerHandlers() {
 
     // motion
     handlers[Block::MOTION_MOVE_STEPS] = MotionBlocks::moveSteps;
@@ -37,7 +37,7 @@ void BlockExecutor::registerHandlers(){
     valueHandlers[Block::MOTION_XPOSITION] = MotionBlocks::xPosition;
     valueHandlers[Block::MOTION_YPOSITION] = MotionBlocks::yPosition;
     valueHandlers[Block::MOTION_DIRECTION] = MotionBlocks::direction;
-    
+
     // looks
     handlers[Block::LOOKS_SHOW] = LooksBlocks::show;
     handlers[Block::LOOKS_HIDE] = LooksBlocks::hide;
@@ -57,7 +57,7 @@ void BlockExecutor::registerHandlers(){
     valueHandlers[Block::LOOKS_BACKDROPS] = LooksBlocks::backdrops;
     valueHandlers[Block::LOOKS_COSTUMENUMBERNAME] = LooksBlocks::costumeNumberName;
     valueHandlers[Block::LOOKS_BACKDROPNUMBERNAME] = LooksBlocks::backdropNumberName;
-    
+
     // sound
     valueHandlers[Block::SOUND_VOLUME] = SoundBlocks::volume;
 
@@ -66,7 +66,6 @@ void BlockExecutor::registerHandlers(){
     handlers[Block::EVENT_BROADCAST] = EventBlocks::broadcast;
     handlers[Block::EVENT_BROADCASTANDWAIT] = EventBlocks::broadcastAndWait;
     handlers[Block::EVENT_WHEN_KEY_PRESSED] = EventBlocks::whenKeyPressed;
-
 
     // control
     handlers[Block::CONTROL_IF] = ControlBlocks::If;
@@ -114,7 +113,6 @@ void BlockExecutor::registerHandlers(){
     valueHandlers[Block::DATA_LENGTHOFLIST] = DataBlocks::lengthOfList;
     valueHandlers[Block::DATA_LIST_CONTAINS_ITEM] = DataBlocks::listContainsItem;
 
-
     // sensing
     handlers[Block::SENSING_RESETTIMER] = SensingBlocks::resetTimer;
     handlers[Block::SENSING_ASK_AND_WAIT] = SensingBlocks::askAndWait;
@@ -137,18 +135,17 @@ void BlockExecutor::registerHandlers(){
     handlers[Block::PROCEDURES_DEFINITION] = ProcedureBlocks::definition;
     valueHandlers[Block::ARGUMENT_REPORTER_STRING_NUMBER] = ProcedureBlocks::stringNumber;
     valueHandlers[Block::ARGUMENT_REPORTER_BOOLEAN] = ProcedureBlocks::booleanArgument;
-
 }
 
-void BlockExecutor::runBlock(Block& block, Sprite* sprite, Block* waitingBlock, bool* withoutScreenRefresh){
+void BlockExecutor::runBlock(Block &block, Sprite *sprite, Block *waitingBlock, bool *withoutScreenRefresh) {
     auto start = std::chrono::high_resolution_clock::now();
-    Block* currentBlock = &block;
+    Block *currentBlock = &block;
 
     bool localWithoutRefresh = false;
     if (!withoutScreenRefresh) {
         withoutScreenRefresh = &localWithoutRefresh;
     }
-    
+
     if (!sprite || sprite->toDelete) {
         return;
     }
@@ -157,7 +154,7 @@ void BlockExecutor::runBlock(Block& block, Sprite* sprite, Block* waitingBlock, 
         blocksRun += 1;
 
         BlockResult result = executeBlock(*currentBlock, sprite, &waitingBlock, withoutScreenRefresh);
-        
+
         if (result == BlockResult::RETURN) {
             return;
         } else if (result == BlockResult::BREAK) {
@@ -167,24 +164,22 @@ void BlockExecutor::runBlock(Block& block, Sprite* sprite, Block* waitingBlock, 
         // Move to next block
         if (!currentBlock->next.empty()) {
             currentBlock = &sprite->blocks[currentBlock->next];
-            
+
         } else {
             runBroadcasts();
-                break;
+            break;
         }
     }
 
-
-        // Timing measurement
+    // Timing measurement
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = end - start;
     if (duration.count() > 0) {
-        //std::cout << " took " << duration.count() << " milliseconds!" << std::endl;
+        // std::cout << " took " << duration.count() << " milliseconds!" << std::endl;
     }
 }
 
-
-BlockResult BlockExecutor::executeBlock(Block& block, Sprite* sprite,Block** waitingBlock, bool* withoutScreenRefresh){
+BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
     auto iterator = handlers.find(block.opcode);
     if (iterator != handlers.end()) {
         return iterator->second(block, sprite, waitingBlock, withoutScreenRefresh);
@@ -193,117 +188,113 @@ BlockResult BlockExecutor::executeBlock(Block& block, Sprite* sprite,Block** wai
     return BlockResult::CONTINUE;
 }
 
-void BlockExecutor::runRepeatBlocks(){
+void BlockExecutor::runRepeatBlocks() {
     blocksRun = 0;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
-    for(auto& sprite : sprites){
-        for(auto& [id, blockChain]: sprite->blockChains){
-        auto& repeatList = blockChain.blocksToRepeat;
+    for (auto &sprite : sprites) {
+        for (auto &[id, blockChain] : sprite->blockChains) {
+            auto &repeatList = blockChain.blocksToRepeat;
             if (!repeatList.empty()) {
                 std::string toRepeat = repeatList.back();
-                if(!toRepeat.empty()){
-                Block* toRun = &sprite->blocks[toRepeat];
-                if(toRun != nullptr){
-                executor.runBlock(*toRun, sprite);
+                if (!toRepeat.empty()) {
+                    Block *toRun = &sprite->blocks[toRepeat];
+                    if (toRun != nullptr) {
+                        executor.runBlock(*toRun, sprite);
+                    }
                 }
-                }
-            } 
+            }
         }
     }
     // delete sprites ready for deletion
 
-    for(auto& toDelete : sprites){
-        if(!toDelete->toDelete) continue;
-        for(auto& [id,block] : toDelete->blocks){
-        for (std::string repeatID : toDelete->blockChains[block.blockChainID].blocksToRepeat) {
-            Block* repeatBlock = findBlock(repeatID);
-            if (repeatBlock) {
-                repeatBlock->repeatTimes = -1;
-            }
-        }
-    }
-    toDelete->isDeleted = true;
-    }
-    //std::cout << "\x1b[19;1HBlocks Running: " << blocksRun << std::endl;
-    sprites.erase(std::remove_if(sprites.begin(), sprites.end(), [](Sprite* s) { return s->toDelete; }), sprites.end());
-
-}
-
-void BlockExecutor::runRepeatsWithoutRefresh(Sprite* sprite,std::string blockChainID){
-    if(sprite->blockChains.find(blockChainID) != sprite->blockChains.end()){
-        while(!sprite->blockChains[blockChainID].blocksToRepeat.empty()){
-            std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
-            Block* toRun = findBlock(toRepeat);
-            if(toRun != nullptr)
-            executor.runBlock(*toRun, sprite);
-                
-        }
-    }    
-}
-
-void BlockExecutor::runCustomBlock(Sprite* sprite,Block& block, Block* callerBlock,bool* withoutScreenRefresh){
-    for(auto &[id, data] : sprite->customBlocks){
-        if(id == block.mutation.at("proccode").get<std::string>()){
-            // Set up argument values
-            for(std::string arg : data.argumentIds){
-                if(block.parsedInputs.find(arg) != block.parsedInputs.end()){
-                    data.argumentValues[arg] = Scratch::getInputValue(block, arg,sprite);
+    for (auto &toDelete : sprites) {
+        if (!toDelete->toDelete) continue;
+        for (auto &[id, block] : toDelete->blocks) {
+            for (std::string repeatID : toDelete->blockChains[block.blockChainID].blocksToRepeat) {
+                Block *repeatBlock = findBlock(repeatID);
+                if (repeatBlock) {
+                    repeatBlock->repeatTimes = -1;
                 }
             }
-            
-            //std::cout << "running custom block " << data.blockId << std::endl;
-            
+        }
+        toDelete->isDeleted = true;
+    }
+    // std::cout << "\x1b[19;1HBlocks Running: " << blocksRun << std::endl;
+    sprites.erase(std::remove_if(sprites.begin(), sprites.end(), [](Sprite *s) { return s->toDelete; }), sprites.end());
+}
+
+void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
+    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
+        while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
+            std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
+            Block *toRun = findBlock(toRepeat);
+            if (toRun != nullptr)
+                executor.runBlock(*toRun, sprite);
+        }
+    }
+}
+
+void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
+    for (auto &[id, data] : sprite->customBlocks) {
+        if (id == block.mutation.at("proccode").get<std::string>()) {
+            // Set up argument values
+            for (std::string arg : data.argumentIds) {
+                if (block.parsedInputs.find(arg) != block.parsedInputs.end()) {
+                    data.argumentValues[arg] = Scratch::getInputValue(block, arg, sprite);
+                }
+            }
+
+            // std::cout << "running custom block " << data.blockId << std::endl;
+
             // Get the parent of the prototype block (the definition containing all blocks)
-            Block* customBlockDefinition = &sprite->blocks[sprite->blocks[data.blockId].parent];
-            
+            Block *customBlockDefinition = &sprite->blocks[sprite->blocks[data.blockId].parent];
+
             callerBlock->customBlockPtr = customBlockDefinition;
 
             bool localWithoutRefresh = data.runWithoutScreenRefresh;
 
-            
             // If the parent chain is running without refresh, force this one to also run without refresh
-            if(!localWithoutRefresh && withoutScreenRefresh != nullptr) {
+            if (!localWithoutRefresh && withoutScreenRefresh != nullptr) {
                 localWithoutRefresh = *withoutScreenRefresh;
             }
-            
-            //std::cout << "RWSR = " << localWithoutRefresh << std::endl;
-            
+
+            // std::cout << "RWSR = " << localWithoutRefresh << std::endl;
+
             // Execute the custom block definition
             executor.runBlock(*customBlockDefinition, sprite, nullptr, &localWithoutRefresh);
 
-            if(localWithoutRefresh){
-                BlockExecutor::runRepeatsWithoutRefresh(sprite,customBlockDefinition->blockChainID);
+            if (localWithoutRefresh) {
+                BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
             }
-            
+
             break;
         }
     }
 }
 
-std::vector<std::pair<Block*, Sprite*>> BlockExecutor::runBroadcasts() {
+std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
 
-std::vector<std::pair<Block*, Sprite*>> blocksToRun;
+    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     if (broadcastQueue.empty()) {
         return blocksToRun;
     }
-    
+
     std::string currentBroadcast = broadcastQueue.front();
     broadcastQueue.erase(broadcastQueue.begin());
-    
 
-    for (auto* currentSprite : sprites) {
-        for (auto& [id, block] : currentSprite->blocks) {
-            if (block.opcode == block.EVENT_WHENBROADCASTRECEIVED && 
+    for (auto *currentSprite : sprites) {
+        for (auto &[id, block] : currentSprite->blocks) {
+            if (block.opcode == block.EVENT_WHENBROADCASTRECEIVED &&
                 block.fields["BROADCAST_OPTION"][0] == currentBroadcast) {
                 blocksToRun.push_back({&block, currentSprite});
             }
         }
     }
 
-    for (auto& [blockPtr, spritePtr] : blocksToRun) {
-        //std::cout << "Running broadcast block " << blockPtr->id << std::endl;
+    for (auto &[blockPtr, spritePtr] : blocksToRun) {
+        // std::cout << "Running broadcast block " << blockPtr->id << std::endl;
         executor.runBlock(*blockPtr, spritePtr);
     }
 
@@ -313,22 +304,22 @@ std::vector<std::pair<Block*, Sprite*>> blocksToRun;
     return blocksToRun;
 }
 
-std::vector<Block*> BlockExecutor::runAllBlocksByOpcode(Block::opCode opcodeToFind){
-    //std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
-    std::vector<Block*> blocksRun;
-    for(Sprite *currentSprite : sprites){
-        for(auto &[id,data] : currentSprite->blocks){
-            if(data.opcode == opcodeToFind){
-                //runBlock(data,currentSprite);
+std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(Block::opCode opcodeToFind) {
+    // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
+    std::vector<Block *> blocksRun;
+    for (Sprite *currentSprite : sprites) {
+        for (auto &[id, data] : currentSprite->blocks) {
+            if (data.opcode == opcodeToFind) {
+                // runBlock(data,currentSprite);
                 blocksRun.push_back(&data);
-                executor.runBlock(data,currentSprite);
+                executor.runBlock(data, currentSprite);
             }
         }
     }
     return blocksRun;
 }
 
-Value BlockExecutor::getBlockValue(Block& block,Sprite*sprite){
+Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
     auto iterator = valueHandlers.find(block.opcode);
     if (iterator != valueHandlers.end()) {
         return iterator->second(block, sprite);
@@ -337,17 +328,16 @@ Value BlockExecutor::getBlockValue(Block& block,Sprite*sprite){
     return Value(0);
 }
 
-
-void BlockExecutor::setVariableValue(const std::string& variableId, const Value& newValue, Sprite* sprite) {
+void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
     // Set sprite variable
     auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
         it->second.value = newValue;
         return;
     }
-    
+
     // Set global variable
-    for (auto& currentSprite : sprites) {
+    for (auto &currentSprite : sprites) {
         if (currentSprite->isStage) {
             auto globalIt = currentSprite->variables.find(variableId);
             if (globalIt != currentSprite->variables.end()) {
@@ -358,27 +348,27 @@ void BlockExecutor::setVariableValue(const std::string& variableId, const Value&
     }
 }
 
-Value BlockExecutor::getVariableValue(std::string variableId, Sprite* sprite) {
+Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     // Check sprite variables
     auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
-        return it->second.value;  // Fast conversion
+        return it->second.value; // Fast conversion
     }
-    
+
     // Check lists
     auto listIt = sprite->lists.find(variableId);
     if (listIt != sprite->lists.end()) {
         std::string result;
-        for (const auto& item : listIt->second.items) {
+        for (const auto &item : listIt->second.items) {
             result += item.asString() + " ";
         }
         if (!result.empty()) result.pop_back();
         Value val(result);
         return val;
     }
-    
+
     // Check global variables
-    for (const auto& currentSprite : sprites) {
+    for (const auto &currentSprite : sprites) {
         if (currentSprite->isStage) {
             auto globalIt = currentSprite->variables.find(variableId);
             if (globalIt != currentSprite->variables.end()) {
@@ -386,15 +376,15 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite* sprite) {
             }
         }
     }
-    
+
     return Value(0);
 }
 
-Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite* sprite, Block block) {
-    for (auto& [custId, custBlock] : sprite->customBlocks) {
+Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, Block block) {
+    for (auto &[custId, custBlock] : sprite->customBlocks) {
 
         auto it = std::find(custBlock.argumentNames.begin(), custBlock.argumentNames.end(), valueName);
-        
+
         if (it != custBlock.argumentNames.end()) {
             size_t index = std::distance(custBlock.argumentNames.begin(), it);
 
@@ -403,29 +393,29 @@ Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite* sprite, 
 
                 auto valueIt = custBlock.argumentValues.find(argumentId);
                 if (valueIt != custBlock.argumentValues.end()) {
-                   //std::cout << "FOUND that shit BAAANG: " << valueIt->second.asString() << std::endl;
+                    // std::cout << "FOUND that shit BAAANG: " << valueIt->second.asString() << std::endl;
                     return valueIt->second;
                 } else {
-                   std::cout << "Argument ID found, but no value exists for it." << std::endl;
+                    std::cout << "Argument ID found, but no value exists for it." << std::endl;
                 }
             } else {
-              std::cout << "Index out of bounds for argumentIds!" << std::endl;
+                std::cout << "Index out of bounds for argumentIds!" << std::endl;
             }
         }
     }
     return Value();
 }
 
-void BlockExecutor::addToRepeatQueue(Sprite* sprite,Block* block){
-            auto& repeatList = sprite->blockChains[block->blockChainID].blocksToRepeat;
-            if (std::find(repeatList.begin(), repeatList.end(), block->id) == repeatList.end()) {
-                repeatList.push_back(block->id);
-            }
+void BlockExecutor::addToRepeatQueue(Sprite *sprite, Block *block) {
+    auto &repeatList = sprite->blockChains[block->blockChainID].blocksToRepeat;
+    if (std::find(repeatList.begin(), repeatList.end(), block->id) == repeatList.end()) {
+        repeatList.push_back(block->id);
+    }
 }
 
-bool BlockExecutor::hasActiveRepeats(Sprite* sprite,std::string blockChainID){
-    if(sprite->blockChains.find(blockChainID) != sprite->blockChains.end()){
-        if(!sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
+bool BlockExecutor::hasActiveRepeats(Sprite *sprite, std::string blockChainID) {
+    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
+        if (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
     }
     return false;
 }

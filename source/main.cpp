@@ -42,10 +42,10 @@ int main(int argc, char **argv) {
 
             MainMenu menu;
             bool isLoaded = false;
-            while (Render::appShouldRun() && !isLoaded) {
+            while (!isLoaded) {
 
                 menu.render();
-                if (!menu.hasProjects && menu.shouldExit) {
+                if ((!menu.hasProjects && menu.shouldExit) || !Render::appShouldRun()) {
                     exitApp();
                     return 0;
                 }

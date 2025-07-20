@@ -3,5 +3,5 @@
 
 extern int windowWidth;
 extern int windowHeight;
-extern SDL_Window* window;
-extern SDL_Renderer* renderer;
+extern SDL_Window *window;
+extern SDL_Renderer *renderer;

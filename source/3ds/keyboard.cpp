@@ -8,7 +8,7 @@ static SwkbdLearningData swkbdLearning;
 static SwkbdButton button = SWKBD_BUTTON_NONE;
 static bool didit = false;
 
-std::string Keyboard::openKeyboard(const char* hintText){
+std::string Keyboard::openKeyboard(const char *hintText) {
 
     didit = true;
     swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);
@@ -23,11 +23,10 @@ std::string Keyboard::openKeyboard(const char* hintText){
     reload = true;
     button = swkbdInputText(&swkbd, mybuf, sizeof(mybuf));
 
-    if (button != SWKBD_BUTTON_NONE){
+    if (button != SWKBD_BUTTON_NONE) {
         std::string result = mybuf;
         return result;
     }
 
     return "";
-
 }
