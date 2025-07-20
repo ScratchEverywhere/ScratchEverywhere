@@ -88,7 +88,7 @@ mkdir:
 	@mkdir -p $(BUILD)
 
 wuhb:
-	@$(WUHB_TOOL) $(OUTPUT).rpx $(OUTPUT).wuhb --name=$(WUHB_NAME) --short-name=$(WUHB_SHORT_NAME) --author=$(WUHB_AUTHOR) --icon=$(WUHB_ICON) --tv-image=$(WUHB_TV_SPLASH) --drc-image=$(WUHB_DRC_SPLASH)
+	@$(WUHB_TOOL) $(OUTPUT).rpx $(OUTPUT).wuhb --name="$(WUHB_NAME)" --short-name="$(WUHB_SHORT_NAME)" --author="$(WUHB_AUTHOR)" --icon="$(WUHB_ICON)" --tv-image="$(WUHB_TV_SPLASH)" --drc-image="$(WUHB_DRC_SPLASH)"
 
 test:
 	cemu -g $(OUTPUT).rpx
