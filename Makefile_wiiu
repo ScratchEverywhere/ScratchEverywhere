@@ -42,7 +42,7 @@ CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__
 CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
-CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -D__PC__-fexceptions
+CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
 
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
