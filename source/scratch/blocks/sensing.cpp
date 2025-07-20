@@ -186,33 +186,40 @@ Value SensingBlocks::touchingObject(Block& block, Sprite* sprite){
         return Value(false);
     }
 
-    for (Sprite* targetSprite : sprites) {
-        if (targetSprite->name == objectName && targetSprite->visible) {
-            // Get collision points of the target sprite
-            std::vector<std::pair<double, double>> targetSpritePoints = getCollisionPoints(targetSprite);
-
-            // Check if any point of the current sprite is inside the target sprite's bounds
-            for (const auto& point : currentSpritePoints) {
-                if (point.first >= targetSprite->xPosition - targetSprite->spriteWidth / 2 &&
-                    point.first <= targetSprite->xPosition + targetSprite->spriteWidth / 2 &&
-                    point.second >= targetSprite->yPosition - targetSprite->spriteHeight / 2 &&
-                    point.second <= targetSprite->yPosition + targetSprite->spriteHeight / 2) {
-                    return Value(true);
-                }
+for (Sprite* targetSprite : sprites) {
+    if (targetSprite->name == objectName && targetSprite->visible) {
+        
+        // get scale into account
+        double targetScaledWidth = (targetSprite->spriteWidth * targetSprite->size * 0.01);
+        double targetScaledHeight = (targetSprite->spriteHeight * targetSprite->size * 0.01);
+        double currentScaledWidth = (sprite->spriteWidth * sprite->size * 0.01);
+        double currentScaledHeight = (sprite->spriteHeight * sprite->size * 0.01);
+        
+        // Get collision points of the target sprite
+        std::vector<std::pair<double, double>> targetSpritePoints = getCollisionPoints(targetSprite);
+        
+        // Check if any point of the current sprite is inside the target sprite's bounds
+        for (const auto& point : currentSpritePoints) {
+            if (point.first >= targetSprite->xPosition - targetScaledWidth / 2 &&
+                point.first <= targetSprite->xPosition + targetScaledWidth / 2 &&
+                point.second >= targetSprite->yPosition - targetScaledHeight / 2 &&
+                point.second <= targetSprite->yPosition + targetScaledHeight / 2) {
+                return Value(true);
             }
-
-            // Check if any point of the target sprite is inside the current sprite's bounds
-            for (const auto& point : targetSpritePoints) {
-                if (point.first >= sprite->xPosition - sprite->spriteWidth / 2 &&
-                    point.first <= sprite->xPosition + sprite->spriteWidth / 2 &&
-                    point.second >= sprite->yPosition - sprite->spriteHeight / 2 &&
-                    point.second <= sprite->yPosition + sprite->spriteHeight / 2) {
-                    return Value(true);
-                }
+        }
+        
+        // Check if any point of the target sprite is inside the current sprite's bounds
+        for (const auto& point : targetSpritePoints) {
+            if (point.first >= sprite->xPosition - currentScaledWidth / 2 &&
+                point.first <= sprite->xPosition + currentScaledWidth / 2 &&
+                point.second >= sprite->yPosition - currentScaledHeight / 2 &&
+                point.second <= sprite->yPosition + currentScaledHeight / 2) {
+                return Value(true);
             }
         }
     }
-    return Value(false);
+}
+return Value(false);
 }
 
 Value SensingBlocks::mouseDown(Block& block, Sprite* sprite){

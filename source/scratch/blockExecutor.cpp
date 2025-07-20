@@ -242,6 +242,45 @@ void BlockExecutor::runRepeatsWithoutRefresh(Sprite* sprite,std::string blockCha
     }    
 }
 
+void BlockExecutor::runCustomBlock(Sprite* sprite,Block& block, Block* callerBlock,bool* withoutScreenRefresh){
+    for(auto &[id, data] : sprite->customBlocks){
+        if(id == block.mutation.at("proccode").get<std::string>()){
+            // Set up argument values
+            for(std::string arg : data.argumentIds){
+                if(block.parsedInputs.find(arg) != block.parsedInputs.end()){
+                    data.argumentValues[arg] = Scratch::getInputValue(block, arg,sprite);
+                }
+            }
+            
+            //std::cout << "running custom block " << data.blockId << std::endl;
+            
+            // Get the parent of the prototype block (the definition containing all blocks)
+            Block* customBlockDefinition = &sprite->blocks[sprite->blocks[data.blockId].parent];
+            
+            callerBlock->customBlockPtr = customBlockDefinition;
+
+            bool localWithoutRefresh = data.runWithoutScreenRefresh;
+
+            
+            // If the parent chain is running without refresh, force this one to also run without refresh
+            if(!localWithoutRefresh && withoutScreenRefresh != nullptr) {
+                localWithoutRefresh = *withoutScreenRefresh;
+            }
+            
+            //std::cout << "RWSR = " << localWithoutRefresh << std::endl;
+            
+            // Execute the custom block definition
+            executor.runBlock(*customBlockDefinition, sprite, nullptr, &localWithoutRefresh);
+
+            if(localWithoutRefresh){
+                BlockExecutor::runRepeatsWithoutRefresh(sprite,customBlockDefinition->blockChainID);
+            }
+            
+            break;
+        }
+    }
+}
+
 std::vector<std::pair<Block*, Sprite*>> BlockExecutor::runBroadcasts() {
 
 std::vector<std::pair<Block*, Sprite*>> blocksToRun;
@@ -298,6 +337,84 @@ Value BlockExecutor::getBlockValue(Block& block,Sprite*sprite){
     return Value(0);
 }
 
+
+void BlockExecutor::setVariableValue(const std::string& variableId, const Value& newValue, Sprite* sprite) {
+    // Set sprite variable
+    auto it = sprite->variables.find(variableId);
+    if (it != sprite->variables.end()) {
+        it->second.value = newValue;
+        return;
+    }
+    
+    // Set global variable
+    for (auto& currentSprite : sprites) {
+        if (currentSprite->isStage) {
+            auto globalIt = currentSprite->variables.find(variableId);
+            if (globalIt != currentSprite->variables.end()) {
+                globalIt->second.value = newValue;
+                return;
+            }
+        }
+    }
+}
+
+Value BlockExecutor::getVariableValue(std::string variableId, Sprite* sprite) {
+    // Check sprite variables
+    auto it = sprite->variables.find(variableId);
+    if (it != sprite->variables.end()) {
+        return it->second.value;  // Fast conversion
+    }
+    
+    // Check lists
+    auto listIt = sprite->lists.find(variableId);
+    if (listIt != sprite->lists.end()) {
+        std::string result;
+        for (const auto& item : listIt->second.items) {
+            result += item.asString() + " ";
+        }
+        if (!result.empty()) result.pop_back();
+        Value val(result);
+        return val;
+    }
+    
+    // Check global variables
+    for (const auto& currentSprite : sprites) {
+        if (currentSprite->isStage) {
+            auto globalIt = currentSprite->variables.find(variableId);
+            if (globalIt != currentSprite->variables.end()) {
+                return globalIt->second.value;
+            }
+        }
+    }
+    
+    return Value(0);
+}
+
+Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite* sprite, Block block) {
+    for (auto& [custId, custBlock] : sprite->customBlocks) {
+
+        auto it = std::find(custBlock.argumentNames.begin(), custBlock.argumentNames.end(), valueName);
+        
+        if (it != custBlock.argumentNames.end()) {
+            size_t index = std::distance(custBlock.argumentNames.begin(), it);
+
+            if (index < custBlock.argumentIds.size()) {
+                std::string argumentId = custBlock.argumentIds[index];
+
+                auto valueIt = custBlock.argumentValues.find(argumentId);
+                if (valueIt != custBlock.argumentValues.end()) {
+                   //std::cout << "FOUND that shit BAAANG: " << valueIt->second.asString() << std::endl;
+                    return valueIt->second;
+                } else {
+                   std::cout << "Argument ID found, but no value exists for it." << std::endl;
+                }
+            } else {
+              std::cout << "Index out of bounds for argumentIds!" << std::endl;
+            }
+        }
+    }
+    return Value();
+}
 
 void BlockExecutor::addToRepeatQueue(Sprite* sprite,Block* block){
             auto& repeatList = sprite->blockChains[block->blockChainID].blocksToRepeat;

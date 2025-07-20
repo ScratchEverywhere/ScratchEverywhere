@@ -3,20 +3,20 @@
 BlockResult DataBlocks::setVariable(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
     Value val = Scratch::getInputValue(block,"VALUE",sprite);
     std::string varId = block.fields.at("VARIABLE")[1];
-    setVariableValue(varId, val, sprite);
+    BlockExecutor::setVariableValue(varId, val, sprite);
     return BlockResult::CONTINUE;
 }
 
 BlockResult DataBlocks::changeVariable(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
     Value val = Scratch::getInputValue(block,"VALUE",sprite);
     std::string varId = block.fields.at("VARIABLE")[1];
-    Value oldVariable = getVariableValue(varId,sprite);
+    Value oldVariable = BlockExecutor::getVariableValue(varId,sprite);
 
     if(val.isNumeric() && oldVariable.isNumeric()){
         val = val + oldVariable;
     }
 
-    setVariableValue(varId, val, sprite);
+    BlockExecutor::setVariableValue(varId, val, sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -141,7 +141,7 @@ Value DataBlocks::itemOfList(Block& block, Sprite* sprite) {
         for (auto& [id, list] : currentSprite->lists) {
             if (id == listName) {
                 if (index >= 0 && index < static_cast<int>(list.items.size())) {
-                    return Value(removeQuotations(list.items[index].asString()));
+                    return Value(Math::removeQuotations(list.items[index].asString()));
                 }
                 return Value();
             }
@@ -159,7 +159,7 @@ Value DataBlocks::itemNumOfList(Block& block, Sprite* sprite) {
             if (id == listName) {
                 int index = 1;
                 for (auto& item : list.items) {
-                    if (removeQuotations(item.asString()) == itemToFind.asString()) {
+                    if (Math::removeQuotations(item.asString()) == itemToFind.asString()) {
                         return Value(index);
                     }
                     index++;

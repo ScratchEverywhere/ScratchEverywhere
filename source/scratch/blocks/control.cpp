@@ -59,7 +59,7 @@ BlockResult ControlBlocks::createCloneOf(Block& block, Sprite* sprite, Block** w
         *spriteToClone = *sprite;
     } else {
         for (Sprite* currentSprite : sprites) {
-            if (currentSprite->name == removeQuotations(cloneOptions->fields["CLONE_OPTION"][0]) && !currentSprite->isClone) {
+            if (currentSprite->name == Math::removeQuotations(cloneOptions->fields["CLONE_OPTION"][0]) && !currentSprite->isClone) {
                 *spriteToClone = *currentSprite;
             }
         }
@@ -70,20 +70,8 @@ BlockResult ControlBlocks::createCloneOf(Block& block, Sprite* sprite, Block** w
         spriteToClone->isClone = true;
         spriteToClone->isStage = false;
         spriteToClone->toDelete = false;
-        spriteToClone->id = generateRandomString(15);
+        spriteToClone->id = Math::generateRandomString(15);
         std::cout << "Created clone of " << sprite->name << std::endl;
-        // std::unordered_map<std::string, Block> newBlocks;
-        // for (auto& [id, block] : spriteToClone->blocks) {
-        //     if (block.opcode == block.CONTROL_START_AS_CLONE || block.opcode == block.EVENT_WHENBROADCASTRECEIVED || block.opcode == block.PROCEDURES_DEFINITION || block.opcode == block.PROCEDURES_PROTOTYPE) {
-        //         std::vector<Block*> blockChain = getBlockChain(block.id);
-        //         for (const Block* block : blockChain) {
-        //             newBlocks[block->id] = *block;
-        //         }
-        //     }
-        // }
-        // spriteToClone->blocks.clear();
-        // spriteToClone->blocks = newBlocks;
-
         // add clone to sprite list
         sprites.push_back(spriteToClone);
         Sprite* addedSprite = sprites.back();

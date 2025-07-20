@@ -26,7 +26,6 @@ struct ParsedInput{
     Value literalValue;
     std::string variableId;
     std::string blockId;
-    nlohmann::json originalJson;
 
     ParsedInput() : inputType(LITERAL), literalValue(Value(0)) {}
 
@@ -293,9 +292,6 @@ struct Block {
     Block* customBlockPtr = nullptr;
     std::vector<std::pair<Block*, Sprite*>> broadcastsRun;
 
-private:
-    Value getVariableValue(const std::string& variableId, Sprite* sprite) const;
-
 };
 
 struct CustomBlock{
@@ -385,7 +381,7 @@ class Sprite {
         double yPosition;
         int rotationCenterX;
         int rotationCenterY;
-        int size;
+        double size;
         double rotation;
         int layer;
 

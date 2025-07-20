@@ -25,8 +25,12 @@ public:
     static std::vector<Block*> runAllBlocksByOpcode(Block::opCode opcodeToFind);
     static void runRepeatBlocks();
     static void runRepeatsWithoutRefresh(Sprite* sprite,std::string blockChainID);
+    static void runCustomBlock(Sprite* sprite,Block& block, Block* callerBlock,bool* withoutScreenRefresh);
     static std::vector<std::pair<Block*, Sprite*>> runBroadcasts();
     Value getBlockValue(Block& block,Sprite*sprite);
+    static Value getVariableValue(std::string variableId,Sprite*sprite);
+    static Value getCustomBlockValue(std::string valueName,Sprite*sprite,Block block);
+    static void setVariableValue(const std::string& variableId, const Value& newValue, Sprite* sprite);
     Value runConditionalBlock(std::string blockId, Sprite* sprite);
     static void addToRepeatQueue(Sprite* sprite,Block* block);
     static bool hasActiveRepeats(Sprite* sprite,std::string blockChainID);

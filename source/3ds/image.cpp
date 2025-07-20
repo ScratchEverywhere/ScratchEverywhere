@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <vector>
 #include <iostream>
+#define STBI_NO_GIF
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "../scratch/unzip.hpp"
@@ -11,7 +12,9 @@ using u8 = uint8_t;
 
 std::unordered_map<std::string, ImageData> imageC2Ds;
 std::vector<Image::ImageRGBA> Image::imageRGBAS;
+static std::vector<Image::ImageRGBA*> imageLoadQueue;
 static std::vector<std::string> toDelete;
+#define MAX_IMAGE_VRAM 30000000
 
 struct MemoryStats{
   size_t totalRamUsage = 0;
@@ -90,6 +93,9 @@ for (int i = 0; i < file_count; i++) {
         newRGBA.name = zipFileName.substr(0, zipFileName.find_last_of('.'));
         newRGBA.width = width;
         newRGBA.height = height;
+        newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
+        newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+        newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
         newRGBA.data = rgba_data;
 
         size_t imageSize = width * height * 4;
@@ -98,8 +104,8 @@ for (int i = 0; i < file_count; i++) {
 
         Image::imageRGBAS.push_back(newRGBA);
         mz_free(png_data);
-    }
-}
+      }
+  }
 }
 
 void Image::loadImageFromFile(std::string filePath){
@@ -132,6 +138,9 @@ void Image::loadImageFromFile(std::string filePath){
     newRGBA.name = filePath;
     newRGBA.width = width;
     newRGBA.height = height;
+    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
     //memorySize += sizeof(newRGBA);
 
@@ -143,6 +152,27 @@ void Image::loadImageFromFile(std::string filePath){
 
 }
 
+bool queueC2DImage(Image::ImageRGBA& rgba){
+  bool inQueue = false;
+  for(Image::ImageRGBA* queueRgba : imageLoadQueue){
+    if(rgba.name == queueRgba->name){
+      inQueue = true;
+    }
+  }
+  if(!inQueue){
+    // no queue!!!
+    if(memStats.totalVRamUsage + rgba.textureMemSize < MAX_IMAGE_VRAM){
+      get_C2D_Image(rgba);
+      return true;
+    }
+    // add to queue D:
+    else{
+      std::cout << "Memory too high! queueing image load!" << std::endl;
+      imageLoadQueue.push_back(&rgba);
+    }
+  }
+  return false;
+}
 
 /** Read an RGBA image from `path` with dimensions `image_width`x`image_height`
  * and return a `C2D_Image` object.
@@ -151,7 +181,7 @@ void Image::loadImageFromFile(std::string filePath){
  * Code here originally from https://gbatemp.net/threads/citro2d-c2d_image-example.668574/
  * then edited to fit my code
  */
-C2D_Image get_C2D_Image(Image::ImageRGBA rgba) {
+void get_C2D_Image(Image::ImageRGBA rgba) {
     //std::cout << "Creating C2D_Image from RGBA " << rgba.name << std::endl;
 
     u32 px_count = rgba.width * rgba.height;
@@ -166,10 +196,10 @@ C2D_Image get_C2D_Image(Image::ImageRGBA rgba) {
     C3D_Tex *tex = (C3D_Tex *)malloc(sizeof(C3D_Tex));
     image.tex = tex;
     // Texture dimensions must be square powers of two between 64x64 and 1024x1024
-    tex->width = clamp(next_pow2(rgba.width), 64, 1024);
-    tex->height = clamp(next_pow2(rgba.height), 64, 1024);
+    tex->width = rgba.textureWidth;
+    tex->height = rgba.textureHeight;
   
-    size_t textureSize = tex->width * tex->height * 4;
+    size_t textureSize = rgba.textureMemSize;
     memStats.totalVRamUsage += textureSize;
     memStats.imageCount++;
 
@@ -207,10 +237,13 @@ C2D_Image get_C2D_Image(Image::ImageRGBA rgba) {
         ((u32 *)tex->data)[dst_ptr_offset] = abgr_px;
       }
     }
+
+    C3D_FrameSync(); // wait for Async functions to finish
   
     std::cout << "Image Loaded! total VRAM: " << memStats.totalVRamUsage << std::endl;
 
-    return image;
+    imageC2Ds[rgba.name] = {image, 120};
+    return;
   }
 
 void Image::freeImage(const std::string& costumeId) {
@@ -223,11 +256,11 @@ void Image::freeImage(const std::string& costumeId) {
             memStats.c2dImageCount--;
 
             C3D_TexDelete(it->second.image.tex);
-            //free(it->second.image.tex);
+            free(it->second.image.tex);
         }
-        // if (it->second.image.subtex) {
-        //     free((Tex3DS_SubTexture*)it->second.image.subtex);
-        // }
+        if (it->second.image.subtex) {
+            free((Tex3DS_SubTexture*)it->second.image.subtex);
+        }
         imageC2Ds.erase(it);
         std::cout << "freed image!" << std::endl;
     }
@@ -239,7 +272,8 @@ void Image::queueFreeImage(const std::string& costumeId){
 
 void Image::FlushImages(){
     
-    if(memStats.totalVRamUsage > 24000000){
+    // free unused images if vram usage is high
+    if(memStats.totalVRamUsage > MAX_IMAGE_VRAM * 0.8){
       ImageData* imgToDelete = nullptr;
       std::string toDeleteStr;
       for(auto& [id, img] : imageC2Ds){
@@ -251,7 +285,8 @@ void Image::FlushImages(){
         }
     }
     toDelete.push_back(toDeleteStr);
-    } else{
+  }
+  // free images on a timer
     for(auto& [id, img] : imageC2Ds){
         if(img.freeTimer <= 0){
             toDelete.push_back(id);
@@ -259,10 +294,19 @@ void Image::FlushImages(){
             img.freeTimer -= 1;
         }
     }
-  }
-    
+
     for(const std::string& id : toDelete){
         Image::freeImage(id);
     }
     toDelete.clear();
+
+    if(!imageLoadQueue.empty()){
+      ImageRGBA* rgba = imageLoadQueue.front();
+      if(memStats.totalVRamUsage + rgba->textureMemSize < MAX_IMAGE_VRAM){
+        get_C2D_Image(*rgba);
+        imageLoadQueue.erase(imageLoadQueue.begin());
+      }
+
+    }
+
 }

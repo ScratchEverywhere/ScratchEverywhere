@@ -53,63 +53,59 @@ void renderImage(C2D_Image *image, Sprite* currentSprite, std::string costumeId,
 
 
     bool legacyDrawing = true;
-    
     double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
+    bool imageLoaded = false;
+    for(Image::ImageRGBA rgba : Image::imageRGBAS){
+        if(rgba.name == costumeId){
 
-    
+            legacyDrawing = false;
+            currentSprite->spriteWidth = rgba.width / 2;
+            currentSprite->spriteHeight = rgba.height / 2;
+            
+            if(imageC2Ds.find(costumeId) == imageC2Ds.end() || image->tex == nullptr || image->subtex == nullptr){
 
-        for(Image::ImageRGBA rgba : Image::imageRGBAS){
-            if(rgba.name == costumeId){
-                legacyDrawing = false;
-                currentSprite->spriteWidth = rgba.width / 2;
-                currentSprite->spriteHeight = rgba.height / 2;
-                
-                if(imageC2Ds.find(costumeId) == imageC2Ds.end() || image->tex == nullptr || image->subtex == nullptr){
-                C2D_Image newImage = get_C2D_Image(rgba);
-                imageC2Ds[costumeId].image = newImage;
+                auto rgbaFind = std::find_if(Image::imageRGBAS.begin(), Image::imageRGBAS.end(),
+                [&](const Image::ImageRGBA& rgba) { return rgba.name == costumeId; });
 
-                if(currentSprite->lastCostumeId == "") return;
-
-                if(rgba.height > 254 || rgba.width > 254) costumeId = currentSprite->lastCostumeId;
-
-                //return; // hacky solution to fix crashing, causes flickering, TODO fix that 😁
+                if (rgbaFind != Image::imageRGBAS.end()) {
+                    imageLoaded = queueC2DImage(*rgbaFind);
+                } else {
+                    imageLoaded = false;
                 }
-                imageC2Ds[costumeId].freeTimer = 120;
-                break;
-            }
-            else {
-                legacyDrawing = true;
-                currentSprite->spriteWidth = 64;
-                currentSprite->spriteHeight = 64;
 
             }
+            else imageLoaded = true;
 
+            break;
         }
-
-    
-        
-
-    
+    }
+    if(!imageLoaded){
+        legacyDrawing = true;
+        currentSprite->spriteWidth = 64;
+        currentSprite->spriteHeight = 64;
+    }
 
     //double maxLayer = getMaxSpriteLayer();
     double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
     double spriteSizeX = currentSprite->size * 0.01;
     double spriteSizeY = currentSprite->size * 0.01;
+    double spriteWidth = currentSprite->spriteWidth;
+    double spriteHeight = currentSprite->spriteHeight;
     double scale;
     double heightMultiplier = 0.5;
     int screenWidth = SCREEN_WIDTH;
-
+    if(bottom) screenWidth = BOTTOM_SCREEN_WIDTH;
     if(Render::renderMode == Render::BOTH_SCREENS){
         scaleY = static_cast<double>(SCREEN_HEIGHT) / (Scratch::projectHeight / 2.0);
         heightMultiplier = 1.0;
     }
-    if(bottom){
-        screenWidth = BOTTOM_SCREEN_WIDTH;
-    }
+    scale = bottom ? 1.0 : std::min(scaleX, scaleY);
+
 
 
 if (!legacyDrawing) {
+    imageC2Ds[costumeId].freeTimer = 120;
     double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
 
     // check for rotation style
@@ -123,8 +119,10 @@ if (!legacyDrawing) {
         rotation = 0;
     }
 
+    // Center the sprite's pivot point
+   spriteWidth *= spriteSizeX;
+   double scaledRotationCenterX = currentSprite->rotationCenterX * abs(spriteSizeX);
 
-   scale = bottom ? 1.0 : std::min(scaleX, scaleY);
 
    float alpha = 1.0f - (currentSprite->ghostEffect / 100.0f);
    C2D_ImageTint tinty;
@@ -132,8 +130,8 @@ if (!legacyDrawing) {
 
     C2D_DrawImageAtRotated(
         imageC2Ds[costumeId].image,
-        (currentSprite->xPosition * scale) + (screenWidth / 2) + ((currentSprite->spriteWidth - currentSprite->rotationCenterX) / 2),
-        (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset + ((currentSprite->spriteHeight - currentSprite->rotationCenterY) / 2) ,
+        (currentSprite->xPosition * scale) + (screenWidth / 2) + (((spriteWidth - scaledRotationCenterX) / 2)),
+        (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset + ((spriteHeight - currentSprite->rotationCenterY) / 2) ,
         1,
         rotation,
         &tinty,
@@ -141,7 +139,6 @@ if (!legacyDrawing) {
         (spriteSizeY) * scale / 2.0f 
     );
 } else {
-    scale = bottom ? 1.0 : std::min(scaleX, scaleY);
     C2D_DrawRectSolid(
         (currentSprite->xPosition * scale) + (screenWidth / 2),
         (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset,
@@ -177,7 +174,6 @@ if (!legacyDrawing) {
 
 void Render::renderSprites(){
 
-    
     C3D_FrameBegin(C3D_FRAME_NONBLOCK);
     C2D_TargetClear(topScreen,clrWhite);
     C2D_TargetClear(bottomScreen,clrWhite);
@@ -243,8 +239,8 @@ void Render::renderSprites(){
 
     C2D_Flush();
     C3D_FrameEnd(0);
-    gspWaitForVBlank();
     Image::FlushImages();
+    gspWaitForVBlank();
     endTime = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = endTime - startTime;
     //int FPS = 1000.0 / std::round(duration.count());

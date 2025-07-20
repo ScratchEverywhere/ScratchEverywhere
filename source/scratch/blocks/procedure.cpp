@@ -1,11 +1,11 @@
 #include "procedure.hpp"
 
 Value ProcedureBlocks::stringNumber(Block& block, Sprite* sprite) {
-    return findCustomValue(block.fields.at("VALUE")[0], sprite, block);
+    return BlockExecutor::getCustomBlockValue(block.fields.at("VALUE")[0], sprite, block);
 }
 
 Value ProcedureBlocks::booleanArgument(Block& block, Sprite* sprite){
-    Value value = findCustomValue(block.fields.at("VALUE")[0], sprite, block);
+    Value value = BlockExecutor::getCustomBlockValue(block.fields.at("VALUE")[0], sprite, block);
     return Value(value.asInt() == 1);
 }
 
@@ -16,7 +16,7 @@ BlockResult ProcedureBlocks::call(Block& block, Sprite* sprite, Block** waitingB
         block.customBlockExecuted = false;
         
         // Run the custom block for the first time
-        runCustomBlock(sprite, block, &block,withoutScreenRefresh);
+        BlockExecutor::runCustomBlock(sprite, block, &block,withoutScreenRefresh);
         block.customBlockExecuted = true;
         
         BlockExecutor::addToRepeatQueue(sprite, &block);

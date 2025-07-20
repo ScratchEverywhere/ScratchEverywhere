@@ -21,7 +21,7 @@ include $(DEVKITARM)/3ds_rules
 
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch 3DS
-APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 5]
+APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 6]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build

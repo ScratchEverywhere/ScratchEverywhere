@@ -9,6 +9,12 @@ public:
     std::string name;
     int width;
     int height;
+    
+//  same as width/height but as powers of 2 for 3DS
+    int textureWidth;
+    int textureHeight;
+
+    size_t textureMemSize;
     unsigned char* data;
     };
 

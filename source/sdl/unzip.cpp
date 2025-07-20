@@ -24,7 +24,7 @@ int Unzip::openFile(std::ifstream *file){
 #endif
     projectType = UNZIPPED;
     if(!(*file)){
-        std::cerr<<"No unzipped project, trying embedded."<<std::endl;
+        std::cout<<"No unzipped project, trying embedded."<<std::endl;
 
 #ifdef __WIIU__
         file->open("romfs:/" + filename, std::ios::binary | std::ios::ate);
