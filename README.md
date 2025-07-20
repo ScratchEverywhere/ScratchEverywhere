@@ -71,7 +71,7 @@ Make a `romfs` folder inside the unzipped source code and put the Scratch projec
 - The Scratch project MUST be named `project.sb3`, all lowercase.
 - For faster load times/less limitations, you can also unzip the sb3 project file and put the contents into a new folder called `project`.
 
-If you would like to change the name of the app or any other information you can edit one of the Makefiles. For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please. For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_SHORT_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+If you would like to change the name of the app or any other information you can edit one of the Makefiles. For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please. For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 
 Then it should be as simple as running `make` in the source code folder.
 
