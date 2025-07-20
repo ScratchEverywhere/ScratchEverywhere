@@ -19,7 +19,7 @@ static void exitApp() {
 }
 
 static int initApp() {
-    Render::Init();
+    return Render::Init();
 }
 
 int main(int argc, char **argv) {
