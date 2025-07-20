@@ -1,5 +1,10 @@
 #include "../scratch/unzip.hpp"
 
+#ifdef __WIIU__
+#include <whb/sdcard.h>
+#include <sstream>
+#endif
+
 volatile int Unzip::projectOpened;
 volatile bool Unzip::threadFinished;
 std::string Unzip::filePath = "";
@@ -27,10 +32,19 @@ int Unzip::openFile(std::ifstream *file){
         file->open(filename, std::ios::binary | std::ios::ate);
 #endif
         projectType = EMBEDDED;
+#ifdef __WIIU__
+        if (!(*file)){
+            std::ostringstream path;
+            path << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/" << filename;
+            file->open(path.str(), std::ios::binary | std::ios::ate);
+#endif
         if (!(*file)){
             std::cerr<<"Couldnt find file. jinkies."<<std::endl;
             return 0;
         }
+#ifdef __WIIU__
+        }
+#endif
     }
     return 1;
 }

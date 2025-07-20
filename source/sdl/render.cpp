@@ -4,6 +4,7 @@
 
 #ifdef __WIIU__
 #include <romfs-wiiu.h>
+#include <whb/sdcard.h>
 #endif
 
 int windowWidth = 480;
@@ -15,7 +16,8 @@ Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 
 void Render::Init(){
 #ifdef __WIIU__
-    romfsInit();
+    romfsInit(); // TODO: Error handling
+    WHBMountSdCard(); // TODO: Error handling
 #endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
@@ -31,6 +33,7 @@ void Render::deInit(){
 
 #ifdef __WIIU__
     romfsExit();
+    WHBUnmountSdCard();
 #endif
 }
 void Render::renderSprites(){
