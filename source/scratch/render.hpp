@@ -4,7 +4,7 @@
 
 class Render {
   public:
-    static void Init();
+    static int Init();
 
     static void deInit();
 

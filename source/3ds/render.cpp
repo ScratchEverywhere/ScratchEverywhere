@@ -23,7 +23,7 @@ std::chrono::_V2::system_clock::time_point endTime = std::chrono::high_resolutio
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 
-void Render::Init() {
+int Render::Init() {
     gfxInitDefault();
     hidScanInput();
     u32 kDown = hidKeysHeld();
@@ -37,6 +37,8 @@ void Render::Init() {
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
     romfsInit();
+
+    return 0;
 }
 
 bool Render::appShouldRun() {

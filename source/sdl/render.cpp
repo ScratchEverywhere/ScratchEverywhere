@@ -17,10 +17,17 @@ Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 
 SDL_GameController *controller;
 
-void Render::Init() {
+int Render::Init() {
 #ifdef __WIIU__
-    romfsInit();      // TODO: Error handling
-    WHBMountSdCard(); // TODO: Error handling
+    int err = romfsInit();
+    if (err) {
+        OSReportFatal("Failed to init romfs.");
+        return err;
+    }
+    if (!WHBMountSdCard()) {
+        OSReportFatal("Failed to mount sd card.");
+        return -1
+    }
     nn::act::Initialize();
 #endif
 
@@ -30,6 +37,8 @@ void Render::Init() {
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
+
+    return 0;
 }
 void Render::deInit() {
     SDL_DestroyRenderer(renderer);
