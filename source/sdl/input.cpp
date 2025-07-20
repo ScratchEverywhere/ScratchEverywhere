@@ -8,6 +8,12 @@ Input::Mouse Input::mousePointer;
 
 std::vector<std::string> Input::inputButtons;
 
+extern SDL_GameController* controller;
+
+#define CONTROLLER_DEADZONE_X       10000
+#define CONTROLLER_DEADZONE_Y       18000
+#define CONTROLLER_DEADZONE_TRIGGER 1000
+
 void Input::getInput(){
 inputButtons.clear();
 mousePointer.isPressed = false;
@@ -33,7 +39,104 @@ bool anyKeyPressed = false;
             }
         }
     }
-    if(anyKeyPressed) inputButtons.push_back("any");
+
+    // TODO: Clean this up
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP) == 1) {
+      inputButtons.push_back("u");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN) == 1) {
+      inputButtons.push_back("h");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_LEFT) == 1) {
+      inputButtons.push_back("g");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == 1) {
+      inputButtons.push_back("j");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A) == 1) {
+      inputButtons.push_back("a");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_B) == 1) {
+      inputButtons.push_back("b");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X) == 1) {
+      inputButtons.push_back("x");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_Y) == 1) {
+      inputButtons.push_back("y");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) == 1) {
+      inputButtons.push_back("l");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) == 1) {
+      inputButtons.push_back("r");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_START) == 1) {
+      inputButtons.push_back("1");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_BACK) == 1) {
+      inputButtons.push_back("0");
+      anyKeyPressed = true;
+    }
+    float joyLeftX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX);
+    float joyLeftY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY);
+    if (joyLeftX > CONTROLLER_DEADZONE_X) {
+      inputButtons.push_back("right arrow");
+      anyKeyPressed = true;
+    }
+    if (joyLeftX < -CONTROLLER_DEADZONE_X) {
+      inputButtons.push_back("left arrow");
+      anyKeyPressed = true;
+    }
+    if (joyLeftY > CONTROLLER_DEADZONE_Y) {
+      inputButtons.push_back("down arrow");
+      anyKeyPressed = true;
+    }
+    if (joyLeftY < -CONTROLLER_DEADZONE_Y) {
+      inputButtons.push_back("up arrow");
+      anyKeyPressed = true;
+    }
+    float joyRightX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX);
+    float joyRightY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY);
+    if (joyRightX > CONTROLLER_DEADZONE_X) {
+      inputButtons.push_back("5");
+      anyKeyPressed = true;
+    }
+    if (joyRightX < -CONTROLLER_DEADZONE_X) {
+      inputButtons.push_back("4");
+      anyKeyPressed = true;
+    }
+    if (joyRightY > CONTROLLER_DEADZONE_Y) {
+      inputButtons.push_back("3");
+      anyKeyPressed = true;
+    }
+    if (joyRightY < -CONTROLLER_DEADZONE_Y) {
+      inputButtons.push_back("2");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT) > CONTROLLER_DEADZONE_TRIGGER) {
+      inputButtons.push_back("z");
+      anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > CONTROLLER_DEADZONE_TRIGGER) {
+      inputButtons.push_back("f");
+      anyKeyPressed = true;
+    }
+
+    if(anyKeyPressed) {
+      inputButtons.push_back("any");
+    }
 
     SDL_GetMouseState(&mousePointer.x,&mousePointer.y);
     mousePointer.x -= windowWidth / 2;

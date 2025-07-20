@@ -14,6 +14,8 @@ SDL_Renderer* renderer = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 
+SDL_GameController* controller;
+
 void Render::Init(){
 #ifdef __WIIU__
     romfsInit(); // TODO: Error handling
@@ -24,6 +26,8 @@ void Render::Init(){
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     window = SDL_CreateWindow("Scratch Runtime",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,windowWidth,windowHeight,SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window,-1,SDL_RENDERER_ACCELERATED);
+
+    if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 }
 void Render::deInit(){
     SDL_DestroyRenderer(renderer);
@@ -132,6 +136,7 @@ bool Render::appShouldRun(){
         if(event.type == SDL_QUIT){
             return false;
         }
+        if (event.type == SDL_CONTROLLERDEVICEADDED) controller = SDL_GameControllerOpen(0);
     }
     return true;
 }
