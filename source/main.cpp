@@ -18,7 +18,7 @@ static void exitApp() {
     Render::deInit();
 }
 
-static void initApp() {
+static int initApp() {
     Render::Init();
 }
 
@@ -27,7 +27,11 @@ int main(int argc, char **argv) {
     ProcUIInit(OSSavesDone_ReadyToRelease);
 #endif
 
-    initApp();
+    int err = initApp();
+    if (err != 0) {
+        exitApp();
+        return err;
+    }
 
     // this is for the FPS
     std::chrono::_V2::system_clock::time_point startTime = std::chrono::high_resolution_clock::now();
