@@ -7,6 +7,10 @@ A W.I.P. runtime made in C++ aimed to bring any Scratch 3 project over to the Ni
 ![Controls](https://raw.githubusercontent.com/NateXS/Scratch-3DS/refs/heads/main/scratch%203ds%20controls.png)
 To use the mouse you must enter mouse mode by holding L. Use the D-pad to move the mouse, and press R to click.
 
+### Other Plaforms
+
+All controllers on all other platforms use the same control scheme.
+
 ## Limitations
 As this is in a very W.I.P state, you will encounter many bugs, crashes, and things that will just not work. 
 
