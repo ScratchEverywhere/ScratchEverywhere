@@ -1,3 +1,5 @@
+name: 3DS Nightly Build
+
 on:
   push:
     paths:
