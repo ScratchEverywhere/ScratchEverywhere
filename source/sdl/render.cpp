@@ -21,16 +21,15 @@ SDL_GameController *controller;
 bool touchActive = false;
 SDL_Point touchPosition;
 
-int Render::Init() {
+bool Render::Init() {
 #ifdef __WIIU__
-    int err = romfsInit();
-    if (err) {
+    if (romfsInit()) {
         OSFatal("Failed to init romfs.");
-        return err;
+        return false;
     }
     if (!WHBMountSdCard()) {
         OSFatal("Failed to mount sd card.");
-        return -1;
+        return false;
     }
     nn::act::Initialize();
 #endif
@@ -42,7 +41,7 @@ int Render::Init() {
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
-    return 0;
+    return true;
 }
 void Render::deInit() {
     SDL_DestroyRenderer(renderer);

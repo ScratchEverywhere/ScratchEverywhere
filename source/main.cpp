@@ -18,7 +18,7 @@ static void exitApp() {
     Render::deInit();
 }
 
-static int initApp() {
+static bool initApp() {
     return Render::Init();
 }
 
@@ -27,10 +27,9 @@ int main(int argc, char **argv) {
     ProcUIInit(OSSavesDone_ReadyToRelease);
 #endif
 
-    int err = initApp();
-    if (err != 0) {
+    if (!initApp()) {
         exitApp();
-        return err;
+        return 1;
     }
 
     // this is for the FPS

@@ -23,7 +23,7 @@ std::chrono::_V2::system_clock::time_point endTime = std::chrono::high_resolutio
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 
-int Render::Init() {
+bool Render::Init() {
     gfxInitDefault();
     hidScanInput();
     u32 kDown = hidKeysHeld();
@@ -38,7 +38,7 @@ int Render::Init() {
 
     romfsInit();
 
-    return 0;
+    return true;
 }
 
 bool Render::appShouldRun() {
