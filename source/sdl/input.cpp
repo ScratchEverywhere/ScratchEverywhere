@@ -24,6 +24,7 @@ extern SDL_Point touchPosition;
 void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
+    mousePointer.isMoving = false;
 
     const Uint8 *keyStates = SDL_GetKeyboardState(NULL);
     bool anyKeyPressed = false;
@@ -50,18 +51,22 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP) == 1) {
         inputButtons.push_back("u");
         anyKeyPressed = true;
+        if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) == 1) mousePointer.y += 3;
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN) == 1) {
         inputButtons.push_back("h");
         anyKeyPressed = true;
+        if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) == 1) mousePointer.y -= 3;
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_LEFT) == 1) {
         inputButtons.push_back("g");
         anyKeyPressed = true;
+        if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) == 1) mousePointer.x -= 3;
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT) == 1) {
         inputButtons.push_back("j");
         anyKeyPressed = true;
+        if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) == 1) mousePointer.x += 3;
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A) == 1) {
         inputButtons.push_back("a");
@@ -82,10 +87,12 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) == 1) {
         inputButtons.push_back("l");
         anyKeyPressed = true;
+        mousePointer.isMoving = true;
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) == 1) {
         inputButtons.push_back("r");
         anyKeyPressed = true;
+        if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) == 1) mousePointer.isPressed = true;
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_START) == 1) {
         inputButtons.push_back("1");
