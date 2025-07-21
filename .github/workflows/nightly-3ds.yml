@@ -23,8 +23,9 @@ jobs:
         uses: actions/checkout@v4
       - name: Install DevkitPro
         run: |
-          wget https://apt.devkitpro.org/devkitpro-pub.gpg
-          echo "deb [signed-by=$(pwd)/devkitpro-pub.gpg] https://apt.devkitpro.org stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://apt.devkitpro.org/devkitpro-pubkey.gpg | sudo tee /etc/apt/keyrings/devkitpro.gpg > /dev/null
+          echo 'deb [signed-by=/etc/apt/keyrings/devkitpro.gpg] https://apt.devkitpro.org stable main' | sudo tee /etc/apt/sources.list.d/devkitpro.list
           sudo apt-get update -y
           sudo apt-get install -y devkitpro-pacman
           echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
