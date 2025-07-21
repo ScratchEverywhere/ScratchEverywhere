@@ -18,19 +18,11 @@ on:
 jobs:
   nightly:
     runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install DevkitPro
-        run: |
-          sudo mkdir -p /etc/apt/keyrings
-          curl -fsSL https://apt.devkitpro.org/devkitpro-pubkey.gpg | sudo tee /etc/apt/keyrings/devkitpro.gpg > /dev/null
-          echo 'deb [signed-by=/etc/apt/keyrings/devkitpro.gpg] https://apt.devkitpro.org stable main' | sudo tee /etc/apt/sources.list.d/devkitpro.list
-          sudo apt-get update -y
-          sudo apt-get install -y devkitpro-pacman
-          echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
-          echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
-          echo "$DEVKITPRO/tools/bin" >> $GITHUB_PATH
       - name: Install Dependencies
         run: sudo dkp-pacman -Sy --noconfirm 3ds-dev
       - name: Build
