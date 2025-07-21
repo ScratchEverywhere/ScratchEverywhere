@@ -11,7 +11,7 @@ PKGCONF := $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
 
 # Info
 
-TARGET			:=	scratch-switch
+TARGET			:=	scratch-nx
 BUILD				:=	build/switch
 SOURCES			:=	source source/scratch source/scratch/blocks source/sdl include/miniz include/nlohmann
 INCLUDES		:=	include source/scratch source/scratch/blocks source/sdl include/nlohmann
