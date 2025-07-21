@@ -1,0 +1,30 @@
+name: 3DS Nightly Build
+
+on:
+  push:
+    paths:
+      - Makefile_switch
+      - source/scratch/**
+      - source/sdl/**
+      - gfx/**
+      - include/**
+      - .github/workflows/nightly-switch.yml
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build
+        run: |
+          mkdir romfs
+          make PLATFORM=switch
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Switch Nightly
+          path: scratch-switch.nro
