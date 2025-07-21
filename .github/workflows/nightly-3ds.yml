@@ -8,13 +8,6 @@ on:
       - source/3ds/**
       - gfx/**
       - include/**
-  pull_request:
-    paths:
-      - Makefile_3ds
-      - source/scratch/**
-      - source/3ds/**
-      - gfx/**
-      - include/**
   workflow_dispatch:
 
 jobs:
