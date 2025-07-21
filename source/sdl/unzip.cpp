@@ -17,7 +17,7 @@ int Unzip::openFile(std::ifstream *file) {
     std::string filename = "project.sb3";
     std::string unzippedPath = "project/project.json";
 
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__SWITCH__)
     file->open("romfs:/" + unzippedPath, std::ios::binary | std::ios::ate);
 #else
     file->open(unzippedPath, std::ios::binary | std::ios::ate);
@@ -26,7 +26,7 @@ int Unzip::openFile(std::ifstream *file) {
     if (!(*file)) {
         std::cout << "No unzipped project, trying embedded." << std::endl;
 
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__SWITCH__)
         file->open("romfs:/" + filename, std::ios::binary | std::ios::ate);
 #else
         file->open(filename, std::ios::binary | std::ios::ate);

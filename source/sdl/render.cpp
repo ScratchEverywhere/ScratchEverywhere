@@ -37,7 +37,11 @@ bool Render::Init() {
     }
     nn::act::Initialize();
 #elif defined(__SWITCH__)
-
+    Result rc = romfsInit();
+    if (R_FAILED(rc)) {
+        // TODO: Log error message (IDK what function I need to use.)
+        return false;
+    }
 #endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
@@ -55,8 +59,10 @@ void Render::deInit() {
     IMG_Quit();
     SDL_Quit();
 
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__SWITCH__)
     romfsExit();
+#endif
+#ifdef __WIIU__
     WHBUnmountSdCard();
     nn::act::Finalize();
 #endif

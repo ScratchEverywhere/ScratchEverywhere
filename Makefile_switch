@@ -19,6 +19,7 @@ APP_VERSION	:=	0.7
 ICON				:=	gfx/icon.png # TODO: Replace with Nintendo Switch logo
 APP_TITLE		:=	Scratch NX
 APP_AUTHOR	:=	NateXS and Grady Link
+ROMFS				:=	romfs
 
 # Flags and Stuff
 
