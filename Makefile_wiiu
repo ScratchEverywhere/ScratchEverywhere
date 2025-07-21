@@ -22,7 +22,7 @@ APP_NAME							:=	Scratch Wii U
 APP_AUTHOR						:=	NateXS and Grady Link
 APP_SHORT_DESCRIPTION	:=	Play Scratch Games on the Wii U!
 APP_LONG_DESCRIPTION	:=	$(APP_SHORT_DESCRIPTION)
-APP_VERSION						:=	0.6
+APP_VERSION						:=	0.7
 
 # WUHB Info
 
@@ -106,7 +106,7 @@ package:
 	@echo Packaging...
 	@mkdir -p $(OUTPUT)
 	@cp -t $(OUTPUT) $(OUTPUT).wuhb $(OUTPUT).rpx
-	@cp gfx/wiiu/hbl-icon.png $(OUTPUT)
+	@cp gfx/wiiu/hbl-icon.png $(OUTPUT)/icon.png
 	@echo "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\
 	<app version=\"1\">\
 		<name>$(APP_NAME)</name>\
