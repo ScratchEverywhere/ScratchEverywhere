@@ -11,6 +11,10 @@
 #include <proc_ui/procui.h>
 #endif
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 // arm-none-eabi-addr2line -e Scratch.elf xxx
 // ^ for debug purposes
 
@@ -82,6 +86,8 @@ int main(int argc, char **argv) {
 #ifdef __WIIU__
         switch (ProcUIProcessMessages(true)) {
         case PROCUI_STATUS_IN_FOREGROUND:
+#elif defined(__SWITCH__)
+        if (!appletMainLoop()) break;
 #endif
 
             endTime = std::chrono::high_resolution_clock::now();

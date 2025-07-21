@@ -9,6 +9,10 @@
 #include <whb/sdcard.h>
 #endif
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 int windowWidth = 480;
 int windowHeight = 360;
 SDL_Window *window = nullptr;
@@ -32,6 +36,8 @@ bool Render::Init() {
         return false;
     }
     nn::act::Initialize();
+#elif defined(__SWITCH__)
+
 #endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
