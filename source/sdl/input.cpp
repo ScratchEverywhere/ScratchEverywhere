@@ -154,6 +154,7 @@ void Input::getInput() {
             BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHEN_KEY_PRESSED);
     } else keyHeldFrames = 0;
 
+    // TODO: Add way to disable touch input (currently overrides mouse input.)
     if (SDL_GetNumTouchDevices() > 0) {
         mousePointer.x = touchPosition.x - windowWidth / 2;
         mousePointer.y = windowHeight / 2 - touchPosition.y;
