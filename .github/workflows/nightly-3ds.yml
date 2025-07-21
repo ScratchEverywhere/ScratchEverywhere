@@ -25,8 +25,8 @@ jobs:
         run: |
           wget https://apt.devkitpro.org/devkitpro-pub.gpg
           echo "deb [signed-by=$(pwd)/devkitpro-pub.gpg] https://apt.devkitpro.org stable main" | sudo tee /etc/apt/sources.list.d/devkitpro.list
-          sudo apt update -y
-          sudo apt install -y devkitpro-pacman
+          sudo apt-get update -y
+          sudo apt-get install -y devkitpro-pacman
           echo "DEVKITPRO=/opt/devkitpro" >> $GITHUB_ENV
           echo "DEVKITARM=/opt/devkitpro/devkitARM" >> $GITHUB_ENV
           echo "$DEVKITPRO/tools/bin" >> $GITHUB_PATH
