@@ -1,4 +1,4 @@
-name: 3DS Nightly Build
+name: Switch Nightly Build
 
 on:
   push:
