@@ -8,6 +8,7 @@ on:
       - source/sdl/**
       - gfx/wiiu/**
       - include/**
+      - .github/workflows/nightly-wiiu.yml
   workflow_dispatch:
 
 jobs:
