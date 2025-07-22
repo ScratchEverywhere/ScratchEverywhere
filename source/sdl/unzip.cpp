@@ -37,12 +37,15 @@ int Unzip::openFile(std::ifstream *file) {
             std::ostringstream path;
             path << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/" << filename;
             file->open(path.str(), std::ios::binary | std::ios::ate);
+#elif defined(__SWITCH__)
+        if (!(*file)) {
+            file->open("/switch/scratch-nx/" + filename, std::ios::binary | std::ios::ate);
 #endif
             if (!(*file)) {
                 std::cerr << "Couldnt find file. jinkies." << std::endl;
                 return 0;
             }
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__SWITCH__)
         }
 #endif
     }
