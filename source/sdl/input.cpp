@@ -182,7 +182,7 @@ std::string Input::getUsername() {
     nn::act::GetMiiName(miiName);
     return std::string(miiName, miiName + sizeof(miiName) / sizeof(miiName[0]));
 #elif defined(__SWITCH__)
-    return std::string(nickname);
+    if (std::string(nickname) != "") return std::string(nickname);
 #endif
     return "Player";
 }

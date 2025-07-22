@@ -41,21 +41,21 @@ bool Render::Init() {
 #elif defined(__SWITCH__)
     SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
 
-    Result rc = romfsInit();
-    if (R_FAILED(rc)) {
-        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "Failed to init romfs."); // TODO: Include error code
-        return false;
-    }
-
     AccountUid userID = {0};
     AccountProfile profile;
     AccountProfileBase profilebase;
     memset(&profilebase, 0, sizeof(profilebase));
 
+    Result rc = romfsInit();
+    if (R_FAILED(rc)) {
+        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "Failed to init romfs."); // TODO: Include error code
+        goto postAccount;
+    }
+
     rc = accountInitialize(AccountServiceType_Application);
     if (R_FAILED(rc)) {
-        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "accountInitialize failed.");
-        return false;
+        SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "accountInitialize failed.");
+        goto postAccount;
     }
 
     rc = accountGetPreselectedUser(&userID);
@@ -64,21 +64,21 @@ bool Render::Init() {
         memset(&settings, 0, sizeof(settings));
         rc = pselShowUserSelector(&userID, &settings);
         if (R_FAILED(rc)) {
-            SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "pselShowUserSelector failed.");
-            return false;
+            SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "pselShowUserSelector failed.");
+            goto postAccount;
         }
     }
 
     rc = accountGetProfile(&profile, userID);
     if (R_FAILED(rc)) {
-        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "accountGetProfile failed.");
-        return false;
+        SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "accountGetProfile failed.");
+        goto postAccount;
     }
 
     rc = accountProfileGet(&profile, NULL, &profilebase);
     if (R_FAILED(rc)) {
-        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "accountProfileGet failed.");
-        return false;
+        SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "accountProfileGet failed.");
+        goto postAccount;
     }
 
     memset(nickname, 0, sizeof(nickname));
@@ -86,6 +86,7 @@ bool Render::Init() {
 
     accountProfileClose(&profile);
     accountExit();
+postAccount:
 #endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
