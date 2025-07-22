@@ -11,6 +11,8 @@
 
 #ifdef __SWITCH__
 #include <switch.h>
+
+char nickname[0x21];
 #endif
 
 int windowWidth = 480;
@@ -37,11 +39,53 @@ bool Render::Init() {
     }
     nn::act::Initialize();
 #elif defined(__SWITCH__)
+    SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
+
     Result rc = romfsInit();
     if (R_FAILED(rc)) {
-        // TODO: Log error message (IDK what function I need to use.)
+        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "Failed to init romfs."); // TODO: Include error code
         return false;
     }
+
+    AccountUid userID = {0};
+    AccountProfile profile;
+    AccountProfileBase profilebase;
+    memset(&profilebase, 0, sizeof(profilebase));
+
+    rc = accountInitialize(AccountServiceType_Application);
+    if (R_FAILED(rc)) {
+        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "accountInitialize failed.");
+        return false;
+    }
+
+    rc = accountGetPreselectedUser(&userID);
+    if (R_FAILED(rc)) {
+        PselUserSelectionSettings settings;
+        memset(&settings, 0, sizeof(settings));
+        rc = pselShowUserSelector(&userID, &settings);
+        if (R_FAILED(rc)) {
+            SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "pselShowUserSelector failed.");
+            return false;
+        }
+    }
+
+    rc = accountGetProfile(&profile, userID);
+    if (R_FAILED(rc)) {
+        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "accountGetProfile failed.");
+        return false;
+    }
+
+    rc = accountProfileGet(&profile, NULL, &profilebase);
+    if (R_FAILED(rc)) {
+        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "accountProfileGet failed.");
+        return false;
+    }
+
+    memset(nickname, 0, sizeof(nickname));
+    strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
+
+    accountProfileClose(&profile);
+    accountExit();
 #endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
