@@ -21,7 +21,18 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, Block **w
         }
     }
 
-    if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
+    bool costumeChanged = false;
+    for (size_t i = 0; i < sprite->costumes.size(); i++) {
+        if (sprite->costumes[i].name == inputString) {
+            if ((size_t)sprite->currentCostume != i) {
+                // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
+            }
+            costumeChanged = true;
+            sprite->currentCostume = i;
+            break;
+        }
+    }
+    if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !costumeChanged) {
         std::cout << "errm" << std::endl;
         int costumeIndex = inputValue.asInt() - 1;
         if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < sprite->costumes.size()) {
@@ -29,16 +40,6 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, Block **w
                 // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
             }
             sprite->currentCostume = costumeIndex;
-        }
-    } else {
-        for (size_t i = 0; i < sprite->costumes.size(); i++) {
-            if (sprite->costumes[i].name == inputString) {
-                if ((size_t)sprite->currentCostume != i) {
-                    // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
-                }
-                sprite->currentCostume = i;
-                break;
-            }
         }
     }
 
@@ -78,8 +79,18 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, Block **
             continue;
         }
 
-        if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() &&
-            (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
+        bool backdropChanged = false;
+        for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
+            if (currentSprite->costumes[i].name == inputString) {
+                if ((size_t)currentSprite->currentCostume != i) {
+                    // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
+                }
+                currentSprite->currentCostume = i;
+                backdropChanged = true;
+                break;
+            }
+        }
+        if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !backdropChanged) {
             std::cout << "backdrop numeric fallback" << std::endl;
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
@@ -87,16 +98,6 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, Block **
                     // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
                 }
                 currentSprite->currentCostume = costumeIndex;
-            }
-        } else {
-            for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
-                if (currentSprite->costumes[i].name == inputString) {
-                    if ((size_t)currentSprite->currentCostume != i) {
-                        // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
-                    }
-                    currentSprite->currentCostume = i;
-                    break;
-                }
             }
         }
 
