@@ -72,12 +72,15 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 
 ## Installation
 There are 2 methods to install the runtime.
-- Download the release (easy)
+- Download the release or nightly build (easy)
 - Build the file yourself (harder)
+
+> [!NOTE]
+> Nightly builds are significantly more unstable than releases and should probably only be used if you are instructed to do so in a bug report.
 
 ### Get up and running for 3DS
 
-Download the .3dsx file in the Releases tab
+Download the .3dsx file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-3ds/main/Scratch%203DS%20Nightly.zip).
 
 - Place the .3dsx file in the `3ds/` folder of your 3DS SD card, along with any Scratch projects you want to run.
 - Note: Scratch-3DS is also on Universal Updater, so you can just download it there and keep it updated that way.
@@ -85,7 +88,7 @@ Download the .3dsx file in the Releases tab
 Then it should be as simple as opening the homebrew launcher on your 3DS and running the app.
 
 ### Get up and running for Wii U
-Download the .zip file in the Releases tab.
+Download the .zip file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-wiiu/main/Scratch%20Wii%20U%20Nightly.zip).
 
 Unzip the file in your `sdcard:/wiiu/apps/` folder.
 
