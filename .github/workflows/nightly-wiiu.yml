@@ -1,0 +1,36 @@
+name: Wii U Nightly Build
+
+on:
+  push:
+    paths:
+      - Makefile_wiiu
+      - source/scratch/**
+      - source/sdl/**
+      - gfx/wiiu/**
+      - include/**
+      - .github/workflows/nightly-wiiu.yml
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitppc:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install libromfs-wiiu
+        run: |
+          git clone https://github.com/yawut/libromfs-wiiu.git
+          cd libromfs-wiiu
+          make
+          sudo -E make install
+      - name: Build
+        run: |
+          mkdir romfs
+          make PLATFORM=wiiu all package
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Wii U Nightly
+          path: build/wiiu/scratch-wiiu/

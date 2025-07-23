@@ -55,9 +55,40 @@ void Render::deInit() {
     nn::act::Finalize();
 #endif
 }
+
+void drawBlackBars(int screenWidth, int screenHeight) {
+    float screenAspect = static_cast<float>(screenWidth) / screenHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    if (screenAspect > projectAspect) {
+        // Vertical bars,,,
+        float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_Rect leftBar = {0, 0, static_cast<int>(barWidth), screenHeight};
+        SDL_Rect rightBar = {static_cast<int>(screenWidth - barWidth), 0, static_cast<int>(barWidth), screenHeight};
+
+        SDL_RenderFillRect(renderer, &leftBar);
+        SDL_RenderFillRect(renderer, &rightBar);
+    } else if (screenAspect < projectAspect) {
+        // Horizontal bars,,,
+        float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_Rect topBar = {0, 0, screenWidth, static_cast<int>(barHeight)};
+        SDL_Rect bottomBar = {0, static_cast<int>(screenHeight - barHeight), screenWidth, static_cast<int>(barHeight)};
+
+        SDL_RenderFillRect(renderer, &topBar);
+        SDL_RenderFillRect(renderer, &bottomBar);
+    }
+}
+
 void Render::renderSprites() {
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-    // SDL_SetWindowSize(window,Scratch::projectWidth,Scratch::projectHeight);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
@@ -80,6 +111,9 @@ void Render::renderSprites() {
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
         if (imgFind == images.end()) {
             legacyDrawing = true;
+        } else {
+            currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
+            currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
         }
         if (!legacyDrawing) {
             SDL_Image *image = imgFind->second;
@@ -102,8 +136,11 @@ void Render::renderSprites() {
                 image->setRotation(0);
             }
 
-            image->renderRect.x = (currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2);
-            image->renderRect.y = (currentSprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2);
+            double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
+            double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
+
+            image->renderRect.x = ((currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - rotationCenterX;
+            image->renderRect.y = ((currentSprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2)) - rotationCenterY;
             SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
             SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, image->rotation, &center, flip);
@@ -136,6 +173,8 @@ void Render::renderSprites() {
         //     SDL_RenderFillRect(renderer, &debugPointRect);
         // }
     }
+
+    drawBlackBars(windowWidth, windowHeight);
 
     SDL_RenderPresent(renderer);
 }

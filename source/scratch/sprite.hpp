@@ -278,6 +278,7 @@ struct Block {
 
     /* variables that some blocks need*/
     int repeatTimes = -1;
+    bool isRepeating = false;
     double waitDuration;
     double glideStartX, glideStartY;
     double glideEndX, glideEndY;
@@ -285,6 +286,8 @@ struct Block {
     bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
+    std::vector<std::string> substackBlocksRan;
+    std::string waitingIfBlock = "";
 };
 
 struct CustomBlock {

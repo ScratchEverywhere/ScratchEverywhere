@@ -33,12 +33,7 @@ BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, Block **waitingB
         block.customBlockExecuted = false;
         block.customBlockPtr = nullptr;
 
-        auto chainIt = sprite->blockChains.find(block.blockChainID);
-        if (chainIt != sprite->blockChains.end() && !chainIt->second.blocksToRepeat.empty()) {
-            chainIt->second.blocksToRepeat.pop_back();
-        } else {
-            std::cerr << "Invalid or empty blockChainID: " << block.blockChainID << std::endl;
-        }
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
 
         return BlockResult::CONTINUE;
     }

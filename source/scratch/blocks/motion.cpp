@@ -38,6 +38,7 @@ BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, Block **waitingBloc
             break;
         }
     }
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -46,6 +47,7 @@ BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, Block **waitingBl
     Value yVal = Scratch::getInputValue(block, "Y", sprite);
     if (xVal.isNumeric()) sprite->xPosition = xVal.asDouble();
     if (yVal.isNumeric()) sprite->yPosition = yVal.asDouble();
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -80,6 +82,7 @@ BlockResult MotionBlocks::changeXBy(Block &block, Sprite *sprite, Block **waitin
     } else {
         std::cerr << "Invalid X position " << value.asDouble() << std::endl;
     }
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -90,6 +93,7 @@ BlockResult MotionBlocks::changeYBy(Block &block, Sprite *sprite, Block **waitin
     } else {
         std::cerr << "Invalid Y position " << value.asDouble() << std::endl;
     }
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -100,6 +104,7 @@ BlockResult MotionBlocks::setX(Block &block, Sprite *sprite, Block **waitingBloc
     } else {
         // std::cerr << "Invalid X position " << value << std::endl;
     }
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -110,6 +115,7 @@ BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, Block **waitingBloc
     } else {
         // std::cerr << "Invalid Y position " << value << std::endl;
     }
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -144,9 +150,10 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, Block **wa
     if (elapsedTime >= block.waitDuration) {
         sprite->xPosition = block.glideEndX;
         sprite->yPosition = block.glideEndY;
+        if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
         block.repeatTimes = -1;
-        sprite->blockChains[block.blockChainID].blocksToRepeat.pop_back();
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
 
@@ -155,6 +162,7 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, Block **wa
 
     sprite->xPosition = block.glideStartX + (block.glideEndX - block.glideStartX) * progress;
     sprite->yPosition = block.glideStartY + (block.glideEndY - block.glideStartY) * progress;
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     return BlockResult::RETURN;
 }
@@ -212,9 +220,10 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, Block **waitingB
     if (elapsedTime >= block.waitDuration) {
         sprite->xPosition = block.glideEndX;
         sprite->yPosition = block.glideEndY;
+        if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
         block.repeatTimes = -1;
-        sprite->blockChains[block.blockChainID].blocksToRepeat.pop_back();
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
 
@@ -223,6 +232,7 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, Block **waitingB
 
     sprite->xPosition = block.glideStartX + (block.glideEndX - block.glideStartX) * progress;
     sprite->yPosition = block.glideStartY + (block.glideEndY - block.glideStartY) * progress;
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     return BlockResult::RETURN;
 }

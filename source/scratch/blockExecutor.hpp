@@ -35,7 +35,7 @@ class BlockExecutor {
      * @param waitingBlock I'm pretty sure this doesn't do anything anymore, and should be removed.
      * @param withoutScreenRefresh Whether or not the block is running without screen refresh.
      */
-    void runBlock(Block &block, Sprite *sprite, Block *waitingBlock = nullptr, bool *withoutScreenRefresh = nullptr);
+    std::vector<Block *> runBlock(Block &block, Sprite *sprite, Block *waitingBlock = nullptr, bool *withoutScreenRefresh = nullptr);
 
     /**
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.
@@ -108,6 +108,8 @@ class BlockExecutor {
      * @param block pointer to the Block to add
      */
     static void addToRepeatQueue(Sprite *sprite, Block *block);
+
+    static void removeFromRepeatQueue(Sprite *sprite, Block *block);
 
     /**
      * Checks if a chain of blocks has any repeating blocks inside.

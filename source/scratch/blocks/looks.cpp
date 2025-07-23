@@ -21,18 +21,18 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, Block **w
         }
     }
 
-    bool costumeChanged = false;
+    bool imageFound = false;
     for (size_t i = 0; i < sprite->costumes.size(); i++) {
         if (sprite->costumes[i].name == inputString) {
             if ((size_t)sprite->currentCostume != i) {
                 // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
             }
-            costumeChanged = true;
             sprite->currentCostume = i;
+            imageFound = true;
             break;
         }
     }
-    if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !costumeChanged) {
+    if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
         std::cout << "errm" << std::endl;
         int costumeIndex = inputValue.asInt() - 1;
         if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < sprite->costumes.size()) {
@@ -40,6 +40,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, Block **w
                 // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
             }
             sprite->currentCostume = costumeIndex;
+            imageFound = true;
         }
     }
 
@@ -79,24 +80,25 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, Block **
             continue;
         }
 
-        bool backdropChanged = false;
+        bool imageFound = false;
         for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
             if (currentSprite->costumes[i].name == inputString) {
                 if ((size_t)currentSprite->currentCostume != i) {
                     // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
                 }
                 currentSprite->currentCostume = i;
-                backdropChanged = true;
+                imageFound = true;
                 break;
             }
         }
-        if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !backdropChanged) {
+        if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
             std::cout << "backdrop numeric fallback" << std::endl;
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
                 if (currentSprite->currentCostume != costumeIndex) {
                     // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
                 }
+                foundImage = true;
                 currentSprite->currentCostume = costumeIndex;
             }
         }
@@ -196,6 +198,13 @@ BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, Block **wai
 
 BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
     Value value = Scratch::getInputValue(block, "SIZE", sprite);
+
+    // likely hasn't been rendered on screen yet
+    if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
+        sprite->size = value.asDouble();
+        return BlockResult::CONTINUE;
+    }
+
     if (value.isNumeric()) {
         const double inputSizePercent = value.asDouble();
 
@@ -211,6 +220,13 @@ BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, Block **waiting
 
 BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
     Value value = Scratch::getInputValue(block, "CHANGE", sprite);
+
+    // likely hasn't been rendered on screen yet
+    if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
+        sprite->size += value.asDouble();
+        return BlockResult::CONTINUE;
+    }
+
     if (value.isNumeric()) {
         sprite->size += value.asDouble();
 

@@ -137,7 +137,8 @@ void BlockExecutor::registerHandlers() {
     valueHandlers[Block::ARGUMENT_REPORTER_BOOLEAN] = ProcedureBlocks::booleanArgument;
 }
 
-void BlockExecutor::runBlock(Block &block, Sprite *sprite, Block *waitingBlock, bool *withoutScreenRefresh) {
+std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, Block *waitingBlock, bool *withoutScreenRefresh) {
+    std::vector<Block *> ranBlocks;
     auto start = std::chrono::high_resolution_clock::now();
     Block *currentBlock = &block;
 
@@ -147,23 +148,37 @@ void BlockExecutor::runBlock(Block &block, Sprite *sprite, Block *waitingBlock, 
     }
 
     if (!sprite || sprite->toDelete) {
-        return;
+        return ranBlocks;
     }
 
     while (currentBlock && currentBlock->id != "null") {
         blocksRun += 1;
-
+        ranBlocks.push_back(currentBlock);
         BlockResult result = executeBlock(*currentBlock, sprite, &waitingBlock, withoutScreenRefresh);
 
         if (result == BlockResult::RETURN) {
-            return;
+            return ranBlocks;
         }
 
         // Move to next block
         if (!currentBlock->next.empty()) {
+
+            std::string waitingIfBlock = currentBlock->waitingIfBlock;
+            currentBlock->waitingIfBlock = "";
+
             currentBlock = &sprite->blocks[currentBlock->next];
 
+            currentBlock->waitingIfBlock = waitingIfBlock;
+
         } else {
+            // first check if the block is inside a waiting 'if' block
+            if (currentBlock->waitingIfBlock != "") {
+                std::string nextBlockId = sprite->blocks[currentBlock->waitingIfBlock].next;
+                currentBlock = &sprite->blocks[nextBlockId];
+                currentBlock->waitingIfBlock = "";
+                continue;
+            }
+
             runBroadcasts();
             break;
         }
@@ -175,6 +190,7 @@ void BlockExecutor::runBlock(Block &block, Sprite *sprite, Block *waitingBlock, 
     if (duration.count() > 0) {
         // std::cout << " took " << duration.count() << " milliseconds!" << std::endl;
     }
+    return ranBlocks;
 }
 
 BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
@@ -260,6 +276,7 @@ void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBl
             // std::cout << "RWSR = " << localWithoutRefresh << std::endl;
 
             // Execute the custom block definition
+            customBlockDefinition->waitingIfBlock = callerBlock->waitingIfBlock;
             executor.runBlock(*customBlockDefinition, sprite, nullptr, &localWithoutRefresh);
 
             if (localWithoutRefresh) {
@@ -323,7 +340,7 @@ Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
         return iterator->second(block, sprite);
     }
 
-    return Value(0);
+    return Value();
 }
 
 void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
@@ -375,7 +392,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
         }
     }
 
-    return Value(0);
+    return Value();
 }
 
 Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, Block block) {
@@ -407,7 +424,19 @@ Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, 
 void BlockExecutor::addToRepeatQueue(Sprite *sprite, Block *block) {
     auto &repeatList = sprite->blockChains[block->blockChainID].blocksToRepeat;
     if (std::find(repeatList.begin(), repeatList.end(), block->id) == repeatList.end()) {
+        block->isRepeating = true;
         repeatList.push_back(block->id);
+    }
+}
+
+void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
+    auto it = sprite->blockChains.find(block->blockChainID);
+    if (it != sprite->blockChains.end()) {
+        auto &blocksToRepeat = it->second.blocksToRepeat;
+        if (!blocksToRepeat.empty()) {
+            block->isRepeating = false;
+            blocksToRepeat.pop_back();
+        }
     }
 }
 

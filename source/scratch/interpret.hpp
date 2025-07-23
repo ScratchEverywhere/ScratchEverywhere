@@ -36,9 +36,12 @@ class Scratch {
   public:
     static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
 
+    static void fenceSpriteWithinBounds(Sprite *sprite);
+
     static int projectWidth;
     static int projectHeight;
     static int FPS;
+    static bool fencing;
 };
 
 /**
