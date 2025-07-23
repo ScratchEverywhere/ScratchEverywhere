@@ -8,7 +8,7 @@
 
 struct ImageData {
     C2D_Image image;
-    u16 freeTimer = 120;
+    u16 freeTimer = 240;
 };
 
 void get_C2D_Image(Image::ImageRGBA rgba);

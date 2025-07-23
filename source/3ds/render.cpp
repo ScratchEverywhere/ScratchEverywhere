@@ -45,6 +45,30 @@ bool Render::appShouldRun() {
     return aptMainLoop();
 }
 
+void drawBlackBars(int screenWidth, int screenHeight) {
+    float screenAspect = static_cast<float>(screenWidth) / screenHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    if (screenAspect > projectAspect) {
+        // Screen is wider than project,, vertical bars
+        float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
+
+        C2D_DrawRectSolid(0, 0, 0.5f, barWidth, screenHeight, clrBlack);                      // Left bar
+        C2D_DrawRectSolid(screenWidth - barWidth, 0, 0.5f, barWidth, screenHeight, clrBlack); // Right bar
+
+    } else if (screenAspect < projectAspect) {
+        // Screen is taller than project,, horizontal bars
+        float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
+
+        C2D_DrawRectSolid(0, 0, 0.5f, screenWidth, barHeight, clrBlack);                        // Top bar
+        C2D_DrawRectSolid(0, screenHeight - barHeight, 0.5f, screenWidth, barHeight, clrBlack); // Bottom bar
+    }
+}
+
 void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false) {
 
     if (!currentSprite || currentSprite == nullptr) return;
@@ -86,8 +110,6 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
     double spriteSizeX = currentSprite->size * 0.01;
     double spriteSizeY = currentSprite->size * 0.01;
-    double spriteWidth = currentSprite->spriteWidth;
-    double spriteHeight = currentSprite->spriteHeight;
     double scale;
     double heightMultiplier = 0.5;
     int screenWidth = SCREEN_WIDTH;
@@ -99,13 +121,15 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     scale = bottom ? 1.0 : std::min(scaleX, scaleY);
 
     if (!legacyDrawing) {
-        imageC2Ds[costumeId].freeTimer = 120;
+        imageC2Ds[costumeId].freeTimer = 240;
         double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
+        bool flipX = false;
 
         // check for rotation style
         if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
             if (rotation < 0) {
                 spriteSizeX *= -1;
+                flipX = true;
             }
             rotation = 0;
         }
@@ -114,17 +138,23 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
         }
 
         // Center the sprite's pivot point
-        spriteWidth *= spriteSizeX;
-        double scaledRotationCenterX = currentSprite->rotationCenterX * abs(spriteSizeX);
+        double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
+        double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
+        if (flipX) rotationCenterX += currentSprite->spriteWidth - (currentSprite->rotationCenterX / 2);
 
         float alpha = 1.0f - (currentSprite->ghostEffect / 100.0f);
         C2D_ImageTint tinty;
         C2D_AlphaImageTint(&tinty, alpha);
 
+        auto imageFind = imageC2Ds.find(costumeId);
+        if (imageFind == imageC2Ds.end() || imageC2Ds[costumeId].image.tex == nullptr ||
+            imageC2Ds[costumeId].image.subtex == nullptr)
+            return;
+
         C2D_DrawImageAtRotated(
             imageC2Ds[costumeId].image,
-            (currentSprite->xPosition * scale) + (screenWidth / 2) + (((spriteWidth - scaledRotationCenterX) / 2)),
-            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset + ((spriteHeight - currentSprite->rotationCenterY) / 2),
+            (currentSprite->xPosition * scale) + (screenWidth / 2) - rotationCenterX,
+            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - rotationCenterY,
             1,
             rotation,
             &tinty,
@@ -164,7 +194,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
 void Render::renderSprites() {
 
-    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrWhite);
     C2D_TargetClear(bottomScreen, clrWhite);
 
@@ -198,6 +228,8 @@ void Render::renderSprites() {
             }
         }
     }
+    if (Render::renderMode != Render::BOTH_SCREENS)
+        drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(bottomScreen);
@@ -224,6 +256,8 @@ void Render::renderSprites() {
                 costumeIndex++;
             }
         }
+        if (Render::renderMode != Render::BOTH_SCREENS)
+            drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
     }
 
     C2D_Flush();
@@ -239,7 +273,7 @@ void Render::renderSprites() {
 }
 
 void LoadingScreen::renderLoadingScreen() {
-    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrScratchBlue);
     C2D_SceneBegin(topScreen);
 
@@ -267,7 +301,7 @@ void LoadingScreen::cleanup() {
     squares.clear();
 
     C2D_Flush();
-    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrBlack);
     C2D_SceneBegin(topScreen);
 
@@ -295,6 +329,10 @@ void MainMenu::init() {
         TextObject *text = new TextObject(file, 145, yPosition);
         text->setColor(C2D_Color32f(0, 0, 0, 1));
         text->y -= text->getSize()[1] / 2;
+        if (text->getSize()[0] > BOTTOM_SCREEN_WIDTH) {
+            float scale = (float)BOTTOM_SCREEN_WIDTH / (text->getSize()[0] * 1.15);
+            text->setScale(scale);
+        }
         projectTexts.push_back(text);
         yPosition += 50;
     }
@@ -344,7 +382,7 @@ void MainMenu::render() {
         }
     }
 
-    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrScratchBlue);
     C2D_SceneBegin(topScreen);
 
@@ -391,7 +429,7 @@ void MainMenu::cleanup() {
     if (errorTextInfo) delete errorTextInfo;
 
     C2D_Flush();
-    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrScratchBlue);
     C2D_SceneBegin(topScreen);
 

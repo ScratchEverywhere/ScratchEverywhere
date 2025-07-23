@@ -12,10 +12,27 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, Block **waitingBlock
         if (it != block.parsedInputs.end()) {
             Block *subBlock = &sprite->blocks[it->second.blockId];
             if (subBlock) {
-                executor.runBlock(*subBlock, sprite);
+                bool isRepeating = false;
+
+                // Run the block and store ran block IDs
+                for (auto &ranBlock : executor.runBlock(*subBlock, sprite)) {
+                    block.substackBlocksRan.push_back(ranBlock->id);
+                    if (ranBlock->isRepeating) {
+                        isRepeating = true;
+                    }
+                }
+                // If repeating, update waitingIfBlock and pause this block
+                if (isRepeating) {
+                    for (auto &stackBlock : block.substackBlocksRan) {
+                        sprite->blocks[stackBlock].waitingIfBlock = block.id;
+                    }
+                    block.substackBlocksRan.clear();
+                    return BlockResult::RETURN;
+                }
             }
         }
     }
+    block.substackBlocksRan.clear();
     return BlockResult::CONTINUE;
 }
 
@@ -24,25 +41,37 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, Block **waitingB
     bool condition = false;
     if (conditionValue.isNumeric()) {
         condition = conditionValue.asDouble() != 0.0;
-    } else condition = !conditionValue.asString().empty();
-
-    if (condition) {
-        auto it = block.parsedInputs.find("SUBSTACK");
-        if (it != block.parsedInputs.end()) {
-            Block *subBlock = &sprite->blocks[it->second.blockId];
-            if (subBlock) {
-                executor.runBlock(*subBlock, sprite);
-            }
-        }
     } else {
-        auto it = block.parsedInputs.find("SUBSTACK2");
-        if (it != block.parsedInputs.end()) {
-            Block *subBlock = &sprite->blocks[it->second.blockId];
-            if (subBlock) {
-                executor.runBlock(*subBlock, sprite);
+        condition = !conditionValue.asString().empty();
+    }
+
+    // Select correct substack key
+    std::string key = condition ? "SUBSTACK" : "SUBSTACK2";
+    auto it = block.parsedInputs.find(key);
+    if (it != block.parsedInputs.end()) {
+        Block *subBlock = &sprite->blocks[it->second.blockId];
+        if (subBlock) {
+            bool isRepeating = false;
+
+            // Run the block and store ran block IDs
+            for (auto &ranBlock : executor.runBlock(*subBlock, sprite)) {
+                block.substackBlocksRan.push_back(ranBlock->id);
+                if (ranBlock->isRepeating) {
+                    isRepeating = true;
+                }
+            }
+
+            // If repeating, update waitingIfBlock and pause this block
+            if (isRepeating) {
+                for (auto &stackBlock : block.substackBlocksRan) {
+                    sprite->blocks[stackBlock].waitingIfBlock = block.id;
+                }
+                block.substackBlocksRan.clear();
+                return BlockResult::RETURN;
             }
         }
     }
+
     return BlockResult::CONTINUE;
 }
 
@@ -136,7 +165,7 @@ BlockResult ControlBlocks::startAsClone(Block &block, Sprite *sprite, Block **wa
 BlockResult ControlBlocks::wait(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
 
     if (block.repeatTimes == -1) {
-        block.repeatTimes = -5;
+        block.repeatTimes = -2;
 
         Value duration = Scratch::getInputValue(block, "DURATION", sprite);
         if (duration.isNumeric()) {
@@ -147,15 +176,16 @@ BlockResult ControlBlocks::wait(Block &block, Sprite *sprite, Block **waitingBlo
 
         block.waitStartTime = std::chrono::high_resolution_clock::now();
 
-        BlockExecutor::addToRepeatQueue(sprite, const_cast<Block *>(&block));
+        BlockExecutor::addToRepeatQueue(sprite,&block);
     }
 
     auto currentTime = std::chrono::high_resolution_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - block.waitStartTime).count();
+    block.repeatTimes -= 1;
 
-    if (elapsedTime >= block.waitDuration) {
+    if (elapsedTime >= block.waitDuration && block.repeatTimes <= -4) {
         block.repeatTimes = -1;
-        sprite->blockChains[block.blockChainID].blocksToRepeat.pop_back();
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
 
@@ -166,7 +196,7 @@ BlockResult ControlBlocks::waitUntil(Block &block, Sprite *sprite, Block **waiti
 
     if (block.repeatTimes == -1) {
         block.repeatTimes = -4;
-        BlockExecutor::addToRepeatQueue(sprite, const_cast<Block *>(&block));
+        BlockExecutor::addToRepeatQueue(sprite,&block);
     }
 
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
@@ -180,7 +210,7 @@ BlockResult ControlBlocks::waitUntil(Block &block, Sprite *sprite, Block **waiti
 
     if (conditionMet) {
         block.repeatTimes = -1;
-        sprite->blockChains[block.blockChainID].blocksToRepeat.pop_back();
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
 
@@ -210,7 +240,7 @@ BlockResult ControlBlocks::repeat(Block &block, Sprite *sprite, Block **waitingB
         block.repeatTimes = -1;
     }
     // std::cout << "done with repeat " << block.id << std::endl;
-    sprite->blockChains[block.blockChainID].blocksToRepeat.pop_back();
+    BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
 
@@ -230,13 +260,7 @@ BlockResult ControlBlocks::repeatUntil(Block &block, Sprite *sprite, Block **wai
     if (condition) {
         block.repeatTimes = -1;
 
-        auto it = sprite->blockChains.find(block.blockChainID);
-        if (it != sprite->blockChains.end()) {
-            auto &blocksToRepeat = it->second.blocksToRepeat;
-            if (!blocksToRepeat.empty()) {
-                blocksToRepeat.pop_back();
-            }
-        }
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
 
         return BlockResult::CONTINUE;
     }

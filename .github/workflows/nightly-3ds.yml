@@ -8,6 +8,7 @@ on:
       - source/3ds/**
       - gfx/**
       - include/**
+      - .github/workflows/nightly-3ds.yml
   workflow_dispatch:
 
 jobs:

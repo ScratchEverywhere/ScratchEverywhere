@@ -130,45 +130,50 @@ class Value {
 
     // Arithmetic operations
     Value operator+(const Value &other) const {
-        if (isNumeric() && other.isNumeric()) {
-            // Both integers - keep as integer
-            if (type == ValueType::INTEGER && other.type == ValueType::INTEGER) {
-                return Value(intValue + other.intValue);
-            }
-            // At least one is double - return double
-            return Value(asDouble() + other.asDouble());
+        Value a = *this;
+        Value b = other;
+        if (!a.isNumeric()) a = Value(0);
+        if (!b.isNumeric()) b = Value(0);
+
+        if (a.type == ValueType::INTEGER && b.type == ValueType::INTEGER) {
+            return Value(a.intValue + b.intValue);
         }
-        // String concatenation
-        return Value(asString() + other.asString());
+        return Value(a.asDouble() + b.asDouble());
     }
 
     Value operator-(const Value &other) const {
-        if (isNumeric() && other.isNumeric()) {
-            if (type == ValueType::INTEGER && other.type == ValueType::INTEGER) {
-                return Value(intValue - other.intValue);
-            }
-            return Value(asDouble() - other.asDouble());
+        Value a = *this;
+        Value b = other;
+        if (!a.isNumeric()) a = Value(0);
+        if (!b.isNumeric()) b = Value(0);
+
+        if (a.type == ValueType::INTEGER && b.type == ValueType::INTEGER) {
+            return Value(a.intValue - b.intValue);
         }
-        return Value(0);
+        return Value(a.asDouble() - b.asDouble());
     }
 
     Value operator*(const Value &other) const {
-        if (isNumeric() && other.isNumeric()) {
-            if (type == ValueType::INTEGER && other.type == ValueType::INTEGER) {
-                return Value(intValue * other.intValue);
-            }
-            return Value(asDouble() * other.asDouble());
+        Value a = *this;
+        Value b = other;
+        if (!a.isNumeric()) a = Value(0);
+        if (!b.isNumeric()) b = Value(0);
+
+        if (a.type == ValueType::INTEGER && b.type == ValueType::INTEGER) {
+            return Value(a.intValue * b.intValue);
         }
-        return Value(0);
+        return Value(a.asDouble() * b.asDouble());
     }
 
     Value operator/(const Value &other) const {
-        if (isNumeric() && other.isNumeric()) {
-            double otherVal = other.asDouble();
-            if (otherVal == 0.0) return Value(0); // Division by zero
-            return Value(asDouble() / otherVal);
-        }
-        return Value(0);
+        Value a = *this;
+        Value b = other;
+        if (!a.isNumeric()) a = Value(0);
+        if (!b.isNumeric()) b = Value(0);
+
+        double bVal = b.asDouble();
+        if (bVal == 0.0) return Value(0); // Division by zero
+        return Value(a.asDouble() / bVal);
     }
 
     // Comparison operators

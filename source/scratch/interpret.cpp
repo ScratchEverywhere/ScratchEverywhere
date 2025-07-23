@@ -14,6 +14,7 @@ BlockExecutor executor;
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
+bool Scratch::fencing = true;
 
 void initializeSpritePool(int poolSize) {
     for (int i = 0; i < poolSize; i++) {
@@ -68,8 +69,6 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) * 0.75);
     double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight) * 0.75);
 
-    std::cout << "sprite: " << currentSprite->name << " rot: " << rotationCenterX << " " << rotationCenterY << std::endl;
-
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
         {-halfWidth - (rotationCenterX * currentSprite->size * 0.01), -halfHeight + (rotationCenterY)}, // Top-left
@@ -89,6 +88,10 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     }
 
     return collisionPoints;
+}
+
+void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
+    // todo do this later
 }
 
 void loadSprites(const nlohmann::json &json) {
@@ -270,7 +273,7 @@ void loadSprites(const nlohmann::json &json) {
             newSound.dataFormat = data["dataFormat"];
             newSound.sampleRate = data["rate"];
             newSound.sampleCount = data["sampleCount"];
-            newSprite->sounds[newSound.id] = newSound;
+            newSprite->sounds[newSound.name] = newSound;
         }
 
         // set Costumes
@@ -348,6 +351,9 @@ void loadSprites(const nlohmann::json &json) {
     for (Sprite *currentSprite : sprites) {
         if (!currentSprite->isStage) continue;
         for (auto &[id, comment] : currentSprite->comments) {
+            // make sure its the turbowarp comment
+            std::size_t settingsFind = comment.text.find("Configuration for https");
+            if (settingsFind == std::string::npos) continue;
             std::size_t json_start = comment.text.find('{');
             if (json_start == std::string::npos) continue;
 
@@ -390,7 +396,8 @@ void loadSprites(const nlohmann::json &json) {
 
             try {
                 config = nlohmann::json::parse(cleaned_json);
-                // std::cout << "Parsed JSON:\n" << config.dump(4) << "\n";
+                std::cout << "Parsed JSON:\n"
+                          << config.dump(4) << "\n";
                 break;
             } catch (nlohmann::json::parse_error &e) {
                 std::cout << "Failed to parse JSON: " << e.what() << "\n";
@@ -402,24 +409,35 @@ void loadSprites(const nlohmann::json &json) {
     int wdth = 0;
     int hght = 0;
     int framerate = 0;
+    bool fncng = true;
 
     try {
         framerate = config["framerate"].get<int>();
         Scratch::FPS = framerate;
+        std::cout << "FPS = " << Scratch::FPS << std::endl;
     } catch (...) {
-        // std::cerr << "no framerate property." << std::endl;
+        std::cout << "no framerate property." << std::endl;
     }
     try {
         wdth = config["width"].get<int>();
         Scratch::projectWidth = wdth;
+        std::cout << "game width = " << Scratch::projectWidth << std::endl;
     } catch (...) {
-        // std::cerr << "no width property." << std::endl;
+        std::cout << "no width property." << std::endl;
     }
     try {
         hght = config["height"].get<int>();
         Scratch::projectHeight = hght;
+        std::cout << "game height = " << Scratch::projectHeight << std::endl;
     } catch (...) {
-        // std::cerr << "no height property." << std::endl;
+        std::cout << "no height property." << std::endl;
+    }
+    try {
+        fncng = config["fencing"].get<bool>();
+        Scratch::fencing = fncng;
+        std::cout << "Fencing is " << Scratch::fencing << std::endl;
+    } catch (...) {
+        std::cout << "no fencing property." << std::endl;
     }
 
     if (wdth == 400 && hght == 480)
@@ -528,7 +546,7 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
     auto parsedFind = block.parsedInputs.find(inputName);
 
     if (parsedFind == block.parsedInputs.end()) {
-        return Value(0);
+        return Value();
     }
 
     const ParsedInput &input = parsedFind->second;
@@ -546,5 +564,5 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
     case ParsedInput::BOOLEAN:
         return executor.getBlockValue(*findBlock(input.blockId), sprite);
     }
-    return Value(0);
+    return Value();
 }

@@ -83,6 +83,15 @@ struct Block {
         LOOKS_CHANGE_EFFECT_BY,
         LOOKS_CLEAR_GRAPHIC_EFFECTS,
         SOUND_VOLUME,
+        SOUND_PLAY_UNTIL_DONE,
+        SOUND_SOUNDS_MENU,
+        SOUND_CLEAR_EFFECTS,
+        SOUND_PLAY,
+        SOUND_STOP_ALL_SOUNDS,
+        SOUND_CHANGE_EFFECT_BY,
+        SOUND_SET_EFFECT_TO,
+        SOUND_CHANGE_VOLUME_BY,
+        SOUND_SET_VOLUME_TO,
         SENSING_TIMER,
         SENSING_RESETTIMER,
         CONTROL_WAIT_UNTIL,
@@ -198,6 +207,15 @@ struct Block {
         if (opCodeString == "looks_changeeffectby") return LOOKS_CHANGE_EFFECT_BY;
         if (opCodeString == "looks_cleargraphiceffects") return LOOKS_CLEAR_GRAPHIC_EFFECTS;
         if (opCodeString == "sound_volume") return SOUND_VOLUME;
+        if (opCodeString == "sound_playuntildone") return SOUND_PLAY_UNTIL_DONE;
+        if (opCodeString == "sound_sounds_menu") return SOUND_SOUNDS_MENU;
+        if (opCodeString == "sound_cleareffects") return SOUND_CLEAR_EFFECTS;
+        if (opCodeString == "sound_play") return SOUND_PLAY;
+        if (opCodeString == "sound_stopallsounds") return SOUND_STOP_ALL_SOUNDS;
+        if (opCodeString == "sound_changeeffectby") return SOUND_CHANGE_EFFECT_BY;
+        if (opCodeString == "sound_seteffectto") return SOUND_SET_EFFECT_TO;
+        if (opCodeString == "sound_changevolumeby") return SOUND_CHANGE_VOLUME_BY;
+        if (opCodeString == "sound_setvolumeto") return SOUND_SET_VOLUME_TO;
         if (opCodeString == "sensing_timer") return SENSING_TIMER;
         if (opCodeString == "sensing_resettimer") return SENSING_RESETTIMER;
         if (opCodeString == "control_wait_until") return CONTROL_WAIT_UNTIL;
@@ -278,6 +296,7 @@ struct Block {
 
     /* variables that some blocks need*/
     int repeatTimes = -1;
+    bool isRepeating = false;
     double waitDuration;
     double glideStartX, glideStartY;
     double glideEndX, glideEndY;
@@ -285,6 +304,8 @@ struct Block {
     bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
+    std::vector<std::string> substackBlocksRan;
+    std::string waitingIfBlock = "";
 };
 
 struct CustomBlock {

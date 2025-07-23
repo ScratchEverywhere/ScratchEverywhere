@@ -8,6 +8,8 @@ class Unzip {
     static volatile int projectOpened;
     static volatile bool threadFinished;
     static std::string filePath;
+    static mz_zip_archive zipArchive;
+    static std::vector<char> zipBuffer;
 
     static void openScratchProject(void *arg) {
         std::ifstream file;
@@ -58,43 +60,42 @@ class Unzip {
             std::cout << "Reading SB3..." << std::endl;
             std::streamsize size = file->tellg(); // gets the size of the file
             file->seekg(0, std::ios::beg);        // go to the beginning of the file
-            std::vector<char> buffer(size);
-            if (!file->read(buffer.data(), size)) {
+            zipBuffer.resize(size);
+            if (!file->read(zipBuffer.data(), size)) {
                 return project_json;
             }
 
             // open ZIP file from the thing that we just did
             std::cout << "Opening SB3 file..." << std::endl;
-            mz_zip_archive zip;
-            memset(&zip, 0, sizeof(zip));
-            if (!mz_zip_reader_init_mem(&zip, buffer.data(), buffer.size(), 0)) {
+            memset(&zipArchive, 0, sizeof(zipArchive));
+            if (!mz_zip_reader_init_mem(&zipArchive, zipBuffer.data(), zipBuffer.size(), 0)) {
                 return project_json;
             }
 
             // extract project.json
             std::cout << "Extracting project.json..." << std::endl;
-            int file_index = mz_zip_reader_locate_file(&zip, "project.json", NULL, 0);
+            int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
             if (file_index < 0) {
                 return project_json;
             }
 
             size_t json_size;
-            const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zip, file_index, &json_size, 0));
+            const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
 
             // Parse JSON file
             std::cout << "Parsing project.json..." << std::endl;
             project_json = nlohmann::json::parse(std::string(json_data, json_size));
             mz_free((void *)json_data);
 
-            Image::loadImages(&zip);
-            mz_zip_reader_end(&zip);
+            // Image::loadImages(&zipArchive);
+            // mz_zip_reader_end(&zipArchive);
         } else {
             // if project is unzipped
             file->clear();                 // Clear any EOF flags
             file->seekg(0, std::ios::beg); // Go to the start of the file
             (*file) >> project_json;
         }
-
+        Image::loadImages(&zipArchive);
         return project_json;
     }
 

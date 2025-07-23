@@ -28,7 +28,7 @@ BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, Block **
     if (!shouldEnd) return BlockResult::RETURN;
 
     block.repeatTimes = -1;
-    sprite->blockChains[block.blockChainID].blocksToRepeat.pop_back();
+    BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
 

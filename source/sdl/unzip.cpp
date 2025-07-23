@@ -8,6 +8,8 @@
 volatile int Unzip::projectOpened;
 volatile bool Unzip::threadFinished;
 std::string Unzip::filePath = "";
+mz_zip_archive Unzip::zipArchive;
+std::vector<char> Unzip::zipBuffer;
 
 int Unzip::openFile(std::ifstream *file) {
     std::cout << "Unzipping Scratch Project..." << std::endl;
