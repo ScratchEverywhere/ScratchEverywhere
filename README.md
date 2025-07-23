@@ -89,11 +89,13 @@ Download the .zip file in the Releases tab.
 
 Unzip the file in your `sdcard:/wiiu/apps/` folder.
 
-Place the scratch project you want to run inside this folder as well.
+Place the scratch project you want in `sdcard:/wiiu/scratch-wiiu/`
 - The Scratch project MUST be named `project.sb3`, all lowercase.
 
 Then it should be as simple as opening the app on your Wii U!
 
+> [!NOTE]
+> The first controller connected will be the only one that will work with Scratch Wii U.
 
 ### Building
 
@@ -115,7 +117,9 @@ If you would like to change the name of the app or any other information you can
 - For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 - For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 
-Then it should be as simple as running `make` in the source code folder.
+Then you need to compile the projects into proper Homebrew packages.
+- For the 3DS you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
+- For the Wii U you need to run `make PLATFORM=wiiu all package` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
 
 ## Other
 This project is not affiliated with Scratch or the Scratch team.
