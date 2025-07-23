@@ -3,7 +3,15 @@
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
 #include <chrono>
-#include <thread>
+#include <fstream>
+#include <iomanip>
+#include <random>
+#include <sstream>
+#include <string>
+
+#ifdef __WIIU__
+#include <whb/sdcard.h>
+#endif
 
 // arm-none-eabi-addr2line -e Scratch.elf xxx
 // ^ for debug purposes
@@ -16,11 +24,38 @@ static bool initApp() {
     return Render::Init();
 }
 
+std::string username;
+
 int main(int argc, char **argv) {
     if (!initApp()) {
         exitApp();
         return 1;
     }
+
+    // Cloud Variables Username Stuff
+#ifdef __WIIU__
+    std::ostream usernameFilenameStream;
+    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
+    std::string usernameFilename = usernameFilenameStream.str();
+#else
+    std::string usernameFilename = "cloud-username.txt";
+#endif
+
+    std::ifstream fileStream(usernameFilename.c_str());
+    if (!fileStream.good()) {
+        std::random_device rd;
+        std::ostringstream usernameStream;
+        usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
+        std::ofstream usernameFile;
+        usernameFile.open(usernameFilename);
+        usernameFile << usernameStream.str();
+        usernameFile.close();
+
+        username = usernameStream.str();
+    } else {
+        fileStream >> username;
+    }
+    fileStream.close();
 
     // this is for the FPS
     std::chrono::_V2::system_clock::time_point startTime = std::chrono::high_resolution_clock::now();
