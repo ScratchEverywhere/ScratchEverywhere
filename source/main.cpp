@@ -5,12 +5,6 @@
 #include <chrono>
 #include <thread>
 
-#ifdef __WIIU__
-#include <coreinit/foreground.h>
-#include <coreinit/thread.h>
-#include <proc_ui/procui.h>
-#endif
-
 // arm-none-eabi-addr2line -e Scratch.elf xxx
 // ^ for debug purposes
 
@@ -23,10 +17,6 @@ static bool initApp() {
 }
 
 int main(int argc, char **argv) {
-#ifdef __WIIU__
-    ProcUIInit(OSSavesDone_ReadyToRelease);
-#endif
-
     if (!initApp()) {
         exitApp();
         return 1;
@@ -79,38 +69,20 @@ int main(int argc, char **argv) {
     BlockExecutor::timer = std::chrono::high_resolution_clock::now();
 
     while (Render::appShouldRun()) {
-#ifdef __WIIU__
-        switch (ProcUIProcessMessages(true)) {
-        case PROCUI_STATUS_IN_FOREGROUND:
-#endif
+        endTime = std::chrono::high_resolution_clock::now();
+        if (endTime - startTime >= std::chrono::milliseconds(1000 / Scratch::FPS)) {
+            startTime = std::chrono::high_resolution_clock::now();
+            frameStartTime = std::chrono::high_resolution_clock::now();
 
-            endTime = std::chrono::high_resolution_clock::now();
-            if (endTime - startTime >= std::chrono::milliseconds(1000 / Scratch::FPS)) {
-                startTime = std::chrono::high_resolution_clock::now();
-                frameStartTime = std::chrono::high_resolution_clock::now();
+            Input::getInput();
+            BlockExecutor::runRepeatBlocks();
+            Render::renderSprites();
 
-                Input::getInput();
-                BlockExecutor::runRepeatBlocks();
-                Render::renderSprites();
-
-                frameEndTime = std::chrono::high_resolution_clock::now();
-                auto frameDuration = frameEndTime - frameStartTime;
-                // std::cout << "\x1b[17;1HFrame time: " << frameDuration.count() << " ms" << std::endl;
-                // std::cout << "\x1b[18;1HSprites: " << sprites.size() << std::endl;
-            }
-#ifdef __WIIU__
-            break;
-        case PROCUI_STATUS_RELEASE_FOREGROUND:
-            ProcUIDrawDoneRelease();
-            break;
-        case PROCUI_STATUS_IN_BACKGROUND:
-            OSSleepTicks(OSMillisecondsToTicks(20));
-            break;
-        case PROCUI_STATUS_EXITING:
-            toExit = true;
-            break;
+            frameEndTime = std::chrono::high_resolution_clock::now();
+            auto frameDuration = frameEndTime - frameStartTime;
+            // std::cout << "\x1b[17;1HFrame time: " << frameDuration.count() << " ms" << std::endl;
+            // std::cout << "\x1b[18;1HSprites: " << sprites.size() << std::endl;
         }
-#endif
         if (toExit) {
             break;
         }
