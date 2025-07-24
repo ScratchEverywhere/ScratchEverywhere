@@ -152,6 +152,11 @@ void Render::renderSprites() {
             image->renderRect.y = ((currentSprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2)) - rotationCenterY;
             SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
+            // ghost effect
+            float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
+            Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
+            SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+
             SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, image->rotation, &center, flip);
         } else {
             currentSprite->spriteWidth = 64;

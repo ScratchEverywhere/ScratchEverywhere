@@ -51,12 +51,14 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
         if (isAudio) {
             // Strip extension from filename to get the ID
+            std::cout << "Found audio!" << std::endl;
 
             if (zipFileName != soundId) {
                 continue;
             }
 
             size_t file_size;
+            std::cout << "Extracting sound from sb3..." << std::endl;
             void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
             if (!file_data || file_size == 0) {
                 std::cout << "Failed to extract: " << zipFileName << std::endl;
@@ -70,7 +72,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                 mz_free(file_data);
                 return false;
             }
-
+            std::cout << "Converting sound into SDL sound..." << std::endl;
             Mix_Chunk *chunk = Mix_LoadWAV_RW(rw, 1);
             mz_free(file_data);
 
@@ -79,6 +81,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                 return false;
             }
 
+            std::cout << "Creating SDL sound object..." << std::endl;
             // Create SDL_Audio object
             SDL_Audio *audio = new SDL_Audio();
             audio->audioChunk = chunk;

@@ -387,7 +387,7 @@ class Sprite {
     double rotation;
     int layer;
 
-    int ghostEffect;
+    float ghostEffect;
     double colorEffect = -99999;
 
     enum RotationStyle {
