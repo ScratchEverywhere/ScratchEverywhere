@@ -151,8 +151,8 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
             imageC2Ds[costumeId].image.subtex == nullptr)
             return;
 
-        double offsetX = rotationCenterX * spriteSizeX;
-        double offsetY = rotationCenterY * spriteSizeY;
+        const offsetX = rotationCenterX * spriteSizeX;
+        const offsetY = rotationCenterY * spriteSizeY;
 
         C2D_DrawImageAtRotated(
             imageC2Ds[costumeId].image,
