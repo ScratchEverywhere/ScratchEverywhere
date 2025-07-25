@@ -11,6 +11,7 @@ class Sprite;
 struct Variable {
     std::string id;
     std::string name;
+    bool cloud;
     Value value;
 };
 

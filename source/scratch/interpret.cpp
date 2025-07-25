@@ -154,6 +154,7 @@ void loadSprites(const nlohmann::json &json) {
             newVariable.id = id;
             newVariable.name = data[0];
             newVariable.value = Value::fromJson(data[1]);
+            newVariable.cloud = data.size() == 3;
             newSprite->variables[newVariable.id] = newVariable; // add variable to sprite
         }
 
