@@ -5,6 +5,11 @@
 #include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <memory>
+#ifdef __3DS__
+#include <sys/select.h> // IDK why this is required only on the 3DS version
+#endif
+#include <mist/mist.hpp>
 #include <random>
 #include <sstream>
 #include <string>
@@ -16,6 +21,9 @@
 // arm-none-eabi-addr2line -e Scratch.elf xxx
 // ^ for debug purposes
 
+std::string username;
+std::unique_ptr<MistConnection> cloudConnection = nullptr;
+
 static void exitApp() {
     Render::deInit();
 }
@@ -24,17 +32,10 @@ static bool initApp() {
     return Render::Init();
 }
 
-std::string username;
-
-int main(int argc, char **argv) {
-    if (!initApp()) {
-        exitApp();
-        return 1;
-    }
-
+void initMist() {
     // Cloud Variables Username Stuff
 #ifdef __WIIU__
-    std::ostream usernameFilenameStream;
+    std::ostringstream usernameFilenameStream;
     usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
     std::string usernameFilename = usernameFilenameStream.str();
 #else
@@ -56,6 +57,15 @@ int main(int argc, char **argv) {
         fileStream >> username;
     }
     fileStream.close();
+
+    cloudConnection = std::make_unique<MistConnection>("Scratch-3DS-project-id", username, "contact@grady.link"); // TODO: set project id to "Scratch-3DS-" + HASH_OF_PROJECT_JSON
+}
+
+int main(int argc, char **argv) {
+    if (!initApp()) {
+        exitApp();
+        return 1;
+    }
 
     // this is for the FPS
     std::chrono::_V2::system_clock::time_point startTime = std::chrono::high_resolution_clock::now();
@@ -99,6 +109,8 @@ int main(int argc, char **argv) {
             return 0;
         }
     }
+
+    initMist();
 
     BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHENFLAGCLICKED);
     BlockExecutor::timer = std::chrono::high_resolution_clock::now();
