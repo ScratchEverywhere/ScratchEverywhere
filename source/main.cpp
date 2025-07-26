@@ -3,7 +3,6 @@
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
 #include <chrono>
-#include <fstream>
 #include <iomanip>
 #include <memory>
 #ifdef __3DS__
@@ -21,7 +20,6 @@
 // arm-none-eabi-addr2line -e Scratch.elf xxx
 // ^ for debug purposes
 
-std::string username;
 size_t projectHash;
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 
@@ -35,29 +33,11 @@ static bool initApp() {
 
 void initMist() {
     // Username Stuff
-#ifdef __WIIU__
-    std::ostringstream usernameFilenameStream;
-    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
-    std::string usernameFilename = usernameFilenameStream.str();
-#else
-    std::string usernameFilename = "cloud-username.txt";
-#endif
 
-    std::ifstream fileStream(usernameFilename.c_str());
-    if (!fileStream.good()) {
-        std::random_device rd;
-        std::ostringstream usernameStream;
-        usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
-        std::ofstream usernameFile;
-        usernameFile.open(usernameFilename);
-        usernameFile << usernameStream.str();
-        usernameFile.close();
-
-        username = usernameStream.str();
-    } else {
-        fileStream >> username;
-    }
-    fileStream.close();
+    std::random_device rd;
+    std::ostringstream usernameStream;
+    usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
+    std::string username = usernameStream.str();
 
     std::ostringstream projectID;
     projectID << "Scratch-3DS/hash-" << projectHash;
