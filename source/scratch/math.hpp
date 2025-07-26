@@ -12,6 +12,8 @@ bool isNumber(const std::string &str);
 
 double degreesToRadians(double degrees);
 
+double radiansToDegrees(double radians);
+
 std::string generateRandomString(int length);
 
 std::string removeQuotations(std::string value);

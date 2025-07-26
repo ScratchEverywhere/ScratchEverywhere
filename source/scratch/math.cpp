@@ -19,6 +19,10 @@ double Math::degreesToRadians(double degrees) {
     return degrees * (M_PI / 180.0);
 }
 
+double Math::radiansToDegrees(double radians) {
+    return radians * (180.0 / M_PI);
+}
+
 std::string Math::generateRandomString(int length) {
     std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-=[];',./_+{}|:<>?~`";
     std::string result;

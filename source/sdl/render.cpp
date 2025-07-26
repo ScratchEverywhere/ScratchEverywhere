@@ -1,4 +1,5 @@
 #include "../scratch/render.hpp"
+#include "../scratch/audio.hpp"
 #include "interpret.hpp"
 #include "render.hpp"
 
@@ -55,6 +56,7 @@ bool Render::Init() {
 void Render::deInit() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    SoundPlayer::cleanupAudio();
     IMG_Quit();
     SDL_Quit();
 
@@ -131,28 +133,35 @@ void Render::renderSprites() {
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
-            image->renderRect.x = currentSprite->xPosition;
-            image->renderRect.y = currentSprite->yPosition;
-            image->setRotation(Math::degreesToRadians(currentSprite->rotation - 90.0f));
+            const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
+            double renderRotation = rotation;
 
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-                if (image->rotation < 0) {
+                if (std::cos(rotation) < 0) {
                     flip = SDL_FLIP_HORIZONTAL;
                 }
-                image->setRotation(0);
+                renderRotation = 0;
             }
             if (currentSprite->rotationStyle == currentSprite->NONE) {
-                image->setRotation(0);
+                renderRotation = 0;
             }
 
             double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
             double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
 
-            image->renderRect.x = ((currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - rotationCenterX;
-            image->renderRect.y = ((currentSprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2)) - rotationCenterY;
+            const double offsetX = rotationCenterX * (currentSprite->size * 0.01);
+            const double offsetY = rotationCenterY * (currentSprite->size * 0.01);
+
+            image->renderRect.x = ((currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
+            image->renderRect.y = ((currentSprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
             SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
-            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, image->rotation, &center, flip);
+            // ghost effect
+            float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
+            Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
+            SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+
+            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, Math::radiansToDegrees(renderRotation), &center, flip);
         } else {
             currentSprite->spriteWidth = 64;
             currentSprite->spriteHeight = 64;

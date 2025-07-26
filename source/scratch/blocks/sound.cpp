@@ -1,5 +1,6 @@
 #include "sound.hpp"
 #include "../audio.hpp"
+#include "../unzip.hpp"
 
 BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
 
@@ -27,8 +28,9 @@ BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, Block 
         if (soundFind != sprite->sounds.end()) {
             const Sound *sound = &soundFind->second;
             if (!SoundPlayer::isSoundLoaded(sprite->sounds[inputString].fullName))
-                SoundPlayer::loadSoundFromSB3(sprite, &Unzip::zipArchive, sound->fullName);
-            SoundPlayer::playSound(sound->fullName);
+                SoundPlayer::startSB3SoundLoaderThread(sprite, &Unzip::zipArchive, sound->fullName);
+            else
+                SoundPlayer::playSound(sprite->sounds[inputString].fullName);
         }
 
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -65,8 +67,9 @@ BlockResult SoundBlocks::playSound(Block &block, Sprite *sprite, Block **waiting
     if (soundFind != sprite->sounds.end()) {
         const Sound *sound = &soundFind->second;
         if (!SoundPlayer::isSoundLoaded(sprite->sounds[inputString].fullName))
-            SoundPlayer::loadSoundFromSB3(sprite, &Unzip::zipArchive, sound->fullName);
-        SoundPlayer::playSound(sound->fullName);
+            SoundPlayer::startSB3SoundLoaderThread(sprite, &Unzip::zipArchive, sound->fullName);
+        else
+            SoundPlayer::playSound(sprite->sounds[inputString].fullName);
     }
 
     return BlockResult::CONTINUE;

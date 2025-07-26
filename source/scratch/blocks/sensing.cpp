@@ -140,13 +140,13 @@ Value SensingBlocks::sensingAnswer(Block &block, Sprite *sprite) {
 Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
     auto inputFind = block.parsedInputs.find("KEY_OPTION");
     std::string buttonCheck;
-    
+
     // if no variable block is in the input
-    if(inputFind->second.inputType == ParsedInput::LITERAL){
-    Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
-    buttonCheck = inputBlock->fields["KEY_OPTION"][0];
-    } else{
-       buttonCheck = Scratch::getInputValue(block,"KEY_OPTION",sprite).asString();
+    if (inputFind->second.inputType == ParsedInput::LITERAL) {
+        Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
+        buttonCheck = inputBlock->fields["KEY_OPTION"][0];
+    } else {
+        buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
     }
 
     for (std::string button : Input::inputButtons) {
@@ -256,44 +256,50 @@ Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
         if (targetSprite->name == objectName && targetSprite->visible) {
             std::vector<std::pair<double, double>> targetSpritePoints = getCollisionPoints(targetSprite);
 
-            bool collision = true;
+            // Check if any point of current sprite is inside target sprite
+            for (const auto &currentPoint : currentSpritePoints) {
+                double x = currentPoint.first;
+                double y = currentPoint.second;
 
-            // Check all axes from both rectangles
-            for (int i = 0; i < 4; i++) {
-                // Get edge vectors for both sprites
-                auto edge1 = std::make_pair(
-                    currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
-                    currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second);
-                auto edge2 = std::make_pair(
-                    targetSpritePoints[(i + 1) % 4].first - targetSpritePoints[i].first,
-                    targetSpritePoints[(i + 1) % 4].second - targetSpritePoints[i].second);
+                // Ray casting to check if point is inside target sprite
+                int intersections = 0;
+                for (int i = 0; i < 4; i++) {
+                    int j = (i + 1) % 4;
+                    double x1 = targetSpritePoints[i].first, y1 = targetSpritePoints[i].second;
+                    double x2 = targetSpritePoints[j].first, y2 = targetSpritePoints[j].second;
 
-                // Get perpendicular axes
-                double axis1X = -edge1.second, axis1Y = edge1.first;
-                double axis2X = -edge2.second, axis2Y = edge2.first;
-
-                // Normalize axes
-                double len1 = sqrt(axis1X * axis1X + axis1Y * axis1Y);
-                double len2 = sqrt(axis2X * axis2X + axis2Y * axis2Y);
-                if (len1 > 0) {
-                    axis1X /= len1;
-                    axis1Y /= len1;
-                }
-                if (len2 > 0) {
-                    axis2X /= len2;
-                    axis2Y /= len2;
+                    if (((y1 > y) != (y2 > y)) &&
+                        (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)) {
+                        intersections++;
+                    }
                 }
 
-                // Check separation
-                if (isSeparated(currentSpritePoints, targetSpritePoints, axis1X, axis1Y) ||
-                    isSeparated(currentSpritePoints, targetSpritePoints, axis2X, axis2Y)) {
-                    collision = false;
-                    break;
+                if ((intersections % 2) == 1) {
+                    return Value(true);
                 }
             }
 
-            if (collision) {
-                return Value(true);
+            // Check if any point of target sprite is inside current sprite
+            for (const auto &targetPoint : targetSpritePoints) {
+                double x = targetPoint.first;
+                double y = targetPoint.second;
+
+                // Ray casting to check if point is inside current sprite
+                int intersections = 0;
+                for (int i = 0; i < 4; i++) {
+                    int j = (i + 1) % 4;
+                    double x1 = currentSpritePoints[i].first, y1 = currentSpritePoints[i].second;
+                    double x2 = currentSpritePoints[j].first, y2 = currentSpritePoints[j].second;
+
+                    if (((y1 > y) != (y2 > y)) &&
+                        (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)) {
+                        intersections++;
+                    }
+                }
+
+                if ((intersections % 2) == 1) {
+                    return Value(true);
+                }
             }
         }
     }

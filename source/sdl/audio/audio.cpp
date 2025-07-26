@@ -15,6 +15,33 @@ SDL_Audio::~SDL_Audio() {
     }
 }
 
+// code down here kinda messy,,, TODO fix that
+
+int SB3SoundLoaderThread(void *data) {
+    SDL_Audio::SoundLoadParams *params = static_cast<SDL_Audio::SoundLoadParams *>(data);
+    bool success = params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId);
+
+    delete params;
+
+    return success ? 0 : 1;
+}
+
+void SoundPlayer::startSB3SoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
+    SDL_Sounds[soundId] = new SDL_Audio();
+    SDL_Audio::SoundLoadParams *params = new SDL_Audio::SoundLoadParams{
+        .sprite = sprite,
+        .zip = zip,
+        .soundId = soundId};
+
+    SDL_Thread *thread = SDL_CreateThread(SB3SoundLoaderThread, "SoundLoader", params);
+
+    if (!thread) {
+        std::cerr << "Failed to create SDL thread: " << SDL_GetError() << std::endl;
+    } else {
+        SDL_DetachThread(thread);
+    }
+}
+
 bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
     if (!zip) {
         std::cout << "Error: Zip archive is null" << std::endl;
@@ -35,7 +62,6 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
         std::string zipFileName = file_stat.m_filename;
 
-        // Check if file is an audio file (MP3, WAV, OGG)
         bool isAudio = false;
         std::string extension = "";
 
@@ -50,27 +76,25 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
         }
 
         if (isAudio) {
-            // Strip extension from filename to get the ID
-
             if (zipFileName != soundId) {
                 continue;
             }
 
             size_t file_size;
+            std::cout << "Extracting sound from sb3..." << std::endl;
             void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
             if (!file_data || file_size == 0) {
                 std::cout << "Failed to extract: " << zipFileName << std::endl;
                 return false;
             }
 
-            // Use SDL_RWops to load audio from memory
             SDL_RWops *rw = SDL_RWFromMem(file_data, (int)file_size);
             if (!rw) {
                 std::cout << "Failed to create RWops for: " << zipFileName << std::endl;
                 mz_free(file_data);
                 return false;
             }
-
+            std::cout << "Converting sound into SDL sound..." << std::endl;
             Mix_Chunk *chunk = Mix_LoadWAV_RW(rw, 1);
             mz_free(file_data);
 
@@ -79,6 +103,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                 return false;
             }
 
+            std::cout << "Creating SDL sound object..." << std::endl;
             // Create SDL_Audio object
             SDL_Audio *audio = new SDL_Audio();
             audio->audioChunk = chunk;
@@ -87,11 +112,12 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             SDL_Sounds[soundId] = audio;
 
             std::cout << "Successfully loaded audio: " << soundId << std::endl;
+            SDL_Sounds[soundId]->isLoaded = true;
+            playSound(soundId);
             return true;
         }
     }
 
-    // If we get here, the audio wasn't found
     std::cout << "Audio not found: " << soundId << std::endl;
     return false;
 }
@@ -127,16 +153,18 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, const std::string &fileName)
     audio->audioChunk = chunk;
     audio->audioId = fileName;
 
-    // Store the audio with the fileName as the key
     SDL_Sounds[fileName] = audio;
 
     std::cout << "Successfully loaded audio: " << fileName << std::endl;
+    SDL_Sounds[fileName]->isLoaded = true;
+    playSound(fileName);
     return true;
 }
 
 int SoundPlayer::playSound(const std::string &soundId) {
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
+        it->second->isPlaying = true;
         int channel = Mix_PlayChannel(-1, it->second->audioChunk, 0);
         if (channel != -1) {
             SDL_Sounds[soundId]->channelId = channel;
@@ -157,9 +185,19 @@ void SoundPlayer::stopSound(const std::string &soundId) {
     }
 }
 
+void SoundPlayer::checkAudio() {
+    for (auto &[id, audio] : SDL_Sounds) {
+        if (!isSoundPlaying(id)) {
+            audio->isPlaying = false;
+        }
+    }
+}
+
 bool SoundPlayer::isSoundPlaying(const std::string &soundId) {
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
+        if (!soundFind->second->isLoaded) return true;
+        if (!soundFind->second->isPlaying) return false;
         int channel = soundFind->second->channelId;
         return Mix_Playing(channel) != 0;
     }

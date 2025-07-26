@@ -10,6 +10,12 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, const std::string &fileName)
     return false;
 }
 
+void SoundPlayer::startSB3SoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
+}
+
+void SoundPlayer::checkAudio() {
+}
+
 int SoundPlayer::playSound(const std::string &soundId) {
     return -1;
 }

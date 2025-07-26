@@ -4,7 +4,7 @@
 TextObject::TextObject(std::string txt, double posX, double posY, std::string fontPath) {
     x = posX;
     y = posY;
-    StaticTextBuffer = C2D_TextBufNew(txt.size());
+    StaticTextBuffer = C2D_TextBufNew(50);
 
     if (fontPath == "")
         font = C2D_FontLoadSystem(CFG_REGION_USA);

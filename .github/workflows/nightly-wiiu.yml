@@ -9,6 +9,8 @@ on:
       - gfx/wiiu/**
       - include/**
       - .github/workflows/nightly-wiiu.yml
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:

@@ -7,9 +7,18 @@ class SDL_Audio {
     Mix_Chunk *audioChunk;
     std::string audioId;
     int channelId;
+    bool isLoaded = false;
+    bool isPlaying = false;
 
     SDL_Audio();
     ~SDL_Audio();
+
+    struct SoundLoadParams {
+        SoundPlayer *player;
+        Sprite *sprite;
+        mz_zip_archive *zip;
+        std::string soundId;
+    };
 };
 
 extern std::unordered_map<std::string, SDL_Audio *> SDL_Sounds;

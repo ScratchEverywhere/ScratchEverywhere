@@ -23,7 +23,7 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch 3DS
-APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 10]
+APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 12 Dev]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
@@ -60,7 +60,7 @@ LIBS	+= `$(PKGCONF_3DS) --libs mist++`
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:= $(CTRULIB)
+LIBDIRS	:= $(CTRULIB)  $(DEVKITPRO)/portlibs/3ds
 
 
 #---------------------------------------------------------------------------------

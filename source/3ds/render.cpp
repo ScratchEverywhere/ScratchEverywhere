@@ -1,4 +1,5 @@
 #include "render.hpp"
+#include "../scratch/audio.hpp"
 #include "../scratch/image.hpp"
 #include "../scratch/input.hpp"
 #include "../scratch/render.hpp"
@@ -37,6 +38,17 @@ bool Render::Init() {
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
     romfsInit();
+    // waiting for beta 12 to enable,,
+    // SDL_Init(SDL_INIT_AUDIO);
+    // // Initialize SDL_mixer
+    // if (Mix_OpenAudio(22050, AUDIO_S16, 1, 512) < 0) { // Mono, smaller buffer
+    //     std::cout << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << std::endl;
+    //     // return false;
+    // }
+    // int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
+    // if (Mix_Init(flags) != flags) {
+    //     std::cout << "SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: " << Mix_GetError() << std::endl;
+    // }
 
     return true;
 }
@@ -127,7 +139,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
         // check for rotation style
         if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-            if (rotation < 0) {
+            if (std::cos(rotation) < 0) {
                 spriteSizeX *= -1;
                 flipX = true;
             }
@@ -140,7 +152,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
         // Center the sprite's pivot point
         double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
         double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
-        if (flipX) rotationCenterX += currentSprite->spriteWidth - (currentSprite->rotationCenterX / 2);
+        if (flipX) rotationCenterX -= currentSprite->spriteWidth;
 
         float alpha = 1.0f - (currentSprite->ghostEffect / 100.0f);
         C2D_ImageTint tinty;
@@ -151,10 +163,13 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
             imageC2Ds[costumeId].image.subtex == nullptr)
             return;
 
+        const double offsetX = rotationCenterX * spriteSizeX;
+        const double offsetY = rotationCenterY * spriteSizeY;
+
         C2D_DrawImageAtRotated(
             imageC2Ds[costumeId].image,
-            (currentSprite->xPosition * scale) + (screenWidth / 2) - rotationCenterX,
-            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - rotationCenterY,
+            (currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation),
+            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation),
             1,
             rotation,
             &tinty,
@@ -263,7 +278,7 @@ void Render::renderSprites() {
     C2D_Flush();
     C3D_FrameEnd(0);
     Image::FlushImages();
-    gspWaitForVBlank();
+    // gspWaitForVBlank();
     endTime = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = endTime - startTime;
     // int FPS = 1000.0 / std::round(duration.count());
@@ -454,7 +469,8 @@ void Render::deInit() {
         }
     }
     Image::imageRGBAS.clear();
-
+    SoundPlayer::cleanupAudio();
+    // SDL_Quit();
     romfsExit();
     gfxExit();
 }

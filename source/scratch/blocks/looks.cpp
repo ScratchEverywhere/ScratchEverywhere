@@ -17,8 +17,8 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, Block **w
     if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputValue.asString());
         if (inputBlock != nullptr) {
-            if(!inputBlock->fields["COSTUME"][0].is_null())
-            inputString = inputBlock->fields["COSTUME"][0].get<std::string>();
+            if (!inputBlock->fields["COSTUME"][0].is_null())
+                inputString = inputBlock->fields["COSTUME"][0].get<std::string>();
             else return BlockResult::CONTINUE;
         }
     }
@@ -72,8 +72,8 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, Block **
     if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputString);
         if (inputBlock != nullptr) {
-            if(!inputBlock->fields["BACKDROP"][0].is_null())
-            inputString = inputBlock->fields["BACKDROP"][0].get<std::string>();
+            if (!inputBlock->fields["BACKDROP"][0].is_null())
+                inputString = inputBlock->fields["BACKDROP"][0].get<std::string>();
             else return BlockResult::CONTINUE;
         }
     }
@@ -262,7 +262,7 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, Block **waiti
     } else if (effect == "BRIGHTNESS") {
         // doable....
     } else if (effect == "GHOST") {
-        sprite->ghostEffect = std::clamp(amount.asInt(), 0, 100);
+        sprite->ghostEffect = std::clamp(amount.asDouble(), 0.0, 100.0);
     } else {
         std::cout << "what effect did you even put??" << std::endl;
     }
@@ -288,8 +288,8 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, Block **wa
     } else if (effect == "BRIGHTNESS") {
         // doable....
     } else if (effect == "GHOST") {
-        sprite->ghostEffect += amount.asInt();
-        sprite->ghostEffect = std::clamp(sprite->ghostEffect, 0, 100);
+        sprite->ghostEffect += amount.asDouble();
+        sprite->ghostEffect = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
     } else {
         std::cout << "what effect did you even put??" << std::endl;
     }
@@ -297,7 +297,7 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, Block **wa
 }
 BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
 
-    sprite->ghostEffect = 0;
+    sprite->ghostEffect = 0.0f;
     sprite->colorEffect = -99999;
 
     return BlockResult::CONTINUE;
