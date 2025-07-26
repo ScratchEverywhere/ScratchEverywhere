@@ -51,7 +51,6 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - All say and think blocks
 - All* Costume Effects
 - - *`Ghost` Costume Effect is supported.
-- Cloud variables
 - Show/hide variable | Show/hide list
 - When backdrop switches to
 - When this sprite clicked
@@ -65,7 +64,6 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - Stereoscopic 3D support for 3DS
 - Get all blocks working
 - Pen support
-- Cloud variables
 - Ability to remap controls
 - Audio support
 - Turbowarp extensions
