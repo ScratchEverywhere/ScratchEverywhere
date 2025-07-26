@@ -1,7 +1,10 @@
 #include "interpret.hpp"
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
+#include <functional>
+
+extern size_t projectHash;
 
 class Unzip {
   public:
@@ -81,6 +84,10 @@ class Unzip {
 
             size_t json_size;
             const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
+
+            // Get project hash for cloud variables
+            std::hash<std::string> hash_func;
+            projectHash = hash_func(std::string(json_data, json_size));
 
             // Parse JSON file
             std::cout << "Parsing project.json..." << std::endl;

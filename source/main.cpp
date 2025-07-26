@@ -22,6 +22,7 @@
 // ^ for debug purposes
 
 std::string username;
+size_t projectHash;
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 
 static void exitApp() {
@@ -33,7 +34,7 @@ static bool initApp() {
 }
 
 void initMist() {
-    // Cloud Variables Username Stuff
+    // Username Stuff
 #ifdef __WIIU__
     std::ostringstream usernameFilenameStream;
     usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
@@ -58,7 +59,9 @@ void initMist() {
     }
     fileStream.close();
 
-    cloudConnection = std::make_unique<MistConnection>("Scratch-3DS-project-id", username, "contact@grady.link"); // TODO: set project id to "Scratch-3DS-" + HASH_OF_PROJECT_JSON
+    std::ostringstream projectID;
+    projectID << "Scratch-3DS/hash-" << projectHash;
+    cloudConnection = std::make_unique<MistConnection>(projectID.str(), username, "contact@grady.link");
 }
 
 int main(int argc, char **argv) {
