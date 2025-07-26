@@ -71,9 +71,7 @@ void initMist() {
         std::cout << "[INFO] Mist++ Disconnected: " << message << std::endl;
     });
 
-    cloudConnection->onVariableUpdate([](const std::string &name, const std::string &value) {
-        std::cout << "[INFO] Variable \"" << name << "\" changed to: " << value << std::endl;
-    });
+    cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
     cloudConnection->connect();
 }

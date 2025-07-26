@@ -407,6 +407,19 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     return Value();
 }
 
+void BlockExecutor::handleCloudVariableChange(const std::string &name, const std::string &value) {
+    for (const auto &currentSprite : sprites) {
+        if (currentSprite->isStage) {
+            for (auto it = currentSprite->variables.begin(); it != currentSprite->variables.end(); ++it) {
+                if (it->second.name == name) {
+                    it->second.value = Value(value);
+                    return;
+                }
+            }
+        }
+    }
+}
+
 Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, Block block) {
 
     // get the parent prototype block
