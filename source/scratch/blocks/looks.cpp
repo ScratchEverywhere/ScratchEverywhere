@@ -46,7 +46,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, Block **w
     }
 
     if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].id);
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName);
     }
 
     return BlockResult::CONTINUE;
@@ -59,7 +59,7 @@ BlockResult LooksBlocks::nextCostume(Block &block, Sprite *sprite, Block **waiti
         sprite->currentCostume = 0;
     }
     if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].id);
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName);
     }
     return BlockResult::CONTINUE;
 }
@@ -107,7 +107,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, Block **
         }
 
         if (projectType == UNZIPPED) {
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].id);
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
         }
     }
 
@@ -125,7 +125,7 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, Block **wait
             currentSprite->currentCostume = 0;
         }
         if (projectType == UNZIPPED) {
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].id);
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
         }
     }
     return BlockResult::CONTINUE;

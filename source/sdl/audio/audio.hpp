@@ -5,10 +5,12 @@
 class SDL_Audio {
   public:
     Mix_Chunk *audioChunk;
+    Mix_Music *music;
     std::string audioId;
     int channelId;
     bool isLoaded = false;
     bool isPlaying = false;
+    bool isStreaming = false;
 
     SDL_Audio();
     ~SDL_Audio();

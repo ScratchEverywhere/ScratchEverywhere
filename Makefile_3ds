@@ -27,9 +27,9 @@ APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 12 Dev]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source source/3ds source/scratch source/scratch/blocks include/miniz
+SOURCES		:=	source source/3ds source/scratch source/scratch/blocks include/miniz source/sdl/audio
 DATA		:=	data
-INCLUDES	:=	include source/3ds source/scratch source/scratch/blocks
+INCLUDES	:=	include source/3ds source/scratch source/scratch/blocks source/sdl/audio
 GRAPHICS	:=	gfx
 #GFXBUILD	:=	$(BUILD)/gfx
 ROMFS		:=	romfs
@@ -53,7 +53,7 @@ CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lcitro2d -lcitro3d -lctru -lm
+LIBS	:=  -lSDL2_mixer -lSDL2 -lcitro2d -lcitro3d -lctru -lm
 LIBS	+= `$(PKGCONF_3DS) --libs mist++`
 
 #---------------------------------------------------------------------------------

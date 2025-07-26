@@ -78,8 +78,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_Rect leftBar = {0, 0, static_cast<int>(barWidth), screenHeight};
-        SDL_Rect rightBar = {static_cast<int>(screenWidth - barWidth), 0, static_cast<int>(barWidth), screenHeight};
+        SDL_Rect leftBar = {0, 0, static_cast<int>(std::ceil(barWidth)), screenHeight};
+        SDL_Rect rightBar = {static_cast<int>(std::floor(screenWidth - barWidth)), 0, static_cast<int>(std::ceil(barWidth)), screenHeight};
 
         SDL_RenderFillRect(renderer, &leftBar);
         SDL_RenderFillRect(renderer, &rightBar);
@@ -90,8 +90,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_Rect topBar = {0, 0, screenWidth, static_cast<int>(barHeight)};
-        SDL_Rect bottomBar = {0, static_cast<int>(screenHeight - barHeight), screenWidth, static_cast<int>(barHeight)};
+        SDL_Rect topBar = {0, 0, screenWidth, static_cast<int>(std::ceil(barHeight))};
+        SDL_Rect bottomBar = {0, static_cast<int>(std::floor(screenHeight - barHeight)), screenWidth, static_cast<int>(std::ceil(barHeight))};
 
         SDL_RenderFillRect(renderer, &topBar);
         SDL_RenderFillRect(renderer, &bottomBar);

@@ -451,7 +451,7 @@ void loadSprites(const nlohmann::json &json) {
     // if unzipped, load initial sprites
     if (projectType == UNZIPPED) {
         for (auto &currentSprite : sprites) {
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].id);
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
         }
     }
 

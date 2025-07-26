@@ -76,8 +76,9 @@ void Image::loadImages(mz_zip_archive *zip) {
  * @param filePath
  */
 void Image::loadImageFromFile(std::string filePath) {
-    SDL_Image *image = new SDL_Image(filePath);
-    images[filePath] = image;
+    SDL_Image *image = new SDL_Image("project/" + filePath);
+    std::string imageId = filePath.substr(0, filePath.find_last_of('.'));
+    images[imageId] = image;
 }
 /**
  * Frees an `SDL_Image` from memory using a `costumeId` to find it.
@@ -137,6 +138,7 @@ SDL_Image::SDL_Image(std::string filePath) {
     textureRect.h = height;
     textureRect.x = 0;
     textureRect.y = 0;
+    std::cout << "image loaded!" << std::endl;
 }
 
 /**
