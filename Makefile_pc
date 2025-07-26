@@ -8,6 +8,11 @@ INCLUDES   := include source/scratch source/scratch/blocks source/sdl source/sdl
 CXX        := g++
 CC         := gcc
 
+# Mist++ Version Check
+ifeq ($(shell pkg-config --atleast-version=0.1.4 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.1.4 or newer.")
+endif
+
 # Base compiler flags
 CXXFLAGS_BASE := -std=c++17 -Wall -D__PC__ -fexceptions
 CFLAGS_BASE   := -D__PC__

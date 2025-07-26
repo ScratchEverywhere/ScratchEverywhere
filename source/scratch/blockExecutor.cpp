@@ -8,9 +8,7 @@
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
-#include <sys/select.h>
-
-#include <mist/mist.hpp> // sys/select.h needs to be before this because of a curl bug
+#include <mist/mist.hpp>
 
 extern std::unique_ptr<MistConnection> cloudConnection;
 

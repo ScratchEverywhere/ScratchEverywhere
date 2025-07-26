@@ -32,6 +32,12 @@ WUHB_ICON				:=	gfx/wiiu/icon.png
 WUHB_TV_SPLASH	:=	gfx/wiiu/tv-splash.png
 WUHB_DRC_SPLASH	:=	gfx/wiiu/drc-splash.png
 
+# Mist++ Version Check
+MIST_VERSION_CHECK := $(shell $(PKGCONF_WIIU) --atleast-version=0.1.4 mist++ 2>/dev/null; echo $$?)
+ifeq ($(MISR_VERSION_CHECK),1)
+$(error "Mist++ version >= 0.1.4 is required")
+endif
+
 # Flags
 
 CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP)

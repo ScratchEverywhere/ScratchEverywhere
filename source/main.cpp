@@ -5,12 +5,10 @@
 #include <chrono>
 #include <iomanip>
 #include <memory>
+#include <mist/mist.hpp>
 #include <random>
 #include <sstream>
 #include <string>
-#include <sys/select.h>
-
-#include <mist/mist.hpp> // sys/select.h needs to be before this because of a curl bug?
 
 #ifdef __WIIU__
 #include <whb/sdcard.h>

@@ -36,6 +36,11 @@ ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
 GFXBUILD	:=	$(ROMFS)/gfx
 
+# Mist++ Version Check
+ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.1.4 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.1.4 or newer.")
+endif
+
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
