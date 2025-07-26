@@ -62,6 +62,20 @@ void initMist() {
     std::ostringstream projectID;
     projectID << "Scratch-3DS/hash-" << projectHash;
     cloudConnection = std::make_unique<MistConnection>(projectID.str(), username, "contact@grady.link");
+
+    cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
+        if (connected) {
+            std::cout << "[INFO] Mist++ Connected: " << message << std::endl;
+            return;
+        }
+        std::cout << "[INFO] Mist++ Disconnected: " << message << std::endl;
+    });
+
+    cloudConnection->onVariableUpdate([](const std::string &name, const std::string &value) {
+        std::cout << "[INFO] Variable \"" << name << "\" changed to: " << value << std::endl;
+    });
+
+    cloudConnection->connect();
 }
 
 int main(int argc, char **argv) {

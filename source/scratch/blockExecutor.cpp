@@ -8,6 +8,9 @@
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
+#include <mist/mist.hpp>
+
+extern std::unique_ptr<MistConnection> cloudConnection;
 
 size_t blocksRun = 0;
 std::chrono::_V2::system_clock::time_point BlockExecutor::timer;
@@ -365,6 +368,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
             auto globalIt = currentSprite->variables.find(variableId);
             if (globalIt != currentSprite->variables.end()) {
                 globalIt->second.value = newValue;
+                if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
                 return;
             }
         }
