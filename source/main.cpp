@@ -5,13 +5,12 @@
 #include <chrono>
 #include <iomanip>
 #include <memory>
-#ifdef __3DS__
-#include <sys/select.h> // IDK why this is required only on the 3DS version
-#endif
-#include <mist/mist.hpp>
 #include <random>
 #include <sstream>
 #include <string>
+#include <sys/select.h>
+
+#include <mist/mist.hpp> // sys/select.h needs to be before this because of a curl bug?
 
 #ifdef __WIIU__
 #include <whb/sdcard.h>
