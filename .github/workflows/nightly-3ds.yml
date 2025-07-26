@@ -9,6 +9,8 @@ on:
       - gfx/**
       - include/**
       - .github/workflows/nightly-3ds.yml
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
