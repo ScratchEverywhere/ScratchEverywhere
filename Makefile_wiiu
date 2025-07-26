@@ -39,7 +39,7 @@ CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
 CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__
-CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
+CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2` `$(PKGCONF_WIIU) --cflags mist++`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
 CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
@@ -47,7 +47,7 @@ CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2` `$(PKGCONF) --libs zlib libpng`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2` `$(PKGCONF) --libs zlib libpng` `$(PKGCONF_WIIU) --libs mist++`
 LIBS	+=	-lharfbuzz -lfreetype
 
 LIBDIRS	:=	$(PORTLIBS) $(WUT_ROOT)

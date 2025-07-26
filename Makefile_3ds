@@ -17,6 +17,8 @@ endif
 TOPDIR ?= $(CURDIR)
 include $(DEVKITARM)/3ds_rules
 
+PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
+
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
@@ -43,7 +45,8 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer $(ARCH)
+CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer
+CFLAGS	+=	`$(PKGCONF_3DS) --cflags mist++`
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
 
@@ -51,6 +54,7 @@ ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 LIBS	:= -lcitro2d -lcitro3d -lctru -lm
+LIBS	+= `$(PKGCONF_3DS) --libs mist++`
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
