@@ -3,9 +3,6 @@
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
 #include <chrono>
-#include <iomanip>
-#include <memory>
-#include <string>
 
 #ifdef ENABLE_CLOUDVARS
 #include <mist/mist.hpp>

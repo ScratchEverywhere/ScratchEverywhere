@@ -1,8 +1,6 @@
 #include "interpret.hpp"
-#include <cstddef>
 #include <filesystem>
 #include <fstream>
-#include <functional>
 
 #ifdef ENABLE_CLOUDVARS
 extern size_t projectHash;
