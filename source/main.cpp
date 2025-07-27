@@ -5,20 +5,25 @@
 #include <chrono>
 #include <iomanip>
 #include <memory>
+#include <string>
+
+#ifdef ENABLE_CLOUDVARS
 #include <mist/mist.hpp>
 #include <random>
 #include <sstream>
-#include <string>
+#endif
 
-#ifdef __WIIU__
+#if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
 #include <whb/sdcard.h>
 #endif
 
 // arm-none-eabi-addr2line -e Scratch.elf xxx
 // ^ for debug purposes
 
+#ifdef ENABLE_CLOUDVARS
 size_t projectHash;
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
+#endif
 
 static void exitApp() {
     Render::deInit();
@@ -28,6 +33,7 @@ static bool initApp() {
     return Render::Init();
 }
 
+#ifdef ENABLE_CLOUDVARS
 void initMist() {
     // Username Stuff
 
@@ -52,6 +58,7 @@ void initMist() {
 
     cloudConnection->connect();
 }
+#endif
 
 int main(int argc, char **argv) {
     if (!initApp()) {
@@ -102,7 +109,9 @@ int main(int argc, char **argv) {
         }
     }
 
+#ifdef ENABLE_CLOUDVARS
     initMist();
+#endif
 
     BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHENFLAGCLICKED);
     BlockExecutor::timer = std::chrono::high_resolution_clock::now();

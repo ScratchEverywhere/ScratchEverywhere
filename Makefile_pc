@@ -13,9 +13,19 @@ ifeq ($(shell pkg-config --atleast-version=0.1.4 mist++ >/dev/null 2>&1; echo $$
 $(error "[ERROR] Mist++ must be v0.1.4 or newer.")
 endif
 
+# Config Options
+ENABLE_CLOUDVARS	?=	1
+
 # Base compiler flags
 CXXFLAGS_BASE := -std=c++17 -Wall -D__PC__ -fexceptions
 CFLAGS_BASE   := -D__PC__
+
+LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer
+
+ifeq ($(ENABLE_CLOUDVARS), 1)
+CFLAGS_BASE	+=	-DENABLE_CLOUDVARS
+LDFLAGS			+=	-lmist++ -lcurl
+endif
 
 # Debug and Release flags
 CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -g -O0 -DDEBUG
@@ -23,8 +33,6 @@ CXXFLAGS_RELEASE := $(CXXFLAGS_BASE) -O2 -DNDEBUG
 
 CFLAGS_DEBUG   := $(CFLAGS_BASE) -g -O0 -DDEBUG
 CFLAGS_RELEASE := $(CFLAGS_BASE) -O2 -DNDEBUG
-
-LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lmist++ -lcurl
 
 # Find all .cpp and .c files recursively
 SRC_CPP    := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))

@@ -41,6 +41,9 @@ ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.1.4 mist++ >/dev/null 2>&1; ech
 $(error "[ERROR] Mist++ must be v0.1.4 or newer.")
 endif
 
+# Config Options
+CLOUDVARS_ENABLED	?=	1
+
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
@@ -51,15 +54,18 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer
-CFLAGS	+=	`$(PKGCONF_3DS) --cflags mist++`
-
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 LIBS	:=  -lSDL2_mixer -lSDL2 -lcitro2d -lcitro3d -lctru -lm
+
+ifeq ($(ENABLE_CLOUDVARS), 1)
+CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_3DS) --cflags mist++`
 LIBS	+= `$(PKGCONF_3DS) --libs mist++`
+endif
+
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
