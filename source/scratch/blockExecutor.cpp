@@ -151,7 +151,7 @@ void BlockExecutor::registerHandlers() {
     valueHandlers[Block::ARGUMENT_REPORTER_BOOLEAN] = ProcedureBlocks::booleanArgument;
 }
 
-std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, Block *waitingBlock, bool *withoutScreenRefresh) {
+std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::vector<Block *> ranBlocks;
     auto start = std::chrono::high_resolution_clock::now();
     Block *currentBlock = &block;
@@ -168,7 +168,7 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, Block
     while (currentBlock && currentBlock->id != "null") {
         blocksRun += 1;
         ranBlocks.push_back(currentBlock);
-        BlockResult result = executeBlock(*currentBlock, sprite, &waitingBlock, withoutScreenRefresh);
+        BlockResult result = executeBlock(*currentBlock, sprite, withoutScreenRefresh, fromRepeat);
 
         if (result == BlockResult::RETURN) {
             return ranBlocks;
@@ -207,10 +207,10 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, Block
     return ranBlocks;
 }
 
-BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     auto iterator = handlers.find(block.opcode);
     if (iterator != handlers.end()) {
-        return iterator->second(block, sprite, waitingBlock, withoutScreenRefresh);
+        return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
     }
 
     return BlockResult::CONTINUE;
@@ -218,6 +218,7 @@ BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, Block **wa
 
 void BlockExecutor::runRepeatBlocks() {
     blocksRun = 0;
+    bool withoutRefresh = false;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
     for (auto &sprite : sprites) {
@@ -228,7 +229,7 @@ void BlockExecutor::runRepeatBlocks() {
                 if (!toRepeat.empty()) {
                     Block *toRun = &sprite->blocks[toRepeat];
                     if (toRun != nullptr) {
-                        executor.runBlock(*toRun, sprite);
+                        executor.runBlock(*toRun, sprite, &withoutRefresh, true);
                     }
                 }
             }
@@ -253,12 +254,13 @@ void BlockExecutor::runRepeatBlocks() {
 }
 
 void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
+    bool withoutRefresh = true;
     if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
         while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
             std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
             Block *toRun = findBlock(toRepeat);
             if (toRun != nullptr)
-                executor.runBlock(*toRun, sprite);
+                executor.runBlock(*toRun, sprite, &withoutRefresh, true);
         }
     }
 }
@@ -291,7 +293,7 @@ void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBl
 
             // Execute the custom block definition
             customBlockDefinition->waitingIfBlock = callerBlock->waitingIfBlock;
-            executor.runBlock(*customBlockDefinition, sprite, nullptr, &localWithoutRefresh);
+            executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh);
 
             if (localWithoutRefresh) {
                 BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
@@ -450,10 +452,10 @@ Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, 
                 if (valueIt != custBlock.argumentValues.end()) {
                     return valueIt->second;
                 } else {
-                    std::cout << "Argument ID found, but no value exists for it." << std::endl;
+                    Log::logWarning("Argument ID found, but no value exists for it.");
                 }
             } else {
-                std::cout << "Index out of bounds for argumentIds!" << std::endl;
+                Log::logWarning("Index out of bounds for argumentIds!");
             }
         }
     }

@@ -1,4 +1,5 @@
 #include "../scratch/image.hpp"
+#include "../scratch/os.hpp"
 #include "image.hpp"
 #include "render.hpp"
 #include <iostream>
@@ -11,7 +12,7 @@ std::unordered_map<std::string, SDL_Image *> images;
  * @param zip
  */
 void Image::loadImages(mz_zip_archive *zip) {
-    std::cout << "Loading images..." << std::endl;
+    Log::log("Loading images...");
     int file_count = (int)mz_zip_reader_get_num_files(zip);
 
     for (int i = 0; i < file_count; i++) {
@@ -27,14 +28,14 @@ void Image::loadImages(mz_zip_archive *zip) {
             size_t file_size;
             void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
             if (!file_data) {
-                std::cout << "Failed to extract: " << zipFileName << std::endl;
+                Log::logWarning("Failed to extract: " + zipFileName);
                 continue;
             }
 
             // Use SDL_RWops to load image from memory
             SDL_RWops *rw = SDL_RWFromMem(file_data, file_size);
             if (!rw) {
-                std::cout << "Failed to create RWops for: " << zipFileName << std::endl;
+                Log::logWarning("Failed to create RWops for: " + zipFileName);
                 mz_free(file_data);
                 continue;
             }
@@ -44,25 +45,34 @@ void Image::loadImages(mz_zip_archive *zip) {
             mz_free(file_data);
 
             if (!surface) {
-                std::cout << "Failed to load image from memory: " << zipFileName << std::endl;
+                Log::logWarning("Failed to load image from memory: " + zipFileName);
                 continue;
             }
 
             SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
             if (!texture) {
-                std::cout << "Failed to create texture: " << zipFileName << std::endl;
+                Log::logWarning("Failed to create texture: " + zipFileName);
                 SDL_FreeSurface(surface);
                 continue;
             }
 
+            // Track texture memory usage
+            int width, height;
+            SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
+            size_t textureMemory = width * height * 4;
+            MemoryTracker::allocate(textureMemory);
+
             SDL_FreeSurface(surface);
 
             // Build SDL_Image object
-            SDL_Image *image = new SDL_Image();
+            SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
+            new (image) SDL_Image();
             image->spriteTexture = texture;
             SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
             image->renderRect = {0, 0, image->width, image->height};
             image->textureRect = {0, 0, image->width, image->height};
+
+            image->memorySize = textureMemory;
 
             // Strip extension from filename for the ID
             std::string imageId = zipFileName.substr(0, zipFileName.find_last_of('.'));
@@ -76,7 +86,16 @@ void Image::loadImages(mz_zip_archive *zip) {
  * @param filePath
  */
 void Image::loadImageFromFile(std::string filePath) {
-    SDL_Image *image = new SDL_Image("project/" + filePath);
+    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
+    new (image) SDL_Image("project/" + filePath);
+
+    // Track texture memory
+    if (image->spriteTexture) {
+        size_t textureMemory = image->width * image->height * 4;
+        MemoryTracker::allocate(textureMemory);
+        image->memorySize = textureMemory;
+    }
+
     std::string imageId = filePath.substr(0, filePath.find_last_of('.'));
     images[imageId] = image;
 }
@@ -85,9 +104,19 @@ void Image::loadImageFromFile(std::string filePath) {
  * @param costumeId
  */
 void Image::freeImage(const std::string &costumeId) {
-    auto image = images.find(costumeId);
-    if (image != images.end()) {
-        images.erase(image);
+    auto imageIt = images.find(costumeId);
+    if (imageIt != images.end()) {
+        SDL_Image *image = imageIt->second;
+
+        if (image->memorySize > 0) {
+            MemoryTracker::deallocate(nullptr, image->memorySize);
+        }
+
+        // Call destructor and deallocate SDL_Image
+        image->~SDL_Image();
+        MemoryTracker::deallocate<SDL_Image>(image);
+
+        images.erase(imageIt);
     }
 }
 
@@ -116,12 +145,12 @@ SDL_Image::SDL_Image() {}
 SDL_Image::SDL_Image(std::string filePath) {
     spriteSurface = IMG_Load(filePath.c_str());
     if (spriteSurface == NULL) {
-        std::cout << "Error loading image: " << IMG_GetError();
+        Log::logWarning(std::string("Error loading image: ") + IMG_GetError());
         return;
     }
     spriteTexture = SDL_CreateTextureFromSurface(renderer, spriteSurface);
     if (spriteTexture == NULL) {
-        std::cout << "Error creating texture";
+        Log::logWarning("Error creating texture");
         return;
     }
     SDL_FreeSurface(spriteSurface);
@@ -138,7 +167,10 @@ SDL_Image::SDL_Image(std::string filePath) {
     textureRect.h = height;
     textureRect.x = 0;
     textureRect.y = 0;
-    std::cout << "image loaded!" << std::endl;
+
+    memorySize = width * height * 4;
+
+    Log::log("Image loaded!");
 }
 
 /**

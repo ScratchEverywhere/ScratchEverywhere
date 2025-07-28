@@ -3,6 +3,7 @@
 .vscode/
 build/
 romfs/project/
+romfs/gfx
 
 main.code-workspace
 

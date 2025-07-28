@@ -9,7 +9,7 @@
 
 std::vector<std::string> Input::inputButtons;
 Input::Mouse Input::mousePointer;
-static int keyHeldFrames = 0;
+int Input::keyHeldFrames = 0;
 
 void Input::getInput() {
     inputButtons.clear();

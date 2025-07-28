@@ -2,12 +2,12 @@
 #include "../input.hpp"
 #include "../keyboard.hpp"
 
-BlockResult SensingBlocks::resetTimer(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult SensingBlocks::resetTimer(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     BlockExecutor::timer = std::chrono::high_resolution_clock::now();
     return BlockResult::CONTINUE;
 }
 
-BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Keyboard kbd;
     Value inputValue = Scratch::getInputValue(block, "QUESTION", sprite);
     std::string output = kbd.openKeyboard(inputValue.asString().c_str());
@@ -15,7 +15,7 @@ BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, Block **wait
     return BlockResult::CONTINUE;
 }
 
-BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     std::string mode = block.fields.at("DRAG_MODE")[0];
 

@@ -9,10 +9,10 @@ mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
 
 int Unzip::openFile(std::ifstream *file) {
-    std::cout << "Unzipping Scratch Project..." << std::endl;
+    Log::log("Unzipping Scratch Project...");
 
     // load Scratch project into memory
-    std::cout << "Loading SB3 into memory..." << std::endl;
+    Log::log("Loading SB3 into memory...");
     const char *filename = "project.sb3";
     const char *unzippedPath = "romfs:/project/project.json";
 
@@ -20,21 +20,22 @@ int Unzip::openFile(std::ifstream *file) {
     file->open(unzippedPath, std::ios::binary | std::ios::ate);
     projectType = UNZIPPED;
     if (!(*file)) {
-        std::cout << "No unzipped project, trying embedded." << std::endl;
+        Log::log("No unzipped project, trying embedded.");
 
         // try embedded zipped sb3
         file->open("romfs:/" + std::string(filename), std::ios::binary | std::ios::ate); // loads file from romfs
         projectType = EMBEDDED;
         if (!(*file)) {
-            std::cout << "No embedded Scratch project, trying SD card" << std::endl;
+            Log::log("No embedded Scratch project, trying SD card");
 
+            // load main menu if not already
             if (filePath == "") return -1;
 
-            // then try SD card location
-            file->open(filePath, std::ios::binary | std::ios::ate); // loads file from location of executable
+            // if main menu was loaded, load the selected file from main menu
+            file->open(filePath, std::ios::binary | std::ios::ate);
             projectType = UNEMBEDDED;
             if (!(*file)) {
-                std::cerr << "Couldnt find file. jinkies." << std::endl;
+                Log::logError("Couldnt find file. jinkies.");
                 return 0;
             }
         } else {

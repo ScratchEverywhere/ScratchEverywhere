@@ -15,4 +15,5 @@ class Input {
     static std::vector<std::string> inputButtons;
     static void getInput();
     static std::string getUsername();
+    static int keyHeldFrames;
 };

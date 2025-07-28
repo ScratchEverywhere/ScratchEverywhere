@@ -23,7 +23,7 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch 3DS
-APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 12 Dev]
+APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 13 Dev]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
@@ -31,7 +31,6 @@ SOURCES		:=	source source/3ds source/scratch source/scratch/blocks include/miniz
 DATA		:=	data
 INCLUDES	:=	include source/3ds source/scratch source/scratch/blocks source/sdl/audio
 GRAPHICS	:=	gfx
-#GFXBUILD	:=	$(BUILD)/gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -49,7 +48,7 @@ CLOUDVARS_ENABLED	?=	1
 #---------------------------------------------------------------------------------
 ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft 
 
-CFLAGS	:=	-g -Wall -O2 -mword-relocations \
+CFLAGS	:=	-g -Wall -O3 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 

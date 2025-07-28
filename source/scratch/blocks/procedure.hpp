@@ -3,8 +3,8 @@
 
 class ProcedureBlocks {
   public:
-    static BlockResult call(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult definition(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
+    static BlockResult call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult definition(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 
     static Value stringNumber(Block &block, Sprite *sprite);
 

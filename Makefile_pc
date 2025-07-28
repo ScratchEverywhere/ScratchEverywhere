@@ -17,8 +17,8 @@ endif
 ENABLE_CLOUDVARS	?=	1
 
 # Base compiler flags
-CXXFLAGS_BASE := -std=c++17 -Wall -D__PC__ -fexceptions
-CFLAGS_BASE   := -D__PC__
+CXXFLAGS_BASE := -std=c++17 -Wall -D__PC__ -fexceptions -DSDL_BUILD
+CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
 
 LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer
 

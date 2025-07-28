@@ -11,6 +11,8 @@ class SDL_Audio {
     bool isLoaded = false;
     bool isPlaying = false;
     bool isStreaming = false;
+    bool needsToBePlayed = true;
+    size_t memorySize = 0;
 
     SDL_Audio();
     ~SDL_Audio();
@@ -20,6 +22,7 @@ class SDL_Audio {
         Sprite *sprite;
         mz_zip_archive *zip;
         std::string soundId;
+        bool streamed;
     };
 };
 

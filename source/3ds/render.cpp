@@ -2,12 +2,13 @@
 #include "../scratch/audio.hpp"
 #include "../scratch/image.hpp"
 #include "../scratch/input.hpp"
+#include "../scratch/os.hpp"
 #include "../scratch/render.hpp"
+#include "../scratch/text.hpp"
 #include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "spriteSheet.hpp"
-#include "text.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
 
@@ -44,12 +45,12 @@ bool Render::Init() {
     SDL_Init(SDL_INIT_AUDIO);
     // Initialize SDL_mixer
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-        std::cout << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << std::endl;
+        Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
         // not returning false since emulators by default will error here
     }
     int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
     if (Mix_Init(flags) != flags) {
-        std::cout << "SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: " << Mix_GetError() << std::endl;
+        Log::logWarning(std::string("SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: ") + Mix_GetError());
     }
 
     return true;
@@ -159,11 +160,6 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
         float alpha = 1.0f - (currentSprite->ghostEffect / 100.0f);
         C2D_ImageTint tinty;
         C2D_AlphaImageTint(&tinty, alpha);
-
-        auto imageFind = imageC2Ds.find(costumeId);
-        if (imageFind == imageC2Ds.end() || imageC2Ds[costumeId].image.tex == nullptr ||
-            imageC2Ds[costumeId].image.subtex == nullptr)
-            return;
 
         const double offsetX = rotationCenterX * spriteSizeX;
         const double offsetY = rotationCenterY * spriteSizeY;
@@ -329,12 +325,6 @@ void LoadingScreen::cleanup() {
     gspWaitForVBlank();
 }
 
-static std::vector<TextObject *> projectTexts;
-static std::chrono::steady_clock::time_point logoStartTime = std::chrono::steady_clock::now();
-TextObject *selectedText = nullptr;
-TextObject *infoText = nullptr;
-TextObject *errorTextInfo = nullptr;
-int selectedTextIndex = 0;
 SpriteSheetObject *logo;
 
 void MainMenu::init() {
@@ -343,7 +333,7 @@ void MainMenu::init() {
 
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        TextObject *text = new TextObject(file, 145, yPosition);
+        TextObject *text = createTextObject(file, 0, yPosition);
         text->setColor(C2D_Color32f(0, 0, 0, 1));
         text->y -= text->getSize()[1] / 2;
         if (text->getSize()[0] > BOTTOM_SCREEN_WIDTH) {
@@ -355,7 +345,8 @@ void MainMenu::init() {
     }
 
     if (projectFiles.size() == 0) {
-        errorTextInfo = new TextObject("No Scratch projects found!\n Go download a Scratch project and put it\n in the 3ds folder of your SD card!\nPress Start to exit.", BOTTOM_SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+        errorTextInfo = createTextObject("No Scratch projects found!\n Go download a Scratch project and put it\n in the 3ds folder of your SD card!\nPress Start to exit.",
+                                         BOTTOM_SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
         errorTextInfo->setScale(0.6);
         hasProjects = false;
     } else {
@@ -364,7 +355,7 @@ void MainMenu::init() {
     }
 
     logo = new SpriteSheetObject("romfs:/gfx/menuElements.t3x", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-    infoText = new TextObject("Runtime by NateXS", 340, 225);
+    infoText = createTextObject("Runtime by NateXS", 340, 225);
     infoText->setScale(0.5);
 }
 void MainMenu::render() {
@@ -386,6 +377,7 @@ void MainMenu::render() {
                 selectedText = projectTexts[selectedTextIndex];
             }
         }
+        cameraX = BOTTOM_SCREEN_WIDTH / 2;
         cameraY = selectedText->y;
 
         if (kJustPressed & KEY_A) {

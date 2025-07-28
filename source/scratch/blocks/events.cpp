@@ -1,16 +1,21 @@
 #include "events.hpp"
 #include "../input.hpp"
 
-BlockResult EventBlocks::flagClicked(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult EventBlocks::flagClicked(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
 
-BlockResult EventBlocks::broadcast(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult EventBlocks::broadcast(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
     return BlockResult::CONTINUE;
 }
 
-BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
+
     if (block.repeatTimes == -1) {
         block.repeatTimes = -10;
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -32,7 +37,7 @@ BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, Block **
     return BlockResult::CONTINUE;
 }
 
-BlockResult EventBlocks::whenKeyPressed(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult EventBlocks::whenKeyPressed(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     for (std::string button : Input::inputButtons) {
         if (block.fields.at("KEY_OPTION")[0] == button) {
             return BlockResult::CONTINUE;

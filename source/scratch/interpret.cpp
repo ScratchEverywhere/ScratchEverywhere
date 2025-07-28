@@ -1,4 +1,5 @@
 #include "interpret.hpp"
+#include "os.hpp"
 #include "render.hpp"
 
 std::vector<Sprite *> sprites;
@@ -95,12 +96,13 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
 }
 
 void loadSprites(const nlohmann::json &json) {
-    std::cout << "Beginning to load sprites..." << std::endl;
+    Log::log("beginning to load sprites...");
     sprites.reserve(400);
     int count = 0;
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
-        Sprite *newSprite = new Sprite();
+        Sprite *newSprite = MemoryTracker::allocate<Sprite>();
+        new (newSprite) Sprite();
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
         }
@@ -384,7 +386,6 @@ void loadSprites(const nlohmann::json &json) {
             }
 
             if (braceCount != 0) {
-                std::cout << "Unbalanced braces in JSON comment.\n";
                 continue;
             }
 
@@ -399,11 +400,8 @@ void loadSprites(const nlohmann::json &json) {
 
             try {
                 config = nlohmann::json::parse(cleaned_json);
-                std::cout << "Parsed JSON:\n"
-                          << config.dump(4) << "\n";
                 break;
             } catch (nlohmann::json::parse_error &e) {
-                std::cout << "Failed to parse JSON: " << e.what() << "\n";
                 continue;
             }
         }
@@ -417,30 +415,30 @@ void loadSprites(const nlohmann::json &json) {
     try {
         framerate = config["framerate"].get<int>();
         Scratch::FPS = framerate;
-        std::cout << "FPS = " << Scratch::FPS << std::endl;
+        Log::log("FPS = " + Scratch::FPS);
     } catch (...) {
-        std::cout << "no framerate property." << std::endl;
+        Log::logWarning("no framerate property.");
     }
     try {
         wdth = config["width"].get<int>();
         Scratch::projectWidth = wdth;
-        std::cout << "game width = " << Scratch::projectWidth << std::endl;
+        Log::log("game width = " + Scratch::projectWidth);
     } catch (...) {
-        std::cout << "no width property." << std::endl;
+        Log::logWarning("no width property.");
     }
     try {
         hght = config["height"].get<int>();
         Scratch::projectHeight = hght;
-        std::cout << "game height = " << Scratch::projectHeight << std::endl;
+        Log::log("game height = " + Scratch::projectHeight);
     } catch (...) {
-        std::cout << "no height property." << std::endl;
+        Log::logWarning("no height property.");
     }
     try {
         fncng = config["fencing"].get<bool>();
         Scratch::fencing = fncng;
-        std::cout << "Fencing is " << Scratch::fencing << std::endl;
+        Log::log("Fencing is " + Scratch::fencing);
     } catch (...) {
-        std::cout << "no fencing property." << std::endl;
+        Log::logWarning("no fencing property.");
     }
 
     if (wdth == 400 && hght == 480)
@@ -478,7 +476,7 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
-    std::cout << "Loaded " << sprites.size() << " sprites." << std::endl;
+    Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }
 
 Block *findBlock(std::string blockId) {

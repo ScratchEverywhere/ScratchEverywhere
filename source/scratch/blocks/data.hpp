@@ -3,13 +3,13 @@
 
 class DataBlocks {
   public:
-    static BlockResult setVariable(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult changeVariable(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult addToList(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult deleteFromList(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult deleteAllOfList(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult insertAtList(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult replaceItemOfList(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
+    static BlockResult setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult changeVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult addToList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult deleteFromList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult deleteAllOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult insertAtList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult replaceItemOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 
     static Value itemOfList(Block &block, Sprite *sprite);
     static Value itemNumOfList(Block &block, Sprite *sprite);
