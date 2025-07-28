@@ -26,10 +26,10 @@ All controllers on all other platforms use the same control scheme.
 
 ### Audio
 - mp3, ogg, and wav audio formats are supported.
-- A sound may take time to load if playing it for the first time, and unfortunately on 3DS, the entire game freezes while the sound is loading.
-- - A workaround for that is, if you play any sound from the "Stage," the sound will play as a "Streamed Sound," and not need to load.
-- - Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
-- - Another workaround you can do is have a 'loading screen' of sorts, where you play a sound, then instantly stop it. Since sounds only need to load once, any time you play it afterwards it won't need to load.
+- A sound will take time to load if playing it for the first time.
+- - Known Bug: On 3DS, if a sound has to load while other sounds are playing, all sounds will stop playing until the sound is loaded.
+- If you play any sound from the "Stage," the sound will play as a "Streamed Sound," and will not need to load.
+- Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
 - Sounds may fail to load on 3DS if the file size of the song is too high, or if there's too many sounds loaded at once.
 
 ### Framerate
@@ -68,13 +68,27 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - Loudness
 
 ## Roadmap / to-do list
+
+### Runtime
+
 - Bug fixing and Scratch Parity
-- Stereoscopic 3D support for 3DS
 - Get all blocks working
 - Pen support
-- Ability to remap controls
+
+### 3DS
+
+- Stereoscopic 3D support
+
+### Wii U
+
 - Audio support
 - Turbowarp extensions
+- Dual screen support
+- Improved controller support (multiple controllers, Wii Remotes)
+
+### Other
+
+- Ability to remap controls
 
 ## Installation
 There are 2 methods to install the runtime.
@@ -92,15 +106,14 @@ Download the .3dsx file in the Releases tab or [nightly build](https://nightly.l
 > [!NOTE]
 > Scratch 3DS is also on Universal Updater, so you can just download it there and keep it updated that way!
 
-Then it should be as simple as opening the homebrew launcher on your 3DS and running the app.
+Then it should be as simple as opening the homebrew launcher on your 3DS and running the app!
 
 ### Get up and running for Wii U
 Download the .zip file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-wiiu/main/Scratch%20Wii%20U%20Nightly.zip).
 
 Unzip the file in your `sdcard:/wiiu/apps/` folder.
 
-Place the scratch project you want in `sdcard:/wiiu/scratch-wiiu/`
-- The Scratch project MUST be named `project.sb3`, all lowercase.
+Place the scratch projects you want in `sdcard:/wiiu/scratch-wiiu/`
 
 Then it should be as simple as opening the app on your Wii U!
 

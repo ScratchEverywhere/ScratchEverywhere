@@ -86,7 +86,7 @@ void Image::loadImages(mz_zip_archive *zip) {
             if (!rgba_data) {
                 printf("Failed to decode PNG: %s\n", zipFileName.c_str());
                 mz_free(png_data);
-                continue;
+                return; // if failing here it's probably old 3DS running out of memory... so.... no point in trying anymore.. 🤒
             }
 
             Image::ImageRGBA newRGBA;
@@ -276,6 +276,9 @@ void Image::freeImage(const std::string &costumeId) {
             MemoryTracker::deallocate<Tex3DS_SubTexture>((Tex3DS_SubTexture *)it->second.image.subtex);
         }
         imageC2Ds.erase(it);
+    }
+    if (projectType == UNZIPPED) {
+        freeRGBA(costumeId);
     }
 }
 

@@ -13,5 +13,6 @@ struct ImageData {
 
 bool get_C2D_Image(Image::ImageRGBA rgba);
 bool queueC2DImage(Image::ImageRGBA &rgba);
+void freeRGBA(const std::string &imageName);
 
 extern std::unordered_map<std::string, ImageData> imageC2Ds;
