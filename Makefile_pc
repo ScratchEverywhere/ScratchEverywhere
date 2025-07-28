@@ -22,9 +22,10 @@ CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
 
 LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer
 
-ifeq ($(ENABLE_CLOUDVARS), 1)
-CFLAGS_BASE	+=	-DENABLE_CLOUDVARS
-LDFLAGS			+=	-lmist++ -lcurl
+ifeq ($(ENABLE_CLOUDVARS),1)
+CFLAGS_BASE		+=	-DENABLE_CLOUDVARS
+CXXFLAGS_BASE	+=	-DENABLE_CLOUDVARS
+LDFLAGS				+=	-lmist++ -lcurl
 endif
 
 # Debug and Release flags

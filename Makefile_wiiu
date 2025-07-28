@@ -61,7 +61,7 @@ LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2` `$(PKGCONF) --libs zlib libpng`
 LIBS	+=	-lharfbuzz -lfreetype
 
-ifeq ($(ENABLE_CLOUDVARS), 1)
+ifeq ($(ENABLE_CLOUDVARS),1)
 CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_WIIU) --cflags mist++`
 LIBS		+=	`$(PKGCONF_WIIU) --libs mist++`
 endif
