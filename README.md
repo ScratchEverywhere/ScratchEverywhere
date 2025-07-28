@@ -142,5 +142,11 @@ Then you need to compile the projects into proper Homebrew packages.
 - For the 3DS you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
 - For the Wii U you need to run `make PLATFORM=wiiu all package` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
 
+#### Compilation Flags
+
+Compilation flags are used to select which features will be enabled in the compiled version of Scratch 3DS. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_BUBBLES=0`).
+
+* 3DS - `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
+
 ## Other
 This project is not affiliated with Scratch or the Scratch team.

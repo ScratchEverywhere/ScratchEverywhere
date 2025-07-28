@@ -286,6 +286,7 @@ void Render::renderSprites() {
 }
 
 void LoadingScreen::renderLoadingScreen() {
+#ifdef ENABLE_BUBBLES
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrScratchBlue);
     C2D_SceneBegin(topScreen);
@@ -301,14 +302,18 @@ void LoadingScreen::renderLoadingScreen() {
     }
 
     C3D_FrameEnd(0);
+#endif
 }
 
 void LoadingScreen::init() {
+#ifdef ENABLE_BUBBLES
     // text = new TextObject("Loading...",200,120);
     createSquares(20);
+#endif
 }
 
 void LoadingScreen::cleanup() {
+#ifdef ENABLE_BUBBLES
     // if(text && text != nullptr)
     // delete text;
     squares.clear();
@@ -323,6 +328,7 @@ void LoadingScreen::cleanup() {
 
     C3D_FrameEnd(0);
     gspWaitForVBlank();
+#endif
 }
 
 SpriteSheetObject *logo;

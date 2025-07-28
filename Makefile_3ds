@@ -42,6 +42,7 @@ endif
 
 # Config Options
 CLOUDVARS_ENABLED	?=	1
+ENABLE_BUBBLES	  ?=	1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -59,9 +60,12 @@ LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 LIBS	:=  -lSDL2_mixer -lSDL2 -lcitro2d -lcitro3d -lctru -lm
 
+ifeq ($(ENABLE_BUBBLES),1)
+CFLAGS	+=	-DENABLE_BUBBLES
+endif
 ifeq ($(ENABLE_CLOUDVARS),1)
 CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_3DS) --cflags mist++`
-LIBS	+= `$(PKGCONF_3DS) --libs mist++`
+LIBS	  += `$(PKGCONF_3DS) --libs mist++`
 endif
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
