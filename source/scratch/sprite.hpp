@@ -378,7 +378,7 @@ class Sprite {
     bool isDeleted = false;
     int currentCostume;
     std::string lastCostumeId = "";
-    int volume;
+    float volume;
     double xPosition;
     double yPosition;
     int rotationCenterX;
@@ -387,7 +387,7 @@ class Sprite {
     double rotation;
     int layer;
 
-    int ghostEffect;
+    float ghostEffect;
     double colorEffect = -99999;
 
     enum RotationStyle {

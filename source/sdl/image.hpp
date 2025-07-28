@@ -10,6 +10,7 @@ class SDL_Image {
     SDL_Texture *spriteTexture;
     SDL_Rect renderRect;  // this rect is for rendering to the screen
     SDL_Rect textureRect; // this is for like texture UV's
+    size_t memorySize;
     float scale = 1.0f;
     int width;
     int height;

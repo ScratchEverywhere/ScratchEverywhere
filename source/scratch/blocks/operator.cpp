@@ -153,7 +153,6 @@ Value OperatorBlocks::equals(Block &block, Sprite *sprite) {
         value1 = Scratch::getInputValue(block, "OPERAND1", sprite);
         value2 = Scratch::getInputValue(block, "OPERAND2", sprite);
     } catch (...) {
-        std::cout << "failed to get equals values." << std::endl;
         return Value(false);
     }
 

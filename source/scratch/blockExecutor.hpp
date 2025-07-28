@@ -1,5 +1,6 @@
 #pragma once
 #include "interpret.hpp"
+#include "os.hpp"
 #include "sprite.hpp"
 #include <chrono>
 #include <functional>
@@ -18,7 +19,7 @@ enum class BlockResult {
 
 class BlockExecutor {
   private:
-    std::unordered_map<Block::opCode, std::function<BlockResult(Block &, Sprite *, Block **, bool *)>> handlers;
+    std::unordered_map<Block::opCode, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
     std::unordered_map<Block::opCode, std::function<Value(Block &, Sprite *)>> valueHandlers;
     // std::unordered_map<Block::opCode, std::function<Value(Block&,Sprite*)>> conditionBlockHandlers;
 
@@ -32,10 +33,10 @@ class BlockExecutor {
      * Runs and executes the specified `block` in a `sprite`.
      * @param block Reference to a block variable
      * @param sprite Pointer to a sprite variable
-     * @param waitingBlock I'm pretty sure this doesn't do anything anymore, and should be removed.
      * @param withoutScreenRefresh Whether or not the block is running without screen refresh.
+     * @param fromRepeat whether or not the block is repeating
      */
-    std::vector<Block *> runBlock(Block &block, Sprite *sprite, Block *waitingBlock = nullptr, bool *withoutScreenRefresh = nullptr);
+    std::vector<Block *> runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh = nullptr, bool fromRepeat = false);
 
     /**
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.
@@ -131,5 +132,5 @@ class BlockExecutor {
     /**
      *
      */
-    BlockResult executeBlock(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
+    BlockResult executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh = nullptr, bool fromRepeat = false);
 };

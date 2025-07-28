@@ -1,4 +1,6 @@
 #pragma once
+#include "text.hpp"
+#include <chrono>
 #include <cmath>
 #include <vector>
 
@@ -59,6 +61,13 @@ class MainMenu {
     int cameraY;
     bool hasProjects;
     bool shouldExit;
+
+    std::vector<TextObject *> projectTexts;
+    std::chrono::steady_clock::time_point logoStartTime = std::chrono::steady_clock::now();
+    TextObject *selectedText = nullptr;
+    TextObject *infoText = nullptr;
+    TextObject *errorTextInfo = nullptr;
+    int selectedTextIndex = 0;
 
     void init();
     void render();

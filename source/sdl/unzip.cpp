@@ -12,10 +12,10 @@ mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
 
 int Unzip::openFile(std::ifstream *file) {
-    std::cout << "Unzipping Scratch Project..." << std::endl;
+    Log::log("Unzipping Scratch project...");
 
     // load Scratch project into memory
-    std::cout << "Loading SB3 into memory..." << std::endl;
+    Log::log("Loading SB3 into memory...");
     std::string filename = "project.sb3";
     std::string unzippedPath = "project/project.json";
 
@@ -26,26 +26,32 @@ int Unzip::openFile(std::ifstream *file) {
 #endif
     projectType = UNZIPPED;
     if (!(*file)) {
-        std::cout << "No unzipped project, trying embedded." << std::endl;
+        Log::logWarning("No unzipped project, trying embedded.");
 
 #if defined(__WIIU__) || defined(__SWITCH__)
         file->open("romfs:/" + filename, std::ios::binary | std::ios::ate);
 #else
-        file->open(filename, std::ios::binary | std::ios::ate);
+        file->open(filePath, std::ios::binary | std::ios::ate);
 #endif
         projectType = EMBEDDED;
 #ifdef __WIIU__
         if (!(*file)) {
             std::ostringstream path;
-            path << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/" << filename;
+            path << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/" << filePath;
             file->open(path.str(), std::ios::binary | std::ios::ate);
 #elif defined(__SWITCH__)
         if (!(*file)) {
             file->open("/switch/scratch-nx/" + filename, std::ios::binary | std::ios::ate);
 #endif
             if (!(*file)) {
-                std::cerr << "Couldnt find file. jinkies." << std::endl;
-                return 0;
+                // if main menu hasn't been loaded yet, load it
+                if (filePath == "") {
+                    Log::log("Activating main menu...");
+                    return -1;
+                } else {
+                    Log::logError("Couldn't find file. jinkies.");
+                    return 0;
+                }
             }
 #if defined(__WIIU__) || defined(__SWITCH__)
         }

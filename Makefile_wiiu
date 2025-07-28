@@ -13,8 +13,11 @@ PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
 
 TARGET		:=	scratch-wiiu
 BUILD			:=	build/wiiu
-SOURCES		:=	source source/scratch source/scratch/blocks source/sdl include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/sdl include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/sdl source/sdl/audio include/nlohmann
+ROMFS	:=	romfs
+GRAPHICS	:=	gfx
+GFXBUILD	:=	$(ROMFS)/gfx
 
 # App Info
 
@@ -22,7 +25,7 @@ APP_NAME							:=	Scratch Wii U
 APP_AUTHOR						:=	NateXS and Grady Link
 APP_SHORT_DESCRIPTION	:=	Play Scratch Games on the Wii U!
 APP_LONG_DESCRIPTION	:=	$(APP_SHORT_DESCRIPTION)
-APP_VERSION						:=	0.10
+APP_VERSION						:=	0.13
 
 # WUHB Info
 
@@ -34,7 +37,7 @@ WUHB_DRC_SPLASH	:=	gfx/wiiu/drc-splash.png
 
 # Flags
 
-CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP)
+CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP) -DSDL_BUILD
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
@@ -42,7 +45,7 @@ CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__
 CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
-CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
+CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions -DSDL_BUILD
 
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
@@ -74,10 +77,6 @@ export SRCFILES	:=	$(CPPFILES) $(CFILES) $(SFILES)
 export OFILES		:=	$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-# RomFS
-
-ROMFS	:=	romfs
-
 include $(PORTLIBS_PATH)/wiiu/share/romfs-wiiu.mk
 
 CFLAGS		+=	$(ROMFS_CFLAGS)
@@ -87,10 +86,14 @@ OFILES		+=	$(ROMFS_TARGET)
 
 .PHONY: $(BUILD) clean all
 
-all: mkdir $(OUTPUT).rpx wuhb
+all: mkdir $(GFXBUILD) $(OUTPUT).rpx wuhb
 
 mkdir:
 	@mkdir -p $(BUILD)
+
+$(GFXBUILD):
+	@mkdir -p $@
+	@cp -r $(GRAPHICS)/* $@/
 
 wuhb:
 	@$(WUHB_TOOL) $(OUTPUT).rpx $(OUTPUT).wuhb --name="$(APP_NAME)" --author="$(APP_AUTHOR)" --icon="$(WUHB_ICON)" --tv-image="$(WUHB_TV_SPLASH)" --drc-image="$(WUHB_DRC_SPLASH)"
@@ -100,7 +103,7 @@ test:
 
 clean:
 	@echo Cleaning...
-	@rm -rf $(BUILD)
+	@rm -rf $(BUILD) $(GFXBUILD)
 
 package:
 	@echo Packaging...

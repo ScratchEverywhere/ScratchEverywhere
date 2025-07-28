@@ -11,7 +11,7 @@ struct ImageData {
     u16 freeTimer = 240;
 };
 
-void get_C2D_Image(Image::ImageRGBA rgba);
+bool get_C2D_Image(Image::ImageRGBA rgba);
 bool queueC2DImage(Image::ImageRGBA &rgba);
 
 extern std::unordered_map<std::string, ImageData> imageC2Ds;

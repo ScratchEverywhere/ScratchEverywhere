@@ -24,6 +24,14 @@ All controllers on all other platforms use the same control scheme.
 ### Wii U Screen Modes
 - Currently, projects display exactly the same on both the TV and the Gamepad, and there's no way to change Screen modes.
 
+### Audio
+- mp3, ogg, and wav audio formats are supported.
+- A sound may take time to load if playing it for the first time, and unfortunately on 3DS, the entire game freezes while the sound is loading.
+- - A workaround for that is, if you play any sound from the "Stage," the sound will play as a "Streamed Sound," and not need to load.
+- - Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
+- - Another workaround you can do is have a 'loading screen' of sorts, where you play a sound, then instantly stop it. Since sounds only need to load once, any time you play it afterwards it won't need to load.
+- Sounds may fail to load on 3DS if the file size of the song is too high, or if there's too many sounds loaded at once.
+
 ### Framerate
 - When using a modded Scratch client like Turbowarp, you can enable the `60 FPS (Custom FPS)` advanced option, and change the FPS to any value.
 
@@ -36,15 +44,15 @@ All controllers on all other platforms use the same control scheme.
 As this is in a very W.I.P state, you will encounter many bugs, crashes, and things that will just not work. 
 
 **List of known limitations:**
-- Sound is not yet implemented
-- Performance on old 3DS starts to tank with many blocks running
 - There is no vector/svg sprite rendering. Images will only render if converted to bitmap beforehand, otherwise the sprite will show as a black square
 - Images will only work if it's in .png or .jpg format
-- If you have a bunch of large images, some may not load
-- Images cannot be over 1024x1024 in resolution
-- Some images may appear 'fuzzy' looking or have noticable inconsistencies
 - Extensions (eg: pen and music extensions) are not yet supported
 - Some blocks may lead to crashing/unintended behavior (please open an issue if you know a block that's causing problems)
+- [Wii U] The first controller connected will be the only one that will work
+- [3DS] Performace is poor when lots of blocks are running at once
+- [3DS] If you have a bunch of large images, some may not load
+- [3DS] Images cannot be over 1024x1024 in resolution
+- [3DS] Some images may appear 'fuzzy' looking or have noticable inconsistencies
 
 
 ## Unimplimented blocks
@@ -83,7 +91,8 @@ There are 2 methods to install the runtime.
 Download the .3dsx file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-3ds/main/Scratch%203DS%20Nightly.zip).
 
 - Place the .3dsx file in the `3ds/` folder of your 3DS SD card, along with any Scratch projects you want to run.
-- Note: Scratch-3DS is also on Universal Updater, so you can just download it there and keep it updated that way.
+> [!NOTE]
+> Scratch 3DS is also on Universal Updater, so you can just download it there and keep it updated that way!
 
 Then it should be as simple as opening the homebrew launcher on your 3DS and running the app.
 
@@ -97,15 +106,13 @@ Place the scratch project you want in `sdcard:/wiiu/scratch-wiiu/`
 
 Then it should be as simple as opening the app on your Wii U!
 
-> [!NOTE]
-> The first controller connected will be the only one that will work with Scratch Wii U.
-
 ### Building
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
 
 For 3DS and Wii U, you will need to have Devkitpro's SDKs installed.
 - For the 3DS you will need the DevkitARM toolchain and libctru.
+- - You will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/NateXS/Scratch-3DS/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
 - For the Wii U you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and libromfs-wiiu.
 
 - Devkitpro's install instructions are available at : https://devkitpro.org/wiki/Getting_Started

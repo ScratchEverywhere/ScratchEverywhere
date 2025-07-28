@@ -1,12 +1,16 @@
 #include "render.hpp"
+#include "../scratch/audio.hpp"
 #include "../scratch/image.hpp"
 #include "../scratch/input.hpp"
+#include "../scratch/os.hpp"
 #include "../scratch/render.hpp"
+#include "../scratch/text.hpp"
 #include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "spriteSheet.hpp"
-#include "text.hpp"
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 
 #define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320
@@ -37,6 +41,17 @@ bool Render::Init() {
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
     romfsInit();
+    // waiting for beta 12 to enable,,
+    SDL_Init(SDL_INIT_AUDIO);
+    // Initialize SDL_mixer
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
+        // not returning false since emulators by default will error here
+    }
+    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
+    if (Mix_Init(flags) != flags) {
+        Log::logWarning(std::string("SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: ") + Mix_GetError());
+    }
 
     return true;
 }
@@ -127,7 +142,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
         // check for rotation style
         if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-            if (rotation < 0) {
+            if (std::cos(rotation) < 0) {
                 spriteSizeX *= -1;
                 flipX = true;
             }
@@ -140,21 +155,19 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
         // Center the sprite's pivot point
         double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
         double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
-        if (flipX) rotationCenterX += currentSprite->spriteWidth - (currentSprite->rotationCenterX / 2);
+        if (flipX) rotationCenterX -= currentSprite->spriteWidth;
 
         float alpha = 1.0f - (currentSprite->ghostEffect / 100.0f);
         C2D_ImageTint tinty;
         C2D_AlphaImageTint(&tinty, alpha);
 
-        auto imageFind = imageC2Ds.find(costumeId);
-        if (imageFind == imageC2Ds.end() || imageC2Ds[costumeId].image.tex == nullptr ||
-            imageC2Ds[costumeId].image.subtex == nullptr)
-            return;
+        const double offsetX = rotationCenterX * spriteSizeX;
+        const double offsetY = rotationCenterY * spriteSizeY;
 
         C2D_DrawImageAtRotated(
             imageC2Ds[costumeId].image,
-            (currentSprite->xPosition * scale) + (screenWidth / 2) - rotationCenterX,
-            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - rotationCenterY,
+            (currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation),
+            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation),
             1,
             rotation,
             &tinty,
@@ -263,7 +276,7 @@ void Render::renderSprites() {
     C2D_Flush();
     C3D_FrameEnd(0);
     Image::FlushImages();
-    gspWaitForVBlank();
+    // gspWaitForVBlank();
     endTime = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> duration = endTime - startTime;
     // int FPS = 1000.0 / std::round(duration.count());
@@ -312,12 +325,6 @@ void LoadingScreen::cleanup() {
     gspWaitForVBlank();
 }
 
-static std::vector<TextObject *> projectTexts;
-static std::chrono::steady_clock::time_point logoStartTime = std::chrono::steady_clock::now();
-TextObject *selectedText = nullptr;
-TextObject *infoText = nullptr;
-TextObject *errorTextInfo = nullptr;
-int selectedTextIndex = 0;
 SpriteSheetObject *logo;
 
 void MainMenu::init() {
@@ -326,7 +333,7 @@ void MainMenu::init() {
 
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        TextObject *text = new TextObject(file, 145, yPosition);
+        TextObject *text = createTextObject(file, 0, yPosition);
         text->setColor(C2D_Color32f(0, 0, 0, 1));
         text->y -= text->getSize()[1] / 2;
         if (text->getSize()[0] > BOTTOM_SCREEN_WIDTH) {
@@ -338,7 +345,8 @@ void MainMenu::init() {
     }
 
     if (projectFiles.size() == 0) {
-        errorTextInfo = new TextObject("No Scratch projects found!\n Go download a Scratch project and put it\n in the 3ds folder of your SD card!\nPress Start to exit.", BOTTOM_SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+        errorTextInfo = createTextObject("No Scratch projects found!\n Go download a Scratch project and put it\n in the 3ds folder of your SD card!\nPress Start to exit.",
+                                         BOTTOM_SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
         errorTextInfo->setScale(0.6);
         hasProjects = false;
     } else {
@@ -347,7 +355,7 @@ void MainMenu::init() {
     }
 
     logo = new SpriteSheetObject("romfs:/gfx/menuElements.t3x", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-    infoText = new TextObject("Runtime by NateXS", 340, 225);
+    infoText = createTextObject("Runtime by NateXS", 340, 225);
     infoText->setScale(0.5);
 }
 void MainMenu::render() {
@@ -369,6 +377,7 @@ void MainMenu::render() {
                 selectedText = projectTexts[selectedTextIndex];
             }
         }
+        cameraX = BOTTOM_SCREEN_WIDTH / 2;
         cameraY = selectedText->y;
 
         if (kJustPressed & KEY_A) {
@@ -441,6 +450,7 @@ void MainMenu::cleanup() {
 }
 
 void Render::deInit() {
+
     C2D_Fini();
     C3D_Fini();
     for (auto &[id, data] : imageC2Ds) {
@@ -454,7 +464,8 @@ void Render::deInit() {
         }
     }
     Image::imageRGBAS.clear();
-
+    SoundPlayer::cleanupAudio();
+    SDL_Quit();
     romfsExit();
     gfxExit();
 }

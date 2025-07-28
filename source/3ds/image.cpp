@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "../scratch/os.hpp"
 #include <algorithm>
 #include <iostream>
 #include <vector>
@@ -55,7 +56,7 @@ const u32 rgba_to_abgr(u32 px) {
  */
 void Image::loadImages(mz_zip_archive *zip) {
     // Loop through all files in the ZIP
-    std::cout << "Loading images..." << std::endl;
+    Log::log("Loading images...");
 
     int file_count = (int)mz_zip_reader_get_num_files(zip);
 
@@ -98,8 +99,7 @@ void Image::loadImages(mz_zip_archive *zip) {
             newRGBA.data = rgba_data;
 
             size_t imageSize = width * height * 4;
-            memStats.totalRamUsage += imageSize;
-            memStats.imageCount++;
+            MemoryTracker::allocate(imageSize);
 
             Image::imageRGBAS.push_back(newRGBA);
             mz_free(png_data);
@@ -111,33 +111,32 @@ void Image::loadImages(mz_zip_archive *zip) {
  * Turns a single image from an unzipped Scratch project into RGBA data
  */
 void Image::loadImageFromFile(std::string filePath) {
+    std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
+    std::string path2 = filename.substr(0, filename.find_last_of('.'));
 
     auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const ImageRGBA &img) {
-        return img.name == filePath;
+        return img.name == path2;
     });
     if (it != imageRGBAS.end()) return;
 
     int width, height, channels;
-    FILE *file = fopen(("romfs:/project/" + filePath + ".png").c_str(), "rb");
+    FILE *file = fopen(("romfs:/project/" + filePath).c_str(), "rb");
     if (!file) {
-        file = fopen(("romfs:/project/" + filePath + ".jpg").c_str(), "rb");
-        if (!file) {
-            std::cerr << "Invalid image file name " << filePath << std::endl;
-            return;
-        }
+        Log::logWarning("Invalid image file name " + filePath);
+        return;
     }
 
     unsigned char *rgba_data = stbi_load_from_file(file, &width, &height, &channels, 4);
     fclose(file);
 
     if (!rgba_data) {
-        std::cerr << "Failed to decode image: " << filePath << std::endl;
+        Log::logWarning("Failed to decode image: " + filePath);
         return;
     }
 
     // std::cout << "Adding PNG: " << zipFileName << std::endl;
     ImageRGBA newRGBA;
-    newRGBA.name = filePath;
+    newRGBA.name = path2;
     newRGBA.width = width;
     newRGBA.height = height;
     newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
@@ -147,9 +146,9 @@ void Image::loadImageFromFile(std::string filePath) {
     // memorySize += sizeof(newRGBA);
 
     size_t imageSize = width * height * 4;
-    memStats.totalRamUsage += imageSize;
-    memStats.imageCount++;
+    MemoryTracker::allocate(imageSize);
 
+    Log::log("successfuly laoded image from file!");
     imageRGBAS.push_back(newRGBA);
 }
 
@@ -167,12 +166,11 @@ bool queueC2DImage(Image::ImageRGBA &rgba) {
     if (!inQueue) {
         // no queue!!!
         if (memStats.totalVRamUsage + rgba.textureMemSize < MAX_IMAGE_VRAM) {
-            get_C2D_Image(rgba);
-            return true;
+            return get_C2D_Image(rgba);
         }
         // add to queue D:
         else {
-            std::cout << "Memory too high! queueing image load!" << std::endl;
+            Log::logWarning("Memory too high! queueing image load!");
             imageLoadQueue.push_back(&rgba);
         }
     }
@@ -186,8 +184,7 @@ bool queueC2DImage(Image::ImageRGBA &rgba) {
  * Code here originally from https://gbatemp.net/threads/citro2d-c2d_image-example.668574/
  * then edited to fit my code
  */
-void get_C2D_Image(Image::ImageRGBA rgba) {
-    // std::cout << "Creating C2D_Image from RGBA " << rgba.name << std::endl;
+bool get_C2D_Image(Image::ImageRGBA rgba) {
 
     u32 px_count = rgba.width * rgba.height;
     u32 *rgba_raw = reinterpret_cast<u32 *>(rgba.data);
@@ -196,37 +193,48 @@ void get_C2D_Image(Image::ImageRGBA rgba) {
     C2D_Image image;
 
     // Base texture
-    // std::cout << "Creating C3D_Tex..." << std::endl;
-    C3D_Tex *tex = (C3D_Tex *)malloc(sizeof(C3D_Tex));
+    C3D_Tex *tex = MemoryTracker::allocate<C3D_Tex>();
+    new (tex) C3D_Tex();
     image.tex = tex;
+
     // Texture dimensions must be square powers of two between 64x64 and 1024x1024
     tex->width = rgba.textureWidth;
     tex->height = rgba.textureHeight;
 
     size_t textureSize = rgba.textureMemSize;
     memStats.totalVRamUsage += textureSize;
-    memStats.imageCount++;
 
     // Subtexture
-    // std::cout << "Creating C3D_SubTex..." << std::endl;
-    Tex3DS_SubTexture *subtex = (Tex3DS_SubTexture *)malloc(sizeof(Tex3DS_SubTexture));
+    Tex3DS_SubTexture *subtex = MemoryTracker::allocate<Tex3DS_SubTexture>();
+    new (subtex) Tex3DS_SubTexture();
+
     image.subtex = subtex;
     subtex->width = rgba.width;
     subtex->height = rgba.height;
+
     // (U, V) coordinates
     subtex->left = 0.0f;
     subtex->top = 1.0f;
     subtex->right = (float)rgba.width / (float)tex->width;
     subtex->bottom = 1.0 - ((float)rgba.height / (float)tex->height);
 
-    // std::cout << "Allocating texture data..." << std::endl;
-    C3D_TexInit(tex, tex->width, tex->height, GPU_RGBA8);
-    // std::cout << "Setting Texture Filter..." << std::endl;
+    if (!C3D_TexInit(tex, tex->width, tex->height, GPU_RGBA8)) {
+        Log::logWarning("Texture initializing failed!");
+        MemoryTracker::deallocate(tex);
+        MemoryTracker::deallocate(subtex);
+        return false;
+    }
     C3D_TexSetFilter(tex, GPU_NEAREST, GPU_NEAREST);
-    // GPU_LINEAR TODO try that later on real hardware
 
-    // std::cout << "Setting Texture Wrap..." << std::endl;
-    memset(tex->data, 0, px_count * 4);
+    if (!tex->data) {
+        Log::logWarning("Texture data is null!");
+        C3D_TexDelete(tex);
+        MemoryTracker::deallocate(tex);
+        MemoryTracker::deallocate(subtex);
+        return false;
+    }
+
+    memset(tex->data, 0, textureSize);
     for (u32 i = 0; i < (u32)rgba.width; i++) {
         for (u32 j = 0; j < (u32)rgba.height; j++) {
             u32 src_idx = (j * rgba.width) + i;
@@ -241,12 +249,11 @@ void get_C2D_Image(Image::ImageRGBA rgba) {
         }
     }
 
-    C3D_FrameSync(); // wait for Async functions to finish
-
-    std::cout << "Image Loaded! total VRAM: " << memStats.totalVRamUsage << std::endl;
+    Log::log("C2D Image Successfully loaded!");
 
     imageC2Ds[rgba.name] = {image, 120};
-    return;
+    C3D_FrameSync(); // wait for Async functions to finish
+    return true;
 }
 
 /**
@@ -255,6 +262,7 @@ void get_C2D_Image(Image::ImageRGBA rgba) {
 void Image::freeImage(const std::string &costumeId) {
     auto it = imageC2Ds.find(costumeId);
     if (it != imageC2Ds.end()) {
+        Log::log("freed image " + it->first);
         if (it->second.image.tex) {
 
             size_t textureSize = it->second.image.tex->width * it->second.image.tex->height * 4;
@@ -262,13 +270,31 @@ void Image::freeImage(const std::string &costumeId) {
             memStats.c2dImageCount--;
 
             C3D_TexDelete(it->second.image.tex);
-            free(it->second.image.tex);
+            MemoryTracker::deallocate<C3D_Tex>(it->second.image.tex);
         }
         if (it->second.image.subtex) {
-            free((Tex3DS_SubTexture *)it->second.image.subtex);
+            MemoryTracker::deallocate<Tex3DS_SubTexture>((Tex3DS_SubTexture *)it->second.image.subtex);
         }
         imageC2Ds.erase(it);
-        std::cout << "freed image!" << std::endl;
+    }
+}
+
+void freeRGBA(const std::string &imageName) {
+    auto it = std::find_if(Image::imageRGBAS.begin(), Image::imageRGBAS.end(), [&](const Image::ImageRGBA &img) {
+        return img.name == imageName;
+    });
+
+    if (it != Image::imageRGBAS.end()) {
+        size_t dataSize = it->width * it->height * 4;
+        if (it->data && dataSize > 0) {
+            stbi_image_free(it->data);
+            MemoryTracker::deallocate(nullptr, dataSize);
+            memStats.totalRamUsage -= dataSize;
+            memStats.imageCount--;
+
+            Log::log("Freed RGBA data for " + imageName);
+        }
+        Image::imageRGBAS.erase(it);
     }
 }
 

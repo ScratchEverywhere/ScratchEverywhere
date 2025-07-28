@@ -1,7 +1,7 @@
 #include "motion.hpp"
 #include "../scratch/input.hpp"
 
-BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "STEPS", sprite);
     if (value.isNumeric()) {
         double angle = (sprite->rotation - 90) * M_PI / 180.0;
@@ -14,7 +14,7 @@ BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, Block **waitin
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     auto inputValue = block.parsedInputs.find("TO");
     Block *inputBlock = findBlock(inputValue->second.literalValue.asString());
     std::string objectName = inputBlock->fields["TO"][0];
@@ -42,7 +42,7 @@ BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, Block **waitingBloc
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value xVal = Scratch::getInputValue(block, "X", sprite);
     Value yVal = Scratch::getInputValue(block, "Y", sprite);
     if (xVal.isNumeric()) sprite->xPosition = xVal.asDouble();
@@ -51,7 +51,7 @@ BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, Block **waitingBl
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::turnLeft(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::turnLeft(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DEGREES", sprite);
     if (value.isNumeric()) {
         sprite->rotation -= value.asDouble();
@@ -59,7 +59,7 @@ BlockResult MotionBlocks::turnLeft(Block &block, Sprite *sprite, Block **waiting
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::turnRight(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::turnRight(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DEGREES", sprite);
     if (value.isNumeric()) {
         sprite->rotation += value.asDouble();
@@ -67,7 +67,7 @@ BlockResult MotionBlocks::turnRight(Block &block, Sprite *sprite, Block **waitin
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::pointInDirection(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::pointInDirection(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DIRECTION", sprite);
     if (value.isNumeric()) {
         sprite->rotation = value.asDouble();
@@ -75,7 +75,7 @@ BlockResult MotionBlocks::pointInDirection(Block &block, Sprite *sprite, Block *
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::changeXBy(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::changeXBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DX", sprite);
     if (value.isNumeric()) {
         sprite->xPosition += value.asDouble();
@@ -86,7 +86,7 @@ BlockResult MotionBlocks::changeXBy(Block &block, Sprite *sprite, Block **waitin
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::changeYBy(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::changeYBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DY", sprite);
     if (value.isNumeric()) {
         sprite->yPosition += value.asDouble();
@@ -97,7 +97,7 @@ BlockResult MotionBlocks::changeYBy(Block &block, Sprite *sprite, Block **waitin
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::setX(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::setX(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "X", sprite);
     if (value.isNumeric()) {
         sprite->xPosition = value.asDouble();
@@ -108,7 +108,7 @@ BlockResult MotionBlocks::setX(Block &block, Sprite *sprite, Block **waitingBloc
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "Y", sprite);
     if (value.isNumeric()) {
         sprite->yPosition = value.asDouble();
@@ -119,7 +119,11 @@ BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, Block **waitingBloc
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
 
     if (block.repeatTimes == -1) {
         block.repeatTimes = -6;
@@ -167,7 +171,11 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, Block **wa
     return BlockResult::RETURN;
 }
 
-BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
 
     if (block.repeatTimes == -1) {
         block.repeatTimes = -7;
@@ -237,7 +245,7 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, Block **waitingB
     return BlockResult::RETURN;
 }
 
-BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     auto itVal = block.parsedInputs.find("TOWARDS");
     Block *inputBlock = findBlock(itVal->second.literalValue.asString());
     if (inputBlock->fields.find("TOWARDS") == inputBlock->fields.end()) {
@@ -275,7 +283,7 @@ BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, Block **wait
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::setRotationStyle(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::setRotationStyle(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string value;
     try {
         value = block.fields.at("STYLE")[0];
@@ -294,12 +302,13 @@ BlockResult MotionBlocks::setRotationStyle(Block &block, Sprite *sprite, Block *
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
+BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     double halfWidth = Scratch::projectWidth / 2.0;
     double halfHeight = Scratch::projectHeight / 2.0;
 
-    double spriteHalfWidth = sprite->spriteWidth / 2.0;
-    double spriteHalfHeight = sprite->spriteHeight / 2.0;
+    double scale = sprite->size / 100.0;
+    double spriteHalfWidth = (sprite->spriteWidth * scale) / 2.0;
+    double spriteHalfHeight = (sprite->spriteHeight * scale) / 2.0;
 
     // Compute bounds of the sprite
     double left = sprite->xPosition - spriteHalfWidth;

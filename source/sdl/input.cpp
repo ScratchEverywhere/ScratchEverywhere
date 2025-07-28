@@ -15,7 +15,7 @@ extern char nickname[0x21];
 Input::Mouse Input::mousePointer;
 
 std::vector<std::string> Input::inputButtons;
-static int keyHeldFrames = 0;
+int Input::keyHeldFrames = 0;
 
 extern SDL_GameController *controller;
 extern bool touchActive;

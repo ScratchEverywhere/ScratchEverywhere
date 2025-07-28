@@ -1,4 +1,5 @@
 #include "interpret.hpp"
+#include "os.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -15,19 +16,19 @@ class Unzip {
         std::ifstream file;
         int isFileOpen = openFile(&file);
         if (isFileOpen == 0) {
-            std::cerr << "Failed to open Scratch project." << std::endl;
+            Log::logError("Failed to open Scratch project.");
             Unzip::projectOpened = -1;
             Unzip::threadFinished = true;
             return;
         } else if (isFileOpen == -1) {
-            std::cout << "Main Menu Activated." << std::endl;
+            Log::log("Main Menu activated.");
             Unzip::projectOpened = -3;
             Unzip::threadFinished = true;
             return;
         }
         nlohmann::json project_json = unzipProject(&file);
         if (project_json.empty()) {
-            std::cerr << "Project.json is empty." << std::endl;
+            Log::logError("Project.json is empty.");
             Unzip::projectOpened = -2;
             Unzip::threadFinished = true;
             return;
@@ -57,23 +58,27 @@ class Unzip {
 
         if (projectType != UNZIPPED) {
             // read the file
-            std::cout << "Reading SB3..." << std::endl;
+            Log::log("Reading SB3...");
             std::streamsize size = file->tellg(); // gets the size of the file
             file->seekg(0, std::ios::beg);        // go to the beginning of the file
             zipBuffer.resize(size);
             if (!file->read(zipBuffer.data(), size)) {
                 return project_json;
             }
+            size_t bufferSize = zipBuffer.size();
+
+            // Track memory
+            MemoryTracker::allocate(bufferSize);
 
             // open ZIP file from the thing that we just did
-            std::cout << "Opening SB3 file..." << std::endl;
+            Log::log("Opening SB3 file...");
             memset(&zipArchive, 0, sizeof(zipArchive));
             if (!mz_zip_reader_init_mem(&zipArchive, zipBuffer.data(), zipBuffer.size(), 0)) {
                 return project_json;
             }
 
             // extract project.json
-            std::cout << "Extracting project.json..." << std::endl;
+            Log::log("Extracting project.json...");
             int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
             if (file_index < 0) {
                 return project_json;
@@ -83,9 +88,11 @@ class Unzip {
             const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
 
             // Parse JSON file
-            std::cout << "Parsing project.json..." << std::endl;
+            Log::log("Parsing project.json...");
+            MemoryTracker::allocate(json_size);
             project_json = nlohmann::json::parse(std::string(json_data, json_size));
             mz_free((void *)json_data);
+            MemoryTracker::deallocate(nullptr, json_size);
 
             // Image::loadImages(&zipArchive);
             // mz_zip_reader_end(&zipArchive);

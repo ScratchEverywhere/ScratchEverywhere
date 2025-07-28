@@ -2,15 +2,15 @@
 
 TARGET     := Scratch-pc
 BUILD      := build/pc
-SOURCES    := source source/scratch source/scratch/blocks source/sdl include/miniz include/nlohmann
-INCLUDES   := include source/scratch source/scratch/blocks source/sdl include/nlohmann
+SOURCES    := source source/scratch source/scratch/blocks source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES   := include source/scratch source/scratch/blocks source/sdl source/sdl/audio include/nlohmann
 
 CXX        := g++
 CC         := gcc
 
 # Base compiler flags
-CXXFLAGS_BASE := -std=c++17 -Wall -D__PC__ -fexceptions
-CFLAGS_BASE   := -D__PC__
+CXXFLAGS_BASE := -std=c++17 -Wall -D__PC__ -fexceptions -DSDL_BUILD
+CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
 
 # Debug and Release flags
 CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -g -O0 -DDEBUG

@@ -1,4 +1,7 @@
 #include "../scratch/render.hpp"
+#include "../scratch/audio.hpp"
+#include "../scratch/input.hpp"
+#include "../scratch/unzip.hpp"
 #include "interpret.hpp"
 #include "render.hpp"
 
@@ -38,6 +41,9 @@ bool Render::Init() {
         return false;
     }
     nn::act::Initialize();
+  
+    windowWidth = 854;
+    windowHeight = 480;
 #elif defined(__SWITCH__)
     SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
 
@@ -89,19 +95,20 @@ bool Render::Init() {
 postAccount:
 #endif
 
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     // Initialize SDL_mixer
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-        std::cout << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << std::endl;
+        Log::logWarning(std::string("SDL_Mixer could not initialize! ") + Mix_GetError());
         return false;
     }
     int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
     if (Mix_Init(flags) != flags) {
-        std::cout << "SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: " << Mix_GetError() << std::endl;
+        Log::logWarning(std::string("SDL_Mixer could not initialize MP3/OGG Support! ") + Mix_GetError());
     }
+    TTF_Init();
     window = SDL_CreateWindow("Scratch Runtime", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
@@ -110,6 +117,7 @@ postAccount:
 void Render::deInit() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    SoundPlayer::cleanupAudio();
     IMG_Quit();
     SDL_Quit();
 
@@ -133,8 +141,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_Rect leftBar = {0, 0, static_cast<int>(barWidth), screenHeight};
-        SDL_Rect rightBar = {static_cast<int>(screenWidth - barWidth), 0, static_cast<int>(barWidth), screenHeight};
+        SDL_Rect leftBar = {0, 0, static_cast<int>(std::ceil(barWidth)), screenHeight};
+        SDL_Rect rightBar = {static_cast<int>(std::floor(screenWidth - barWidth)), 0, static_cast<int>(std::ceil(barWidth)), screenHeight};
 
         SDL_RenderFillRect(renderer, &leftBar);
         SDL_RenderFillRect(renderer, &rightBar);
@@ -145,8 +153,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_Rect topBar = {0, 0, screenWidth, static_cast<int>(barHeight)};
-        SDL_Rect bottomBar = {0, static_cast<int>(screenHeight - barHeight), screenWidth, static_cast<int>(barHeight)};
+        SDL_Rect topBar = {0, 0, screenWidth, static_cast<int>(std::ceil(barHeight))};
+        SDL_Rect bottomBar = {0, static_cast<int>(std::floor(screenHeight - barHeight)), screenWidth, static_cast<int>(std::ceil(barHeight))};
 
         SDL_RenderFillRect(renderer, &topBar);
         SDL_RenderFillRect(renderer, &bottomBar);
@@ -188,28 +196,35 @@ void Render::renderSprites() {
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
-            image->renderRect.x = currentSprite->xPosition;
-            image->renderRect.y = currentSprite->yPosition;
-            image->setRotation(Math::degreesToRadians(currentSprite->rotation - 90.0f));
+            const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
+            double renderRotation = rotation;
 
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-                if (image->rotation < 0) {
+                if (std::cos(rotation) < 0) {
                     flip = SDL_FLIP_HORIZONTAL;
                 }
-                image->setRotation(0);
+                renderRotation = 0;
             }
             if (currentSprite->rotationStyle == currentSprite->NONE) {
-                image->setRotation(0);
+                renderRotation = 0;
             }
 
             double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
             double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
 
-            image->renderRect.x = ((currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - rotationCenterX;
-            image->renderRect.y = ((currentSprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2)) - rotationCenterY;
+            const double offsetX = rotationCenterX * (currentSprite->size * 0.01);
+            const double offsetY = rotationCenterY * (currentSprite->size * 0.01);
+
+            image->renderRect.x = ((currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
+            image->renderRect.y = ((currentSprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
             SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
-            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, image->rotation, &center, flip);
+            // ghost effect
+            float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
+            Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
+            SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+
+            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, Math::radiansToDegrees(renderRotation), &center, flip);
         } else {
             currentSprite->spriteWidth = 64;
             currentSprite->spriteHeight = 64;
@@ -272,20 +287,131 @@ bool Render::appShouldRun() {
     return true;
 }
 
-// TODO create functionality for these in the SDL version.
-// Would probably need to share more code between the two
-// versions first (eg; text renderer for SDL version)
-
 void LoadingScreen::init() {
 }
 void LoadingScreen::renderLoadingScreen() {
 }
 void LoadingScreen::cleanup() {
 }
-// or these,,,
+
 void MainMenu::init() {
+
+    std::vector<std::string> projectFiles;
+#ifdef __WIIU__
+    projectFiles = Unzip::getProjectFiles(std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/");
+#else
+    projectFiles = Unzip::getProjectFiles(".");
+#endif
+
+    int yPosition = 120;
+    for (std::string &file : projectFiles) {
+        TextObject *text = createTextObject(file, 0, yPosition);
+        text->setRenderer(renderer);
+        text->setColor(0xFF000000);
+        text->y -= text->getSize()[1] / 2;
+        if (text->getSize()[0] > windowWidth) {
+            float scale = (float)windowWidth / (text->getSize()[0] * 1.15);
+            text->setScale(scale);
+        }
+        projectTexts.push_back(text);
+        yPosition += 50;
+    }
+
+    if (projectFiles.size() == 0) {
+        std::string errorText;
+#ifdef __WIIU__
+        errorText = "No Scratch projects found!\n Go download a Scratch project and put it\n in sdcard:/wiiu/scratch-wiiu!\nPress Start to exit.";
+#else
+        errorText = "No Scratch projects found!\n Go download a Scratch project and put it\n in the same folder as this executable!\nPress Start to exit.";
+#endif
+        errorTextInfo = createTextObject(errorText,
+                                         windowWidth / 2, windowWidth / 2);
+        errorTextInfo->setRenderer(renderer);
+        errorTextInfo->setScale(0.6);
+        hasProjects = false;
+    } else {
+        selectedText = projectTexts.front();
+        hasProjects = true;
+    }
 }
 void MainMenu::render() {
+
+    // use scratch input instead of direct SDL input because uhhhh lazy 😁
+    Input::getInput();
+    bool upPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "up arrow") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
+    bool downPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "down arrow") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
+    bool aPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "a") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
+    bool startPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "1") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
+
+    if (hasProjects) {
+
+        if (downPressed) {
+            if (selectedTextIndex < (int)projectTexts.size() - 1) {
+                selectedTextIndex++;
+                selectedText = projectTexts[selectedTextIndex];
+            }
+        }
+        if (upPressed) {
+            if (selectedTextIndex > 0) {
+                selectedTextIndex--;
+                selectedText = projectTexts[selectedTextIndex];
+            }
+        }
+        cameraY = selectedText->y;
+        cameraX = windowWidth / 2;
+
+        if (aPressed) {
+            Unzip::filePath = selectedText->getText();
+        }
+    } else {
+
+        if (startPressed) {
+            shouldExit = true;
+        }
+    }
+
+    // begin frame
+    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+    SDL_SetRenderDrawColor(renderer, 71, 107, 115, 255);
+    SDL_RenderClear(renderer);
+
+    auto now = std::chrono::steady_clock::now();
+    std::chrono::duration<float> elapsed = now - logoStartTime;
+
+    float timeSeconds = elapsed.count();
+    float bobbingOffset = std::sin(timeSeconds * 2.0f) * 5.0f;
+
+    for (TextObject *text : projectTexts) {
+        if (text == nullptr) continue;
+
+        if (selectedText == text)
+            text->setColor(0xFFFFFFFF);
+        else
+            text->setColor(0xFF000000);
+
+        text->render(text->x + cameraX, text->y - (cameraY - (windowHeight / 2)));
+    }
+
+    if (errorTextInfo != nullptr) {
+        errorTextInfo->render(errorTextInfo->x, errorTextInfo->y);
+    }
+
+    SDL_RenderPresent(renderer);
+    SDL_Delay(16);
 }
 void MainMenu::cleanup() {
+    for (TextObject *text : projectTexts) {
+        delete text;
+    }
+    projectTexts.clear();
+
+    selectedText = nullptr;
+    if (errorTextInfo) delete errorTextInfo;
+
+    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+    SDL_SetRenderDrawColor(renderer, 71, 107, 115, 255);
+    SDL_RenderClear(renderer);
+
+    SDL_RenderPresent(renderer);
+    SDL_Delay(16);
 }

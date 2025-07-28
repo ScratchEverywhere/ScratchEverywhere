@@ -3,9 +3,9 @@
 
 class SensingBlocks {
   public:
-    static BlockResult resetTimer(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult askAndWait(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
-    static BlockResult setDragMode(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh);
+    static BlockResult resetTimer(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult askAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult setDragMode(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 
     static Value sensingTimer(Block &block, Sprite *sprite);
     static Value of(Block &block, Sprite *sprite);
