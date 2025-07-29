@@ -67,7 +67,7 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__3DS__)
     cloudConnection->connect(false);
 #else
     cloudConnection->connect();
