@@ -5,6 +5,7 @@
 #include <chrono>
 
 #ifdef ENABLE_CLOUDVARS
+#include "scratch/os.hpp"
 #include <mist/mist.hpp>
 #include <random>
 #include <sstream>
@@ -45,10 +46,12 @@ void initMist() {
 
     cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
         if (connected) {
-            std::cout << "[INFO] Mist++ Connected: " << message << std::endl;
+            Log::log("Mist++ Connected:");
+            Log::log(message);
             return;
         }
-        std::cout << "[INFO] Mist++ Disconnected: " << message << std::endl;
+        Log::log("Mist++ Disconnected:");
+        Log::log(message);
     });
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
