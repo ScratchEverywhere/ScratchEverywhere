@@ -36,8 +36,8 @@ WUHB_TV_SPLASH	:=	gfx/wiiu/tv-splash.png
 WUHB_DRC_SPLASH	:=	gfx/wiiu/drc-splash.png
 
 # Mist++ Version Check
-ifeq ($(shell $(PKGCONF_WIIU) --atleast-version=0.1.4 mist++ >/dev/null 2>&1; echo $$?),1)
-$(error "[ERROR] Mist++ must be v0.1.4 or newer.")
+ifeq ($(shell $(PKGCONF_WIIU) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
 endif
 
 # Config Options

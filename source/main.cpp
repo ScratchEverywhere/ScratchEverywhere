@@ -53,7 +53,11 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
+#ifdef __WIIU__
+    cloudConnection->connect(false);
+#else
     cloudConnection->connect();
+#endif
 }
 #endif
 
