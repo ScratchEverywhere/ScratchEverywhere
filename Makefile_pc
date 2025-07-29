@@ -17,16 +17,16 @@ endif
 ENABLE_CLOUDVARS	?=	1
 
 # Base compiler flags
-CXXFLAGS_BASE := -std=c++17 -Wall -D__PC__ -fexceptions -DSDL_BUILD
 CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
 
 LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer
 
 ifeq ($(ENABLE_CLOUDVARS),1)
 CFLAGS_BASE		+=	-DENABLE_CLOUDVARS
-CXXFLAGS_BASE	+=	-DENABLE_CLOUDVARS
 LDFLAGS				+=	-lmist++ -lcurl
 endif
+
+CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++17 -Wall -fexceptions
 
 # Debug and Release flags
 CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -g -O0 -DDEBUG
