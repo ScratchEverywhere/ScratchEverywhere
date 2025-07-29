@@ -4,7 +4,10 @@
 #include <fstream>
 
 #ifdef ENABLE_CLOUDVARS
-extern size_t projectHash;
+const uint64_t FNV_PRIME_64 = 1099511628211ULL;
+const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
+
+extern uint64_t projectHash;
 #endif
 
 class Unzip {
@@ -92,8 +95,11 @@ class Unzip {
 
 #ifdef ENABLE_CLOUDVARS
             // Get project hash for cloud variables
-            std::hash<std::string> hash_func;
-            projectHash = hash_func(std::string(json_data, json_size));
+            projectHash = FNV_OFFSET_BASIS_64;
+            for (size_t i = 0; i < json_size; i++) {
+                projectHash ^= static_cast<uint64_t>(static_cast<unsigned char>(json_data[i]));
+                projectHash *= FNV_PRIME_64;
+            }
 #endif
 
             // Parse JSON file

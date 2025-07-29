@@ -18,7 +18,7 @@
 // ^ for debug purposes
 
 #ifdef ENABLE_CLOUDVARS
-size_t projectHash;
+uint64_t projectHash;
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 #endif
 
