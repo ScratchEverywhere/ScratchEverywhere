@@ -41,7 +41,7 @@ $(error "[ERROR] Mist++ must be v0.1.4 or newer.")
 endif
 
 # Config Options
-CLOUDVARS_ENABLED	?=	1
+ENABLE_CLOUDVARS	?=	1
 ENABLE_BUBBLES	  ?=	1
 
 #---------------------------------------------------------------------------------
