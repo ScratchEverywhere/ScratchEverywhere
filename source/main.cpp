@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
     }
 
 #ifdef ENABLE_CLOUDVARS
-    if (cloudProject) initMist();
+    if (cloudProject && !projectJSON.empty()) initMist();
 #endif
 
     BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHENFLAGCLICKED);

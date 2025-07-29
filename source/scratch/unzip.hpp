@@ -107,6 +107,9 @@ class Unzip {
             // if project is unzipped
             file->clear();                 // Clear any EOF flags
             file->seekg(0, std::ios::beg); // Go to the start of the file
+#ifdef ENABLE_CLOUDVARS
+            projectJSON = {std::istreambuf_iterator<char>(*file), std::istreambuf_iterator<char>()};
+#endif
             (*file) >> project_json;
         }
         Image::loadImages(&zipArchive);
