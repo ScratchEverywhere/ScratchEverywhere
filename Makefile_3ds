@@ -20,18 +20,20 @@ include $(DEVKITARM)/3ds_rules
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
-APP_TITLE 	:=	Scratch 3DS
-APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 13]
-APP_AUTHOR 	:= NateXS
-TARGET		:=	$(notdir $(CURDIR))
-BUILD		:=	build
-SOURCES		:=	source source/3ds source/scratch source/scratch/blocks include/miniz source/sdl/audio
-DATA		:=	data
-INCLUDES	:=	include source/3ds source/scratch source/scratch/blocks source/sdl/audio
-GRAPHICS	:=	gfx
-ROMFS		:=	romfs
-ICON		:=	gfx/icon.png
-GFXBUILD	:=	$(ROMFS)/gfx
+TARGET          := $(notdir $(CURDIR))
+APP_INFO        := gfx/AppInfo
+BUILD           := build
+SOURCES	        := source source/3ds source/scratch source/scratch/blocks include/miniz source/sdl/audio
+DATA            := data
+INCLUDES        := include source/3ds source/scratch source/scratch/blocks source/sdl/audio
+GRAPHICS        := gfx
+ROMFS           := romfs
+APP_INFO        := gfx/AppInfo
+BANNER_AUDIO    := gfx/audio
+BANNER_IMAGE    := gfx/banner
+ICON            := gfx/icon.png
+RSF             := gfx/template.rsf
+GFXBUILD        := $(ROMFS)/gfx
 
 # Config Options
 ENABLE_BUBBLES	?=	1
@@ -157,11 +159,74 @@ ifneq ($(ROMFS),)
 	export _3DSXFLAGS += --romfs=$(CURDIR)/$(ROMFS)
 endif
 
-.PHONY: all clean
+.PHONY: all 3dsx cia clean
 
 #---------------------------------------------------------------------------------
-all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
+# app info
+#---------------------------------------------------------------------------------
+
+include $(TOPDIR)/$(APP_INFO)
+APP_TITLE         := $(shell echo "$(APP_TITLE)" | cut -c1-128)
+APP_DESCRIPTION   := $(shell echo "$(APP_DESCRIPTION)" | cut -c1-256)
+APP_AUTHOR        := $(shell echo "$(APP_AUTHOR)" | cut -c1-128)
+APP_PRODUCT_CODE  := $(shell echo $(APP_PRODUCT_CODE) | cut -c1-16)
+APP_UNIQUE_ID     := $(shell echo $(APP_UNIQUE_ID) | cut -c1-7)
+APP_VERSION_MAJOR := $(shell echo $(APP_VERSION_MAJOR) | cut -c1-3)
+APP_VERSION_MINOR := $(shell echo $(APP_VERSION_MINOR) | cut -c1-3)
+APP_VERSION_MICRO := $(shell echo $(APP_VERSION_MICRO) | cut -c1-3)
+APP_ROMFS         := romfs/
+
+#---------------------------------------------------------------------------------
+# cia setup
+#---------------------------------------------------------------------------------
+
+BANNER_IMAGE_FILE := $(BANNER_IMAGE).png
+BANNER_IMAGE_ARG  := -i $(BANNER_IMAGE_FILE)
+
+BANNER_AUDIO_FILE := $(BANNER_AUDIO).wav
+BANNER_AUDIO_ARG  := -a $(BANNER_AUDIO_FILE)
+
+COMMON_MAKEROM_PARAMS := -rsf $(RSF) -target t -exefslogo -elf $(OUTPUT).elf -icon icon.icn \
+-banner banner.bnr -DAPP_TITLE="$(APP_TITLE)" -DAPP_PRODUCT_CODE="$(APP_PRODUCT_CODE)" \
+-DAPP_UNIQUE_ID="$(APP_UNIQUE_ID)" -DAPP_ROMFS="$(APP_ROMFS)" -DAPP_SYSTEM_MODE="96MB" \
+-DAPP_SYSTEM_MODE_EXT="178MB" -major "$(APP_VERSION_MAJOR)" -minor "$(APP_VERSION_MINOR)" \
+-micro "$(APP_VERSION_MICRO)"
+
+ifeq ($(OS),Windows_NT)
+	MAKEROM = makerom.exe
+	BANNERTOOL = bannertool.exe
+	CITRA = citra.exe
+	_3DSXTOOL = 3dsxtool.exe
+	SMDHTOOL = smdhtool.exe
+	TEX3DS = tex3ds.exe
+else
+	MAKEROM = makerom
+	BANNERTOOL = bannertool
+	CITRA = citra
+	_3DSXTOOL = 3dsxtool
+	SMDHTOOL = smdhtool
+	TEX3DS = tex3ds
+endif
+
+#---------------------------------------------------------------------------------
+all: 3dsx cia
+
+3dsx: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES)  $(T3XHFILES)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/Makefile_3ds
+
+cia : $(OUTPUT).cia
+
+$(OUTPUT).cia : $(OUTPUT).elf banner.bnr icon.icn
+	@$(MAKEROM) -f cia -o $(OUTPUT).cia -DAPP_ENCRYPTED=false $(COMMON_MAKEROM_PARAMS)
+	@echo "built ... $(notdir $@)"
+
+banner.bnr : $(BANNER_IMAGE_FILE) $(BANNER_AUDIO_FILE)
+	@$(BANNERTOOL) makebanner $(BANNER_IMAGE_ARG) $(BANNER_AUDIO_ARG) -o banner.bnr
+	@echo built ... $(notdir $@)
+
+icon.icn : $(APP_ICON)
+	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_TITLE)" -p "$(APP_AUTHOR)" -i $(APP_ICON) -o icon.icn
+	@echo built ... $(notdir $@)
 
 $(BUILD):
 	@mkdir -p $@
@@ -179,7 +244,7 @@ endif
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(GFXBUILD)
+	@rm -fr $(BUILD) $(TARGET).3dsx $(OUTPUT).smdh $(TARGET).elf $(TARGET).cia $(GFXBUILD) banner.bnr icon.icn
 
 #---------------------------------------------------------------------------------
 $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s
@@ -189,6 +254,20 @@ $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s
 
 #---------------------------------------------------------------------------------
 else
+
+#---------------------------------------------------------------------------------
+# app info
+#---------------------------------------------------------------------------------
+
+include $(TOPDIR)/$(APP_INFO)
+APP_TITLE         := $(shell echo "$(APP_TITLE)" | cut -c1-128)
+APP_DESCRIPTION   := $(shell echo "$(APP_DESCRIPTION)" | cut -c1-256)
+APP_AUTHOR        := $(shell echo "$(APP_AUTHOR)" | cut -c1-128)
+APP_PRODUCT_CODE  := $(shell echo $(APP_PRODUCT_CODE) | cut -c1-16)
+APP_UNIQUE_ID     := $(shell echo $(APP_UNIQUE_ID) | cut -c1-7)
+APP_VERSION_MAJOR := $(shell echo $(APP_VERSION_MAJOR) | cut -c1-3)
+APP_VERSION_MINOR := $(shell echo $(APP_VERSION_MINOR) | cut -c1-3)
+APP_VERSION_MICRO := $(shell echo $(APP_VERSION_MICRO) | cut -c1-3)
 
 #---------------------------------------------------------------------------------
 # main targets

@@ -1,0 +1,8 @@
+APP_TITLE         = Scratch 3DS
+APP_DESCRIPTION   = Play Scratch Games on the 3DS! [Beta 13]
+APP_AUTHOR 	      = NateXS
+APP_PRODUCT_CODE  = Scratch3DS
+APP_UNIQUE_ID     = 0x2143
+APP_VERSION_MAJOR = 1
+APP_VERSION_MINOR = 0
+APP_VERSION_MICRO = 13
