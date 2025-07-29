@@ -19,7 +19,12 @@
 // ^ for debug purposes
 
 #ifdef ENABLE_CLOUDVARS
-uint64_t projectHash;
+const uint64_t FNV_PRIME_64 = 1099511628211ULL;
+const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
+
+std::string projectJSON;
+extern bool cloudProject;
+
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 #endif
 
@@ -40,8 +45,14 @@ void initMist() {
     usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
     std::string username = usernameStream.str();
 
+    uint64_t projectHash = FNV_OFFSET_BASIS_64;
+    for (char c : projectJSON) {
+        projectHash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
+        projectHash *= FNV_PRIME_64;
+    }
+
     std::ostringstream projectID;
-    projectID << "Scratch-3DS/hash-" << projectHash;
+    projectID << "Scratch-3DS/hash-" << std::hex << std::setw(16) << std::setfill('0') << projectHash;
     cloudConnection = std::make_unique<MistConnection>(projectID.str(), username, "contact@grady.link");
 
     cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
@@ -114,7 +125,7 @@ int main(int argc, char **argv) {
     }
 
 #ifdef ENABLE_CLOUDVARS
-    initMist();
+    if (cloudProject) initMist();
 #endif
 
     BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHENFLAGCLICKED);

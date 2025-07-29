@@ -4,10 +4,7 @@
 #include <fstream>
 
 #ifdef ENABLE_CLOUDVARS
-const uint64_t FNV_PRIME_64 = 1099511628211ULL;
-const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
-
-extern uint64_t projectHash;
+extern std::string projectJSON;
 #endif
 
 class Unzip {
@@ -94,12 +91,7 @@ class Unzip {
             const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
 
 #ifdef ENABLE_CLOUDVARS
-            // Get project hash for cloud variables
-            projectHash = FNV_OFFSET_BASIS_64;
-            for (size_t i = 0; i < json_size; i++) {
-                projectHash ^= static_cast<uint64_t>(static_cast<unsigned char>(json_data[i]));
-                projectHash *= FNV_PRIME_64;
-            }
+            projectJSON = std::string(json_data, json_size);
 #endif
 
             // Parse JSON file
