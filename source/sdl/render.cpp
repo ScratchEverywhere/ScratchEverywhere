@@ -9,6 +9,7 @@
 #include <coreinit/debug.h>
 #include <nn/act.h>
 #include <romfs-wiiu.h>
+#include <whb/log_udp.h>
 #include <whb/sdcard.h>
 #endif
 
@@ -26,6 +27,8 @@ SDL_Point touchPosition;
 
 bool Render::Init() {
 #ifdef __WIIU__
+    WHBLogUdpInit();
+
     if (romfsInit()) {
         OSFatal("Failed to init romfs.");
         return false;
