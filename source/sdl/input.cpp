@@ -21,6 +21,11 @@ extern SDL_Point touchPosition;
 #define CONTROLLER_DEADZONE_Y 18000
 #define CONTROLLER_DEADZONE_TRIGGER 1000
 
+#ifdef ENABLE_CLOUDVARS
+extern std::string cloudUsername;
+extern bool cloudProject;
+#endif
+
 void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
@@ -173,6 +178,9 @@ void Input::getInput() {
 }
 
 std::string Input::getUsername() {
+#ifdef ENABLE_CLOUDVARS
+    if (cloudProject) return cloudUsername;
+#endif
 #ifdef __WIIU__
     int16_t miiName[256];
     nn::act::GetMiiName(miiName);

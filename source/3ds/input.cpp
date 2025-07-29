@@ -11,6 +11,11 @@ std::vector<std::string> Input::inputButtons;
 Input::Mouse Input::mousePointer;
 int Input::keyHeldFrames = 0;
 
+#ifdef ENABLE_CLOUDVARS
+extern std::string cloudUsername;
+extern bool cloudProject;
+#endif
+
 void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
@@ -128,6 +133,10 @@ void Input::getInput() {
  * @return String of the 3DS's nickname
  */
 std::string Input::getUsername() {
+#ifdef ENABLE_CLOUDVARS
+    if (cloudProject) return cloudUsername;
+#endif
+
     const u16 *block = (const u16 *)malloc(0x1C);
 
     cfguInit();

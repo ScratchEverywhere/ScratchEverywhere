@@ -22,6 +22,8 @@
 const uint64_t FNV_PRIME_64 = 1099511628211ULL;
 const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
 
+std::string cloudUsername;
+
 std::string projectJSON;
 extern bool cloudProject;
 
@@ -40,10 +42,28 @@ static bool initApp() {
 void initMist() {
     // Username Stuff
 
-    std::random_device rd;
-    std::ostringstream usernameStream;
-    usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
-    std::string username = usernameStream.str();
+#ifdef __WIIU__
+    std::ostream usernameFilenameStream;
+    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
+    std::string usernameFilename = usernameFilenameStream.str();
+#else
+    std::string usernameFilename = "cloud-username.txt";
+#endif
+
+    std::ifstream fileStream(usernameFilename.c_str());
+    if (!fileStream.good()) {
+        std::random_device rd;
+        std::ostringstream usernameStream;
+        usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
+        cloudUsername = usernameStream.str();
+        std::ofstream usernameFile;
+        usernameFile.open(usernameFilename);
+        usernameFile << cloudUsername;
+        usernameFile.close();
+    } else {
+        fileStream >> cloudUsername;
+    }
+    fileStream.close();
 
     uint64_t projectHash = FNV_OFFSET_BASIS_64;
     for (char c : projectJSON) {
@@ -53,7 +73,7 @@ void initMist() {
 
     std::ostringstream projectID;
     projectID << "Scratch-3DS/hash-" << std::hex << std::setw(16) << std::setfill('0') << projectHash;
-    cloudConnection = std::make_unique<MistConnection>(projectID.str(), username, "contact@grady.link");
+    cloudConnection = std::make_unique<MistConnection>(projectID.str(), cloudUsername, "contact@grady.link");
 
     cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
         if (connected) {
