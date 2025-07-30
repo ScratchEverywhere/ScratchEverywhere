@@ -125,7 +125,7 @@ Then it should be as simple as opening the app on your Wii U!
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
 
-For 3DS and Wii U, you will need to have Devkitpro's SDKs installed.
+For 3DS and Wii U, you will need to have Devkitpro's SDKs, [Mist++](https://github.grady.link/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 - For the 3DS you will need the DevkitARM toolchain and libctru.
 - - You will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/NateXS/Scratch-3DS/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
 - For the Wii U you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and libromfs-wiiu.
