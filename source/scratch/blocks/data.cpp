@@ -1,4 +1,5 @@
 #include "data.hpp"
+#include "../render.hpp"
 
 BlockResult DataBlocks::setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value val = Scratch::getInputValue(block, "VALUE", sprite);
@@ -17,6 +18,29 @@ BlockResult DataBlocks::changeVariable(Block &block, Sprite *sprite, bool *witho
     }
 
     BlockExecutor::setVariableValue(varId, val, sprite);
+    return BlockResult::CONTINUE;
+}
+
+BlockResult DataBlocks::showVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    std::string varId = block.fields["VARIABLE"][1].get<std::string>();
+    for (Monitor &var : Render::visibleVariables) {
+        if (var.id == varId) {
+            var.visible = true;
+            break;
+        }
+    }
+
+    return BlockResult::CONTINUE;
+}
+
+BlockResult DataBlocks::hideVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    std::string varId = block.fields["VARIABLE"][1].get<std::string>();
+    for (Monitor &var : Render::visibleVariables) {
+        if (var.id == varId) {
+            var.visible = false;
+            break;
+        }
+    }
     return BlockResult::CONTINUE;
 }
 

@@ -25,7 +25,7 @@ APP_NAME							:=	Scratch Wii U
 APP_AUTHOR						:=	NateXS and Grady Link
 APP_SHORT_DESCRIPTION	:=	Play Scratch Games on the Wii U!
 APP_LONG_DESCRIPTION	:=	$(APP_SHORT_DESCRIPTION)
-APP_VERSION						:=	0.13
+APP_VERSION						:=	0.14
 
 # WUHB Info
 

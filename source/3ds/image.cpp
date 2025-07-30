@@ -186,7 +186,7 @@ bool queueC2DImage(Image::ImageRGBA &rgba) {
  */
 bool get_C2D_Image(Image::ImageRGBA rgba) {
 
-    u32 px_count = rgba.width * rgba.height;
+    // u32 px_count = rgba.width * rgba.height;
     u32 *rgba_raw = reinterpret_cast<u32 *>(rgba.data);
 
     // Image data

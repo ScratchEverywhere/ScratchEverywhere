@@ -141,6 +141,11 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
                 repeatBlock->repeatTimes = -1;
             }
         }
+
+        for (auto &chainBlock : sprite->blockChains[block.blockChainID].blockChain) {
+            chainBlock->waitingIfBlock = "";
+        }
+
         sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
         return BlockResult::CONTINUE;
     }
@@ -153,6 +158,9 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
                 if (repeatBlock) {
                     repeatBlock->repeatTimes = -1;
                 }
+            }
+            for (auto &chainBlock : chain.blockChain) {
+                chainBlock->waitingIfBlock = "";
             }
             chain.blocksToRepeat.clear();
         }

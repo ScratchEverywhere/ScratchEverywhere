@@ -1,4 +1,5 @@
 #pragma once
+#include "sprite.hpp"
 #include "text.hpp"
 #include <chrono>
 #include <cmath>
@@ -15,6 +16,8 @@ class Render {
      */
     static void renderSprites();
 
+    static void renderVisibleVariables();
+
     /**
      * Returns whether or not the app should be running.
      * If `false`, the app should close.
@@ -28,6 +31,9 @@ class Render {
     };
 
     static RenderModes renderMode;
+    static std::unordered_map<std::string, TextObject *> monitorTexts;
+
+    static std::vector<Monitor> visibleVariables;
 };
 
 class LoadingScreen {

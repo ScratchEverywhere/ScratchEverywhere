@@ -33,6 +33,7 @@ std::chrono::_V2::system_clock::time_point startTime = std::chrono::high_resolut
 std::chrono::_V2::system_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
+std::vector<Monitor> Render::visibleVariables;
 
 #ifdef ENABLE_CLOUDVARS
 static uint32_t *SOC_buffer = NULL;
@@ -268,6 +269,8 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTH_SCREENS)
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
+    renderVisibleVariables();
+
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(bottomScreen);
         // Sort sprites by layer (lowest to highest)
@@ -307,6 +310,57 @@ void Render::renderSprites() {
     // std::cout << "\x1b[8;0HCPU: " <<C3D_GetProcessingTime()*6.0f<<"\nGPU: "<< C3D_GetDrawingTime()*6.0f << "\nCmdBuf: " <<C3D_GetCmdBufUsage()*100.0f << "\nFPS: " << FPS <<  std::endl;
     startTime = std::chrono::high_resolution_clock::now();
     osSetSpeedupEnable(true);
+}
+
+std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+
+void Render::renderVisibleVariables() {
+
+    // get screen scale
+    double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
+    double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
+    double scale = std::min(scaleX, scaleY);
+
+    // calculate black bar offset
+    float screenAspect = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    float barOffsetX = 0.0f;
+    float barOffsetY = 0.0f;
+    if (screenAspect > projectAspect) {
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        barOffsetX = (SCREEN_WIDTH - scaledProjectWidth) / 2.0f;
+    } else if (screenAspect < projectAspect) {
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        barOffsetY = (SCREEN_HEIGHT - scaledProjectHeight) / 2.0f;
+    }
+
+    for (auto &var : visibleVariables) {
+        if (var.visible) {
+
+            std::string renderText = BlockExecutor::getMonitorValue(var).asString();
+
+            if (monitorTexts.find(var.id) == monitorTexts.end()) {
+                monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
+            } else {
+                monitorTexts[var.id]->setText(renderText);
+            }
+            monitorTexts[var.id]->setColor(C2D_Color32(0, 0, 0, 255));
+            if (var.mode != "large") {
+                monitorTexts[var.id]->setCenterAligned(false);
+                monitorTexts[var.id]->setScale(0.6);
+            } else {
+                monitorTexts[var.id]->setCenterAligned(true);
+                monitorTexts[var.id]->setScale(1);
+            }
+
+            monitorTexts[var.id]->render(var.x + barOffsetX, var.y + barOffsetY);
+
+        } else {
+            if (monitorTexts.find(var.id) != monitorTexts.end()) {
+                monitorTexts.erase(var.id);
+            }
+        }
+    }
 }
 
 void LoadingScreen::renderLoadingScreen() {

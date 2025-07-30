@@ -59,7 +59,7 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - All say and think blocks
 - All* Costume Effects
 - - *`Ghost` Costume Effect is supported.
-- Show/hide variable | Show/hide list
+- Show/hide list
 - When backdrop switches to
 - When this sprite clicked
 - When loudness > ___
@@ -83,8 +83,6 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 
 ### Wii U
 
-- Audio support
-- Turbowarp extensions
 - Dual screen support
 - Improved controller support (multiple controllers, Wii Remotes)
 
