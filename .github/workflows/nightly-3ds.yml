@@ -64,6 +64,17 @@ jobs:
           make install
           cd ../..
 
+      - name: Install Modified Curl Package
+        run: |
+          git clone https://github.com/gradylink/dkp-pacman-packages
+          cd dkp-pacman-packages/3ds/curl
+          makepkg -si
+
+      - name: Install Mist++
+        run: |
+          wget https://github.com/gradylink/mistpp-packages/releases/download/0.2.0-1/3ds-libmistpp-0.2.0-1-any.pkg.tar.zst
+          sudo dkp-pacman -U 3ds-libmistpp-0.2.0-1-any.pkg.tar.zst
+
       - name: Build
         run: make -f Makefile_3ds
 
