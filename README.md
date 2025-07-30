@@ -75,6 +75,7 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - Get all blocks working
 - Pen support
 - Support most TurboWarp extensions
+- Custom blocks to detect when being ran by Scratch 3DS
 
 ### 3DS
 
