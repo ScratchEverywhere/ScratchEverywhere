@@ -11,7 +11,7 @@ BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, bool *
     auto inputFind = block.parsedInputs.find("SOUND_MENU");
     if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputValue.asString());
-        if (inputBlock != nullptr) {
+        if (inputBlock != nullptr && inputBlock->fields["SOUND_MENU"][0].is_string()) {
             inputString = inputBlock->fields["SOUND_MENU"][0].get<std::string>();
         }
     }
@@ -58,7 +58,7 @@ BlockResult SoundBlocks::playSound(Block &block, Sprite *sprite, bool *withoutSc
     auto inputFind = block.parsedInputs.find("SOUND_MENU");
     if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputValue.asString());
-        if (inputBlock != nullptr) {
+        if (inputBlock != nullptr && inputBlock->fields["SOUND_MENU"][0].is_string()) {
             inputString = inputBlock->fields["SOUND_MENU"][0].get<std::string>();
         }
     }

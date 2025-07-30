@@ -74,6 +74,7 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - Bug fixing and Scratch Parity
 - Get all blocks working
 - Pen support
+- Support most TurboWarp extensions
 
 ### 3DS
 
@@ -89,6 +90,8 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 ### Other
 
 - Ability to remap controls
+- Download projects from the Scratch website
+- Improve main menu UI
 
 ## Installation
 There are 2 methods to install the runtime.
