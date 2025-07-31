@@ -12,10 +12,33 @@ COPY --from=sdl2_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3d
 RUN git clone --branch release-2.8.0 --recurse-submodules https://github.com/libsdl-org/SDL_mixer.git . 
 RUN . /opt/devkitpro/3dsvars.sh && mkdir build && cd build && arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDL2MIXER_VORBIS=STB -DSDL2MIXER_MP3=MINIMP3 -DSDL2MIXER_FLAC=DRFLAC -DSDL2MIXER_MOD=OFF -DSDL2MIXER_OPUS=OFF -DSDL2MIXER_FLUIDSYNTH=OFF -DSDL2MIXER_WAVPACK=OFF -DSDL2MIXER_MIDI=OFF -G Ninja && ninja && ninja install
 
+FROM devkitpro/devkitarm:latest AS libcurl_builder
+WORKDIR /pacman-packages
+
+COPY --from=sdl2_mixer_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+
+RUN apt-get update && apt-get install -y --no-install-recommends fakeroot zstd
+
+RUN git clone https://github.com/gradylink/dkp-pacman-packages .
+
+RUN groupadd --gid 1000 builder && useradd --uid 1000 --gid builder --shell /bin/bash --create-home builder
+RUN chown -R builder:builder /pacman-packages
+RUN echo 'builder ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/99-builder
+USER builder
+
+RUN cd 3ds/curl && dkp-makepkg -si --noconfirm
+
+FROM devkitpro/devkitarm:latest AS mistpp_installer
+WORKDIR /mistpp-packages
+
+COPY --from=libcurl_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+
+RUN wget https://github.com/gradylink/mistpp-packages/releases/download/0.2.0-1/3ds-libmistpp-0.2.0-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.2.0-1-any.pkg.tar.zst
+
 FROM devkitpro/devkitarm:latest AS main_builder
 WORKDIR /app
 
-COPY --from=sdl2_mixer_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+COPY --from=mistpp_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
 COPY . .
 
 RUN make TARGET=Scratch-3DS

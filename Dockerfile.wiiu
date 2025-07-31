@@ -5,10 +5,33 @@ RUN git clone https://github.com/yawut/libromfs-wiiu.git .
 RUN make
 RUN make install
 
+FROM devkitpro/devkitppc:latest AS libcurl_builder
+WORKDIR /wut-packages
+
+COPY --from=libromfs_builder /opt/devkitpro/portlibs/wiiu/ /opt/devkitpro/portlibs/wiiu/
+
+RUN apt-get update && apt-get install -y --no-install-recommends fakeroot zstd
+
+RUN git clone https://github.com/gradylink/wut-packages .
+
+RUN groupadd --gid 1000 builder && useradd --uid 1000 --gid builder --shell /bin/bash --create-home builder
+RUN chown -R builder:builder /wut-packages
+RUN echo 'builder ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/99-builder
+USER builder
+
+RUN cd curl && dkp-makepkg -si --noconfirm
+
+FROM devkitpro/devkitppc:latest AS mistpp_installer
+WORKDIR /mistpp-packages
+
+COPY --from=libcurl_builder /opt/devkitpro/portlibs/wiiu/ /opt/devkitpro/portlibs/wiiu/
+
+RUN wget https://github.com/gradylink/mistpp-packages/releases/download/0.2.0-1/wiiu-libmistpp-0.2.0-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm wiiu-libmistpp-0.2.0-1-any.pkg.tar.zst
+
 FROM devkitpro/devkitppc:latest AS main_builder
 WORKDIR /app
 
-COPY --from=libromfs_builder /opt/devkitpro/portlibs/wiiu/ /opt/devkitpro/portlibs/wiiu/
+COPY --from=mistpp_installer /opt/devkitpro/portlibs/wiiu/ /opt/devkitpro/portlibs/wiiu/
 COPY . .
 
 RUN make PLATFORM=wiiu all package
