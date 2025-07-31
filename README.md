@@ -123,6 +123,16 @@ Then it should be as simple as opening the app on your Wii U!
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
 
+If you would like to change the name of the app or any other information you can edit one of the Makefiles.
+- For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+- For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+
+#### Docker
+
+The recommended way to compile Scratch 3DS is with Docker. To compile with Docker all you need installed is Docker and Buildx. To compile for the 3DS run `docker build -f Dockerfile.3ds --target exporter -o . .`. To compile for the Wii U run `docker build -f Dockerfile.wiiu --target exporter -o . .`
+
+#### Manual
+
 For 3DS and Wii U, you will need to have Devkitpro's SDKs, [Mist++](https://github.grady.link/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 - For the 3DS you will need the DevkitARM toolchain and libctru.
 - - You will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/NateXS/Scratch-3DS/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
@@ -135,10 +145,6 @@ Download the source code from the releases tab and unzip it.
 Make a `romfs` folder inside the unzipped source code and put the Scratch project inside of that.
 - The Scratch project MUST be named `project.sb3`, all lowercase.
 - For faster load times/less limitations, you can also unzip the sb3 project file and put the contents into a new folder called `project`.
-
-If you would like to change the name of the app or any other information you can edit one of the Makefiles.
-- For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
-- For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 
 Then you need to compile the projects into proper Homebrew packages.
 - For the 3DS you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.

@@ -1,0 +1,11 @@
+FROM gcc:14 AS builder
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev
+
+COPY . .
+
+RUN make PLATFORM=pc release
+
+FROM scratch AS exporter
+COPY --from=builder /app/build/pc/release/Scratch-pc /
