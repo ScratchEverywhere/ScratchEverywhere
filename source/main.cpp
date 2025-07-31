@@ -43,7 +43,7 @@ void initMist() {
     // Username Stuff
 
 #ifdef __WIIU__
-    std::ostream usernameFilenameStream;
+    std::ostringstream usernameFilenameStream;
     usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
     std::string usernameFilename = usernameFilenameStream.str();
 #else
