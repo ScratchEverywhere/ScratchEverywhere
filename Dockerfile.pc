@@ -1,5 +1,26 @@
-FROM gcc:14 AS builder
+FROM gcc:14 AS curl_builder
+
+ARG CURL_VERSION=8.7.1
+
+RUN wget https://curl.se/download/curl-${CURL_VERSION}.tar.gz && tar xf curl-${CURL_VERSION}.tar.gz && cd curl-${CURL_VERSION} && ./configure --prefix='/usr/local' --enable-websockets --with-openssl --enable-static && make && make install
+
+FROM gcc:14 AS mistpp_builder
+
+COPY --from=curl_builder /usr/local /usr/local
+
+WORKDIR /mistpp
+
+RUN apt-get update && apt-get install -y --no-install-recommends cmake
+
+RUN git clone https://github.com/gradylink/mistpp . && mkdir build && cd build && PKG_CONFIG_PATH=/usr/local/lib/pkgconfig cmake .. -DCMAKE_BUILD_TYPE=Release && make && make install
+
+FROM gcc:14 AS main_builder
+
 WORKDIR /app
+
+COPY --from=mistpp_builder /usr/local/lib/libmist++.a /usr/local/lib/libmist++.a
+COPY --from=mistpp_builder /usr/local/include /usr/local/include
+COPY --from=mistpp_builder /usr/local/lib/pkgconfig/mist++.pc /usr/local/lib/pkgconfig/mist++.pc
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev
 
@@ -8,4 +29,5 @@ COPY . .
 RUN make PLATFORM=pc release
 
 FROM scratch AS exporter
-COPY --from=builder /app/build/pc/release/Scratch-pc /
+
+COPY --from=main_builder /app/build/pc/release/Scratch-pc /
