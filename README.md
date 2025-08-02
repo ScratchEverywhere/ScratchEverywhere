@@ -155,7 +155,7 @@ Then you need to compile the projects into proper Homebrew packages.
 Compilation flags are used to select which features will be enabled in the compiled version of Scratch 3DS. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_BUBBLES=0`).
 
 * 3DS - `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
-* `ENABLE_CLOUDVARS` (default: `1`): If set to `1`, cloud variable support is enabledd, if set to `0` cloud variables are treated like normal variables. If you're project doesn't use cloud variables it is recommended to turn this off. If you run into errors while building try turning this off and see if that fixes the errors.
+* `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabledd, if set to `0` cloud variables are treated like normal variables. If you're project doesn't use cloud variables it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
 
 ## Other
 This project is not affiliated with Scratch or the Scratch team.

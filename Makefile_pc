@@ -14,7 +14,7 @@ $(error "[ERROR] Mist++ must be v0.1.4 or newer.")
 endif
 
 # Config Options
-ENABLE_CLOUDVARS	?=	1
+ENABLE_CLOUDVARS	?=	0
 
 # Base compiler flags
 CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
