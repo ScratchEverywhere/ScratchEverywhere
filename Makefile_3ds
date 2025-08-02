@@ -35,11 +35,6 @@ ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
 GFXBUILD	:=	$(ROMFS)/gfx
 
-# Mist++ Version Check
-ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
-$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
-endif
-
 # Config Options
 ENABLE_CLOUDVARS	?=	0
 ENABLE_BUBBLES	  ?=	1
@@ -66,6 +61,11 @@ endif
 ifeq ($(ENABLE_CLOUDVARS),1)
 CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_3DS) --cflags mist++`
 LIBS	  += `$(PKGCONF_3DS) --libs mist++`
+
+# Mist++ Version Check
+ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+endif
 endif
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
