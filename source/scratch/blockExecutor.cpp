@@ -111,6 +111,8 @@ void BlockExecutor::registerHandlers() {
     // data
     handlers[Block::DATA_SETVARIABLETO] = DataBlocks::setVariable;
     handlers[Block::DATA_CHANGEVARIABLEBY] = DataBlocks::changeVariable;
+    handlers[Block::DATA_SHOW_VARIABLE] = DataBlocks::showVariable;
+    handlers[Block::DATA_HIDE_VARIABLE] = DataBlocks::hideVariable;
     handlers[Block::DATA_ADD_TO_LIST] = DataBlocks::addToList;
     handlers[Block::DATA_DELETE_OF_LIST] = DataBlocks::deleteFromList;
     handlers[Block::DATA_DELETE_ALL_OF_LIST] = DataBlocks::deleteAllOfList;
@@ -168,6 +170,8 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
             return ranBlocks;
         }
 
+        runBroadcasts();
+
         // Move to next block
         if (!currentBlock->next.empty()) {
 
@@ -186,8 +190,6 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
                 currentBlock->waitingIfBlock = "";
                 continue;
             }
-
-            runBroadcasts();
             break;
         }
     }
@@ -371,6 +373,36 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
             }
         }
     }
+}
+
+Value BlockExecutor::getMonitorValue(Monitor &var) {
+    Sprite *sprite = nullptr;
+    for (auto &spr : sprites) {
+        if (var.spriteName == "" && spr->isStage) {
+            sprite = spr;
+            break;
+        }
+        if (spr->name == var.spriteName && !spr->isClone) {
+            sprite = spr;
+            break;
+        }
+    }
+
+    std::string monitorName = "";
+    if (var.opcode == Block::DATA_VARIABLE) {
+        var.value = BlockExecutor::getVariableValue(var.id, sprite);
+        monitorName = Math::removeQuotations(var.parameters["VARIABLE"].get<std::string>());
+    }
+
+    std::string renderText;
+    if (var.mode != "large") {
+        if (var.spriteName != "")
+            renderText = var.spriteName + ": ";
+        if (monitorName != "")
+            renderText = renderText + monitorName + ": ";
+    }
+    renderText = renderText + var.value.asString();
+    return Value(renderText);
 }
 
 Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {

@@ -26,10 +26,10 @@ All controllers on all other platforms use the same control scheme.
 
 ### Audio
 - mp3, ogg, and wav audio formats are supported.
-- A sound may take time to load if playing it for the first time, and unfortunately on 3DS, the entire game freezes while the sound is loading.
-- - A workaround for that is, if you play any sound from the "Stage," the sound will play as a "Streamed Sound," and not need to load.
-- - Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
-- - Another workaround you can do is have a 'loading screen' of sorts, where you play a sound, then instantly stop it. Since sounds only need to load once, any time you play it afterwards it won't need to load.
+- A sound will take time to load if playing it for the first time.
+- - Known Bug: On 3DS, if a sound has to load while other sounds are playing, all sounds will stop playing until the sound is loaded.
+- If you play any sound from the "Stage," the sound will play as a "Streamed Sound," and will not need to load.
+- Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
 - Sounds may fail to load on 3DS if the file size of the song is too high, or if there's too many sounds loaded at once.
 
 ### Framerate
@@ -60,7 +60,7 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - All* Costume Effects
 - - *`Ghost` Costume Effect is supported.
 - Cloud variables
-- Show/hide variable | Show/hide list
+- Show/hide list
 - When backdrop switches to
 - When this sprite clicked
 - When loudness > ___
@@ -69,14 +69,30 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - Loudness
 
 ## Roadmap / to-do list
+
+### Runtime
+
 - Bug fixing and Scratch Parity
-- Stereoscopic 3D support for 3DS
 - Get all blocks working
 - Pen support
-- Cloud variables
+- Support most TurboWarp extensions
+- Cloud variables (https://github.com/NateXS/Scratch-3DS/pull/145)
+- Custom blocks to detect when being ran by Scratch 3DS
+
+### 3DS
+
+- Stereoscopic 3D support
+
+### Wii U
+
+- Dual screen support
+- Improved controller support (multiple controllers, Wii Remotes)
+
+### Other
+
 - Ability to remap controls
-- Audio support
-- Turbowarp extensions
+- Download projects from the Scratch website
+- Improve main menu UI
 
 ## Installation
 There are 2 methods to install the runtime.
@@ -94,21 +110,32 @@ Download the .3dsx file in the Releases tab or [nightly build](https://nightly.l
 > [!NOTE]
 > Scratch 3DS is also on Universal Updater, so you can just download it there and keep it updated that way!
 
-Then it should be as simple as opening the homebrew launcher on your 3DS and running the app.
+Then it should be as simple as opening the homebrew launcher on your 3DS and running the app!
 
 ### Get up and running for Wii U
 Download the .zip file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-wiiu/main/Scratch%20Wii%20U%20Nightly.zip).
 
 Unzip the file in your `sdcard:/wiiu/apps/` folder.
 
-Place the scratch project you want in `sdcard:/wiiu/scratch-wiiu/`
-- The Scratch project MUST be named `project.sb3`, all lowercase.
+Place the scratch projects you want in `sdcard:/wiiu/scratch-wiiu/`
+> [!NOTE]
+> Scratch Wii U is also on the Homebrew App Store, so you can just download it there and keep it updated that way!
 
 Then it should be as simple as opening the app on your Wii U!
 
 ### Building
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
+
+If you would like to change the name of the app or any other information you can edit one of the Makefiles.
+- For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+- For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+
+#### Docker
+
+The recommended way to compile Scratch 3DS is with Docker. To compile with Docker all you need installed is Docker and Buildx. To compile for the 3DS run `docker build -f Dockerfile.3ds --target exporter -o . .`. To compile for the Wii U run `docker build -f Dockerfile.wiiu --target exporter -o . .`
+
+#### Manual
 
 For 3DS and Wii U, you will need to have Devkitpro's SDKs installed.
 - For the 3DS you will need the DevkitARM toolchain and libctru.
@@ -123,13 +150,15 @@ Make a `romfs` folder inside the unzipped source code and put the Scratch projec
 - The Scratch project MUST be named `project.sb3`, all lowercase.
 - For faster load times/less limitations, you can also unzip the sb3 project file and put the contents into a new folder called `project`.
 
-If you would like to change the name of the app or any other information you can edit one of the Makefiles.
-- For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
-- For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
-
 Then you need to compile the projects into proper Homebrew packages.
 - For the 3DS you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
 - For the Wii U you need to run `make PLATFORM=wiiu all package` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
+
+#### Compilation Flags
+
+Compilation flags are used to select which features will be enabled in the compiled version of Scratch 3DS. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_BUBBLES=0`).
+
+* 3DS - `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
 
 ## Other
 This project is not affiliated with Scratch or the Scratch team.

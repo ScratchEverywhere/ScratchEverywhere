@@ -5,6 +5,8 @@ class DataBlocks {
   public:
     static BlockResult setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult changeVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult showVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult hideVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult addToList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult deleteFromList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult deleteAllOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);

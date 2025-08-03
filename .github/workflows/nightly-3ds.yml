@@ -16,56 +16,20 @@ on:
 jobs:
   nightly:
     runs-on: ubuntu-latest
-    container:
-      image: devkitpro/devkitarm:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build SDL2
-        run: |
-          git clone --recursive --branch release-2.32.x https://github.com/libsdl-org/SDL.git
-          cd SDL
-          export DEVKITPRO=/opt/devkitpro
-          export DEVKITARM=$DEVKITPRO/devkitARM
-          export PORTLIBS="$DEVKITPRO/portlibs/3ds"
-          export CFLAGS="-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft -O2"
-          export CXXFLAGS="$CFLAGS"
-          export CPPFLAGS="-D_3DS"
-          export LDFLAGS="-L$PORTLIBS/lib -lctru -lcitro3d -lm"
-          export PATH="$DEVKITARM/bin:$PATH"
-          mkdir build-3ds && cd build-3ds
-          cmake .. \
-            -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/3DS.cmake \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=$DEVKITPRO/portlibs/3ds \
-            -G Ninja
-          ninja
-          ninja install
-          cd ../..
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build SDL_mixer
-        run: |
-          git clone --branch release-2.8.0 --recurse-submodules https://github.com/libsdl-org/SDL_mixer.git
-          cd SDL_mixer
-          cmake -S . -B build \
-            -DCMAKE_TOOLCHAIN_FILE="/opt/devkitpro/cmake/3DS.cmake" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DSDL2MIXER_VORBIS=STB \
-            -DSDL2MIXER_MP3=MINIMP3 \
-            -DSDL2MIXER_FLAC=DRFLAC \
-            -DSDL2MIXER_MOD=OFF \
-            -DSDL2MIXER_OPUS=OFF \
-            -DSDL2MIXER_FLUIDSYNTH=OFF \
-            -DSDL2MIXER_WAVPACK=OFF \
-            -DSDL2MIXER_MIDI=OFF
-          cd build
-          make -j$(nproc)
-          make install
-          cd ../..
-
-      - name: Build
-        run: make -f Makefile_3ds
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.3ds
+          target: exporter
+          outputs: type=local,dest=.
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

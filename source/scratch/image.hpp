@@ -9,6 +9,7 @@ class Image {
         std::string name;
         int width;
         int height;
+        bool isSVG = false;
 
         //  same as width/height but as powers of 2 for 3DS
         int textureWidth;

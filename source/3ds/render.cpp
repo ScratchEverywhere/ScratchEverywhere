@@ -26,6 +26,7 @@ std::chrono::_V2::system_clock::time_point startTime = std::chrono::high_resolut
 std::chrono::_V2::system_clock::time_point endTime = std::chrono::high_resolution_clock::now();
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
+std::vector<Monitor> Render::visibleVariables;
 
 bool Render::Init() {
     gfxInitDefault();
@@ -89,11 +90,13 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     if (!currentSprite || currentSprite == nullptr) return;
 
     bool legacyDrawing = true;
+    bool isSVG = false;
     double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
     bool imageLoaded = false;
     for (Image::ImageRGBA rgba : Image::imageRGBAS) {
         if (rgba.name == costumeId) {
 
+            if (rgba.isSVG) isSVG = true;
             legacyDrawing = false;
             currentSprite->spriteWidth = rgba.width / 2;
             currentSprite->spriteHeight = rgba.height / 2;
@@ -125,6 +128,10 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
     double spriteSizeX = currentSprite->size * 0.01;
     double spriteSizeY = currentSprite->size * 0.01;
+    if (isSVG) {
+        spriteSizeX *= 2;
+        spriteSizeY *= 2;
+    }
     double scale;
     double heightMultiplier = 0.5;
     int screenWidth = SCREEN_WIDTH;
@@ -244,6 +251,8 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTH_SCREENS)
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
+    renderVisibleVariables();
+
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(bottomScreen);
         // Sort sprites by layer (lowest to highest)
@@ -285,7 +294,59 @@ void Render::renderSprites() {
     osSetSpeedupEnable(true);
 }
 
+std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+
+void Render::renderVisibleVariables() {
+
+    // get screen scale
+    double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
+    double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
+    double scale = std::min(scaleX, scaleY);
+
+    // calculate black bar offset
+    float screenAspect = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    float barOffsetX = 0.0f;
+    float barOffsetY = 0.0f;
+    if (screenAspect > projectAspect) {
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        barOffsetX = (SCREEN_WIDTH - scaledProjectWidth) / 2.0f;
+    } else if (screenAspect < projectAspect) {
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        barOffsetY = (SCREEN_HEIGHT - scaledProjectHeight) / 2.0f;
+    }
+
+    for (auto &var : visibleVariables) {
+        if (var.visible) {
+
+            std::string renderText = BlockExecutor::getMonitorValue(var).asString();
+
+            if (monitorTexts.find(var.id) == monitorTexts.end()) {
+                monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
+            } else {
+                monitorTexts[var.id]->setText(renderText);
+            }
+            monitorTexts[var.id]->setColor(C2D_Color32(0, 0, 0, 255));
+            if (var.mode != "large") {
+                monitorTexts[var.id]->setCenterAligned(false);
+                monitorTexts[var.id]->setScale(0.6);
+            } else {
+                monitorTexts[var.id]->setCenterAligned(true);
+                monitorTexts[var.id]->setScale(1);
+            }
+
+            monitorTexts[var.id]->render(var.x + barOffsetX, var.y + barOffsetY);
+
+        } else {
+            if (monitorTexts.find(var.id) != monitorTexts.end()) {
+                monitorTexts.erase(var.id);
+            }
+        }
+    }
+}
+
 void LoadingScreen::renderLoadingScreen() {
+#ifdef ENABLE_BUBBLES
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrScratchBlue);
     C2D_SceneBegin(topScreen);
@@ -301,14 +362,18 @@ void LoadingScreen::renderLoadingScreen() {
     }
 
     C3D_FrameEnd(0);
+#endif
 }
 
 void LoadingScreen::init() {
+#ifdef ENABLE_BUBBLES
     // text = new TextObject("Loading...",200,120);
     createSquares(20);
+#endif
 }
 
 void LoadingScreen::cleanup() {
+#ifdef ENABLE_BUBBLES
     // if(text && text != nullptr)
     // delete text;
     squares.clear();
@@ -323,6 +388,7 @@ void LoadingScreen::cleanup() {
 
     C3D_FrameEnd(0);
     gspWaitForVBlank();
+#endif
 }
 
 SpriteSheetObject *logo;
