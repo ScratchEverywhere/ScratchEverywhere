@@ -45,12 +45,10 @@ bool Render::Init() {
         return false;
     }
     nn::act::Initialize();
-  
+
     windowWidth = 854;
     windowHeight = 480;
 #elif defined(__SWITCH__)
-    SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
-
     AccountUid userID = {0};
     AccountProfile profile;
     AccountProfileBase profilebase;
@@ -58,13 +56,13 @@ bool Render::Init() {
 
     Result rc = romfsInit();
     if (R_FAILED(rc)) {
-        SDL_LogCritical(SDL_LOG_CATEGORY_SYSTEM, "Failed to init romfs."); // TODO: Include error code
+        Log::logError("Failed to init romfs."); // TODO: Include error code
         goto postAccount;
     }
 
     rc = accountInitialize(AccountServiceType_Application);
     if (R_FAILED(rc)) {
-        SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "accountInitialize failed.");
+        Log::logError("accountInitialize failed.");
         goto postAccount;
     }
 
@@ -74,20 +72,20 @@ bool Render::Init() {
         memset(&settings, 0, sizeof(settings));
         rc = pselShowUserSelector(&userID, &settings);
         if (R_FAILED(rc)) {
-            SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "pselShowUserSelector failed.");
+            Log::logError("pselShowUserSelector failed.");
             goto postAccount;
         }
     }
 
     rc = accountGetProfile(&profile, userID);
     if (R_FAILED(rc)) {
-        SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "accountGetProfile failed.");
+        Log::logError("accountGetProfile failed.");
         goto postAccount;
     }
 
     rc = accountProfileGet(&profile, NULL, &profilebase);
     if (R_FAILED(rc)) {
-        SDL_LogError(SDL_LOG_CATEGORY_SYSTEM, "accountProfileGet failed.");
+        Log::logError(SDL_LOG_CATEGORY_SYSTEM, "accountProfileGet failed.");
         goto postAccount;
     }
 
