@@ -7,6 +7,8 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
         condition = conditionValue.asDouble() != 0.0;
     } else condition = !conditionValue.asString().empty();
 
+    bool shouldStop = false;
+
     if (condition) {
         auto it = block.parsedInputs.find("SUBSTACK");
         if (it != block.parsedInputs.end()) {
@@ -19,6 +21,9 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
                     block.substackBlocksRan.push_back(ranBlock->id);
                     if (ranBlock->isRepeating) {
                         isRepeating = true;
+                    }
+                    if (ranBlock->shouldStop) {
+                        shouldStop = true;
                     }
                 }
                 // If repeating, update waitingIfBlock and pause this block
@@ -33,12 +38,17 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
         }
     }
     block.substackBlocksRan.clear();
+
+    if (shouldStop)
+        return BlockResult::RETURN;
+
     return BlockResult::CONTINUE;
 }
 
 BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     bool condition = false;
+    bool shouldStop = false;
     if (conditionValue.isNumeric()) {
         condition = conditionValue.asDouble() != 0.0;
     } else {
@@ -59,6 +69,9 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
                 if (ranBlock->isRepeating) {
                     isRepeating = true;
                 }
+                if (ranBlock->shouldStop) {
+                    shouldStop = true;
+                }
             }
 
             // If repeating, update waitingIfBlock and pause this block
@@ -71,6 +84,9 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
             }
         }
     }
+
+    if (shouldStop)
+        return BlockResult::RETURN;
 
     return BlockResult::CONTINUE;
 }
@@ -124,11 +140,11 @@ BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *w
         Log::log("Deleted " + sprite->name + "'s clone.");
         return BlockResult::CONTINUE;
     }
-    Log::logWarning(sprite->name + " is not a clone!");
     return BlockResult::CONTINUE;
 }
 
 BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    block.shouldStop = false;
     std::string stopType = block.fields.at("STOP_OPTION")[0];
     if (stopType == "all") {
         toExit = true;
@@ -147,7 +163,8 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
         }
 
         sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
-        return BlockResult::CONTINUE;
+        block.shouldStop = true;
+        return BlockResult::RETURN;
     }
 
     if (stopType == "other scripts in sprite") {
@@ -166,7 +183,7 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
         }
         return BlockResult::CONTINUE;
     }
-    return BlockResult::CONTINUE;
+    return BlockResult::RETURN;
 }
 
 BlockResult ControlBlocks::startAsClone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {

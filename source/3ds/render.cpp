@@ -114,11 +114,13 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     if (!currentSprite || currentSprite == nullptr) return;
 
     bool legacyDrawing = true;
+    bool isSVG = false;
     double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
     bool imageLoaded = false;
     for (Image::ImageRGBA rgba : Image::imageRGBAS) {
         if (rgba.name == costumeId) {
 
+            if (rgba.isSVG) isSVG = true;
             legacyDrawing = false;
             currentSprite->spriteWidth = rgba.width / 2;
             currentSprite->spriteHeight = rgba.height / 2;
@@ -150,6 +152,10 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
     double spriteSizeX = currentSprite->size * 0.01;
     double spriteSizeY = currentSprite->size * 0.01;
+    if (isSVG) {
+        spriteSizeX *= 2;
+        spriteSizeY *= 2;
+    }
     double scale;
     double heightMultiplier = 0.5;
     int screenWidth = SCREEN_WIDTH;

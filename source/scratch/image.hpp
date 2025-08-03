@@ -6,9 +6,11 @@
 class Image {
   public:
     struct ImageRGBA {
-        std::string name;
+        std::string name;     // "image"
+        std::string fullName; // "image.png"
         int width;
         int height;
+        bool isSVG = false;
 
         //  same as width/height but as powers of 2 for 3DS
         int textureWidth;

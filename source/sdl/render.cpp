@@ -140,6 +140,7 @@ void Render::renderSprites() {
             SDL_RendererFlip flip = SDL_FLIP_NONE;
 
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
+            if (image->isSVG) image->setScale(image->scale * 2);
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
             const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);

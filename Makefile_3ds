@@ -23,7 +23,7 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch 3DS
-APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 14]
+APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 16 Dev]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
@@ -67,6 +67,9 @@ ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; ech
 $(error "[ERROR] Mist++ must be v0.2.0 or newer.")
 endif
 endif
+
+ASFLAGS	:=	-g $(ARCH)
+LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
 

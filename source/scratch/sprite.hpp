@@ -1,4 +1,5 @@
 #pragma once
+#include "os.hpp"
 #include "value.hpp"
 #include <chrono>
 #include <iostream>
@@ -286,7 +287,7 @@ struct Block {
         if (opCodeString == "operator_or") return OPERATOR_OR;
         if (opCodeString == "operator_not") return OPERATOR_NOT;
         if (opCodeString == "operator_contains") return OPERATOR_CONTAINS;
-        std::cerr << "Unknown opcode: " << opCodeString << std::endl;
+        Log::logWarning("Unknown block: " + opCodeString);
         return NONE;
     }
 
@@ -304,6 +305,7 @@ struct Block {
     std::string topLevelParentBlock;
 
     /* variables that some blocks need*/
+    bool shouldStop = false; // literally only for the 'stop' block and 'if' blocks
     int repeatTimes = -1;
     bool isRepeating = false;
     double waitDuration;

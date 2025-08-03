@@ -21,9 +21,17 @@ void Image::loadImages(mz_zip_archive *zip) {
 
         std::string zipFileName = file_stat.m_filename;
 
-        // Check if file is PNG or JPG
-        if (zipFileName.size() >= 4 &&
-            (zipFileName.substr(zipFileName.size() - 4) == ".png" || zipFileName.substr(zipFileName.size() - 4) == ".PNG" || zipFileName.substr(zipFileName.size() - 4) == ".jpg" || zipFileName.substr(zipFileName.size() - 4) == ".JPG")) {
+        // Check if file is bitmap, or SVG
+        bool isBitmap = zipFileName.size() >= 4 &&
+                        (zipFileName.substr(zipFileName.size() - 4) == ".png" ||
+                         zipFileName.substr(zipFileName.size() - 4) == ".PNG" ||
+                         zipFileName.substr(zipFileName.size() - 4) == ".jpg" ||
+                         zipFileName.substr(zipFileName.size() - 4) == ".JPG");
+        bool isSVG = zipFileName.size() >= 4 &&
+                     (zipFileName.substr(zipFileName.size() - 4) == ".svg" ||
+                      zipFileName.substr(zipFileName.size() - 4) == ".SVG");
+
+        if (isBitmap || isSVG) {
 
             size_t file_size;
             void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
@@ -67,6 +75,7 @@ void Image::loadImages(mz_zip_archive *zip) {
             // Build SDL_Image object
             SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
             new (image) SDL_Image();
+            if (isSVG) image->isSVG = true;
             image->spriteTexture = texture;
             SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
             image->renderRect = {0, 0, image->width, image->height};
@@ -88,6 +97,13 @@ void Image::loadImages(mz_zip_archive *zip) {
 void Image::loadImageFromFile(std::string filePath) {
     SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
     new (image) SDL_Image("project/" + filePath);
+
+    // Check if it's an SVG file
+    bool isSVG = filePath.size() >= 4 &&
+                 (filePath.substr(filePath.size() - 4) == ".svg" ||
+                  filePath.substr(filePath.size() - 4) == ".SVG");
+
+    if (isSVG) image->isSVG = true;
 
     // Track texture memory
     if (image->spriteTexture) {

@@ -5,7 +5,7 @@ TextObject3DS::TextObject3DS(std::string txt, double posX, double posY, std::str
     : TextObject(txt, posX, posY, fontPath) {
     x = posX;
     y = posY;
-    textClass.textBuffer = C2D_TextBufNew(50);
+    textClass.textBuffer = C2D_TextBufNew(200);
 
     if (fontPath == "" || fontPath.substr(fontPath.find_last_of('.') + 1) != "bcfnt")
         textClass.font = C2D_FontLoadSystem(CFG_REGION_USA);
