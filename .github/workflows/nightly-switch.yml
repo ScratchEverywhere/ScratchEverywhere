@@ -9,6 +9,7 @@ on:
       - gfx/**
       - include/**
       - .github/workflows/nightly-switch.yml
+      - Dockerfile.switch
   workflow_dispatch:
 
 jobs:
