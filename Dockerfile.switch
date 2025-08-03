@@ -1,0 +1,9 @@
+FROM devkitpro/devkita64:latest AS main_builder
+WORKDIR /app
+
+COPY . .
+
+RUN make PLATFORM=switch
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/scratch-nx.nro /

@@ -19,10 +19,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build
-        run: |
-          mkdir romfs
-          make PLATFORM=switch
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.switch
+          target: exporter
+          outputs: type=local,dest=.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
