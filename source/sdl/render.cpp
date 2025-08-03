@@ -85,7 +85,7 @@ bool Render::Init() {
 
     rc = accountProfileGet(&profile, NULL, &profilebase);
     if (R_FAILED(rc)) {
-        Log::logError(SDL_LOG_CATEGORY_SYSTEM, "accountProfileGet failed.");
+        Log::logError("accountProfileGet failed.");
         goto postAccount;
     }
 
