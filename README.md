@@ -5,7 +5,8 @@ A W.I.P. runtime made in C++ aimed to bring any Scratch 3 project over to the Ni
 
 ## Controls
 ![Controls](https://raw.githubusercontent.com/NateXS/Scratch-3DS/refs/heads/main/scratch%203ds%20controls.png)
-To use the mouse you must enter mouse mode by holding L. Use the D-pad to move the mouse, and press R to click.
+[3DS] Glide your finger/stylus on the bottom screen to move the mouse, and tap the bottom screen to click.
+[Wii U] To use the mouse you must enter mouse mode by holding L. Use the D-pad to move the mouse, and press R to click.
 
 ### Other Plaforms
 
@@ -44,13 +45,14 @@ All controllers on all other platforms use the same control scheme.
 As this is in a very W.I.P state, you will encounter many bugs, crashes, and things that will just not work. 
 
 **List of known limitations:**
-- There is no vector/svg sprite rendering. Images will only render if converted to bitmap beforehand, otherwise the sprite will show as a black square
-- Images will only work if it's in .png or .jpg format
+- Images will only work if it's in .png, .jpg or .svg format
+- If any vector image contains text, the text will not show up
 - Extensions (eg: pen and music extensions) are not yet supported
 - Some blocks may lead to crashing/unintended behavior (please open an issue if you know a block that's causing problems)
 - [Wii U] The first controller connected will be the only one that will work
 - [3DS] Performace is poor when lots of blocks are running at once
 - [3DS] If you have a bunch of large images, some may not load
+- [3DS] Some vector images will appear bigger than they should
 - [3DS] Images cannot be over 1024x1024 in resolution
 - [3DS] Some images may appear 'fuzzy' looking or have noticable inconsistencies
 
@@ -60,7 +62,7 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - All* Costume Effects
 - - *`Ghost` Costume Effect is supported.
 - Cloud variables
-- Show/hide variable | Show/hide list
+- Show/hide list
 - When backdrop switches to
 - When this sprite clicked
 - When loudness > ___
@@ -75,7 +77,9 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - Bug fixing and Scratch Parity
 - Get all blocks working
 - Pen support
+- Support most TurboWarp extensions
 - Cloud variables (https://github.com/NateXS/Scratch-3DS/pull/145)
+- Custom blocks to detect when being ran by Scratch 3DS
 
 ### 3DS
 
@@ -83,14 +87,14 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 
 ### Wii U
 
-- Audio support
-- Turbowarp extensions
 - Dual screen support
 - Improved controller support (multiple controllers, Wii Remotes)
 
 ### Other
 
 - Ability to remap controls
+- Download projects from the Scratch website
+- Improve main menu UI
 
 ## Installation
 There are 2 methods to install the runtime.
@@ -116,12 +120,24 @@ Download the .zip file in the Releases tab or [nightly build](https://nightly.li
 Unzip the file in your `sdcard:/wiiu/apps/` folder.
 
 Place the scratch projects you want in `sdcard:/wiiu/scratch-wiiu/`
+> [!NOTE]
+> Scratch Wii U is also on the Homebrew App Store, so you can just download it there and keep it updated that way!
 
 Then it should be as simple as opening the app on your Wii U!
 
 ### Building
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
+
+If you would like to change the name of the app or any other information you can edit one of the Makefiles.
+- For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+- For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+
+#### Docker
+
+The recommended way to compile Scratch 3DS is with Docker. To compile with Docker all you need installed is Docker and Buildx. To compile for the 3DS run `docker build -f Dockerfile.3ds --target exporter -o . .`. To compile for the Wii U run `docker build -f Dockerfile.wiiu --target exporter -o . .`
+
+#### Manual
 
 For 3DS and Wii U, you will need to have Devkitpro's SDKs installed.
 - For the 3DS you will need the DevkitARM toolchain and libctru.
@@ -135,10 +151,6 @@ Download the source code from the releases tab and unzip it.
 Make a `romfs` folder inside the unzipped source code and put the Scratch project inside of that.
 - The Scratch project MUST be named `project.sb3`, all lowercase.
 - For faster load times/less limitations, you can also unzip the sb3 project file and put the contents into a new folder called `project`.
-
-If you would like to change the name of the app or any other information you can edit one of the Makefiles.
-- For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
-- For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 
 Then you need to compile the projects into proper Homebrew packages.
 - For the 3DS you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.

@@ -14,6 +14,7 @@ class SDL_Image {
     float scale = 1.0f;
     int width;
     int height;
+    bool isSVG = false;
     float rotation = 0.0f;
     int freeTimer = 120;
 

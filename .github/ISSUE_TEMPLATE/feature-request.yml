@@ -1,0 +1,42 @@
+name: Feature Request
+description: Suggest an idea for this project
+title: "[REQUEST] "
+labels: [Suggestion]
+body:
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: "Describe the feature you'd like to propose."
+      description: Be as clear and concise as possible.
+    validations:
+      required: true
+  - type: dropdown
+    id: devices
+    attributes:
+      label: "Device"
+      description: What device is this feature request for? (e.g., Old 3DS, New 3DS, Wii U). Please select at least one.
+      multiple: false
+      options:
+        - 3DS
+        - Wii U
+        - Both
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "Additional context"
+      description: Add any other context or screenshots about the feature request here.
+      placeholder: Screenshots, code examples, or further explanations.
+    validations:
+      required: false
+  - type: checkboxes
+    id: pre-checks
+    attributes:
+      label: "Pre-submission Checks"
+      description: Please confirm the following before submitting.
+      options:
+        - label: I have checked that the roadmap doesn't already contain this feature.
+          required: true
+        - label: I have searched existing issues and confirmed this feature has not been requested before.
+          required: true

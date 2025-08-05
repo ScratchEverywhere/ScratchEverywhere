@@ -19,6 +19,7 @@ SDL_Window *window = nullptr;
 SDL_Renderer *renderer = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
+std::vector<Monitor> Render::visibleVariables;
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;
@@ -139,6 +140,7 @@ void Render::renderSprites() {
             SDL_RendererFlip flip = SDL_FLIP_NONE;
 
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
+            if (image->isSVG) image->setScale(image->scale * 2);
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
             const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
@@ -201,8 +203,57 @@ void Render::renderSprites() {
     }
 
     drawBlackBars(windowWidth, windowHeight);
+    renderVisibleVariables();
 
     SDL_RenderPresent(renderer);
+}
+
+std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+
+void Render::renderVisibleVariables() {
+    // get screen scale
+    double scaleX = static_cast<double>(windowWidth) / Scratch::projectWidth;
+    double scaleY = static_cast<double>(windowHeight) / Scratch::projectHeight;
+    double scale = std::min(scaleX, scaleY);
+
+    // calculate black bar offset
+    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    float barOffsetX = 0.0f;
+    float barOffsetY = 0.0f;
+    if (screenAspect > projectAspect) {
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        barOffsetX = (windowWidth - scaledProjectWidth) / 2.0f;
+    } else if (screenAspect < projectAspect) {
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        barOffsetY = (windowHeight - scaledProjectHeight) / 2.0f;
+    }
+
+    for (auto &var : visibleVariables) {
+        if (var.visible) {
+            std::string renderText = BlockExecutor::getMonitorValue(var).asString();
+            if (monitorTexts.find(var.id) == monitorTexts.end()) {
+                monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
+                monitorTexts[var.id]->setRenderer(renderer);
+            } else {
+                monitorTexts[var.id]->setText(renderText);
+            }
+            monitorTexts[var.id]->setColor(0x000000FF);
+
+            if (var.mode != "large") {
+                monitorTexts[var.id]->setCenterAligned(false);
+                monitorTexts[var.id]->setScale(1.0f * (scale / 2.0f));
+            } else {
+                monitorTexts[var.id]->setCenterAligned(true);
+                monitorTexts[var.id]->setScale(1.25f * (scale / 2.0f));
+            }
+            monitorTexts[var.id]->render(var.x * scale + barOffsetX, var.y * scale + barOffsetY);
+        } else {
+            if (monitorTexts.find(var.id) != monitorTexts.end()) {
+                monitorTexts.erase(var.id);
+            }
+        }
+    }
 }
 
 bool Render::appShouldRun() {
@@ -217,12 +268,14 @@ bool Render::appShouldRun() {
             break;
         case SDL_FINGERDOWN:
             touchActive = true;
-            touchPosition = {event.tfinger.x * windowWidth,
-                             event.tfinger.y * windowHeight};
+            touchPosition = {
+                static_cast<int>(event.tfinger.x * windowWidth),
+                static_cast<int>(event.tfinger.y * windowHeight)};
             break;
         case SDL_FINGERMOTION:
-            touchPosition = {event.tfinger.x * windowWidth,
-                             event.tfinger.y * windowHeight};
+            touchPosition = {
+                static_cast<int>(event.tfinger.x * windowWidth),
+                static_cast<int>(event.tfinger.y * windowHeight)};
             break;
         case SDL_FINGERUP:
             touchActive = false;
@@ -323,16 +376,13 @@ void MainMenu::render() {
     auto now = std::chrono::steady_clock::now();
     std::chrono::duration<float> elapsed = now - logoStartTime;
 
-    float timeSeconds = elapsed.count();
-    float bobbingOffset = std::sin(timeSeconds * 2.0f) * 5.0f;
-
     for (TextObject *text : projectTexts) {
         if (text == nullptr) continue;
 
         if (selectedText == text)
             text->setColor(0xFFFFFFFF);
         else
-            text->setColor(0xFF000000);
+            text->setColor(0x000000FF);
 
         text->render(text->x + cameraX, text->y - (cameraY - (windowHeight / 2)));
     }

@@ -1,0 +1,24 @@
+FROM devkitpro/devkitarm:latest AS sdl2_builder
+WORKDIR /sdl2
+
+RUN git clone --recursive --branch release-2.32.x https://github.com/libsdl-org/SDL.git . 
+RUN . /opt/devkitpro/3dsvars.sh && mkdir build && cd build && arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -G Ninja && ninja && ninja install
+
+FROM devkitpro/devkitarm:latest AS sdl2_mixer_builder
+WORKDIR /sdl2_mixer
+
+COPY --from=sdl2_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+
+RUN git clone --branch release-2.8.0 --recurse-submodules https://github.com/libsdl-org/SDL_mixer.git . 
+RUN . /opt/devkitpro/3dsvars.sh && mkdir build && cd build && arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDL2MIXER_VORBIS=STB -DSDL2MIXER_MP3=MINIMP3 -DSDL2MIXER_FLAC=DRFLAC -DSDL2MIXER_MOD=OFF -DSDL2MIXER_OPUS=OFF -DSDL2MIXER_FLUIDSYNTH=OFF -DSDL2MIXER_WAVPACK=OFF -DSDL2MIXER_MIDI=OFF -G Ninja && ninja && ninja install
+
+FROM devkitpro/devkitarm:latest AS main_builder
+WORKDIR /app
+
+COPY --from=sdl2_mixer_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+COPY . .
+
+RUN make TARGET=Scratch-3DS
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/Scratch-3DS.3dsx /

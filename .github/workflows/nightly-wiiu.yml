@@ -9,6 +9,7 @@ on:
       - gfx/wiiu/**
       - include/**
       - .github/workflows/nightly-wiiu.yml
+      - Dockerfile.wiiu
     branches:
       - main
   workflow_dispatch:
@@ -16,23 +17,22 @@ on:
 jobs:
   nightly:
     runs-on: ubuntu-latest
-    container:
-      image: devkitpro/devkitppc:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install libromfs-wiiu
-        run: |
-          git clone https://github.com/yawut/libromfs-wiiu.git
-          cd libromfs-wiiu
-          make
-          sudo -E make install
-      - name: Build
-        run: |
-          mkdir romfs
-          make PLATFORM=wiiu all package
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create `romfs` directory
+        run: mkdir romfs
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.wiiu
+          target: exporter
+          outputs: type=local,dest=.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Wii U Nightly
-          path: build/wiiu/scratch-wiiu/
+          path: scratch-wiiu/

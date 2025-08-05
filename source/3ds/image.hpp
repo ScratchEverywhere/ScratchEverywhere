@@ -14,5 +14,6 @@ struct ImageData {
 bool get_C2D_Image(Image::ImageRGBA rgba);
 bool queueC2DImage(Image::ImageRGBA &rgba);
 void freeRGBA(const std::string &imageName);
+unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height);
 
 extern std::unordered_map<std::string, ImageData> imageC2Ds;

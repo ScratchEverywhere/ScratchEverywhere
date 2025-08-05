@@ -87,6 +87,13 @@ class BlockExecutor {
     static Value getVariableValue(std::string variableId, Sprite *sprite);
 
     /**
+     * Gets the Value of the specified Monitor (a Monitor is just a variable that shows up on the screen).
+     * @param var The Monitor to find the value of
+     * @return The Value of the Monitor.
+     */
+    static Value getMonitorValue(Monitor &var);
+
+    /**
      * Gets the Value of the specified Variable made in a Custom Block.
      * @param valueName Name of the variable.
      * @param sprite Pointer to the sprite the variable is inside.

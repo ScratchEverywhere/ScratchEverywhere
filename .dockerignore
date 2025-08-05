@@ -2,7 +2,6 @@
 .vs/
 .vscode/
 build/
-romfs/project/
 romfs/gfx
 
 main.code-workspace
@@ -50,4 +49,3 @@ main.code-workspace
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
-scratch-wiiu/

@@ -1,0 +1,58 @@
+name: Crash / Bug report
+description: Create a report to help us improve
+title: "[BUG] "
+labels: [bug]
+body:
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: "Describe the crash or bug"
+      description: A clear and concise description of what the bug is, or what you may think is causing crashing.
+      placeholder: What's happening? What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: scratch-project
+    attributes:
+      label: "Scratch Project"
+      description: If comfortable, you can provide a link to or description of the .sb3 Scratch project file to help easily pinpoint the issue.
+      placeholder: Link to .sb3 file, or describe how to get it.
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Screenshots"
+      description: If applicable, add screenshots of the crash screen, and any Scratch code you may think is causing the issue. Drag and drop images here, or provide links.
+    validations:
+      required: false
+  - type: dropdown
+    id: devices
+    attributes:
+      label: "Device(s)"
+      description: What device(s) are you experiencing this on? (e.g., Old 3DS, New 3DS, Wii U). Please select at least one.
+      multiple: true
+      options:
+        - New 3DS
+        - Old 3DS
+        - Wii U
+        - PC
+    validations:
+      required: true
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: "Additional context"
+      description: Add any other context about the problem here (e.g., reproduction steps, frequency, any workarounds you've tried).
+    validations:
+      required: false
+  - type: checkboxes
+    id: pre-checks
+    attributes:
+      label: "Pre-submission Checks"
+      description: Please confirm the following before submitting.
+      options:
+        - label: I have searched existing issues and confirmed this bug has not been reported before.
+          required: true
+        - label: I have checked te known issues/roadmap and this is not a known limitation or planned fix.
+          required: true

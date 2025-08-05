@@ -10,6 +10,9 @@
 std::vector<std::string> Input::inputButtons;
 Input::Mouse Input::mousePointer;
 int Input::keyHeldFrames = 0;
+static int mouseHeldFrames = 0;
+static u16 oldTouchPx = 0;
+static u16 oldTouchPy = 0;
 
 void Input::getInput() {
     inputButtons.clear();
@@ -22,6 +25,16 @@ void Input::getInput() {
 
     // Read the touch screen coordinates
     hidTouchRead(&touch);
+
+    // if the touch screen is being touched
+    if (touch.px != 0 || touch.py != 0) {
+        mouseHeldFrames += 1;
+    } else {
+        if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames > 0 && mouseHeldFrames < 4)) {
+            mousePointer.isPressed = true;
+        }
+        mouseHeldFrames = 0;
+    }
 
     if (kDown) {
         keyHeldFrames += 1;
@@ -45,38 +58,22 @@ void Input::getInput() {
             inputButtons.push_back("1");
         }
         if (kDown & KEY_DUP) {
-            if (kDown & KEY_L)
-                mousePointer.y += 3;
-            else
-                inputButtons.push_back("u");
+            inputButtons.push_back("u");
         }
         if (kDown & KEY_DDOWN) {
-            if (kDown & KEY_L)
-                mousePointer.y -= 3;
-            else
-                inputButtons.push_back("h");
+            inputButtons.push_back("h");
         }
         if (kDown & KEY_DLEFT) {
-            if (kDown & KEY_L)
-                mousePointer.x -= 3;
-            else
-                inputButtons.push_back("g");
+            inputButtons.push_back("g");
         }
         if (kDown & KEY_DRIGHT) {
-            if (kDown & KEY_L)
-                mousePointer.x += 3;
-            else
-                inputButtons.push_back("j");
+            inputButtons.push_back("j");
         }
         if (kDown & KEY_L) {
             inputButtons.push_back("l");
-            mousePointer.isMoving = true;
         }
         if (kDown & KEY_R) {
-            if (kDown & KEY_L)
-                mousePointer.isPressed = true;
-            else
-                inputButtons.push_back("r");
+            inputButtons.push_back("r");
         }
         if (kDown & KEY_ZL) {
             inputButtons.push_back("z");
@@ -109,18 +106,36 @@ void Input::getInput() {
             inputButtons.push_back("5");
         }
         if (kDown & KEY_TOUCH) {
-            mousePointer.isPressed = true;
-            mousePointer.x = touch.px - (BOTTOM_SCREEN_WIDTH / 2);
-            if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
-                mousePointer.y = (-touch.py + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
-            else
-                mousePointer.y = (-touch.py + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
+
+            // normal touch screen if both screens or bottom screen only
+            if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
+                mousePointer.isPressed = true;
+                mousePointer.x = touch.px - (BOTTOM_SCREEN_WIDTH / 2);
+                if (Render::renderMode == Render::BOTH_SCREENS)
+                    mousePointer.y = (-touch.py + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
+                else if (Render::renderMode == Render::BOTTOM_SCREEN_ONLY)
+                    mousePointer.y = (-touch.py + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
+            }
+
+            // trackpad movement if top screen only
+            if (Render::renderMode == Render::TOP_SCREEN_ONLY) {
+                if (mouseHeldFrames == 1) {
+                    oldTouchPx = touch.px;
+                    oldTouchPy = touch.py;
+                }
+                mousePointer.x += touch.px - oldTouchPx;
+                mousePointer.y -= touch.py - oldTouchPy;
+                mousePointer.isMoving = true;
+            }
         }
         if (keyHeldFrames == 1 || keyHeldFrames > 13)
             BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHEN_KEY_PRESSED);
+
     } else {
         keyHeldFrames = 0;
     }
+    oldTouchPx = touch.px;
+    oldTouchPy = touch.py;
 }
 
 /**
