@@ -12,6 +12,13 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
 
+#ifdef ENABLE_CLOUDVARS
+#include <malloc.h>
+
+#define SOC_ALIGN 0x1000
+#define SOC_BUFFERSIZE 0x100000
+#endif
+
 #define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -28,6 +35,10 @@ std::chrono::_V2::system_clock::time_point endTime = std::chrono::high_resolutio
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 std::vector<Monitor> Render::visibleVariables;
 
+#ifdef ENABLE_CLOUDVARS
+static uint32_t *SOC_buffer = NULL;
+#endif
+
 bool Render::Init() {
     gfxInitDefault();
     hidScanInput();
@@ -40,6 +51,19 @@ bool Render::Init() {
     C2D_Prepare();
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+
+#ifdef ENABLE_CLOUDVARS
+    int ret;
+
+    SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+    if (SOC_buffer == NULL) {
+        Log::logError("memalign: failed to allocate");
+    } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
+        std::ostringstream err;
+        err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
+        Log::logError(err.str());
+    }
+#endif
 
     romfsInit();
     // waiting for beta 12 to enable,,
@@ -516,6 +540,10 @@ void MainMenu::cleanup() {
 }
 
 void Render::deInit() {
+#ifdef ENABLE_CLOUDVARS
+    free(SOC_buffer);
+    socExit();
+#endif
 
     C2D_Fini();
     C3D_Fini();

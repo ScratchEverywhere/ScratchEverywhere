@@ -5,7 +5,8 @@ A W.I.P. runtime made in C++ aimed to bring any Scratch 3 project over to the Ni
 
 ## Controls
 ![Controls](https://raw.githubusercontent.com/NateXS/Scratch-3DS/refs/heads/main/scratch%203ds%20controls.png)
-To use the mouse you must enter mouse mode by holding L. Use the D-pad to move the mouse, and press R to click.
+[3DS] Glide your finger/stylus on the bottom screen to move the mouse, and tap the bottom screen to click.
+[Wii U] To use the mouse you must enter mouse mode by holding L. Use the D-pad to move the mouse, and press R to click.
 
 ### Other Plaforms
 
@@ -44,13 +45,14 @@ All controllers on all other platforms use the same control scheme.
 As this is in a very W.I.P state, you will encounter many bugs, crashes, and things that will just not work. 
 
 **List of known limitations:**
-- There is no vector/svg sprite rendering. Images will only render if converted to bitmap beforehand, otherwise the sprite will show as a black square
-- Images will only work if it's in .png or .jpg format
+- Images will only work if it's in .png, .jpg or .svg format
+- If any vector image contains text, the text will not show up
 - Extensions (eg: pen and music extensions) are not yet supported
 - Some blocks may lead to crashing/unintended behavior (please open an issue if you know a block that's causing problems)
 - [Wii U] The first controller connected will be the only one that will work
 - [3DS] Performace is poor when lots of blocks are running at once
 - [3DS] If you have a bunch of large images, some may not load
+- [3DS] Some vector images will appear bigger than they should
 - [3DS] Images cannot be over 1024x1024 in resolution
 - [3DS] Some images may appear 'fuzzy' looking or have noticable inconsistencies
 
@@ -59,7 +61,6 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - All say and think blocks
 - All* Costume Effects
 - - *`Ghost` Costume Effect is supported.
-- Cloud variables
 - Show/hide list
 - When backdrop switches to
 - When this sprite clicked
@@ -76,7 +77,6 @@ As this is in a very W.I.P state, you will encounter many bugs, crashes, and thi
 - Get all blocks working
 - Pen support
 - Support most TurboWarp extensions
-- Cloud variables (https://github.com/NateXS/Scratch-3DS/pull/145)
 - Custom blocks to detect when being ran by Scratch 3DS
 
 ### 3DS
@@ -137,7 +137,7 @@ The recommended way to compile Scratch 3DS is with Docker. To compile with Docke
 
 #### Manual
 
-For 3DS and Wii U, you will need to have Devkitpro's SDKs installed.
+For 3DS and Wii U, you will need to have Devkitpro's SDKs, [Mist++](https://github.grady.link/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 - For the 3DS you will need the DevkitARM toolchain and libctru.
 - - You will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/NateXS/Scratch-3DS/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
 - For the Wii U you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and libromfs-wiiu.
@@ -159,6 +159,7 @@ Then you need to compile the projects into proper Homebrew packages.
 Compilation flags are used to select which features will be enabled in the compiled version of Scratch 3DS. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_BUBBLES=0`).
 
 * 3DS - `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
+* `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabledd, if set to `0` cloud variables are treated like normal variables. If you're project doesn't use cloud variables it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
 
 ## Other
 This project is not affiliated with Scratch or the Scratch team.

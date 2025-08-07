@@ -9,6 +9,7 @@ on:
       - gfx/wiiu/**
       - include/**
       - .github/workflows/nightly-wiiu.yml
+      - Dockerfile.wiiu
     branches:
       - main
   workflow_dispatch:

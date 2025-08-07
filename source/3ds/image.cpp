@@ -116,6 +116,7 @@ void Image::loadImages(mz_zip_archive *zip) {
             }
 
             newRGBA.name = zipFileName.substr(0, zipFileName.find_last_of('.'));
+            newRGBA.fullName = zipFileName;
             newRGBA.width = width;
             newRGBA.height = height;
             newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
@@ -203,6 +204,7 @@ void Image::loadImageFromFile(std::string filePath) {
     }
 
     newRGBA.name = path2;
+    newRGBA.fullName = filename;
     newRGBA.width = width;
     newRGBA.height = height;
     newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
@@ -427,7 +429,8 @@ void freeRGBA(const std::string &imageName) {
     if (it != Image::imageRGBAS.end()) {
         size_t dataSize = it->width * it->height * 4;
         if (it->data && dataSize > 0) {
-            stbi_image_free(it->data);
+            if (it->isSVG) free(it->data);
+            else stbi_image_free(it->data);
             MemoryTracker::deallocate(nullptr, dataSize);
             memStats.totalRamUsage -= dataSize;
             memStats.imageCount--;

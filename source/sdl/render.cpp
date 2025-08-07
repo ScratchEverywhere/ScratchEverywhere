@@ -383,6 +383,7 @@ void MainMenu::init() {
         errorTextInfo->setRenderer(renderer);
         errorTextInfo->setScale(0.6);
         hasProjects = false;
+        shouldExit = false;
     } else {
         selectedText = projectTexts.front();
         hasProjects = true;

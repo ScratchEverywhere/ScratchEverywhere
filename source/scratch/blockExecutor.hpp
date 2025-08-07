@@ -110,6 +110,15 @@ class BlockExecutor {
      */
     static void setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite);
 
+#ifdef ENABLE_CLOUDVARS
+    /**
+     * Called when a cloud variable is changed by another user. Updates that variable
+     * @param name The name of the updated variable
+     * @param value The new value of the variable
+     */
+    static void handleCloudVariableChange(const std::string &name, const std::string &value);
+#endif
+
     /**
      * Adds a block to the repeat queue, so it can be run next frame.
      * @param sprite Pointer to the Sprite variable

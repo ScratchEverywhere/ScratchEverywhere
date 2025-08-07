@@ -2,7 +2,10 @@
 #include "os.hpp"
 #include <filesystem>
 #include <fstream>
-#include <iostream>
+
+#ifdef ENABLE_CLOUDVARS
+extern std::string projectJSON;
+#endif
 
 class Unzip {
   public:
@@ -87,6 +90,10 @@ class Unzip {
             size_t json_size;
             const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
 
+#ifdef ENABLE_CLOUDVARS
+            projectJSON = std::string(json_data, json_size);
+#endif
+
             // Parse JSON file
             Log::log("Parsing project.json...");
             MemoryTracker::allocate(json_size);
@@ -100,6 +107,9 @@ class Unzip {
             // if project is unzipped
             file->clear();                 // Clear any EOF flags
             file->seekg(0, std::ios::beg); // Go to the start of the file
+#ifdef ENABLE_CLOUDVARS
+            projectJSON = {std::istreambuf_iterator<char>(*file), std::istreambuf_iterator<char>()};
+#endif
             (*file) >> project_json;
         }
         Image::loadImages(&zipArchive);

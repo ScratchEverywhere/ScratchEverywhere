@@ -17,11 +17,13 @@ endif
 TOPDIR ?= $(CURDIR)
 include $(DEVKITARM)/3ds_rules
 
+PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
+
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch 3DS
-APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 15]
+APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 16 Dev]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
@@ -34,7 +36,8 @@ ICON		:=	gfx/icon.png
 GFXBUILD	:=	$(ROMFS)/gfx
 
 # Config Options
-ENABLE_BUBBLES	?=	1
+ENABLE_CLOUDVARS	?=	0
+ENABLE_BUBBLES	  ?=	1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -45,18 +48,30 @@ CFLAGS	:=	-g -Wall -O3 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer $(ARCH)
-
-ifeq ($(ENABLE_BUBBLES),1)
-CFLAGS	+=	-DENABLE_BUBBLES
-endif
-
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
+CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 LIBS	:=  -lSDL2_mixer -lSDL2 -lcitro2d -lcitro3d -lctru -lm
+
+ifeq ($(ENABLE_BUBBLES),1)
+CFLAGS	+=	-DENABLE_BUBBLES
+endif
+ifeq ($(ENABLE_CLOUDVARS),1)
+CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_3DS) --cflags mist++`
+LIBS	  += `$(PKGCONF_3DS) --libs mist++`
+
+# Mist++ Version Check
+ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+endif
+endif
+
+ASFLAGS	:=	-g $(ARCH)
+LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

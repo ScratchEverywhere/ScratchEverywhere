@@ -16,6 +16,11 @@ int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
 bool Scratch::fencing = true;
+bool Scratch::miscellaneousLimits = true;
+
+#ifdef ENABLE_CLOUDVARS
+bool cloudProject = false;
+#endif
 
 void initializeSpritePool(int poolSize) {
     for (int i = 0; i < poolSize; i++) {
@@ -156,6 +161,10 @@ void loadSprites(const nlohmann::json &json) {
             newVariable.id = id;
             newVariable.name = data[0];
             newVariable.value = Value::fromJson(data[1]);
+#ifdef ENABLE_CLOUDVARS
+            newVariable.cloud = data.size() == 3;
+            cloudProject = cloudProject || newVariable.cloud;
+#endif
             newSprite->variables[newVariable.id] = newVariable; // add variable to sprite
         }
 
@@ -457,6 +466,7 @@ void loadSprites(const nlohmann::json &json) {
     int hght = 0;
     int framerate = 0;
     bool fncng = true;
+    bool miscLimits = true;
 
     try {
         framerate = config["framerate"].get<int>();
@@ -480,11 +490,19 @@ void loadSprites(const nlohmann::json &json) {
         Log::logWarning("no height property.");
     }
     try {
-        fncng = config["fencing"].get<bool>();
+        fncng = config["runtimeOptions"]["fencing"].get<bool>();
         Scratch::fencing = fncng;
-        Log::log("Fencing is " + Scratch::fencing);
+        Log::log(std::string("Fencing is ") + (Scratch::fencing ? "true" : "false"));
     } catch (...) {
         Log::logWarning("no fencing property.");
+    }
+    try {
+        miscLimits = config["runtimeOptions"]["miscLimits"].get<bool>();
+        Scratch::miscellaneousLimits = miscLimits;
+        Log::log(std::string("Misc limits is ") + (Scratch::miscellaneousLimits ? "true" : "false"));
+    } catch (...) {
+
+        Log::logWarning("no misc limits property.");
     }
 
     if (wdth == 400 && hght == 480)

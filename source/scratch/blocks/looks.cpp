@@ -201,8 +201,8 @@ BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *witho
 BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "SIZE", sprite);
 
-    // likely hasn't been rendered on screen yet
-    if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
+    // hasn't been rendered yet, or fencing is disabled
+    if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size = value.asDouble();
         return BlockResult::CONTINUE;
     }
@@ -223,8 +223,8 @@ BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, bool *withoutSc
 BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "CHANGE", sprite);
 
-    // likely hasn't been rendered on screen yet
-    if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
+    // hasn't been rendered yet, or fencing is disabled
+    if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size += value.asDouble();
         return BlockResult::CONTINUE;
     }

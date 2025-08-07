@@ -9,6 +9,7 @@ on:
       - gfx/**
       - include/**
       - .github/workflows/nightly-3ds.yml
+      - Dockerfile.3ds
     branches:
       - main
   workflow_dispatch:

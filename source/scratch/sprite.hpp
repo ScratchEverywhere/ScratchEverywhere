@@ -12,6 +12,9 @@ class Sprite;
 struct Variable {
     std::string id;
     std::string name;
+#ifdef ENABLE_CLOUDVARS
+    bool cloud;
+#endif
     Value value;
 };
 
