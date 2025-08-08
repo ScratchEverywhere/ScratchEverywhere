@@ -26,14 +26,12 @@ APP_AUTHOR						:=	NateXS and Grady Link
 APP_SHORT_DESCRIPTION	:=	Play Scratch Games on the Wii U!
 APP_LONG_DESCRIPTION	:=	$(APP_SHORT_DESCRIPTION)
 APP_VERSION						:=	0.16
+APP_ICON							:=	gfx/wiiu/icon.png
+APP_TV_SPLASH					:=	gfx/wiiu/tv-splash.png
+APP_DRC_SPLASH				:=	gfx/wiiu/drc-splash.png
 
-# WUHB Info
-
-WUHB_TOOL       :=  $(DEVKITPRO)/tools/bin/wuhbtool
-
-WUHB_ICON				:=	gfx/wiiu/icon.png
-WUHB_TV_SPLASH	:=	gfx/wiiu/tv-splash.png
-WUHB_DRC_SPLASH	:=	gfx/wiiu/drc-splash.png
+# Config Options
+ENABLE_CLOUDVARS	?=	0
 
 # Flags
 
@@ -41,17 +39,27 @@ CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
-CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__
+CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DSDL_BUILD
 CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
-
-CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions -DSDL_BUILD
 
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
 LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2` `$(PKGCONF) --libs zlib libpng`
 LIBS	+=	-lharfbuzz -lfreetype
+
+ifeq ($(ENABLE_CLOUDVARS),1)
+CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_WIIU) --cflags mist++`
+LIBS		+=	`$(PKGCONF_WIIU) --libs mist++`
+
+# Mist++ Version Check
+ifeq ($(shell $(PKGCONF_WIIU) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+endif
+endif
+
+CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
 
 LIBDIRS	:=	$(PORTLIBS) $(WUT_ROOT)
 
@@ -86,7 +94,7 @@ OFILES		+=	$(ROMFS_TARGET)
 
 .PHONY: $(BUILD) clean all
 
-all: mkdir $(GFXBUILD) $(OUTPUT).rpx wuhb
+all: mkdir $(GFXBUILD) $(OUTPUT).wuhb package 
 
 mkdir:
 	@mkdir -p $(BUILD)
@@ -94,9 +102,6 @@ mkdir:
 $(GFXBUILD):
 	@mkdir -p $@
 	@cp -r $(GRAPHICS)/* $@/
-
-wuhb:
-	@$(WUHB_TOOL) $(OUTPUT).rpx $(OUTPUT).wuhb --name="$(APP_NAME)" --author="$(APP_AUTHOR)" --icon="$(WUHB_ICON)" --tv-image="$(WUHB_TV_SPLASH)" --drc-image="$(WUHB_DRC_SPLASH)"
 
 test:
 	cemu -g $(OUTPUT).rpx

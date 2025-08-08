@@ -1,0 +1,5 @@
+3DS:
+  - '### Device(\(s\))?\s*.*(3DS|Both)'
+
+Wii U:
+  - '### Device(\(s\))?\s*.*(Wii U|Both)'

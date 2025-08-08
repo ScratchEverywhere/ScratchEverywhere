@@ -219,6 +219,9 @@ void Image::loadImageFromFile(std::string filePath) {
     imageRGBAS.push_back(newRGBA);
 }
 
+void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+}
+
 /**
  * Loads SVG data and converts it to RGBA pixel data
  */

@@ -33,6 +33,12 @@ class Image {
     static void loadImageFromFile(std::string filePath);
 
     /**
+     * `3DS`: Nothing yet yippie
+     * `SDL`: Loads a single `SDL_Image` from a zip file.
+     */
+    static void loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId);
+
+    /**
      * `3DS`: Frees a `C2D_Image` from memory.
      * `SDL`: Frees an `SDL_Image` from memory.
      */

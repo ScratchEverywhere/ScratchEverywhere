@@ -1,4 +1,5 @@
 #include "looks.hpp"
+#include "../unzip.hpp"
 
 BlockResult LooksBlocks::show(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->visible = true;
@@ -47,6 +48,8 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
 
     if (projectType == UNZIPPED) {
         Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName);
+    } else {
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName);
     }
 
     return BlockResult::CONTINUE;
@@ -60,6 +63,8 @@ BlockResult LooksBlocks::nextCostume(Block &block, Sprite *sprite, bool *without
     }
     if (projectType == UNZIPPED) {
         Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName);
+    } else {
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName);
     }
     return BlockResult::CONTINUE;
 }
@@ -107,6 +112,8 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
 
         if (projectType == UNZIPPED) {
             Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        } else {
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
         }
     }
 
@@ -125,6 +132,8 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
         }
         if (projectType == UNZIPPED) {
             Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        } else {
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
         }
     }
     return BlockResult::CONTINUE;
@@ -201,8 +210,8 @@ BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *witho
 BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "SIZE", sprite);
 
-    // likely hasn't been rendered on screen yet
-    if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
+    // hasn't been rendered yet, or fencing is disabled
+    if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size = value.asDouble();
         return BlockResult::CONTINUE;
     }
@@ -223,8 +232,8 @@ BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, bool *withoutSc
 BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "CHANGE", sprite);
 
-    // likely hasn't been rendered on screen yet
-    if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
+    // hasn't been rendered yet, or fencing is disabled
+    if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size += value.asDouble();
         return BlockResult::CONTINUE;
     }

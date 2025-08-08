@@ -1,5 +1,3 @@
-
-
 .PHONY: all clean
 
 
@@ -16,6 +14,8 @@ endif
 
 TOPDIR ?= $(CURDIR)
 include $(DEVKITARM)/3ds_rules
+
+PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 
 #---------------------------------------------------------------------------------
 
@@ -36,7 +36,8 @@ RSF             := gfx/template.rsf
 GFXBUILD        := $(ROMFS)/gfx
 
 # Config Options
-ENABLE_BUBBLES	?=	1
+ENABLE_CLOUDVARS	?=	0
+ENABLE_BUBBLES	  ?=	1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -47,18 +48,30 @@ CFLAGS	:=	-g -Wall -O3 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer $(ARCH)
-
-ifeq ($(ENABLE_BUBBLES),1)
-CFLAGS	+=	-DENABLE_BUBBLES
-endif
-
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions -Wno-maybe-uninitialized
+CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 LIBS	:=  -lSDL2_mixer -lSDL2 -lcitro2d -lcitro3d -lctru -lm
+
+ifeq ($(ENABLE_BUBBLES),1)
+CFLAGS	+=	-DENABLE_BUBBLES
+endif
+ifeq ($(ENABLE_CLOUDVARS),1)
+CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_3DS) --cflags mist++`
+LIBS	  += `$(PKGCONF_3DS) --libs mist++`
+
+# Mist++ Version Check
+ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+endif
+endif
+
+ASFLAGS	:=	-g $(ARCH)
+LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
@@ -71,10 +84,10 @@ LIBDIRS	:= $(CTRULIB)  $(DEVKITPRO)/portlibs/3ds
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
 #---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
+ifneq ($(notdir $(BUILD)),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
+export OUTPUT	:=	$(CURDIR)/$(BUILD)/$(TARGET)
 export TOPDIR	:=	$(CURDIR)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
@@ -152,7 +165,7 @@ else
 endif
 
 ifeq ($(strip $(NO_SMDH)),)
-	export _3DSXFLAGS += --smdh=$(CURDIR)/$(TARGET).smdh
+	export _3DSXFLAGS += --smdh=$(CURDIR)/$(BUILD)/$(TARGET).smdh
 endif
 
 ifneq ($(ROMFS),)
@@ -305,4 +318,3 @@ $(OUTPUT).elf	:	$(OFILES)
 #---------------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------------
-
