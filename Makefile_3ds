@@ -23,9 +23,9 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 TARGET          := $(notdir $(CURDIR))
 APP_INFO        := gfx/AppInfo
 BUILD           := build
-SOURCES	        := source source/3ds source/scratch source/scratch/blocks include/miniz source/sdl/audio
+SOURCES	        := source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/sdl/audio
 DATA            := data
-INCLUDES        := include source/3ds source/scratch source/scratch/blocks source/sdl/audio
+INCLUDES        := include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/sdl/audio
 GRAPHICS        := gfx
 ROMFS           := romfs
 APP_INFO        := gfx/AppInfo
@@ -102,6 +102,8 @@ SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
 PICAFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.v.pica)))
 SHLISTFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.shlist)))
 GFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.t3s)))
+PNGFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.png)))
+JPGFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.jpg)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 #---------------------------------------------------------------------------------
@@ -122,10 +124,14 @@ endif
 ifeq ($(GFXBUILD),$(BUILD))
 #---------------------------------------------------------------------------------
 export T3XFILES :=  $(GFXFILES:.t3s=.t3x)
+export ROMFS_PNGFILES	:=	$(PNGFILES)
+export ROMFS_JPGFILES	:=	$(JPGFILES)
 #---------------------------------------------------------------------------------
 else
 #---------------------------------------------------------------------------------
 export ROMFS_T3XFILES	:=	$(patsubst %.t3s, $(GFXBUILD)/%.t3x, $(GFXFILES))
+export ROMFS_PNGFILES	:=	$(patsubst %.png, $(GFXBUILD)/%.png, $(PNGFILES))
+export ROMFS_JPGFILES	:=	$(patsubst %.jpg, $(GFXBUILD)/%.jpg, $(JPGFILES))
 export T3XHFILES		:=	$(patsubst %.t3s, $(BUILD)/%.h, $(GFXFILES))
 #---------------------------------------------------------------------------------
 endif
@@ -264,6 +270,16 @@ $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@tex3ds -i $< -H $(BUILD)/$*.h -d $(DEPSDIR)/$*.d -o $(GFXBUILD)/$*.t3x
+
+#---------------------------------------------------------------------------------
+$(GFXBUILD)/%.png	:	%.png
+#---------------------------------------------------------------------------------
+	@cp $< $@
+
+#---------------------------------------------------------------------------------
+$(GFXBUILD)/%.jpg	:	%.jpg
+#---------------------------------------------------------------------------------
+	@cp $< $@
 
 #---------------------------------------------------------------------------------
 else

@@ -311,7 +311,7 @@ struct Block {
     double waitDuration;
     double glideStartX, glideStartY;
     double glideEndX, glideEndY;
-    std::chrono::high_resolution_clock::time_point waitStartTime;
+    Timer waitTimer;
     bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;

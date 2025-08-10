@@ -2,8 +2,8 @@
 
 TARGET     := Scratch-pc
 BUILD      := build/pc
-SOURCES    := source source/scratch source/scratch/blocks source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES   := include source/scratch source/scratch/blocks source/sdl source/sdl/audio include/nlohmann
+SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
 
 CXX        := g++
 CC         := gcc

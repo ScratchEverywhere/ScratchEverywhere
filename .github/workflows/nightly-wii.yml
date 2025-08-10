@@ -1,16 +1,16 @@
-name: Wii U Nightly Build
+name: Wii Nightly Build
 
 on:
   push:
     paths:
-      - Makefile_wiiu
+      - Makefile_wii
       - source/scratch/**
       - source/sdl/**
-      - gfx/wiiu/**
+      - gfx/wii/**
       - gfx/*
       - include/**
-      - .github/workflows/nightly-wiiu.yml
-      - Dockerfile.wiiu
+      - .github/workflows/nightly-wii.yml
+      - Dockerfile.wii
     branches:
       - main
   workflow_dispatch:
@@ -29,11 +29,11 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.wiiu
+          file: Dockerfile.wii
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch Wii U Nightly
-          path: scratch-wiiu/
+          name: Scratch Wii Nightly
+          path: scratch-wii.dol

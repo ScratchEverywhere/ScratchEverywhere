@@ -35,6 +35,20 @@ void Input::getInput() {
     const Uint8 *keyStates = SDL_GetKeyboardState(NULL);
     bool anyKeyPressed = false;
 
+    // prints what buttons are being pressed (debug)
+    // for (int i = 0; i < SDL_CONTROLLER_BUTTON_MAX; ++i) {
+    //     if (SDL_GameControllerGetButton(controller, static_cast<SDL_GameControllerButton>(i))) {
+    //         Log::log("Pressed button " + std::to_string(i));
+    //     }
+    // }
+
+    // for (int i = 0; i < SDL_CONTROLLER_AXIS_MAX; ++i) {
+    //     int val = SDL_GameControllerGetAxis(controller, static_cast<SDL_GameControllerAxis>(i));
+    //     if (abs(val) > CONTROLLER_DEADZONE_TRIGGER) {
+    //         Log::log("Moved axis " + std::to_string(i) + ": " + std::to_string(val));
+    //     }
+    // }
+
     for (int scancode = 0; scancode < SDL_NUM_SCANCODES; ++scancode) {
         if (keyStates[scancode]) {
             const char *name = SDL_GetScancodeName(static_cast<SDL_Scancode>(scancode));
@@ -85,6 +99,9 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X)) {
         Input::buttonPress("X");
         anyKeyPressed = true;
+#ifdef __OGC__ // SDL 'x' is the A button on a wii remote
+        mousePointer.isPressed = true;
+#endif
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_Y)) {
         Input::buttonPress("Y");
@@ -107,6 +124,9 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_BACK)) {
         Input::buttonPress("back");
         anyKeyPressed = true;
+#ifdef WII
+        toExit = true;
+#endif
     }
     float joyLeftX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX);
     float joyLeftY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY);

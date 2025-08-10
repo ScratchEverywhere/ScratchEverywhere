@@ -48,6 +48,7 @@ main.code-workspace
 *.sb3
 *.t3x
 *.dol
+*.wbfs
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc

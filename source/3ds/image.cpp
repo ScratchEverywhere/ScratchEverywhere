@@ -16,8 +16,8 @@ using u32 = uint32_t;
 using u8 = uint8_t;
 
 std::unordered_map<std::string, ImageData> imageC2Ds;
-std::vector<Image::ImageRGBA> Image::imageRGBAS;
-static std::vector<Image::ImageRGBA *> imageLoadQueue;
+std::vector<imageRGBA> imageRGBAS;
+static std::vector<imageRGBA *> imageLoadQueue;
 static std::vector<std::string> toDelete;
 #define MAX_IMAGE_VRAM 30000000
 
@@ -55,101 +55,128 @@ const u32 rgba_to_abgr(u32 px) {
     return (a << 24) | (b << 16) | (g << 8) | r;
 }
 
-/**
- * Takes every Image from the Scratch's sb3 file and converts them to RGBA data
- */
-void Image::loadImages(mz_zip_archive *zip) {
-    // Loop through all files in the ZIP
-    Log::log("Loading images...");
+Image::Image(std::string filePath) {
+    if (!loadImageFromFile(filePath, false)) return;
+    imageId = imageRGBAS.back().name;
+    width = imageRGBAS.back().width;
+    height = imageRGBAS.back().height;
+    get_C2D_Image(imageRGBAS.back());
+}
 
-    int file_count = (int)mz_zip_reader_get_num_files(zip);
+Image::~Image() {
+    queueFreeImage(imageId);
+}
 
-    for (int i = 0; i < file_count; i++) {
-        mz_zip_archive_file_stat file_stat;
-        if (!mz_zip_reader_file_stat(zip, i, &file_stat)) continue;
-
-        std::string zipFileName = file_stat.m_filename;
-
-        // Check if file is bitmap, or SVG
-        bool isBitmap = zipFileName.size() >= 4 &&
-                        (zipFileName.substr(zipFileName.size() - 4) == ".png" ||
-                         zipFileName.substr(zipFileName.size() - 4) == ".PNG" ||
-                         zipFileName.substr(zipFileName.size() - 4) == ".jpg" ||
-                         zipFileName.substr(zipFileName.size() - 4) == ".JPG");
-        bool isSVG = zipFileName.size() >= 4 &&
-                     (zipFileName.substr(zipFileName.size() - 4) == ".svg" ||
-                      zipFileName.substr(zipFileName.size() - 4) == ".SVG");
-
-        if (isBitmap || isSVG) {
-            size_t file_size;
-            void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
-            if (!file_data) {
-                printf("Failed to extract %s\n", zipFileName.c_str());
-                continue;
-            }
-
-            int width, height;
-            unsigned char *rgba_data = nullptr;
-
-            Image::ImageRGBA newRGBA;
-
-            if (isSVG) {
-                newRGBA.isSVG = true;
-                rgba_data = SVGToRGBA(file_data, file_size, width, height);
-                if (!rgba_data) {
-                    printf("Failed to decode SVG: %s\n", zipFileName.c_str());
-                    mz_free(file_data);
-                    continue;
-                }
-            } else {
-                // bitmap files
-                int channels;
-                rgba_data = stbi_load_from_memory(
-                    (unsigned char *)file_data, file_size,
-                    &width, &height, &channels, 4);
-
-                if (!rgba_data) {
-                    printf("Failed to decode image: %s\n", zipFileName.c_str());
-                    mz_free(file_data);
-                    return; // blablabla running out of memory blablabla
-                }
-            }
-
-            newRGBA.name = zipFileName.substr(0, zipFileName.find_last_of('.'));
-            newRGBA.fullName = zipFileName;
-            newRGBA.width = width;
-            newRGBA.height = height;
-            newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-            newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
-            newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
-            newRGBA.data = rgba_data;
-
-            size_t imageSize = width * height * 4;
-            MemoryTracker::allocate(imageSize);
-
-            Image::imageRGBAS.push_back(newRGBA);
-            mz_free(file_data);
+void Image::render(double xPos, double yPos) {
+    auto rgbaIt = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
+        return img.name == imageId;
+    });
+    if (rgbaIt != imageRGBAS.end()) {
+        if (imageC2Ds.find(rgbaIt->name) != imageC2Ds.end()) {
+            imageC2Ds[rgbaIt->name].freeTimer = 240;
+            C2D_DrawImageAt(imageC2Ds[rgbaIt->name].image, static_cast<int>(xPos), static_cast<int>(yPos), 1);
         }
     }
 }
 
 /**
+ * Takes every Image from the Scratch's sb3 file and converts them to RGBA data
+ */
+void Image::loadImages(mz_zip_archive *zip) {
+    // // Loop through all files in the ZIP
+    // Log::log("Loading images...");
+
+    // int file_count = (int)mz_zip_reader_get_num_files(zip);
+
+    // for (int i = 0; i < file_count; i++) {
+    //     mz_zip_archive_file_stat file_stat;
+    //     if (!mz_zip_reader_file_stat(zip, i, &file_stat)) continue;
+
+    //     std::string zipFileName = file_stat.m_filename;
+
+    //     // Check if file is bitmap, or SVG
+    //     bool isBitmap = zipFileName.size() >= 4 &&
+    //                     (zipFileName.substr(zipFileName.size() - 4) == ".png" ||
+    //                      zipFileName.substr(zipFileName.size() - 4) == ".PNG" ||
+    //                      zipFileName.substr(zipFileName.size() - 4) == ".jpg" ||
+    //                      zipFileName.substr(zipFileName.size() - 4) == ".JPG");
+    //     bool isSVG = zipFileName.size() >= 4 &&
+    //                  (zipFileName.substr(zipFileName.size() - 4) == ".svg" ||
+    //                   zipFileName.substr(zipFileName.size() - 4) == ".SVG");
+
+    //     if (isBitmap || isSVG) {
+    //         size_t file_size;
+    //         void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
+    //         if (!file_data) {
+    //             printf("Failed to extract %s\n", zipFileName.c_str());
+    //             continue;
+    //         }
+
+    //         int width, height;
+    //         unsigned char *rgba_data = nullptr;
+
+    //         imageRGBA newRGBA;
+
+    //         if (isSVG) {
+    //             newRGBA.isSVG = true;
+    //             rgba_data = SVGToRGBA(file_data, file_size, width, height);
+    //             if (!rgba_data) {
+    //                 printf("Failed to decode SVG: %s\n", zipFileName.c_str());
+    //                 mz_free(file_data);
+    //                 continue;
+    //             }
+    //         } else {
+    //             // bitmap files
+    //             int channels;
+    //             rgba_data = stbi_load_from_memory(
+    //                 (unsigned char *)file_data, file_size,
+    //                 &width, &height, &channels, 4);
+
+    //             if (!rgba_data) {
+    //                 printf("Failed to decode image: %s\n", zipFileName.c_str());
+    //                 mz_free(file_data);
+    //                 return; // blablabla running out of memory blablabla
+    //             }
+    //         }
+
+    //         newRGBA.name = zipFileName.substr(0, zipFileName.find_last_of('.'));
+    //         newRGBA.fullName = zipFileName;
+    //         newRGBA.width = width;
+    //         newRGBA.height = height;
+    //         newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
+    //         newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    //         newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
+    //         newRGBA.data = rgba_data;
+
+    //         size_t imageSize = width * height * 4;
+    //         MemoryTracker::allocate(imageSize);
+
+    //         imageRGBAS.push_back(newRGBA);
+    //         mz_free(file_data);
+    //     }
+    // }
+}
+
+/**
  * Turns a single image from an unzipped Scratch project into RGBA data
  */
-void Image::loadImageFromFile(std::string filePath) {
+bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
 
-    auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const ImageRGBA &img) {
+    auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
         return img.name == path2;
     });
-    if (it != imageRGBAS.end()) return;
+    if (it != imageRGBAS.end()) return true;
 
-    std::string fullPath = "romfs:/project/" + filePath;
+    std::string fullPath;
+    if (fromScratchProject) fullPath = "romfs:/project/" + filePath;
+    else fullPath = "romfs:/" + filePath;
+
     FILE *file = fopen(fullPath.c_str(), "rb");
     if (!file) {
         Log::logWarning("Invalid image file name " + filePath);
-        return;
+        return false;
     }
 
     int width, height;
@@ -160,7 +187,7 @@ void Image::loadImageFromFile(std::string filePath) {
                  (filePath.substr(filePath.size() - 4) == ".svg" ||
                   filePath.substr(filePath.size() - 4) == ".SVG");
 
-    ImageRGBA newRGBA;
+    imageRGBA newRGBA;
 
     if (isSVG) {
         // Read entire SVG file into memory
@@ -172,7 +199,7 @@ void Image::loadImageFromFile(std::string filePath) {
         if (!svg_data) {
             Log::logWarning("Failed to allocate memory for SVG file: " + filePath);
             fclose(file);
-            return;
+            return false;
         }
 
         size_t read_size = fread(svg_data, 1, file_size, file);
@@ -181,7 +208,7 @@ void Image::loadImageFromFile(std::string filePath) {
         if (read_size != (size_t)file_size) {
             Log::logWarning("Failed to read SVG file completely: " + filePath);
             free(svg_data);
-            return;
+            return false;
         }
         newRGBA.isSVG = true;
         rgba_data = SVGToRGBA(svg_data, file_size, width, height);
@@ -189,7 +216,7 @@ void Image::loadImageFromFile(std::string filePath) {
 
         if (!rgba_data) {
             Log::logWarning("Failed to decode SVG: " + filePath);
-            return;
+            return false;
         }
     } else {
         // Handle regular image files (PNG, JPG)
@@ -199,7 +226,7 @@ void Image::loadImageFromFile(std::string filePath) {
 
         if (!rgba_data) {
             Log::logWarning("Failed to decode image: " + filePath);
-            return;
+            return false;
         }
     }
 
@@ -217,9 +244,108 @@ void Image::loadImageFromFile(std::string filePath) {
 
     Log::log("successfuly laoded image from file!");
     imageRGBAS.push_back(newRGBA);
+    return true;
 }
 
+/**
+ * Loads a single image from a Scratch sb3 zip file by filename.
+ * @param zip Pointer to the zip archive
+ * @param costumeId The filename of the image to load (e.g., "sprite1.png")
+ */
 void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+    std::string imageId = costumeId.substr(0, costumeId.find_last_of('.'));
+
+    // Check if image already exists
+    auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
+        return img.name == imageId;
+    });
+    if (it != imageRGBAS.end()) return;
+
+    Log::log("Loading single image: " + costumeId);
+
+    // Find the file in the zip
+    int file_index = mz_zip_reader_locate_file(zip, costumeId.c_str(), nullptr, 0);
+    if (file_index < 0) {
+        Log::logWarning("Image file not found in zip: " + costumeId);
+        return;
+    }
+
+    // Get file stats
+    mz_zip_archive_file_stat file_stat;
+    if (!mz_zip_reader_file_stat(zip, file_index, &file_stat)) {
+        Log::logWarning("Failed to get file stats for: " + costumeId);
+        return;
+    }
+
+    // Check if file is bitmap or SVG
+    bool isBitmap = costumeId.size() >= 4 &&
+                    (costumeId.substr(costumeId.size() - 4) == ".png" ||
+                     costumeId.substr(costumeId.size() - 4) == ".PNG" ||
+                     costumeId.substr(costumeId.size() - 4) == ".jpg" ||
+                     costumeId.substr(costumeId.size() - 4) == ".JPG");
+    bool isSVG = costumeId.size() >= 4 &&
+                 (costumeId.substr(costumeId.size() - 4) == ".svg" ||
+                  costumeId.substr(costumeId.size() - 4) == ".SVG");
+
+    if (!isBitmap && !isSVG) {
+        Log::logWarning("File is not a supported image format: " + costumeId);
+        return;
+    }
+
+    // Extract file data
+    size_t file_size;
+    void *file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
+    if (!file_data) {
+        Log::logWarning("Failed to extract: " + costumeId);
+        return;
+    }
+
+    int width, height;
+    unsigned char *rgba_data = nullptr;
+
+    imageRGBA newRGBA;
+
+    if (isSVG) {
+        newRGBA.isSVG = true;
+        rgba_data = SVGToRGBA(file_data, file_size, width, height);
+        if (!rgba_data) {
+            Log::logWarning("Failed to decode SVG: " + costumeId);
+            mz_free(file_data);
+            return;
+        }
+    } else {
+        // Handle bitmap files (PNG, JPG)
+        int channels;
+        rgba_data = stbi_load_from_memory(
+            (unsigned char *)file_data, file_size,
+            &width, &height, &channels, 4);
+
+        if (!rgba_data) {
+            Log::logWarning("Failed to decode image: " + costumeId);
+            mz_free(file_data);
+            return;
+        }
+    }
+
+    // Set up the image data structure
+    newRGBA.name = imageId;
+    newRGBA.fullName = costumeId;
+    newRGBA.width = width;
+    newRGBA.height = height;
+    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
+    newRGBA.data = rgba_data;
+
+    // Track memory usage
+    size_t imageSize = width * height * 4;
+    MemoryTracker::allocate(imageSize);
+
+    Log::log("Successfully loaded image: " + costumeId);
+    imageRGBAS.push_back(newRGBA);
+
+    // Clean up
+    mz_free(file_data);
 }
 
 /**
@@ -298,9 +424,9 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
  * Queues RGBA image data to be loaded into a Citro2D Image. Image will wait to load if VRAM is too high.
  * @param rgba
  */
-bool queueC2DImage(Image::ImageRGBA &rgba) {
+bool queueC2DImage(imageRGBA &rgba) {
     bool inQueue = false;
-    for (Image::ImageRGBA *queueRgba : imageLoadQueue) {
+    for (imageRGBA *queueRgba : imageLoadQueue) {
         if (rgba.name == queueRgba->name) {
             inQueue = true;
         }
@@ -320,13 +446,13 @@ bool queueC2DImage(Image::ImageRGBA &rgba) {
 }
 
 /**
- * Reads an `Image::ImageRGBA` image, and adds a `C2D_Image` object to `imageC2Ds`.
+ * Reads an `imageRGBA` image, and adds a `C2D_Image` object to `imageC2Ds`.
  * Assumes image data is stored left->right, top->bottom.
  * Dimensions must be within 64x64 and 1024x1024.
  * Code here originally from https://gbatemp.net/threads/citro2d-c2d_image-example.668574/
  * then edited to fit my code
  */
-bool get_C2D_Image(Image::ImageRGBA rgba) {
+bool get_C2D_Image(imageRGBA rgba) {
 
     // u32 px_count = rgba.width * rgba.height;
     u32 *rgba_raw = reinterpret_cast<u32 *>(rgba.data);
@@ -418,18 +544,17 @@ void Image::freeImage(const std::string &costumeId) {
             MemoryTracker::deallocate<Tex3DS_SubTexture>((Tex3DS_SubTexture *)it->second.image.subtex);
         }
         imageC2Ds.erase(it);
-    }
-    if (projectType == UNZIPPED) {
-        freeRGBA(costumeId);
-    }
+    } else toExit = true;
+
+    freeRGBA(costumeId);
 }
 
 void freeRGBA(const std::string &imageName) {
-    auto it = std::find_if(Image::imageRGBAS.begin(), Image::imageRGBAS.end(), [&](const Image::ImageRGBA &img) {
+    auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
         return img.name == imageName;
     });
 
-    if (it != Image::imageRGBAS.end()) {
+    if (it != imageRGBAS.end()) {
         size_t dataSize = it->width * it->height * 4;
         if (it->data && dataSize > 0) {
             if (it->isSVG) free(it->data);
@@ -440,7 +565,7 @@ void freeRGBA(const std::string &imageName) {
 
             Log::log("Freed RGBA data for " + imageName);
         }
-        Image::imageRGBAS.erase(it);
+        imageRGBAS.erase(it);
     }
 }
 
@@ -488,7 +613,7 @@ void Image::FlushImages() {
     toDelete.clear();
 
     if (!imageLoadQueue.empty()) {
-        ImageRGBA *rgba = imageLoadQueue.front();
+        imageRGBA *rgba = imageLoadQueue.front();
         if (memStats.totalVRamUsage + rgba->textureMemSize < MAX_IMAGE_VRAM) {
             get_C2D_Image(*rgba);
             imageLoadQueue.erase(imageLoadQueue.begin());

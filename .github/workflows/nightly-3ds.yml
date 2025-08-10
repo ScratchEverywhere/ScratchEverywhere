@@ -6,7 +6,7 @@ on:
       - Makefile_3ds
       - source/scratch/**
       - source/3ds/**
-      - gfx/**
+      - gfx/*
       - include/**
       - .github/workflows/nightly-3ds.yml
       - Dockerfile.3ds

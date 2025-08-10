@@ -1,5 +1,11 @@
 3DS:
-  - '### Device(\(s\))?\s*.*(3DS|Both)'
+  - '### Device\(s\)\s*.*3DS'
 
 Wii U:
-  - '### Device(\(s\))?\s*.*(Wii U|Both)'
+  - '### Device\(s\)\s*.*Wii U'
+
+Wii:
+  - '### Device\(s\)\s*.*Wii\s{2,}'
+
+GameCube:
+  - '### Device\(s\)\s*.*GameCube'

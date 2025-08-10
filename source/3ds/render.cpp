@@ -8,7 +8,6 @@
 #include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
-#include "spriteSheet.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
 
@@ -29,10 +28,12 @@ u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
 u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
 u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
-std::chrono::_V2::system_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
+std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
+bool Render::hasFrameBegan;
+static int currentScreen = 0;
 std::vector<Monitor> Render::visibleVariables;
 
 #ifdef ENABLE_CLOUDVARS
@@ -66,10 +67,10 @@ bool Render::Init() {
 #endif
 
     romfsInit();
-    // waiting for beta 12 to enable,,
+    // waiting for beta 12 to enable,, <- its beta 17 why is this comment still here 😭
     SDL_Init(SDL_INIT_AUDIO);
     // Initialize SDL_mixer
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
         Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
         // not returning false since emulators by default will error here
     }
@@ -82,7 +83,44 @@ bool Render::Init() {
 }
 
 bool Render::appShouldRun() {
+    if (toExit) return false;
     return aptMainLoop();
+}
+
+void *Render::getRenderer() {
+    return nullptr;
+}
+
+int Render::getWidth() {
+    if (currentScreen == 0)
+        return SCREEN_WIDTH;
+    else return BOTTOM_SCREEN_WIDTH;
+}
+int Render::getHeight() {
+    return SCREEN_HEIGHT;
+}
+
+void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    if (!hasFrameBegan) {
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        hasFrameBegan = true;
+    }
+    if (screen == 0) {
+        currentScreen = 0;
+        C2D_TargetClear(topScreen, C2D_Color32(colorR, colorG, colorB, 255));
+        C2D_SceneBegin(topScreen);
+    } else {
+        currentScreen = 1;
+        C2D_TargetClear(bottomScreen, C2D_Color32(colorR, colorG, colorB, 255));
+        C2D_SceneBegin(bottomScreen);
+    }
+}
+
+void Render::endFrame() {
+    C2D_Flush();
+    C3D_FrameEnd(0);
+    Image::FlushImages();
+    hasFrameBegan = false;
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -117,7 +155,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     bool isSVG = false;
     double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
     bool imageLoaded = false;
-    for (Image::ImageRGBA rgba : Image::imageRGBAS) {
+    for (imageRGBA rgba : imageRGBAS) {
         if (rgba.name == costumeId) {
 
             if (rgba.isSVG) isSVG = true;
@@ -127,10 +165,10 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
             if (imageC2Ds.find(costumeId) == imageC2Ds.end() || image->tex == nullptr || image->subtex == nullptr) {
 
-                auto rgbaFind = std::find_if(Image::imageRGBAS.begin(), Image::imageRGBAS.end(),
-                                             [&](const Image::ImageRGBA &rgba) { return rgba.name == costumeId; });
+                auto rgbaFind = std::find_if(imageRGBAS.begin(), imageRGBAS.end(),
+                                             [&](const imageRGBA &rgba) { return rgba.name == costumeId; });
 
-                if (rgbaFind != Image::imageRGBAS.end()) {
+                if (rgbaFind != imageRGBAS.end()) {
                     imageLoaded = queueC2DImage(*rgbaFind);
                 } else {
                     imageLoaded = false;
@@ -245,7 +283,6 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
 
-        // int times = 1;
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
         // Sort sprites by layer (lowest to highest)
@@ -415,130 +452,6 @@ void LoadingScreen::cleanup() {
 #endif
 }
 
-SpriteSheetObject *logo;
-
-void MainMenu::init() {
-
-    std::vector<std::string> projectFiles = Unzip::getProjectFiles(".");
-
-    int yPosition = 120;
-    for (std::string &file : projectFiles) {
-        TextObject *text = createTextObject(file, 0, yPosition);
-        text->setColor(C2D_Color32f(0, 0, 0, 1));
-        text->y -= text->getSize()[1] / 2;
-        if (text->getSize()[0] > BOTTOM_SCREEN_WIDTH) {
-            float scale = (float)BOTTOM_SCREEN_WIDTH / (text->getSize()[0] * 1.15);
-            text->setScale(scale);
-        }
-        projectTexts.push_back(text);
-        yPosition += 50;
-    }
-
-    if (projectFiles.size() == 0) {
-        errorTextInfo = createTextObject("No Scratch projects found!\n Go download a Scratch project and put it\n in the 3ds folder of your SD card!\nPress Start to exit.",
-                                         BOTTOM_SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-        errorTextInfo->setScale(0.6);
-        hasProjects = false;
-    } else {
-        selectedText = projectTexts.front();
-        hasProjects = true;
-    }
-
-    logo = new SpriteSheetObject("romfs:/gfx/menuElements.t3x", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
-    infoText = createTextObject("Runtime by NateXS", 340, 225);
-    infoText->setScale(0.5);
-}
-void MainMenu::render() {
-
-    if (hasProjects) {
-
-        hidScanInput();
-        u32 kJustPressed = hidKeysDown();
-
-        if (kJustPressed & (KEY_DDOWN | KEY_CPAD_DOWN)) {
-            if (selectedTextIndex < (int)projectTexts.size() - 1) {
-                selectedTextIndex++;
-                selectedText = projectTexts[selectedTextIndex];
-            }
-        }
-        if (kJustPressed & (KEY_DUP | KEY_CPAD_UP)) {
-            if (selectedTextIndex > 0) {
-                selectedTextIndex--;
-                selectedText = projectTexts[selectedTextIndex];
-            }
-        }
-        cameraX = BOTTOM_SCREEN_WIDTH / 2;
-        cameraY = selectedText->y;
-
-        if (kJustPressed & KEY_A) {
-            Unzip::filePath = selectedText->getText();
-        }
-    } else {
-        hidScanInput();
-        u32 kJustPressed = hidKeysDown();
-        if (kJustPressed & (KEY_DDOWN | KEY_START)) {
-            shouldExit = true;
-        }
-    }
-
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrScratchBlue);
-    C2D_SceneBegin(topScreen);
-
-    auto now = std::chrono::steady_clock::now();
-    std::chrono::duration<float> elapsed = now - logoStartTime;
-
-    float timeSeconds = elapsed.count();
-    float bobbingOffset = std::sin(timeSeconds * 2.0f) * 5.0f; // speed * amplitude
-
-    logo->render(logo->x, (SCREEN_HEIGHT / 2) + bobbingOffset);
-    infoText->render(infoText->x, infoText->y);
-
-    C2D_TargetClear(bottomScreen, clrScratchBlue);
-    C2D_SceneBegin(bottomScreen);
-
-    for (TextObject *text : projectTexts) {
-        if (text == nullptr || text->y > 300) continue;
-
-        if (selectedText == text)
-            text->setColor(C2D_Color32(237, 223, 214, 255));
-        else
-            text->setColor(C2D_Color32(0, 0, 0, 255));
-
-        text->render(text->x + cameraX, text->y - (cameraY - (SCREEN_HEIGHT / 2)));
-    }
-
-    if (errorTextInfo != nullptr) {
-        errorTextInfo->render(errorTextInfo->x, errorTextInfo->y);
-    }
-
-    // C2D_Flush();
-    C3D_FrameEnd(0);
-    gspWaitForVBlank();
-}
-void MainMenu::cleanup() {
-    for (TextObject *text : projectTexts) {
-        delete text;
-    }
-    projectTexts.clear();
-
-    delete logo;
-    delete infoText;
-    selectedText = nullptr;
-    if (errorTextInfo) delete errorTextInfo;
-
-    C2D_Flush();
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrScratchBlue);
-    C2D_SceneBegin(topScreen);
-
-    C2D_TargetClear(bottomScreen, clrScratchBlue);
-    C2D_SceneBegin(bottomScreen);
-
-    C3D_FrameEnd(0);
-    gspWaitForVBlank();
-}
-
 void Render::deInit() {
 #ifdef ENABLE_CLOUDVARS
     free(SOC_buffer);
@@ -557,7 +470,7 @@ void Render::deInit() {
             free((Tex3DS_SubTexture *)data.image.subtex);
         }
     }
-    Image::imageRGBAS.clear();
+    imageRGBAS.clear();
     SoundPlayer::cleanupAudio();
     SDL_Quit();
     romfsExit();

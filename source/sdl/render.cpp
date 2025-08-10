@@ -13,13 +13,21 @@
 #include <whb/sdcard.h>
 #endif
 
+#ifdef __OGC__
+#include <fat.h>
+#include <romfs-ogc.h>
+#endif
+
 int windowWidth = 480;
 int windowHeight = 360;
 SDL_Window *window = nullptr;
 SDL_Renderer *renderer = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
+bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
+std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
+std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;
@@ -41,6 +49,16 @@ bool Render::Init() {
     nn::act::Initialize();
     windowWidth = 854;
     windowHeight = 480;
+#elif defined(__OGC__)
+    SYS_STDIO_Report(true);
+
+    fatInitDefault();
+    windowWidth = 640;
+    windowHeight = 480;
+    if (romfsInit()) {
+        Log::logError("Failed to init romfs.");
+        return false;
+    }
 #endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
@@ -74,6 +92,37 @@ void Render::deInit() {
     WHBUnmountSdCard();
     nn::act::Finalize();
 #endif
+#ifdef __OGC__
+    romfsExit();
+#endif
+}
+
+void *Render::getRenderer() {
+    return static_cast<void *>(renderer);
+}
+
+int Render::getWidth() {
+    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+    return windowWidth;
+}
+int Render::getHeight() {
+    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+    return windowHeight;
+}
+
+void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    if (!hasFrameBegan) {
+        SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, 255);
+        SDL_RenderClear(renderer);
+        hasFrameBegan = true;
+    }
+}
+
+void Render::endFrame() {
+    SDL_RenderPresent(renderer);
+    SDL_Delay(16);
+    Image::FlushImages();
+    hasFrameBegan = false;
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -137,7 +186,7 @@ void Render::renderSprites() {
         }
         if (!legacyDrawing) {
             SDL_Image *image = imgFind->second;
-            image->freeTimer = 240;
+            image->freeTimer = image->maxFreeTime;
             SDL_RendererFlip flip = SDL_FLIP_NONE;
 
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
@@ -236,7 +285,6 @@ void Render::renderVisibleVariables() {
             std::string renderText = BlockExecutor::getMonitorValue(var).asString();
             if (monitorTexts.find(var.id) == monitorTexts.end()) {
                 monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
-                monitorTexts[var.id]->setRenderer(renderer);
             } else {
                 monitorTexts[var.id]->setText(renderText);
             }
@@ -259,12 +307,12 @@ void Render::renderVisibleVariables() {
 }
 
 bool Render::appShouldRun() {
+    if (toExit) return false;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
             return false;
-            break;
         case SDL_CONTROLLERDEVICEADDED:
             controller = SDL_GameControllerOpen(0);
             break;
@@ -292,126 +340,4 @@ void LoadingScreen::init() {
 void LoadingScreen::renderLoadingScreen() {
 }
 void LoadingScreen::cleanup() {
-}
-
-void MainMenu::init() {
-
-    Input::applyControls();
-
-    std::vector<std::string> projectFiles;
-#ifdef __WIIU__
-    projectFiles = Unzip::getProjectFiles(std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/");
-#else
-    projectFiles = Unzip::getProjectFiles(".");
-#endif
-
-    int yPosition = 120;
-    for (std::string &file : projectFiles) {
-        TextObject *text = createTextObject(file, 0, yPosition);
-        text->setRenderer(renderer);
-        text->setColor(0xFF000000);
-        text->y -= text->getSize()[1] / 2;
-        if (text->getSize()[0] > windowWidth) {
-            float scale = (float)windowWidth / (text->getSize()[0] * 1.15);
-            text->setScale(scale);
-        }
-        projectTexts.push_back(text);
-        yPosition += 50;
-    }
-
-    if (projectFiles.size() == 0) {
-        std::string errorText;
-#ifdef __WIIU__
-        errorText = "No Scratch projects found!\n Go download a Scratch project and put it\n in sdcard:/wiiu/scratch-wiiu!\nPress Start to exit.";
-#else
-        errorText = "No Scratch projects found!\n Go download a Scratch project and put it\n in the same folder as this executable!\nPress Start to exit.";
-#endif
-        errorTextInfo = createTextObject(errorText,
-                                         windowWidth / 2, windowWidth / 2);
-        errorTextInfo->setRenderer(renderer);
-        errorTextInfo->setScale(0.6);
-        hasProjects = false;
-        shouldExit = false;
-    } else {
-        selectedText = projectTexts.front();
-        hasProjects = true;
-    }
-}
-void MainMenu::render() {
-
-    // use scratch input instead of direct SDL input because uhhhh lazy 😁
-    Input::getInput();
-    bool upPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "up arrow") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
-    bool downPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "down arrow") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
-    bool aPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "a") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
-    bool startPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "1") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
-
-    if (hasProjects) {
-
-        if (downPressed) {
-            if (selectedTextIndex < (int)projectTexts.size() - 1) {
-                selectedTextIndex++;
-                selectedText = projectTexts[selectedTextIndex];
-            }
-        }
-        if (upPressed) {
-            if (selectedTextIndex > 0) {
-                selectedTextIndex--;
-                selectedText = projectTexts[selectedTextIndex];
-            }
-        }
-        cameraY = selectedText->y;
-        cameraX = windowWidth / 2;
-
-        if (aPressed) {
-            Unzip::filePath = selectedText->getText();
-        }
-    } else {
-
-        if (startPressed) {
-            shouldExit = true;
-        }
-    }
-
-    // begin frame
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-    SDL_SetRenderDrawColor(renderer, 71, 107, 115, 255);
-    SDL_RenderClear(renderer);
-
-    auto now = std::chrono::steady_clock::now();
-    std::chrono::duration<float> elapsed = now - logoStartTime;
-
-    for (TextObject *text : projectTexts) {
-        if (text == nullptr) continue;
-
-        if (selectedText == text)
-            text->setColor(0xFFFFFFFF);
-        else
-            text->setColor(0x000000FF);
-
-        text->render(text->x + cameraX, text->y - (cameraY - (windowHeight / 2)));
-    }
-
-    if (errorTextInfo != nullptr) {
-        errorTextInfo->render(errorTextInfo->x, errorTextInfo->y);
-    }
-
-    SDL_RenderPresent(renderer);
-    SDL_Delay(16);
-}
-void MainMenu::cleanup() {
-    for (TextObject *text : projectTexts) {
-        delete text;
-    }
-    projectTexts.clear();
-
-    selectedText = nullptr;
-    if (errorTextInfo) delete errorTextInfo;
-
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-    SDL_SetRenderDrawColor(renderer, 71, 107, 115, 255);
-    SDL_RenderClear(renderer);
-
-    SDL_RenderPresent(renderer);
-    SDL_Delay(16);
 }

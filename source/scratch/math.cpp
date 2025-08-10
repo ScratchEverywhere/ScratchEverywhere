@@ -1,4 +1,23 @@
 #include "math.hpp"
+#ifdef __3DS__
+#include <citro2d.h>
+#endif
+
+int Math::color(int r, int g, int b, int a) {
+    r = std::clamp(r, 0, 255);
+    g = std::clamp(g, 0, 255);
+    b = std::clamp(b, 0, 255);
+    a = std::clamp(a, 0, 255);
+
+#ifdef __3DS__
+    return C2D_Color32(r, g, b, a);
+#elif defined(SDL_BUILD)
+    return (r << 24) |
+           (g << 16) |
+           (b << 8) |
+           a;
+#endif
+}
 
 bool Math::isNumber(const std::string &str) {
     // i rewrote this function like 5 times vro if ts dont work...
