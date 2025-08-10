@@ -16,7 +16,13 @@ class SDL_Image {
     int height;
     bool isSVG = false;
     float rotation = 0.0f;
-    int freeTimer = 120;
+#ifdef GAMECUBE
+    int maxFreeTime = 15;
+#else
+    int maxFreeTime = 240;
+#endif
+
+    int freeTimer = maxFreeTime;
 
     /**
      * Scales an image by a scale factor.

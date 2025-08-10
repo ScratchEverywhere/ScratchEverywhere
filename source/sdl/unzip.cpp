@@ -19,7 +19,7 @@ int Unzip::openFile(std::ifstream *file) {
     std::string filename = "project.sb3";
     std::string unzippedPath = "project/project.json";
 
-#if defined(__WIIU__) || defined(__SWITCH__)
+#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
     file->open("romfs:/" + unzippedPath, std::ios::binary | std::ios::ate);
 #else
     file->open(unzippedPath, std::ios::binary | std::ios::ate);
@@ -28,7 +28,7 @@ int Unzip::openFile(std::ifstream *file) {
     if (!(*file)) {
         Log::logWarning("No unzipped project, trying embedded.");
 
-#if defined(__WIIU__) || defined(__SWITCH__)
+#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
         file->open("romfs:/" + filename, std::ios::binary | std::ios::ate);
 #else
         file->open(filePath, std::ios::binary | std::ios::ate);
@@ -44,13 +44,18 @@ int Unzip::openFile(std::ifstream *file) {
             file->open("/switch/scratch-nx/" + filename, std::ios::binary | std::ios::ate);
 #endif
             if (!(*file)) {
+                projectType = UNEMBEDDED;
                 // if main menu hasn't been loaded yet, load it
                 if (filePath == "") {
                     Log::log("Activating main menu...");
                     return -1;
                 } else {
-                    Log::logError("Couldn't find file. jinkies.");
-                    return 0;
+
+                    file->open(filePath, std::ios::binary | std::ios::ate);
+                    if (!(*file)) {
+                        Log::logError("Couldn't find file. jinkies.");
+                        return 0;
+                    }
                 }
             }
 #if defined(__WIIU__) || defined(__SWITCH__)

@@ -191,7 +191,6 @@ BlockResult ControlBlocks::startAsClone(Block &block, Sprite *sprite, bool *with
 }
 
 BlockResult ControlBlocks::wait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
     }
@@ -206,16 +205,13 @@ BlockResult ControlBlocks::wait(Block &block, Sprite *sprite, bool *withoutScree
             block.waitDuration = 0;
         }
 
-        block.waitStartTime = std::chrono::high_resolution_clock::now();
-
+        block.waitTimer.start();
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - block.waitStartTime).count();
     block.repeatTimes -= 1;
 
-    if (elapsedTime >= block.waitDuration && block.repeatTimes <= -4) {
+    if (block.waitTimer.hasElapsed(block.waitDuration) && block.repeatTimes <= -4) {
         block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;

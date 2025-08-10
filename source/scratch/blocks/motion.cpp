@@ -120,7 +120,6 @@ BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreen
 }
 
 BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
     }
@@ -130,12 +129,12 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
 
         Value duration = Scratch::getInputValue(block, "SECS", sprite);
         if (duration.isNumeric()) {
-            block.waitDuration = duration.asDouble() * 1000;
+            block.waitDuration = duration.asDouble() * 1000; // milliseconds
         } else {
             block.waitDuration = 0;
         }
 
-        block.waitStartTime = std::chrono::high_resolution_clock::now();
+        block.waitTimer.start();
         block.glideStartX = sprite->xPosition;
         block.glideStartY = sprite->yPosition;
 
@@ -148,8 +147,7 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
         BlockExecutor::addToRepeatQueue(sprite, const_cast<Block *>(&block));
     }
 
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - block.waitStartTime).count();
+    int elapsedTime = block.waitTimer.getTimeMs();
 
     if (elapsedTime >= block.waitDuration) {
         sprite->xPosition = block.glideEndX;
@@ -182,12 +180,12 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
 
         Value duration = Scratch::getInputValue(block, "SECS", sprite);
         if (duration.isNumeric()) {
-            block.waitDuration = duration.asDouble() * 1000;
+            block.waitDuration = duration.asDouble() * 1000; // Convert to milliseconds
         } else {
             block.waitDuration = 0;
         }
 
-        block.waitStartTime = std::chrono::high_resolution_clock::now();
+        block.waitTimer.start();
         block.glideStartX = sprite->xPosition;
         block.glideStartY = sprite->yPosition;
 
@@ -222,8 +220,7 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
         BlockExecutor::addToRepeatQueue(sprite, const_cast<Block *>(&block));
     }
 
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - block.waitStartTime).count();
+    int elapsedTime = block.waitTimer.getTimeMs();
 
     if (elapsedTime >= block.waitDuration) {
         sprite->xPosition = block.glideEndX;

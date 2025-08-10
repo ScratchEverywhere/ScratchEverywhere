@@ -8,6 +8,7 @@
 #define SCREEN_HEIGHT 240
 
 std::vector<std::string> Input::inputButtons;
+std::map<std::string, std::string> Input::inputControls;
 Input::Mouse Input::mousePointer;
 int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
@@ -45,70 +46,70 @@ void Input::getInput() {
         keyHeldFrames += 1;
         inputButtons.push_back("any");
         if (kDown & KEY_A) {
-            inputButtons.push_back("a");
+            Input::buttonPress("A");
         }
         if (kDown & KEY_B) {
-            inputButtons.push_back("b");
+            Input::buttonPress("B");
         }
         if (kDown & KEY_X) {
-            inputButtons.push_back("x");
+            Input::buttonPress("X");
         }
         if (kDown & KEY_Y) {
-            inputButtons.push_back("y");
+            Input::buttonPress("Y");
         }
         if (kDown & KEY_SELECT) {
-            inputButtons.push_back("0");
+            Input::buttonPress("back");
         }
         if (kDown & KEY_START) {
-            inputButtons.push_back("1");
+            Input::buttonPress("start");
         }
         if (kDown & KEY_DUP) {
-            inputButtons.push_back("u");
+            Input::buttonPress("dpadUp");
         }
         if (kDown & KEY_DDOWN) {
-            inputButtons.push_back("h");
+            Input::buttonPress("dpadDown");
         }
         if (kDown & KEY_DLEFT) {
-            inputButtons.push_back("g");
+            Input::buttonPress("dpadLeft");
         }
         if (kDown & KEY_DRIGHT) {
-            inputButtons.push_back("j");
+            Input::buttonPress("dpadRight");
         }
         if (kDown & KEY_L) {
-            inputButtons.push_back("l");
+            Input::buttonPress("shoulderL");
         }
         if (kDown & KEY_R) {
-            inputButtons.push_back("r");
+            Input::buttonPress("shoulderR");
         }
         if (kDown & KEY_ZL) {
-            inputButtons.push_back("z");
+            Input::buttonPress("LT");
         }
         if (kDown & KEY_ZR) {
-            inputButtons.push_back("f");
+            Input::buttonPress("RT");
         }
         if (kDown & KEY_CPAD_UP) {
-            inputButtons.push_back("up arrow");
+            Input::buttonPress("LeftStickUp");
         }
         if (kDown & KEY_CPAD_DOWN) {
-            inputButtons.push_back("down arrow");
+            Input::buttonPress("LeftStickDown");
         }
         if (kDown & KEY_CPAD_LEFT) {
-            inputButtons.push_back("left arrow");
+            Input::buttonPress("LeftStickLeft");
         }
         if (kDown & KEY_CPAD_RIGHT) {
-            inputButtons.push_back("right arrow");
+            Input::buttonPress("LeftStickRight");
         }
         if (kDown & KEY_CSTICK_UP) {
-            inputButtons.push_back("2");
+            Input::buttonPress("RightStickUp");
         }
         if (kDown & KEY_CSTICK_DOWN) {
-            inputButtons.push_back("3");
+            Input::buttonPress("RightStickDown");
         }
         if (kDown & KEY_CSTICK_LEFT) {
-            inputButtons.push_back("4");
+            Input::buttonPress("RightStickLeft");
         }
         if (kDown & KEY_CSTICK_RIGHT) {
-            inputButtons.push_back("5");
+            Input::buttonPress("RightStickRight");
         }
         if (kDown & KEY_TOUCH) {
 

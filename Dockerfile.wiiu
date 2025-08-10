@@ -34,7 +34,7 @@ WORKDIR /app
 COPY --from=mistpp_installer /opt/devkitpro/portlibs/wiiu/ /opt/devkitpro/portlibs/wiiu/
 COPY . .
 
-RUN make PLATFORM=wiiu all package
+RUN make PLATFORM=wiiu ENABLE_CLOUDVARS=1
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/wiiu/scratch-wiiu /scratch-wiiu

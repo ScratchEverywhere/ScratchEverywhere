@@ -1,6 +1,8 @@
 #include "interpret.hpp"
+#include "input.hpp"
 #include "os.hpp"
 #include "render.hpp"
+#include "unzip.hpp"
 
 std::vector<Sprite *> sprites;
 std::vector<Sprite> spritePool;
@@ -512,10 +514,14 @@ void loadSprites(const nlohmann::json &json) {
     else
         Render::renderMode = Render::TOP_SCREEN_ONLY;
 
-    // if unzipped, load initial sprites
+    // load initial sprite images
     if (projectType == UNZIPPED) {
         for (auto &currentSprite : sprites) {
             Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        }
+    } else {
+        for (auto &currentSprite : sprites) {
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
         }
     }
 
@@ -540,6 +546,7 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
+    Input::applyControls();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }
 

@@ -13,15 +13,18 @@ body:
   - type: dropdown
     id: devices
     attributes:
-      label: "Device"
-      description: What device is this feature request for? (e.g., Old 3DS, New 3DS, Wii U). Please select at least one.
-      multiple: false
+      label: "Device(s)"
+      description: What device(s) are you requesting this feature for?. Please select at least one.
+      multiple: true
       options:
-        - 3DS
+        - New 3DS
+        - Old 3DS
         - Wii U
-        - Both
+        - Wii
+        - GameCube
+        - PC
     validations:
-      required: true
+      required: false
   - type: textarea
     id: additional-context
     attributes:

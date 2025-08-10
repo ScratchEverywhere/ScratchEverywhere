@@ -1,15 +1,26 @@
 #pragma once
+#include "interpret.hpp"
 #include "sprite.hpp"
 #include "text.hpp"
 #include <chrono>
 #include <cmath>
 #include <vector>
 
+#ifdef __OGC__
+#include <ogc/lwp_watchdog.h>
+#include <ogc/system.h>
+#endif
+
 class Render {
   public:
+    static std::chrono::_V2::system_clock::time_point startTime;
+    static std::chrono::_V2::system_clock::time_point endTime;
+
     static bool Init();
 
     static void deInit();
+
+    static void *getRenderer();
 
     /**
      * Renders every sprite to the screen.
@@ -23,6 +34,16 @@ class Render {
      * If `false`, the app should close.
      */
     static bool appShouldRun();
+
+    /**
+     * Returns whether or not enough time has passed to advance a frame.
+     * @return True if we should go to the next frame, False otherwise.
+     */
+    static bool checkFramerate() {
+        static Timer frameTimer;
+        int frameDuration = 1000 / Scratch::FPS;
+        return frameTimer.hasElapsedAndRestart(frameDuration);
+    }
 
     enum RenderModes {
         TOP_SCREEN_ONLY,

@@ -2,6 +2,10 @@
 #include "os.hpp"
 #include <filesystem>
 #include <fstream>
+#ifdef GAMECUBE
+#include <dirent.h>
+#include <gccore.h>
+#endif
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string projectJSON;
@@ -42,10 +46,28 @@ class Unzip {
         return;
     }
 
+#ifdef GAMECUBE
+    // use libogc for gamecube because i guess it doesn't support std::filesystem
     static std::vector<std::string> getProjectFiles(const std::string directory) {
-
         std::vector<std::string> projectFiles;
+        DIR *dir = opendir(directory.c_str());
+        if (dir == nullptr) {
+            return projectFiles; // Return empty if directory can't be opened
+        }
 
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            std::string fileName = entry->d_name;
+            if (fileName.length() > 4 && fileName.substr(fileName.length() - 4) == ".sb3") {
+                projectFiles.push_back(fileName);
+            }
+        }
+        closedir(dir);
+        return projectFiles;
+    }
+#else
+    static std::vector<std::string> getProjectFiles(const std::string directory) {
+        std::vector<std::string> projectFiles;
         for (const auto &entry : std::filesystem::directory_iterator(directory)) {
             if (entry.is_regular_file() && entry.path().extension() == ".sb3") {
                 std::string fileName = entry.path().filename().string();
@@ -54,6 +76,7 @@ class Unzip {
         }
         return projectFiles;
     }
+#endif
 
     static nlohmann::json unzipProject(std::ifstream *file) {
 

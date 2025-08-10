@@ -8,7 +8,6 @@
 #include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
-#include "spriteSheet.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
 
@@ -29,8 +28,8 @@ u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
 u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
 u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
-std::chrono::_V2::system_clock::time_point startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point endTime = std::chrono::high_resolution_clock::now();
+std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
+std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 std::vector<Monitor> Render::visibleVariables;
@@ -66,10 +65,10 @@ bool Render::Init() {
 #endif
 
     romfsInit();
-    // waiting for beta 12 to enable,,
+    // waiting for beta 12 to enable,, <- its beta 17 why is this comment still here 😭
     SDL_Init(SDL_INIT_AUDIO);
     // Initialize SDL_mixer
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
         Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
         // not returning false since emulators by default will error here
     }
@@ -82,7 +81,12 @@ bool Render::Init() {
 }
 
 bool Render::appShouldRun() {
+    if (toExit) return false;
     return aptMainLoop();
+}
+
+void *Render::getRenderer() {
+    return nullptr;
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -117,7 +121,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     bool isSVG = false;
     double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
     bool imageLoaded = false;
-    for (Image::ImageRGBA rgba : Image::imageRGBAS) {
+    for (imageRGBA rgba : imageRGBAS) {
         if (rgba.name == costumeId) {
 
             if (rgba.isSVG) isSVG = true;
@@ -127,10 +131,10 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
             if (imageC2Ds.find(costumeId) == imageC2Ds.end() || image->tex == nullptr || image->subtex == nullptr) {
 
-                auto rgbaFind = std::find_if(Image::imageRGBAS.begin(), Image::imageRGBAS.end(),
-                                             [&](const Image::ImageRGBA &rgba) { return rgba.name == costumeId; });
+                auto rgbaFind = std::find_if(imageRGBAS.begin(), imageRGBAS.end(),
+                                             [&](const imageRGBA &rgba) { return rgba.name == costumeId; });
 
-                if (rgbaFind != Image::imageRGBAS.end()) {
+                if (rgbaFind != imageRGBAS.end()) {
                     imageLoaded = queueC2DImage(*rgbaFind);
                 } else {
                     imageLoaded = false;
@@ -415,7 +419,7 @@ void LoadingScreen::cleanup() {
 #endif
 }
 
-SpriteSheetObject *logo;
+Image *logo;
 
 void MainMenu::init() {
 
@@ -444,7 +448,7 @@ void MainMenu::init() {
         hasProjects = true;
     }
 
-    logo = new SpriteSheetObject("romfs:/gfx/menuElements.t3x", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+    logo = new Image("gfx/logo.png");
     infoText = createTextObject("Runtime by NateXS", 340, 225);
     infoText->setScale(0.5);
 }
@@ -491,7 +495,7 @@ void MainMenu::render() {
     float timeSeconds = elapsed.count();
     float bobbingOffset = std::sin(timeSeconds * 2.0f) * 5.0f; // speed * amplitude
 
-    logo->render(logo->x, (SCREEN_HEIGHT / 2) + bobbingOffset);
+    logo->render(logo->getWidth() / 8, (SCREEN_HEIGHT * 0.4) + bobbingOffset);
     infoText->render(infoText->x, infoText->y);
 
     C2D_TargetClear(bottomScreen, clrScratchBlue);
@@ -557,7 +561,7 @@ void Render::deInit() {
             free((Tex3DS_SubTexture *)data.image.subtex);
         }
     }
-    Image::imageRGBAS.clear();
+    imageRGBAS.clear();
     SoundPlayer::cleanupAudio();
     SDL_Quit();
     romfsExit();

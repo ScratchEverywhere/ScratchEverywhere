@@ -8,6 +8,10 @@ else ifeq ($(PLATFORM),wiiu)
     include Makefile_wiiu
 else ifeq ($(PLATFORM),switch)
     include Makefile_switch
+else ifeq ($(PLATFORM),wii)
+    include Makefile_wii
+else ifeq ($(PLATFORM),gamecube)
+    include Makefile_gamecube
 else
     $(error Unknown platform: $(PLATFORM))
 endif

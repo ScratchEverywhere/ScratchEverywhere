@@ -30,12 +30,14 @@ body:
     id: devices
     attributes:
       label: "Device(s)"
-      description: What device(s) are you experiencing this on? (e.g., Old 3DS, New 3DS, Wii U). Please select at least one.
+      description: What device(s) are you experiencing this on?. Please select at least one.
       multiple: true
       options:
         - New 3DS
         - Old 3DS
         - Wii U
+        - Wii
+        - GameCube
         - PC
     validations:
       required: true

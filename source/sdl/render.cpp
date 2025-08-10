@@ -19,6 +19,11 @@
 char nickname[0x21];
 #endif
 
+#ifdef __OGC__
+#include <fat.h>
+#include <romfs-ogc.h>
+#endif
+
 int windowWidth = 480;
 int windowHeight = 360;
 SDL_Window *window = nullptr;
@@ -26,6 +31,8 @@ SDL_Renderer *renderer = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 std::vector<Monitor> Render::visibleVariables;
+std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
+std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;
@@ -95,6 +102,16 @@ bool Render::Init() {
     accountProfileClose(&profile);
     accountExit();
 postAccount:
+#elif defined(__OGC__)
+    SYS_STDIO_Report(true);
+
+    fatInitDefault();
+    windowWidth = 640;
+    windowHeight = 480;
+    if (romfsInit()) {
+        Log::logError("Failed to init romfs.");
+        return false;
+    }
 #endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
@@ -130,6 +147,13 @@ void Render::deInit() {
     WHBUnmountSdCard();
     nn::act::Finalize();
 #endif
+#ifdef __OGC__
+    romfsExit();
+#endif
+}
+
+void *Render::getRenderer() {
+    return static_cast<void *>(renderer);
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -193,6 +217,7 @@ void Render::renderSprites() {
         }
         if (!legacyDrawing) {
             SDL_Image *image = imgFind->second;
+            image->freeTimer = image->maxFreeTime;
             SDL_RendererFlip flip = SDL_FLIP_NONE;
 
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
@@ -262,6 +287,7 @@ void Render::renderSprites() {
     renderVisibleVariables();
 
     SDL_RenderPresent(renderer);
+    Image::FlushImages();
 }
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
@@ -290,7 +316,6 @@ void Render::renderVisibleVariables() {
             std::string renderText = BlockExecutor::getMonitorValue(var).asString();
             if (monitorTexts.find(var.id) == monitorTexts.end()) {
                 monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
-                monitorTexts[var.id]->setRenderer(renderer);
             } else {
                 monitorTexts[var.id]->setText(renderText);
             }
@@ -313,12 +338,12 @@ void Render::renderVisibleVariables() {
 }
 
 bool Render::appShouldRun() {
+    if (toExit) return false;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
             return false;
-            break;
         case SDL_CONTROLLERDEVICEADDED:
             controller = SDL_GameControllerOpen(0);
             break;
@@ -350,6 +375,8 @@ void LoadingScreen::cleanup() {
 
 void MainMenu::init() {
 
+    Input::applyControls();
+
     std::vector<std::string> projectFiles;
 #ifdef __WIIU__
     projectFiles = Unzip::getProjectFiles(std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/");
@@ -360,7 +387,6 @@ void MainMenu::init() {
     int yPosition = 120;
     for (std::string &file : projectFiles) {
         TextObject *text = createTextObject(file, 0, yPosition);
-        text->setRenderer(renderer);
         text->setColor(0xFF000000);
         text->y -= text->getSize()[1] / 2;
         if (text->getSize()[0] > windowWidth) {
@@ -376,11 +402,10 @@ void MainMenu::init() {
 #ifdef __WIIU__
         errorText = "No Scratch projects found!\n Go download a Scratch project and put it\n in sdcard:/wiiu/scratch-wiiu!\nPress Start to exit.";
 #else
-        errorText = "No Scratch projects found!\n Go download a Scratch project and put it\n in the same folder as this executable!\nPress Start to exit.";
+        errorText = "No Scratch projects found! Start to exit";
 #endif
         errorTextInfo = createTextObject(errorText,
                                          windowWidth / 2, windowWidth / 2);
-        errorTextInfo->setRenderer(renderer);
         errorTextInfo->setScale(0.6);
         hasProjects = false;
         shouldExit = false;
@@ -393,9 +418,18 @@ void MainMenu::render() {
 
     // use scratch input instead of direct SDL input because uhhhh lazy 😁
     Input::getInput();
-    bool upPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "up arrow") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
-    bool downPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "down arrow") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
-    bool aPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "a") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
+    bool upPressed = (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "up arrow") != Input::inputButtons.end() ||
+                      std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "g") != Input::inputButtons.end()) &&
+                     Input::keyHeldFrames < 2;
+
+    bool downPressed = (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "down arrow") != Input::inputButtons.end() ||
+                        std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "j") != Input::inputButtons.end()) &&
+                       Input::keyHeldFrames < 2;
+
+    bool aPressed = (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "a") != Input::inputButtons.end() ||
+                     std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "x") != Input::inputButtons.end()) &&
+                    Input::keyHeldFrames < 2;
+
     bool startPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "1") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
 
     if (hasProjects) {

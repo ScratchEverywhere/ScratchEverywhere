@@ -3,7 +3,7 @@
 #include "../keyboard.hpp"
 
 BlockResult SensingBlocks::resetTimer(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    BlockExecutor::timer = std::chrono::high_resolution_clock::now();
+    BlockExecutor::timer.start();
     return BlockResult::CONTINUE;
 }
 
@@ -29,9 +29,7 @@ BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, bool *witho
 }
 
 Value SensingBlocks::sensingTimer(Block &block, Sprite *sprite) {
-    auto now = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(now - BlockExecutor::timer).count();
-    return Value(elapsed);
+    return Value(BlockExecutor::timer.getTimeMs() / 1000.0);
 }
 
 Value SensingBlocks::of(Block &block, Sprite *sprite) {
@@ -55,9 +53,7 @@ Value SensingBlocks::of(Block &block, Sprite *sprite) {
     if (!spriteObject) return Value(0);
 
     if (value == "timer") {
-        auto now = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(now - BlockExecutor::timer).count();
-        return Value(elapsed);
+        return Value(BlockExecutor::timer.getTimeMs() / 1000);
     } else if (value == "x position") {
         return Value(spriteObject->xPosition);
     } else if (value == "y position") {
