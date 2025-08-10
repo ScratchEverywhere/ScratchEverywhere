@@ -24,6 +24,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Create `romfs` directory
+        run: mkdir romfs
       - name: Build and Export
         uses: docker/build-push-action@v5
         with:
