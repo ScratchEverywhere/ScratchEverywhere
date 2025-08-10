@@ -6,10 +6,12 @@ on:
       - Makefile_switch
       - source/scratch/**
       - source/sdl/**
-      - gfx/**
+      - gfx/*
       - include/**
       - .github/workflows/nightly-switch.yml
       - Dockerfile.switch
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
