@@ -15,7 +15,6 @@ class MainMenu {
     TextObject *selectedText = nullptr;
     TextObject *infoText = nullptr;
     TextObject *errorTextInfo = nullptr;
-    TextObject *authorText = nullptr;
     int selectedTextIndex = 0;
 
     void init();

@@ -29,8 +29,8 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
     buttonTexture = new MenuImage(filePath);
 }
 
-bool ButtonObject::isPressed() {
-    if (isSelected && Input::isKeyJustPressed("a")) {
+bool ButtonObject::isPressed(std::string pressButton) {
+    if (isSelected && Input::isKeyJustPressed(pressButton)) {
         return true;
     }
     std::vector<int> touchPos = Input::getTouchPosition();

@@ -18,8 +18,7 @@ void MainMenu::init() {
     Input::applyControls();
 
     logo = new MenuImage("gfx/logo.png");
-    authorText = createTextObject("Runtime by NateXS", 0, 0);
-    authorText->setScale(0.5);
+    logo->x = 200;
 
     hasProjects = true;
     logoStartTime.start();
@@ -43,16 +42,13 @@ void MainMenu::render() {
     // begin frame
     Render::beginFrame(0, 71, 107, 115);
 
+    // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
     float bobbingOffset = std::sin(elapsed * 0.0025f) * 5.0f;
-
-    logo->x = 200;
     logo->y = 75 + bobbingOffset;
-
     logo->render();
-    authorText->render(Render::getWidth() * 0.84, Render::getHeight() * 0.94);
 
-    // begin bottom screen frame (3DS only)
+    // begin 3DS bottom screen frame
     Render::beginFrame(1, 71, 107, 115);
 
     if (loadButton->isPressed()) {
@@ -66,24 +62,6 @@ void MainMenu::render() {
     settingsButton->render();
     mainMenuControl->render();
 
-    // Log::log(std::to_string(loadButton->isPressed()));
-    // Log::log(std::to_string(Input::getTouchPosition()[0]) + " , " + std::to_string(Input::getTouchPosition()[1]));
-
-    for (TextObject *text : projectTexts) {
-        if (text == nullptr) continue;
-
-        if (selectedText == text)
-            text->setColor(Math::color(255, 255, 255, 255));
-        else
-            text->setColor(Math::color(0, 0, 0, 255));
-
-        text->render(text->x + cameraX, text->y - (cameraY - (Render::getHeight() / 2)));
-    }
-
-    if (errorTextInfo != nullptr) {
-        errorTextInfo->render(errorTextInfo->x, errorTextInfo->y);
-    }
-
     Render::endFrame();
 }
 void MainMenu::cleanup() {
@@ -96,7 +74,6 @@ void MainMenu::cleanup() {
     if (errorTextInfo) delete errorTextInfo;
 
     delete logo;
-    delete authorText;
 
     Render::beginFrame(0, 71, 107, 115);
     Render::endFrame();
