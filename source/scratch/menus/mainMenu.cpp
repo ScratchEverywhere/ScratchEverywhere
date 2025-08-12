@@ -147,8 +147,8 @@ void ProjectMenu::render() {
         return;
     }
 
-    float targetY = projectControl->selectedObject->y;
-    float lerpSpeed = 0.1f;
+    const float targetY = projectControl->selectedObject->y;
+    const float lerpSpeed = 0.1f;
 
     cameraY = cameraY + (targetY - cameraY) * lerpSpeed;
     cameraX = 200;
@@ -165,8 +165,21 @@ void ProjectMenu::render() {
         else
             project->text->setColor(Math::color(0, 0, 0, 255));
 
-        double xPos = project->x + cameraX;
-        double yPos = project->y - (cameraY - cameraYOffset);
+        const double xPos = project->x + cameraX;
+        const double yPos = project->y - (cameraY - cameraYOffset);
+
+        // Calculate target scale based on distance
+        const double distance = abs(project->y - targetY);
+        const int maxDistance = 500;
+        float targetScale;
+        if (distance <= maxDistance) {
+            targetScale = 1.0f - (distance / static_cast<float>(maxDistance));
+        } else {
+            targetScale = 0.0f;
+        }
+
+        // Interpolate scale smoothly (using the same lerp speed as camera)
+        project->scale = project->scale + (targetScale - project->scale) * lerpSpeed;
 
         project->render(xPos, yPos);
     }
