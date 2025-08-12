@@ -85,7 +85,7 @@ bool Render::Init() {
 void Render::deInit() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
-    SoundPlayer::cleanupAudio();
+    SoundPlayer::deinit();
     IMG_Quit();
     SDL_Quit();
 

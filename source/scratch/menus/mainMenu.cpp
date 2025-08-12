@@ -7,6 +7,34 @@
 #include <whb/sdcard.h>
 #endif
 
+bool MainMenu::activateMainMenu() {
+
+    MainMenu menu;
+    bool isLoaded = false;
+    while (!isLoaded) {
+
+        menu.render();
+        if (!Render::appShouldRun() || menu.shouldExit) {
+            Log::logWarning("app should exit. closing app.");
+            return false;
+        }
+
+        if (Unzip::filePath != "") {
+            if (!Unzip::load()) {
+                Log::logWarning("Could not load project. closing app.");
+                return false;
+            }
+            isLoaded = true;
+        }
+    }
+    if (!Render::appShouldRun()) {
+        Log::logWarning("app should exit. closing app.");
+        menu.cleanup();
+        return false;
+    }
+    return true;
+}
+
 void MainMenu::init() {
 
     Input::applyControls();

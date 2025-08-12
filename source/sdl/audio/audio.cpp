@@ -473,6 +473,15 @@ void SoundPlayer::cleanupAudio() {
         MemoryTracker::deallocate<SDL_Audio>(pair.second);
     }
     SDL_Sounds.clear();
+
+#endif
+}
+
+void SoundPlayer::deinit() {
+#ifdef ENABLE_AUDIO
+    Mix_HaltMusic();
+    Mix_HaltChannel(-1);
+    cleanupAudio();
     Mix_CloseAudio();
     Mix_Quit();
 #endif

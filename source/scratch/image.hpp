@@ -54,6 +54,8 @@ class Image {
      */
     static void freeImage(const std::string &costumeId);
 
+    static void cleanupImages();
+
     /**
      * `3DS`: Queues a `C2D_Image` to be freed using `costumeId` to find it.
      *        The image will be freed once `FlushImages()` is called.

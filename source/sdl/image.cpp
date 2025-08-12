@@ -267,6 +267,12 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     images[imgId] = image;
 }
 
+void Image::cleanupImages() {
+    for (auto &[id, image] : images) {
+        queueFreeImage(id);
+    }
+}
+
 /**
  * Frees an `SDL_Image` from memory using a `costumeId` to find it.
  * @param costumeId
@@ -286,6 +292,8 @@ void Image::freeImage(const std::string &costumeId) {
         MemoryTracker::deallocate<SDL_Image>(image);
 
         images.erase(imageIt);
+    } else {
+        Log::logWarning("ummm couldn't find image to free: " + costumeId);
     }
 }
 

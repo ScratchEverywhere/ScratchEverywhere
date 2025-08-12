@@ -1,8 +1,29 @@
 #include "interpret.hpp"
+#include "audio.hpp"
 #include "input.hpp"
 #include "os.hpp"
 #include "render.hpp"
 #include "unzip.hpp"
+
+#if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
+#include <whb/sdcard.h>
+#endif
+
+#ifdef ENABLE_CLOUDVARS
+#include <mist/mist.hpp>
+#include <random>
+#include <sstream>
+
+const uint64_t FNV_PRIME_64 = 1099511628211ULL;
+const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
+
+std::string cloudUsername;
+
+std::string projectJSON;
+extern bool cloudProject;
+
+std::unique_ptr<MistConnection> cloudConnection = nullptr;
+#endif
 
 std::vector<Sprite *> sprites;
 std::vector<Sprite> spritePool;
@@ -23,6 +44,127 @@ bool Scratch::miscellaneousLimits = true;
 #ifdef ENABLE_CLOUDVARS
 bool cloudProject = false;
 #endif
+
+#ifdef ENABLE_CLOUDVARS
+void initMist() {
+    // Username Stuff
+
+#ifdef __WIIU__
+    std::ostringstream usernameFilenameStream;
+    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
+    std::string usernameFilename = usernameFilenameStream.str();
+#else
+    std::string usernameFilename = "cloud-username.txt";
+#endif
+
+    std::ifstream fileStream(usernameFilename.c_str());
+    if (!fileStream.good()) {
+        std::random_device rd;
+        std::ostringstream usernameStream;
+        usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
+        cloudUsername = usernameStream.str();
+        std::ofstream usernameFile;
+        usernameFile.open(usernameFilename);
+        usernameFile << cloudUsername;
+        usernameFile.close();
+    } else {
+        fileStream >> cloudUsername;
+    }
+    fileStream.close();
+
+    uint64_t projectHash = FNV_OFFSET_BASIS_64;
+    for (char c : projectJSON) {
+        projectHash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
+        projectHash *= FNV_PRIME_64;
+    }
+
+    std::ostringstream projectID;
+    projectID << "Scratch-3DS/hash-" << std::hex << std::setw(16) << std::setfill('0') << projectHash;
+    cloudConnection = std::make_unique<MistConnection>(projectID.str(), cloudUsername, "contact@grady.link");
+
+    cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
+        if (connected) {
+            Log::log("Mist++ Connected:");
+            Log::log(message);
+            return;
+        }
+        Log::log("Mist++ Disconnected:");
+        Log::log(message);
+    });
+
+    cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
+
+#if defined(__WIIU__) || defined(__3DS__)
+    cloudConnection->connect(false);
+#else
+    cloudConnection->connect();
+#endif
+}
+#endif
+
+bool Scratch::startScratchProject() {
+#ifdef ENABLE_CLOUDVARS
+    if (cloudProject && !projectJSON.empty()) initMist();
+#endif
+
+    BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHENFLAGCLICKED);
+    BlockExecutor::timer.start();
+
+    while (Render::appShouldRun()) {
+        if (Render::checkFramerate()) {
+            Input::getInput();
+            BlockExecutor::runRepeatBlocks();
+            BlockExecutor::runBroadcasts();
+            Render::renderSprites();
+
+            if (Input::isKeyJustPressed("1")) {
+                cleanupScratchProject();
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void Scratch::cleanupScratchProject() {
+    Image::cleanupImages();
+    SoundPlayer::cleanupAudio();
+    blockLookup.clear();
+    Render::visibleVariables.clear();
+
+    // Clean up ZIP archive if it was initialized
+    if (projectType != UNZIPPED) {
+        // Close the ZIP archive (this frees internal resources)
+        mz_zip_reader_end(&Unzip::zipArchive);
+
+        // Clear the ZIP buffer and deallocate its memory
+        size_t bufferSize = Unzip::zipBuffer.size();
+        Unzip::zipBuffer.clear();
+        Unzip::zipBuffer.shrink_to_fit(); // Force deallocation
+
+        // Update memory tracker for the buffer
+        if (bufferSize > 0) {
+            MemoryTracker::deallocate(nullptr, bufferSize);
+        }
+
+        // Reset the archive structure
+        memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
+    }
+
+#ifdef ENABLE_CLOUDVARS
+    projectJSON.clear();
+    projectJSON.shrink_to_fit();
+#endif
+
+    // reset default settings
+    Scratch::FPS = 30;
+    Scratch::projectWidth = 480;
+    Scratch::projectHeight = 360;
+    Scratch::fencing = true;
+    Scratch::miscellaneousLimits = true;
+    Render::renderMode = Render::TOP_SCREEN_ONLY;
+    Unzip::filePath = "";
+}
 
 void initializeSpritePool(int poolSize) {
     for (int i = 0; i < poolSize; i++) {
@@ -48,11 +190,13 @@ Sprite *getAvailableSprite() {
 
 void cleanupSprites() {
     for (Sprite *sprite : sprites) {
-        delete sprite;
+        if (sprite) {
+            sprite->~Sprite();
+            // MemoryTracker::deallocate(sprite, 1);
+        }
     }
-
-    spritePool.clear();
     sprites.clear();
+    spritePool.clear();
 }
 
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
@@ -133,7 +277,8 @@ void loadSprites(const nlohmann::json &json) {
     int count = 0;
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
-        Sprite *newSprite = MemoryTracker::allocate<Sprite>();
+        // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
+        Sprite *newSprite = new Sprite();
         new (newSprite) Sprite();
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();

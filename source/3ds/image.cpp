@@ -573,6 +573,12 @@ void Image::freeImage(const std::string &costumeId) {
     freeRGBA(costumeId);
 }
 
+void Image::cleanupImages() {
+    for (auto &[id, data] : imageC2Ds) {
+        queueFreeImage(id);
+    }
+}
+
 void freeRGBA(const std::string &imageName) {
     auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
         return img.name == imageName;

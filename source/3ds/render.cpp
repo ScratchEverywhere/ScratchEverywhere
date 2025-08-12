@@ -471,18 +471,8 @@ void Render::deInit() {
 
     C2D_Fini();
     C3D_Fini();
-    for (auto &[id, data] : imageC2Ds) {
-        if (data.image.tex) {
-            C3D_TexDelete(data.image.tex);
-            free(data.image.tex);
-        }
-
-        if (data.image.subtex) {
-            free((Tex3DS_SubTexture *)data.image.subtex);
-        }
-    }
-    imageRGBAS.clear();
-    SoundPlayer::cleanupAudio();
+    Image::cleanupImages();
+    SoundPlayer::deinit();
 #ifdef ENABLE_AUDIO
     SDL_Quit();
 #endif

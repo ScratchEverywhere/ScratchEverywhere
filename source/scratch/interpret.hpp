@@ -34,6 +34,9 @@ extern std::string answer;
 
 class Scratch {
   public:
+    static bool startScratchProject();
+    static void cleanupScratchProject();
+
     static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
 
     static void fenceSpriteWithinBounds(Sprite *sprite);

@@ -46,6 +46,7 @@ void Loading::render() {
     loadingStateText->setText(Unzip::loadingState);
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
 
+    Render::beginFrame(1, 0, 0, 0);
     Render::endFrame();
 }
 

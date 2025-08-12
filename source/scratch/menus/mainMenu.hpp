@@ -6,7 +6,7 @@
 class MainMenu {
   private:
   public:
-    bool shouldExit;
+    bool shouldExit = false;
 
     Timer logoStartTime;
     TextObject *selectedText = nullptr;
@@ -23,6 +23,7 @@ class MainMenu {
     void init();
     void render();
     void cleanup();
+    static bool activateMainMenu();
 
     MainMenu() {
         init();
