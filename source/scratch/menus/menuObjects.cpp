@@ -166,12 +166,10 @@ void ControlObject::input() {
 }
 
 void ControlObject::render(double xPos, double yPos) {
-    if (xPos == 0) xPos = x;
-    if (yPos == 0) yPos = y;
 
     if (selectedObject != nullptr) {
         // Get the button's scaled position (center point)
-        std::vector<double> buttonCenter = getScaledPosition(selectedObject->x, selectedObject->y);
+        std::vector<double> buttonCenter = getScaledPosition(selectedObject->x + xPos, selectedObject->y - yPos);
 
         // Calculate the scaled dimensions of the button
         double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);

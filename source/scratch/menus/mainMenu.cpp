@@ -49,10 +49,18 @@ void MainMenu::render() {
         ProjectMenu projectMenu;
         projectMenu.init();
 
-        while (!projectMenu.shouldGoBack && Render::appShouldRun()) {
+        while (!projectMenu.shouldGoBack) {
             projectMenu.render();
+
+            if (!Render::appShouldRun()) {
+                projectMenu.cleanup();
+                shouldExit = true;
+                projectMenu.shouldGoBack = true;
+                return;
+            }
         }
         projectMenu.cleanup();
+        if (Unzip::filePath != "") return;
         init();
     }
     if (settingsButton->isPressed()) {
@@ -129,9 +137,15 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
+    if (projectControl->selectedObject->isPressed()) {
+        Unzip::filePath = projectControl->selectedObject->text->getText();
+        shouldGoBack = true;
+        return;
+    }
+
     cameraY = projectControl->selectedObject->y;
     cameraX = 200;
-    // cameraY = 200;
+    const double cameraYOffset = 120;
 
     Render::beginFrame(0, 71, 107, 115);
     Render::beginFrame(1, 71, 107, 115);
@@ -145,11 +159,11 @@ void ProjectMenu::render() {
             project->text->setColor(Math::color(0, 0, 0, 255));
 
         double xPos = project->x + cameraX;
-        double yPos = project->y - (cameraY - 120);
+        double yPos = project->y - (cameraY - cameraYOffset);
 
         project->render(xPos, yPos);
     }
-    projectControl->render();
+    projectControl->render(cameraX, cameraY - cameraYOffset);
 
     Render::endFrame();
 }
@@ -159,7 +173,6 @@ void ProjectMenu::cleanup() {
         delete button;
     }
     projects.clear();
-    delete projectControl;
 }
 // void MainMenu::render() {
 

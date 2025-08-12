@@ -112,13 +112,12 @@ int main(int argc, char **argv) {
             while (!isLoaded) {
 
                 menu.render();
-                if (!Render::appShouldRun()) {
+                if (!Render::appShouldRun() || menu.shouldExit) {
                     exitApp();
                     return 0;
                 }
 
                 if (Unzip::filePath != "") {
-                    menu.cleanup();
                     if (!Unzip::load()) {
                         exitApp();
                         return 0;
