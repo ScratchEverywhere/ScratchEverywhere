@@ -10,7 +10,7 @@ on:
       - gfx/*
       - include/**
       - .github/workflows/nightly-wii.yml
-      - Dockerfile.wii
+      - docker/Dockerfile.wii
     branches:
       - main
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.wii
+          file: docker/Dockerfile.wii
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact

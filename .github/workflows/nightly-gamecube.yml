@@ -9,7 +9,7 @@ on:
       - include/**
       - gfx/*
       - .github/workflows/nightly-gamecube.yml
-      - Dockerfile.gamecube
+      - docker/Dockerfile.gamecube
     branches:
       - main
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.gamecube
+          file: docker/Dockerfile.gamecube
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact

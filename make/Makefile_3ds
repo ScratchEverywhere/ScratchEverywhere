@@ -209,7 +209,7 @@ endif
 
 #---------------------------------------------------------------------------------
 all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(ROMFS_ALLGFXFILES) $(T3XHFILES)
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/Makefile_3ds
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/make/Makefile_3ds
 
 $(BUILD):
 	@mkdir -p $@

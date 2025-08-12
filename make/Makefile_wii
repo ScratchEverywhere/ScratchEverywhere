@@ -123,7 +123,7 @@ export LIBPATHS	:= -L$(LIBOGC_LIB)
 
 #---------------------------------------------------------------------------------
 all: $(BUILD) $(DEPSDIR) $(GFXBUILD)
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile_wii
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/make/Makefile_wii
 
 $(BUILD):
 	@mkdir -p $@

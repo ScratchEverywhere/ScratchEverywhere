@@ -162,11 +162,11 @@ If you would like to change the name of the app or any other information you can
 
 The recommended way to compile Scratch 3DS is with Docker. To compile with Docker all you need installed is Docker and Buildx.
 
-To compile for the 3DS run `docker build -f Dockerfile.3ds --target exporter -o . .`
+To compile for the 3DS run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`
 
-To compile for the Wii U run `docker build -f Dockerfile.wiiu --target exporter -o . .`
+To compile for the Wii U run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`
 
-To compile for the Wii run `docker build -f Dockerfile.wii --target exporter -o . .`
+To compile for the Wii run `docker build -f docker/Dockerfile.wii --target exporter -o . .`
 
 #### Manual
 

@@ -9,7 +9,7 @@ on:
       - gfx/*
       - include/**
       - .github/workflows/nightly-3ds.yml
-      - Dockerfile.3ds
+      - docker/Dockerfile.3ds
     branches:
       - main
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.3ds
+          file: docker/Dockerfile.3ds
           target: exporter
           outputs: type=local,dest=.
 

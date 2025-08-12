@@ -111,7 +111,7 @@ export LIBPATHS	:= -L$(LIBOGC_LIB)
 
 #---------------------------------------------------------------------------------
 all: $(BUILD) $(DEPSDIR) $(GFXBUILD)
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile_gamecube
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/make/Makefile_gamecube
 
 $(BUILD):
 	@mkdir -p $@
