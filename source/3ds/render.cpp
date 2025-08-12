@@ -424,7 +424,7 @@ void Render::renderVisibleVariables() {
 void LoadingScreen::renderLoadingScreen() {
 #ifdef ENABLE_BUBBLES
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrScratchBlue);
+    C2D_TargetClear(topScreen, C2D_Color32(108, 100, 128, 255));
     C2D_SceneBegin(topScreen);
 
     // if(text != nullptr){
