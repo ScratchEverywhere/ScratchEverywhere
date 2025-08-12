@@ -5,7 +5,12 @@
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
 #include <chrono>
+
+#ifdef __PC__
 #include <dlfcn.h>
+#elif defined(__WIIU__)
+#include <coreinit/dynload.h>
+#endif
 
 #ifdef __OGC__
 #include <SDL2/SDL.h>
@@ -38,8 +43,13 @@ static void exitApp() {
     Render::deInit();
 
     // Close Extension Libraries
-    for (auto extension : extensions)
+    for (auto extension : extensions) {
+#ifdef __PC__
         dlclose(extension.handle);
+#elif defined(__WIIU__)
+        OSDynLoad_Release(extension.module);
+#endif
+    }
 }
 
 static bool initApp() {

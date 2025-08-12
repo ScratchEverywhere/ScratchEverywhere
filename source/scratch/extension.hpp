@@ -2,11 +2,16 @@
 
 #include "interpret.hpp"
 #include "sprite.hpp"
-#include <dlfcn.h>
 #include <nlohmann/json.hpp>
 #include <scratch-3ds.hpp>
 #include <string>
 #include <vector>
+
+#ifdef __PC__
+#include <dlfcn.h>
+#elif defined(__WIIU__)
+#include <coreinit/dynload.h>
+#endif
 
 extern std::vector<struct Extension> extensions;
 
@@ -22,7 +27,11 @@ extern C3D_RenderTarget *bottomScreen;
 struct Extension {
     std::string name;
     nlohmann::json types;
+#ifdef __PC__
     void *handle;
+#elif defined(__WIIU__)
+    OSDynLoad_Module module;
+#endif
 };
 
 inline ExtensionSound convertSoundToExtensionSound(Sound *sound) {
@@ -84,9 +93,10 @@ inline ExtensionData createExtensionData(Sprite *sprite) {
 inline void runAllExtensionFunctions(const std::string &name) {
 
     const auto data = createExtensionData(nullptr);
-    char *error;
 
     for (const auto &extension : extensions) {
+#ifdef __PC__
+        char *error;
         auto func = reinterpret_cast<void (*)(ExtensionData)>(dlsym(extension.handle, name.c_str()));
         if ((error = dlerror()) != NULL) {
 #ifdef VERBOSE_EXTENSIONS
@@ -94,6 +104,16 @@ inline void runAllExtensionFunctions(const std::string &name) {
 #endif
             continue;
         }
+#elif defined(__WIIU__)
+        void (*func)(ExtensionData) = nullptr;
+        OSDynLoad_Error error = OSDynLoad_FindExport(extension.module, OS_DYNLOAD_EXPORT_FUNC, name.c_str(), (void **)&func);
+        if (error) {
+#ifdef VERBOSE_EXTENSIONS
+            Log::logWarning("Failed to load '" + name + "' function for: '" + extension.name + "', error (reference WUT): " + error);
+#endif
+            continue;
+        }
+#endif
         func(data);
     }
 }

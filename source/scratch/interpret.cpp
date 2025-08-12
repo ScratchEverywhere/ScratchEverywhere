@@ -6,9 +6,15 @@
 #include "unzip.hpp"
 #include <cerrno>
 #include <cstring>
-#include <dlfcn.h>
 #include <fstream>
 #include <iterator>
+
+#ifdef __PC__
+#include <dlfcn.h>
+#elif defined(__WIIU__)
+#include <coreinit/dynload.h>
+#include <whb/sdcard.h>
+#endif
 
 std::vector<Sprite *> sprites;
 std::vector<Sprite> spritePool;
@@ -601,6 +607,7 @@ void loadExtensions(const nlohmann::json &json) {
         }
         nlohmann::json typesJSON = nlohmann::json::parse(f);
 
+#ifdef __PC__
 #ifdef __APPLE__
         const std::string libExt = ".dylib";
 #elif defined(__linux__) || defined(__unix__) || defined(_POSIX_VERSION)
@@ -615,6 +622,16 @@ void loadExtensions(const nlohmann::json &json) {
             continue;
         }
         extensions.push_back((struct Extension){ name, typesJSON, handle });
+#elif defined(__WIIU__)
+        extensions.push_back((struct Extension){ name, typesJSON, nullptr });
+        OSDynLoad_Error error = OSDynLoad_Acquire((extensionsPrefix + name + ".rpl").c_str(), &extensions.back().module);
+        if (error) {
+            Log::logError("Failed to load extension library: " + extensionsPrefix + name + ".rpl, error code (reference WUT): " + std::to_string(error));
+            continue;
+        }
+#else
+#error Unsupported Platform
+#endif
     }
 
     executor.registerExtensionHandlers();

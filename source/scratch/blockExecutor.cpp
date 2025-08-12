@@ -13,9 +13,14 @@
 #include "os.hpp"
 #include "scratch-3ds.hpp"
 #include "value.hpp"
-#include <dlfcn.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
+
+#ifdef __PC__
+#include <dlfcn.h>
+#elif defined(__WIIU__)
+#include <coreinit/dynload.h>
+#endif
 
 #ifdef ENABLE_CLOUDVARS
 #include <mist/mist.hpp>
@@ -169,15 +174,24 @@ void BlockExecutor::registerExtensionHandlers() {
                 for (const auto &pair : block.parsedInputs) {
                     arguments[pair.first] = Scratch::getInputValue(block, pair.first, sprite).asAny();
                 }
-                char *error;
 
                 ExtensionData data = createExtensionData(sprite);
 
+#ifdef __PC__
+                char *error;
                 auto customBlock = reinterpret_cast<void (*)(std::map<std::string, std::any> &, ExtensionData)>(dlsym(extension.handle, block.opcode.c_str()));
                 if ((error = dlerror()) != NULL) {
                     Log::logError("Failed to load function for: '" + block.opcode + "', error: " + error);
                     return BlockResult::CONTINUE;
                 }
+#elif defined(__WIIU__)
+                void (*customBlock)(std::map<std::string, std::any> &, ExtensionData);
+                OSDynLoad_Error error = OSDynLoad_FindExport(extension.module, OS_DYNLOAD_EXPORT_FUNC, block.opcode.c_str(), (void **)&customBlock);
+                if (error) {
+                    Log::logError("Failed to load function for: '" + block.opcode + "', error (reference WUT): " + std::to_string(error));
+                    return BlockResult::CONTINUE;
+                }
+#endif
                 customBlock(arguments, data);
 
                 return BlockResult::CONTINUE;
@@ -188,32 +202,61 @@ void BlockExecutor::registerExtensionHandlers() {
                 for (const auto &pair : block.parsedInputs) {
                     arguments[pair.first] = Scratch::getInputValue(block, pair.first, sprite).asAny();
                 }
-                char *error;
 
                 ExtensionData data = createExtensionData(sprite);
 
                 if (type.get<std::string>() == "int") {
+#ifdef __PC__
+                    char *error;
                     auto customBlock = reinterpret_cast<int (*)(std::map<std::string, std::any> &, ExtensionData)>(dlsym(extension.handle, block.opcode.c_str()));
                     if ((error = dlerror()) != NULL) {
                         Log::logError("Failed to load function for: '" + block.opcode + "', error: " + error);
                         return Value();
                     }
+#elif defined(__WIIU__)
+                    int (*customBlock)(std::map<std::string, std::any> &, ExtensionData);
+                    OSDynLoad_Error error = OSDynLoad_FindExport(extension.module, OS_DYNLOAD_EXPORT_FUNC, block.opcode.c_str(), (void **)&customBlock);
+                    if (error) {
+                        Log::logError("Failed to load function for: '" + block.opcode + "', error (reference WUT): " + std::to_string(error));
+                        return Value();
+                    }
+#endif
                     return Value(customBlock(arguments, data));
                 }
                 if (type.get<std::string>() == "bool") {
+#ifdef __PC__
+                    char *error;
                     auto customBlock = reinterpret_cast<bool (*)(std::map<std::string, std::any> &, ExtensionData)>(dlsym(extension.handle, block.opcode.c_str()));
                     if ((error = dlerror()) != NULL) {
                         Log::logError("Failed to load function for: '" + block.opcode + "', error: " + error);
                         return Value();
                     }
+#elif defined(__WIIU__)
+                    bool (*customBlock)(std::map<std::string, std::any> &, ExtensionData);
+                    OSDynLoad_Error error = OSDynLoad_FindExport(extension.module, OS_DYNLOAD_EXPORT_FUNC, block.opcode.c_str(), (void **)&customBlock);
+                    if (error) {
+                        Log::logError("Failed to load function for: '" + block.opcode + "', error (reference WUT): " + std::to_string(error));
+                        return Value();
+                    }
+#endif
                     return Value(customBlock(arguments, data));
                 }
                 if (type.get<std::string>() == "string") {
+#ifdef __PC__
+                    char *error;
                     auto customBlock = reinterpret_cast<void (*)(std::map<std::string, std::any> &, std::string *, ExtensionData)>(dlsym(extension.handle, block.opcode.c_str()));
                     if ((error = dlerror()) != NULL) {
                         Log::logError("Failed to load function for: '" + block.opcode + "', error: " + error);
                         return Value();
                     }
+#elif defined(__WIIU__)
+                    void (*customBlock)(std::map<std::string, std::any> &, std::string *, ExtensionData);
+                    OSDynLoad_Error error = OSDynLoad_FindExport(extension.module, OS_DYNLOAD_EXPORT_FUNC, block.opcode.c_str(), (void **)&customBlock);
+                    if (error) {
+                        Log::logError("Failed to load function for: '" + block.opcode + "', error (reference WUT): " + std::to_string(error));
+                        return Value();
+                    }
+#endif
                     std::string ret;
                     customBlock(arguments, &ret, data);
                     return Value(ret);
