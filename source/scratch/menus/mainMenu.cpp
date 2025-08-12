@@ -60,7 +60,9 @@ void MainMenu::render() {
             }
         }
         projectMenu.cleanup();
-        if (Unzip::filePath != "") return;
+        if (Unzip::filePath != "") {
+            return;
+        }
         init();
     }
     if (settingsButton->isPressed()) {
@@ -129,6 +131,8 @@ void ProjectMenu::init() {
 
     } else {
         projectControl->selectedObject = projects.front();
+        projectControl->selectedObject->isSelected = true;
+        cameraY = projectControl->selectedObject->y;
         hasProjects = true;
     }
 }
@@ -143,9 +147,12 @@ void ProjectMenu::render() {
         return;
     }
 
-    cameraY = projectControl->selectedObject->y;
+    float targetY = projectControl->selectedObject->y;
+    float lerpSpeed = 0.1f;
+
+    cameraY = cameraY + (targetY - cameraY) * lerpSpeed;
     cameraX = 200;
-    const double cameraYOffset = 120;
+    const double cameraYOffset = 110;
 
     Render::beginFrame(0, 71, 107, 115);
     Render::beginFrame(1, 71, 107, 115);

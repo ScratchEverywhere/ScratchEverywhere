@@ -69,7 +69,8 @@ Image::Image(std::string filePath) {
             scale = 1.0;
             rotation = 0.0;
             opacity = 1.0;
-            get_C2D_Image(rgba);
+            if (imageC2Ds.find(rgba.name) == imageC2Ds.end())
+                get_C2D_Image(rgba);
             return;
         }
     }
@@ -567,7 +568,7 @@ void Image::freeImage(const std::string &costumeId) {
             MemoryTracker::deallocate<Tex3DS_SubTexture>((Tex3DS_SubTexture *)it->second.image.subtex);
         }
         imageC2Ds.erase(it);
-    } else toExit = true;
+    } else return;
 
     freeRGBA(costumeId);
 }
