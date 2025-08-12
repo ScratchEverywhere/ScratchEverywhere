@@ -3,15 +3,9 @@
 #include "../input.hpp"
 #include "../render.hpp"
 #include "../unzip.hpp"
-#include "menuObjects.hpp"
 #ifdef __WIIU__
 #include <whb/sdcard.h>
 #endif
-
-MenuImage *logo;
-ButtonObject *loadButton;
-ButtonObject *settingsButton;
-ControlObject *mainMenuControl;
 
 void MainMenu::init() {
 
@@ -20,7 +14,6 @@ void MainMenu::init() {
     logo = new MenuImage("gfx/logo.png");
     logo->x = 200;
 
-    hasProjects = true;
     logoStartTime.start();
 
     loadButton = new ButtonObject("load", "gfx/play.png", 100, 180);
@@ -52,7 +45,15 @@ void MainMenu::render() {
     Render::beginFrame(1, 71, 107, 115);
 
     if (loadButton->isPressed()) {
-        loadButton->x += 100;
+        cleanup();
+        ProjectMenu projectMenu;
+        projectMenu.init();
+
+        while (!projectMenu.shouldGoBack && Render::appShouldRun()) {
+            projectMenu.render();
+        }
+        projectMenu.cleanup();
+        init();
     }
     if (settingsButton->isPressed()) {
         settingsButton->x += 100;
@@ -65,66 +66,101 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
-    for (TextObject *text : projectTexts) {
-        delete text;
-    }
-    projectTexts.clear();
 
     selectedText = nullptr;
     if (errorTextInfo) delete errorTextInfo;
 
     delete logo;
+    delete mainMenuControl;
+    delete loadButton;
+    delete settingsButton;
 
     Render::beginFrame(0, 71, 107, 115);
     Render::endFrame();
 }
 
-// void MainMenu::init() {
+void ProjectMenu::init() {
 
-//     Input::applyControls();
+    projectControl = new ControlObject();
 
-//     std::vector<std::string> projectFiles;
-// #ifdef __WIIU__
-//     projectFiles = Unzip::getProjectFiles(std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/");
-// #else
-//     projectFiles = Unzip::getProjectFiles(".");
-// #endif
+    std::vector<std::string> projectFiles;
+#ifdef __WIIU__
+    projectFiles = Unzip::getProjectFiles(std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/");
+#else
+    projectFiles = Unzip::getProjectFiles(".");
+#endif
 
-//     int yPosition = 120;
-//     for (std::string &file : projectFiles) {
-//         TextObject *text = createTextObject(file, 0, yPosition);
-//         text->setColor(0xFF000000);
-//         text->y -= text->getSize()[1] / 2;
-//         if (text->getSize()[0] > Render::getWidth()) {
-//             float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.15);
-//             text->setScale(scale);
-//         }
-//         projectTexts.push_back(text);
-//         yPosition += 50;
-//     }
+    // initialize text and set positions
+    int yPosition = 120;
+    for (std::string &file : projectFiles) {
+        ButtonObject *project = new ButtonObject(file, "gfx/projectBox.png", 0, yPosition);
+        project->text->setColor(Math::color(0, 0, 0, 255));
+        project->y -= project->text->getSize()[1] / 2;
+        if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
+            float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
+            project->textScale = scale;
+        }
+        projects.push_back(project);
+        projectControl->buttonObjects.push_back(project);
+        yPosition += 50;
+    }
+    for (size_t i = 0; i < projects.size(); i++) {
+        // Check if there's a project above
+        if (i > 0) {
+            projects[i]->buttonUp = projects[i - 1];
+        }
 
-//     logo = new Image("gfx/logo.png");
-//     authorText = createTextObject("Runtime by NateXS", 0, 0);
-//     authorText->setScale(0.5);
+        // Check if there's a project below
+        if (i < projects.size() - 1) {
+            projects[i]->buttonDown = projects[i + 1];
+        }
+    }
 
-//     if (projectFiles.size() == 0) {
-//         std::string errorText;
-// #ifdef __WIIU__
-//         errorText = "No Scratch projects found!\n Go download a Scratch project and put it\n in sdcard:/wiiu/scratch-wiiu!\nPress Start to exit.";
-// #else
-//         errorText = "No Scratch projects found! Start to exit";
-// #endif
-//         errorTextInfo = createTextObject(errorText,
-//                                          Render::getWidth() / 2, Render::getHeight() / 2);
-//         errorTextInfo->setScale(0.6);
-//         hasProjects = false;
-//         shouldExit = false;
-//     } else {
-//         selectedText = projectTexts.front();
-//         hasProjects = true;
-//         logoStartTime.start();
-//     }
-// }
+    // check if user has any projects
+    if (projectFiles.size() == 0) {
+
+    } else {
+        projectControl->selectedObject = projects.front();
+        hasProjects = true;
+    }
+}
+
+void ProjectMenu::render() {
+    Input::getInput();
+    projectControl->input();
+
+    cameraY = projectControl->selectedObject->y;
+    cameraX = 200;
+    // cameraY = 200;
+
+    Render::beginFrame(0, 71, 107, 115);
+    Render::beginFrame(1, 71, 107, 115);
+
+    for (ButtonObject *project : projects) {
+        if (project == nullptr) continue;
+
+        if (projectControl->selectedObject == project)
+            project->text->setColor(Math::color(255, 255, 255, 255));
+        else
+            project->text->setColor(Math::color(0, 0, 0, 255));
+
+        double xPos = project->x + cameraX;
+        double yPos = project->y - (cameraY - 120);
+
+        project->render(xPos, yPos);
+    }
+    projectControl->render();
+
+    Render::endFrame();
+}
+
+void ProjectMenu::cleanup() {
+    for (ButtonObject *button : projects) {
+        delete button;
+    }
+    projects.clear();
+    delete projectControl;
+}
 // void MainMenu::render() {
 
 //     Input::getInput();

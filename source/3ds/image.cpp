@@ -57,17 +57,26 @@ const u32 rgba_to_abgr(u32 px) {
 
 Image::Image(std::string filePath) {
     if (!loadImageFromFile(filePath, false)) return;
-    imageId = imageRGBAS.back().name;
-    width = imageRGBAS.back().width;
-    height = imageRGBAS.back().height;
-    scale = 1.0;
-    rotation = 0.0;
-    opacity = 1.0;
-    get_C2D_Image(imageRGBAS.back());
+
+    // Find the matching RGBA data in the vector
+    std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
+    std::string path2 = filename.substr(0, filename.find_last_of('.'));
+    for (const auto &rgba : imageRGBAS) {
+        if (rgba.name == path2) {
+            imageId = rgba.name;
+            width = rgba.width;
+            height = rgba.height;
+            scale = 1.0;
+            rotation = 0.0;
+            opacity = 1.0;
+            get_C2D_Image(rgba);
+            return;
+        }
+    }
 }
 
 Image::~Image() {
-    queueFreeImage(imageId);
+    freeImage(imageId);
 }
 
 void Image::render(double xPos, double yPos, bool centered) {

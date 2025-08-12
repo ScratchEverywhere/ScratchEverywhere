@@ -7,7 +7,7 @@ class MenuObject {
     double x;
     double y;
     double scale;
-    virtual void render() = 0;
+    virtual void render(double xPos = 0, double yPos = 0) = 0;
     double getScaleFactor(int windowX, int windowY);
     std::vector<double> getScaledPosition(double xPos, double yPos);
 };
@@ -15,7 +15,7 @@ class MenuObject {
 class MenuImage : public MenuObject {
   public:
     Image *image;
-    void render() override;
+    void render(double xPos = 0, double yPos = 0) override;
 
     /*
      * Similar to Image class, but with auto scaling and positioning.
@@ -29,11 +29,12 @@ class MenuImage : public MenuObject {
 
 class ButtonObject : public MenuObject {
   private:
-    TextObject *text;
     bool pressedLastFrame = false;
     std::vector<int> lastFrameTouchPos;
 
   public:
+    TextObject *text;
+    double textScale;
     bool isSelected = false;
     MenuImage *buttonTexture;
     ButtonObject *buttonUp = nullptr;
@@ -41,7 +42,7 @@ class ButtonObject : public MenuObject {
     ButtonObject *buttonLeft = nullptr;
     ButtonObject *buttonRight = nullptr;
 
-    void render() override;
+    void render(double xPos = 0, double yPos = 0) override;
     bool isPressed(std::string pressButton = "a");
     bool isTouchingMouse();
 
@@ -62,7 +63,7 @@ class ControlObject : public MenuObject {
     std::vector<ButtonObject *> buttonObjects;
     ButtonObject *selectedObject = nullptr;
     void input();
-    void render() override;
+    void render(double xPos = 0, double yPos = 0) override;
     ControlObject();
     virtual ~ControlObject();
 };

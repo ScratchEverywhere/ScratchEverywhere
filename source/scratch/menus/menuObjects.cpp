@@ -24,6 +24,7 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
     x = xPos;
     y = yPos;
     scale = 1.0;
+    textScale = 1.0;
     text = createTextObject(buttonText, x, y);
     text->setCenterAligned(true);
     buttonTexture = new MenuImage(filePath);
@@ -89,16 +90,20 @@ bool ButtonObject::isTouchingMouse() {
     return false;
 }
 
-void ButtonObject::render() {
-    double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);
-    std::vector<double> scaledPos = getScaledPosition(x, y);
+void ButtonObject::render(double xPos, double yPos) {
 
-    buttonTexture->x = x;
-    buttonTexture->y = y;
+    if (xPos == 0) xPos = x;
+    if (yPos == 0) yPos = y;
+
+    double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);
+    std::vector<double> scaledPos = getScaledPosition(xPos, yPos);
+
+    buttonTexture->x = xPos;
+    buttonTexture->y = yPos;
     buttonTexture->scale = scale * scaleFactor;
     buttonTexture->render();
 
-    text->setScale(scale * scaleFactor);
+    text->setScale((scale * scaleFactor) * textScale);
     text->render(scaledPos[0], scaledPos[1]);
 }
 
@@ -114,11 +119,13 @@ MenuImage::MenuImage(std::string filePath, int xPos, int yPos) {
     image = new Image(filePath);
 }
 
-void MenuImage::render() {
+void MenuImage::render(double xPos, double yPos) {
+    if (xPos == 0) xPos = x;
+    if (yPos == 0) yPos = y;
 
     image->scale = scale;
-    double proportionX = static_cast<double>(x) / REFERENCE_WIDTH;
-    double proportionY = static_cast<double>(y) / REFERENCE_HEIGHT;
+    double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
+    double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
 
     double actualX = proportionX * Render::getWidth();
     double actualY = proportionY * Render::getHeight();
@@ -158,7 +165,10 @@ void ControlObject::input() {
     }
 }
 
-void ControlObject::render() {
+void ControlObject::render(double xPos, double yPos) {
+    if (xPos == 0) xPos = x;
+    if (yPos == 0) yPos = y;
+
     if (selectedObject != nullptr) {
         // Get the button's scaled position (center point)
         std::vector<double> buttonCenter = getScaledPosition(selectedObject->x, selectedObject->y);
