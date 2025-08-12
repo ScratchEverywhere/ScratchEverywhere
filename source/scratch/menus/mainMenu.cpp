@@ -21,7 +21,7 @@ void MainMenu::init() {
 
     hasProjects = true;
     logoStartTime.start();
-    loadButton = new ButtonObject("load", 64, 64, 200, 220);
+    loadButton = new ButtonObject("load", "gfx/play.png", 64, 64, 200, 180);
 }
 
 void MainMenu::render() {
@@ -53,11 +53,16 @@ void MainMenu::render() {
 
     logo->render();
     authorText->render(Render::getWidth() * 0.84, Render::getHeight() * 0.94);
-    loadButton->render();
-    Log::log(std::to_string(loadButton->isPressed()));
 
     // begin bottom screen frame (3DS only)
-    Render::beginFrame(1, 71, 107, 115);
+    // Render::beginFrame(1, 71, 107, 115);
+
+    loadButton->render();
+    if (loadButton->isPressed()) {
+        loadButton->x += 100;
+    }
+    // Log::log(std::to_string(loadButton->isPressed()));
+    // Log::log(std::to_string(Input::getTouchPosition()[0]) + " , " + std::to_string(Input::getTouchPosition()[1]));
 
     for (TextObject *text : projectTexts) {
         if (text == nullptr) continue;

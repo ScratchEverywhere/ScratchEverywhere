@@ -11,9 +11,16 @@ double MenuObject::getScaleFactor(int windowX, int windowY) {
     return std::min(scaleX, scaleY);
 }
 
+std::vector<double> MenuObject::getScaledPosition(double xPos, double yPos) {
+    std::vector<double> pos;
+    double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
+    double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
+    pos.push_back(proportionX * Render::getWidth());
+    pos.push_back(proportionY * Render::getHeight());
+    return pos;
+}
+
 ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int w, int h, int xPos, int yPos) {
-    width = w;
-    height = h;
     x = xPos;
     y = yPos;
     scale = 1.0;
@@ -28,33 +35,46 @@ bool ButtonObject::isPressed() {
     int touchX = touchPos[0];
     int touchY = touchPos[1];
 
-    double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);
+    // if not touching the screen on 3DS, set touch pos to the last frame one
+    if (touchX == 0 && !lastFrameTouchPos.empty()) touchX = lastFrameTouchPos[0];
+    if (touchY == 0 && !lastFrameTouchPos.empty()) touchY = lastFrameTouchPos[1];
 
-    double scaledWidth = width * scaleFactor;
-    double scaledHeight = height * scaleFactor;
+    // get position based on scale
+    std::vector<double> scaledPos = getScaledPosition(x, y);
+    double scaledWidth = buttonTexture->image->getWidth() * buttonTexture->scale;
+    double scaledHeight = buttonTexture->image->getHeight() * buttonTexture->scale;
 
-    double proportionX = static_cast<double>(x) / REFERENCE_WIDTH;
-    double proportionY = static_cast<double>(y) / REFERENCE_HEIGHT;
+    // simple box collision
+    bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
+    bool withinY = touchY >= (scaledPos[1] - (scaledHeight / 2)) && touchY <= (scaledPos[1] + (scaledHeight / 2));
 
-    double actualX = proportionX * Render::getWidth();
-    double actualY = proportionY * Render::getHeight();
+    // if colliding and mouse state just changed
+    if ((withinX && withinY) && pressedLastFrame != Input::mousePointer.isPressed) {
 
-    bool withinX = touchX >= (actualX - scaledWidth) && touchX <= (actualX + (scaledWidth / 2));
-    bool withinY = touchY >= actualY && touchY <= (actualY + scaledHeight);
+        pressedLastFrame = Input::mousePointer.isPressed;
 
-    return withinX && withinY;
+        // if just stopped clicking, count as a button press
+        if (!pressedLastFrame) {
+            if (std::abs(lastFrameTouchPos[0] - touchX) < 10 && std::abs(lastFrameTouchPos[1] - touchY) < 10) return true;
+        } else {
+            lastFrameTouchPos = touchPos;
+        }
+    }
+
+    return false;
 }
 
 void ButtonObject::render() {
     double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);
-    double proportionX = static_cast<double>(x) / REFERENCE_WIDTH;
-    double proportionY = static_cast<double>(y) / REFERENCE_HEIGHT;
+    std::vector<double> scaledPos = getScaledPosition(x, y);
 
-    double actualX = proportionX * Render::getWidth();
-    double actualY = proportionY * Render::getHeight();
+    buttonTexture->x = x;
+    buttonTexture->y = y;
+    buttonTexture->scale = scale * scaleFactor;
+    buttonTexture->render();
 
     text->setScale(scale * scaleFactor);
-    text->render(actualX, actualY);
+    text->render(scaledPos[0], scaledPos[1]);
 }
 
 ButtonObject::~ButtonObject() {
@@ -65,11 +85,13 @@ ButtonObject::~ButtonObject() {
 MenuImage::MenuImage(std::string filePath, int xPos, int yPos) {
     x = xPos;
     y = yPos;
+    scale = 1.0;
     image = new Image(filePath);
 }
 
 void MenuImage::render() {
 
+    image->scale = scale;
     double proportionX = static_cast<double>(x) / REFERENCE_WIDTH;
     double proportionY = static_cast<double>(y) / REFERENCE_HEIGHT;
 

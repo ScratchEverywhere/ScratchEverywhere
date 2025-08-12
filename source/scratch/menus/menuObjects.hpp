@@ -9,13 +9,29 @@ class MenuObject {
     double scale;
     virtual void render() = 0;
     double getScaleFactor(int windowX, int windowY);
+    std::vector<double> getScaledPosition(double xPos, double yPos);
+};
+
+class MenuImage : public MenuObject {
+  public:
+    Image *image;
+    void render() override;
+
+    /*
+     * Similar to Image class, but with auto scaling and positioning.
+     * @param filePath
+     * @param xPosition
+     * @param yPosition
+     */
+    MenuImage(std::string filePath, int xPos = 0, int yPos = 0);
+    virtual ~MenuImage();
 };
 
 class ButtonObject : public MenuObject {
   private:
-    int width;
-    int height;
     TextObject *text;
+    bool pressedLastFrame = false;
+    std::vector<int> lastFrameTouchPos;
 
   public:
     bool isSelected = false;
@@ -37,22 +53,5 @@ class ButtonObject : public MenuObject {
      * @param yPosition
      */
     ButtonObject(std::string buttonText, std::string filePath, int w = 16, int h = 16, int xPos = 0, int yPos = 0);
-    ~ButtonObject();
-};
-
-class MenuImage : public MenuObject {
-  private:
-    Image *image;
-
-  public:
-    void render() override;
-
-    /*
-     * Similar to Image class, but with auto scaling and positioning.
-     * @param filePath
-     * @param xPosition
-     * @param yPosition
-     */
-    MenuImage(std::string filePath, int xPos = 0, int yPos = 0);
-    ~MenuImage();
+    virtual ~ButtonObject();
 };

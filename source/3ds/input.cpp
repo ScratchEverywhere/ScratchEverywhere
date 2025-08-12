@@ -14,6 +14,7 @@ int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
 static u16 oldTouchPy = 0;
+static touchPosition touch;
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
@@ -22,11 +23,12 @@ extern bool cloudProject;
 
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
-    touchPosition touch;
-    // Read the touch screen coordinates
-    hidTouchRead(&touch);
+
     pos.push_back(touch.px);
     pos.push_back(touch.py);
+    if (touch.px != 0 || touch.py != 0) {
+        mousePointer.isPressed = true;
+    } else mousePointer.isPressed = false;
     return pos;
 }
 
@@ -37,6 +39,7 @@ void Input::getInput() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
 
+    hidTouchRead(&touch);
     std::vector<int> touchPos = getTouchPosition();
 
     // if the touch screen is being touched
