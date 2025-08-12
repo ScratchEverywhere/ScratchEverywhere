@@ -59,9 +59,7 @@ ExtensionSprite convertSpriteToExtensionSprite(Sprite *sprite);
 
 inline ExtensionData createExtensionData(Sprite *sprite) {
     return {
-        [sprite]() {
-            return convertSpriteToExtensionSprite(sprite);
-        },
+        sprite == nullptr ? (std::function<ExtensionSprite()>)nullptr : [sprite]() { return convertSpriteToExtensionSprite(sprite); },
         []() {
             std::vector<ExtensionSprite> extensionSprites;
             for (const auto &sprite : sprites)
