@@ -26,15 +26,6 @@ extern std::unique_ptr<MistConnection> cloudConnection;
 size_t blocksRun = 0;
 Timer BlockExecutor::timer;
 
-#ifdef SDL_BUILD
-extern SDL_GameController *controller;
-extern SDL_Window *window;
-extern SDL_Renderer *renderer;
-#elif defined(__3DS__)
-extern C3D_RenderTarget *topScreen;
-extern C3D_RenderTarget *bottomScreen;
-#endif
-
 BlockExecutor::BlockExecutor() {
     registerHandlers();
 }
@@ -180,29 +171,7 @@ void BlockExecutor::registerExtensionHandlers() {
                 }
                 char *error;
 
-                ExtensionData data = {
-                    [sprite]() {
-                        return convertSpriteToExtensionSprite(sprite);
-                    },
-                    []() {
-                        std::vector<ExtensionSprite> extensionSprites;
-                        for (const auto &sprite : sprites)
-                            extensionSprites.push_back(convertSpriteToExtensionSprite(sprite));
-                        return extensionSprites;
-                    },
-                    [](std::string message) { Log::log(message); },
-                    [](std::string message) { Log::logWarning(message); },
-                    [](std::string message) { Log::logError(message); },
-
-#ifdef SDL_BUILD
-                    controller,
-                    window,
-                    renderer
-#elif defined(__3DS__)
-                    topScreen,
-                    bottomScreen
-#endif
-                };
+                ExtensionData data = createExtensionData(sprite);
 
                 auto customBlock = reinterpret_cast<void (*)(std::map<std::string, std::any> &, ExtensionData)>(dlsym(extension.handle, block.opcode.c_str()));
                 if ((error = dlerror()) != NULL) {
@@ -221,29 +190,7 @@ void BlockExecutor::registerExtensionHandlers() {
                 }
                 char *error;
 
-                ExtensionData data = {
-                    [sprite]() {
-                        return convertSpriteToExtensionSprite(sprite);
-                    },
-                    []() {
-                        std::vector<ExtensionSprite> extensionSprites;
-                        for (const auto &sprite : sprites)
-                            extensionSprites.push_back(convertSpriteToExtensionSprite(sprite));
-                        return extensionSprites;
-                    },
-                    [](std::string message) { Log::log(message); },
-                    [](std::string message) { Log::logWarning(message); },
-                    [](std::string message) { Log::logError(message); },
-
-#ifdef SDL_BUILD
-                    controller,
-                    window,
-                    renderer
-#elif defined(__3DS__)
-                    topScreen,
-                    bottomScreen
-#endif
-                };
+                ExtensionData data = createExtensionData(sprite);
 
                 if (type.get<std::string>() == "int") {
                     auto customBlock = reinterpret_cast<int (*)(std::map<std::string, std::any> &, ExtensionData)>(dlsym(extension.handle, block.opcode.c_str()));

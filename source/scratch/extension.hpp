@@ -1,5 +1,6 @@
 #pragma once
 
+#include "interpret.hpp"
 #include "sprite.hpp"
 #include <nlohmann/json.hpp>
 #include <scratch-3ds.hpp>
@@ -7,6 +8,15 @@
 #include <vector>
 
 extern std::vector<struct Extension> extensions;
+
+#ifdef SDL_BUILD
+extern SDL_GameController *controller;
+extern SDL_Window *window;
+extern SDL_Renderer *renderer;
+#elif defined(__3DS__)
+extern C3D_RenderTarget *topScreen;
+extern C3D_RenderTarget *bottomScreen;
+#endif
 
 struct Extension {
     std::string name;
@@ -46,3 +56,28 @@ inline ExtensionBroadcast convertBroadcastToExtensionBroadcast(Broadcast *broadc
 }
 
 ExtensionSprite convertSpriteToExtensionSprite(Sprite *sprite);
+
+inline ExtensionData createExtensionData(Sprite *sprite) {
+    return {
+        [sprite]() {
+            return convertSpriteToExtensionSprite(sprite);
+        },
+        []() {
+            std::vector<ExtensionSprite> extensionSprites;
+            for (const auto &sprite : sprites)
+                extensionSprites.push_back(convertSpriteToExtensionSprite(sprite));
+            return extensionSprites;
+        },
+        [](std::string message) { Log::log(message); },
+        [](std::string message) { Log::logWarning(message); },
+        [](std::string message) { Log::logError(message); },
+#ifdef SDL_BUILD
+        controller,
+        window,
+        renderer
+#elif defined(__3DS__)
+        topScreen,
+        bottomScreen
+#endif
+    };
+}
