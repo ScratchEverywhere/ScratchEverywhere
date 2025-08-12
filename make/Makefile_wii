@@ -38,6 +38,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 ENABLE_CLOUDVARS	?=	0
 ENABLE_BUBBLES		?=	1
 ENABLE_AUDIO	?=	1
+VERBOSE_EXTENSIONS	?=	0
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -61,6 +62,10 @@ LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image freetype
 CFLAGS	+=	-DENABLE_AUDIO
 else
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image freetype2`
+endif
+
+ifeq ($(VERBOSE_EXTENSIONS),1)
+CFLAGS	+=	-DVERBOSE_EXTENSIONS
 endif
 
 # Include libromfs-wii support

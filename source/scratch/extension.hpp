@@ -2,6 +2,7 @@
 
 #include "interpret.hpp"
 #include "sprite.hpp"
+#include <dlfcn.h>
 #include <nlohmann/json.hpp>
 #include <scratch-3ds.hpp>
 #include <string>
@@ -78,4 +79,21 @@ inline ExtensionData createExtensionData(Sprite *sprite) {
         bottomScreen
 #endif
     };
+}
+
+inline void runAllExtensionFunctions(const std::string &name) {
+
+    const auto data = createExtensionData(nullptr);
+    char *error;
+
+    for (const auto &extension : extensions) {
+        auto func = reinterpret_cast<void (*)(ExtensionData)>(dlsym(extension.handle, name.c_str()));
+        if ((error = dlerror()) != NULL) {
+#ifdef VERBOSE_EXTENSIONS
+            Log::logWarning("Failed to load '" + name + "' function for: '" + extension.name + "', error: " + error);
+#endif
+            continue;
+        }
+        func(data);
+    }
 }

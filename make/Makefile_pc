@@ -11,6 +11,7 @@ CC         := gcc
 # Config Options
 ENABLE_CLOUDVARS	?=	0
 ENABLE_AUDIO	?=	1
+VERBOSE_EXTENSIONS	?=	0
 
 # Base compiler flags
 CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
@@ -30,6 +31,10 @@ LDFLAGS				+=	-lmist++ -lcurl
 ifeq ($(shell pkg-config --atleast-version=0.1.4 mist++ >/dev/null 2>&1; echo $$?),1)
 $(error "[ERROR] Mist++ must be v0.1.4 or newer.")
 endif
+endif
+
+ifeq ($(VERBOSE_EXTENSIONS),1)
+CFLAGS_BASE	+=	-DVERBOSE_EXTENSIONS
 endif
 
 CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++20 -Wall -fexceptions

@@ -38,8 +38,9 @@ GFXBUILD	:=	$(ROMFS)/gfx
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
-ENABLE_BUBBLES	  ?=	1
-ENABLE_AUDIO	?=	1
+ENABLE_BUBBLES		?=	1
+ENABLE_AUDIO		?=	1
+VERBOSE_EXTENSIONS	?=	0
 
 # Check for SDL2 libraries
 ifeq ($(ENABLE_AUDIO),1)
@@ -95,6 +96,9 @@ LIBS	  += `$(PKGCONF_3DS) --libs mist++`
 ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
 $(error "[ERROR] Mist++ must be v0.2.0 or newer.")
 endif
+endif
+ifeq ($(VERBOSE_EXTENSIONS),1)
+CFLAGS	+=	-DVERBOSE_EXTENSIONS
 endif
 
 ASFLAGS	:=	-g $(ARCH)

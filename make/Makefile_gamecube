@@ -28,7 +28,8 @@ GFXBUILD	:=	$(ROMFS)/gfx
 # Config Options
 ENABLE_CLOUDVARS	?=	0
 ENABLE_BUBBLES		?=	1
-ENABLE_AUDIO	?=	1
+ENABLE_AUDIO		?=	1
+VERBOSE_EXTENSIONS	?=	0
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -51,6 +52,10 @@ endif
 
 ifeq ($(ENABLE_BUBBLES),1)
 CFLAGS	+=	-DENABLE_BUBBLES
+endif
+
+ifeq ($(VERBOSE_EXTENSIONS),1)
+CFLAGS	+=	-DVERBOSE_EXTENSIONS
 endif
 
 # Include libromfs-ogc support

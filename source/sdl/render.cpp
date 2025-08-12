@@ -1,5 +1,6 @@
 #include "../scratch/render.hpp"
 #include "../scratch/audio.hpp"
+#include "../scratch/extension.hpp"
 #include "../scratch/input.hpp"
 #include "../scratch/unzip.hpp"
 #include "interpret.hpp"
@@ -163,6 +164,8 @@ void Render::renderSprites() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
+    runAllExtensionFunctions("preRender");
+
     double scaleX = static_cast<double>(windowWidth) / Scratch::projectWidth;
     double scaleY = static_cast<double>(windowHeight) / Scratch::projectHeight;
     double scale;
@@ -256,6 +259,8 @@ void Render::renderSprites() {
 
     drawBlackBars(windowWidth, windowHeight);
     renderVisibleVariables();
+
+    runAllExtensionFunctions("postRender");
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();

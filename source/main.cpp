@@ -155,10 +155,14 @@ int main(int argc, char **argv) {
 
     while (Render::appShouldRun()) {
         if (Render::checkFramerate()) {
+            runAllExtensionFunctions("preUpdate");
+
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
             Render::renderSprites();
+
+            runAllExtensionFunctions("postUpdate");
         }
     }
 
