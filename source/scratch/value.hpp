@@ -281,7 +281,17 @@ class Value {
             std::string strVal = jsonVal.get<std::string>();
 
             if (Math::isNumber(strVal)) {
-                double numVal = std::stod(strVal);
+                double numVal;
+                try {
+                    numVal = std::stod(strVal);
+                } catch (const std::invalid_argument &e) {
+                    Log::logError("Invalid number format: " + strVal);
+                    return Value(0);
+                } catch (const std::out_of_range &e) {
+                    Log::logError("Number out of range: " + strVal);
+                    return Value(0);
+                }
+
                 if (std::floor(numVal) == numVal) {
                     return Value(static_cast<int>(numVal));
                 }

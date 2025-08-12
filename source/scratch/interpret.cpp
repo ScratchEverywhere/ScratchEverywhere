@@ -265,41 +265,45 @@ void loadSprites(const nlohmann::json &json) {
             newSprite->blocks[newBlock.id] = newBlock; // add block
 
             // add custom function blocks
-            if (newBlock.opcode == "procedures_prototype") {
-                CustomBlock newCustomBlock;
-                newCustomBlock.name = data["mutation"]["proccode"];
-                newCustomBlock.blockId = newBlock.id;
+            if (newBlock.opcode == newBlock.PROCEDURES_PROTOTYPE) {
+                if (!data.is_array()) {
+                    CustomBlock newCustomBlock;
+                    newCustomBlock.name = data["mutation"]["proccode"];
+                    newCustomBlock.blockId = newBlock.id;
 
-                // custom blocks uses a different json structure for some reason?? have to parse them.
-                std::string rawArgumentNames = data["mutation"]["argumentnames"];
-                nlohmann::json parsedAN = nlohmann::json::parse(rawArgumentNames);
-                newCustomBlock.argumentNames = parsedAN.get<std::vector<std::string>>();
+                    // custom blocks uses a different json structure for some reason?? have to parse them.
+                    std::string rawArgumentNames = data["mutation"]["argumentnames"];
+                    nlohmann::json parsedAN = nlohmann::json::parse(rawArgumentNames);
+                    newCustomBlock.argumentNames = parsedAN.get<std::vector<std::string>>();
 
-                std::string rawArgumentDefaults = data["mutation"]["argumentdefaults"];
-                nlohmann::json parsedAD = nlohmann::json::parse(rawArgumentDefaults);
-                // newCustomBlock.argumentDefaults = parsedAD.get<std::vector<std::string>>();
+                    std::string rawArgumentDefaults = data["mutation"]["argumentdefaults"];
+                    nlohmann::json parsedAD = nlohmann::json::parse(rawArgumentDefaults);
+                    // newCustomBlock.argumentDefaults = parsedAD.get<std::vector<std::string>>();
 
-                for (const auto &item : parsedAD) {
-                    if (item.is_string()) {
-                        newCustomBlock.argumentDefaults.push_back(item.get<std::string>());
-                    } else if (item.is_number_integer()) {
-                        newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<int>()));
-                    } else if (item.is_number_float()) {
-                        newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<double>()));
-                    } else {
-                        newCustomBlock.argumentDefaults.push_back(item.dump());
+                    for (const auto &item : parsedAD) {
+                        if (item.is_string()) {
+                            newCustomBlock.argumentDefaults.push_back(item.get<std::string>());
+                        } else if (item.is_number_integer()) {
+                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<int>()));
+                        } else if (item.is_number_float()) {
+                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<double>()));
+                        } else {
+                            newCustomBlock.argumentDefaults.push_back(item.dump());
+                        }
                     }
+
+                    std::string rawArgumentIds = data["mutation"]["argumentids"];
+                    nlohmann::json parsedAID = nlohmann::json::parse(rawArgumentIds);
+                    newCustomBlock.argumentIds = parsedAID.get<std::vector<std::string>>();
+
+                    if (data["mutation"]["warp"] == "true") {
+                        newCustomBlock.runWithoutScreenRefresh = true;
+                    } else newCustomBlock.runWithoutScreenRefresh = false;
+
+                    newSprite->customBlocks[newCustomBlock.name] = newCustomBlock; // add custom block
+                } else {
+                    Log::logError("Unknown Custom block data: " + data.dump()); // TODO handle these
                 }
-
-                std::string rawArgumentIds = data["mutation"]["argumentids"];
-                nlohmann::json parsedAID = nlohmann::json::parse(rawArgumentIds);
-                newCustomBlock.argumentIds = parsedAID.get<std::vector<std::string>>();
-
-                if (data["mutation"]["warp"] == "true") {
-                    newCustomBlock.runWithoutScreenRefresh = true;
-                } else newCustomBlock.runWithoutScreenRefresh = false;
-
-                newSprite->customBlocks[newCustomBlock.name] = newCustomBlock; // add custom block
             }
         }
 
