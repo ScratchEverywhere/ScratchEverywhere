@@ -1,4 +1,5 @@
 #include "../scratch/unzip.hpp"
+#include "../scratch/menus/loading.hpp"
 #include "render.hpp"
 #include <3ds.h>
 
@@ -66,11 +67,11 @@ bool Unzip::load() {
         Unzip::projectOpened = -3;
     }
 
-    LoadingScreen loading;
+    Loading loading;
     loading.init();
 
     while (!Unzip::threadFinished) {
-        loading.renderLoadingScreen();
+        loading.render();
         gspWaitForVBlank();
     }
     threadJoin(projectThread, U64_MAX);
