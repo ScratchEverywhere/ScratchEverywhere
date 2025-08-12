@@ -36,10 +36,10 @@ class ButtonObject : public MenuObject {
   public:
     bool isSelected = false;
     MenuImage *buttonTexture;
-    ButtonObject *buttonUp;
-    ButtonObject *buttonDown;
-    ButtonObject *buttonLeft;
-    ButtonObject *buttonRight;
+    ButtonObject *buttonUp = nullptr;
+    ButtonObject *buttonDown = nullptr;
+    ButtonObject *buttonLeft = nullptr;
+    ButtonObject *buttonRight = nullptr;
 
     void render() override;
     bool isPressed();
@@ -54,4 +54,13 @@ class ButtonObject : public MenuObject {
      */
     ButtonObject(std::string buttonText, std::string filePath, int xPos = 0, int yPos = 0);
     virtual ~ButtonObject();
+};
+
+class ControlObject : public MenuObject {
+  public:
+    ButtonObject *selectedObject = nullptr;
+    void input();
+    void render() override;
+    ControlObject();
+    virtual ~ControlObject();
 };

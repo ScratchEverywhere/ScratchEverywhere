@@ -11,6 +11,7 @@
 MenuImage *logo;
 ButtonObject *loadButton;
 ButtonObject *settingsButton;
+ControlObject *mainMenuControl;
 
 void MainMenu::init() {
 
@@ -22,35 +23,27 @@ void MainMenu::init() {
 
     hasProjects = true;
     logoStartTime.start();
+
     loadButton = new ButtonObject("load", "gfx/play.png", 100, 180);
     loadButton->isSelected = true;
     settingsButton = new ButtonObject("settings", "gfx/settings.png", 300, 180);
+    mainMenuControl = new ControlObject();
+    mainMenuControl->selectedObject = loadButton;
+    loadButton->buttonRight = settingsButton;
+    settingsButton->buttonLeft = loadButton;
 }
 
 void MainMenu::render() {
 
     Input::getInput();
-    bool upPressed = (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "up arrow") != Input::inputButtons.end() ||
-                      std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "g") != Input::inputButtons.end()) &&
-                     Input::keyHeldFrames < 2;
-
-    bool downPressed = (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "down arrow") != Input::inputButtons.end() ||
-                        std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "j") != Input::inputButtons.end()) &&
-                       Input::keyHeldFrames < 2;
-
-    bool aPressed = (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "a") != Input::inputButtons.end() ||
-                     std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "x") != Input::inputButtons.end()) &&
-                    Input::keyHeldFrames < 2;
-
-    bool startPressed = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "1") != Input::inputButtons.end() && Input::keyHeldFrames < 2;
+    mainMenuControl->input();
 
     // begin frame
     Render::beginFrame(0, 71, 107, 115);
 
     const float elapsed = logoStartTime.getTimeMs();
-    float bobbingOffset = std::sin(elapsed * 0.0025f) * 5.0f; // speed * amplitude
+    float bobbingOffset = std::sin(elapsed * 0.0025f) * 5.0f;
 
-    float centerX = Render::getWidth() * 0.5f;
     logo->x = 200;
     logo->y = 75 + bobbingOffset;
 
@@ -60,11 +53,16 @@ void MainMenu::render() {
     // begin bottom screen frame (3DS only)
     Render::beginFrame(1, 71, 107, 115);
 
-    loadButton->render();
-    settingsButton->render();
     if (loadButton->isPressed()) {
         loadButton->x += 100;
     }
+    if (settingsButton->isPressed()) {
+        settingsButton->x += 100;
+    }
+
+    loadButton->render();
+    settingsButton->render();
+
     // Log::log(std::to_string(loadButton->isPressed()));
     // Log::log(std::to_string(Input::getTouchPosition()[0]) + " , " + std::to_string(Input::getTouchPosition()[1]));
 

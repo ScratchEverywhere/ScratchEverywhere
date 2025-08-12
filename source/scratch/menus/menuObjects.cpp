@@ -107,3 +107,29 @@ void MenuImage::render() {
 MenuImage::~MenuImage() {
     delete image;
 }
+
+ControlObject::ControlObject() {
+}
+
+void ControlObject::input() {
+    if (selectedObject == nullptr) return;
+
+    ButtonObject *newSelection = nullptr;
+
+    if (Input::isKeyJustPressed("up arrow")) newSelection = selectedObject->buttonUp;
+    else if (Input::isKeyJustPressed("down arrow")) newSelection = selectedObject->buttonDown;
+    else if (Input::isKeyJustPressed("left arrow")) newSelection = selectedObject->buttonLeft;
+    else if (Input::isKeyJustPressed("right arrow")) newSelection = selectedObject->buttonRight;
+
+    if (newSelection != nullptr) {
+        selectedObject->isSelected = false;
+        selectedObject = newSelection;
+        selectedObject->isSelected = true;
+    }
+}
+
+void ControlObject::render() {
+}
+
+ControlObject::~ControlObject() {
+}
