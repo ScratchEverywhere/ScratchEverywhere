@@ -22,6 +22,7 @@ void MainMenu::init() {
     hasProjects = true;
     logoStartTime.start();
     loadButton = new ButtonObject("load", "gfx/play.png", 64, 64, 200, 180);
+    loadButton->isSelected = true;
 }
 
 void MainMenu::render() {

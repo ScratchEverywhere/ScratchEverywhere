@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -46,6 +47,11 @@ class Input {
         if (inputControls.find(button) != inputControls.end()) {
             inputButtons.push_back(inputControls[button]);
         }
+    }
+
+    static bool isKeyJustPressed(std::string scratchKey) {
+        return (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), scratchKey) != Input::inputButtons.end()) &&
+               Input::keyHeldFrames < 2;
     }
 
     static std::vector<int> getTouchPosition();

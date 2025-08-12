@@ -30,6 +30,9 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int w, 
 }
 
 bool ButtonObject::isPressed() {
+    if (isSelected && Input::isKeyJustPressed("a")) {
+        return true;
+    }
     std::vector<int> touchPos = Input::getTouchPosition();
 
     int touchX = touchPos[0];
