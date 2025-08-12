@@ -67,6 +67,28 @@ bool ButtonObject::isPressed() {
     return false;
 }
 
+bool ButtonObject::isTouchingMouse() {
+    std::vector<int> touchPos = Input::getTouchPosition();
+
+    int touchX = touchPos[0];
+    int touchY = touchPos[1];
+
+    // get position based on scale
+    std::vector<double> scaledPos = getScaledPosition(x, y);
+    double scaledWidth = buttonTexture->image->getWidth() * buttonTexture->scale;
+    double scaledHeight = buttonTexture->image->getHeight() * buttonTexture->scale;
+
+    // simple box collision
+    bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
+    bool withinY = touchY >= (scaledPos[1] - (scaledHeight / 2)) && touchY <= (scaledPos[1] + (scaledHeight / 2));
+
+    if ((withinX && withinY)) {
+        return true;
+    }
+
+    return false;
+}
+
 void ButtonObject::render() {
     double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);
     std::vector<double> scaledPos = getScaledPosition(x, y);
@@ -125,6 +147,14 @@ void ControlObject::input() {
         selectedObject->isSelected = false;
         selectedObject = newSelection;
         selectedObject->isSelected = true;
+    } else {
+        for (ButtonObject *button : buttonObjects) {
+            if (button->isTouchingMouse()) {
+                selectedObject->isSelected = false;
+                selectedObject = button;
+                selectedObject->isSelected = true;
+            }
+        }
     }
 }
 

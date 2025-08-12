@@ -43,6 +43,7 @@ class ButtonObject : public MenuObject {
 
     void render() override;
     bool isPressed();
+    bool isTouchingMouse();
 
     /*
      * Simple button object.
@@ -58,6 +59,7 @@ class ButtonObject : public MenuObject {
 
 class ControlObject : public MenuObject {
   public:
+    std::vector<ButtonObject *> buttonObjects;
     ButtonObject *selectedObject = nullptr;
     void input();
     void render() override;

@@ -31,6 +31,8 @@ void MainMenu::init() {
     mainMenuControl->selectedObject = loadButton;
     loadButton->buttonRight = settingsButton;
     settingsButton->buttonLeft = loadButton;
+    mainMenuControl->buttonObjects.push_back(loadButton);
+    mainMenuControl->buttonObjects.push_back(settingsButton);
 }
 
 void MainMenu::render() {
