@@ -47,7 +47,6 @@ bool Render::Init() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
     if (kDown & KEY_SELECT) consoleInit(GFX_BOTTOM, NULL);
-    consoleInit(GFX_BOTTOM, NULL);
     osSetSpeedupEnable(true);
 
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);

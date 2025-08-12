@@ -10,6 +10,7 @@
 
 MenuImage *logo;
 ButtonObject *loadButton;
+ButtonObject *settingsButton;
 
 void MainMenu::init() {
 
@@ -21,8 +22,9 @@ void MainMenu::init() {
 
     hasProjects = true;
     logoStartTime.start();
-    loadButton = new ButtonObject("load", "gfx/play.png", 64, 64, 200, 180);
+    loadButton = new ButtonObject("load", "gfx/play.png", 100, 180);
     loadButton->isSelected = true;
+    settingsButton = new ButtonObject("settings", "gfx/settings.png", 300, 180);
 }
 
 void MainMenu::render() {
@@ -56,9 +58,10 @@ void MainMenu::render() {
     authorText->render(Render::getWidth() * 0.84, Render::getHeight() * 0.94);
 
     // begin bottom screen frame (3DS only)
-    // Render::beginFrame(1, 71, 107, 115);
+    Render::beginFrame(1, 71, 107, 115);
 
     loadButton->render();
+    settingsButton->render();
     if (loadButton->isPressed()) {
         loadButton->x += 100;
     }

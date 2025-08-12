@@ -20,7 +20,7 @@ std::vector<double> MenuObject::getScaledPosition(double xPos, double yPos) {
     return pos;
 }
 
-ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int w, int h, int xPos, int yPos) {
+ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos) {
     x = xPos;
     y = yPos;
     scale = 1.0;

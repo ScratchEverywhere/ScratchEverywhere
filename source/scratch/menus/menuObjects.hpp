@@ -52,6 +52,6 @@ class ButtonObject : public MenuObject {
      * @param xPosition
      * @param yPosition
      */
-    ButtonObject(std::string buttonText, std::string filePath, int w = 16, int h = 16, int xPos = 0, int yPos = 0);
+    ButtonObject(std::string buttonText, std::string filePath, int xPos = 0, int yPos = 0);
     virtual ~ButtonObject();
 };
