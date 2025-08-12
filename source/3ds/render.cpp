@@ -128,6 +128,16 @@ void Render::endFrame() {
     hasFrameBegan = false;
 }
 
+void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+    C2D_DrawRectSolid(
+        x - (w / 2.0f),
+        y - (h / 2.0f),
+        1,
+        w,
+        h,
+        C2D_Color32(colorR, colorG, colorB, colorA));
+}
+
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;

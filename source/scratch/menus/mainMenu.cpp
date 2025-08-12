@@ -64,6 +64,7 @@ void MainMenu::render() {
 
     loadButton->render();
     settingsButton->render();
+    mainMenuControl->render();
 
     // Log::log(std::to_string(loadButton->isPressed()));
     // Log::log(std::to_string(Input::getTouchPosition()[0]) + " , " + std::to_string(Input::getTouchPosition()[1]));

@@ -127,6 +127,12 @@ void Render::endFrame() {
     hasFrameBegan = false;
 }
 
+void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+    SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
+    SDL_Rect rect = {x - (w / 2), y - (h / 2), w, h};
+    SDL_RenderFillRect(renderer, &rect);
+}
+
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;

@@ -159,6 +159,27 @@ void ControlObject::input() {
 }
 
 void ControlObject::render() {
+    if (selectedObject != nullptr) {
+        // Get the button's scaled position (center point)
+        std::vector<double> buttonCenter = getScaledPosition(selectedObject->x, selectedObject->y);
+
+        // Calculate the scaled dimensions of the button
+        double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);
+        double scaledWidth = selectedObject->buttonTexture->image->getWidth() * selectedObject->scale * scaleFactor;
+        double scaledHeight = selectedObject->buttonTexture->image->getHeight() * selectedObject->scale * scaleFactor;
+
+        // Calculate corner positions
+        double leftX = buttonCenter[0] - (scaledWidth / 2);
+        double rightX = buttonCenter[0] + (scaledWidth / 2);
+        double topY = buttonCenter[1] - (scaledHeight / 2);
+        double bottomY = buttonCenter[1] + (scaledHeight / 2);
+
+        // Render boxes at all 4 corners
+        Render::drawBox(6 * scaleFactor, 6 * scaleFactor, leftX, topY);     // Top-left
+        Render::drawBox(6 * scaleFactor, 6 * scaleFactor, rightX, topY);    // Top-right
+        Render::drawBox(6 * scaleFactor, 6 * scaleFactor, leftX, bottomY);  // Bottom-left
+        Render::drawBox(6 * scaleFactor, 6 * scaleFactor, rightX, bottomY); // Bottom-right
+    }
 }
 
 ControlObject::~ControlObject() {
