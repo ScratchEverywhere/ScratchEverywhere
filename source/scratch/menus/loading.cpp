@@ -1,10 +1,12 @@
 #include "loading.hpp"
 #include "../render.hpp"
+#include "../unzip.hpp"
 
 void Loading::init() {
-    block1 = new Image("gfx/blockTurn15DegsPurple.svg");
-    block2 = new Image("gfx/blockResetTimerPurple.svg");
-    block3 = new Image("gfx/blockMovePurple.svg");
+    block1 = new Image("gfx/block1.svg");
+    block2 = new Image("gfx/block2.svg");
+    block3 = new Image("gfx/block3.svg");
+    loadingStateText = createTextObject("", 0, 0);
     block1->scale = 0.5;
     block2->scale = 0.5;
     block3->scale = 0.5;
@@ -41,6 +43,9 @@ void Loading::render() {
     block2->render((Render::getWidth() / 2) - 25, block2Y, true);
     block3->render((Render::getWidth() / 2) - 10, block3Y, true);
 
+    loadingStateText->setText(Unzip::loadingState);
+    loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
+
     Render::endFrame();
 }
 
@@ -48,6 +53,7 @@ void Loading::cleanup() {
     delete block1;
     delete block2;
     delete block3;
+    delete loadingStateText;
     Render::beginFrame(0, 0, 0, 0);
     Render::beginFrame(1, 0, 0, 0);
     Render::endFrame();

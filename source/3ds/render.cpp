@@ -427,9 +427,6 @@ void LoadingScreen::renderLoadingScreen() {
     C2D_TargetClear(topScreen, C2D_Color32(108, 100, 128, 255));
     C2D_SceneBegin(topScreen);
 
-    // if(text != nullptr){
-    // text->render();
-    // }
     for (squareObject &square : squares) {
         square.y -= square.size * 0.1;
         if (square.x > 400 + square.size) square.x = 0 - square.size;

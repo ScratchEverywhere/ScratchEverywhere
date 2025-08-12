@@ -4,6 +4,7 @@
 #include <3ds.h>
 
 volatile int Unzip::projectOpened = 0;
+std::string Unzip::loadingState = "";
 volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 mz_zip_archive Unzip::zipArchive;
@@ -71,8 +72,9 @@ bool Unzip::load() {
     loading.init();
 
     while (!Unzip::threadFinished) {
+#ifdef ENABLE_BUBBLES
         loading.render();
-        gspWaitForVBlank();
+#endif
     }
     threadJoin(projectThread, U64_MAX);
     threadFree(projectThread);
