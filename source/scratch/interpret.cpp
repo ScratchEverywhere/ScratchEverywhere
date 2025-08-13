@@ -724,6 +724,8 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
+    Unzip::loadingState = "Running Flag block";
+
     Input::applyControls();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }

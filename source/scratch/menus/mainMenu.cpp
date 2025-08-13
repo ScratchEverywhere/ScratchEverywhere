@@ -1,4 +1,5 @@
 #include "mainMenu.hpp"
+#include "../audio.hpp"
 #include "../image.hpp"
 #include "../input.hpp"
 #include "../render.hpp"
@@ -7,9 +8,7 @@
 #include <whb/sdcard.h>
 #endif
 
-MainMenu::MainMenu() : logo(nullptr), mainMenuControl(nullptr),
-                       loadButton(nullptr), settingsButton(nullptr),
-                       errorTextInfo(nullptr), selectedText(nullptr) {
+MainMenu::MainMenu() {
     init();
 }
 MainMenu::~MainMenu() {
@@ -17,6 +16,8 @@ MainMenu::~MainMenu() {
 }
 
 bool MainMenu::activateMainMenu() {
+
+    if (projectType != UNEMBEDDED) return false;
 
     MainMenu menu;
     bool isLoaded = false;
@@ -28,6 +29,8 @@ bool MainMenu::activateMainMenu() {
         }
 
         if (Unzip::filePath != "") {
+            Image::cleanupImages();
+            SoundPlayer::cleanupAudio();
             if (!Unzip::load()) {
                 Log::logWarning("Could not load project. closing app.");
                 return false;
@@ -135,8 +138,8 @@ void MainMenu::cleanup() {
         delete settingsButton;
         settingsButton = nullptr;
     }
-    Render::beginFrame(0, 117, 77, 117);
-    Render::endFrame();
+    // Render::beginFrame(0, 117, 77, 117);
+    // Render::endFrame();
 }
 
 ProjectMenu::ProjectMenu() {
@@ -249,6 +252,10 @@ void ProjectMenu::render() {
 void ProjectMenu::cleanup() {
     for (ButtonObject *button : projects) {
         delete button;
+    }
+    if (projectControl) {
+        delete projectControl;
+        projectControl = nullptr;
     }
     projects.clear();
 }

@@ -578,8 +578,29 @@ void Image::freeImage(const std::string &costumeId) {
 
 void Image::cleanupImages() {
     for (auto &[id, data] : imageC2Ds) {
-        queueFreeImage(id);
+        Log::log("freeing image " + id);
+
+        // Free RGBA buffer
+        freeRGBA(id);
+
+        // Free VRAM texture
+        if (data.image.tex) {
+            size_t textureSize = data.image.tex->width * data.image.tex->height * 4;
+            memStats.totalVRamUsage -= textureSize;
+            memStats.c2dImageCount--;
+            C3D_TexDelete(data.image.tex);
+        }
+
+        // Free subtexture object
+        if (data.image.subtex) {
+            delete data.image.subtex;
+        }
     }
+
+    // Clear maps & queues to prevent dangling references
+    imageC2Ds.clear();
+    imageLoadQueue.clear();
+    toDelete.clear();
 }
 
 void freeRGBA(const std::string &imageName) {

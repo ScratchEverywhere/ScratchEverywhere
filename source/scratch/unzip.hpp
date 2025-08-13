@@ -95,7 +95,7 @@ class Unzip {
             if (!file->read(zipBuffer.data(), size)) {
                 return project_json;
             }
-            size_t bufferSize = zipBuffer.size();
+            // size_t bufferSize = zipBuffer.size();
 
             // Track memory
             //      MemoryTracker::allocate(bufferSize);
