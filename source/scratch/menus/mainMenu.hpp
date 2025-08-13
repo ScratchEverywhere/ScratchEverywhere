@@ -25,9 +25,8 @@ class MainMenu {
     void cleanup();
     static bool activateMainMenu();
 
-    MainMenu() {
-        init();
-    }
+    MainMenu();
+    ~MainMenu();
 };
 
 class ProjectMenu {
@@ -39,6 +38,9 @@ class ProjectMenu {
     std::vector<ButtonObject *> projects;
 
     ControlObject *projectControl = nullptr;
+
+    ProjectMenu();
+    ~ProjectMenu();
 
     void init();
     void render();

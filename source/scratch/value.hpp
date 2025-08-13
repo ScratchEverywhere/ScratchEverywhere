@@ -57,7 +57,7 @@ class Value {
     // Assignment operator
     Value &operator=(const Value &other) {
         if (this != &other) {
-            if (type == ValueType::STRING) {
+            if (type == ValueType::STRING || type == ValueType::BOOLEAN) {
                 delete stringValue;
             }
             // copy new value
@@ -81,7 +81,7 @@ class Value {
     }
     // destructor
     ~Value() {
-        if (type == ValueType::STRING) {
+        if (type == ValueType::STRING || type == ValueType::BOOLEAN) {
             delete stringValue;
         }
     }

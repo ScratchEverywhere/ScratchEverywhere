@@ -40,7 +40,6 @@ int main(int argc, char **argv) {
     }
 
     while (Scratch::startScratchProject()) {
-        cleanupSprites();
         if (!MainMenu::activateMainMenu()) {
             exitApp();
             return 0;

@@ -127,6 +127,7 @@ bool Scratch::startScratchProject() {
 }
 
 void Scratch::cleanupScratchProject() {
+    cleanupSprites();
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     blockLookup.clear();
@@ -134,20 +135,18 @@ void Scratch::cleanupScratchProject() {
 
     // Clean up ZIP archive if it was initialized
     if (projectType != UNZIPPED) {
-        // Close the ZIP archive (this frees internal resources)
         mz_zip_reader_end(&Unzip::zipArchive);
 
         // Clear the ZIP buffer and deallocate its memory
         size_t bufferSize = Unzip::zipBuffer.size();
         Unzip::zipBuffer.clear();
-        Unzip::zipBuffer.shrink_to_fit(); // Force deallocation
+        Unzip::zipBuffer.shrink_to_fit();
 
         // Update memory tracker for the buffer
         if (bufferSize > 0) {
-            MemoryTracker::deallocate(nullptr, bufferSize);
+            //   MemoryTracker::deallocate(nullptr, bufferSize);
         }
 
-        // Reset the archive structure
         memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
     }
 
@@ -191,8 +190,11 @@ Sprite *getAvailableSprite() {
 void cleanupSprites() {
     for (Sprite *sprite : sprites) {
         if (sprite) {
-            sprite->~Sprite();
-            // MemoryTracker::deallocate(sprite, 1);
+            if (sprite->isClone) {
+                sprite->isDeleted = true;
+            } else {
+                delete sprite;
+            }
         }
     }
     sprites.clear();
@@ -279,7 +281,7 @@ void loadSprites(const nlohmann::json &json) {
 
         // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
         Sprite *newSprite = new Sprite();
-        new (newSprite) Sprite();
+        // new (newSprite) Sprite();
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
         }

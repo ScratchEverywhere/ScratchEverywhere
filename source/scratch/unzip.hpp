@@ -98,7 +98,7 @@ class Unzip {
             size_t bufferSize = zipBuffer.size();
 
             // Track memory
-            MemoryTracker::allocate(bufferSize);
+            //      MemoryTracker::allocate(bufferSize);
 
             // open ZIP file from the thing that we just did
             Log::log("Opening SB3 file...");
@@ -123,10 +123,10 @@ class Unzip {
 
             // Parse JSON file
             Log::log("Parsing project.json...");
-            MemoryTracker::allocate(json_size);
+            //            MemoryTracker::allocate(json_size);
             project_json = nlohmann::json::parse(std::string(json_data, json_size));
             mz_free((void *)json_data);
-            MemoryTracker::deallocate(nullptr, json_size);
+            //          MemoryTracker::deallocate(nullptr, json_size);
 
             // Image::loadImages(&zipArchive);
             // mz_zip_reader_end(&zipArchive);

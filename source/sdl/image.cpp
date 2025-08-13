@@ -19,7 +19,10 @@ Image::Image(std::string filePath) {
 }
 
 Image::~Image() {
-    queueFreeImage(imageId);
+    auto it = images.find(imageId);
+    if (it != images.end()) {
+        freeImage(imageId);
+    }
 }
 
 void Image::render(double xPos, double yPos, bool centered) {
@@ -148,8 +151,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     finalPath = finalPath + filePath;
 
-    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
-    new (image) SDL_Image(finalPath);
+    SDL_Image *image = new SDL_Image(finalPath);
 
     // Check if it's an SVG file
     bool isSVG = filePath.size() >= 4 &&
@@ -161,7 +163,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     // Track texture memory
     if (image->spriteTexture) {
         size_t textureMemory = image->width * image->height * 4;
-        MemoryTracker::allocate(textureMemory);
+        MemoryTracker::allocateVRAM(textureMemory);
         image->memorySize = textureMemory;
     }
 
@@ -245,8 +247,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     SDL_FreeSurface(surface);
 
     // Build SDL_Image object
-    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
-    new (image) SDL_Image();
+    SDL_Image *image = new SDL_Image();
     if (isSVG) image->isSVG = true;
     image->spriteTexture = texture;
     SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
@@ -269,8 +270,14 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
 
 void Image::cleanupImages() {
     for (auto &[id, image] : images) {
-        queueFreeImage(id);
+        if (image->memorySize > 0) {
+            MemoryTracker::deallocateVRAM(image->memorySize);
+        }
+        delete image;
+        // MemoryTracker::deallocate<SDL_Image>(image);
     }
+    images.clear();
+    toDelete.clear();
 }
 
 /**
@@ -283,13 +290,13 @@ void Image::freeImage(const std::string &costumeId) {
         SDL_Image *image = imageIt->second;
 
         if (image->memorySize > 0) {
-            MemoryTracker::deallocate(nullptr, image->memorySize);
+            MemoryTracker::deallocateVRAM(image->memorySize);
         }
 
         Log::log("Freed image " + costumeId);
-        // Call destructor and deallocate SDL_Image
-        image->~SDL_Image();
-        MemoryTracker::deallocate<SDL_Image>(image);
+        delete image;
+        // image->~SDL_Image();
+        // MemoryTracker::deallocate<SDL_Image>(image);
 
         images.erase(imageIt);
     } else {

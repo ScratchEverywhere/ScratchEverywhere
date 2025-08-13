@@ -7,12 +7,20 @@
 #include <whb/sdcard.h>
 #endif
 
+MainMenu::MainMenu() : logo(nullptr), mainMenuControl(nullptr),
+                       loadButton(nullptr), settingsButton(nullptr),
+                       errorTextInfo(nullptr), selectedText(nullptr) {
+    init();
+}
+MainMenu::~MainMenu() {
+    cleanup();
+}
+
 bool MainMenu::activateMainMenu() {
 
     MainMenu menu;
     bool isLoaded = false;
     while (!isLoaded) {
-
         menu.render();
         if (!Render::appShouldRun() || menu.shouldExit) {
             Log::logWarning("app should exit. closing app.");
@@ -81,6 +89,7 @@ void MainMenu::render() {
             projectMenu.render();
 
             if (!Render::appShouldRun()) {
+                Log::logWarning("App should close. cleaning up menu.");
                 projectMenu.cleanup();
                 shouldExit = true;
                 projectMenu.shouldGoBack = true;
@@ -104,17 +113,38 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
-
     selectedText = nullptr;
-    if (errorTextInfo) delete errorTextInfo;
 
-    delete logo;
-    delete mainMenuControl;
-    delete loadButton;
-    delete settingsButton;
-
+    if (errorTextInfo) {
+        delete errorTextInfo;
+        errorTextInfo = nullptr;
+    }
+    if (logo) {
+        delete logo;
+        logo = nullptr;
+    }
+    if (mainMenuControl) {
+        delete mainMenuControl;
+        mainMenuControl = nullptr;
+    }
+    if (loadButton) {
+        delete loadButton;
+        loadButton = nullptr;
+    }
+    if (settingsButton) {
+        delete settingsButton;
+        settingsButton = nullptr;
+    }
     Render::beginFrame(0, 117, 77, 117);
     Render::endFrame();
+}
+
+ProjectMenu::ProjectMenu() {
+    init();
+}
+
+ProjectMenu::~ProjectMenu() {
+    cleanup();
 }
 
 void ProjectMenu::init() {

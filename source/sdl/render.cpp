@@ -308,6 +308,7 @@ void Render::renderVisibleVariables() {
             monitorTexts[var.id]->render(var.x * scale + barOffsetX, var.y * scale + barOffsetY);
         } else {
             if (monitorTexts.find(var.id) != monitorTexts.end()) {
+                delete monitorTexts[var.id];
                 monitorTexts.erase(var.id);
             }
         }

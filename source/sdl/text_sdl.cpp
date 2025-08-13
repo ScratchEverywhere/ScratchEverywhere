@@ -81,11 +81,13 @@ void TextObjectSDL::updateTexture() {
 }
 
 void TextObjectSDL::setColor(int clr) {
+    if (color == clr) return;
     TextObject::setColor(clr);
     updateTexture();
 }
 
 void TextObjectSDL::setText(std::string txt) {
+    if (text == txt) return;
     text = txt;
     updateTexture();
 }

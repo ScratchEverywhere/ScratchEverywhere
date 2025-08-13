@@ -264,7 +264,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     newRGBA.data = rgba_data;
 
     size_t imageSize = width * height * 4;
-    MemoryTracker::allocate(imageSize);
+    // MemoryTracker::allocate(imageSize);
 
     Log::log("successfuly laoded image from file!");
     imageRGBAS.push_back(newRGBA);
@@ -363,7 +363,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
 
     // Track memory usage
     size_t imageSize = width * height * 4;
-    MemoryTracker::allocate(imageSize);
+    // MemoryTracker::allocate(imageSize);
 
     Log::log("Successfully loaded image: " + costumeId);
     imageRGBAS.push_back(newRGBA);
@@ -485,8 +485,9 @@ bool get_C2D_Image(imageRGBA rgba) {
     C2D_Image image;
 
     // Base texture
-    C3D_Tex *tex = MemoryTracker::allocate<C3D_Tex>();
-    new (tex) C3D_Tex();
+    C3D_Tex *tex = new C3D_Tex();
+    // C3D_Tex *tex = MemoryTracker::allocate<C3D_Tex>();
+    // new (tex) C3D_Tex();
     image.tex = tex;
 
     // Texture dimensions must be square powers of two between 64x64 and 1024x1024
@@ -497,8 +498,9 @@ bool get_C2D_Image(imageRGBA rgba) {
     memStats.totalVRamUsage += textureSize;
 
     // Subtexture
-    Tex3DS_SubTexture *subtex = MemoryTracker::allocate<Tex3DS_SubTexture>();
-    new (subtex) Tex3DS_SubTexture();
+    Tex3DS_SubTexture *subtex = new Tex3DS_SubTexture();
+    // Tex3DS_SubTexture *subtex = MemoryTracker::allocate<Tex3DS_SubTexture>();
+    // new (subtex) Tex3DS_SubTexture();
 
     image.subtex = subtex;
     subtex->width = rgba.width;
@@ -512,8 +514,8 @@ bool get_C2D_Image(imageRGBA rgba) {
 
     if (!C3D_TexInit(tex, tex->width, tex->height, GPU_RGBA8)) {
         Log::logWarning("Texture initializing failed!");
-        MemoryTracker::deallocate(tex);
-        MemoryTracker::deallocate(subtex);
+        // MemoryTracker::deallocate(tex);
+        // MemoryTracker::deallocate(subtex);
         return false;
     }
     C3D_TexSetFilter(tex, GPU_NEAREST, GPU_NEAREST);
@@ -521,8 +523,8 @@ bool get_C2D_Image(imageRGBA rgba) {
     if (!tex->data) {
         Log::logWarning("Texture data is null!");
         C3D_TexDelete(tex);
-        MemoryTracker::deallocate(tex);
-        MemoryTracker::deallocate(subtex);
+        // MemoryTracker::deallocate(tex);
+        // MemoryTracker::deallocate(subtex);
         return false;
     }
 
@@ -562,10 +564,11 @@ void Image::freeImage(const std::string &costumeId) {
             memStats.c2dImageCount--;
 
             C3D_TexDelete(it->second.image.tex);
-            MemoryTracker::deallocate<C3D_Tex>(it->second.image.tex);
+            // MemoryTracker::deallocate<C3D_Tex>(it->second.image.tex);
         }
         if (it->second.image.subtex) {
-            MemoryTracker::deallocate<Tex3DS_SubTexture>((Tex3DS_SubTexture *)it->second.image.subtex);
+            delete it->second.image.subtex;
+            // MemoryTracker::deallocate<Tex3DS_SubTexture>((Tex3DS_SubTexture *)it->second.image.subtex);
         }
         imageC2Ds.erase(it);
     } else return;
@@ -589,7 +592,7 @@ void freeRGBA(const std::string &imageName) {
         if (it->data && dataSize > 0) {
             if (it->isSVG) free(it->data);
             else stbi_image_free(it->data);
-            MemoryTracker::deallocate(nullptr, dataSize);
+            // MemoryTracker::deallocate(nullptr, dataSize);
             memStats.totalRamUsage -= dataSize;
             memStats.imageCount--;
 
