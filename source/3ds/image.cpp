@@ -523,6 +523,7 @@ bool get_C2D_Image(imageRGBA rgba) {
     if (!tex->data) {
         Log::logWarning("Texture data is null!");
         C3D_TexDelete(tex);
+        delete tex;
         // MemoryTracker::deallocate(tex);
         // MemoryTracker::deallocate(subtex);
         return false;

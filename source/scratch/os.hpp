@@ -101,32 +101,6 @@ class MemoryTracker {
         allocationCount--;
     }
 
-    // // Template versions for type safety
-    // template <typename T>
-    // static T *allocate(size_t count = 1) {
-    //     size_t size = count * sizeof(T);
-    //     T *ptr = static_cast<T *>(malloc(size));
-    //     if (ptr) {
-    //         totalAllocated += size;
-    //         allocationCount++;
-
-    //         if (totalAllocated > peakUsage) {
-    //             peakUsage = totalAllocated;
-    //         }
-    //     }
-    //     return ptr;
-    // }
-
-    // template <typename T>
-    // static void deallocate(T *ptr, size_t count = 1) {
-    //     if (ptr) {
-    //         size_t size = count * sizeof(T);
-    //         totalAllocated -= size;
-    //         allocationCount--;
-    //         free(ptr);
-    //     }
-    // }
-
     static size_t getCurrentUsage() {
         return totalAllocated;
     }
