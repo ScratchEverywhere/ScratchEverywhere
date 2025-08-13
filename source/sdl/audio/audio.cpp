@@ -18,7 +18,7 @@ SDL_Audio::SDL_Audio() : audioChunk(nullptr) {}
 SDL_Audio::~SDL_Audio() {
 #ifdef ENABLE_AUDIO
     if (memorySize > 0) {
-        // MemoryTracker::deallocate(nullptr, memorySize);
+        MemoryTracker::deallocate(memorySize);
     }
     if (audioChunk) {
         Mix_FreeChunk(audioChunk);
@@ -214,12 +214,12 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             if (!streamed) {
                 audio->audioChunk = chunk;
                 audio->memorySize = file_size * 2; // Rough estimate..
-                // MemoryTracker::allocate(audio->memorySize);
+                MemoryTracker::allocate(audio->memorySize);
             } else {
                 audio->music = music;
                 audio->isStreaming = true;
                 audio->memorySize = 64 * 1024; // streaming buffer is ~64kb
-                // MemoryTracker::allocate(audio->memorySize);
+                MemoryTracker::allocate(audio->memorySize);
             }
             audio->audioId = soundId;
 
@@ -284,15 +284,15 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         } else {
             audioMemorySize = 1024 * 1024; // 1MB defualt
         }
-        // MemoryTracker::allocate(audioMemorySize);
+        MemoryTracker::allocate(audioMemorySize);
     } else {
         music = Mix_LoadMUS(fileName.c_str());
         if (!music) {
             Log::logWarning("Failed to load streamed audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
         }
-        // audioMemorySize = 64 * 1024; // estimate
-        // MemoryTracker::allocate(audioMemorySize);
+        audioMemorySize = 64 * 1024; // estimate
+        MemoryTracker::allocate(audioMemorySize);
     }
 
     // Create SDL_Audio object
@@ -458,6 +458,7 @@ void SoundPlayer::freeAudio(const std::string &soundId) {
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
         SDL_Audio *audio = it->second;
+        MemoryTracker::deallocate(audio->memorySize);
         delete audio;
         // audio->~SDL_Audio();
         // MemoryTracker::deallocate<SDL_Audio>(audio);
@@ -473,6 +474,7 @@ void SoundPlayer::cleanupAudio() {
 
     // Track memory cleanup
     for (auto &pair : SDL_Sounds) {
+        MemoryTracker::deallocate(audio->memorySize);
         delete pair.second;
         // pair.second->~SDL_Audio();
         // MemoryTracker::deallocate<SDL_Audio>(pair.second);

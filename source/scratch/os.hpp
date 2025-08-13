@@ -75,19 +75,15 @@ class MemoryTracker {
         return pc_maxVRAMUsage;
     }
 
-    // // Raw allocation tracking
-    // static void *allocate(size_t size) {
-    //     void *ptr = malloc(size);
-    //     if (ptr) {
-    //         totalAllocated += size;
-    //         allocationCount++;
+    // Raw allocation tracking
+    static void allocate(size_t size) {
+        totalAllocated += size;
+        allocationCount++;
 
-    //         if (totalAllocated > peakUsage) {
-    //             peakUsage = totalAllocated;
-    //         }
-    //     }
-    //     return ptr;
-    // }
+        if (totalAllocated > peakUsage) {
+            peakUsage = totalAllocated;
+        }
+    }
 
     static void allocateVRAM(size_t size) {
         totalVRAMAllocated += size;
@@ -100,13 +96,10 @@ class MemoryTracker {
         return totalVRAMAllocated;
     }
 
-    // static void deallocate(void *ptr, size_t size) {
-    //     if (ptr) {
-    //         totalAllocated -= size;
-    //         allocationCount--;
-    //         free(ptr);
-    //     }
-    // }
+    static void deallocate(size_t size) {
+        totalAllocated -= size;
+        allocationCount--;
+    }
 
     // // Template versions for type safety
     // template <typename T>

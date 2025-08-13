@@ -264,7 +264,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     newRGBA.data = rgba_data;
 
     size_t imageSize = width * height * 4;
-    // MemoryTracker::allocate(imageSize);
+    MemoryTracker::allocate(imageSize);
 
     Log::log("successfuly laoded image from file!");
     imageRGBAS.push_back(newRGBA);
@@ -363,7 +363,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
 
     // Track memory usage
     size_t imageSize = width * height * 4;
-    // MemoryTracker::allocate(imageSize);
+    MemoryTracker::allocate(imageSize);
 
     Log::log("Successfully loaded image: " + costumeId);
     imageRGBAS.push_back(newRGBA);
@@ -613,7 +613,7 @@ void freeRGBA(const std::string &imageName) {
         if (it->data && dataSize > 0) {
             if (it->isSVG) free(it->data);
             else stbi_image_free(it->data);
-            // MemoryTracker::deallocate(nullptr, dataSize);
+            MemoryTracker::deallocate(dataSize);
             memStats.totalRamUsage -= dataSize;
             memStats.imageCount--;
 
