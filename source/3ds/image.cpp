@@ -564,6 +564,8 @@ void Image::freeImage(const std::string &costumeId) {
             memStats.c2dImageCount--;
 
             C3D_TexDelete(it->second.image.tex);
+            delete it->second.image.tex;
+            it->second.image.tex = nullptr;
             // MemoryTracker::deallocate<C3D_Tex>(it->second.image.tex);
         }
         if (it->second.image.subtex) {
@@ -589,6 +591,8 @@ void Image::cleanupImages() {
             memStats.totalVRamUsage -= textureSize;
             memStats.c2dImageCount--;
             C3D_TexDelete(data.image.tex);
+            delete data.image.tex;
+            data.image.tex = nullptr;
         }
 
         // Free subtexture object

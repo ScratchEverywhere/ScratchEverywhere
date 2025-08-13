@@ -474,7 +474,7 @@ void SoundPlayer::cleanupAudio() {
 
     // Track memory cleanup
     for (auto &pair : SDL_Sounds) {
-        MemoryTracker::deallocate(audio->memorySize);
+        MemoryTracker::deallocate(pair.second->memorySize);
         delete pair.second;
         // pair.second->~SDL_Audio();
         // MemoryTracker::deallocate<SDL_Audio>(pair.second);

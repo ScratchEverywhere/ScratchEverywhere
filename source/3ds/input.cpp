@@ -26,9 +26,11 @@ std::vector<int> Input::getTouchPosition() {
 
     pos.push_back(touch.px);
     pos.push_back(touch.py);
-    if (touch.px != 0 || touch.py != 0) {
-        mousePointer.isPressed = true;
-    } else mousePointer.isPressed = false;
+    if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
+        if (touch.px != 0 || touch.py != 0) {
+            mousePointer.isPressed = true;
+        } else mousePointer.isPressed = false;
+    }
     return pos;
 }
 

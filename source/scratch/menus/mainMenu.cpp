@@ -19,6 +19,8 @@ bool MainMenu::activateMainMenu() {
 
     if (projectType != UNEMBEDDED) return false;
 
+    Render::renderMode = Render::BOTH_SCREENS;
+
     MainMenu menu;
     bool isLoaded = false;
     while (!isLoaded) {
