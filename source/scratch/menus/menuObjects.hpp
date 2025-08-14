@@ -3,8 +3,6 @@
 #include "../os.hpp"
 #include "../text.hpp"
 
-static float guiScale = 1.0f;
-
 class MenuObject {
   public:
     double x;

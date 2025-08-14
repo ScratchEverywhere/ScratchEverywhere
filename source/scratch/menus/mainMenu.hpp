@@ -36,9 +36,26 @@ class ProjectMenu {
 
     ControlObject *projectControl = nullptr;
     ButtonObject *backButton = nullptr;
+    ButtonObject *playButton = nullptr;
+    ButtonObject *settingsButton = nullptr;
 
     ProjectMenu();
     ~ProjectMenu();
+
+    void init();
+    void render();
+    void cleanup();
+};
+
+class ProjectSettings {
+  private:
+  public:
+    ControlObject *settingsControl = nullptr;
+    ButtonObject *changeControlsButton = nullptr;
+    ButtonObject *bottomScreenButton = nullptr;
+
+    ProjectSettings();
+    ~ProjectSettings();
 
     void init();
     void render();

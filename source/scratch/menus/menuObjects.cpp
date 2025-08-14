@@ -5,6 +5,8 @@
 #define REFERENCE_WIDTH 400
 #define REFERENCE_HEIGHT 240
 
+static float guiScale = 1.0f;
+
 double MenuObject::getScaleFactor(int windowX, int windowY) {
     return guiScale;
 }

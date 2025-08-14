@@ -147,7 +147,11 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 
     projectControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 25);
+    backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 20);
+    playButton = new ButtonObject("Play", "gfx/optionBox.svg", 95, 230);
+    settingsButton = new ButtonObject("Settings", "gfx/optionBox.svg", 315, 230);
+    playButton->scale = 0.6;
+    settingsButton->scale = 0.6;
     backButton->needsToBeSelected = false;
     backButton->scale = 0.25;
 
@@ -187,7 +191,7 @@ void ProjectMenu::init() {
 
     // check if user has any projects
     if (projectFiles.size() == 0) {
-
+        hasProjects = false;
     } else {
         projectControl->selectedObject = projects.front();
         projectControl->selectedObject->isSelected = true;
@@ -200,13 +204,15 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
-    if (projectControl->selectedObject->isPressed()) {
+    if (projectControl->selectedObject->isPressed() || playButton->isPressed("a")) {
         Unzip::filePath = projectControl->selectedObject->text->getText();
         shouldGoBack = true;
         return;
     }
     if (backButton->isPressed("b")) {
         shouldGoBack = true;
+    }
+    if (settingsButton->isPressed("y")) {
     }
 
     const float targetY = projectControl->selectedObject->y;
@@ -247,6 +253,10 @@ void ProjectMenu::render() {
     }
     projectControl->render(cameraX, cameraY - cameraYOffset);
     backButton->render();
+    if (hasProjects) {
+        playButton->render();
+        settingsButton->render();
+    }
 
     Render::endFrame();
 }
@@ -263,5 +273,63 @@ void ProjectMenu::cleanup() {
     if (backButton != nullptr) {
         delete backButton;
         backButton = nullptr;
+    }
+    if (playButton != nullptr) {
+        delete playButton;
+        playButton = nullptr;
+    }
+    if (settingsButton != nullptr) {
+        delete settingsButton;
+        settingsButton = nullptr;
+    }
+}
+
+ProjectSettings::ProjectSettings() {
+    init();
+}
+ProjectSettings::~ProjectSettings() {
+    cleanup();
+}
+
+void ProjectSettings::init() {
+    // initialize
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/projectBox.png", 0, 0);
+    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/projectBox.png", 0, 60);
+    settingsControl = new ControlObject();
+
+    // initial selected object
+    settingsControl->selectedObject = changeControlsButton;
+    changeControlsButton->isSelected = true;
+
+    // link buttons
+    changeControlsButton->buttonDown = bottomScreenButton;
+    bottomScreenButton->buttonUp = changeControlsButton;
+
+    // add buttons to control
+    settingsControl->buttonObjects.push_back(changeControlsButton);
+    settingsControl->buttonObjects.push_back(bottomScreenButton);
+}
+void ProjectSettings::render() {
+    Input::getInput();
+    settingsControl->input();
+
+    if (changeControlsButton->isPressed()) {
+    }
+    if (bottomScreenButton->isPressed()) {
+    }
+
+    Render::beginFrame(0, 108, 100, 128);
+    Render::beginFrame(1, 108, 100, 128);
+
+    changeControlsButton->render();
+    bottomScreenButton->render();
+    settingsControl->render();
+
+    Render::endFrame();
+}
+void ProjectSettings::cleanup() {
+    if (changeControlsButton != nullptr) {
+        delete changeControlsButton;
+        changeControlsButton = nullptr;
     }
 }
