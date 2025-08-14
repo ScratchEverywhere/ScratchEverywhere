@@ -425,49 +425,6 @@ void Render::renderVisibleVariables() {
     }
 }
 
-void LoadingScreen::renderLoadingScreen() {
-#ifdef ENABLE_BUBBLES
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, C2D_Color32(108, 100, 128, 255));
-    C2D_SceneBegin(topScreen);
-
-    for (squareObject &square : squares) {
-        square.y -= square.size * 0.1;
-        if (square.x > 400 + square.size) square.x = 0 - square.size;
-        if (square.y < 0 - square.size) square.y = 240 + square.size;
-        C2D_DrawRectSolid(square.x, square.y, 1, square.size, square.size, C2D_Color32(255, 255, 255, 75));
-    }
-
-    C3D_FrameEnd(0);
-#endif
-}
-
-void LoadingScreen::init() {
-#ifdef ENABLE_BUBBLES
-    // text = new TextObject("Loading...",200,120);
-    createSquares(20);
-#endif
-}
-
-void LoadingScreen::cleanup() {
-#ifdef ENABLE_BUBBLES
-    // if(text && text != nullptr)
-    // delete text;
-    squares.clear();
-
-    C2D_Flush();
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrBlack);
-    C2D_SceneBegin(topScreen);
-
-    C2D_TargetClear(bottomScreen, clrBlack);
-    C2D_SceneBegin(bottomScreen);
-
-    C3D_FrameEnd(0);
-    gspWaitForVBlank();
-#endif
-}
-
 void Render::deInit() {
 #ifdef ENABLE_CLOUDVARS
     socExit();

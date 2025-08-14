@@ -343,10 +343,3 @@ bool Render::appShouldRun() {
     }
     return true;
 }
-
-void LoadingScreen::init() {
-}
-void LoadingScreen::renderLoadingScreen() {
-}
-void LoadingScreen::cleanup() {
-}

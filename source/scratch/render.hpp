@@ -88,27 +88,3 @@ class Render {
 
     static std::vector<Monitor> visibleVariables;
 };
-
-class LoadingScreen {
-  private:
-    struct squareObject {
-        float x, y;
-        float size;
-    };
-    std::vector<squareObject> squares;
-    void createSquares(int count) {
-        for (int i = 0; i < count; i++) {
-            squareObject square;
-            square.x = rand() % 400;
-            square.y = 260;
-            square.size = rand() % 20;
-            squares.push_back(square);
-        }
-    }
-
-  public:
-    // TextObject* text;
-    void init();
-    void renderLoadingScreen();
-    void cleanup();
-};
