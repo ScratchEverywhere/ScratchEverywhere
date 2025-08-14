@@ -13,8 +13,8 @@ PKGCONF := $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
 
 TARGET		:=	scratch-nx
 BUILD		:=	build/switch
-SOURCES		:=	source source/scratch source/scratch/blocks source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/sdl include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann
 APP_VERSION	:=	0.7
 ICON		:=	gfx/wiiu/icon.png
 APP_TITLE	:=	Scratch NX
