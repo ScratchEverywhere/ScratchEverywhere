@@ -11,7 +11,7 @@ WORKDIR /app
 COPY --from=libromfs_builder /opt/devkitpro/portlibs/gamecube/ /opt/devkitpro/portlibs/gamecube/
 COPY . .
 
-RUN make PLATFORM=gamecube
+RUN make PLATFORM=gamecube ENABLE_AUDIO=1
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/gamecube/scratch-gamecube.dol /

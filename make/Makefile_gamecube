@@ -18,9 +18,9 @@ PKGCONF_GAMECUBE	:=	$(DEVKITPRO)/portlibs/gamecube/bin/powerpc-eabi-pkg-config
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-gamecube
 BUILD		:=	build/gamecube
-SOURCES		:=	source source/scratch source/scratch/blocks source/sdl source/sdl/audio include/miniz include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
 DATA		:=	data
-INCLUDES	:=	include source/scratch source/scratch/blocks source/sdl source/sdl/audio include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
 ROMFS		:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -28,6 +28,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 # Config Options
 ENABLE_CLOUDVARS	?=	0
 ENABLE_BUBBLES		?=	1
+ENABLE_AUDIO	?=	1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -41,7 +42,12 @@ ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	:=	-g $(MACHDEP) -Wl,-Map,$(notdir $*.map) \
 		-Wl,--gc-sections
 
+ifeq ($(ENABLE_AUDIO),1)
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image freetype2`
+CFLAGS	+=	-DENABLE_AUDIO
+else
+LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image freetype2`
+endif
 
 ifeq ($(ENABLE_BUBBLES),1)
 CFLAGS	+=	-DENABLE_BUBBLES
@@ -105,7 +111,7 @@ export LIBPATHS	:= -L$(LIBOGC_LIB)
 
 #---------------------------------------------------------------------------------
 all: $(BUILD) $(DEPSDIR) $(GFXBUILD)
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile_gamecube
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/make/Makefile_gamecube
 
 $(BUILD):
 	@mkdir -p $@

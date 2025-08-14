@@ -6,6 +6,7 @@
 size_t MemoryTracker::totalAllocated = 0;
 size_t MemoryTracker::peakUsage = 0;
 size_t MemoryTracker::allocationCount = 0;
+size_t MemoryTracker::totalVRAMAllocated = 0;
 
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;

@@ -11,6 +11,7 @@ class TextObjectSDL : public TextObject {
     TTF_Font *font = nullptr;
     SDL_Renderer *renderer = nullptr;
     SDL_Texture *texture = nullptr;
+    size_t memorySize = 0;
     int textWidth = 0;
     int textHeight = 0;
 

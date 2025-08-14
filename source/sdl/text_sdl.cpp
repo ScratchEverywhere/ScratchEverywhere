@@ -16,7 +16,7 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
-        TTF_Font *loadedFont = TTF_OpenFont(fontPath.c_str(), 24);
+        TTF_Font *loadedFont = TTF_OpenFont(fontPath.c_str(), 30);
         if (!loadedFont) {
             std::cerr << "Failed to load font " << fontPath << ": " << TTF_GetError() << std::endl;
         } else {
@@ -34,6 +34,7 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
 TextObjectSDL::~TextObjectSDL() {
     if (texture) {
+        MemoryTracker::deallocateVRAM(memorySize);
         SDL_DestroyTexture(texture);
         texture = nullptr;
     }
@@ -64,7 +65,10 @@ void TextObjectSDL::updateTexture() {
     }
 
     // Create texture from surface
+    MemoryTracker::deallocateVRAM(memorySize);
     texture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    memorySize = textSurface->w * textSurface->h * 4;
+    MemoryTracker::allocateVRAM(memorySize);
     if (!texture) {
         std::cerr << "Failed to create text texture: " << SDL_GetError() << std::endl;
     }

@@ -13,8 +13,8 @@ PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
 
 TARGET		:=	scratch-wiiu
 BUILD			:=	build/wiiu
-SOURCES		:=	source source/scratch source/scratch/blocks source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/sdl source/sdl/audio include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
 ROMFS	:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -32,6 +32,7 @@ APP_DRC_SPLASH				:=	gfx/wiiu/drc-splash.png
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
+ENABLE_AUDIO	?=	1
 
 # Flags
 
@@ -46,7 +47,13 @@ CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
+ifeq ($(ENABLE_AUDIO),1)
+CFLAGS	+=	-DENABLE_AUDIO
 LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2` `$(PKGCONF) --libs zlib libpng`
+else
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf sdl2` `$(PKGCONF) --libs zlib libpng`
+endif
+
 LIBS	+=	-lharfbuzz -lfreetype
 
 ifeq ($(ENABLE_CLOUDVARS),1)

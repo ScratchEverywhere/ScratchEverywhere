@@ -10,6 +10,8 @@
 namespace Math {
 bool isNumber(const std::string &str);
 
+int color(int r, int g, int b, int a);
+
 double degreesToRadians(double degrees);
 
 double radiansToDegrees(double radians);

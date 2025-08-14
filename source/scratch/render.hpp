@@ -16,11 +16,39 @@ class Render {
     static std::chrono::_V2::system_clock::time_point startTime;
     static std::chrono::_V2::system_clock::time_point endTime;
 
+    static bool hasFrameBegan;
+
     static bool Init();
 
     static void deInit();
 
+    /**
+     * [SDL] returns the current renderer.
+     */
     static void *getRenderer();
+
+    /**
+     * Begins a drawing frame.
+     * @param screen [3DS] which screen to begin drawing on. 0 = top, 1 = bottom.
+     * @param colorR red 0-255
+     * @param colorG green 0-255
+     * @param colorB blue 0-255
+     */
+    static void beginFrame(int screen, int colorR, int colorG, int colorB);
+
+    /**
+     * Stops drawing.
+     */
+    static void endFrame();
+
+    /**
+     * gets the screen Width.
+     */
+    static int getWidth();
+    /**
+     * gets the screen Height.
+     */
+    static int getHeight();
 
     /**
      * Renders every sprite to the screen.
@@ -79,28 +107,4 @@ class LoadingScreen {
     void init();
     void renderLoadingScreen();
     void cleanup();
-};
-
-class MainMenu {
-  private:
-  public:
-    int cameraX;
-    int cameraY;
-    bool hasProjects;
-    bool shouldExit;
-
-    std::vector<TextObject *> projectTexts;
-    std::chrono::steady_clock::time_point logoStartTime = std::chrono::steady_clock::now();
-    TextObject *selectedText = nullptr;
-    TextObject *infoText = nullptr;
-    TextObject *errorTextInfo = nullptr;
-    int selectedTextIndex = 0;
-
-    void init();
-    void render();
-    void cleanup();
-
-    MainMenu() {
-        init();
-    }
 };

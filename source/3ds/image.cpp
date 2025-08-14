@@ -73,7 +73,8 @@ void Image::render(double xPos, double yPos) {
     });
     if (rgbaIt != imageRGBAS.end()) {
         if (imageC2Ds.find(rgbaIt->name) != imageC2Ds.end()) {
-            C2D_DrawImageAt(imageC2Ds[rgbaIt->name].image, xPos, yPos, 1);
+            imageC2Ds[rgbaIt->name].freeTimer = 240;
+            C2D_DrawImageAt(imageC2Ds[rgbaIt->name].image, static_cast<int>(xPos), static_cast<int>(yPos), 1);
         }
     }
 }

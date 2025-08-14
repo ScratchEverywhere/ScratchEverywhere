@@ -17,9 +17,9 @@ class SDL_Image {
     bool isSVG = false;
     float rotation = 0.0f;
 #ifdef GAMECUBE
-    int maxFreeTime = 15;
+    int maxFreeTime = 2;
 #else
-    int maxFreeTime = 240;
+    int maxFreeTime = 480;
 #endif
 
     int freeTimer = maxFreeTime;

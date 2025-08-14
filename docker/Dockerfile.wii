@@ -27,7 +27,7 @@ WORKDIR /app
 COPY --from=libromfs_builder /opt/devkitpro/portlibs/wii/ /opt/devkitpro/portlibs/wii/
 COPY . .
 
-RUN make PLATFORM=wii
+RUN make PLATFORM=wii ENABLE_AUDIO=1 all package
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/wii/scratch-wii.dol /
+COPY --from=main_builder /app/build/wii/scratch-wii.zip /

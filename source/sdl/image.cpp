@@ -26,6 +26,7 @@ void Image::render(double xPos, double yPos) {
         image->renderRect.x = xPos;
         image->renderRect.y = yPos;
 
+        image->freeTimer = image->maxFreeTime;
         SDL_RenderCopy(renderer, image->spriteTexture, &image->textureRect, &image->renderRect);
     }
 }
@@ -214,6 +215,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
 
     if (!surface) {
         Log::logWarning("Failed to load image from memory: " + costumeId);
+        Log::logWarning("IMG Error: " + std::string(IMG_GetError()));
         return;
     }
 
@@ -223,12 +225,6 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
         SDL_FreeSurface(surface);
         return;
     }
-
-    // Track texture memory usage
-    int width, height;
-    SDL_QueryTexture(texture, nullptr, nullptr, &width, &height);
-    size_t textureMemory = width * height * 4;
-    MemoryTracker::allocate(textureMemory);
 
     SDL_FreeSurface(surface);
 
@@ -240,7 +236,16 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
     image->renderRect = {0, 0, image->width, image->height};
     image->textureRect = {0, 0, image->width, image->height};
-    image->memorySize = textureMemory;
+
+    // calculate VRAM usage
+    Uint32 format;
+    int w, h;
+    SDL_QueryTexture(texture, &format, NULL, &w, &h);
+    int bpp;
+    Uint32 Rmask, Gmask, Bmask, Amask;
+    SDL_PixelFormatEnumToMasks(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
+    image->memorySize = (w * h * bpp) / 8;
+    MemoryTracker::allocateVRAM(image->memorySize);
 
     Log::log("Successfully loaded image: " + costumeId);
     images[imgId] = image;
@@ -274,16 +279,48 @@ void Image::freeImage(const std::string &costumeId) {
  */
 void Image::FlushImages() {
 
-    for (auto &[id, img] : images) {
-        if (img->freeTimer <= 0) {
-            toDelete.push_back(id);
-        } else {
-            img->freeTimer -= 1;
-        }
-    }
+    // Free images if ram usage is too high
+    if (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.8) {
 
-    for (const std::string &id : toDelete) {
-        Image::freeImage(id);
+        size_t times = 0;
+        while (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.5 && !images.empty()) {
+            SDL_Image *imgToDelete = nullptr;
+            std::string toDeleteStr = "";
+
+            for (auto &[id, img] : images) {
+                if (imgToDelete == nullptr && img->freeTimer != img->maxFreeTime) {
+                    imgToDelete = img;
+                    toDeleteStr = id;
+                    continue;
+                }
+                if (imgToDelete != nullptr && img->freeTimer < imgToDelete->freeTimer && img->freeTimer != img->maxFreeTime) {
+                    imgToDelete = img;
+                    toDeleteStr = id;
+                }
+            }
+
+            if (toDeleteStr != "") {
+                Image::freeImage(toDeleteStr);
+            } else {
+                break;
+            }
+            times++;
+            if (times > 15) break;
+        }
+    } else {
+        // Free images based on a timer
+        for (auto &[id, img] : images) {
+            if (img->freeTimer <= 0) {
+                toDelete.push_back(id);
+            } else {
+                img->freeTimer -= 1;
+            }
+        }
+
+        for (const std::string &id : toDelete) {
+            Image::freeImage(id);
+        }
+        toDelete.clear();
     }
 }
 
@@ -315,7 +352,15 @@ SDL_Image::SDL_Image(std::string filePath) {
     textureRect.x = 0;
     textureRect.y = 0;
 
-    memorySize = width * height * 4;
+    // calculate VRAM usage
+    Uint32 format;
+    int w, h;
+    SDL_QueryTexture(spriteTexture, &format, NULL, &w, &h);
+    int bpp;
+    Uint32 Rmask, Gmask, Bmask, Amask;
+    SDL_PixelFormatEnumToMasks(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
+    memorySize = (w * h * bpp) / 8;
+    MemoryTracker::allocateVRAM(memorySize);
 
     Log::log("Image loaded!");
 }
@@ -328,6 +373,7 @@ void Image::queueFreeImage(const std::string &costumeId) {
 }
 
 SDL_Image::~SDL_Image() {
+    MemoryTracker::deallocateVRAM(memorySize);
     SDL_DestroyTexture(spriteTexture);
 }
 

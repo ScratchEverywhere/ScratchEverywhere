@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
 COPY . .
 
-RUN make PLATFORM=pc release ENABLE_CLOUDVARS=1
+RUN make PLATFORM=pc release ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1
 
 FROM scratch AS exporter
 

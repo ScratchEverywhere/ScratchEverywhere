@@ -226,7 +226,7 @@ class Value {
     }
 
     static Value fromJson(const nlohmann::json &jsonVal) {
-        if (jsonVal.is_null()) return Value(0);
+        if (jsonVal.is_null()) return Value();
 
         if (jsonVal.is_number_integer()) {
             return Value(jsonVal.get<int>());
@@ -236,7 +236,17 @@ class Value {
             std::string strVal = jsonVal.get<std::string>();
 
             if (Math::isNumber(strVal)) {
-                double numVal = std::stod(strVal);
+                double numVal;
+                try {
+                    numVal = std::stod(strVal);
+                } catch (const std::invalid_argument &e) {
+                    Log::logError("Invalid number format: " + strVal);
+                    return Value(0);
+                } catch (const std::out_of_range &e) {
+                    Log::logError("Number out of range: " + strVal);
+                    return Value(0);
+                }
+
                 if (std::floor(numVal) == numVal) {
                     return Value(static_cast<int>(numVal));
                 }
@@ -244,7 +254,7 @@ class Value {
             }
             return Value(strVal);
         } else if (jsonVal.is_boolean()) {
-            return Value(jsonVal.get<bool>() ? "true" : "false");
+            return Value(Math::removeQuotations(jsonVal.dump()));
         } else if (jsonVal.is_array()) {
             if (jsonVal.size() > 1) {
                 return fromJson(jsonVal[1]);
@@ -254,5 +264,8 @@ class Value {
         return Value(0);
     }
 
-    ValueType getType() const { return type; }
+    ValueType
+    getType() const {
+        return type;
+    }
 };
