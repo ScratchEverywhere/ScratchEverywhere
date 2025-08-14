@@ -68,6 +68,7 @@ class ProjectSettings {
 class ControlsMenu {
   public:
     ButtonObject *backButton = nullptr;
+    ButtonObject *applyButton = nullptr;
     int cameraY;
 
     class key {

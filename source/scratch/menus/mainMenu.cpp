@@ -427,12 +427,15 @@ void ControlsMenu::init() {
     Scratch::cleanupScratchProject();
 
     if (!controls.empty()) {
-        Input::applyControls(OS::getScratchFolderLocation() + projectPath + ".json");
+        Input::applyControls(projectPath + ".json");
     }
 
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
     backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 20);
+    applyButton = new ButtonObject("Apply", "gfx/optionBox.svg", 200, 230);
+    applyButton->scale = 0.6;
+    applyButton->needsToBeSelected = false;
     backButton->scale = 0.25;
     backButton->needsToBeSelected = false;
 
@@ -483,6 +486,11 @@ void ControlsMenu::render() {
     settingsControl->input();
 
     if (backButton->isPressed("b")) {
+        shouldGoBack = true;
+        return;
+    }
+    if (applyButton->isPressed("y")) {
+        applyControls();
         shouldGoBack = true;
         return;
     }
@@ -562,11 +570,43 @@ void ControlsMenu::render() {
     // Render UI elements
     settingsControl->render(cameraX, cameraY - cameraYOffset);
     backButton->render();
+    applyButton->render();
 
     Render::endFrame();
 }
 
 void ControlsMenu::applyControls() {
+    // Build the file path
+    std::string folderPath = OS::getScratchFolderLocation() + projectPath;
+    std::string filePath = folderPath + ".json";
+
+    // Make sure parent directories exist
+    try {
+        std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
+    } catch (const std::filesystem::filesystem_error &e) {
+        Log::logError("Failed to create directories: " + std::string(e.what()));
+        return;
+    }
+
+    // Create a JSON object to hold control mappings
+    nlohmann::json json;
+    json["controls"] = nlohmann::json::object();
+
+    // Save each control in the form: "ControlName": "MappedKey"
+    for (const auto &c : controlButtons) {
+        json["controls"][c.control] = c.controlValue;
+    }
+
+    // Write JSON to file (overwrite if exists)
+    std::ofstream file(filePath);
+    if (!file) {
+        Log::logError("Failed to create JSON file: " + filePath);
+        return;
+    }
+    file << json.dump(2);
+    file.close();
+
+    Log::log("Controls saved to: " + filePath);
 }
 
 void ControlsMenu::cleanup() {
@@ -581,5 +621,9 @@ void ControlsMenu::cleanup() {
     if (settingsControl != nullptr) {
         delete settingsControl;
         settingsControl = nullptr;
+    }
+    if (applyButton != nullptr) {
+        delete applyButton;
+        applyButton = nullptr;
     }
 }

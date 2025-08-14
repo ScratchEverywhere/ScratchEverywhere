@@ -4,6 +4,7 @@
 build/
 romfs/project/
 romfs/gfx
+scratch-everywhere/
 
 main.code-workspace
 

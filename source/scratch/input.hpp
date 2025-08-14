@@ -25,15 +25,21 @@ class Input {
             // load controls from file
             std::ifstream file(OS::getScratchFolderLocation() + controlsFilePath);
             if (file.is_open()) {
+                Log::log("Loading controls from file: " + controlsFilePath);
                 nlohmann::json controlsJson;
                 file >> controlsJson;
 
-                for (auto &[key, value] : controlsJson.items()) {
-                    inputControls[value.get<std::string>()] = key;
+                // Access the "controls" object specifically
+                if (controlsJson.contains("controls")) {
+                    for (auto &[key, value] : controlsJson["controls"].items()) {
+                        inputControls[value.get<std::string>()] = key;
+                        Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
+                    }
                 }
-
                 file.close();
                 return;
+            } else {
+                Log::logWarning("Failed to open controls file: " + controlsFilePath);
             }
         }
 
