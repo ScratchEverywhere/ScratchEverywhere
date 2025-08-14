@@ -208,7 +208,7 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
-    if (projectControl->selectedObject->isPressed() || playButton->isPressed({"a", "x"})) {
+    if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
         Unzip::filePath = projectControl->selectedObject->text->getText();
         shouldGoBack = true;
         return;
@@ -467,8 +467,11 @@ void ControlsMenu::init() {
         settingsControl->buttonObjects.push_back(controlButton);
         yPosition += 50;
     }
-    settingsControl->selectedObject = controlButtons.front().button;
-    settingsControl->selectedObject->isSelected = true;
+    if (!controls.empty()) {
+        settingsControl->selectedObject = controlButtons.front().button;
+        settingsControl->selectedObject->isSelected = true;
+        cameraY = settingsControl->selectedObject->y;
+    }
 
     // link buttons
     for (size_t i = 0; i < controlButtons.size(); i++) {
@@ -487,11 +490,11 @@ void ControlsMenu::render() {
     Input::getInput();
     settingsControl->input();
 
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({"b"})) {
         shouldGoBack = true;
         return;
     }
-    if (applyButton->isPressed({"l"})) {
+    if (applyButton->isPressed({"y"})) {
         applyControls();
         shouldGoBack = true;
         return;
@@ -501,14 +504,21 @@ void ControlsMenu::render() {
         Input::keyHeldFrames = -999;
 
         // wait till A isnt pressed
-        while (!Input::inputButtons.empty()) {
+        while (!Input::inputButtons.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
 
-        while (Input::keyHeldFrames < 2) {
+        while (Input::keyHeldFrames < 2 && Render::appShouldRun()) {
             Input::getInput();
         }
         if (!Input::inputButtons.empty()) {
+
+            // remove "any" first
+            auto it = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "any");
+            if (it != Input::inputButtons.end()) {
+                Input::inputButtons.erase(it);
+            }
+
             std::string key = Input::inputButtons.back();
             for (const auto &pair : Input::inputControls) {
                 if (pair.second == key) {
@@ -516,12 +526,15 @@ void ControlsMenu::render() {
                     for (auto &newControl : controlButtons) {
                         if (newControl.button == settingsControl->selectedObject) {
                             newControl.controlValue = pair.first;
+                            Log::log("Updated control: " + newControl.control + " -> " + newControl.controlValue);
                             break;
                         }
                     }
                     break;
                 }
             }
+        } else {
+            Log::logWarning("No input detected for control assignment.");
         }
     }
 
