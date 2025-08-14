@@ -8,6 +8,10 @@
 #include <nn/act.h>
 #endif
 
+#ifdef __SWITCH__
+extern char nickname[0x21];
+#endif
+
 Input::Mouse Input::mousePointer;
 
 std::vector<std::string> Input::inputButtons;
@@ -222,6 +226,8 @@ std::string Input::getUsername() {
     int16_t miiName[256];
     nn::act::GetMiiName(miiName);
     return std::string(miiName, miiName + sizeof(miiName) / sizeof(miiName[0]));
+#elif defined(__SWITCH__)
+    if (std::string(nickname) != "") return std::string(nickname);
 #endif
     return "Player";
 }

@@ -12,6 +12,12 @@
 #include <coreinit/dynload.h>
 #endif
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
+// arm-none-eabi-addr2line -e Scratch.elf xxx
+// ^ for debug purposes
 #ifdef __OGC__
 #include <SDL2/SDL.h>
 #endif
