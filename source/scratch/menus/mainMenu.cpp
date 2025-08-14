@@ -441,6 +441,12 @@ void ControlsMenu::init() {
     backButton->scale = 0.25;
     backButton->needsToBeSelected = false;
 
+    if (controls.empty()) {
+        Log::logWarning("No controls found in project");
+        shouldGoBack = true;
+        return;
+    }
+
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
