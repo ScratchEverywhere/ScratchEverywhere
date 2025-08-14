@@ -10,6 +10,8 @@ else ifeq ($(PLATFORM),wii)
 include make/Makefile_wii
 else ifeq ($(PLATFORM),gamecube)
 include make/Makefile_gamecube
+else ifeq ($(PLATFORM),switch)
+include make/Makefile_switch
 else
     $(error Unknown platform: $(PLATFORM))
 endif

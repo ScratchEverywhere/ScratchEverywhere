@@ -20,7 +20,7 @@ int Unzip::openFile(std::ifstream *file) {
     std::string filename = "project.sb3";
     std::string unzippedPath = "project/project.json";
 
-#if defined(__WIIU__) || defined(__OGC__)
+#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
     file->open("romfs:/" + unzippedPath, std::ios::binary | std::ios::ate);
 #else
     file->open(unzippedPath, std::ios::binary | std::ios::ate);
@@ -29,7 +29,7 @@ int Unzip::openFile(std::ifstream *file) {
     if (!(*file)) {
         Log::logWarning("No unzipped project, trying embedded.");
 
-#if defined(__WIIU__) || defined(__OGC__)
+#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
         file->open("romfs:/" + filename, std::ios::binary | std::ios::ate);
 #endif
         projectType = EMBEDDED;
@@ -38,6 +38,9 @@ int Unzip::openFile(std::ifstream *file) {
             std::ostringstream path;
             path << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/" << filePath;
             file->open(path.str(), std::ios::binary | std::ios::ate);
+#elif defined(__SWITCH__)
+        if (!(*file)) {
+            file->open("/switch/scratch-nx/" + filename, std::ios::binary | std::ios::ate);
 #endif
             if (!(*file)) {
                 projectType = UNEMBEDDED;
@@ -54,7 +57,7 @@ int Unzip::openFile(std::ifstream *file) {
                     }
                 }
             }
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__SWITCH__)
         }
 #endif
     }

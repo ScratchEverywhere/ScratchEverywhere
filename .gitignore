@@ -43,6 +43,10 @@ main.code-workspace
 *.out
 *.app
 *.3dsx
+*.nacp
+*.pfs0
+*.nro
+*.nso
 *.elf
 *.smdh
 *.bat
