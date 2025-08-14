@@ -55,9 +55,24 @@ class ProjectSettings {
     ButtonObject *changeControlsButton = nullptr;
     ButtonObject *bottomScreenButton = nullptr;
     bool shouldGoBack = false;
+    std::string projectPath;
 
-    ProjectSettings();
+    ProjectSettings(std::string projPath = "");
     ~ProjectSettings();
+
+    void init();
+    void render();
+    void cleanup();
+};
+
+class ControlsMenu {
+  public:
+    ButtonObject *backButton = nullptr;
+
+    std::string projectPath;
+    bool shouldGoBack = false;
+    ControlsMenu(std::string projPath);
+    ~ControlsMenu();
 
     void init();
     void render();

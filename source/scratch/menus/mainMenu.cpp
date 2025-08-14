@@ -2,6 +2,7 @@
 #include "../audio.hpp"
 #include "../image.hpp"
 #include "../input.hpp"
+#include "../interpret.hpp"
 #include "../render.hpp"
 #include "../unzip.hpp"
 #ifdef __WIIU__
@@ -213,8 +214,9 @@ void ProjectMenu::render() {
         shouldGoBack = true;
     }
     if (settingsButton->isPressed("y")) {
+        std::string selectedProject = projectControl->selectedObject->text->getText();
         cleanup();
-        ProjectSettings settings;
+        ProjectSettings settings(selectedProject);
         while (settings.shouldGoBack == false && Render::appShouldRun()) {
             settings.render();
         }
@@ -291,7 +293,8 @@ void ProjectMenu::cleanup() {
     }
 }
 
-ProjectSettings::ProjectSettings() {
+ProjectSettings::ProjectSettings(std::string projPath) {
+    projectPath = projPath;
     init();
 }
 ProjectSettings::~ProjectSettings() {
@@ -328,6 +331,13 @@ void ProjectSettings::render() {
     settingsControl->input();
 
     if (changeControlsButton->isPressed()) {
+        cleanup();
+        ControlsMenu controlsMenu(projectPath);
+        while (controlsMenu.shouldGoBack == false && Render::appShouldRun()) {
+            controlsMenu.render();
+        }
+        controlsMenu.cleanup();
+        init();
     }
     if (bottomScreenButton->isPressed()) {
     }
@@ -358,6 +368,85 @@ void ProjectSettings::cleanup() {
         delete settingsControl;
         settingsControl = nullptr;
     }
+    if (backButton != nullptr) {
+        delete backButton;
+        backButton = nullptr;
+    }
+}
+
+ControlsMenu::ControlsMenu(std::string projPath) {
+    projectPath = projPath;
+    init();
+}
+
+ControlsMenu::~ControlsMenu() {
+    cleanup();
+}
+
+void ControlsMenu::init() {
+
+    Unzip::filePath = projectPath;
+    if (!Unzip::load()) {
+        Log::logError("Failed to load project for ControlsMenu.");
+        toExit = true;
+        return;
+    }
+    Unzip::filePath = "";
+
+    // get controls
+    std::vector<std::string> controls;
+
+    for (auto &sprite : sprites) {
+        for (auto &[id, block] : sprite->blocks) {
+            std::string buttonCheck;
+            if (block.opcode == Block::SENSING_KEYPRESSED) {
+
+                // stolen code from sensing.cpp
+
+                auto inputFind = block.parsedInputs.find("KEY_OPTION");
+                // if no variable block is in the input
+                if (inputFind->second.inputType == ParsedInput::LITERAL) {
+                    Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
+                    if (!inputBlock->fields["KEY_OPTION"][0].is_null())
+                        buttonCheck = inputBlock->fields["KEY_OPTION"][0];
+                } else {
+                    buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
+                }
+
+            } else if (block.opcode == Block::EVENT_WHEN_KEY_PRESSED) {
+                buttonCheck = block.fields.at("KEY_OPTION")[0];
+            } else continue;
+            if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
+                Log::log("Found new control: " + buttonCheck);
+                controls.push_back(buttonCheck);
+            }
+        }
+    }
+
+    Scratch::cleanupScratchProject();
+
+    backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 20);
+    backButton->scale = 0.25;
+    backButton->needsToBeSelected = false;
+}
+
+void ControlsMenu::render() {
+
+    Input::getInput();
+    if (backButton->isPressed("b")) {
+        shouldGoBack = true;
+        return;
+    }
+
+    Render::beginFrame(0, 108, 100, 128);
+    Render::beginFrame(1, 108, 100, 128);
+
+    backButton->render();
+
+    Render::endFrame();
+}
+
+void ControlsMenu::cleanup() {
     if (backButton != nullptr) {
         delete backButton;
         backButton = nullptr;

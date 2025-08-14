@@ -163,6 +163,7 @@ void Scratch::cleanupScratchProject() {
     Scratch::miscellaneousLimits = true;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
     Unzip::filePath = "";
+    Log::log("Cleaned up Scratch project.");
 }
 
 void initializeSpritePool(int poolSize) {
