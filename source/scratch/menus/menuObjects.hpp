@@ -46,7 +46,7 @@ class ButtonObject : public MenuObject {
     ButtonObject *buttonRight = nullptr;
 
     void render(double xPos = 0, double yPos = 0) override;
-    bool isPressed(std::string pressButton = "a");
+    bool isPressed(std::vector<std::string> pressButton = {"a", "x"});
     bool isTouchingMouse();
 
     /*

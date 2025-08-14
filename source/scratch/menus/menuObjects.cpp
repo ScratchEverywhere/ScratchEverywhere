@@ -30,9 +30,11 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
     buttonTexture = new MenuImage(filePath);
 }
 
-bool ButtonObject::isPressed(std::string pressButton) {
-    if ((isSelected || !needsToBeSelected) && Input::isKeyJustPressed(pressButton)) {
-        return true;
+bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
+    for (const auto &button : pressButton) {
+        if ((isSelected || !needsToBeSelected) && Input::isKeyJustPressed(button)) {
+            return true;
+        }
     }
 
     if (!canBeClicked) return false;
@@ -148,10 +150,10 @@ void ControlObject::input() {
 
     ButtonObject *newSelection = nullptr;
 
-    if (Input::isKeyJustPressed("up arrow")) newSelection = selectedObject->buttonUp;
-    else if (Input::isKeyJustPressed("down arrow")) newSelection = selectedObject->buttonDown;
-    else if (Input::isKeyJustPressed("left arrow")) newSelection = selectedObject->buttonLeft;
-    else if (Input::isKeyJustPressed("right arrow")) newSelection = selectedObject->buttonRight;
+    if (Input::isKeyJustPressed("up arrow") || Input::isKeyJustPressed("g")) newSelection = selectedObject->buttonUp;
+    else if (Input::isKeyJustPressed("down arrow") || Input::isKeyJustPressed("j")) newSelection = selectedObject->buttonDown;
+    else if (Input::isKeyJustPressed("left arrow") || Input::isKeyJustPressed("h")) newSelection = selectedObject->buttonLeft;
+    else if (Input::isKeyJustPressed("right arrow") || Input::isKeyJustPressed("u")) newSelection = selectedObject->buttonRight;
 
     if (newSelection != nullptr) {
         selectedObject->isSelected = false;

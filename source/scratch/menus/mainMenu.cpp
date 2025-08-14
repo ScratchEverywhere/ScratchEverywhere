@@ -154,6 +154,8 @@ void ProjectMenu::init() {
     settingsButton = new ButtonObject("Settings", "gfx/optionBox.svg", 315, 230);
     playButton->scale = 0.6;
     settingsButton->scale = 0.6;
+    settingsButton->needsToBeSelected = false;
+    playButton->needsToBeSelected = false;
     backButton->needsToBeSelected = false;
     backButton->scale = 0.25;
 
@@ -206,15 +208,15 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
-    if (projectControl->selectedObject->isPressed() || playButton->isPressed("a")) {
+    if (projectControl->selectedObject->isPressed() || playButton->isPressed({"a", "x"})) {
         Unzip::filePath = projectControl->selectedObject->text->getText();
         shouldGoBack = true;
         return;
     }
-    if (backButton->isPressed("b")) {
+    if (backButton->isPressed({"b", "y"})) {
         shouldGoBack = true;
     }
-    if (settingsButton->isPressed("y")) {
+    if (settingsButton->isPressed({"l"})) {
         std::string selectedProject = projectControl->selectedObject->text->getText();
         cleanup();
         ProjectSettings settings(selectedProject);
@@ -342,7 +344,7 @@ void ProjectSettings::render() {
     }
     if (bottomScreenButton->isPressed()) {
     }
-    if (backButton->isPressed("b")) {
+    if (backButton->isPressed({"b", "y"})) {
         shouldGoBack = true;
     }
 
@@ -485,11 +487,11 @@ void ControlsMenu::render() {
     Input::getInput();
     settingsControl->input();
 
-    if (backButton->isPressed("b")) {
+    if (backButton->isPressed({"b", "y"})) {
         shouldGoBack = true;
         return;
     }
-    if (applyButton->isPressed("y")) {
+    if (applyButton->isPressed({"l"})) {
         applyControls();
         shouldGoBack = true;
         return;
