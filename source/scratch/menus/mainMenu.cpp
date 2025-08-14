@@ -26,11 +26,13 @@ bool MainMenu::activateMainMenu() {
     while (!isLoaded) {
         menu.render();
         if (!Render::appShouldRun() || menu.shouldExit) {
+            menu.cleanup();
             Log::logWarning("app should exit. closing app.");
             return false;
         }
 
         if (Unzip::filePath != "") {
+            menu.cleanup();
             Image::cleanupImages();
             SoundPlayer::cleanupAudio();
             if (!Unzip::load()) {
