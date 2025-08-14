@@ -439,9 +439,14 @@ void ControlsMenu::init() {
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/optionBox.svg", 200, yPosition);
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/optionBox.svg", 0, yPosition);
         controlButton->text->setColor(Math::color(255, 255, 255, 255));
         controlButton->scale = 0.6;
+        controlButton->y -= controlButton->text->getSize()[1] / 2;
+        if (controlButton->text->getSize()[0] > controlButton->buttonTexture->image->getWidth() * 0.3) {
+            float scale = (float)controlButton->buttonTexture->image->getWidth() / (controlButton->text->getSize()[0] * 3);
+            controlButton->textScale = scale;
+        }
         controlButton->canBeClicked = false;
         newControl.button = controlButton;
         newControl.control = control;
@@ -458,31 +463,110 @@ void ControlsMenu::init() {
         yPosition += 50;
     }
     settingsControl->selectedObject = controlButtons.front().button;
+    settingsControl->selectedObject->isSelected = true;
+
+    // link buttons
+    for (size_t i = 0; i < controlButtons.size(); i++) {
+        if (i > 0) {
+            controlButtons[i].button->buttonUp = controlButtons[i - 1].button;
+        }
+        if (i < controlButtons.size() - 1) {
+            controlButtons[i].button->buttonDown = controlButtons[i + 1].button;
+        }
+    }
 
     Input::applyControls();
 }
 
 void ControlsMenu::render() {
-
     Input::getInput();
+    settingsControl->input();
+
     if (backButton->isPressed("b")) {
         shouldGoBack = true;
         return;
     }
 
+    if (settingsControl->selectedObject->isPressed()) {
+        Input::keyHeldFrames = -999;
+
+        // wait till A isnt pressed
+        while (!Input::inputButtons.empty()) {
+            Input::getInput();
+        }
+
+        while (Input::keyHeldFrames < 2) {
+            Input::getInput();
+        }
+        if (!Input::inputButtons.empty()) {
+            std::string key = Input::inputButtons.back();
+            for (const auto &pair : Input::inputControls) {
+                if (pair.second == key) {
+                    // Update the control value
+                    for (auto &newControl : controlButtons) {
+                        if (newControl.button == settingsControl->selectedObject) {
+                            newControl.controlValue = pair.first;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Smooth camera movement to follow selected control
+    const float targetY = settingsControl->selectedObject->y;
+    const float lerpSpeed = 0.1f;
+
+    cameraY = cameraY + (targetY - cameraY) * lerpSpeed;
+    const int cameraX = 200;
+    const double cameraYOffset = 110;
+
     Render::beginFrame(0, 108, 100, 128);
     Render::beginFrame(1, 108, 100, 128);
 
-    for (key controlButton : controlButtons) {
+    for (key &controlButton : controlButtons) {
         if (controlButton.button == nullptr) continue;
-        controlButton.button->text->setText(controlButton.control + " = " + controlButton.controlValue);
-        controlButton.button->render();
+
+        // Update button text
+        controlButton.button->text->setText(
+            controlButton.control + " = " + controlButton.controlValue);
+
+        // Highlight selected
+        if (settingsControl->selectedObject == controlButton.button)
+            controlButton.button->text->setColor(Math::color(32, 36, 41, 255));
+        else
+            controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
+
+        // Position with camera offset
+        const double xPos = controlButton.button->x + cameraX;
+        const double yPos = controlButton.button->y - (cameraY - cameraYOffset);
+
+        // Scale based on distance to selected
+        const double distance = abs(controlButton.button->y - targetY);
+        const int maxDistance = 500;
+        float targetScale;
+        if (distance <= maxDistance) {
+            targetScale = 1.0f - (distance / static_cast<float>(maxDistance));
+        } else {
+            targetScale = 0.0f;
+        }
+
+        // Smooth scaling
+        controlButton.button->scale = controlButton.button->scale + (targetScale - controlButton.button->scale) * lerpSpeed;
+
+        controlButton.button->render(xPos, yPos);
     }
 
+    // Render UI elements
+    settingsControl->render(cameraX, cameraY - cameraYOffset);
     backButton->render();
-    settingsControl->render();
 
     Render::endFrame();
+}
+
+void ControlsMenu::applyControls() {
 }
 
 void ControlsMenu::cleanup() {
