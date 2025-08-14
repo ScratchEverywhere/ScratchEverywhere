@@ -46,6 +46,7 @@ class Scratch {
     static int FPS;
     static bool fencing;
     static bool miscellaneousLimits;
+    static bool shouldStop;
 };
 
 /**

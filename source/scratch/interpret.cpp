@@ -40,6 +40,7 @@ int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
+bool Scratch::shouldStop = false;
 
 #ifdef ENABLE_CLOUDVARS
 bool cloudProject = false;
@@ -117,7 +118,7 @@ bool Scratch::startScratchProject() {
             BlockExecutor::runBroadcasts();
             Render::renderSprites();
 
-            if (Input::isKeyJustPressed("1")) {
+            if (Scratch::shouldStop) {
                 cleanupScratchProject();
                 return true;
             }
