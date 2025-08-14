@@ -119,6 +119,10 @@ bool Scratch::startScratchProject() {
             Render::renderSprites();
 
             if (Scratch::shouldStop) {
+                if (projectType != UNEMBEDDED) {
+                    toExit = true;
+                    return false;
+                }
                 cleanupScratchProject();
                 return true;
             }
