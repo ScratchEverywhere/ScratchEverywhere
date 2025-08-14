@@ -80,15 +80,15 @@ void MainMenu::init() {
 
     logoStartTime.start();
 
-    loadButton = new ButtonObject("load", "gfx/play.png", 100, 180);
+    loadButton = new ButtonObject("", "gfx/play.png", 200, 180);
     loadButton->isSelected = true;
-    settingsButton = new ButtonObject("settings", "gfx/settings.png", 300, 180);
+    // settingsButton = new ButtonObject("", "gfx/settings.png", 300, 180);
     mainMenuControl = new ControlObject();
     mainMenuControl->selectedObject = loadButton;
-    loadButton->buttonRight = settingsButton;
-    settingsButton->buttonLeft = loadButton;
+    // loadButton->buttonRight = settingsButton;
+    // settingsButton->buttonLeft = loadButton;
     mainMenuControl->buttonObjects.push_back(loadButton);
-    mainMenuControl->buttonObjects.push_back(settingsButton);
+    // mainMenuControl->buttonObjects.push_back(settingsButton);
 }
 
 void MainMenu::render() {
@@ -108,12 +108,12 @@ void MainMenu::render() {
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);
 
-    if (settingsButton->isPressed()) {
-        settingsButton->x += 100;
-    }
+    // if (settingsButton->isPressed()) {
+    //     settingsButton->x += 100;
+    // }
 
     loadButton->render();
-    settingsButton->render();
+    // settingsButton->render();
     mainMenuControl->render();
 
     Render::endFrame();
@@ -149,7 +149,7 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 
     projectControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 20);
+    backButton = new ButtonObject("", "gfx/buttonBack.svg", 375, 20);
     playButton = new ButtonObject("Play", "gfx/optionBox.svg", 95, 230);
     settingsButton = new ButtonObject("Settings", "gfx/optionBox.svg", 315, 230);
     playButton->scale = 0.6;
@@ -308,10 +308,10 @@ void ProjectSettings::init() {
     // initialize
     changeControlsButton = new ButtonObject("Change Controls", "gfx/projectBox.png", 200, 100);
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
-    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/projectBox.png", 200, 150);
-    bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
+    // bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/projectBox.png", 200, 150);
+    // bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     settingsControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 20);
+    backButton = new ButtonObject("", "gfx/buttonBack.svg", 375, 20);
     backButton->scale = 0.25;
     backButton->needsToBeSelected = false;
 
@@ -320,14 +320,14 @@ void ProjectSettings::init() {
     changeControlsButton->isSelected = true;
 
     // link buttons
-    changeControlsButton->buttonDown = bottomScreenButton;
-    changeControlsButton->buttonUp = bottomScreenButton;
-    bottomScreenButton->buttonUp = changeControlsButton;
-    bottomScreenButton->buttonDown = changeControlsButton;
+    // changeControlsButton->buttonDown = bottomScreenButton;
+    // changeControlsButton->buttonUp = bottomScreenButton;
+    // bottomScreenButton->buttonUp = changeControlsButton;
+    // bottomScreenButton->buttonDown = changeControlsButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
-    settingsControl->buttonObjects.push_back(bottomScreenButton);
+    // settingsControl->buttonObjects.push_back(bottomScreenButton);
 }
 void ProjectSettings::render() {
     Input::getInput();
@@ -342,8 +342,8 @@ void ProjectSettings::render() {
         controlsMenu.cleanup();
         init();
     }
-    if (bottomScreenButton->isPressed()) {
-    }
+    // if (bottomScreenButton->isPressed()) {
+    // }
     if (backButton->isPressed({"b", "y"})) {
         shouldGoBack = true;
     }
@@ -352,7 +352,7 @@ void ProjectSettings::render() {
     Render::beginFrame(1, 108, 100, 128);
 
     changeControlsButton->render();
-    bottomScreenButton->render();
+    // bottomScreenButton->render();
     settingsControl->render();
     backButton->render();
 
@@ -434,8 +434,8 @@ void ControlsMenu::init() {
 
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
-    backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 20);
-    applyButton = new ButtonObject("Apply", "gfx/optionBox.svg", 200, 230);
+    backButton = new ButtonObject("", "gfx/buttonBack.svg", 375, 20);
+    applyButton = new ButtonObject("Apply (Y)", "gfx/optionBox.svg", 200, 230);
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;
     backButton->scale = 0.25;
