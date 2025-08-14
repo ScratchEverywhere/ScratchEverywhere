@@ -6,9 +6,7 @@
 #define REFERENCE_HEIGHT 240
 
 double MenuObject::getScaleFactor(int windowX, int windowY) {
-    double scaleX = static_cast<double>(Render::getWidth()) / windowX;
-    double scaleY = static_cast<double>(Render::getHeight()) / windowY;
-    return std::min(scaleX, scaleY);
+    return guiScale;
 }
 
 std::vector<double> MenuObject::getScaledPosition(double xPos, double yPos) {
@@ -48,8 +46,8 @@ bool ButtonObject::isPressed(std::string pressButton) {
 
     // get position based on scale
     std::vector<double> scaledPos = getScaledPosition(x, y);
-    double scaledWidth = buttonTexture->image->getWidth() * buttonTexture->scale;
-    double scaledHeight = buttonTexture->image->getHeight() * buttonTexture->scale;
+    double scaledWidth = buttonTexture->image->getWidth() * buttonTexture->scale * guiScale;
+    double scaledHeight = buttonTexture->image->getHeight() * buttonTexture->scale * guiScale;
 
     // simple box collision
     bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
@@ -80,8 +78,8 @@ bool ButtonObject::isTouchingMouse() {
 
     // get position based on scale
     std::vector<double> scaledPos = getScaledPosition(x, y);
-    double scaledWidth = buttonTexture->image->getWidth() * buttonTexture->scale;
-    double scaledHeight = buttonTexture->image->getHeight() * buttonTexture->scale;
+    double scaledWidth = buttonTexture->image->getWidth() * buttonTexture->scale * guiScale;
+    double scaledHeight = buttonTexture->image->getHeight() * buttonTexture->scale * guiScale;
 
     // simple box collision
     bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
@@ -99,15 +97,14 @@ void ButtonObject::render(double xPos, double yPos) {
     if (xPos == 0) xPos = x;
     if (yPos == 0) yPos = y;
 
-    double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);
     std::vector<double> scaledPos = getScaledPosition(xPos, yPos);
 
     buttonTexture->x = xPos;
     buttonTexture->y = yPos;
-    buttonTexture->scale = scale * scaleFactor;
+    buttonTexture->scale = scale * guiScale;
     buttonTexture->render();
 
-    text->setScale((scale * scaleFactor) * textScale);
+    text->setScale((scale * guiScale) * textScale);
     text->render(scaledPos[0], scaledPos[1]);
 }
 
@@ -127,7 +124,7 @@ void MenuImage::render(double xPos, double yPos) {
     if (xPos == 0) xPos = x;
     if (yPos == 0) yPos = y;
 
-    image->scale = scale;
+    image->scale = scale * guiScale;
     double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
     double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
 
@@ -176,9 +173,8 @@ void ControlObject::render(double xPos, double yPos) {
         std::vector<double> buttonCenter = getScaledPosition(selectedObject->x + xPos, selectedObject->y - yPos);
 
         // Calculate the scaled dimensions of the button
-        double scaleFactor = getScaleFactor(REFERENCE_WIDTH, REFERENCE_HEIGHT);
-        double scaledWidth = selectedObject->buttonTexture->image->getWidth() * selectedObject->scale * scaleFactor;
-        double scaledHeight = selectedObject->buttonTexture->image->getHeight() * selectedObject->scale * scaleFactor;
+        double scaledWidth = selectedObject->buttonTexture->image->getWidth() * selectedObject->scale * guiScale;
+        double scaledHeight = selectedObject->buttonTexture->image->getHeight() * selectedObject->scale * guiScale;
 
         // Calculate corner positions
         double leftX = buttonCenter[0] - (scaledWidth / 2);
@@ -187,10 +183,10 @@ void ControlObject::render(double xPos, double yPos) {
         double bottomY = buttonCenter[1] + (scaledHeight / 2);
 
         // Render boxes at all 4 corners
-        Render::drawBox(6 * scaleFactor, 6 * scaleFactor, leftX, topY);     // Top-left
-        Render::drawBox(6 * scaleFactor, 6 * scaleFactor, rightX, topY);    // Top-right
-        Render::drawBox(6 * scaleFactor, 6 * scaleFactor, leftX, bottomY);  // Bottom-left
-        Render::drawBox(6 * scaleFactor, 6 * scaleFactor, rightX, bottomY); // Bottom-right
+        Render::drawBox(6 * guiScale, 6 * guiScale, leftX, topY);     // Top-left
+        Render::drawBox(6 * guiScale, 6 * guiScale, rightX, topY);    // Top-right
+        Render::drawBox(6 * guiScale, 6 * guiScale, leftX, bottomY);  // Bottom-left
+        Render::drawBox(6 * guiScale, 6 * guiScale, rightX, bottomY); // Bottom-right
     }
 }
 
