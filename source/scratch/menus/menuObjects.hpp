@@ -1,5 +1,6 @@
 #pragma once
 #include "../image.hpp"
+#include "../os.hpp"
 #include "../text.hpp"
 
 static float guiScale = 1.0f;
@@ -63,6 +64,9 @@ class ButtonObject : public MenuObject {
 };
 
 class ControlObject : public MenuObject {
+  private:
+    Timer animationTimer;
+
   public:
     std::vector<ButtonObject *> buttonObjects;
     ButtonObject *selectedObject = nullptr;

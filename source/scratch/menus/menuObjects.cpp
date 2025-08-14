@@ -167,7 +167,6 @@ void ControlObject::input() {
 }
 
 void ControlObject::render(double xPos, double yPos) {
-
     if (selectedObject != nullptr) {
         // Get the button's scaled position (center point)
         std::vector<double> buttonCenter = getScaledPosition(selectedObject->x + xPos, selectedObject->y - yPos);
@@ -176,17 +175,21 @@ void ControlObject::render(double xPos, double yPos) {
         double scaledWidth = selectedObject->buttonTexture->image->getWidth() * selectedObject->scale * guiScale;
         double scaledHeight = selectedObject->buttonTexture->image->getHeight() * selectedObject->scale * guiScale;
 
-        // Calculate corner positions
-        double leftX = buttonCenter[0] - (scaledWidth / 2);
-        double rightX = buttonCenter[0] + (scaledWidth / 2);
-        double topY = buttonCenter[1] - (scaledHeight / 2);
-        double bottomY = buttonCenter[1] + (scaledHeight / 2);
+        // animation effect
+        double time = animationTimer.getTimeMs() / 1000.0;
+        double breathingOffset = sin(time * 12.0) * 2.0 * guiScale;
+
+        // corner positions
+        double leftX = buttonCenter[0] - (scaledWidth / 2) - breathingOffset;
+        double rightX = buttonCenter[0] + (scaledWidth / 2) + breathingOffset;
+        double topY = buttonCenter[1] - (scaledHeight / 2) - breathingOffset;
+        double bottomY = buttonCenter[1] + (scaledHeight / 2) + breathingOffset;
 
         // Render boxes at all 4 corners
-        Render::drawBox(6 * guiScale, 6 * guiScale, leftX, topY);     // Top-left
-        Render::drawBox(6 * guiScale, 6 * guiScale, rightX, topY);    // Top-right
-        Render::drawBox(6 * guiScale, 6 * guiScale, leftX, bottomY);  // Bottom-left
-        Render::drawBox(6 * guiScale, 6 * guiScale, rightX, bottomY); // Bottom-right
+        Render::drawBox(6 * guiScale, 6 * guiScale, leftX, topY, 33, 34, 36, 255);     // Top-left
+        Render::drawBox(6 * guiScale, 6 * guiScale, rightX, topY, 33, 34, 36, 255);    // Top-right
+        Render::drawBox(6 * guiScale, 6 * guiScale, leftX, bottomY, 33, 34, 36, 255);  // Bottom-left
+        Render::drawBox(6 * guiScale, 6 * guiScale, rightX, bottomY, 33, 34, 36, 255); // Bottom-right
     }
 }
 
