@@ -105,7 +105,7 @@ all: $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile_switch
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/make/Makefile_switch
 
 clean:
 	@echo clean ...
