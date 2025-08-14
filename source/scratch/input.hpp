@@ -1,6 +1,9 @@
 #pragma once
+#include "os.hpp"
 #include <algorithm>
+#include <fstream>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 
@@ -16,7 +19,23 @@ class Input {
 
     static std::vector<std::string> inputButtons;
     static std::map<std::string, std::string> inputControls;
-    static void applyControls() {
+    static void applyControls(std::string controlsFilePath = "") {
+
+        if (controlsFilePath != "") {
+            // load controls from file
+            std::ifstream file(OS::getScratchFolderLocation() + controlsFilePath);
+            if (file.is_open()) {
+                nlohmann::json controlsJson;
+                file >> controlsJson;
+
+                for (auto &[key, value] : controlsJson.items()) {
+                    inputControls[value.get<std::string>()] = key;
+                }
+
+                file.close();
+                return;
+            }
+        }
 
         // default controls
         inputControls["dpadUp"] = "u";

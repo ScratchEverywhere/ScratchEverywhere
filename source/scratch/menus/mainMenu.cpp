@@ -5,6 +5,7 @@
 #include "../interpret.hpp"
 #include "../render.hpp"
 #include "../unzip.hpp"
+#include <nlohmann/json.hpp>
 #ifdef __WIIU__
 #include <whb/sdcard.h>
 #endif
@@ -425,9 +426,40 @@ void ControlsMenu::init() {
 
     Scratch::cleanupScratchProject();
 
+    if (!controls.empty()) {
+        Input::applyControls(OS::getScratchFolderLocation() + projectPath + ".json");
+    }
+
+    settingsControl = new ControlObject();
+    settingsControl->selectedObject = nullptr;
     backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 20);
     backButton->scale = 0.25;
     backButton->needsToBeSelected = false;
+
+    double yPosition = 100;
+    for (auto &control : controls) {
+        key newControl;
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/optionBox.svg", 200, yPosition);
+        controlButton->text->setColor(Math::color(255, 255, 255, 255));
+        controlButton->scale = 0.6;
+        controlButton->canBeClicked = false;
+        newControl.button = controlButton;
+        newControl.control = control;
+
+        for (const auto &pair : Input::inputControls) {
+            if (pair.second == newControl.control) {
+                newControl.controlValue = pair.first;
+                break;
+            }
+        }
+
+        controlButtons.push_back(newControl);
+        settingsControl->buttonObjects.push_back(controlButton);
+        yPosition += 50;
+    }
+    settingsControl->selectedObject = controlButtons.front().button;
+
+    Input::applyControls();
 }
 
 void ControlsMenu::render() {
@@ -441,7 +473,14 @@ void ControlsMenu::render() {
     Render::beginFrame(0, 108, 100, 128);
     Render::beginFrame(1, 108, 100, 128);
 
+    for (key controlButton : controlButtons) {
+        if (controlButton.button == nullptr) continue;
+        controlButton.button->text->setText(controlButton.control + " = " + controlButton.controlValue);
+        controlButton.button->render();
+    }
+
     backButton->render();
+    settingsControl->render();
 
     Render::endFrame();
 }
@@ -450,5 +489,13 @@ void ControlsMenu::cleanup() {
     if (backButton != nullptr) {
         delete backButton;
         backButton = nullptr;
+    }
+    for (key button : controlButtons) {
+        delete button.button;
+    }
+    controlButtons.clear();
+    if (settingsControl != nullptr) {
+        delete settingsControl;
+        settingsControl = nullptr;
     }
 }

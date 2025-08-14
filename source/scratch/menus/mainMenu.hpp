@@ -69,6 +69,15 @@ class ControlsMenu {
   public:
     ButtonObject *backButton = nullptr;
 
+    class key {
+      public:
+        ButtonObject *button;
+        std::string control;
+        std::string controlValue;
+    };
+
+    std::vector<key> controlButtons;
+    ControlObject *settingsControl = nullptr;
     std::string projectPath;
     bool shouldGoBack = false;
     ControlsMenu(std::string projPath);
