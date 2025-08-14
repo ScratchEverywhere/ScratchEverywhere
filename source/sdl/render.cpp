@@ -321,6 +321,7 @@ bool Render::appShouldRun() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
+            toExit = true;
             return false;
         case SDL_CONTROLLERDEVICEADDED:
             controller = SDL_GameControllerOpen(0);

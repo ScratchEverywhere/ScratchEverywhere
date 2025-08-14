@@ -213,6 +213,13 @@ void ProjectMenu::render() {
         shouldGoBack = true;
     }
     if (settingsButton->isPressed("y")) {
+        cleanup();
+        ProjectSettings settings;
+        while (settings.shouldGoBack == false && Render::appShouldRun()) {
+            settings.render();
+        }
+        settings.cleanup();
+        init();
     }
 
     const float targetY = projectControl->selectedObject->y;
@@ -293,9 +300,14 @@ ProjectSettings::~ProjectSettings() {
 
 void ProjectSettings::init() {
     // initialize
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/projectBox.png", 0, 0);
-    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/projectBox.png", 0, 60);
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/projectBox.png", 200, 100);
+    changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
+    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/projectBox.png", 200, 150);
+    bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     settingsControl = new ControlObject();
+    backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 20);
+    backButton->scale = 0.25;
+    backButton->needsToBeSelected = false;
 
     // initial selected object
     settingsControl->selectedObject = changeControlsButton;
@@ -303,7 +315,9 @@ void ProjectSettings::init() {
 
     // link buttons
     changeControlsButton->buttonDown = bottomScreenButton;
+    changeControlsButton->buttonUp = bottomScreenButton;
     bottomScreenButton->buttonUp = changeControlsButton;
+    bottomScreenButton->buttonDown = changeControlsButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
@@ -317,6 +331,9 @@ void ProjectSettings::render() {
     }
     if (bottomScreenButton->isPressed()) {
     }
+    if (backButton->isPressed("b")) {
+        shouldGoBack = true;
+    }
 
     Render::beginFrame(0, 108, 100, 128);
     Render::beginFrame(1, 108, 100, 128);
@@ -324,6 +341,7 @@ void ProjectSettings::render() {
     changeControlsButton->render();
     bottomScreenButton->render();
     settingsControl->render();
+    backButton->render();
 
     Render::endFrame();
 }
@@ -331,5 +349,17 @@ void ProjectSettings::cleanup() {
     if (changeControlsButton != nullptr) {
         delete changeControlsButton;
         changeControlsButton = nullptr;
+    }
+    if (bottomScreenButton != nullptr) {
+        delete bottomScreenButton;
+        bottomScreenButton = nullptr;
+    }
+    if (settingsControl != nullptr) {
+        delete settingsControl;
+        settingsControl = nullptr;
+    }
+    if (backButton != nullptr) {
+        delete backButton;
+        backButton = nullptr;
     }
 }

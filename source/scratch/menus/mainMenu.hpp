@@ -51,8 +51,10 @@ class ProjectSettings {
   private:
   public:
     ControlObject *settingsControl = nullptr;
+    ButtonObject *backButton = nullptr;
     ButtonObject *changeControlsButton = nullptr;
     ButtonObject *bottomScreenButton = nullptr;
+    bool shouldGoBack = false;
 
     ProjectSettings();
     ~ProjectSettings();
