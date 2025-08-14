@@ -25,6 +25,25 @@ bool MainMenu::activateMainMenu() {
     bool isLoaded = false;
     while (!isLoaded) {
         menu.render();
+
+        if (menu.loadButton->isPressed()) {
+            menu.cleanup();
+            ProjectMenu projectMenu;
+
+            while (!projectMenu.shouldGoBack) {
+                projectMenu.render();
+
+                if (!Render::appShouldRun()) {
+                    Log::logWarning("App should close. cleaning up menu.");
+                    projectMenu.cleanup();
+                    menu.shouldExit = true;
+                    projectMenu.shouldGoBack = true;
+                }
+            }
+            projectMenu.cleanup();
+            menu.init();
+        }
+
         if (!Render::appShouldRun() || menu.shouldExit) {
             menu.cleanup();
             Log::logWarning("app should exit. closing app.");
@@ -87,28 +106,6 @@ void MainMenu::render() {
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);
 
-    if (loadButton->isPressed()) {
-        cleanup();
-        ProjectMenu projectMenu;
-        projectMenu.init();
-
-        while (!projectMenu.shouldGoBack) {
-            projectMenu.render();
-
-            if (!Render::appShouldRun()) {
-                Log::logWarning("App should close. cleaning up menu.");
-                projectMenu.cleanup();
-                shouldExit = true;
-                projectMenu.shouldGoBack = true;
-                return;
-            }
-        }
-        projectMenu.cleanup();
-        if (Unzip::filePath != "") {
-            return;
-        }
-        init();
-    }
     if (settingsButton->isPressed()) {
         settingsButton->x += 100;
     }
@@ -120,19 +117,10 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
-    selectedText = nullptr;
 
-    if (errorTextInfo) {
-        delete errorTextInfo;
-        errorTextInfo = nullptr;
-    }
     if (logo) {
         delete logo;
         logo = nullptr;
-    }
-    if (mainMenuControl) {
-        delete mainMenuControl;
-        mainMenuControl = nullptr;
     }
     if (loadButton) {
         delete loadButton;
@@ -142,8 +130,10 @@ void MainMenu::cleanup() {
         delete settingsButton;
         settingsButton = nullptr;
     }
-    // Render::beginFrame(0, 117, 77, 117);
-    // Render::endFrame();
+    if (mainMenuControl) {
+        delete mainMenuControl;
+        mainMenuControl = nullptr;
+    }
 }
 
 ProjectMenu::ProjectMenu() {

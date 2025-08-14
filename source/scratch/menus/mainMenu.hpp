@@ -9,9 +9,6 @@ class MainMenu {
     bool shouldExit = false;
 
     Timer logoStartTime;
-    TextObject *selectedText = nullptr;
-    TextObject *infoText = nullptr;
-    TextObject *errorTextInfo = nullptr;
 
     MenuImage *logo = nullptr;
     ButtonObject *loadButton = nullptr;

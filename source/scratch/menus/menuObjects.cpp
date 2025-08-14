@@ -194,4 +194,6 @@ void ControlObject::render(double xPos, double yPos) {
 }
 
 ControlObject::~ControlObject() {
+    selectedObject = nullptr;
+    buttonObjects.clear();
 }

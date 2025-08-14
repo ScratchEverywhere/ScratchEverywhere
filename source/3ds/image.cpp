@@ -77,7 +77,7 @@ Image::Image(std::string filePath) {
 }
 
 Image::~Image() {
-    queueFreeImage(imageId);
+    freeImage(imageId);
 }
 
 void Image::render(double xPos, double yPos, bool centered) {
