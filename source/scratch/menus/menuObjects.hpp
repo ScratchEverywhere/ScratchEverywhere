@@ -36,6 +36,8 @@ class ButtonObject : public MenuObject {
     TextObject *text;
     double textScale;
     bool isSelected = false;
+    bool needsToBeSelected = true;
+    bool canBeClicked = true;
     MenuImage *buttonTexture;
     ButtonObject *buttonUp = nullptr;
     ButtonObject *buttonDown = nullptr;

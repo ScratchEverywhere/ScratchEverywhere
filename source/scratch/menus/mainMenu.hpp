@@ -38,6 +38,7 @@ class ProjectMenu {
     std::vector<ButtonObject *> projects;
 
     ControlObject *projectControl = nullptr;
+    ButtonObject *backButton = nullptr;
 
     ProjectMenu();
     ~ProjectMenu();

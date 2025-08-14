@@ -155,6 +155,9 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 
     projectControl = new ControlObject();
+    backButton = new ButtonObject("", "gfx/buttonBack.svg", 25, 25);
+    backButton->needsToBeSelected = false;
+    backButton->scale = 0.25;
 
     std::vector<std::string> projectFiles;
 #ifdef __WIIU__
@@ -168,6 +171,7 @@ void ProjectMenu::init() {
     for (std::string &file : projectFiles) {
         ButtonObject *project = new ButtonObject(file, "gfx/projectBox.png", 0, yPosition);
         project->text->setColor(Math::color(0, 0, 0, 255));
+        project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
             float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
@@ -209,6 +213,9 @@ void ProjectMenu::render() {
         shouldGoBack = true;
         return;
     }
+    if (backButton->isPressed("b")) {
+        shouldGoBack = true;
+    }
 
     const float targetY = projectControl->selectedObject->y;
     const float lerpSpeed = 0.1f;
@@ -247,6 +254,7 @@ void ProjectMenu::render() {
         project->render(xPos, yPos);
     }
     projectControl->render(cameraX, cameraY - cameraYOffset);
+    backButton->render();
 
     Render::endFrame();
 }
@@ -255,9 +263,13 @@ void ProjectMenu::cleanup() {
     for (ButtonObject *button : projects) {
         delete button;
     }
-    if (projectControl) {
+    if (projectControl != nullptr) {
         delete projectControl;
         projectControl = nullptr;
     }
     projects.clear();
+    if (backButton != nullptr) {
+        delete backButton;
+        backButton = nullptr;
+    }
 }

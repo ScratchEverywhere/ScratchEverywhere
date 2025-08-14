@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="45mm"
+   height="45mm"
+   viewBox="0 0 45 45"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1">
+    <linearGradient
+       id="swatch2">
+      <stop
+         style="stop-color:#8a8181;stop-opacity:1;"
+         offset="0"
+         id="stop2" />
+    </linearGradient>
+  </defs>
+  <g
+     id="layer1">
+    <rect
+       style="fill:#5a7272;fill-opacity:1;stroke:#252c3e;stroke-width:5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:3.1;stroke-dasharray:none;stroke-opacity:1"
+       id="rect1"
+       width="38.802197"
+       height="38.802197"
+       x="3.3542593"
+       y="3.2598193" />
+    <path
+       style="fill:#ffffff;fill-opacity:0.7;stroke:#ffffff;stroke-width:5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:3.1;stroke-dasharray:none;stroke-opacity:1"
+       d="m 10.662251,10.462104 c 53.197475,51.686466 0,0 0,0 z"
+       id="path8" />
+    <path
+       style="fill:#ffffff;fill-opacity:0.7;stroke:#ffffff;stroke-width:5;stroke-linecap:butt;stroke-linejoin:round;stroke-miterlimit:3.1;stroke-dasharray:none;stroke-opacity:1"
+       d="m 34.55527,9.8063579 c -51.686471,53.1974721 0,0 0,0 z"
+       id="path8-3" />
+  </g>
+</svg>
