@@ -150,12 +150,6 @@ void ProjectMenu::init() {
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/buttonBack.svg", 375, 20);
-    playButton = new ButtonObject("Play (A)", "gfx/optionBox.svg", 95, 230);
-    settingsButton = new ButtonObject("Settings (L)", "gfx/optionBox.svg", 315, 230);
-    playButton->scale = 0.6;
-    settingsButton->scale = 0.6;
-    settingsButton->needsToBeSelected = false;
-    playButton->needsToBeSelected = false;
     backButton->needsToBeSelected = false;
     backButton->scale = 0.25;
 
@@ -196,11 +190,40 @@ void ProjectMenu::init() {
     // check if user has any projects
     if (projectFiles.size() == 0) {
         hasProjects = false;
+        noProjectsButton = new ButtonObject("", "gfx/noProjects.png", 200, 120);
+        projectControl->selectedObject = noProjectsButton;
+        projectControl->selectedObject->isSelected = true;
+        noProjectsText = createTextObject("No Scratch projects found!", 0, 0);
+        noProjectsText->setCenterAligned(true);
+        noProjectInfo = createTextObject("a", 0, 0);
+        noProjectInfo->setCenterAligned(true);
+
+#ifdef __WIIU__
+        noProjectInfo->setText("Put Scratch projects in sd:/wiiu/scratch-wiiu/ !");
+#elif defined(__3DS__)
+        noProjectInfo->setText("Put Scratch projects in sd:/3ds/ !");
+#elif defined(WII)
+        noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii !");
+#else
+        noProjectInfo->setText("Put Scratch projects in the same folder as the app!");
+#endif
+
+        if (noProjectInfo->getSize()[0] > Render::getWidth() * 0.85) {
+            float scale = (float)Render::getWidth() / (noProjectInfo->getSize()[0] * 1.15);
+            noProjectInfo->setScale(scale);
+        }
+
     } else {
         projectControl->selectedObject = projects.front();
         projectControl->selectedObject->isSelected = true;
         cameraY = projectControl->selectedObject->y;
         hasProjects = true;
+        playButton = new ButtonObject("Play (A)", "gfx/optionBox.svg", 95, 230);
+        settingsButton = new ButtonObject("Settings (L)", "gfx/optionBox.svg", 315, 230);
+        playButton->scale = 0.6;
+        settingsButton->scale = 0.6;
+        settingsButton->needsToBeSelected = false;
+        playButton->needsToBeSelected = false;
     }
 }
 
@@ -208,27 +231,37 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
-    if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
-        Unzip::filePath = projectControl->selectedObject->text->getText();
-        shouldGoBack = true;
-        return;
+    float targetY = 0.0f;
+    float lerpSpeed = 0.1f;
+
+    if (hasProjects) {
+        if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
+            Unzip::filePath = projectControl->selectedObject->text->getText();
+            shouldGoBack = true;
+            return;
+        }
+        if (settingsButton->isPressed({"l"})) {
+            std::string selectedProject = projectControl->selectedObject->text->getText();
+            cleanup();
+            ProjectSettings settings(selectedProject);
+            while (settings.shouldGoBack == false && Render::appShouldRun()) {
+                settings.render();
+            }
+            settings.cleanup();
+            init();
+        }
+        targetY = projectControl->selectedObject->y;
+        lerpSpeed = 0.1f;
+    } else {
+        if (noProjectsButton->isPressed({"a"})) {
+            shouldGoBack = true;
+            return;
+        }
     }
+
     if (backButton->isPressed({"b", "y"})) {
         shouldGoBack = true;
     }
-    if (settingsButton->isPressed({"l"})) {
-        std::string selectedProject = projectControl->selectedObject->text->getText();
-        cleanup();
-        ProjectSettings settings(selectedProject);
-        while (settings.shouldGoBack == false && Render::appShouldRun()) {
-            settings.render();
-        }
-        settings.cleanup();
-        init();
-    }
-
-    const float targetY = projectControl->selectedObject->y;
-    const float lerpSpeed = 0.1f;
 
     cameraY = cameraY + (targetY - cameraY) * lerpSpeed;
     cameraX = 200;
@@ -257,17 +290,21 @@ void ProjectMenu::render() {
         } else {
             targetScale = 0.0f;
         }
-
-        // Interpolate scale smoothly (using the same lerp speed as camera)
+        // Lerp the scale towards the target scale
         project->scale = project->scale + (targetScale - project->scale) * lerpSpeed;
 
         project->render(xPos, yPos);
     }
-    projectControl->render(cameraX, cameraY - cameraYOffset);
     backButton->render();
     if (hasProjects) {
         playButton->render();
         settingsButton->render();
+        projectControl->render(cameraX, cameraY - cameraYOffset);
+    } else {
+        noProjectsButton->render();
+        noProjectsText->render(Render::getWidth() / 2, Render::getHeight() * 0.7);
+        noProjectInfo->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
+        projectControl->render();
     }
 
     Render::endFrame();
@@ -293,6 +330,18 @@ void ProjectMenu::cleanup() {
     if (settingsButton != nullptr) {
         delete settingsButton;
         settingsButton = nullptr;
+    }
+    if (noProjectsButton != nullptr) {
+        delete noProjectsButton;
+        noProjectsButton = nullptr;
+    }
+    if (noProjectsText != nullptr) {
+        delete noProjectsText;
+        noProjectsText = nullptr;
+    }
+    if (noProjectInfo != nullptr) {
+        delete noProjectInfo;
+        noProjectInfo = nullptr;
     }
 }
 

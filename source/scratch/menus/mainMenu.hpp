@@ -38,6 +38,9 @@ class ProjectMenu {
     ButtonObject *backButton = nullptr;
     ButtonObject *playButton = nullptr;
     ButtonObject *settingsButton = nullptr;
+    ButtonObject *noProjectsButton = nullptr;
+    TextObject *noProjectInfo = nullptr;
+    TextObject *noProjectsText = nullptr;
 
     ProjectMenu();
     ~ProjectMenu();
