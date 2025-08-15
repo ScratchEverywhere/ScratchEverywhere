@@ -626,7 +626,7 @@ void ControlsMenu::render() {
         if (settingsControl->selectedObject == controlButton.button)
             controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
         else
-            controlButton.button->text->setColor(Math::color(32, 32, 32, 255));
+            controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
 
         // Position with camera offset
         const double xPos = controlButton.button->x + cameraX;
