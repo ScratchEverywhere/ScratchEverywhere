@@ -149,9 +149,9 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 
     projectControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20);
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
     backButton->needsToBeSelected = false;
-    backButton->scale = 0.25;
+    backButton->scale = 1.0;
 
     std::vector<std::string> projectFiles;
 #ifdef __WIIU__
@@ -364,8 +364,8 @@ void ProjectSettings::init() {
     // bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.png", 200, 150);
     // bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     settingsControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20);
-    backButton->scale = 0.25;
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
+    backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
 
     // initial selected object
@@ -483,11 +483,11 @@ void ControlsMenu::init() {
 
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20);
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
     applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 200, 230);
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;
-    backButton->scale = 0.25;
+    backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
 
     if (controls.empty()) {
