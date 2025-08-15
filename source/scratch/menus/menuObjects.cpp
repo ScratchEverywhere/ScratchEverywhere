@@ -5,7 +5,11 @@
 #define REFERENCE_WIDTH 400
 #define REFERENCE_HEIGHT 240
 
+#ifdef __OGC__
+static float guiScale = 1.3f;
+#else
 static float guiScale = 1.0f;
+#endif
 
 double MenuObject::getScaleFactor(int windowX, int windowY) {
     return guiScale;
