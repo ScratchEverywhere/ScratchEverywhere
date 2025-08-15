@@ -348,8 +348,8 @@ void ProjectSettings::render() {
         shouldGoBack = true;
     }
 
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
+    Render::beginFrame(0, 147, 138, 168);
+    Render::beginFrame(1, 147, 138, 168);
 
     changeControlsButton->render();
     // bottomScreenButton->render();
@@ -548,8 +548,8 @@ void ControlsMenu::render() {
     const int cameraX = 200;
     const double cameraYOffset = 110;
 
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
+    Render::beginFrame(0, 181, 165, 111);
+    Render::beginFrame(1, 181, 165, 111);
 
     for (key &controlButton : controlButtons) {
         if (controlButton.button == nullptr) continue;
@@ -560,9 +560,9 @@ void ControlsMenu::render() {
 
         // Highlight selected
         if (settingsControl->selectedObject == controlButton.button)
-            controlButton.button->text->setColor(Math::color(32, 36, 41, 255));
-        else
             controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
+        else
+            controlButton.button->text->setColor(Math::color(32, 32, 32, 255));
 
         // Position with camera offset
         const double xPos = controlButton.button->x + cameraX;
