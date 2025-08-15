@@ -347,6 +347,10 @@ void ProjectMenu::cleanup() {
         delete noProjectInfo;
         noProjectInfo = nullptr;
     }
+    Render::beginFrame(0, 108, 100, 128);
+    Render::beginFrame(1, 108, 100, 128);
+    Input::getInput();
+    Render::endFrame();
 }
 
 ProjectSettings::ProjectSettings(std::string projPath) {
@@ -428,6 +432,10 @@ void ProjectSettings::cleanup() {
         delete backButton;
         backButton = nullptr;
     }
+    Render::beginFrame(0, 147, 138, 168);
+    Render::beginFrame(1, 147, 138, 168);
+    Input::getInput();
+    Render::endFrame();
 }
 
 ControlsMenu::ControlsMenu(std::string projPath) {
@@ -696,4 +704,8 @@ void ControlsMenu::cleanup() {
         delete applyButton;
         applyButton = nullptr;
     }
+    Render::beginFrame(0, 181, 165, 111);
+    Render::beginFrame(1, 181, 165, 111);
+    Input::getInput();
+    Render::endFrame();
 }
