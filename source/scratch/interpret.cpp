@@ -119,6 +119,10 @@ bool Scratch::startScratchProject() {
             Render::renderSprites();
 
             if (shouldStop) {
+#ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app
+                toExit = true;
+                return false;
+#endif
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
