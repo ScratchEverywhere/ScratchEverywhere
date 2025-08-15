@@ -518,7 +518,7 @@ bool get_C2D_Image(imageRGBA rgba) {
         // MemoryTracker::deallocate(subtex);
         return false;
     }
-    C3D_TexSetFilter(tex, GPU_NEAREST, GPU_NEAREST);
+    C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
 
     if (!tex->data) {
         Log::logWarning("Texture data is null!");
