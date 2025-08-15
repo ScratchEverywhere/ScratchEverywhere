@@ -390,7 +390,7 @@ void ProjectSettings::render() {
     Input::getInput();
     settingsControl->input();
 
-    if (changeControlsButton->isPressed()) {
+    if (changeControlsButton->isPressed({"a"})) {
         cleanup();
         ControlsMenu controlsMenu(projectPath);
         while (controlsMenu.shouldGoBack == false && Render::appShouldRun()) {
@@ -401,7 +401,7 @@ void ProjectSettings::render() {
     }
     // if (bottomScreenButton->isPressed()) {
     // }
-    if (backButton->isPressed({"b"})) {
+    if (backButton->isPressed({"b", "y"})) {
         shouldGoBack = true;
     }
 
