@@ -490,6 +490,7 @@ void ControlsMenu::init() {
     }
 
     Scratch::cleanupScratchProject();
+    Render::renderMode = Render::BOTH_SCREENS;
 
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
@@ -710,4 +711,5 @@ void ControlsMenu::cleanup() {
     Render::beginFrame(1, 181, 165, 111);
     Input::getInput();
     Render::endFrame();
+    Render::renderMode = Render::BOTH_SCREENS;
 }
