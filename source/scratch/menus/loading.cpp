@@ -51,11 +51,12 @@ void Loading::render() {
 }
 
 void Loading::cleanup() {
+    Render::beginFrame(0, 0, 0, 0);
+    loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
+    Render::beginFrame(1, 0, 0, 0);
+    Render::endFrame();
     delete block1;
     delete block2;
     delete block3;
     delete loadingStateText;
-    Render::beginFrame(0, 0, 0, 0);
-    Render::beginFrame(1, 0, 0, 0);
-    Render::endFrame();
 }
