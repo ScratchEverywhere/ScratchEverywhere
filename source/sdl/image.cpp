@@ -151,7 +151,9 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     finalPath = finalPath + filePath;
 
-    SDL_Image *image = new SDL_Image(finalPath);
+    // SDL_Image *image = new SDL_Image(finalPath);
+    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
+    new (image) SDL_Image(finalPath);
 
     // Check if it's an SVG file
     bool isSVG = filePath.size() >= 4 &&
@@ -247,7 +249,8 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     SDL_FreeSurface(surface);
 
     // Build SDL_Image object
-    SDL_Image *image = new SDL_Image();
+    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
+    new (image) SDL_Image();
     if (isSVG) image->isSVG = true;
     image->spriteTexture = texture;
     SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
@@ -273,8 +276,9 @@ void Image::cleanupImages() {
         if (image->memorySize > 0) {
             MemoryTracker::deallocateVRAM(image->memorySize);
         }
-        delete image;
-        // MemoryTracker::deallocate<SDL_Image>(image);
+        // delete image;
+        image->~SDL_Image();
+        MemoryTracker::deallocate<SDL_Image>(image);
     }
     images.clear();
     toDelete.clear();
@@ -289,18 +293,12 @@ void Image::freeImage(const std::string &costumeId) {
     if (imageIt != images.end()) {
         SDL_Image *image = imageIt->second;
 
-        if (image->memorySize > 0) {
-            MemoryTracker::deallocateVRAM(image->memorySize);
-        }
-
         Log::log("Freed image " + costumeId);
-        delete image;
-        // image->~SDL_Image();
-        // MemoryTracker::deallocate<SDL_Image>(image);
+        // Call destructor and deallocate SDL_Image
+        image->~SDL_Image();
+        MemoryTracker::deallocate<SDL_Image>(image);
 
         images.erase(imageIt);
-    } else {
-        Log::logWarning("ummm couldn't find image to free: " + costumeId);
     }
 }
 

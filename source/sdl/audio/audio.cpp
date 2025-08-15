@@ -18,7 +18,7 @@ SDL_Audio::SDL_Audio() : audioChunk(nullptr) {}
 SDL_Audio::~SDL_Audio() {
 #ifdef ENABLE_AUDIO
     if (memorySize > 0) {
-        MemoryTracker::deallocate(memorySize);
+        MemoryTracker::deallocate(nullptr, memorySize);
     }
     if (audioChunk) {
         Mix_FreeChunk(audioChunk);
@@ -65,9 +65,9 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         return;
     }
 
-    SDL_Audio *audio = new SDL_Audio();
-    // SDL_Audio *audio = MemoryTracker::allocate<SDL_Audio>();
-    // new (audio) SDL_Audio();
+    // SDL_Audio *audio = new SDL_Audio();
+    SDL_Audio *audio = MemoryTracker::allocate<SDL_Audio>();
+    new (audio) SDL_Audio();
     SDL_Sounds[soundId] = audio;
 
     SDL_Audio::SoundLoadParams *params = new SDL_Audio::SoundLoadParams{
@@ -205,9 +205,9 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             if (it != SDL_Sounds.end()) {
                 audio = it->second;
             } else {
-                audio = new SDL_Audio();
-                // audio = MemoryTracker::allocate<SDL_Audio>();
-                // new (audio) SDL_Audio();
+                // audio = new SDL_Audio();
+                audio = MemoryTracker::allocate<SDL_Audio>();
+                new (audio) SDL_Audio();
                 SDL_Sounds[soundId] = audio;
             }
 
@@ -296,9 +296,9 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     }
 
     // Create SDL_Audio object
-    SDL_Audio *audio = new SDL_Audio();
-    // SDL_Audio *audio = MemoryTracker::allocate<SDL_Audio>();
-    // new (audio) SDL_Audio();
+    // SDL_Audio *audio = new SDL_Audio();
+    SDL_Audio *audio = MemoryTracker::allocate<SDL_Audio>();
+    new (audio) SDL_Audio();
     if (!streamed)
         audio->audioChunk = chunk;
     else {
@@ -458,10 +458,10 @@ void SoundPlayer::freeAudio(const std::string &soundId) {
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
         SDL_Audio *audio = it->second;
-        MemoryTracker::deallocate(audio->memorySize);
-        delete audio;
-        // audio->~SDL_Audio();
-        // MemoryTracker::deallocate<SDL_Audio>(audio);
+        // MemoryTracker::deallocate(audio->memorySize);
+        // delete audio;
+        audio->~SDL_Audio();
+        MemoryTracker::deallocate<SDL_Audio>(audio);
 
         SDL_Sounds.erase(it);
     }
@@ -474,10 +474,10 @@ void SoundPlayer::cleanupAudio() {
 
     // Track memory cleanup
     for (auto &pair : SDL_Sounds) {
-        MemoryTracker::deallocate(pair.second->memorySize);
-        delete pair.second;
-        // pair.second->~SDL_Audio();
-        // MemoryTracker::deallocate<SDL_Audio>(pair.second);
+        // MemoryTracker::deallocate(pair.second->memorySize);
+        // delete pair.second;
+        pair.second->~SDL_Audio();
+        MemoryTracker::deallocate<SDL_Audio>(pair.second);
     }
     SDL_Sounds.clear();
 

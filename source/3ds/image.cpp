@@ -618,7 +618,7 @@ void freeRGBA(const std::string &imageName) {
         if (it->data && dataSize > 0) {
             if (it->isSVG) free(it->data);
             else stbi_image_free(it->data);
-            MemoryTracker::deallocate(dataSize);
+            MemoryTracker::deallocate(nullptr, dataSize);
             memStats.totalRamUsage -= dataSize;
             memStats.imageCount--;
 
