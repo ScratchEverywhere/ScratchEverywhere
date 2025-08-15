@@ -150,8 +150,8 @@ void ProjectMenu::init() {
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/buttonBack.svg", 375, 20);
-    playButton = new ButtonObject("Play", "gfx/optionBox.svg", 95, 230);
-    settingsButton = new ButtonObject("Settings", "gfx/optionBox.svg", 315, 230);
+    playButton = new ButtonObject("Play (A)", "gfx/optionBox.svg", 95, 230);
+    settingsButton = new ButtonObject("Settings (L)", "gfx/optionBox.svg", 315, 230);
     playButton->scale = 0.6;
     settingsButton->scale = 0.6;
     settingsButton->needsToBeSelected = false;
@@ -344,7 +344,7 @@ void ProjectSettings::render() {
     }
     // if (bottomScreenButton->isPressed()) {
     // }
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({"b"})) {
         shouldGoBack = true;
     }
 
@@ -427,10 +427,6 @@ void ControlsMenu::init() {
     }
 
     Scratch::cleanupScratchProject();
-
-    if (!controls.empty()) {
-        Input::applyControls(projectPath + ".json");
-    }
 
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;

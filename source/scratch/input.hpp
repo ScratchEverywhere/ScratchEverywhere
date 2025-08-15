@@ -19,11 +19,16 @@ class Input {
 
     static std::vector<std::string> inputButtons;
     static std::map<std::string, std::string> inputControls;
+
+    static bool isAbsolutePath(const std::string &path) {
+        return path.size() > 0 && path[0] == '/';
+    }
+
     static void applyControls(std::string controlsFilePath = "") {
 
         if (controlsFilePath != "") {
             // load controls from file
-            std::ifstream file(OS::getScratchFolderLocation() + controlsFilePath);
+            std::ifstream file(controlsFilePath);
             if (file.is_open()) {
                 Log::log("Loading controls from file: " + controlsFilePath);
                 nlohmann::json controlsJson;
