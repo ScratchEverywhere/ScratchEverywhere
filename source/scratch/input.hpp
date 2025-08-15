@@ -25,6 +25,7 @@ class Input {
     }
 
     static void applyControls(std::string controlsFilePath = "") {
+        inputControls.clear();
 
         if (controlsFilePath != "") {
             // load controls from file
