@@ -291,13 +291,15 @@ void ProjectMenu::render() {
         float targetScale;
         if (distance <= maxDistance) {
             targetScale = 1.0f - (distance / static_cast<float>(maxDistance));
+
+            // Lerp the scale towards the target scale
+            project->scale = project->scale + (targetScale - project->scale) * lerpSpeed;
+
+            project->render(xPos, yPos);
+
         } else {
             targetScale = 0.0f;
         }
-        // Lerp the scale towards the target scale
-        project->scale = project->scale + (targetScale - project->scale) * lerpSpeed;
-
-        project->render(xPos, yPos);
     }
     backButton->render();
     if (hasProjects) {
