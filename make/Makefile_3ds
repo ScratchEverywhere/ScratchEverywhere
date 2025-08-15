@@ -208,7 +208,7 @@ endif
 .PHONY: all clean
 
 #---------------------------------------------------------------------------------
-all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(ROMFS_ALLGFXFILES) $(T3XHFILES)
+all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/make/Makefile_3ds
 
 $(BUILD):
@@ -217,6 +217,7 @@ $(BUILD):
 ifneq ($(GFXBUILD),$(BUILD))
 $(GFXBUILD):
 	@mkdir -p $@
+	@cp -r $(GRAPHICS)/* $@/
 endif
 
 ifneq ($(DEPSDIR),$(BUILD))

@@ -3,9 +3,9 @@
 #include "../unzip.hpp"
 
 void Loading::init() {
-    block1 = new Image("gfx/block1.svg");
-    block2 = new Image("gfx/block2.svg");
-    block3 = new Image("gfx/block3.svg");
+    block1 = new Image("gfx/menu/block1.svg");
+    block2 = new Image("gfx/menu/block2.svg");
+    block3 = new Image("gfx/menu/block3.svg");
     loadingStateText = createTextObject("", 0, 0);
     block1->scale = 0.5;
     block2->scale = 0.5;
