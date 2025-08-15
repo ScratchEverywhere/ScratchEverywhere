@@ -1,10 +1,10 @@
 # Scratch-3DS
-A work in progress runtime made in C++ aimed to bring most Scratch 3 projects over to the Nintendo 3DS, Wii U, Wii, and GameCube.
+A work in progress runtime made in C++ aimed to bring most Scratch 3 projects over to the Nintendo 3DS, Wii U, Wii, GameCube, and Switch.
 
-![Software running a simple Scratch Project](https://raw.githubusercontent.com/NateXS/Scratch-3DS/refs/heads/main/scratchcats3ds.gif)
+![Software running a simple Scratch Project](scratchcats3ds.gif)
 
 ## Controls
-![Controls](https://raw.githubusercontent.com/NateXS/Scratch-3DS/refs/heads/main/scratch%203ds%20controls.png)
+![Controls](scratch%203ds%20controls.png)
 
 ### Mouse
 
@@ -59,7 +59,8 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - If any vector image contains text, the text will not show up.
 - Extensions (eg: pen and music extensions) are not yet supported.
 - Some blocks may lead to crashing/unintended behavior (please open an issue if you know a block that's causing problems.)
-- **[Wii, Wii U, GameCube]** The first controller connected will be the only one that will work.
+- **[Wii and Switch]** Cloud Variables aren't currently supported but likely will be in the future.
+- **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 - **[GameCube]** Cloud Variables will not be supported.
 - **[GameCube]** The GameCube has very little memory, so try to keep projects small.
 - **[3DS]** Performace is poor when lots of blocks are running at once.
@@ -159,9 +160,17 @@ Then it should be as simple as opening the app in the Homebrew Menu on your Wii!
 
 Download the `scratch-gamecube.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-gamecube/main/Scratch%20GameCube%20Nightly.zip).
 
-Unzip the file. Put your Scratch projects in the same place you put your .dol file.
+Unzip the file. Put your Scratch projects in the same place you put your `.dol` file.
 
 Then it should be as simple as opening the app on your GameCube!
+
+### Get up and running for Nintendo Switch
+
+Download the `scratch-nx.nro` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-switch/main/Scratch%20NX%20Nightly.zip).
+
+Put your Scratch projects in the same place you put your `.nro` file.
+
+Then it should be as simple as opening the app on your Nintendo Switch!
 
 ## Building
 
@@ -182,14 +191,19 @@ To compile for the Wii U run `docker build -f docker/Dockerfile.wiiu --target ex
 
 To compile for the Wii run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
 
+To compile for the GameCube run `docker build -f docker/Dockerfile.gamecube --target exporter -o . .`.
+
+To compile for the Nintendo Switch run `docker build -f docker/Dockerfile.switch --target exporter -o . .`.
+
 #### Manual
 
 If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.grady.link/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 - For the 3DS you will need the DevkitARM toolchain and libctru.
 	- If you want to compile with audio support, you will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/NateXS/Scratch-3DS/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
-- For the Wii U you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu)
-- For the Wii you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc)
-- For the GameCube you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc)
+- For the Wii U you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
+- For the Wii you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
+- For the GameCube you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
+- For the Switch you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
 
 - DevkitPro's install instructions are available at : https://devkitpro.org/wiki/Getting_Started
 
@@ -203,7 +217,8 @@ Then you need to compile the projects into proper Homebrew packages.
 - For the 3DS you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
 - For the Wii U you need to run `make PLATFORM=wiiu` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
 - For the Wii you need to run `make PLATFORM=wii package`, then find the zipped file in `build/wii/scratch-wii.zip`. Unzip it and put the `apps` folder inside the root of your Wii SD card.
-- For the GameCube you need to run `make PLATFORM=gamecube`, then find the .dol file at `build/gamecube/scratch-gamecube.dol`.
+- For the GameCube you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
+- For the Switch you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
 
 #### Compilation Flags
 
@@ -215,4 +230,4 @@ Compilation flags are used to select which features will be enabled in the compi
 
 ## Disclaimer
 
-This project is not affiliated with Scratch or the Scratch team.
+This project is not affiliated with Scratch, the Scratch team, or Nintendo.

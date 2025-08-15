@@ -9,7 +9,7 @@ on:
       - gfx/*
       - include/**
       - .github/workflows/nightly-switch.yml
-      - Dockerfile.switch
+      - docker/Dockerfile.switch
     branches:
       - main
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.switch
+          file: docker/Dockerfile.switch
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact

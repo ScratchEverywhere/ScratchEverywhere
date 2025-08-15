@@ -41,6 +41,9 @@ BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScr
 
         return BlockResult::CONTINUE;
     }
+    if (block.customBlockPtr == nullptr) {
+        return BlockResult::CONTINUE;
+    }
 
     return BlockResult::RETURN;
 }
