@@ -118,12 +118,13 @@ bool Scratch::startScratchProject() {
             BlockExecutor::runBroadcasts();
             Render::renderSprites();
 
-            if (Scratch::shouldStop) {
+            if (shouldStop) {
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
                 }
                 cleanupScratchProject();
+                shouldStop = false;
                 return true;
             }
         }
