@@ -184,3 +184,8 @@ class Timer {
      */
     bool hasElapsedAndRestart(int ms);
 };
+
+class OS {
+  public:
+    static std::string getScratchFolderLocation();
+};

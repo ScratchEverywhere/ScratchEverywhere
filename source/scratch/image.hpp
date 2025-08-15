@@ -10,6 +10,9 @@ class Image {
     int height;
 
   public:
+    double scale;
+    double opacity;
+    double rotation;
     /**
      * Constructor for an image, good if you want to use images outside of a Scratch project.
      * `3DS`: Loads an image RGBA and C2D_Image from a given filepath.
@@ -23,7 +26,7 @@ class Image {
     int getWidth() { return width; }
     int getHeight() { return height; }
 
-    void render(double xPos, double yPos);
+    void render(double xPos, double yPos, bool centered = false);
 
     /**
      * `3DS`: Takes every Image in a Scratch sb3 file and converts them to RGBA data.
@@ -50,6 +53,8 @@ class Image {
      * `SDL`: Frees an `SDL_Image` from memory.
      */
     static void freeImage(const std::string &costumeId);
+
+    static void cleanupImages();
 
     /**
      * `3DS`: Queues a `C2D_Image` to be freed using `costumeId` to find it.

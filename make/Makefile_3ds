@@ -20,8 +20,8 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 #---------------------------------------------------------------------------------
 #	Application Info
 #---------------------------------------------------------------------------------
-APP_TITLE 	:=	Scratch 3DS
-APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 17 Dev]
+APP_TITLE 	:=	Scratch Everywhere!
+APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 17]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	Scratch
 #---------------------------------------------------------------------------------
@@ -212,7 +212,7 @@ endif
 .PHONY: all clean
 
 #---------------------------------------------------------------------------------
-all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(ROMFS_ALLGFXFILES) $(T3XHFILES)
+all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/make/Makefile_3ds
 
 $(BUILD):
@@ -221,6 +221,7 @@ $(BUILD):
 ifneq ($(GFXBUILD),$(BUILD))
 $(GFXBUILD):
 	@mkdir -p $@
+	@cp -r $(GRAPHICS)/* $@/
 endif
 
 ifneq ($(DEPSDIR),$(BUILD))

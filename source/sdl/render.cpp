@@ -140,7 +140,7 @@ postAccount:
 void Render::deInit() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
-    SoundPlayer::cleanupAudio();
+    SoundPlayer::deinit();
     IMG_Quit();
     SDL_Quit();
 
@@ -182,6 +182,12 @@ void Render::endFrame() {
     SDL_Delay(16);
     Image::FlushImages();
     hasFrameBegan = false;
+}
+
+void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+    SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
+    SDL_Rect rect = {x - (w / 2), y - (h / 2), w, h};
+    SDL_RenderFillRect(renderer, &rect);
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -363,6 +369,7 @@ void Render::renderVisibleVariables() {
             monitorTexts[var.id]->render(var.x * scale + barOffsetX, var.y * scale + barOffsetY);
         } else {
             if (monitorTexts.find(var.id) != monitorTexts.end()) {
+                delete monitorTexts[var.id];
                 monitorTexts.erase(var.id);
             }
         }
@@ -375,6 +382,7 @@ bool Render::appShouldRun() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
+            toExit = true;
             return false;
         case SDL_CONTROLLERDEVICEADDED:
             controller = SDL_GameControllerOpen(0);
@@ -398,11 +406,4 @@ bool Render::appShouldRun() {
         }
     }
     return true;
-}
-
-void LoadingScreen::init() {
-}
-void LoadingScreen::renderLoadingScreen() {
-}
-void LoadingScreen::cleanup() {
 }

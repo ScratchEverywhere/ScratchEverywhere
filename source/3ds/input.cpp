@@ -14,11 +14,25 @@ int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
 static u16 oldTouchPy = 0;
+static touchPosition touch;
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
 extern bool cloudProject;
 #endif
+
+std::vector<int> Input::getTouchPosition() {
+    std::vector<int> pos;
+
+    pos.push_back(touch.px);
+    pos.push_back(touch.py);
+    if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
+        if (touch.px != 0 || touch.py != 0) {
+            mousePointer.isPressed = true;
+        } else mousePointer.isPressed = false;
+    }
+    return pos;
+}
 
 void Input::getInput() {
     inputButtons.clear();
@@ -27,13 +41,11 @@ void Input::getInput() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
 
-    touchPosition touch;
-
-    // Read the touch screen coordinates
     hidTouchRead(&touch);
+    std::vector<int> touchPos = getTouchPosition();
 
     // if the touch screen is being touched
-    if (touch.px != 0 || touch.py != 0) {
+    if (touchPos[0] != 0 || touchPos[1] != 0) {
         mouseHeldFrames += 1;
     } else {
         if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames > 0 && mouseHeldFrames < 4)) {
@@ -116,21 +128,21 @@ void Input::getInput() {
             // normal touch screen if both screens or bottom screen only
             if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
                 mousePointer.isPressed = true;
-                mousePointer.x = touch.px - (BOTTOM_SCREEN_WIDTH / 2);
+                mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
                 if (Render::renderMode == Render::BOTH_SCREENS)
-                    mousePointer.y = (-touch.py + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
+                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
                 else if (Render::renderMode == Render::BOTTOM_SCREEN_ONLY)
-                    mousePointer.y = (-touch.py + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
+                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
             }
 
             // trackpad movement if top screen only
             if (Render::renderMode == Render::TOP_SCREEN_ONLY) {
                 if (mouseHeldFrames == 1) {
-                    oldTouchPx = touch.px;
-                    oldTouchPy = touch.py;
+                    oldTouchPx = touchPos[0];
+                    oldTouchPy = touchPos[1];
                 }
-                mousePointer.x += touch.px - oldTouchPx;
-                mousePointer.y -= touch.py - oldTouchPy;
+                mousePointer.x += touchPos[0] - oldTouchPx;
+                mousePointer.y -= touchPos[1] - oldTouchPy;
                 mousePointer.isMoving = true;
             }
         }
@@ -140,8 +152,8 @@ void Input::getInput() {
     } else {
         keyHeldFrames = 0;
     }
-    oldTouchPx = touch.px;
-    oldTouchPy = touch.py;
+    oldTouchPx = touchPos[0];
+    oldTouchPy = touchPos[1];
 }
 
 /**

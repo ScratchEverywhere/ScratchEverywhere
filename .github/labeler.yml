@@ -9,3 +9,6 @@ Wii:
 
 GameCube:
   - '### Device\(s\)\s*.*GameCube'
+
+Switch:
+  - '### Device\(s\)\s*.*Switch'

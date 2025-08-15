@@ -23,4 +23,5 @@ class SoundPlayer {
     static bool isSoundLoaded(const std::string &soundId);
     static void freeAudio(const std::string &soundId);
     static void cleanupAudio();
+    static void deinit();
 };

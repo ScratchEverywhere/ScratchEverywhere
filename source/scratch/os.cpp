@@ -2,6 +2,10 @@
 #ifdef __OGC__
 #include <gccore.h>
 #endif
+#ifdef __WIIU__
+#include <sstream>
+#include <whb/sdcard.h>
+#endif
 
 size_t MemoryTracker::totalAllocated = 0;
 size_t MemoryTracker::peakUsage = 0;
@@ -66,4 +70,12 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
         return true;
     }
     return false;
+}
+
+std::string OS::getScratchFolderLocation() {
+#ifdef __WIIU__
+    return std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/";
+#else
+    return "scratch-everywhere/";
+#endif
 }

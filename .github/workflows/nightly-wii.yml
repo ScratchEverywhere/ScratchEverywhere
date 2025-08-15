@@ -3,7 +3,7 @@ name: Wii Nightly Build
 on:
   push:
     paths:
-      - Makefile_wii
+      - make/Makefile_wii
       - source/scratch/**
       - source/sdl/**
       - gfx/wii/**
@@ -35,5 +35,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch Wii Nightly
+          name: Scratch Everywhere! Wii Nightly
           path: scratch-wii.zip

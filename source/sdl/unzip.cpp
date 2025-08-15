@@ -8,6 +8,7 @@
 volatile int Unzip::projectOpened;
 volatile bool Unzip::threadFinished;
 std::string Unzip::filePath = "";
+std::string Unzip::loadingState = "";
 mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
 
@@ -30,8 +31,6 @@ int Unzip::openFile(std::ifstream *file) {
 
 #if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
         file->open("romfs:/" + filename, std::ios::binary | std::ios::ate);
-#else
-        file->open(filePath, std::ios::binary | std::ios::ate);
 #endif
         projectType = EMBEDDED;
 #ifdef __WIIU__

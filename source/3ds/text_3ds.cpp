@@ -48,5 +48,6 @@ void TextObject3DS::render(int xPos, int yPos) {
     if (centerAligned) {
         flags |= C2D_AlignCenter;
     }
+    yPos -= getSize()[1] / 2;
     C2D_DrawText(&textClass.c2dText, flags, xPos, yPos, 0, scale, scale, color);
 }

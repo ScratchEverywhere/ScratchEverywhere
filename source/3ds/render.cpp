@@ -89,7 +89,11 @@ bool Render::Init() {
 
 bool Render::appShouldRun() {
     if (toExit) return false;
-    return aptMainLoop();
+    if (!aptMainLoop()) {
+        toExit = true;
+        return false;
+    }
+    return true;
 }
 
 void *Render::getRenderer() {
@@ -108,6 +112,7 @@ int Render::getHeight() {
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
         hasFrameBegan = true;
     }
     if (screen == 0) {
@@ -126,6 +131,16 @@ void Render::endFrame() {
     C3D_FrameEnd(0);
     Image::FlushImages();
     hasFrameBegan = false;
+}
+
+void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+    C2D_DrawRectSolid(
+        x - (w / 2.0f),
+        y - (h / 2.0f),
+        1,
+        w,
+        h,
+        C2D_Color32(colorR, colorG, colorB, colorA));
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -415,52 +430,6 @@ void Render::renderVisibleVariables() {
     }
 }
 
-void LoadingScreen::renderLoadingScreen() {
-#ifdef ENABLE_BUBBLES
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrScratchBlue);
-    C2D_SceneBegin(topScreen);
-
-    // if(text != nullptr){
-    // text->render();
-    // }
-    for (squareObject &square : squares) {
-        square.y -= square.size * 0.1;
-        if (square.x > 400 + square.size) square.x = 0 - square.size;
-        if (square.y < 0 - square.size) square.y = 240 + square.size;
-        C2D_DrawRectSolid(square.x, square.y, 1, square.size, square.size, C2D_Color32(255, 255, 255, 75));
-    }
-
-    C3D_FrameEnd(0);
-#endif
-}
-
-void LoadingScreen::init() {
-#ifdef ENABLE_BUBBLES
-    // text = new TextObject("Loading...",200,120);
-    createSquares(20);
-#endif
-}
-
-void LoadingScreen::cleanup() {
-#ifdef ENABLE_BUBBLES
-    // if(text && text != nullptr)
-    // delete text;
-    squares.clear();
-
-    C2D_Flush();
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrBlack);
-    C2D_SceneBegin(topScreen);
-
-    C2D_TargetClear(bottomScreen, clrBlack);
-    C2D_SceneBegin(bottomScreen);
-
-    C3D_FrameEnd(0);
-    gspWaitForVBlank();
-#endif
-}
-
 void Render::deInit() {
 #ifdef ENABLE_CLOUDVARS
     socExit();
@@ -468,18 +437,8 @@ void Render::deInit() {
 
     C2D_Fini();
     C3D_Fini();
-    for (auto &[id, data] : imageC2Ds) {
-        if (data.image.tex) {
-            C3D_TexDelete(data.image.tex);
-            free(data.image.tex);
-        }
-
-        if (data.image.subtex) {
-            free((Tex3DS_SubTexture *)data.image.subtex);
-        }
-    }
-    imageRGBAS.clear();
-    SoundPlayer::cleanupAudio();
+    Image::cleanupImages();
+    SoundPlayer::deinit();
 #ifdef ENABLE_AUDIO
     SDL_Quit();
 #endif

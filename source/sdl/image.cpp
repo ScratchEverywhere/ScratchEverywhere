@@ -13,21 +13,40 @@ Image::Image(std::string filePath) {
     imageId = imgId;
     width = images[imgId]->width;
     height = images[imgId]->height;
+    scale = 1.0;
+    rotation = 0.0;
+    opacity = 1.0;
 }
 
 Image::~Image() {
-    queueFreeImage(imageId);
+    auto it = images.find(imageId);
+    if (it != images.end()) {
+        freeImage(imageId);
+    }
 }
 
-void Image::render(double xPos, double yPos) {
+void Image::render(double xPos, double yPos, bool centered) {
     if (images.find(imageId) != images.end()) {
         SDL_Image *image = images[imageId];
 
-        image->renderRect.x = xPos;
-        image->renderRect.y = yPos;
+        image->setScale(scale);
+        image->setRotation(rotation);
+
+        if (centered) {
+            image->renderRect.x = xPos - (image->renderRect.w / 2);
+            image->renderRect.y = yPos - (image->renderRect.h / 2);
+        } else {
+            image->renderRect.x = xPos;
+            image->renderRect.y = yPos;
+        }
+
+        Uint8 alpha = static_cast<Uint8>(opacity * 255);
+        SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+
+        SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
         image->freeTimer = image->maxFreeTime;
-        SDL_RenderCopy(renderer, image->spriteTexture, &image->textureRect, &image->renderRect);
+        SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, rotation, &center, SDL_FLIP_NONE);
     }
 }
 
@@ -132,6 +151,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     finalPath = finalPath + filePath;
 
+    // SDL_Image *image = new SDL_Image(finalPath);
     SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
     new (image) SDL_Image(finalPath);
 
@@ -145,7 +165,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     // Track texture memory
     if (image->spriteTexture) {
         size_t textureMemory = image->width * image->height * 4;
-        MemoryTracker::allocate(textureMemory);
+        MemoryTracker::allocateVRAM(textureMemory);
         image->memorySize = textureMemory;
     }
 
@@ -251,6 +271,19 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     images[imgId] = image;
 }
 
+void Image::cleanupImages() {
+    for (auto &[id, image] : images) {
+        if (image->memorySize > 0) {
+            MemoryTracker::deallocateVRAM(image->memorySize);
+        }
+        // delete image;
+        image->~SDL_Image();
+        MemoryTracker::deallocate<SDL_Image>(image);
+    }
+    images.clear();
+    toDelete.clear();
+}
+
 /**
  * Frees an `SDL_Image` from memory using a `costumeId` to find it.
  * @param costumeId
@@ -259,10 +292,6 @@ void Image::freeImage(const std::string &costumeId) {
     auto imageIt = images.find(costumeId);
     if (imageIt != images.end()) {
         SDL_Image *image = imageIt->second;
-
-        if (image->memorySize > 0) {
-            MemoryTracker::deallocate(nullptr, image->memorySize);
-        }
 
         Log::log("Freed image " + costumeId);
         // Call destructor and deallocate SDL_Image

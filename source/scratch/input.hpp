@@ -1,5 +1,9 @@
 #pragma once
+#include "os.hpp"
+#include <algorithm>
+#include <fstream>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 
@@ -15,7 +19,35 @@ class Input {
 
     static std::vector<std::string> inputButtons;
     static std::map<std::string, std::string> inputControls;
-    static void applyControls() {
+
+    static bool isAbsolutePath(const std::string &path) {
+        return path.size() > 0 && path[0] == '/';
+    }
+
+    static void applyControls(std::string controlsFilePath = "") {
+        inputControls.clear();
+
+        if (controlsFilePath != "") {
+            // load controls from file
+            std::ifstream file(controlsFilePath);
+            if (file.is_open()) {
+                Log::log("Loading controls from file: " + controlsFilePath);
+                nlohmann::json controlsJson;
+                file >> controlsJson;
+
+                // Access the "controls" object specifically
+                if (controlsJson.contains("controls")) {
+                    for (auto &[key, value] : controlsJson["controls"].items()) {
+                        inputControls[value.get<std::string>()] = key;
+                        Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
+                    }
+                }
+                file.close();
+                return;
+            } else {
+                Log::logWarning("Failed to open controls file: " + controlsFilePath);
+            }
+        }
 
         // default controls
         inputControls["dpadUp"] = "u";
@@ -48,6 +80,12 @@ class Input {
         }
     }
 
+    static bool isKeyJustPressed(std::string scratchKey) {
+        return (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), scratchKey) != Input::inputButtons.end()) &&
+               Input::keyHeldFrames < 2;
+    }
+
+    static std::vector<int> getTouchPosition();
     static void getInput();
     static std::string getUsername();
     static int keyHeldFrames;

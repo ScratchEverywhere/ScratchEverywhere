@@ -31,6 +31,15 @@ extern std::string cloudUsername;
 extern bool cloudProject;
 #endif
 
+std::vector<int> Input::getTouchPosition() {
+    std::vector<int> pos;
+    int rawMouseX, rawMouseY;
+    SDL_GetMouseState(&rawMouseX, &rawMouseY);
+    pos.push_back(rawMouseX);
+    pos.push_back(rawMouseY);
+    return pos;
+}
+
 void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
@@ -198,19 +207,18 @@ void Input::getInput() {
     }
 
     // Get raw mouse coordinates
-    int rawMouseX, rawMouseY;
-    SDL_GetMouseState(&rawMouseX, &rawMouseY);
+    std::vector<int> rawMouse = getTouchPosition();
 
     // Convert to window-centered coordinates
-    rawMouseX -= windowWidth / 2;
-    rawMouseY = (windowHeight / 2) - rawMouseY;
+    rawMouse[0] -= windowWidth / 2;
+    rawMouse[1] = (windowHeight / 2) - rawMouse[1];
 
     // Transform to Scratch project space
     float scaleX = static_cast<float>(Scratch::projectWidth) / windowWidth;
     float scaleY = static_cast<float>(Scratch::projectHeight) / windowHeight;
 
-    mousePointer.x = rawMouseX * scaleX;
-    mousePointer.y = rawMouseY * scaleY;
+    mousePointer.x = rawMouse[0] * scaleX;
+    mousePointer.y = rawMouse[1] * scaleY;
 
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
