@@ -30,12 +30,17 @@ CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DSDL_BUILD
 CFLAGS  +=  `$(PKGCONF) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
 
+ifeq ($(ENABLE_AUDIO),1)
+CFLAGS	+=	-DENABLE_AUDIO
+LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2`
+else
+LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf sdl2`
+endif
+
 CXXFLAGS	:= $(CFLAGS) -std=c++17 -Wall -fexceptions
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
-
-LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2`
 
 LIBDIRS	:= $(PORTLIBS) $(LIBNX)
 

@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=switch
+RUN make PLATFORM=switch ENABLE_AUDIO=1
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/scratch-nx.nro /

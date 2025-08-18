@@ -93,7 +93,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - Bug fixing and Scratch Parity.
 - Get all blocks working.
 - Pen support.
-- Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pulls/210)).
+- Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pull/210)).
 - Custom blocks to detect when being ran by Scratch Everywhere! and Other Information like what Platform it's being run on.
 
 ### 3DS
@@ -124,7 +124,7 @@ There are 2 methods to install the runtime.
 
 ### Get up and running for 3DS
 
-Download the `.3dsx `file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-3ds/main/Scratch%203DS%20Nightly.zip).
+Download the `.3dsx `file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-3ds/main/Scratch%20Everywhere!%203DS%20Nightly.zip).
 
 - Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, along with any Scratch projects you want to run.
 
@@ -135,7 +135,7 @@ Then it should be as simple as opening the Homebrew Launcher on your 3DS and run
 
 ### Get up and running for Wii U
 
-Download the `scratch-wiiu.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-wiiu/main/Scratch%20Wii%20U%20Nightly.zip).
+Download the `scratch-wiiu.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-wiiu/main/Scratch%20Everywhere!%20Wii%20U%20Nightly.zip).
 
 Unzip the file in your `sdcard:/wiiu/apps/` folder.
 
@@ -149,7 +149,7 @@ Then it should be as simple as opening the app on the Wii U Menu or in the Homeb
 ### Get up and running for Wii
 
 Download the `scratch-wii.zip` file in t
-he Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-wii/main/Scratch%20Wii%20Nightly.zip).
+he Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-wii/main/Scratch%20Everywhere!%20Wii%20Nightly.zip).
 
 Unzip the file and put the `apps` folder inside of the root of your SD card.
 
@@ -165,7 +165,7 @@ Then it should be as simple as opening the app in the Homebrew Menu on your Wii!
 > [!NOTE]
 > There is currently a bug on the GameCube version causing projects to not show up on the Main Menu. The GameCube release has been temporarily removed from the Releases tab until the issue is fixed. For now, you need to compile from source to use the GameCube version.
 
-Download the `scratch-gamecube.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-gamecube/main/Scratch%20GameCube%20Nightly.zip).
+Download the `scratch-gamecube.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-gamecube/main/Scratch%20Everywhere!%20GameCube%20Nightly.zip).
 
 Unzip the file. Put your Scratch projects in the same place you put your `.dol` file.
 
@@ -173,7 +173,7 @@ Then it should be as simple as opening the app on your GameCube!
 
 ### Get up and running for Nintendo Switch
 
-Download the `scratch-nx.nro` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-switch/main/Scratch%20NX%20Nightly.zip).
+Download the `scratch-nx.nro` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-switch/main/Scratch%20Everywhere!%20Switch%20Nightly.zip).
 
 Put your Scratch projects in the same place you put your `.nro` file.
 
