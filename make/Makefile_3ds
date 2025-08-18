@@ -21,7 +21,7 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 #	Application Info
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch Everywhere!
-APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 17]
+APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 18 Dev]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	Scratch
 #---------------------------------------------------------------------------------
@@ -117,6 +117,13 @@ LIBDIRS	:= $(CTRULIB)  $(DEVKITPRO)/portlibs/3ds
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
 #---------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------
+# Find images in romfs/project and generate t3s files for them
+#---------------------------------------------------------------------------------
+ROMFS_PROJECT_IMAGES := $(shell find $(ROMFS)/project -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.bmp" -o -iname "*.tga" \) 2>/dev/null)
+
+#---------------------------------------------------------------------------------
 ifneq ($(notdir $(BUILD)),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
@@ -138,6 +145,14 @@ GFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.t3s)))
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 ALLGFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.*)))
+
+# Add romfs project t3s files
+ROMFS_PROJECT_T3X_STEMS := $(patsubst %.png,%.t3x,$(ROMFS_PROJECT_IMAGES))
+ROMFS_PROJECT_T3X_STEMS := $(patsubst %.jpg,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
+ROMFS_PROJECT_T3X_STEMS := $(patsubst %.jpeg,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
+ROMFS_PROJECT_T3X_STEMS := $(patsubst %.bmp,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
+ROMFS_PROJECT_T3X_STEMS := $(patsubst %.tga,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
+ROMFS_PROJECT_T3XFILES := $(patsubst $(ROMFS)/project/%,$(GFXBUILD)/%,$(ROMFS_PROJECT_T3X_STEMS))
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
@@ -161,7 +176,7 @@ export ROMFS_ALLGFXFILES	:=	$(ALLGFXFILES)
 #---------------------------------------------------------------------------------
 else
 #---------------------------------------------------------------------------------
-export ROMFS_T3XFILES	:=	$(patsubst %.t3s, $(GFXBUILD)/%.t3x, $(GFXFILES))
+export ROMFS_T3XFILES	:=	$(patsubst %.t3s, $(GFXBUILD)/%.t3x, $(GFXFILES)) $(ROMFS_PROJECT_T3XFILES)
 export ROMFS_ALLGFXFILES	:=	$(patsubst %, $(GFXBUILD)/%, $(ALLGFXFILES))
 export T3XHFILES		:=	$(patsubst %.t3s, $(BUILD)/%.h, $(GFXFILES))
 #---------------------------------------------------------------------------------
@@ -230,15 +245,48 @@ $(DEPSDIR):
 endif
 
 #---------------------------------------------------------------------------------
+# Generate .t3s files from images in romfs/project
+#---------------------------------------------------------------------------------
+$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.png
+	@echo "Generating $(notdir $@) from $(notdir $<)"
+	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
+
+$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.jpg
+	@echo "Generating $(notdir $@) from $(notdir $<)"
+	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
+
+$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.jpeg
+	@echo "Generating $(notdir $@) from $(notdir $<)"
+	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
+
+$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.bmp
+	@echo "Generating $(notdir $@) from $(notdir $<)"
+	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
+
+$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.tga
+	@echo "Generating $(notdir $@) from $(notdir $<)"
+	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
+
+#---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
 	@rm -fr build $(BUILD)/$(TARGET).3dsx $(BUILD)/$(TARGET).smdh $(BUILD)/$(TARGET).elf $(GFXBUILD)
+	@find $(ROMFS)/project -name "*.t3s" -delete 2>/dev/null || true
 
 #---------------------------------------------------------------------------------
 $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@tex3ds -i $< -H $(BUILD)/$*.h -d $(DEPSDIR)/$*.d -o $(GFXBUILD)/$*.t3x
+
+#---------------------------------------------------------------------------------
+# Generate t3x files from t3s files in romfs/project
+#---------------------------------------------------------------------------------
+$(GFXBUILD)/%.t3x: $(ROMFS)/project/%.t3s
+	@echo "Processing image: $(notdir $<)"
+	@mkdir -p $(dir $@)
+	@tex3ds -i $< -o $@
+	@rm $<
 
 #---------------------------------------------------------------------------------
 # Copy all files from gfx folder to romfs/gfx folder

@@ -1,5 +1,8 @@
 #include "events.hpp"
 #include "../input.hpp"
+#include "blockExecutor.hpp"
+#include "interpret.hpp"
+#include "sprite.hpp"
 
 BlockResult EventBlocks::flagClicked(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;

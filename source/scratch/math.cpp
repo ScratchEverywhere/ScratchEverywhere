@@ -1,4 +1,10 @@
 #include "math.hpp"
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <math.h>
+#include <random>
+#include <string>
 #ifdef __3DS__
 #include <citro2d.h>
 #endif

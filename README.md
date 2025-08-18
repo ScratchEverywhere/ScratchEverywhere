@@ -1,7 +1,11 @@
-# Scratch Everywhere!
+<p align="center">
+  <img src="gfx/logo.png" alt="Scratch Everywhere! logo" />
+</p>
+
 A work in progress runtime made in C++ aimed to bring most Scratch 3 projects over to the Nintendo 3DS, Wii U, Wii, GameCube, and Switch!
 
-![Software running a simple Scratch Project](scratchcats3ds.gif)
+![Runtime running a Scratch project on Wii U, Wii, and 3DS](scratchcats3ds.gif)
+<small>(Game showed is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
 
 ## Controls
 ![Controls](scratch%203ds%20controls.png)
@@ -38,8 +42,8 @@ A work in progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 	- Known Bug: On 3DS, if a sound has to load while other sounds are playing, all sounds will stop playing until the sound is loaded.
 - If you play any sound from the "Stage," the sound will play as a "Streamed Sound" and will not need to load.
 - Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
-- [Wii,Gamecube] "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
-- [3DS,Wii,Gamecube] Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
+- [Wii,GameCube] "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
+- [3DS,Wii,GameCube] Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
 
 ### Framerate
 
@@ -56,7 +60,6 @@ A work in progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 As this is in a very work in progress state, you will encounter many bugs, crashes, and things that will just not work. 
 
 **List of Known Limitations:**
-- Images will only work if it's in `.png`, `.jpg`, or `.svg` format.
 - If any vector image contains text, the text will not show up.
 - Extensions (eg: pen and music extensions) are not yet supported.
 - Some blocks may lead to crashing/unintended behavior (please open an issue if you know a block that's causing problems.)
@@ -68,8 +71,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - **[3DS]** Performace is poor when lots of blocks are running at once.
 - **[3DS]** If you have a bunch of large images, some may not load.
 - **[3DS]** Some vector images will appear bigger than they should.
-- **[3DS]** Images cannot be over 1024x1024 in resolution.
-- **[3DS]** Some images may appear 'fuzzy' looking or have noticable inconsistencies.
 
 
 ## Unimplimented blocks
@@ -92,7 +93,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - Bug fixing and Scratch Parity.
 - Get all blocks working.
 - Pen support.
-- Support most TurboWarp extensions.
+- Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pulls/210)).
 - Custom blocks to detect when being ran by Scratch Everywhere! and Other Information like what Platform it's being run on.
 
 ### 3DS
@@ -111,7 +112,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 ### Other
 
 - Download projects from the Scratch website.
-- Improve main menu user interface.
 
 ## Installation
 
@@ -157,7 +157,13 @@ Place the Scratch projects you want in `sdcard:/apps/scratch-wii/`
 
 Then it should be as simple as opening the app in the Homebrew Menu on your Wii!
 
+> [!NOTE]
+> Scratch Wii is also on the Open Shop Channel, so you can just download it there and keep it updated that way!
+
 ### Get up and running for GameCube
+
+> [!NOTE]
+> There is currently a bug on the GameCube version causing projects to not show up on the Main Menu. The GameCube release has been temporarily removed from the Releases tab until the issue is fixed. For now, you need to compile from source to use the GameCube version.
 
 Download the `scratch-gamecube.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-3DS/workflows/nightly-gamecube/main/Scratch%20GameCube%20Nightly.zip).
 

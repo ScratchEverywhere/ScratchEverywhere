@@ -1,4 +1,11 @@
 #include "operator.hpp"
+#include "interpret.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <math.h>
 
 Value OperatorBlocks::add(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);

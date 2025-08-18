@@ -2,11 +2,14 @@
 #include "../scratch/audio.hpp"
 #include "../scratch/os.hpp"
 #include "audio.hpp"
+#include "interpret.hpp"
+#include "miniz/miniz.h"
+#include "sprite.hpp"
+#include <string>
+#include <unordered_map>
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#include <algorithm>
-#include <iostream>
 
 std::unordered_map<std::string, SDL_Audio *> SDL_Sounds;
 std::string currentStreamedSound = "";

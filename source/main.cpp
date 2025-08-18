@@ -1,10 +1,7 @@
-#include "scratch/blockExecutor.hpp"
-#include "scratch/extension.hpp"
-#include "scratch/input.hpp"
+#include "interpret.hpp"
 #include "scratch/menus/mainMenu.hpp"
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
-#include <chrono>
 
 #ifdef __PC__
 #include <dlfcn.h>

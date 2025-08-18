@@ -1,4 +1,12 @@
 #include "control.hpp"
+#include "blockExecutor.hpp"
+#include "interpret.hpp"
+#include "math.hpp"
+#include "os.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
+#include <iostream>
+#include <ostream>
 
 BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);

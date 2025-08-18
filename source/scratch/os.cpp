@@ -1,4 +1,9 @@
 #include "os.hpp"
+#include <chrono>
+#include <cstddef>
+#include <iostream>
+#include <ostream>
+#include <string>
 #ifdef __OGC__
 #include <gccore.h>
 #endif

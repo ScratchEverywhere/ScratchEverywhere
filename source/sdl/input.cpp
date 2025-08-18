@@ -1,8 +1,21 @@
 #include "../scratch/input.hpp"
 #include "../scratch/blockExecutor.hpp"
+#include "interpret.hpp"
 #include "render.hpp"
-#include <SDL2/SDL.h>
+#include "sprite.hpp"
+#include <SDL2/SDL_gamecontroller.h>
+#include <SDL2/SDL_keyboard.h>
+#include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_rect.h>
+#include <SDL2/SDL_scancode.h>
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_touch.h>
 #include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <map>
+#include <string>
+#include <vector>
 
 #ifdef __WIIU__
 #include <nn/act.h>

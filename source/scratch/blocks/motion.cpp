@@ -1,5 +1,17 @@
 #include "motion.hpp"
 #include "../scratch/input.hpp"
+#include "blockExecutor.hpp"
+#include "interpret.hpp"
+#include "math.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <iostream>
+#include <math.h>
+#include <ostream>
+#include <string>
 
 BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "STEPS", sprite);

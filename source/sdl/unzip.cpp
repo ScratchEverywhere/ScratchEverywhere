@@ -1,4 +1,12 @@
 #include "../scratch/unzip.hpp"
+#include "interpret.hpp"
+#include "miniz/miniz.h"
+#include "os.hpp"
+#include <cstddef>
+#include <fstream>
+#include <ios>
+#include <string>
+#include <vector>
 
 #ifdef __WIIU__
 #include <sstream>

@@ -1,5 +1,10 @@
 #include "data.hpp"
 #include "../render.hpp"
+#include "blockExecutor.hpp"
+#include "interpret.hpp"
+#include "math.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
 
 BlockResult DataBlocks::setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value val = Scratch::getInputValue(block, "VALUE", sprite);

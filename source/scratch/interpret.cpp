@@ -1,9 +1,14 @@
 #include "interpret.hpp"
 #include "extension.hpp"
 #include "audio.hpp"
+#include "image.hpp"
 #include "input.hpp"
+#include "math.hpp"
+#include "miniz/miniz.h"
+#include "nlohmann/json.hpp"
 #include "os.hpp"
 #include "render.hpp"
+#include "sprite.hpp"
 #include "unzip.hpp"
 #include <cerrno>
 #include <cstring>
@@ -300,7 +305,6 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
 void loadSprites(const nlohmann::json &json) {
     Log::log("beginning to load sprites...");
     sprites.reserve(400);
-    int count = 0;
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
         Sprite *newSprite = MemoryTracker::allocate<Sprite>();
@@ -540,7 +544,6 @@ void loadSprites(const nlohmann::json &json) {
         }
 
         sprites.push_back(newSprite);
-        count++;
     }
 
     for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
@@ -673,21 +676,21 @@ void loadSprites(const nlohmann::json &json) {
     try {
         framerate = config["framerate"].get<int>();
         Scratch::FPS = framerate;
-        Log::log("FPS = " + Scratch::FPS);
+        Log::log("FPS = " + std::to_string(Scratch::FPS));
     } catch (...) {
         Log::logWarning("no framerate property.");
     }
     try {
         wdth = config["width"].get<int>();
         Scratch::projectWidth = wdth;
-        Log::log("game width = " + Scratch::projectWidth);
+        Log::log("game width = " + std::to_string(Scratch::projectWidth));
     } catch (...) {
         Log::logWarning("no width property.");
     }
     try {
         hght = config["height"].get<int>();
         Scratch::projectHeight = hght;
-        Log::log("game height = " + Scratch::projectHeight);
+        Log::log("game height = " + std::to_string(Scratch::projectHeight));
     } catch (...) {
         Log::logWarning("no height property.");
     }
@@ -719,12 +722,14 @@ void loadSprites(const nlohmann::json &json) {
     int sprIndex = 1;
     if (projectType == UNZIPPED) {
         for (auto &currentSprite : sprites) {
+            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
             Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
             Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
             sprIndex++;
         }
     } else {
         for (auto &currentSprite : sprites) {
+            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
             Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
             Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
             sprIndex++;

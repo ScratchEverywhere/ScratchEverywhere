@@ -1,4 +1,5 @@
 #include "../scratch/keyboard.hpp"
+#include <string>
 
 #ifdef __SWITCH__
 #include <switch.h>

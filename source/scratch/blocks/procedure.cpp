@@ -1,4 +1,7 @@
 #include "procedure.hpp"
+#include "blockExecutor.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
 
 Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
     return BlockExecutor::getCustomBlockValue(block.fields.at("VALUE")[0], sprite, block);

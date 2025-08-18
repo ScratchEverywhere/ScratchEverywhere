@@ -21,15 +21,6 @@ static std::vector<imageRGBA *> imageLoadQueue;
 static std::vector<std::string> toDelete;
 #define MAX_IMAGE_VRAM 30000000
 
-struct MemoryStats {
-    size_t totalRamUsage = 0;
-    size_t totalVRamUsage = 0;
-    size_t imageCount = 0;
-    size_t c2dImageCount = 0;
-};
-
-static MemoryStats memStats;
-
 const u32 next_pow2(u32 n) {
     n--;
     n |= n >> 1;
@@ -187,6 +178,7 @@ void Image::loadImages(mz_zip_archive *zip) {
 bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
+    if (getImageFromT3x("romfs:/gfx/" + path2 + ".t3x")) return true;
 
     auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
         return img.name == path2;
@@ -206,7 +198,6 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     int width, height;
     unsigned char *rgba_data = nullptr;
 
-    // Check if it's an SVG file
     bool isSVG = filePath.size() >= 4 &&
                  (filePath.substr(filePath.size() - 4) == ".svg" ||
                   filePath.substr(filePath.size() - 4) == ".SVG");
@@ -214,7 +205,6 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     imageRGBA newRGBA;
 
     if (isSVG) {
-        // Read entire SVG file into memory
         fseek(file, 0, SEEK_END);
         long file_size = ftell(file);
         fseek(file, 0, SEEK_SET);
@@ -234,6 +224,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
             free(svg_data);
             return false;
         }
+
         newRGBA.isSVG = true;
         rgba_data = SVGToRGBA(svg_data, file_size, width, height);
         free(svg_data);
@@ -243,7 +234,6 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
             return false;
         }
     } else {
-        // Handle regular image files (PNG, JPG)
         int channels;
         rgba_data = stbi_load_from_file(file, &width, &height, &channels, 4);
         fclose(file);
@@ -285,7 +275,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     });
     if (it != imageRGBAS.end()) return;
 
-    Log::log("Loading single image: " + costumeId);
+    // Log::log("Loading single image: " + costumeId);
 
     // Find the file in the zip
     int file_index = mz_zip_reader_locate_file(zip, costumeId.c_str(), nullptr, 0);
@@ -302,11 +292,12 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     }
 
     // Check if file is bitmap or SVG
-    bool isBitmap = costumeId.size() >= 4 &&
-                    (costumeId.substr(costumeId.size() - 4) == ".png" ||
-                     costumeId.substr(costumeId.size() - 4) == ".PNG" ||
-                     costumeId.substr(costumeId.size() - 4) == ".jpg" ||
-                     costumeId.substr(costumeId.size() - 4) == ".JPG");
+    bool isBitmap = costumeId.size() > 4 && ([](std::string ext) {
+                        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                        return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" ||
+                               ext == ".bmp" || ext == ".psd" || ext == ".gif" || ext == ".hdr" ||
+                               ext == ".pic" || ext == ".ppm" || ext == ".pgm";
+                    }(costumeId.substr(costumeId.find_last_of('.'))));
     bool isSVG = costumeId.size() >= 4 &&
                  (costumeId.substr(costumeId.size() - 4) == ".svg" ||
                   costumeId.substr(costumeId.size() - 4) == ".SVG");
@@ -335,6 +326,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
         if (!rgba_data) {
             Log::logWarning("Failed to decode SVG: " + costumeId);
             mz_free(file_data);
+            Image::cleanupImages();
             return;
         }
     } else {
@@ -347,6 +339,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
         if (!rgba_data) {
             Log::logWarning("Failed to decode image: " + costumeId);
             mz_free(file_data);
+            Image::cleanupImages();
             return;
         }
     }
@@ -365,7 +358,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     size_t imageSize = width * height * 4;
     MemoryTracker::allocate(imageSize);
 
-    Log::log("Successfully loaded image: " + costumeId);
+    Log::log("Successfully loaded image!");
     imageRGBAS.push_back(newRGBA);
 
     // Clean up
@@ -444,29 +437,40 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
     return rgba_data;
 }
 
-/**
- * Queues RGBA image data to be loaded into a Citro2D Image. Image will wait to load if VRAM is too high.
- * @param rgba
- */
-bool queueC2DImage(imageRGBA &rgba) {
-    bool inQueue = false;
-    for (imageRGBA *queueRgba : imageLoadQueue) {
-        if (rgba.name == queueRgba->name) {
-            inQueue = true;
-        }
+bool getImageFromT3x(const std::string &filePath) {
+    std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
+    std::string path2 = filename.substr(0, filename.find_last_of('.'));
+
+    C2D_SpriteSheet sheet = C2D_SpriteSheetLoad(filePath.c_str());
+    if (!sheet) {
+        Log::logWarning("Could not load sprite from t3x!");
+        return false;
     }
-    if (!inQueue) {
-        // no queue!!!
-        if (memStats.totalVRamUsage + rgba.textureMemSize < MAX_IMAGE_VRAM) {
-            return get_C2D_Image(rgba);
-        }
-        // add to queue D:
-        else {
-            Log::logWarning("Memory too high! queueing image load!");
-            imageLoadQueue.push_back(&rgba);
-        }
-    }
-    return false;
+
+    // get first image from spritesheet since that's all we're using
+    C2D_Image image = C2D_SpriteSheetGetImage(sheet, 0);
+
+    imageRGBA newRGBA;
+    newRGBA.width = image.subtex->width;
+    newRGBA.height = image.subtex->height;
+    newRGBA.fullName = filePath;
+    newRGBA.name = path2;
+    newRGBA.isSVG = false;
+    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
+    newRGBA.data = nullptr;
+
+    // Track memory usage
+    size_t imageSize = newRGBA.width * newRGBA.height * 4;
+    MemoryTracker::allocateVRAM(imageSize);
+
+    Log::log("Successfully loaded image from t3x!");
+    imageRGBAS.push_back(newRGBA);
+
+    imageC2Ds[newRGBA.name] = {image, 240, sheet};
+
+    return true;
 }
 
 /**
@@ -495,7 +499,6 @@ bool get_C2D_Image(imageRGBA rgba) {
     tex->height = rgba.textureHeight;
 
     size_t textureSize = rgba.textureMemSize;
-    memStats.totalVRamUsage += textureSize;
 
     // Subtexture
     Tex3DS_SubTexture *subtex = new Tex3DS_SubTexture();
@@ -514,8 +517,11 @@ bool get_C2D_Image(imageRGBA rgba) {
 
     if (!C3D_TexInit(tex, tex->width, tex->height, GPU_RGBA8)) {
         Log::logWarning("Texture initializing failed!");
+        delete tex;
+        delete subtex;
         // MemoryTracker::deallocate(tex);
         // MemoryTracker::deallocate(subtex);
+        Image::cleanupImages();
         return false;
     }
     C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
@@ -524,8 +530,10 @@ bool get_C2D_Image(imageRGBA rgba) {
         Log::logWarning("Texture data is null!");
         C3D_TexDelete(tex);
         delete tex;
+        delete subtex;
         // MemoryTracker::deallocate(tex);
         // MemoryTracker::deallocate(subtex);
+        Image::cleanupImages();
         return false;
     }
 
@@ -544,9 +552,11 @@ bool get_C2D_Image(imageRGBA rgba) {
         }
     }
 
-    Log::log("C2D Image Successfully loaded!");
+    // Log::log("C2D Image Successfully loaded!");
 
-    imageC2Ds[rgba.name] = { image, 120 };
+    MemoryTracker::allocateVRAM(rgba.textureMemSize);
+
+    imageC2Ds[rgba.name] = {image, 240};
     C3D_FrameSync(); // wait for Async functions to finish
     return true;
 }
@@ -557,22 +567,31 @@ bool get_C2D_Image(imageRGBA rgba) {
 void Image::freeImage(const std::string &costumeId) {
     auto it = imageC2Ds.find(costumeId);
     if (it != imageC2Ds.end()) {
-        Log::log("freed image " + it->first);
+        Log::log("freed image!");
+
+        if (it->second.sheet) {
+            if (it->second.image.tex) {
+                size_t textureSize = it->second.image.subtex->width * it->second.image.subtex->height * 4;
+                MemoryTracker::deallocateVRAM(textureSize);
+            }
+
+            C2D_SpriteSheetFree(it->second.sheet);
+
+            Log::log("Freed sprite sheet for: " + costumeId);
+            goto afterFreeing;
+        }
+
         if (it->second.image.tex) {
-
-            size_t textureSize = it->second.image.tex->width * it->second.image.tex->height * 4;
-            memStats.totalVRamUsage -= textureSize;
-            memStats.c2dImageCount--;
-
             C3D_TexDelete(it->second.image.tex);
             delete it->second.image.tex;
             it->second.image.tex = nullptr;
-            // MemoryTracker::deallocate<C3D_Tex>(it->second.image.tex);
         }
         if (it->second.image.subtex) {
             delete it->second.image.subtex;
-            // MemoryTracker::deallocate<Tex3DS_SubTexture>((Tex3DS_SubTexture *)it->second.image.subtex);
         }
+
+    afterFreeing:
+
         imageC2Ds.erase(it);
     } else return;
 
@@ -580,32 +599,24 @@ void Image::freeImage(const std::string &costumeId) {
 }
 
 void Image::cleanupImages() {
-    for (auto &[id, data] : imageC2Ds) {
-        Log::log("freeing image " + id);
 
-        // Free RGBA buffer
-        freeRGBA(id);
+    std::vector<std::string> keysToDelete;
+    keysToDelete.reserve(imageC2Ds.size());
 
-        // Free VRAM texture
-        if (data.image.tex) {
-            size_t textureSize = data.image.tex->width * data.image.tex->height * 4;
-            memStats.totalVRamUsage -= textureSize;
-            memStats.c2dImageCount--;
-            C3D_TexDelete(data.image.tex);
-            delete data.image.tex;
-            data.image.tex = nullptr;
-        }
+    for (const auto &[id, data] : imageC2Ds) {
+        keysToDelete.push_back(id);
+    }
 
-        // Free subtexture object
-        if (data.image.subtex) {
-            delete data.image.subtex;
-        }
+    for (const std::string &id : keysToDelete) {
+        freeImage(id);
     }
 
     // Clear maps & queues to prevent dangling references
     imageC2Ds.clear();
     imageLoadQueue.clear();
     toDelete.clear();
+
+    Log::log("Image cleanup completed.");
 }
 
 void freeRGBA(const std::string &imageName) {
@@ -614,15 +625,17 @@ void freeRGBA(const std::string &imageName) {
     });
 
     if (it != imageRGBAS.end()) {
-        size_t dataSize = it->width * it->height * 4;
-        if (it->data && dataSize > 0) {
-            if (it->isSVG) free(it->data);
-            else stbi_image_free(it->data);
-            MemoryTracker::deallocate(nullptr, dataSize);
-            memStats.totalRamUsage -= dataSize;
-            memStats.imageCount--;
+        if (it->data != nullptr && it->data) {
+            size_t dataSize = it->width * it->height * 4;
 
-            Log::log("Freed RGBA data for " + imageName);
+            if (it->isSVG) {
+                MemoryTracker::deallocate(it->data, dataSize);
+            } else {
+                MemoryTracker::deallocate(it->data, dataSize);
+            }
+            MemoryTracker::deallocateVRAM(it->textureMemSize);
+
+            // Log::log("Freed RGBA data for " + imageName);
         }
         imageRGBAS.erase(it);
     }
@@ -644,25 +657,46 @@ void Image::queueFreeImage(const std::string &costumeId) {
 void Image::FlushImages() {
 
     // free unused images if vram usage is high
-    if (memStats.totalVRamUsage > MAX_IMAGE_VRAM * 0.8) {
-        ImageData *imgToDelete = nullptr;
-        std::string toDeleteStr;
-        for (auto &[id, img] : imageC2Ds) {
-            if (imgToDelete == nullptr) imgToDelete = &img;
+    if (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.8) {
+        size_t times = 0;
 
-            if (img.freeTimer < imgToDelete->freeTimer) {
-                imgToDelete = &img;
-                toDeleteStr = id;
+        // keep freeing until usage is low enough
+        while (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.5 && !imageC2Ds.empty()) {
+            ImageData *imgToDelete = nullptr;
+            std::string toDeleteStr = "";
+
+            for (auto &[id, img] : imageC2Ds) {
+                if (img.freeTimer == 240) continue;
+
+                if (imgToDelete == nullptr) {
+                    imgToDelete = &img;
+                    toDeleteStr = id;
+                    continue;
+                }
+
+                if (img.freeTimer < imgToDelete->freeTimer) {
+                    imgToDelete = &img;
+                    toDeleteStr = id;
+                }
             }
+
+            if (toDeleteStr != "") {
+                Image::freeImage(toDeleteStr);
+            } else {
+                break;
+            }
+
+            times++;
+            if (times > 15) break;
         }
-        toDelete.push_back(toDeleteStr);
-    }
-    // free images on a timer
-    for (auto &[id, img] : imageC2Ds) {
-        if (img.freeTimer <= 0) {
-            toDelete.push_back(id);
-        } else {
-            img.freeTimer -= 1;
+    } else {
+        // timer based freeing
+        for (auto &[id, img] : imageC2Ds) {
+            if (img.freeTimer <= 0) {
+                toDelete.push_back(id);
+            } else {
+                img.freeTimer -= 1;
+            }
         }
     }
 
@@ -670,12 +704,4 @@ void Image::FlushImages() {
         Image::freeImage(id);
     }
     toDelete.clear();
-
-    if (!imageLoadQueue.empty()) {
-        imageRGBA *rgba = imageLoadQueue.front();
-        if (memStats.totalVRamUsage + rgba->textureMemSize < MAX_IMAGE_VRAM) {
-            get_C2D_Image(*rgba);
-            imageLoadQueue.erase(imageLoadQueue.begin());
-        }
-    }
 }

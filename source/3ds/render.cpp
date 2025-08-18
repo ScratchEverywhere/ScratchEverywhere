@@ -71,12 +71,22 @@ bool Render::Init() {
 
     romfsInit();
 #ifdef ENABLE_AUDIO
-    // waiting for beta 12 to enable,, <- its beta 17 why is this comment still here 😭
     SDL_Init(SDL_INIT_AUDIO);
-    // Initialize SDL_mixer
-    if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    int sampleRate = 15000;
+    int bufferSize = 1024;
+    int channels = 1;
+
+    bool isNew3DS = false;
+    APT_CheckNew3DS(&isNew3DS);
+
+    if (isNew3DS) {
+        sampleRate = 48000;
+        bufferSize = 4096;
+        channels = 2;
+    }
+
+    if (Mix_OpenAudio(sampleRate, MIX_DEFAULT_FORMAT, channels, bufferSize) < 0) {
         Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
-        // not returning false since emulators by default will error here
     }
     int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
     if (Mix_Init(flags) != flags) {
@@ -189,7 +199,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
                                              [&](const imageRGBA &rgba) { return rgba.name == costumeId; });
 
                 if (rgbaFind != imageRGBAS.end()) {
-                    imageLoaded = queueC2DImage(*rgbaFind);
+                    imageLoaded = get_C2D_Image(*rgbaFind);
                 } else {
                     imageLoaded = false;
                 }
@@ -435,10 +445,10 @@ void Render::deInit() {
     socExit();
 #endif
 
-    C2D_Fini();
-    C3D_Fini();
     Image::cleanupImages();
     SoundPlayer::deinit();
+    C2D_Fini();
+    C3D_Fini();
 #ifdef ENABLE_AUDIO
     SDL_Quit();
 #endif

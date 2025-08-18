@@ -4,9 +4,6 @@
 #include <unordered_map>
 
 class SoundPlayer {
-  private:
-    Sprite *hostSprite;
-
   public:
     static std::unordered_map<std::string, Sound> soundsPlaying;
 

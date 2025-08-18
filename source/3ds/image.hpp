@@ -9,6 +9,7 @@
 struct ImageData {
     C2D_Image image;
     u16 freeTimer = 240;
+    C2D_SpriteSheet sheet;
 };
 
 struct imageRGBA {
@@ -29,8 +30,8 @@ struct imageRGBA {
 extern std::vector<imageRGBA> imageRGBAS;
 
 bool get_C2D_Image(imageRGBA rgba);
-bool queueC2DImage(imageRGBA &rgba);
 void freeRGBA(const std::string &imageName);
 unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height);
+bool getImageFromT3x(const std::string &filePath);
 
 extern std::unordered_map<std::string, ImageData> imageC2Ds;

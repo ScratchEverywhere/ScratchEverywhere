@@ -1,5 +1,13 @@
 #include "looks.hpp"
 #include "../unzip.hpp"
+#include "blockExecutor.hpp"
+#include "image.hpp"
+#include "interpret.hpp"
+#include "math.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
+#include <algorithm>
+#include <cstddef>
 
 BlockResult LooksBlocks::show(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->visible = true;

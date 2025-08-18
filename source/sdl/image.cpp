@@ -1,8 +1,21 @@
 #include "../scratch/image.hpp"
 #include "../scratch/os.hpp"
 #include "image.hpp"
+#include "miniz/miniz.h"
 #include "render.hpp"
-#include <iostream>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_rect.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_rwops.h>
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_surface.h>
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;
@@ -199,11 +212,15 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     }
 
     // Check if file is bitmap or SVG
-    bool isBitmap = costumeId.size() >= 4 &&
-                    (costumeId.substr(costumeId.size() - 4) == ".png" ||
-                     costumeId.substr(costumeId.size() - 4) == ".PNG" ||
-                     costumeId.substr(costumeId.size() - 4) == ".jpg" ||
-                     costumeId.substr(costumeId.size() - 4) == ".JPG");
+    bool isBitmap = costumeId.size() > 4 && ([](std::string ext) {
+                        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                        return ext == ".bmp" || ext == ".gif" || ext == ".jpg" || ext == ".jpeg" ||
+                               ext == ".lbm" || ext == ".iff" || ext == ".pcx" || ext == ".png" ||
+                               ext == ".pnm" || ext == ".ppm" || ext == ".pgm" || ext == ".pbm" ||
+                               ext == ".qoi" || ext == ".tga" || ext == ".tiff" || ext == ".xcf" ||
+                               ext == ".xpm" || ext == ".xv" || ext == ".ico" || ext == ".cur" ||
+                               ext == ".ani" || ext == ".webp" || ext == ".avif" || ext == ".jxl";
+                    }(costumeId.substr(costumeId.find_last_of('.'))));
     bool isSVG = costumeId.size() >= 4 &&
                  (costumeId.substr(costumeId.size() - 4) == ".svg" ||
                   costumeId.substr(costumeId.size() - 4) == ".SVG");
