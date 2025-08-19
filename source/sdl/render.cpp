@@ -1,5 +1,6 @@
 #include "../scratch/render.hpp"
 #include "../scratch/audio.hpp"
+#include "../scratch/extension.hpp"
 #include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
@@ -77,7 +78,7 @@ bool Render::Init() {
     windowWidth = 854;
     windowHeight = 480;
 #elif defined(__SWITCH__)
-    AccountUid userID = {0};
+    AccountUid userID = { 0 };
     AccountProfile profile;
     AccountProfileBase profilebase;
     memset(&profilebase, 0, sizeof(profilebase));
@@ -205,7 +206,7 @@ void Render::endFrame() {
 
 void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
     SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
-    SDL_Rect rect = {x - (w / 2), y - (h / 2), w, h};
+    SDL_Rect rect = { x - (w / 2), y - (h / 2), w, h };
     SDL_RenderFillRect(renderer, &rect);
 }
 

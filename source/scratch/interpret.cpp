@@ -1,6 +1,6 @@
 #include "interpret.hpp"
-#include "extension.hpp"
 #include "audio.hpp"
+#include "extension.hpp"
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
@@ -125,7 +125,7 @@ bool Scratch::startScratchProject() {
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
 
-    BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHENFLAGCLICKED);
+    BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
 
     while (Render::appShouldRun()) {
@@ -428,7 +428,7 @@ void loadSprites(const nlohmann::json &json) {
             newSprite->blocks[newBlock.id] = newBlock; // add block
 
             // add custom function blocks
-            if (newBlock.opcode == newBlock.PROCEDURES_PROTOTYPE) {
+            if (newBlock.opcode == "procedures_prototype") {
                 if (!data.is_array()) {
                     CustomBlock newCustomBlock;
                     newCustomBlock.name = data["mutation"]["proccode"];

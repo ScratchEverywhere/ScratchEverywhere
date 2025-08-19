@@ -239,12 +239,12 @@ void ProjectMenu::render() {
     float lerpSpeed = 0.1f;
 
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
+        if (projectControl->selectedObject->isPressed({ "a" }) || playButton->isPressed({ "a" })) {
             Unzip::filePath = projectControl->selectedObject->text->getText();
             shouldGoBack = true;
             return;
         }
-        if (settingsButton->isPressed({"l"})) {
+        if (settingsButton->isPressed({ "l" })) {
             std::string selectedProject = projectControl->selectedObject->text->getText();
             cleanup();
             ProjectSettings settings(selectedProject);
@@ -257,13 +257,13 @@ void ProjectMenu::render() {
         targetY = projectControl->selectedObject->y;
         lerpSpeed = 0.1f;
     } else {
-        if (noProjectsButton->isPressed({"a"})) {
+        if (noProjectsButton->isPressed({ "a" })) {
             shouldGoBack = true;
             return;
         }
     }
 
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({ "b", "y" })) {
         shouldGoBack = true;
     }
 
@@ -392,7 +392,7 @@ void ProjectSettings::render() {
     Input::getInput();
     settingsControl->input();
 
-    if (changeControlsButton->isPressed({"a"})) {
+    if (changeControlsButton->isPressed({ "a" })) {
         cleanup();
         ControlsMenu controlsMenu(projectPath);
         while (controlsMenu.shouldGoBack == false && Render::appShouldRun()) {
@@ -403,7 +403,7 @@ void ProjectSettings::render() {
     }
     // if (bottomScreenButton->isPressed()) {
     // }
-    if (backButton->isPressed({"b", "y"})) {
+    if (backButton->isPressed({ "b", "y" })) {
         shouldGoBack = true;
     }
 
@@ -465,7 +465,7 @@ void ControlsMenu::init() {
     for (auto &sprite : sprites) {
         for (auto &[id, block] : sprite->blocks) {
             std::string buttonCheck;
-            if (block.opcode == Block::SENSING_KEYPRESSED) {
+            if (block.opcode == "sensing_keypressed") {
 
                 // stolen code from sensing.cpp
 
@@ -479,7 +479,7 @@ void ControlsMenu::init() {
                     buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
                 }
 
-            } else if (block.opcode == Block::EVENT_WHEN_KEY_PRESSED) {
+            } else if (block.opcode == "event_whenkeypressed") {
                 buttonCheck = block.fields.at("KEY_OPTION")[0];
             } else continue;
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
@@ -556,11 +556,11 @@ void ControlsMenu::render() {
     Input::getInput();
     settingsControl->input();
 
-    if (backButton->isPressed({"b"})) {
+    if (backButton->isPressed({ "b" })) {
         shouldGoBack = true;
         return;
     }
-    if (applyButton->isPressed({"y"})) {
+    if (applyButton->isPressed({ "y" })) {
         applyControls();
         shouldGoBack = true;
         return;
