@@ -329,6 +329,7 @@ $(ROMFS)/project/%.t3s: $(ROMFS)/project/%.tga
 clean:
 	@echo clean ...
 	@rm -fr build $(BUILD)/$(TARGET).3dsx $(BUILD)/$(TARGET).smdh $(BUILD)/$(TARGET).elf $(TARGET).cia $(GFXBUILD) banner.bnr icon.icn
+	@find $(ROMFS)/project -name "*.t3s" -delete 2>/dev/null || true
 
 #---------------------------------------------------------------------------------
 $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s

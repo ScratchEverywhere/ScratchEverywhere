@@ -94,7 +94,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - Get all blocks working.
 - Pen support.
 - Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pull/210)).
-- Custom blocks to detect when being ran by Scratch Everywhere! and Other Information like what Platform it's being run on.
 
 ### 3DS
 

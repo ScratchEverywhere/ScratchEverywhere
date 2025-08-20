@@ -288,6 +288,45 @@ BlockResult ControlBlocks::repeat(Block &block, Sprite *sprite, bool *withoutScr
     return BlockResult::CONTINUE;
 }
 
+BlockResult ControlBlocks::While(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
+
+    if (block.repeatTimes == -1) {
+        block.repeatTimes = -2;
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+    }
+
+    Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
+    bool condition = false;
+    if (conditionValue.isNumeric()) {
+        condition = conditionValue.asDouble() != 0.0;
+    } else {
+        condition = !conditionValue.asString().empty();
+    }
+
+    if (!condition) {
+        block.repeatTimes = -1;
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+        return BlockResult::CONTINUE;
+    }
+
+    auto it = block.parsedInputs.find("SUBSTACK");
+    if (it != block.parsedInputs.end()) {
+        const std::string &blockId = it->second.blockId;
+        auto blockIt = sprite->blocks.find(blockId);
+        if (blockIt != sprite->blocks.end()) {
+            Block *subBlock = &blockIt->second;
+            executor.runBlock(*subBlock, sprite);
+        } else {
+            std::cerr << "Invalid blockId: " << blockId << std::endl;
+        }
+    }
+
+    return BlockResult::RETURN;
+}
+
 BlockResult ControlBlocks::repeatUntil(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
