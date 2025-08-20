@@ -1,5 +1,19 @@
 #include "text_sdl.hpp"
 #include "../scratch/render.hpp"
+#include "os.hpp"
+#include "text.hpp"
+#include <SDL2/SDL_error.h>
+#include <SDL2/SDL_pixels.h>
+#include <SDL2/SDL_rect.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_surface.h>
+#include <SDL2/SDL_ttf.h>
+#include <iostream>
+#include <ostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 std::unordered_map<std::string, TTF_Font *> TextObjectSDL::fonts;
 
@@ -16,7 +30,7 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
-        TTF_Font *loadedFont = TTF_OpenFont(fontPath.c_str(), 24);
+        TTF_Font *loadedFont = TTF_OpenFont(fontPath.c_str(), 30);
         if (!loadedFont) {
             std::cerr << "Failed to load font " << fontPath << ": " << TTF_GetError() << std::endl;
         } else {
@@ -34,6 +48,7 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
 TextObjectSDL::~TextObjectSDL() {
     if (texture) {
+        MemoryTracker::deallocateVRAM(memorySize);
         SDL_DestroyTexture(texture);
         texture = nullptr;
     }
@@ -64,7 +79,10 @@ void TextObjectSDL::updateTexture() {
     }
 
     // Create texture from surface
+    MemoryTracker::deallocateVRAM(memorySize);
     texture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    memorySize = textSurface->w * textSurface->h * 4;
+    MemoryTracker::allocateVRAM(memorySize);
     if (!texture) {
         std::cerr << "Failed to create text texture: " << SDL_GetError() << std::endl;
     }
@@ -77,11 +95,13 @@ void TextObjectSDL::updateTexture() {
 }
 
 void TextObjectSDL::setColor(int clr) {
+    if (color == clr) return;
     TextObject::setColor(clr);
     updateTexture();
 }
 
 void TextObjectSDL::setText(std::string txt) {
+    if (text == txt) return;
     text = txt;
     updateTexture();
 }

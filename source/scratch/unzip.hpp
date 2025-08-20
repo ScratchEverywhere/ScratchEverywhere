@@ -14,12 +14,14 @@ extern std::string projectJSON;
 class Unzip {
   public:
     static volatile int projectOpened;
+    static std::string loadingState;
     static volatile bool threadFinished;
     static std::string filePath;
     static mz_zip_archive zipArchive;
     static std::vector<char> zipBuffer;
 
     static void openScratchProject(void *arg) {
+        loadingState = "Opening Scratch project";
         std::ifstream file;
         int isFileOpen = openFile(&file);
         if (isFileOpen == 0) {
@@ -33,6 +35,7 @@ class Unzip {
             Unzip::threadFinished = true;
             return;
         }
+        loadingState = "Unzipping Scratch project";
         nlohmann::json project_json = unzipProject(&file);
         if (project_json.empty()) {
             Log::logError("Project.json is empty.");
@@ -40,6 +43,7 @@ class Unzip {
             Unzip::threadFinished = true;
             return;
         }
+        loadingState = "Loading Sprites";
         loadSprites(project_json);
         Unzip::projectOpened = 1;
         Unzip::threadFinished = true;

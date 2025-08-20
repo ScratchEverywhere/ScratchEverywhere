@@ -1,10 +1,15 @@
 #include "procedure.hpp"
+#include "blockExecutor.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
 
 Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
     return BlockExecutor::getCustomBlockValue(block.fields.at("VALUE")[0], sprite, block);
 }
 
 Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
+    if (block.fields.at("VALUE")[0].get<std::string>() == "is Scratch Everywhere!?") return Value(true);
+
     Value value = BlockExecutor::getCustomBlockValue(block.fields.at("VALUE")[0], sprite, block);
     return Value(value.asInt() == 1);
 }
@@ -39,6 +44,9 @@ BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScr
 
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
 
+        return BlockResult::CONTINUE;
+    }
+    if (block.customBlockPtr == nullptr) {
         return BlockResult::CONTINUE;
     }
 

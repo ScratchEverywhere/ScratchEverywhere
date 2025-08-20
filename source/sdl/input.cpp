@@ -1,11 +1,28 @@
 #include "../scratch/input.hpp"
 #include "../scratch/blockExecutor.hpp"
+#include "interpret.hpp"
 #include "render.hpp"
-#include <SDL2/SDL.h>
+#include "sprite.hpp"
+#include <SDL2/SDL_gamecontroller.h>
+#include <SDL2/SDL_keyboard.h>
+#include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_rect.h>
+#include <SDL2/SDL_scancode.h>
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_touch.h>
 #include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <map>
+#include <string>
+#include <vector>
 
 #ifdef __WIIU__
 #include <nn/act.h>
+#endif
+
+#ifdef __SWITCH__
+extern char nickname[0x21];
 #endif
 
 Input::Mouse Input::mousePointer;
@@ -26,6 +43,15 @@ extern SDL_Point touchPosition;
 extern std::string cloudUsername;
 extern bool cloudProject;
 #endif
+
+std::vector<int> Input::getTouchPosition() {
+    std::vector<int> pos;
+    int rawMouseX, rawMouseY;
+    SDL_GetMouseState(&rawMouseX, &rawMouseY);
+    pos.push_back(rawMouseX);
+    pos.push_back(rawMouseY);
+    return pos;
+}
 
 void Input::getInput() {
     inputButtons.clear();
@@ -194,19 +220,18 @@ void Input::getInput() {
     }
 
     // Get raw mouse coordinates
-    int rawMouseX, rawMouseY;
-    SDL_GetMouseState(&rawMouseX, &rawMouseY);
+    std::vector<int> rawMouse = getTouchPosition();
 
     // Convert to window-centered coordinates
-    rawMouseX -= windowWidth / 2;
-    rawMouseY = (windowHeight / 2) - rawMouseY;
+    rawMouse[0] -= windowWidth / 2;
+    rawMouse[1] = (windowHeight / 2) - rawMouse[1];
 
     // Transform to Scratch project space
     float scaleX = static_cast<float>(Scratch::projectWidth) / windowWidth;
     float scaleY = static_cast<float>(Scratch::projectHeight) / windowHeight;
 
-    mousePointer.x = rawMouseX * scaleX;
-    mousePointer.y = rawMouseY * scaleY;
+    mousePointer.x = rawMouse[0] * scaleX;
+    mousePointer.y = rawMouse[1] * scaleY;
 
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
@@ -222,6 +247,8 @@ std::string Input::getUsername() {
     int16_t miiName[256];
     nn::act::GetMiiName(miiName);
     return std::string(miiName, miiName + sizeof(miiName) / sizeof(miiName[0]));
+#elif defined(__SWITCH__)
+    if (std::string(nickname) != "") return std::string(nickname);
 #endif
     return "Player";
 }

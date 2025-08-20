@@ -1,8 +1,10 @@
 #include "../scratch/unzip.hpp"
+#include "../scratch/menus/loading.hpp"
 #include "render.hpp"
 #include <3ds.h>
 
 volatile int Unzip::projectOpened = 0;
+std::string Unzip::loadingState = "";
 volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 mz_zip_archive Unzip::zipArchive;
@@ -27,13 +29,13 @@ int Unzip::openFile(std::ifstream *file) {
         projectType = EMBEDDED;
         if (!(*file)) {
             Log::log("No embedded Scratch project, trying SD card");
+            projectType = UNEMBEDDED;
 
             // load main menu if not already
             if (filePath == "") return -1;
 
             // if main menu was loaded, load the selected file from main menu
             file->open(filePath, std::ios::binary | std::ios::ate);
-            projectType = UNEMBEDDED;
             if (!(*file)) {
                 Log::logError("Couldnt find file. jinkies.");
                 return 0;
@@ -66,12 +68,13 @@ bool Unzip::load() {
         Unzip::projectOpened = -3;
     }
 
-    LoadingScreen loading;
+    Loading loading;
     loading.init();
 
     while (!Unzip::threadFinished) {
-        loading.renderLoadingScreen();
-        gspWaitForVBlank();
+#ifdef ENABLE_BUBBLES
+        loading.render();
+#endif
     }
     threadJoin(projectThread, U64_MAX);
     threadFree(projectThread);

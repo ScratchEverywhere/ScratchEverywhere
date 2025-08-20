@@ -3,14 +3,14 @@ name: Wii Nightly Build
 on:
   push:
     paths:
-      - Makefile_wii
+      - make/Makefile_wii
       - source/scratch/**
       - source/sdl/**
       - gfx/wii/**
       - gfx/*
       - include/**
       - .github/workflows/nightly-wii.yml
-      - Dockerfile.wii
+      - docker/Dockerfile.wii
     branches:
       - main
   workflow_dispatch:
@@ -29,11 +29,11 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.wii
+          file: docker/Dockerfile.wii
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch Wii Nightly
-          path: scratch-wii.dol
+          name: Scratch Everywhere! Wii Nightly
+          path: scratch-wii.zip

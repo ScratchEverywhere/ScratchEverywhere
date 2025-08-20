@@ -1,7 +1,9 @@
 // code mostly taken from devkitpro's time example, with edits needed for Scratch.
+#include <cstddef>
+#include <ctime>
 #include <time.hpp>
 
-const std::string months[12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+/* const std::string months[12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
 const std::string weekDays[7] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
@@ -32,7 +34,7 @@ static inline int getDayOfWeek(int day, int month, int year) {
     day += year + (year / 4);
     day += daysAtStartOfMonthLUT[month] - (isLeapYear(year) && (month <= 1));
     return day % 7;
-}
+} */
 
 int Time::getHours() {
     time_t unixTime = time(NULL);

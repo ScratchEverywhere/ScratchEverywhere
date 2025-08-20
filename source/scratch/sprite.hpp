@@ -436,4 +436,17 @@ class Sprite {
     std::unordered_map<std::string, Broadcast> broadcasts;
     std::unordered_map<std::string, CustomBlock> customBlocks;
     std::unordered_map<std::string, BlockChain> blockChains;
+
+    ~Sprite() {
+        variables.clear();
+        blocks.clear();
+        lists.clear();
+        sounds.clear();
+        costumes.clear();
+        comments.clear();
+        broadcasts.clear();
+        customBlocks.clear();
+        blockChains.clear();
+        collisionPoints.clear();
+    }
 };

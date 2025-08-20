@@ -1,6 +1,10 @@
 #include "sound.hpp"
 #include "../audio.hpp"
 #include "../unzip.hpp"
+#include "blockExecutor.hpp"
+#include "interpret.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
 
 BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 

@@ -4,6 +4,7 @@
 build/
 romfs/project/
 romfs/gfx
+scratch-everywhere/
 
 main.code-workspace
 
@@ -42,6 +43,10 @@ main.code-workspace
 *.out
 *.app
 *.3dsx
+*.nacp
+*.pfs0
+*.nro
+*.nso
 *.elf
 *.smdh
 *.bat
@@ -53,6 +58,7 @@ romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
 scratch-wiiu/
+scratch-wii.zip
 
 # Stored Files
 cloud-username.txt

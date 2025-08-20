@@ -1,4 +1,11 @@
 #include "operator.hpp"
+#include "interpret.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <math.h>
 
 Value OperatorBlocks::add(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
@@ -76,14 +83,13 @@ Value OperatorBlocks::length(Block &block, Sprite *sprite) {
 Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
-    if (value1.isNumeric() && value2.isNumeric()) {
-        if (floor(value1.asDouble()) == value1.asDouble() && floor(value2.asDouble()) == value2.asDouble()) {
-            // Both are integers
-            return Value(static_cast<int>(std::fmod(value1.asDouble(), value2.asDouble())));
-        }
-        return Value(std::fmod(value1.asDouble(), value2.asDouble()));
-    }
-    return Value(0);
+
+    if (!value1.isNumeric() || !value2.isNumeric() || value2.asDouble() == 0.0) return Value(0);
+
+    double res = value1.asDouble() - value2.asDouble() * floor(value1.asDouble() / value2.asDouble());
+
+    if (floor(value1.asDouble()) == value1.asDouble() && floor(value2.asDouble()) == value2.asDouble()) return Value(static_cast<int>(res));
+    return Value(res);
 }
 
 Value OperatorBlocks::round(Block &block, Sprite *sprite) {
@@ -166,19 +172,13 @@ Value OperatorBlocks::equals(Block &block, Sprite *sprite) {
 Value OperatorBlocks::greaterThan(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "OPERAND1", sprite);
     Value value2 = Scratch::getInputValue(block, "OPERAND2", sprite);
-    if (value1.isNumeric() && value2.isNumeric()) {
-        return Value(value1 > value2);
-    }
-    return Value(false);
+    return Value(value1 > value2);
 }
 
 Value OperatorBlocks::lessThan(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "OPERAND1", sprite);
     Value value2 = Scratch::getInputValue(block, "OPERAND2", sprite);
-    if (value1.isNumeric() && value2.isNumeric()) {
-        return Value(value1 < value2);
-    }
-    return Value(false);
+    return Value(value1 < value2);
 }
 
 Value OperatorBlocks::and_(Block &block, Sprite *sprite) {

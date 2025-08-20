@@ -1,4 +1,10 @@
 #include "math.hpp"
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <math.h>
+#include <random>
+#include <string>
 #ifdef __3DS__
 #include <citro2d.h>
 #endif
@@ -29,9 +35,11 @@ bool Math::isNumber(const std::string &str) {
         start = 1;                         // Skip '-' for digit checking
     }
 
-    return std::count(str.begin() + start, str.end(), '.') <= 1 &&   // At most one decimal point
-           std::any_of(str.begin() + start, str.end(), ::isdigit) && // At least one digit
-           std::all_of(str.begin() + start, str.end(), [](char c) { return std::isdigit(c) || c == '.'; });
+    return ((std::count(str.begin() + start, str.end(), '.') <= 1 &&            // At most one decimal point
+             std::any_of(str.begin() + start, str.end(), ::isdigit)) ||         // At least one digit
+            (std::count(str.begin() + start, str.end(), 'e') <= 1 &&            // At most one 'e'
+             std::count_if(str.begin() + start, str.end(), ::isdigit) >= 2)) && // at least 2 digits
+           std::all_of(str.begin() + start, str.end(), [](char c) { return std::isdigit(c) || c == '.' || c == 'e'; });
 }
 
 double Math::degreesToRadians(double degrees) {

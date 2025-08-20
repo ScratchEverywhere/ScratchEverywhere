@@ -1,8 +1,42 @@
 #include "interpret.hpp"
+#include "audio.hpp"
+#include "image.hpp"
 #include "input.hpp"
+#include "math.hpp"
+#include "miniz/miniz.h"
+#include "nlohmann/json.hpp"
 #include "os.hpp"
 #include "render.hpp"
+#include "sprite.hpp"
 #include "unzip.hpp"
+#include <cmath>
+#include <cstddef>
+#include <cstring>
+#include <math.h>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
+#include <whb/sdcard.h>
+#endif
+
+#ifdef ENABLE_CLOUDVARS
+#include <mist/mist.hpp>
+#include <random>
+#include <sstream>
+
+const uint64_t FNV_PRIME_64 = 1099511628211ULL;
+const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
+
+std::string cloudUsername;
+
+std::string projectJSON;
+extern bool cloudProject;
+
+std::unique_ptr<MistConnection> cloudConnection = nullptr;
+#endif
 
 std::vector<Sprite *> sprites;
 std::vector<Sprite> spritePool;
@@ -19,10 +53,141 @@ int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
+bool Scratch::shouldStop = false;
 
 #ifdef ENABLE_CLOUDVARS
 bool cloudProject = false;
 #endif
+
+#ifdef ENABLE_CLOUDVARS
+void initMist() {
+    // Username Stuff
+
+#ifdef __WIIU__
+    std::ostringstream usernameFilenameStream;
+    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
+    std::string usernameFilename = usernameFilenameStream.str();
+#else
+    std::string usernameFilename = "cloud-username.txt";
+#endif
+
+    std::ifstream fileStream(usernameFilename.c_str());
+    if (!fileStream.good()) {
+        std::random_device rd;
+        std::ostringstream usernameStream;
+        usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
+        cloudUsername = usernameStream.str();
+        std::ofstream usernameFile;
+        usernameFile.open(usernameFilename);
+        usernameFile << cloudUsername;
+        usernameFile.close();
+    } else {
+        fileStream >> cloudUsername;
+    }
+    fileStream.close();
+
+    uint64_t projectHash = FNV_OFFSET_BASIS_64;
+    for (char c : projectJSON) {
+        projectHash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
+        projectHash *= FNV_PRIME_64;
+    }
+
+    std::ostringstream projectID;
+    projectID << "Scratch-3DS/hash-" << std::hex << std::setw(16) << std::setfill('0') << projectHash;
+    cloudConnection = std::make_unique<MistConnection>(projectID.str(), cloudUsername, "contact@grady.link");
+
+    cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
+        if (connected) {
+            Log::log("Mist++ Connected:");
+            Log::log(message);
+            return;
+        }
+        Log::log("Mist++ Disconnected:");
+        Log::log(message);
+    });
+
+    cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
+
+#if defined(__WIIU__) || defined(__3DS__)
+    cloudConnection->connect(false);
+#else
+    cloudConnection->connect();
+#endif
+}
+#endif
+
+bool Scratch::startScratchProject() {
+#ifdef ENABLE_CLOUDVARS
+    if (cloudProject && !projectJSON.empty()) initMist();
+#endif
+
+    BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHENFLAGCLICKED);
+    BlockExecutor::timer.start();
+
+    while (Render::appShouldRun()) {
+        if (Render::checkFramerate()) {
+            Input::getInput();
+            BlockExecutor::runRepeatBlocks();
+            BlockExecutor::runBroadcasts();
+            Render::renderSprites();
+
+            if (shouldStop) {
+#ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app
+                toExit = true;
+                return false;
+#endif
+                if (projectType != UNEMBEDDED) {
+                    toExit = true;
+                    return false;
+                }
+                cleanupScratchProject();
+                shouldStop = false;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void Scratch::cleanupScratchProject() {
+    cleanupSprites();
+    Image::cleanupImages();
+    SoundPlayer::cleanupAudio();
+    blockLookup.clear();
+    Render::visibleVariables.clear();
+
+    // Clean up ZIP archive if it was initialized
+    if (projectType != UNZIPPED) {
+        mz_zip_reader_end(&Unzip::zipArchive);
+
+        // Clear the ZIP buffer and deallocate its memory
+        size_t bufferSize = Unzip::zipBuffer.size();
+        Unzip::zipBuffer.clear();
+        Unzip::zipBuffer.shrink_to_fit();
+
+        // Update memory tracker for the buffer
+        if (bufferSize > 0) {
+            MemoryTracker::deallocate(nullptr, bufferSize);
+        }
+
+        memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
+    }
+
+#ifdef ENABLE_CLOUDVARS
+    projectJSON.clear();
+    projectJSON.shrink_to_fit();
+#endif
+
+    // reset default settings
+    Scratch::FPS = 30;
+    Scratch::projectWidth = 480;
+    Scratch::projectHeight = 360;
+    Scratch::fencing = true;
+    Scratch::miscellaneousLimits = true;
+    Render::renderMode = Render::TOP_SCREEN_ONLY;
+    Unzip::filePath = "";
+    Log::log("Cleaned up Scratch project.");
+}
 
 void initializeSpritePool(int poolSize) {
     for (int i = 0; i < poolSize; i++) {
@@ -48,11 +213,17 @@ Sprite *getAvailableSprite() {
 
 void cleanupSprites() {
     for (Sprite *sprite : sprites) {
-        delete sprite;
+        if (sprite) {
+            if (sprite->isClone) {
+                sprite->isDeleted = true;
+            } else {
+                sprite->~Sprite();
+                MemoryTracker::deallocate<Sprite>(sprite);
+            }
+        }
     }
-
-    spritePool.clear();
     sprites.clear();
+    spritePool.clear();
 }
 
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
@@ -99,16 +270,41 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
-    // todo do this later
+    double halfWidth = Scratch::projectWidth / 2.0;
+    double halfHeight = Scratch::projectHeight / 2.0;
+    double scale = sprite->size / 100.0;
+    double spriteHalfWidth = (sprite->spriteWidth * scale) / 2.0;
+    double spriteHalfHeight = (sprite->spriteHeight * scale) / 2.0;
+
+    // how much of the sprite remains visible when fenced
+    const double sliverSize = 5.0;
+
+    double maxLeft = halfWidth - sliverSize;
+    double minRight = -halfWidth + sliverSize;
+    double maxBottom = halfHeight - sliverSize;
+    double minTop = -halfHeight + sliverSize;
+
+    if (sprite->xPosition - spriteHalfWidth > maxLeft) {
+        sprite->xPosition = maxLeft + spriteHalfWidth;
+    }
+    if (sprite->xPosition + spriteHalfWidth < minRight) {
+        sprite->xPosition = minRight - spriteHalfWidth;
+    }
+    if (sprite->yPosition - spriteHalfHeight > maxBottom) {
+        sprite->yPosition = maxBottom + spriteHalfHeight;
+    }
+    if (sprite->yPosition + spriteHalfHeight < minTop) {
+        sprite->yPosition = minTop - spriteHalfHeight;
+    }
 }
 
 void loadSprites(const nlohmann::json &json) {
     Log::log("beginning to load sprites...");
     sprites.reserve(400);
-    int count = 0;
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
         Sprite *newSprite = MemoryTracker::allocate<Sprite>();
+        // Sprite *newSprite = new Sprite();
         new (newSprite) Sprite();
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
@@ -229,40 +425,44 @@ void loadSprites(const nlohmann::json &json) {
 
             // add custom function blocks
             if (newBlock.opcode == newBlock.PROCEDURES_PROTOTYPE) {
-                CustomBlock newCustomBlock;
-                newCustomBlock.name = data["mutation"]["proccode"];
-                newCustomBlock.blockId = newBlock.id;
+                if (!data.is_array()) {
+                    CustomBlock newCustomBlock;
+                    newCustomBlock.name = data["mutation"]["proccode"];
+                    newCustomBlock.blockId = newBlock.id;
 
-                // custom blocks uses a different json structure for some reason?? have to parse them.
-                std::string rawArgumentNames = data["mutation"]["argumentnames"];
-                nlohmann::json parsedAN = nlohmann::json::parse(rawArgumentNames);
-                newCustomBlock.argumentNames = parsedAN.get<std::vector<std::string>>();
+                    // custom blocks uses a different json structure for some reason?? have to parse them.
+                    std::string rawArgumentNames = data["mutation"]["argumentnames"];
+                    nlohmann::json parsedAN = nlohmann::json::parse(rawArgumentNames);
+                    newCustomBlock.argumentNames = parsedAN.get<std::vector<std::string>>();
 
-                std::string rawArgumentDefaults = data["mutation"]["argumentdefaults"];
-                nlohmann::json parsedAD = nlohmann::json::parse(rawArgumentDefaults);
-                // newCustomBlock.argumentDefaults = parsedAD.get<std::vector<std::string>>();
+                    std::string rawArgumentDefaults = data["mutation"]["argumentdefaults"];
+                    nlohmann::json parsedAD = nlohmann::json::parse(rawArgumentDefaults);
+                    // newCustomBlock.argumentDefaults = parsedAD.get<std::vector<std::string>>();
 
-                for (const auto &item : parsedAD) {
-                    if (item.is_string()) {
-                        newCustomBlock.argumentDefaults.push_back(item.get<std::string>());
-                    } else if (item.is_number_integer()) {
-                        newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<int>()));
-                    } else if (item.is_number_float()) {
-                        newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<double>()));
-                    } else {
-                        newCustomBlock.argumentDefaults.push_back(item.dump());
+                    for (const auto &item : parsedAD) {
+                        if (item.is_string()) {
+                            newCustomBlock.argumentDefaults.push_back(item.get<std::string>());
+                        } else if (item.is_number_integer()) {
+                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<int>()));
+                        } else if (item.is_number_float()) {
+                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<double>()));
+                        } else {
+                            newCustomBlock.argumentDefaults.push_back(item.dump());
+                        }
                     }
+
+                    std::string rawArgumentIds = data["mutation"]["argumentids"];
+                    nlohmann::json parsedAID = nlohmann::json::parse(rawArgumentIds);
+                    newCustomBlock.argumentIds = parsedAID.get<std::vector<std::string>>();
+
+                    if (data["mutation"]["warp"] == "true") {
+                        newCustomBlock.runWithoutScreenRefresh = true;
+                    } else newCustomBlock.runWithoutScreenRefresh = false;
+
+                    newSprite->customBlocks[newCustomBlock.name] = newCustomBlock; // add custom block
+                } else {
+                    Log::logError("Unknown Custom block data: " + data.dump()); // TODO handle these
                 }
-
-                std::string rawArgumentIds = data["mutation"]["argumentids"];
-                nlohmann::json parsedAID = nlohmann::json::parse(rawArgumentIds);
-                newCustomBlock.argumentIds = parsedAID.get<std::vector<std::string>>();
-
-                if (data["mutation"]["warp"] == "true") {
-                    newCustomBlock.runWithoutScreenRefresh = true;
-                } else newCustomBlock.runWithoutScreenRefresh = false;
-
-                newSprite->customBlocks[newCustomBlock.name] = newCustomBlock; // add custom block
             }
         }
 
@@ -340,7 +540,6 @@ void loadSprites(const nlohmann::json &json) {
         }
 
         sprites.push_back(newSprite);
-        count++;
     }
 
     for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
@@ -473,21 +672,21 @@ void loadSprites(const nlohmann::json &json) {
     try {
         framerate = config["framerate"].get<int>();
         Scratch::FPS = framerate;
-        Log::log("FPS = " + Scratch::FPS);
+        Log::log("FPS = " + std::to_string(Scratch::FPS));
     } catch (...) {
         Log::logWarning("no framerate property.");
     }
     try {
         wdth = config["width"].get<int>();
         Scratch::projectWidth = wdth;
-        Log::log("game width = " + Scratch::projectWidth);
+        Log::log("game width = " + std::to_string(Scratch::projectWidth));
     } catch (...) {
         Log::logWarning("no width property.");
     }
     try {
         hght = config["height"].get<int>();
         Scratch::projectHeight = hght;
-        Log::log("game height = " + Scratch::projectHeight);
+        Log::log("game height = " + std::to_string(Scratch::projectHeight));
     } catch (...) {
         Log::logWarning("no height property.");
     }
@@ -515,13 +714,21 @@ void loadSprites(const nlohmann::json &json) {
         Render::renderMode = Render::TOP_SCREEN_ONLY;
 
     // load initial sprite images
+    Unzip::loadingState = "Loading images";
+    int sprIndex = 1;
     if (projectType == UNZIPPED) {
         for (auto &currentSprite : sprites) {
+            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
+            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
             Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+            sprIndex++;
         }
     } else {
         for (auto &currentSprite : sprites) {
+            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
+            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
             Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
+            sprIndex++;
         }
     }
 
@@ -546,7 +753,9 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
-    Input::applyControls();
+    Unzip::loadingState = "Running Flag block";
+
+    Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }
 

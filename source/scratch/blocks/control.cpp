@@ -1,4 +1,12 @@
 #include "control.hpp"
+#include "blockExecutor.hpp"
+#include "interpret.hpp"
+#include "math.hpp"
+#include "os.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
+#include <iostream>
+#include <ostream>
 
 BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
@@ -147,7 +155,7 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
     block.shouldStop = false;
     std::string stopType = block.fields.at("STOP_OPTION")[0];
     if (stopType == "all") {
-        toExit = true;
+        Scratch::shouldStop = true;
         return BlockResult::RETURN;
     }
     if (stopType == "this script") {

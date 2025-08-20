@@ -38,6 +38,7 @@ body:
         - Wii U
         - Wii
         - GameCube
+        - Switch
         - PC
     validations:
       required: true

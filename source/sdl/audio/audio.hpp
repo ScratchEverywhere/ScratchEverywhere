@@ -1,11 +1,15 @@
 #pragma once
+#ifdef ENABLE_AUDIO
 #include <SDL2/SDL_mixer.h>
+#endif
 #include <string>
 #include <unordered_map>
 class SDL_Audio {
   public:
+#ifdef ENABLE_AUDIO
     Mix_Chunk *audioChunk;
     Mix_Music *music;
+#endif
     std::string audioId;
     int channelId;
     bool isLoaded = false;

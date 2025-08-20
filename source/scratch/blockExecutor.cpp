@@ -8,6 +8,17 @@
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
+#include "interpret.hpp"
+#include "math.hpp"
+#include "os.hpp"
+#include "sprite.hpp"
+#include <algorithm>
+#include <chrono>
+#include <cstddef>
+#include <iterator>
+#include <ratio>
+#include <utility>
+#include <vector>
 
 #ifdef ENABLE_CLOUDVARS
 #include <mist/mist.hpp>
@@ -304,6 +315,10 @@ void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBl
             break;
         }
     }
+
+    if (block.mutation.at("proccode").get<std::string>() == "\u200B\u200Blog\u200B\u200B %s") Log::log("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
+    if (block.mutation.at("proccode").get<std::string>() == "\u200B\u200Bwarn\u200B\u200B %s") Log::logWarning("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
+    if (block.mutation.at("proccode").get<std::string>() == "\u200B\u200Berror\u200B\u200B %s") Log::logError("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
 }
 
 std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {

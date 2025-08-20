@@ -1,6 +1,14 @@
 #include "sensing.hpp"
 #include "../input.hpp"
 #include "../keyboard.hpp"
+#include "blockExecutor.hpp"
+#include "interpret.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
+#include <algorithm>
+#include <cmath>
+#include <utility>
+#include <vector>
 
 BlockResult SensingBlocks::resetTimer(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     BlockExecutor::timer.start();
@@ -103,7 +111,7 @@ Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
             return Value(distance);
         }
     }
-    return Value(0);
+    return Value(10000);
 }
 
 Value SensingBlocks::daysSince2000(Block &block, Sprite *sprite) {

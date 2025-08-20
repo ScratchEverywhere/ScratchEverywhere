@@ -1,5 +1,5 @@
 #include "text.hpp"
-#include <iostream>
+#include <string>
 #ifdef __3DS__
 #include "../3ds/text_3ds.hpp"
 #elif defined(SDL_BUILD)

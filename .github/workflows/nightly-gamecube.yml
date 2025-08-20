@@ -3,13 +3,13 @@ name: GameCube Nightly Build
 on:
   push:
     paths:
-      - Makefile_gamecube
+      - make/Makefile_gamecube
       - source/scratch/**
       - source/sdl/**
       - include/**
       - gfx/*
       - .github/workflows/nightly-gamecube.yml
-      - Dockerfile.gamecube
+      - docker/Dockerfile.gamecube
     branches:
       - main
   workflow_dispatch:
@@ -28,11 +28,11 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.gamecube
+          file: docker/Dockerfile.gamecube
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch GameCube Nightly
+          name: Scratch Everywhere! GameCube Nightly
           path: scratch-gamecube.dol

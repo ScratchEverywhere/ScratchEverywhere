@@ -3,13 +3,13 @@ name: 3DS Nightly Build
 on:
   push:
     paths:
-      - Makefile_3ds
+      - make/Makefile_3ds
       - source/scratch/**
       - source/3ds/**
       - gfx/*
       - include/**
       - .github/workflows/nightly-3ds.yml
-      - Dockerfile.3ds
+      - docker/Dockerfile.3ds
     branches:
       - main
   workflow_dispatch:
@@ -28,12 +28,12 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.3ds
+          file: docker/Dockerfile.3ds
           target: exporter
           outputs: type=local,dest=.
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch 3DS Nightly
+          name: Scratch Everywhere! 3DS Nightly
           path: Scratch-3DS.3dsx

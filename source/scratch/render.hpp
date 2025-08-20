@@ -56,6 +56,10 @@ class Render {
     static void renderSprites();
 
     static void renderVisibleVariables();
+    /**
+     * Draws a simple box to the screen.
+     */
+    static void drawBox(int w, int h, int x, int y, int colorR = 0, int colorG = 0, int colorB = 0, int colorA = 255);
 
     /**
      * Returns whether or not the app should be running.
@@ -83,28 +87,4 @@ class Render {
     static std::unordered_map<std::string, TextObject *> monitorTexts;
 
     static std::vector<Monitor> visibleVariables;
-};
-
-class LoadingScreen {
-  private:
-    struct squareObject {
-        float x, y;
-        float size;
-    };
-    std::vector<squareObject> squares;
-    void createSquares(int count) {
-        for (int i = 0; i < count; i++) {
-            squareObject square;
-            square.x = rand() % 400;
-            square.y = 260;
-            square.size = rand() % 20;
-            squares.push_back(square);
-        }
-    }
-
-  public:
-    // TextObject* text;
-    void init();
-    void renderLoadingScreen();
-    void cleanup();
 };

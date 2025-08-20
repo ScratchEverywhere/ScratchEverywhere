@@ -8,8 +8,10 @@
 #include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
+#ifdef ENABLE_AUDIO
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
+#endif
 
 #ifdef ENABLE_CLOUDVARS
 #include <malloc.h>
@@ -67,24 +69,40 @@ bool Render::Init() {
 #endif
 
     romfsInit();
-    // waiting for beta 12 to enable,, <- its beta 17 why is this comment still here 😭
+#ifdef ENABLE_AUDIO
     SDL_Init(SDL_INIT_AUDIO);
-    // Initialize SDL_mixer
-    if (Mix_OpenAudio(48000, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    int sampleRate = 15000;
+    int bufferSize = 1024;
+    int channels = 1;
+
+    bool isNew3DS = false;
+    APT_CheckNew3DS(&isNew3DS);
+
+    if (isNew3DS) {
+        sampleRate = 48000;
+        bufferSize = 4096;
+        channels = 2;
+    }
+
+    if (Mix_OpenAudio(sampleRate, MIX_DEFAULT_FORMAT, channels, bufferSize) < 0) {
         Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
-        // not returning false since emulators by default will error here
     }
     int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
     if (Mix_Init(flags) != flags) {
         Log::logWarning(std::string("SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: ") + Mix_GetError());
     }
+#endif
 
     return true;
 }
 
 bool Render::appShouldRun() {
     if (toExit) return false;
-    return aptMainLoop();
+    if (!aptMainLoop()) {
+        toExit = true;
+        return false;
+    }
+    return true;
 }
 
 void *Render::getRenderer() {
@@ -103,6 +121,7 @@ int Render::getHeight() {
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
         hasFrameBegan = true;
     }
     if (screen == 0) {
@@ -121,6 +140,16 @@ void Render::endFrame() {
     C3D_FrameEnd(0);
     Image::FlushImages();
     hasFrameBegan = false;
+}
+
+void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+    C2D_DrawRectSolid(
+        x - (w / 2.0f),
+        y - (h / 2.0f),
+        1,
+        w,
+        h,
+        C2D_Color32(colorR, colorG, colorB, colorA));
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -169,7 +198,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
                                              [&](const imageRGBA &rgba) { return rgba.name == costumeId; });
 
                 if (rgbaFind != imageRGBAS.end()) {
-                    imageLoaded = queueC2DImage(*rgbaFind);
+                    imageLoaded = get_C2D_Image(*rgbaFind);
                 } else {
                     imageLoaded = false;
                 }
@@ -235,8 +264,8 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
         C2D_DrawImageAtRotated(
             imageC2Ds[costumeId].image,
-            (currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation),
-            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation),
+            static_cast<int>((currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)),
+            static_cast<int>((currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
             1,
             rotation,
             &tinty,
@@ -406,73 +435,18 @@ void Render::renderVisibleVariables() {
     }
 }
 
-void LoadingScreen::renderLoadingScreen() {
-#ifdef ENABLE_BUBBLES
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrScratchBlue);
-    C2D_SceneBegin(topScreen);
-
-    // if(text != nullptr){
-    // text->render();
-    // }
-    for (squareObject &square : squares) {
-        square.y -= square.size * 0.1;
-        if (square.x > 400 + square.size) square.x = 0 - square.size;
-        if (square.y < 0 - square.size) square.y = 240 + square.size;
-        C2D_DrawRectSolid(square.x, square.y, 1, square.size, square.size, C2D_Color32(255, 255, 255, 75));
-    }
-
-    C3D_FrameEnd(0);
-#endif
-}
-
-void LoadingScreen::init() {
-#ifdef ENABLE_BUBBLES
-    // text = new TextObject("Loading...",200,120);
-    createSquares(20);
-#endif
-}
-
-void LoadingScreen::cleanup() {
-#ifdef ENABLE_BUBBLES
-    // if(text && text != nullptr)
-    // delete text;
-    squares.clear();
-
-    C2D_Flush();
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(topScreen, clrBlack);
-    C2D_SceneBegin(topScreen);
-
-    C2D_TargetClear(bottomScreen, clrBlack);
-    C2D_SceneBegin(bottomScreen);
-
-    C3D_FrameEnd(0);
-    gspWaitForVBlank();
-#endif
-}
-
 void Render::deInit() {
 #ifdef ENABLE_CLOUDVARS
-    free(SOC_buffer);
     socExit();
 #endif
 
+    Image::cleanupImages();
+    SoundPlayer::deinit();
     C2D_Fini();
     C3D_Fini();
-    for (auto &[id, data] : imageC2Ds) {
-        if (data.image.tex) {
-            C3D_TexDelete(data.image.tex);
-            free(data.image.tex);
-        }
-
-        if (data.image.subtex) {
-            free((Tex3DS_SubTexture *)data.image.subtex);
-        }
-    }
-    imageRGBAS.clear();
-    SoundPlayer::cleanupAudio();
+#ifdef ENABLE_AUDIO
     SDL_Quit();
+#endif
     romfsExit();
     gfxExit();
 }

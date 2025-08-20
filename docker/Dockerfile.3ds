@@ -41,7 +41,7 @@ WORKDIR /app
 COPY --from=mistpp_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
 COPY . .
 
-RUN make TARGET=Scratch-3DS ENABLE_CLOUDVARS=1
+RUN make TARGET=Scratch-3DS ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/3ds/Scratch-3DS.3dsx /
