@@ -134,7 +134,10 @@ postAccount:
         return false;
     }
 #endif
-
+    #ifdef VITA // Disable vita back touch
+    #define SDL_HINT_VITA_ENABLE_BACK_TOUCH "VITA_ENABLE_BACK_TOUCH"
+    SDL_SetHint(SDL_HINT_VITA_ENABLE_BACK_TOUCH, "0");
+    #endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
 #ifdef ENABLE_AUDIO
