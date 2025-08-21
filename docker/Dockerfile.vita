@@ -7,4 +7,4 @@ RUN make PLATFORM=vita
 
 FROM scratch AS exporter
 
-COPY --from=main_builder /app/build/vita/scratch_everywhere.vpk /
+COPY --from=main_builder /app/build/vita/scratch-vita.vpk /
