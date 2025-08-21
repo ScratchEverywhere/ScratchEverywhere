@@ -1,0 +1,110 @@
+# This Makefile is based on the OpenOrbis Sample
+# Package metadata.
+TITLE       := Scratch Everywhere!
+VERSION     := 0.18
+TITLE_ID    := SCRH00001
+CONTENT_ID  := IV0000-SCRH00001_00-SCRATCHPS400000
+
+# Config Options
+ENABLE_CLOUDVARS	?= 0
+ENABLE_AUDIO		?= 1
+
+# Libraries linked into the ELF.
+LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad -lSceSysmodule -lSceFreeType -lSDL2 -lSDL2_image
+
+# Additional compile flags.
+#EXTRAFLAGS  := 
+
+# Asset and module directories.
+ASSETS 		:= $(wildcard gfx/**/*)
+LIBMODULES  := $(wildcard gfx/ps4/sce_module/*)
+
+# Build target
+TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
+TARGET     := scratch-ps4
+BUILD      := build/ps4
+SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+
+# Define objects to build
+CPP_FILES  		:= $(foreach dir, $(SOURCES), $(wildcard $(dir)/*.cpp))
+C_FILES    		:= $(foreach dir, $(SOURCES), $(wildcard $(dir)/*.c))
+
+OBJS_CPP       	:= $(foreach src, $(CPP_FILES), $(BUILD)/$(src:.cpp=.o))
+OBJS_C			:= $(foreach src, $(C_FILES), $(BUILD)/$(src:.c=.o))
+
+OBJS			:= $(OBJS_CPP) $(OBJS_C)
+INCLUDE_FLAGS 	:= $(foreach dir, $(INCLUDES), -I$(dir))
+
+# Define final C/C++ flags
+CFLAGS      := -D__PS4__ $(INCLUDE_FLAGS) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include
+
+ifeq ($(ENABLE_AUDIO),1)
+##LIBS	+= -lSDL2_mixer
+CLAGS	+= -DENABLE_AUDIO
+endif
+
+CXXFLAGS    := $(CFLAGS) -isystem $(TOOLCHAIN)/include/c++/v1 -Wall -fexceptions
+LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o
+
+# Create the intermediate directory incase it doesn't already exist.
+_unused     := $(shell mkdir -p $(BUILD))
+
+# Check for linux vs macOS and account for clang/ld path
+UNAME_S     := $(shell uname -s)
+
+# Make sure the OpenOrbis toolchain is installed
+ifeq ($(strip $(OO_PS4_TOOLCHAIN)),)
+$(error "The OpenOrbis toolchain is required to build for PS4. Please set OO_PS4_TOOLCHAIN in your environment; export OO_PS4_TOOLCHAIN=<path to>OO_PS4_TOOLCHAIN")
+endif
+
+ifeq ($(UNAME_S),Linux)
+		CC      := clang
+		CCX     := clang++
+		LD      := ld.lld
+		CDIR    := linux
+endif
+ifeq ($(UNAME_S),Darwin)
+		CC      := /usr/local/opt/llvm/bin/clang
+		CCX     := /usr/local/opt/llvm/bin/clang++
+		LD      := /usr/local/opt/lld/bin/ld.lld
+		CDIR    := macos
+endif
+
+all: $(CONTENT_ID).pkg
+
+$(CONTENT_ID).pkg: pkg.gp4
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core pkg_build $< .
+
+pkg.gp4: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(LIBMODULES) $(ASSETS)
+	$(TOOLCHAIN)/bin/$(CDIR)/create-gp4 -out $@ --content-id=$(CONTENT_ID) --files "$^"
+
+sce_sys/param.sfo: Makefile
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_new $@
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_TYPE --type Integer --maxsize 4 --value 1 
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_VER --type Utf8 --maxsize 8 --value '$(VERSION)'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ ATTRIBUTE --type Integer --maxsize 4 --value 0  
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CATEGORY --type Utf8 --maxsize 4 --value 'gd'  
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CONTENT_ID --type Utf8 --maxsize 48 --value '$(CONTENT_ID)'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ DOWNLOAD_DATA_SIZE --type Integer --maxsize 4 --value 0 
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ SYSTEM_VER --type Integer --maxsize 4 --value 0  
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE --type Utf8 --maxsize 128 --value '$(TITLE)'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
+
+eboot.bin: $(BUILD) $(OBJS)
+	$(LD) $(OBJS) -o $(BUILD)/$(TARGET).elf $(LDFLAGS)
+	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(BUILD)/$(TARGET).elf -out=$(BUILD)/$(TARGET).oelf --eboot "eboot.bin" --paid 0x3800000000000011
+
+$(BUILD)/%.o: %.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling $(notdir $<)"
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(BUILD)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	@echo "Compiling $(notdir $<)"
+	$(CCX) $(CXXFLAGS) -o $@ $<
+
+clean:
+	rm -rf $(BUILD)	
