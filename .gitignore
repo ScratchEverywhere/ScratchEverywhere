@@ -43,6 +43,7 @@ main.code-workspace
 *.out
 *.app
 *.3dsx
+*.cia
 *.nacp
 *.pfs0
 *.nro
