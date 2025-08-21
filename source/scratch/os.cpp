@@ -80,7 +80,9 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
 std::string OS::getScratchFolderLocation() {
 #ifdef __WIIU__
     return std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/";
-#else
-    return "scratch-everywhere/";
 #endif
+#ifdef VITA
+    return "ux0:data/scratch-everywhere/"; // not sure if this will work just like that, needs testing
+#endif
+    return "scratch-everywhere/";
 }
