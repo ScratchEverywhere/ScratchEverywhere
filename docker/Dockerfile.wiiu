@@ -12,7 +12,7 @@ COPY --from=libromfs_builder /opt/devkitpro/portlibs/wiiu/ /opt/devkitpro/portli
 
 RUN apt-get update && apt-get install -y --no-install-recommends fakeroot zstd
 
-RUN git clone https://github.com/gradylink/wut-packages .
+RUN git clone https://github.com/gradylink/wut-packages . && git switch feat/curl
 
 RUN groupadd --gid 1000 builder && useradd --uid 1000 --gid builder --shell /bin/bash --create-home builder
 RUN chown -R builder:builder /wut-packages

@@ -154,10 +154,10 @@ void ProjectMenu::init() {
     backButton->scale = 1.0;
 
     std::vector<std::string> projectFiles;
-#ifdef __WIIU__
-    projectFiles = Unzip::getProjectFiles(std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/");
-#else
+#ifdef __3DS__
     projectFiles = Unzip::getProjectFiles(".");
+#else
+    projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
 #endif
 
     // initialize text and set positions
