@@ -138,10 +138,10 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     }
 }
 
-void Render::endFrame() {
+void Render::endFrame(bool shouldFlush) {
     C2D_Flush();
     C3D_FrameEnd(0);
-    Image::FlushImages();
+    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
@@ -315,16 +315,16 @@ void Render::renderSprites() {
     float slider = osGet3DSliderState();
     const float depthScale = 12.0f / sprites.size();
 
+    std::vector<Sprite *> spritesByLayer = sprites;
+    std::sort(spritesByLayer.begin(), spritesByLayer.end(),
+              [](const Sprite *a, const Sprite *b) {
+                  return a->layer < b->layer;
+              });
+
     // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
-
-        std::vector<Sprite *> spritesByLayer = sprites;
-        std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-                  [](const Sprite *a, const Sprite *b) {
-                      return a->layer < b->layer;
-                  });
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
@@ -360,12 +360,6 @@ void Render::renderSprites() {
         C2D_SceneBegin(topScreenRightEye);
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-        std::vector<Sprite *> spritesByLayer = sprites;
-        std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-                  [](const Sprite *a, const Sprite *b) {
-                      return a->layer < b->layer;
-                  });
-
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
@@ -398,12 +392,6 @@ void Render::renderSprites() {
     // ---------- BOTTOM SCREEN ----------
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(bottomScreen);
-
-        std::vector<Sprite *> spritesByLayer = sprites;
-        std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-                  [](const Sprite *a, const Sprite *b) {
-                      return a->layer < b->layer;
-                  });
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
