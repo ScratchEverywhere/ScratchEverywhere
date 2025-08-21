@@ -3,19 +3,20 @@
 #include "image.hpp"
 #include "miniz/miniz.h"
 #include "render.hpp"
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_rwops.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_surface.h>
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#ifdef XBOX
+#include <SDL.h>
+#include <SDL_image.h>
+#else
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#endif
 
 std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;

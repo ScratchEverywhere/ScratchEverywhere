@@ -7,23 +7,20 @@
 #include "render.hpp"
 #include "sprite.hpp"
 #include "text.hpp"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_gamecontroller.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_joystick.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_timer.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_video.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#ifdef XBOX
+#include <SDL.h>
+#include <SDL_ttf.h>
+#else
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#endif
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>
@@ -52,8 +49,8 @@ SDL_Renderer *renderer = nullptr;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
-std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
+std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
+std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;
@@ -180,11 +177,19 @@ void *Render::getRenderer() {
 }
 
 int Render::getWidth() {
+#ifdef XBOX
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+#else
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+#endif
     return windowWidth;
 }
 int Render::getHeight() {
+#ifdef XBOX
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+#else
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+#endif
     return windowHeight;
 }
 
@@ -241,7 +246,11 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 }
 
 void Render::renderSprites() {
+#ifdef XBOX
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+#else
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+#endif
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 

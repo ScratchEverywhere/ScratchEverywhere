@@ -1,10 +1,20 @@
 #pragma once
 #include "image.hpp"
-#include <SDL2/SDL.h>
 #ifdef ENABLE_AUDIO
+#ifdef XBOX
+#include <SDL_mixer.h>
+#else
 #include <SDL2/SDL_mixer.h>
 #endif
+#endif
+
+#ifdef XBOX
+#include <SDL.h>
+#include <SDL_ttf.h>
+#else
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#endif
 
 extern int windowWidth;
 extern int windowHeight;

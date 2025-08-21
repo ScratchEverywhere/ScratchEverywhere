@@ -2,18 +2,17 @@
 #include "../scratch/render.hpp"
 #include "os.hpp"
 #include "text.hpp"
-#include <SDL2/SDL_error.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_surface.h>
-#include <SDL2/SDL_ttf.h>
 #include <iostream>
 #include <ostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#ifdef XBOX
+#include <SDL.h>
+#else
+#include <SDL2/SDL.h>
+#endif
 
 std::unordered_map<std::string, TTF_Font *> TextObjectSDL::fonts;
 
