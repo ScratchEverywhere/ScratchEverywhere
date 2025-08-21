@@ -1,5 +1,13 @@
+# Makefile template taken from vitasdk examples [https://github.com/vitasdk/samples/tree/master/hello_world/Makefile]
+# Thanks to PwLDev for helping!
+
 PHONY := all package clean
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
+
+TARGET     := Scratch-vita
+BUILD      := build/vita
+SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
 
 CC := arm-vita-eabi-gcc
 CXX := arm-vita-eabi-g++
@@ -9,17 +17,45 @@ PROJECT_TITLE := Scratch Everywhere!
 PROJECT_TITLEID := NTXS000053
 
 PROJECT := scratch_everywhere
-CFLAGS += -Wl,-q -I../common
-CXXFLAGS += -Wl,-q -std=c++11 -I../common
-
-SRC_C :=$(call rwildcard, ../source/, *.c)
-SRC_CPP :=$(call rwildcard, ../source/, *.cpp)
-
-OBJ_DIRS := $(addprefix out/, $(dir $(SRC_C:src/%.c=%.o))) $(addprefix out/, $(dir $(SRC_CPP:src/%.cpp=%.o)))
-OBJS := $(addprefix out/, $(SRC_C:src/%.c=%.o)) $(addprefix out/, $(SRC_CPP:src/%.cpp=%.o))
-
-# Needed by psvDebugScreenPrintf
+# Base compiler flags
+CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
+CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
+# SDL Flags (untested, commented out) TODO: Test
+#CFLAGS   += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
+#CXXFLAGS += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
+# Libraries linked into the SELF
 LIBS += -lSceDisplay_stub
+# SDL2
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs sdl2)
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_image)
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_ttf)
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_mixer)
+
+# Config Options
+ENABLE_CLOUDVARS	?=	0
+ENABLE_AUDIO	?=	1
+
+# Feature flags
+ifeq ($(ENABLE_AUDIO),1)
+LIBS	+=	-lSDL2_mixer
+CFLAGS	+=	-DENABLE_AUDIO
+CXXFLAGS += -DENABLE_AUDIO
+endif
+
+ifeq ($(ENABLE_CLOUDVARS),1)
+CFLAGS		+=	-DENABLE_CLOUDVARS
+CXXFLAGS += -DENABLE_CLOUDVARS
+LIBS				+=	-lmist++ -lcurl
+endif
+
+
+SRC_C   := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
+SRC_CPP := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
+
+#OBJ_DIRS := $(addprefix $(BUILD), $(dir $(SRC_C:source/%.c=%.o))) $(addprefix $(BUILD), $(dir $(SRC_CPP:source/%.cpp=%.o)))
+#OBJ_DIRS := $(sort $(OBJ_DIRS))
+OBJS := $(patsubst %,$(BUILD)/%,$(SRC_C:.c=.o) $(SRC_CPP:.cpp=.o))
+OBJ_DIRS := $(sort $(dir $(OBJS)))
 
 all: package
 
@@ -27,9 +63,9 @@ package: $(PROJECT).vpk
 
 $(PROJECT).vpk: eboot.bin param.sfo
 	vita-pack-vpk -s param.sfo -b eboot.bin \
-		--add sce_sys/icon0.png=../gfx/vita/icon0.png \
-		--add sce_sys/livearea/contents/bg.png=../gfx/vita/livearea/contents/bg.png \
-		--add sce_sys/livearea/contents/template.xml=../gfx/vita/livearea/contents/template.xml \
+		--add gfx/vita/icon0.png=sce_sys/icon0.png \
+		--add gfx/vita/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png \
+		--add gfx/vita/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml \
 	$(PROJECT).vpk
 
 eboot.bin: $(PROJECT).velf
@@ -43,16 +79,19 @@ $(PROJECT).velf: $(PROJECT).elf
 	vita-elf-create $< $@
 
 $(PROJECT).elf: $(OBJS)
-	$(CXX) $(CXXFLAGS) $^ $(LIBS) -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LIBS)
+
+$(BUILD):
+	mkdir -p $@
 
 $(OBJ_DIRS):
 	mkdir -p $@
 
-out/%.o : src/%.cpp | $(OBJ_DIRS)
-	arm-vita-eabi-g++ -c $(CXXFLAGS) -o $@ $<
+$(BUILD)/%.o : %.cpp | $(OBJ_DIRS)
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
 
-out/%.o : src/%.c | $(OBJ_DIRS)
-	arm-vita-eabi-gcc -c $(CFLAGS) -o $@ $<
+$(BUILD)/%.o : %.c | $(OBJ_DIRS)
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 clean:
 	rm -f $(PROJECT).velf $(PROJECT).elf $(PROJECT).vpk param.sfo eboot.bin $(OBJS)
