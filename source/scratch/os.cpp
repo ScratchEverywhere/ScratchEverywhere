@@ -85,7 +85,7 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(__OGC__)
     return "/";
 #elif defined(VITA)
-    return "ux0:data/scratch-everywhere/"; // not sure if this will work just like that, needs testing
+    return "ux0:data/scratch-everywhere/";
 #else
     return "scratch-everywhere/";
 #endif
