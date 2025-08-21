@@ -40,9 +40,6 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     bool imageFound = false;
     for (size_t i = 0; i < sprite->costumes.size(); i++) {
         if (sprite->costumes[i].name == inputString) {
-            if ((size_t)sprite->currentCostume != i) {
-                // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
-            }
             sprite->currentCostume = i;
             imageFound = true;
             break;
@@ -51,9 +48,6 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
         int costumeIndex = inputValue.asInt() - 1;
         if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < sprite->costumes.size()) {
-            if (sprite->currentCostume != costumeIndex) {
-                // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
-            }
             sprite->currentCostume = costumeIndex;
             imageFound = true;
         }
@@ -69,7 +63,6 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
 }
 
 BlockResult LooksBlocks::nextCostume(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    // Image::queueFreeImage(sprite->costumes[sprite->currentCostume].id);
     sprite->currentCostume++;
     if (sprite->currentCostume >= static_cast<int>(sprite->costumes.size())) {
         sprite->currentCostume = 0;
@@ -104,9 +97,6 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         bool imageFound = false;
         for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
             if (currentSprite->costumes[i].name == inputString) {
-                if ((size_t)currentSprite->currentCostume != i) {
-                    // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
-                }
                 currentSprite->currentCostume = i;
                 imageFound = true;
                 break;
@@ -115,9 +105,6 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
-                if (currentSprite->currentCostume != costumeIndex) {
-                    // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
-                }
                 imageFound = true;
                 currentSprite->currentCostume = costumeIndex;
             }
@@ -138,7 +125,6 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
         if (!currentSprite->isStage) {
             continue;
         }
-        // Image::queueFreeImage(currentSprite->costumes[currentSprite->currentCostume].id);
         currentSprite->currentCostume++;
         if (currentSprite->currentCostume >= static_cast<int>(currentSprite->costumes.size())) {
             currentSprite->currentCostume = 0;
@@ -155,45 +141,37 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
 BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "NUM", sprite);
     std::string forwardBackward = block.fields.at("FORWARD_BACKWARD")[0];
-    if (value.isNumeric()) {
-        if (forwardBackward == "forward") {
+    if (!value.isNumeric()) return BlockResult::CONTINUE;
 
-            // check if a sprite is already on the same layer
-            for (Sprite *currentSprite : sprites) {
-                if (currentSprite->isStage) continue;
-                if (currentSprite->layer == (currentSprite->layer + value.asInt())) {
-                    for (Sprite *moveupSprite : sprites) {
-                        if (moveupSprite->isStage || !(moveupSprite->layer >= (currentSprite->layer + value.asInt()))) continue;
-                        moveupSprite->layer++;
-                    }
-                }
-            }
+    int shift = value.asInt();
+    if (shift == 0) return BlockResult::CONTINUE;
 
-            sprite->layer += value.asInt();
+    if (forwardBackward == "forward") {
+        int targetLayer = sprite->layer + shift;
 
-        } else if (forwardBackward == "backward") {
-
-            // check if a sprite is already on the same layer
-            for (Sprite *currentSprite : sprites) {
-                if (currentSprite->isStage) continue;
-                if (currentSprite->layer == (currentSprite->layer - value.asInt())) {
-                    for (Sprite *moveupSprite : sprites) {
-                        if (moveupSprite->isStage || !(moveupSprite->layer >= (currentSprite->layer - value.asInt()))) continue;
-                        moveupSprite->layer++;
-                    }
-                }
-            }
-
-            sprite->layer -= value.asInt();
-            if (sprite->layer < 1) {
-                for (Sprite *currentSprite : sprites) {
-                    if (currentSprite->isStage) continue;
-                    currentSprite->layer += 2;
-                }
-                sprite->layer = 0;
+        for (Sprite *currentSprite : sprites) {
+            if (currentSprite->isStage || currentSprite == sprite) continue;
+            if (currentSprite->layer >= targetLayer) {
+                currentSprite->layer++;
             }
         }
+
+        sprite->layer = targetLayer;
+
+    } else if (forwardBackward == "backward") {
+        int targetLayer = sprite->layer - shift;
+
+        for (Sprite *currentSprite : sprites) {
+            if (currentSprite->isStage || currentSprite == sprite) continue;
+            if (currentSprite->layer <= targetLayer) {
+                currentSprite->layer--;
+                if (currentSprite->layer < 0) currentSprite->layer = 0;
+            }
+        }
+
+        sprite->layer = targetLayer;
     }
+
     return BlockResult::CONTINUE;
 }
 
@@ -211,11 +189,15 @@ BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *witho
         sprite->layer = maxLayer + 1;
 
     } else if (value == "back") {
+        double minLayer = std::numeric_limits<double>::max();
         for (Sprite *currentSprite : sprites) {
             if (currentSprite->isStage) continue;
-            currentSprite->layer += 2;
+            if (currentSprite->layer < minLayer) {
+                minLayer = currentSprite->layer;
+            }
         }
-        sprite->layer = 0;
+
+        sprite->layer = minLayer - 1;
     }
     return BlockResult::CONTINUE;
 }

@@ -111,7 +111,7 @@ Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
             return Value(distance);
         }
     }
-    return Value(0);
+    return Value(10000);
 }
 
 Value SensingBlocks::daysSince2000(Block &block, Sprite *sprite) {

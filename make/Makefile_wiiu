@@ -4,7 +4,6 @@ $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/de
 endif
 
 TOPDIR ?= $(CURDIR)
-include $(DEVKITPRO)/wut/share/wut_rules
 
 PKGCONF				:=	/opt/devkitpro/portlibs/ppc/bin/powerpc-eabi-pkg-config
 PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
@@ -29,6 +28,8 @@ APP_VERSION						:=	0.18
 APP_ICON							:=	gfx/wiiu/icon.png
 APP_TV_SPLASH					:=	gfx/wiiu/tv-splash.png
 APP_DRC_SPLASH				:=	gfx/wiiu/drc-splash.png
+
+include $(DEVKITPRO)/wut/share/wut_rules
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0

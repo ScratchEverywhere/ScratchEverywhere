@@ -105,6 +105,7 @@ void BlockExecutor::registerHandlers() {
     handlers["control_wait_until"] = ControlBlocks::waitUntil;
     handlers["control_repeat"] = ControlBlocks::repeat;
     handlers["control_repeat_until"] = ControlBlocks::repeatUntil;
+    handlers["control_while"] = ControlBlocks::While;
     handlers["control_forever"] = ControlBlocks::forever;
 
     // operators
@@ -433,7 +434,7 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
     }
 
     std::string currentBroadcast = broadcastQueue.front();
-    Log::log("Running Broadcast " + currentBroadcast);
+    // Log::log("Running Broadcast " + currentBroadcast);
     broadcastQueue.erase(broadcastQueue.begin());
 
     for (auto *currentSprite : sprites) {
@@ -562,6 +563,22 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
         }
     }
 
+    // Check global lists
+    for (const auto &currentSprite : sprites) {
+        if (currentSprite->isStage) {
+            auto globalIt = currentSprite->lists.find(variableId);
+            if (globalIt != currentSprite->lists.end()) {
+                std::string result;
+                for (const auto &item : globalIt->second.items) {
+                    result += item.asString() + " ";
+                }
+                if (!result.empty()) result.pop_back();
+                Value val(result);
+                return val;
+            }
+        }
+    }
+
     return Value();
 }
 
@@ -589,7 +606,7 @@ Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, 
     for (auto &[custId, custBlock] : sprite->customBlocks) {
 
         // variable must be in the same custom block
-        if (custBlock.blockId != prototypeBlock->id) continue;
+        if (prototypeBlock != nullptr && custBlock.blockId != prototypeBlock->id) continue;
 
         auto it = std::find(custBlock.argumentNames.begin(), custBlock.argumentNames.end(), valueName);
 

@@ -178,12 +178,12 @@ void Image::loadImages(mz_zip_archive *zip) {
 bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
-    if (getImageFromT3x("romfs:/gfx/" + path2 + ".t3x")) return true;
 
     auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
         return img.name == path2;
     });
     if (it != imageRGBAS.end()) return true;
+    if (getImageFromT3x("romfs:/gfx/" + path2 + ".t3x")) return true;
 
     std::string fullPath;
     if (fromScratchProject) fullPath = "romfs:/project/" + filePath;
@@ -256,7 +256,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     size_t imageSize = width * height * 4;
     MemoryTracker::allocate(imageSize);
 
-    Log::log("successfuly laoded image from file!");
+    // Log::log("successfuly laoded image from file!");
     imageRGBAS.push_back(newRGBA);
     return true;
 }
@@ -358,7 +358,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     size_t imageSize = width * height * 4;
     MemoryTracker::allocate(imageSize);
 
-    Log::log("Successfully loaded image!");
+    // Log::log("Successfully loaded image!");
     imageRGBAS.push_back(newRGBA);
 
     // Clean up
@@ -443,7 +443,7 @@ bool getImageFromT3x(const std::string &filePath) {
 
     C2D_SpriteSheet sheet = C2D_SpriteSheetLoad(filePath.c_str());
     if (!sheet) {
-        Log::logWarning("Could not load sprite from t3x!");
+        // Log::logWarning("Could not load sprite from t3x!");
         return false;
     }
 
@@ -465,7 +465,7 @@ bool getImageFromT3x(const std::string &filePath) {
     size_t imageSize = newRGBA.width * newRGBA.height * 4;
     MemoryTracker::allocateVRAM(imageSize);
 
-    Log::log("Successfully loaded image from t3x!");
+    // Log::log("Successfully loaded image from t3x!");
     imageRGBAS.push_back(newRGBA);
 
     imageC2Ds[newRGBA.name] = {image, 240, sheet};
@@ -567,7 +567,7 @@ bool get_C2D_Image(imageRGBA rgba) {
 void Image::freeImage(const std::string &costumeId) {
     auto it = imageC2Ds.find(costumeId);
     if (it != imageC2Ds.end()) {
-        Log::log("freed image!");
+        // Log::log("freed image!");
 
         if (it->second.sheet) {
             if (it->second.image.tex) {
@@ -577,7 +577,7 @@ void Image::freeImage(const std::string &costumeId) {
 
             C2D_SpriteSheetFree(it->second.sheet);
 
-            Log::log("Freed sprite sheet for: " + costumeId);
+            // Log::log("Freed sprite sheet for: " + costumeId);
             goto afterFreeing;
         }
 
@@ -616,7 +616,7 @@ void Image::cleanupImages() {
     imageLoadQueue.clear();
     toDelete.clear();
 
-    Log::log("Image cleanup completed.");
+    // Log::log("Image cleanup completed.");
 }
 
 void freeRGBA(const std::string &imageName) {

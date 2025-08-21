@@ -154,6 +154,14 @@ void Input::getInput() {
         toExit = true;
 #endif
     }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSTICK)) {
+        Input::buttonPress("LeftStickPressed");
+        anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSTICK)) {
+        Input::buttonPress("RightStickPressed");
+        anyKeyPressed = true;
+    }
     float joyLeftX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX);
     float joyLeftY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY);
     if (joyLeftX > CONTROLLER_DEADZONE_X) {
