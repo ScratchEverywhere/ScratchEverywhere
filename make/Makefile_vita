@@ -4,7 +4,7 @@
 PHONY := all package clean
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
-TARGET     := Scratch-vita
+TARGET     := scratch-vita
 BUILD      := build/vita
 SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
 INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
@@ -63,7 +63,7 @@ OBJS := $(patsubst %,$(BUILD)/%,$(SRC_C:.c=.o) $(SRC_CPP:.cpp=.o))
 OBJ_DIRS := $(sort $(dir $(OBJS)))
 
 # make sure all build artifacts are placed inside BUILD
-PROJECT_VITA := $(BUILD)/$(PROJECT)
+PROJECT_VITA := $(BUILD)/$(TARGET)
 VPK         := $(PROJECT_VITA).vpk
 ELF         := $(PROJECT_VITA).elf
 VELF        := $(PROJECT_VITA).velf
