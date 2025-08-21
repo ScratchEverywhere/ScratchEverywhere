@@ -14,22 +14,21 @@ CXX := arm-vita-eabi-g++
 STRIP := arm-vita-eabi-strip
 
 PROJECT_TITLE := Scratch Everywhere!
-PROJECT_TITLEID := NTXS000053
+PROJECT_TITLEID := NTXS00053
 
 PROJECT := scratch_everywhere
 # Base compiler flags
 CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
 CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
-# SDL Flags (untested, commented out) TODO: Test
-#CFLAGS   += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
-#CXXFLAGS += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
+# SDL Flags
+CFLAGS   += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
+CXXFLAGS += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
 # Libraries linked into the SELF
 LIBS += -lSceDisplay_stub
 # SDL2
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs sdl2)
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_image)
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_ttf)
-LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_mixer)
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
@@ -37,7 +36,7 @@ ENABLE_AUDIO	?=	1
 
 # Feature flags
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	+=	-lSDL2_mixer
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_mixer)
 CFLAGS	+=	-DENABLE_AUDIO
 CXXFLAGS += -DENABLE_AUDIO
 endif
@@ -69,7 +68,7 @@ $(PROJECT).vpk: eboot.bin param.sfo
 	$(PROJECT).vpk
 
 eboot.bin: $(PROJECT).velf
-	vita-make-fself $(PROJECT).velf eboot.bin
+	vita-make-fself -c $(PROJECT).velf eboot.bin
 
 param.sfo:
 	vita-mksfoex -s TITLE_ID="$(PROJECT_TITLEID)" "$(PROJECT_TITLE)" param.sfo
