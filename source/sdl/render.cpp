@@ -133,6 +133,9 @@ postAccount:
         Log::logError("Failed to init romfs.");
         return false;
     }
+#elif defined(VITA)
+    windowWidth = 960;
+    windowHeight = 544;
 #endif
     #ifdef VITA // Disable vita back touch
     #define SDL_HINT_VITA_ENABLE_BACK_TOUCH "SDL_HINT_VITA_ENABLE_BACK_TOUCH"
