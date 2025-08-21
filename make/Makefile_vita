@@ -20,9 +20,9 @@ PROJECT := scratch_everywhere
 # Base compiler flags
 CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
 CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
-# Specify vita as the target platform
-CFLAGS   += -DVITA -DSDL_BUILD
-CXXFLAGS += -DVITA -DSDL_BUILD
+# Specify vita as the target platform + SDL flags
+CFLAGS   += -DVITA -DSDL_BUILD -DVIDEO_VITA_PVR=ON
+CXXFLAGS += -DVITA -DSDL_BUILD -DVIDEO_VITA_PVR=ON
 # SDL Flags
 CFLAGS   += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
 CXXFLAGS += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
