@@ -84,8 +84,6 @@ std::string OS::getScratchFolderLocation() {
     return "/switch/scratch-nx/";
 #elif defined(__OGC__)
     return "/";
-#elif defined(VITA)
-    return "ux0:data/scratch-everywhere/";
 #else
     return "scratch-everywhere/";
 #endif
