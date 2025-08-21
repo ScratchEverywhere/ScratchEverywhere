@@ -82,8 +82,11 @@ std::string OS::getScratchFolderLocation() {
     return std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/";
 #elif defined(__SWITCH__)
     return "/switch/scratch-nx/";
+#elif defined(__OGC__)
+    return "/";
 #elif defined(VITA)
-    return "ux0:data/scratch-everywhere/"; // not sure if this will work just like that, needs testing
-#endif
+    return "ux0:data/scratch-everywhere/";
+#else
     return "scratch-everywhere/";
+#endif
 }
