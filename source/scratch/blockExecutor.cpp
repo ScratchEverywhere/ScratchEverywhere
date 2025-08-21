@@ -442,7 +442,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     auto listIt = sprite->lists.find(variableId);
     if (listIt != sprite->lists.end()) {
         std::string result;
-        std::string seperator = " ";
+        std::string seperator = "";
         for (const auto &item : listIt->second.items) {
             if (item.asString().size() > 1) {
                 seperator = " ";
