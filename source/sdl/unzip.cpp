@@ -53,7 +53,11 @@ int Unzip::openFile(std::ifstream *file) {
             if (!(*file)) {
                 projectType = UNEMBEDDED;
                 // if main menu hasn't been loaded yet, load it
+                #ifdef VITA
+                if (true) {
+                #else
                 if (filePath == "") {
+                #endif
                     Log::log("Activating main menu...");
                     return -1;
                 } else {
