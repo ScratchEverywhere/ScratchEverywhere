@@ -25,6 +25,7 @@
 #define SCREEN_HEIGHT 240
 
 C3D_RenderTarget *topScreen = nullptr;
+C3D_RenderTarget *topScreenRightEye = nullptr;
 C3D_RenderTarget *bottomScreen = nullptr;
 u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
 u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
@@ -52,7 +53,9 @@ bool Render::Init() {
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
+    gfxSet3D(true);
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
+    topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
 #ifdef ENABLE_CLOUDVARS
@@ -176,7 +179,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false) {
+void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false, float x3DOffset = 0.0f) {
 
     if (!currentSprite || currentSprite == nullptr) return;
 
@@ -264,7 +267,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
         C2D_DrawImageAtRotated(
             imageC2Ds[costumeId].image,
-            static_cast<int>((currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)),
+            static_cast<int>((currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)) + x3DOffset,
             static_cast<int>((currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
             1,
             rotation,
@@ -304,70 +307,125 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 }
 
 void Render::renderSprites() {
-
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrWhite);
+    C2D_TargetClear(topScreenRightEye, clrWhite);
     C2D_TargetClear(bottomScreen, clrWhite);
 
+    float slider = osGet3DSliderState();
+    const float depthScale = 12.0f / sprites.size();
+
+    // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
-
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-        // Sort sprites by layer (lowest to highest)
         std::vector<Sprite *> spritesByLayer = sprites;
         std::sort(spritesByLayer.begin(), spritesByLayer.end(),
                   [](const Sprite *a, const Sprite *b) {
                       return a->layer < b->layer;
                   });
 
-        // Now render sprites in order from lowest to highest layer
-        for (Sprite *currentSprite : spritesByLayer) {
+        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+            Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
-            // look through every costume in sprite for correct one
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
-                    renderImage(&imageC2Ds[costume.id].image, currentSprite, costume.id);
+
+                    size_t totalSprites = spritesByLayer.size();
+                    float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
+
+                    renderImage(&imageC2Ds[costume.id].image,
+                                currentSprite,
+                                costume.id,
+                                false,
+                                eyeOffset);
                     break;
                 }
                 costumeIndex++;
             }
         }
+        renderVisibleVariables();
     }
+
     if (Render::renderMode != Render::BOTH_SCREENS)
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    renderVisibleVariables();
+    // ---------- RIGHT EYE ----------
+    if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
+        C2D_SceneBegin(topScreenRightEye);
+        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(bottomScreen);
-        // Sort sprites by layer (lowest to highest)
         std::vector<Sprite *> spritesByLayer = sprites;
         std::sort(spritesByLayer.begin(), spritesByLayer.end(),
                   [](const Sprite *a, const Sprite *b) {
                       return a->layer < b->layer;
                   });
 
-        // Now render sprites in order from lowest to highest layer
-        for (Sprite *currentSprite : spritesByLayer) {
+        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+            Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
-            // look through every costume in sprite for correct one
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
-                    renderImage(&imageC2Ds[costume.id].image, currentSprite, costume.id, true);
+
+                    size_t totalSprites = spritesByLayer.size();
+                    float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
+
+                    renderImage(&imageC2Ds[costume.id].image,
+                                currentSprite,
+                                costume.id,
+                                false,
+                                eyeOffset);
                     break;
                 }
                 costumeIndex++;
             }
         }
+        renderVisibleVariables();
+    }
+
+    if (Render::renderMode != Render::BOTH_SCREENS)
+        drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    // ---------- BOTTOM SCREEN ----------
+    if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
+        C2D_SceneBegin(bottomScreen);
+
+        std::vector<Sprite *> spritesByLayer = sprites;
+        std::sort(spritesByLayer.begin(), spritesByLayer.end(),
+                  [](const Sprite *a, const Sprite *b) {
+                      return a->layer < b->layer;
+                  });
+
+        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+            Sprite *currentSprite = spritesByLayer[i];
+            if (!currentSprite->visible) continue;
+
+            int costumeIndex = 0;
+            for (const auto &costume : currentSprite->costumes) {
+                if (costumeIndex == currentSprite->currentCostume) {
+                    currentSprite->rotationCenterX = costume.rotationCenterX;
+                    currentSprite->rotationCenterY = costume.rotationCenterY;
+
+                    renderImage(&imageC2Ds[costume.id].image,
+                                currentSprite,
+                                costume.id,
+                                true,
+                                0.0f);
+                    break;
+                }
+                costumeIndex++;
+            }
+        }
+
         if (Render::renderMode != Render::BOTH_SCREENS)
             drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
     }
@@ -375,12 +433,6 @@ void Render::renderSprites() {
     C2D_Flush();
     C3D_FrameEnd(0);
     Image::FlushImages();
-    // gspWaitForVBlank();
-    endTime = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> duration = endTime - startTime;
-    // int FPS = 1000.0 / std::round(duration.count());
-    // std::cout << "\x1b[8;0HCPU: " <<C3D_GetProcessingTime()*6.0f<<"\nGPU: "<< C3D_GetDrawingTime()*6.0f << "\nCmdBuf: " <<C3D_GetCmdBufUsage()*100.0f << "\nFPS: " << FPS <<  std::endl;
-    startTime = std::chrono::high_resolution_clock::now();
     osSetSpeedupEnable(true);
 }
 

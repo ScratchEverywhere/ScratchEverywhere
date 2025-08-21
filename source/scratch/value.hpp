@@ -92,6 +92,7 @@ class Value {
     bool isBoolean() const { return type == ValueType::BOOLEAN; }
     bool isNumeric() const {
         return type == ValueType::INTEGER || type == ValueType::DOUBLE || type == ValueType::BOOLEAN ||
+               (type == ValueType::STRING && (*stringValue == "Infinity" || *stringValue == "-Infinity")) ||
                (type == ValueType::STRING && Math::isNumber(*stringValue));
     }
 
@@ -102,6 +103,8 @@ class Value {
         case ValueType::DOUBLE:
             return doubleValue;
         case ValueType::STRING:
+            if (*stringValue == "Infinity") return std::numeric_limits<double>::max();
+            if (*stringValue == "-Infinity") return -std::numeric_limits<double>::max();
             return Math::isNumber(*stringValue) ? std::stod(*stringValue) : 0.0;
         case ValueType::BOOLEAN:
             return *stringValue == "true" ? 1.0 : 0.0;
@@ -116,6 +119,8 @@ class Value {
         case ValueType::DOUBLE:
             return static_cast<int>(std::round(doubleValue));
         case ValueType::STRING:
+            if (*stringValue == "Infinity") return std::numeric_limits<int>::max();
+            if (*stringValue == "-Infinity") return -std::numeric_limits<int>::max();
             if (Math::isNumber(*stringValue)) {
                 double d = std::stod(*stringValue);
                 return static_cast<int>(std::round(d));
@@ -234,6 +239,8 @@ class Value {
             return Value(jsonVal.get<double>());
         } else if (jsonVal.is_string()) {
             std::string strVal = jsonVal.get<std::string>();
+
+            if (strVal == "Infinity" || strVal == "-Infinity") return Value(strVal);
 
             if (Math::isNumber(strVal)) {
                 double numVal;

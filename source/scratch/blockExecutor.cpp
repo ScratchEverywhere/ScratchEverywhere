@@ -435,17 +435,24 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     // Check sprite variables
     auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
-        return it->second.value; // Fast conversion
+        return it->second.value;
     }
 
     // Check lists
     auto listIt = sprite->lists.find(variableId);
     if (listIt != sprite->lists.end()) {
         std::string result;
+        std::string seperator = " ";
         for (const auto &item : listIt->second.items) {
-            result += item.asString() + " ";
+            if (item.asString().size() > 1) {
+                seperator = " ";
+                break;
+            }
         }
-        if (!result.empty()) result.pop_back();
+        for (const auto &item : listIt->second.items) {
+            result += item.asString() + seperator;
+        }
+        if (!result.empty() && !seperator.empty()) result.pop_back();
         Value val(result);
         return val;
     }
@@ -466,10 +473,17 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
             auto globalIt = currentSprite->lists.find(variableId);
             if (globalIt != currentSprite->lists.end()) {
                 std::string result;
+                std::string seperator = "";
                 for (const auto &item : globalIt->second.items) {
-                    result += item.asString() + " ";
+                    if (item.asString().size() > 1) {
+                        seperator = " ";
+                        break;
+                    }
                 }
-                if (!result.empty()) result.pop_back();
+                for (const auto &item : globalIt->second.items) {
+                    result += item.asString() + seperator;
+                }
+                if (!result.empty() && !seperator.empty()) result.pop_back();
                 Value val(result);
                 return val;
             }
