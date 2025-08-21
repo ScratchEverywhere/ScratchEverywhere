@@ -20,11 +20,14 @@ PROJECT := scratch_everywhere
 # Base compiler flags
 CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
 CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
+# Specify vita as the target platform
+CFLAGS   += -DVITA
+CXXFLAGS += -DVITA
 # SDL Flags
 CFLAGS   += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
 CXXFLAGS += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
-# Libraries linked into the SELF
-LIBS += -lSceDisplay_stub
+# Libraries linked into the SELF (not needed, already linked by SDL2)
+#LIBS += -lSceDisplay_stub
 # SDL2
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs sdl2)
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_image)
@@ -50,34 +53,46 @@ endif
 
 SRC_C   := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
 SRC_CPP := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
+# Asset files
+GFX_FILES := $(shell find gfx -type f)
+GFX_ARGS := $(foreach f,$(GFX_FILES),--add $(f)=$(f))
 
 #OBJ_DIRS := $(addprefix $(BUILD), $(dir $(SRC_C:source/%.c=%.o))) $(addprefix $(BUILD), $(dir $(SRC_CPP:source/%.cpp=%.o)))
 #OBJ_DIRS := $(sort $(OBJ_DIRS))
 OBJS := $(patsubst %,$(BUILD)/%,$(SRC_C:.c=.o) $(SRC_CPP:.cpp=.o))
 OBJ_DIRS := $(sort $(dir $(OBJS)))
 
+# make sure all build artifacts are placed inside BUILD
+PROJECT_VITA := $(BUILD)/$(PROJECT)
+VPK         := $(PROJECT_VITA).vpk
+ELF         := $(PROJECT_VITA).elf
+VELF        := $(PROJECT_VITA).velf
+EBOOT       := $(BUILD)/eboot.bin
+SFO         := $(BUILD)/param.sfo
+
 all: package
 
-package: $(PROJECT).vpk
+package: $(VPK)
 
-$(PROJECT).vpk: eboot.bin param.sfo
-	vita-pack-vpk -s param.sfo -b eboot.bin \
+$(VPK): $(EBOOT) $(SFO)
+	vita-pack-vpk -s $(SFO) -b $(EBOOT) \
 		--add gfx/vita/icon0.png=sce_sys/icon0.png \
 		--add gfx/vita/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png \
 		--add gfx/vita/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml \
-	$(PROJECT).vpk
+		$(GFX_ARGS) \
+		$(VPK)
 
-eboot.bin: $(PROJECT).velf
-	vita-make-fself -c $(PROJECT).velf eboot.bin
+$(EBOOT): $(VELF)
+	vita-make-fself -c $(VELF) $(EBOOT)
 
-param.sfo:
-	vita-mksfoex -s TITLE_ID="$(PROJECT_TITLEID)" "$(PROJECT_TITLE)" param.sfo
+$(SFO):
+	vita-mksfoex -s TITLE_ID="$(PROJECT_TITLEID)" "$(PROJECT_TITLE)" $(SFO)
 
-$(PROJECT).velf: $(PROJECT).elf
+$(VELF): $(ELF)
 	$(STRIP) -g $<
 	vita-elf-create $< $@
 
-$(PROJECT).elf: $(OBJS)
+$(ELF): $(OBJS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LIBS)
 
 $(BUILD):
