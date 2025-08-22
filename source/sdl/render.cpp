@@ -411,25 +411,13 @@ bool Render::appShouldRun() {
         case SDL_FINGERDOWN:
             touchActive = true;
             touchPosition = {
-                #ifdef VITA
-                static_cast<int>(event.tfinger.x * 960),
-                static_cast<int>(event.tfinger.y * 544)
-                #else
                 static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)
-                #endif
-                };
+                static_cast<int>(event.tfinger.y * windowHeight)};
             break;
         case SDL_FINGERMOTION:
             touchPosition = {
-                #ifdef VITA
-                static_cast<int>(event.tfinger.x * 960),
-                static_cast<int>(event.tfinger.y * 544)
-                #else
                 static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)
-                #endif
-            };
+                static_cast<int>(event.tfinger.y * windowHeight)};
             break;
         case SDL_FINGERUP:
             touchActive = false;
