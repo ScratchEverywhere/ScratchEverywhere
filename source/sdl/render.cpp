@@ -137,7 +137,7 @@ postAccount:
     windowWidth = 960;
     windowHeight = 544;
 #endif
-    #ifdef VITA // Disable vita back touch
+    #ifdef VITA // TODO: Disable vita back touch properly
     #define SDL_HINT_VITA_ENABLE_BACK_TOUCH "SDL_HINT_VITA_ENABLE_BACK_TOUCH"
     SDL_SetHint(SDL_HINT_VITA_ENABLE_BACK_TOUCH, "0");
     #endif
@@ -411,13 +411,25 @@ bool Render::appShouldRun() {
         case SDL_FINGERDOWN:
             touchActive = true;
             touchPosition = {
+                #ifdef VITA
+                static_cast<int>(event.tfinger.x * 960),
+                static_cast<int>(event.tfinger.y * 544)
+                #else
                 static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)};
+                static_cast<int>(event.tfinger.y * windowHeight)
+                #endif
+                };
             break;
         case SDL_FINGERMOTION:
             touchPosition = {
+                #ifdef VITA
+                static_cast<int>(event.tfinger.x * 960),
+                static_cast<int>(event.tfinger.y * 544)
+                #else
                 static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)};
+                static_cast<int>(event.tfinger.y * windowHeight)
+                #endif
+            };
             break;
         case SDL_FINGERUP:
             touchActive = false;
