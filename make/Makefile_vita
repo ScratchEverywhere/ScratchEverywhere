@@ -1,41 +1,56 @@
+#   %###########%
+# /###         ###\
+# \( )         ( )/   Scratch Everywhere! on Vita
+#   %###########%
+#
 # Makefile template taken from vitasdk examples [https://github.com/vitasdk/samples/tree/master/hello_world/Makefile]
-# Thanks to PwLDev for helping!
+# Vita port by @Dogo6647 | Thanks to @PwLDev for helping!
 
+
+# --- INITIAL MAKEFILE SETUP ---
 PHONY := all package clean
-rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 TARGET     := scratch-vita
 BUILD      := build/vita
 SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
 INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+GFX_FILES := $(shell find gfx -type f)
+GFX_ARGS := $(foreach f,$(GFX_FILES),--add $(f)=$(f))
 
 CC := arm-vita-eabi-gcc
 CXX := arm-vita-eabi-g++
 STRIP := arm-vita-eabi-strip
 
+
+# --- METADATA/CONFIG ---
 PROJECT_TITLE := Scratch Everywhere!
 PROJECT_TITLEID := NTXS00053
-
 PROJECT := scratch_everywhere
+
+# Set your config options here
+ENABLE_CLOUDVARS	?=	1
+ENABLE_AUDIO	?=	1
+
+
+# --- COMPILE FLAGS ---
 # Base compiler flags
 CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
 CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
+
 # Specify vita as the target platform + SDL flags
-CFLAGS   += -DVITA -DSDL_BUILD -DVIDEO_VITA_PVR=ON
-CXXFLAGS += -DVITA -DSDL_BUILD -DVIDEO_VITA_PVR=ON
-# SDL Flags
-CFLAGS   += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
-CXXFLAGS += $(shell arm-vita-eabi-pkg-config --cflags sdl2)
-# Libraries linked into the SELF (not needed, already linked by SDL2)
-#LIBS += -lSceDisplay_stub
-# SDL2
+VITAFLAGS := -DVITA -DSDL_BUILD -DVIDEO_VITA_PVR=ON
+CFLAGS   += $(VITAFLAGS)
+CXXFLAGS += $(VITAFLAGS)
+
+# SDL CFlags
+SDL_CFLAGS := $(shell arm-vita-eabi-pkg-config --cflags sdl2)
+CFLAGS   += $(SDL_CFLAGS)
+CXXFLAGS += $(SDL_CFLAGS)
+
+# SDL2 Libs
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs sdl2)
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_image)
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_ttf)
-
-# Config Options
-ENABLE_CLOUDVARS	?=	0
-ENABLE_AUDIO	?=	1
 
 # Feature flags
 ifeq ($(ENABLE_AUDIO),1)
@@ -51,14 +66,10 @@ LIBS				+=	-lmist++ -lcurl
 endif
 
 
+# --- BUILD CONFIGURATION ---
 SRC_C   := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
 SRC_CPP := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
-# Asset files
-GFX_FILES := $(shell find gfx -type f)
-GFX_ARGS := $(foreach f,$(GFX_FILES),--add $(f)=$(f))
 
-#OBJ_DIRS := $(addprefix $(BUILD), $(dir $(SRC_C:source/%.c=%.o))) $(addprefix $(BUILD), $(dir $(SRC_CPP:source/%.cpp=%.o)))
-#OBJ_DIRS := $(sort $(OBJ_DIRS))
 OBJS := $(patsubst %,$(BUILD)/%,$(SRC_C:.c=.o) $(SRC_CPP:.cpp=.o))
 OBJ_DIRS := $(sort $(dir $(OBJS)))
 
