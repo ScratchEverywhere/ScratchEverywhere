@@ -137,10 +137,6 @@ postAccount:
     windowWidth = 960;
     windowHeight = 544;
 #endif
-    #ifdef VITA // TODO: Disable vita back touch properly
-    #define SDL_HINT_VITA_ENABLE_BACK_TOUCH "SDL_HINT_VITA_ENABLE_BACK_TOUCH"
-    SDL_SetHint(SDL_HINT_VITA_ENABLE_BACK_TOUCH, "0");
-    #endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
 #ifdef ENABLE_AUDIO
