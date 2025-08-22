@@ -13,6 +13,14 @@
 #include <SDL2/SDL.h>
 #endif
 
+#ifdef VITA // Disable vita back touch
+#include <psp2/touch.h>
+static void vitaNoBackTouch() {
+    sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_STOP);
+    sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
+}
+#endif
+
 static void exitApp() {
     Render::deInit();
 }
@@ -22,6 +30,9 @@ static bool initApp() {
 }
 
 int main(int argc, char **argv) {
+    #ifdef VITA
+    vitaNoBackTouch();
+    #endif
     if (!initApp()) {
         exitApp();
         return 1;
