@@ -108,9 +108,9 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#if defined(__WIIU__) || defined(__3DS__)
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
-#else
+#else // These platforms require Mist++ 0.1.4 or later.
     cloudConnection->connect();
 #endif
 }

@@ -60,9 +60,14 @@ CXXFLAGS += -DENABLE_AUDIO
 endif
 
 ifeq ($(ENABLE_CLOUDVARS),1)
-CFLAGS		+=	-DENABLE_CLOUDVARS
-CXXFLAGS += -DENABLE_CLOUDVARS
-LIBS				+=	-lmist++ -lcurl
+CFLAGS		+=	-DENABLE_CLOUDVARS $(shell arm-vita-eabi-pkg-config --cflags mist++)
+CXXFLAGS	+=	-DENABLE_CLOUDVARS $(shell arm-vita-eabi-pkg-config --cflags mist++)
+LIBS		+=	$(shell arm-vita-eabi-pkg-config --libs mist++)
+
+# Mist++ Version Check
+ifeq ($(shell arm-vita-eabi-pkg-config --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+endif
 endif
 
 
