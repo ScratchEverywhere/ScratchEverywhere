@@ -313,7 +313,7 @@ void Render::renderSprites() {
     C2D_TargetClear(bottomScreen, clrWhite);
 
     float slider = osGet3DSliderState();
-    const float depthScale = 12.0f / sprites.size();
+    const float depthScale = 8.0f / sprites.size();
 
     std::vector<Sprite *> spritesByLayer = sprites;
     std::sort(spritesByLayer.begin(), spritesByLayer.end(),
