@@ -197,10 +197,10 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     }
 }
 
-void Render::endFrame() {
+void Render::endFrame(bool shouldFlush) {
     SDL_RenderPresent(renderer);
     SDL_Delay(16);
-    Image::FlushImages();
+    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
