@@ -87,7 +87,7 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(GAMECUBE)
     return "/";
 #elif defined(VITA)
-    return "ux0:data/scratch-everywhere/";
+    return "ux0:data/scratch-vita/";
 #else
     return "scratch-everywhere/";
 #endif
