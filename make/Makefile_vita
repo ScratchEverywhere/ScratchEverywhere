@@ -28,7 +28,7 @@ PROJECT_TITLEID := NTXS00053
 PROJECT := scratch_everywhere
 
 # Set your config options here
-ENABLE_CLOUDVARS	?=	1
+ENABLE_CLOUDVARS	?=	0 # As of writing (2025-08-22), Cloud variables are broken on Vita due to external causes.
 ENABLE_AUDIO	?=	1
 
 
@@ -124,5 +124,5 @@ $(BUILD)/%.o : %.c | $(OBJ_DIRS)
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 clean:
-	rm -f $(PROJECT).velf $(PROJECT).elf $(PROJECT).vpk param.sfo eboot.bin $(OBJS)
-	rm -r $(abspath $(OBJ_DIRS))
+	rm -f $(PROJECT_VITA).velf $(PROJECT_VITA).elf $(PROJECT_VITA).vpk $(BUILD)/param.sfo $(BUILD)/eboot.bin $(OBJS)
+	rm -rf $(abspath $(OBJ_DIRS))
