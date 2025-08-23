@@ -1,85 +1,92 @@
 # This Makefile is based on the OpenOrbis Sample
 # Package metadata.
 TITLE       := Scratch Everywhere!
-VERSION     := 0.18
+VERSION     := 0.20
 TITLE_ID    := SCRH00001
-CONTENT_ID  := IV0000-SCRH00001_00-SCRATCHPS400000
+CONTENT_ID  := IV0000-SCRH00001_00-SCRATCHPS4000000
+ICON		:= gfx/ps4/icon.png
 
 # Config Options
 ENABLE_CLOUDVARS	?= 0
 ENABLE_AUDIO		?= 1
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -lc++ -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad -lSceSysmodule -lSceFreeType -lSDL2 -lSDL2_image
+LIBS        := -lc -lkernel -lc++ -lfreetype -lsamplerate -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad -lSceSysUtil -lSceSysmodule -lSceSystemService -lSceFreeType -lScePigletv2VSH -lSDL2 -lSDL2_image -lSDL2_ttf
 
 # Additional compile flags.
 #EXTRAFLAGS  := 
 
-# Asset and module directories.
-ASSETS 		:= $(wildcard gfx/**/*)
-LIBMODULES  := $(wildcard gfx/ps4/sce_module/*)
-
 # Build target
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
-TARGET     := scratch-ps4
-BUILD      := build/ps4
-SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+TARGET		:= scratch-ps4
+BUILD		:= build/ps4
+GRAPHICS	:= gfx
+SOURCES		:= source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES	:= include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx sce_sys/param.sfo sce_sys/icon0.png sce_sys/about/right.sprx $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
 
 # Define objects to build
-CPP_FILES  		:= $(foreach dir, $(SOURCES), $(wildcard $(dir)/*.cpp))
-C_FILES    		:= $(foreach dir, $(SOURCES), $(wildcard $(dir)/*.c))
+CPP_FILES  		:= $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
+C_FILES    		:= $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
 
-OBJS_CPP       	:= $(foreach src, $(CPP_FILES), $(BUILD)/$(src:.cpp=.o))
-OBJS_C			:= $(foreach src, $(C_FILES), $(BUILD)/$(src:.c=.o))
+OBJS_CPP       	:= $(foreach src,$(CPP_FILES),$(BUILD)/$(src:.cpp=.o))
+OBJS_C			:= $(foreach src,$(C_FILES),$(BUILD)/$(src:.c=.o))
 
 OBJS			:= $(OBJS_CPP) $(OBJS_C)
-INCLUDE_FLAGS 	:= $(foreach dir, $(INCLUDES), -I$(dir))
+INCLUDE_FLAGS 	:= $(foreach dir,$(INCLUDES),-I$(dir))
 
-# Define final C/C++ flags
-CFLAGS      := -D__PS4__ $(INCLUDE_FLAGS) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include
+# Make sure the OpenOrbis toolchain is installed
+ifeq ($(strip $(TOOLCHAIN)),)
+$(error "The OpenOrbis toolchain is required to build for PS4. Please set OO_PS4_TOOLCHAIN in your environment; export OO_PS4_TOOLCHAIN=<path to>OO_PS4_TOOLCHAIN")
+endif
 
+# Handle enable audio
 ifeq ($(ENABLE_AUDIO),1)
-##LIBS	+= -lSDL2_mixer
+LIBS	+= -lSDL2_mixer
 CLAGS	+= -DENABLE_AUDIO
 endif
 
+# Define final C/C++ flags
+CFLAGS      := -D__PS4__ $(INCLUDE_FLAGS) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include
 CXXFLAGS    := $(CFLAGS) -isystem $(TOOLCHAIN)/include/c++/v1 -Wall -fexceptions
 LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o
 
 # Create the intermediate directory incase it doesn't already exist.
-_unused     := $(shell mkdir -p $(BUILD))
+_unused     := $(shell mkdir -p $(BUILD)/sce_sys/about $(BUILD)/sce_module)
+
+# Copy icon and gfx to the valid directory
+_icon		:= $(shell cp $(ICON) $(BUILD)/sce_sys/icon0.png)
+_gfx		:= $(shell cp -r $(GRAPHICS) $(BUILD))
+
+# Copy modules from the source of the toolchain.
+_modules	:= $(shell cp -r $(TOOLCHAIN)/src/modules/*.prx $(BUILD)/sce_module/)
+_about		:= $(shell cp -r $(TOOLCHAIN)/src/modules/right.sprx $(BUILD)/sce_sys/about*)
 
 # Check for linux vs macOS and account for clang/ld path
 UNAME_S     := $(shell uname -s)
 
-# Make sure the OpenOrbis toolchain is installed
-ifeq ($(strip $(OO_PS4_TOOLCHAIN)),)
-$(error "The OpenOrbis toolchain is required to build for PS4. Please set OO_PS4_TOOLCHAIN in your environment; export OO_PS4_TOOLCHAIN=<path to>OO_PS4_TOOLCHAIN")
-endif
+CC      := clang
+CXX     := clang++
+LD      := ld.lld
 
+# Get OS dirname for Pkgtool binaries.
 ifeq ($(UNAME_S),Linux)
-		CC      := clang
-		CCX     := clang++
-		LD      := ld.lld
 		CDIR    := linux
 endif
 ifeq ($(UNAME_S),Darwin)
-		CC      := /usr/local/opt/llvm/bin/clang
-		CCX     := /usr/local/opt/llvm/bin/clang++
-		LD      := /usr/local/opt/lld/bin/ld.lld
 		CDIR    := macos
 endif
 
-all: $(CONTENT_ID).pkg
+all: $(BUILD)/$(CONTENT_ID).pkg
 
-$(CONTENT_ID).pkg: pkg.gp4
-	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core pkg_build $< .
+$(BUILD)/$(CONTENT_ID).pkg: $(BUILD)/pkg.gp4
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core pkg_build $< $(BUILD)
 
-pkg.gp4: eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png $(LIBMODULES) $(ASSETS)
-	$(TOOLCHAIN)/bin/$(CDIR)/create-gp4 -out $@ --content-id=$(CONTENT_ID) --files "$^"
+$(BUILD)/pkg.gp4: $(patsubst %,$(BUILD)/%,$(FILES))
+	@echo $(FILES)
+	$(TOOLCHAIN)/bin/$(CDIR)/create-gp4 --content-id=$(CONTENT_ID) --files "$(FILES)" -out $@
 
-sce_sys/param.sfo: Makefile
+$(BUILD)/sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_new $@
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_TYPE --type Integer --maxsize 4 --value 1 
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_VER --type Utf8 --maxsize 8 --value '$(VERSION)'
@@ -92,9 +99,9 @@ sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
 
-eboot.bin: $(BUILD) $(OBJS)
+$(BUILD)/eboot.bin: $(BUILD) $(OBJS)
 	$(LD) $(OBJS) -o $(BUILD)/$(TARGET).elf $(LDFLAGS)
-	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(BUILD)/$(TARGET).elf -out=$(BUILD)/$(TARGET).oelf --eboot "eboot.bin" --paid 0x3800000000000011
+	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(BUILD)/$(TARGET).elf -out=$(BUILD)/$(TARGET).oelf --eboot "$(BUILD)/eboot.bin" --paid 0x3800000000000011
 
 $(BUILD)/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -104,7 +111,7 @@ $(BUILD)/%.o: %.c
 $(BUILD)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@echo "Compiling $(notdir $<)"
-	$(CCX) $(CXXFLAGS) -o $@ $<
+	$(CXX) $(CXXFLAGS) -o $@ $<
 
 clean:
 	rm -rf $(BUILD)	
