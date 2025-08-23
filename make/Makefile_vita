@@ -16,6 +16,8 @@ SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus s
 INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
 GFX_FILES := $(shell find gfx -type f)
 GFX_ARGS := $(foreach f,$(GFX_FILES),--add $(f)=$(f))
+PROJ_FILE := project.sb3
+PROJ_ARGS  := $(if $(wildcard romfs/$(PROJ_FILE)),--add romfs/$(PROJ_FILE)=$(PROJ_FILE),)
 
 CC := arm-vita-eabi-gcc
 CXX := arm-vita-eabi-g++
@@ -38,7 +40,7 @@ CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
 CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
 
 # Specify vita as the target platform + SDL flags
-VITAFLAGS := -DVITA -DSDL_BUILD -DVIDEO_VITA_PVR=ON
+VITAFLAGS := -DVITA -DSDL_BUILD
 CFLAGS   += $(VITAFLAGS)
 CXXFLAGS += $(VITAFLAGS)
 
@@ -95,6 +97,7 @@ $(VPK): $(EBOOT) $(SFO)
 		--add gfx/vita/icon0.png=sce_sys/icon0.png \
 		--add gfx/vita/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png \
 		--add gfx/vita/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml \
+		$(PROJ_ARGS) \
 		$(GFX_ARGS) \
 		$(VPK)
 
