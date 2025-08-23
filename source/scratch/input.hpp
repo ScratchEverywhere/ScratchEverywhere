@@ -12,6 +12,7 @@ class Input {
     struct Mouse {
         int x;
         int y;
+        size_t heldFrames;
         bool isPressed;
         bool isMoving;
     };

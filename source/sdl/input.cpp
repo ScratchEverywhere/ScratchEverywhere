@@ -212,7 +212,7 @@ void Input::getInput() {
         keyHeldFrames++;
         inputButtons.push_back("any");
         if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHEN_KEY_PRESSED);
+            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
     } else keyHeldFrames = 0;
 
     // TODO: Add way to disable touch input (currently overrides mouse input.)
@@ -244,6 +244,18 @@ void Input::getInput() {
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.isPressed = true;
+    }
+
+    if (mousePointer.isPressed) {
+        mousePointer.heldFrames++;
+        for (auto &sprite : sprites) {
+            if (!sprite->shouldDoSpriteClick) continue;
+            if (mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
+                BlockExecutor::runAllBlocksByOpcode("event_whenthisspriteclicked");
+            }
+        }
+    } else {
+        mousePointer.heldFrames = 0;
     }
 }
 

@@ -121,7 +121,7 @@ bool Scratch::startScratchProject() {
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
 
-    BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHENFLAGCLICKED);
+    BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
 
     while (Render::appShouldRun()) {
@@ -269,6 +269,154 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     return collisionPoints;
 }
 
+bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
+                 const std::vector<std::pair<double, double>> &poly2,
+                 double axisX, double axisY) {
+    double min1 = 1e9, max1 = -1e9;
+    double min2 = 1e9, max2 = -1e9;
+
+    // Project poly1 onto axis
+    for (const auto &point : poly1) {
+        double projection = point.first * axisX + point.second * axisY;
+        min1 = std::min(min1, projection);
+        max1 = std::max(max1, projection);
+    }
+
+    // Project poly2 onto axis
+    for (const auto &point : poly2) {
+        double projection = point.first * axisX + point.second * axisY;
+        min2 = std::min(min2, projection);
+        max2 = std::max(max2, projection);
+    }
+
+    return max1 < min2 || max2 < min1;
+}
+
+bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
+    // Get collision points of the current sprite
+    std::vector<std::pair<double, double>> currentSpritePoints = getCollisionPoints(currentSprite);
+
+    if (collisionType == "mouse") {
+        // Define a small square centered on the mouse pointer
+        double halfWidth = 0.5;
+        double halfHeight = 0.5;
+
+        std::vector<std::pair<double, double>> mousePoints = {
+            {Input::mousePointer.x - halfWidth, Input::mousePointer.y - halfHeight}, // Top-left
+            {Input::mousePointer.x + halfWidth, Input::mousePointer.y - halfHeight}, // Top-right
+            {Input::mousePointer.x + halfWidth, Input::mousePointer.y + halfHeight}, // Bottom-right
+            {Input::mousePointer.x - halfWidth, Input::mousePointer.y + halfHeight}  // Bottom-left
+        };
+
+        bool collision = true;
+
+        for (int i = 0; i < 4; i++) {
+            auto edge1 = std::make_pair(
+                currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
+                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second);
+            auto edge2 = std::make_pair(
+                mousePoints[(i + 1) % 4].first - mousePoints[i].first,
+                mousePoints[(i + 1) % 4].second - mousePoints[i].second);
+
+            double axis1X = -edge1.second, axis1Y = edge1.first;
+            double axis2X = -edge2.second, axis2Y = edge2.first;
+
+            double len1 = sqrt(axis1X * axis1X + axis1Y * axis1Y);
+            double len2 = sqrt(axis2X * axis2X + axis2Y * axis2Y);
+            if (len1 > 0) {
+                axis1X /= len1;
+                axis1Y /= len1;
+            }
+            if (len2 > 0) {
+                axis2X /= len2;
+                axis2Y /= len2;
+            }
+
+            if (isSeparated(currentSpritePoints, mousePoints, axis1X, axis1Y) ||
+                isSeparated(currentSpritePoints, mousePoints, axis2X, axis2Y)) {
+                collision = false;
+                break;
+            }
+        }
+
+        return collision;
+    } else if (collisionType == "edge") {
+        double halfWidth = Scratch::projectWidth / 2.0;
+        double halfHeight = Scratch::projectHeight / 2.0;
+
+        // Check if the current sprite is touching the edge of the screen
+        if (currentSprite->xPosition <= -halfWidth || currentSprite->xPosition >= halfWidth ||
+            currentSprite->yPosition <= -halfHeight || currentSprite->yPosition >= halfHeight) {
+            return true;
+        }
+        return false;
+    } else if (collisionType == "sprite") {
+        // Use targetSprite if provided, otherwise search by name
+        if (targetSprite == nullptr && !targetName.empty()) {
+            for (Sprite *sprite : sprites) {
+                if (sprite->name == targetName && sprite->visible) {
+                    targetSprite = sprite;
+                    break;
+                }
+            }
+        }
+
+        if (targetSprite == nullptr || !targetSprite->visible) {
+            return false;
+        }
+
+        std::vector<std::pair<double, double>> targetSpritePoints = getCollisionPoints(targetSprite);
+
+        // Check if any point of current sprite is inside target sprite
+        for (const auto &currentPoint : currentSpritePoints) {
+            double x = currentPoint.first;
+            double y = currentPoint.second;
+
+            // Ray casting to check if point is inside target sprite
+            int intersections = 0;
+            for (int i = 0; i < 4; i++) {
+                int j = (i + 1) % 4;
+                double x1 = targetSpritePoints[i].first, y1 = targetSpritePoints[i].second;
+                double x2 = targetSpritePoints[j].first, y2 = targetSpritePoints[j].second;
+
+                if (((y1 > y) != (y2 > y)) &&
+                    (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)) {
+                    intersections++;
+                }
+            }
+
+            if ((intersections % 2) == 1) {
+                return true;
+            }
+        }
+
+        // Check if any point of target sprite is inside current sprite
+        for (const auto &targetPoint : targetSpritePoints) {
+            double x = targetPoint.first;
+            double y = targetPoint.second;
+
+            // Ray casting to check if point is inside current sprite
+            int intersections = 0;
+            for (int i = 0; i < 4; i++) {
+                int j = (i + 1) % 4;
+                double x1 = currentSpritePoints[i].first, y1 = currentSpritePoints[i].second;
+                double x2 = currentSpritePoints[j].first, y2 = currentSpritePoints[j].second;
+
+                if (((y1 > y) != (y2 > y)) &&
+                    (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)) {
+                    intersections++;
+                }
+            }
+
+            if ((intersections % 2) == 1) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     double halfWidth = Scratch::projectWidth / 2.0;
     double halfHeight = Scratch::projectHeight / 2.0;
@@ -372,7 +520,9 @@ void loadSprites(const nlohmann::json &json) {
             Block newBlock;
             newBlock.id = id;
             if (data.contains("opcode")) {
-                newBlock.opcode = newBlock.stringToOpcode(data["opcode"].get<std::string>());
+                newBlock.opcode = data["opcode"].get<std::string>();
+
+                if (newBlock.opcode == "event_whenthisspriteclicked") newSprite->shouldDoSpriteClick = true;
             }
             if (data.contains("next") && !data["next"].is_null()) {
                 newBlock.next = data["next"].get<std::string>();
@@ -424,7 +574,7 @@ void loadSprites(const nlohmann::json &json) {
             newSprite->blocks[newBlock.id] = newBlock; // add block
 
             // add custom function blocks
-            if (newBlock.opcode == newBlock.PROCEDURES_PROTOTYPE) {
+            if (newBlock.opcode == "procedures_prototype") {
                 if (!data.is_array()) {
                     CustomBlock newCustomBlock;
                     newCustomBlock.name = data["mutation"]["proccode"];
@@ -552,7 +702,7 @@ void loadSprites(const nlohmann::json &json) {
             newMonitor.mode = monitor.at("mode").get<std::string>();
 
         if (monitor.contains("opcode") && !monitor["opcode"].is_null())
-            newMonitor.opcode = Block::stringToOpcode(monitor.at("opcode").get<std::string>());
+            newMonitor.opcode = monitor.at("opcode").get<std::string>();
 
         if (monitor.contains("params") && monitor["params"].is_object()) {
             for (const auto &param : monitor["params"].items()) {
