@@ -218,11 +218,9 @@ void Input::getInput() {
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     if (SDL_GetNumTouchDevices() > 0) {
         // Transform touch coordinates to Scratch space
-        float scaleX = static_cast<float>(Scratch::projectWidth) / windowWidth;
-        float scaleY = static_cast<float>(Scratch::projectHeight) / windowHeight;
-
-        mousePointer.x = (touchPosition.x - windowWidth / 2) * scaleX;
-        mousePointer.y = (windowHeight / 2 - touchPosition.y) * scaleY;
+        auto coords = screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        mousePointer.x = coords.first;
+        mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
         return;
     }
@@ -230,16 +228,9 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    // Convert to window-centered coordinates
-    rawMouse[0] -= windowWidth / 2;
-    rawMouse[1] = (windowHeight / 2) - rawMouse[1];
-
-    // Transform to Scratch project space
-    float scaleX = static_cast<float>(Scratch::projectWidth) / windowWidth;
-    float scaleY = static_cast<float>(Scratch::projectHeight) / windowHeight;
-
-    mousePointer.x = rawMouse[0] * scaleX;
-    mousePointer.y = rawMouse[1] * scaleY;
+    auto coords = screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    mousePointer.x = coords.first;
+    mousePointer.y = coords.second;
 
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
