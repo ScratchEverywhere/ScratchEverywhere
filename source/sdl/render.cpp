@@ -138,6 +138,8 @@ postAccount:
         return false;
     }
 #elif defined(VITA)
+    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+
     windowWidth = 960;
     windowHeight = 544;
 #endif
