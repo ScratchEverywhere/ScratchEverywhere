@@ -78,10 +78,7 @@ bool Render::Init() {
     int bufferSize = 1024;
     int channels = 1;
 
-    bool isNew3DS = false;
-    APT_CheckNew3DS(&isNew3DS);
-
-    if (isNew3DS) {
+    if (OS::isNew3DS()) {
         sampleRate = 48000;
         bufferSize = 4096;
         channels = 2;

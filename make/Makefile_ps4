@@ -11,10 +11,10 @@ ENABLE_CLOUDVARS	?= 0
 ENABLE_AUDIO		?= 1
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -lc++ -lsamplerate -lfreetype -lturbojpeg -lpng -lz -lbz2 -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad -lSceSysUtil -lSceSysmodule -lSceSystemService -lScePigletv2VSH -lSDL2 -lSDL2_image -lSDL2_ttf
+LIBS        := -lc -lkernel -lc++ -lSceFreetype -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad -lSceSysUtil -lSceSysmodule -lSceSystemService -lScePigletv2VSH -lSDL2 -lSDL2_image -lSDL2_ttf
 
 # Additional compile flags.
-#EXTRAFLAGS  :=
+EXTRAFLAGS  := -fcolor-diagnostics -Wall -D__PS4__
 
 # Build target
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
@@ -42,12 +42,12 @@ endif
 
 # Handle enable audio
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	+= -lSDL2_mixer
-CLAGS	+= -DENABLE_AUDIO
+LIBS	    += -lSDL2_mixer -lsamplerate
+EXTRAFLAGS	+= -DENABLE_AUDIO
 endif
 
 # Define final C/C++ flags
-CFLAGS      := -D__PS4__ $(INCLUDE_FLAGS) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include
+CFLAGS      := $(INCLUDE_FLAGS) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include
 CXXFLAGS    := $(CFLAGS) -isystem $(TOOLCHAIN)/include/c++/v1 -Wall -fexceptions
 LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o 
 

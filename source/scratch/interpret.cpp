@@ -108,9 +108,9 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#if defined(__WIIU__) || defined(__3DS__)
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
-#else
+#else // These platforms require Mist++ 0.1.4 or later.
     cloudConnection->connect();
 #endif
 }
@@ -818,6 +818,7 @@ void loadSprites(const nlohmann::json &json) {
     int framerate = 0;
     bool fncng = true;
     bool miscLimits = true;
+    bool infClones = false;
 
     try {
         framerate = config["framerate"].get<int>();
@@ -855,6 +856,11 @@ void loadSprites(const nlohmann::json &json) {
 
         Log::logWarning("no misc limits property.");
     }
+    try {
+        infClones = !config["runtimeOptions"]["maxClones"].is_null();
+    } catch (...) {
+        Log::logWarning("No Max clones property.");
+    }
 
     if (wdth == 400 && hght == 480)
         Render::renderMode = Render::BOTH_SCREENS;
@@ -882,7 +888,26 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
-    initializeSpritePool(300);
+    // if infinite clones are enabled, set a (potentially) higher max clone count
+    if (!infClones) initializeSpritePool(300);
+    else {
+        if (OS::getPlatform() == "3DS") {
+            initializeSpritePool(OS::isNew3DS() ? 450 : 300);
+        } else if (OS::getPlatform() == "Wii" || OS::getPlatform() == "Vita") {
+            initializeSpritePool(450);
+        } else if (OS::getPlatform() == "Wii U") {
+            initializeSpritePool(800);
+        } else if (OS::getPlatform() == "GameCube") {
+            initializeSpritePool(300);
+        } else if (OS::getPlatform() == "Switch") {
+            initializeSpritePool(1500);
+        } else if (OS::getPlatform() == "PC") {
+            initializeSpritePool(2000);
+        } else {
+            Log::logWarning("Unknown platform: " + OS::getPlatform() + " doing default clone limit.");
+            initializeSpritePool(300);
+        }
+    }
 
     // get block chains for every block
     for (Sprite *currentSprite : sprites) {

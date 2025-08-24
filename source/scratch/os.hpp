@@ -23,6 +23,7 @@ class MemoryTracker {
     const static size_t wii_maxRamUsage = 86900736;      // 83 MB
     const static size_t gamecube_maxRamUsage = 23068672; // 22 MB
     const static size_t pc_maxRamUsage = 1073741824;     // 1 GB
+    const static size_t vita_maxRamUsage = 335544320;    // 320 MB
 
     // ---- Max VRAM values (just an estimate based on how many images i can load before i cant anymore) ----
     const static size_t old3ds_maxVRAMUsage = 30000000;   // ~30 MB
@@ -31,6 +32,7 @@ class MemoryTracker {
     const static size_t wii_maxVRAMUsage = 44040192;      // 42 MB
     const static size_t gamecube_maxVRAMUsage = 11010048; // ~10 MB
     const static size_t pc_maxVRAMUsage = 134217728;      // 128 MB
+    const static size_t vita_maxVRAMUsage = 83886080;     // 80 MB
 
   public:
     static size_t getMaxRamUsage() {
@@ -50,6 +52,9 @@ class MemoryTracker {
 #endif
 #ifdef GAMECUBE
         return gamecube_maxRamUsage;
+#endif
+#ifdef VITA
+        return vita_maxRamUsage;
 #endif
         return pc_maxRamUsage;
     }
@@ -71,6 +76,9 @@ class MemoryTracker {
 #endif
 #ifdef GAMECUBE
         return gamecube_maxVRAMUsage;
+#endif
+#ifdef VITA
+        return vita_maxVRAMUsage;
 #endif
         return pc_maxVRAMUsage;
     }
@@ -188,4 +196,6 @@ class Timer {
 class OS {
   public:
     static std::string getScratchFolderLocation();
+    static std::string getPlatform();
+    static bool isNew3DS();
 };

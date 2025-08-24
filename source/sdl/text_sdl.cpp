@@ -26,6 +26,8 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
     }
 #if defined(__WIIU__) || defined(__OGC__)
     fontPath = "romfs:/" + fontPath;
+#elif defined(__PS4__)
+    fontPath = "/app0/" + fontPath;
 #endif
 
     // open font if not loaded
@@ -44,7 +46,7 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
     // Set initial text
     setText(txt);
     setRenderer(static_cast<SDL_Renderer *>(Render::getRenderer()));
-}
+} 
 
 TextObjectSDL::~TextObjectSDL() {
     if (texture) {

@@ -39,9 +39,25 @@
 char nickname[0x21];
 #endif
 
+#ifdef VITA
+#include <psp2/touch.h>
+#endif
+
 #ifdef __OGC__
 #include <fat.h>
 #include <romfs-ogc.h>
+#endif
+
+#ifdef __PS4__
+#include <orbis/libkernel.h>
+#include <orbis/Sysmodule.h>
+#include <orbis/Pad.h>
+
+inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h)
+{
+    // On PS4 there is no DPI scaling, so this is fine
+    SDL_GetWindowSize(window, w, h);
+}
 #endif
 
 int windowWidth = 480;
@@ -52,8 +68,10 @@ SDL_Renderer *renderer = nullptr;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
+#ifndef __PS4__
 std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
 std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
+#endif
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;
@@ -133,8 +151,32 @@ postAccount:
         Log::logError("Failed to init romfs.");
         return false;
     }
+#elif defined(VITA)
+    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+#elif defined(__PS4__) // -lturbojpeg -lpng -lminizip -lz -lbz2
+    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
+    if (rc != 0) {
+        Log::logError("Failed to init Freetype.");
+        return false;
+    }
+
+    rc = sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_AUDIOOUT);
+    if (rc != 0)
+	{
+		Log::logError("Failed to init audio output.");
+		return false;
+	}
+
+    rc = scePadInit();
+	if (rc != 0)
+	{
+		Log::logError("Failed to init pad library.");
+		return false;
+	}
 #endif
 
+    windowWidth = 960;
+    windowHeight = 544;
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
 #ifdef ENABLE_AUDIO

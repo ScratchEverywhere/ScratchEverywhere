@@ -9,6 +9,8 @@
 #include <unordered_map>
 #ifdef __3DS__
 #include <3ds.h>
+#elif __PS4__
+#include <orbis/AudioOut.h>
 #endif
 
 std::unordered_map<std::string, SDL_Audio *> SDL_Sounds;
@@ -79,8 +81,8 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .soundId = soundId,
         .streamed = sprite->isStage}; // stage sprites get streamed audio
 
-#ifdef __OGC__
-    params->streamed = false; // streamed sounds crash on wii
+#if defined(__OGC__) || defined(VITA)
+    params->streamed = false; // streamed sounds crash on wii. vita does not like them either.
 #endif
 
 // do 3DS threads so it can actually run in the background
@@ -252,6 +254,9 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 #if defined(__WIIU__) || defined(__OGC__)
     std::string romfsExt = "romfs:/";
     fileName = romfsExt + fileName;
+#elif defined(__PS4__)
+    std::string appExt = "/app0/";
+    fileName = appExt + fileName;
 #endif
 
     bool isSupported = false;

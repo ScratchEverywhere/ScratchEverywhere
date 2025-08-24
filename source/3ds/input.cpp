@@ -10,6 +10,7 @@
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
 Input::Mouse Input::mousePointer;
+Sprite *Input::draggingSprite = nullptr;
 int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
@@ -155,17 +156,7 @@ void Input::getInput() {
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
 
-    if (mousePointer.isPressed) {
-        mousePointer.heldFrames++;
-        for (auto &sprite : sprites) {
-            if (!sprite->shouldDoSpriteClick) continue;
-            if (mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
-                BlockExecutor::runAllBlocksByOpcode("event_whenthisspriteclicked");
-            }
-        }
-    } else {
-        mousePointer.heldFrames = 0;
-    }
+    doSpriteClicking();
 }
 
 /**

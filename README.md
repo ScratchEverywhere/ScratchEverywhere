@@ -79,11 +79,8 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - Most Costume Effects.
 	- Only the `Ghost` costume effect is supported.
 - Show/hide list.
-- When backdrop switches to.
-- When this sprite clicked.
 - When loudness > ___.
 - All Color touching blocks.
-- Set drag mode.
 - Loudness.
 
 ## Roadmap
