@@ -892,9 +892,8 @@ void loadSprites(const nlohmann::json &json) {
     if (!infClones) initializeSpritePool(300);
     else {
         if (OS::getPlatform() == "3DS") {
-            if (OS::isNew3DS()) initializeSpritePool(450);
-            else initializeSpritePool(300);
-        } else if (OS::getPlatform() == "Wii") {
+            initializeSpritePool(OS::isNew3DS() ? 450 : 300);
+        } else if (OS::getPlatform() == "Wii" || OS::getPlatform() == "Vita") {
             initializeSpritePool(450);
         } else if (OS::getPlatform() == "Wii U") {
             initializeSpritePool(800);
@@ -902,8 +901,6 @@ void loadSprites(const nlohmann::json &json) {
             initializeSpritePool(300);
         } else if (OS::getPlatform() == "Switch") {
             initializeSpritePool(1500);
-        } else if (OS::getPlatform() == "Vita") {
-            initializeSpritePool(450);
         } else if (OS::getPlatform() == "PC") {
             initializeSpritePool(2000);
         } else {
