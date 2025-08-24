@@ -11,10 +11,10 @@ ENABLE_CLOUDVARS	?= 0
 ENABLE_AUDIO		?= 1
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -lc++ -lfreetype -lsamplerate -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad -lSceSysUtil -lSceSysmodule -lSceSystemService -lSceFreeType -lScePigletv2VSH -lSDL2 -lSDL2_image -lSDL2_ttf
+LIBS        := -lc -lkernel -lc++ -lsamplerate -lfreetype -lturbojpeg -lpng -lz -lbz2 -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad -lSceSysUtil -lSceSysmodule -lSceSystemService -lScePigletv2VSH -lSDL2 -lSDL2_image -lSDL2_ttf
 
 # Additional compile flags.
-#EXTRAFLAGS  := 
+#EXTRAFLAGS  :=
 
 # Build target
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
@@ -49,7 +49,7 @@ endif
 # Define final C/C++ flags
 CFLAGS      := -D__PS4__ $(INCLUDE_FLAGS) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include
 CXXFLAGS    := $(CFLAGS) -isystem $(TOOLCHAIN)/include/c++/v1 -Wall -fexceptions
-LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o
+LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o 
 
 # Create the intermediate directory incase it doesn't already exist.
 _unused     := $(shell mkdir -p $(BUILD)/sce_sys/about $(BUILD)/sce_module)
