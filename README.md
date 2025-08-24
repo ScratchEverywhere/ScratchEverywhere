@@ -2,10 +2,10 @@
   <img src="gfx/logo.png" alt="Scratch Everywhere! logo" />
 </p>
 
-A work in progress runtime made in C++ aimed to bring most Scratch 3 projects over to the Nintendo 3DS, Wii U, Wii, GameCube, and Switch!
+A work-in-progress runtime made in C++, aimed to bring most Scratch 3 projects over to 8th through 6th-generation console and handheld platforms and more!
 
 ![Runtime running a Scratch project on Wii U, Wii, and 3DS](scratchcats3ds.gif)
-<small>(Game showed is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
+<small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
 
 ## Controls
 ![Controls](scratch%203ds%20controls.png)
@@ -14,9 +14,11 @@ A work in progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 **3DS:** Glide your finger/stylus on the bottom screen to move the mouse, and tap the bottom screen to click.
 
-**Wii U GamePad:** You can use the touchscreen on the GamePad.
+**Wii U GamePad:** Use the touchscreen on the GamePad.
 
-**Wii Remote:** You can use the Wii sensor bar to control the mouse.
+**Wii Remote:** Use the Wii sensor bar to control the mouse.
+
+**PS Vita:** Use the front touchscreen.
 
 **Other Controllers:**  Enter Mouse Mode by holding L. Use the D-pad to move the mouse, and press R to click.
 
@@ -24,10 +26,10 @@ A work in progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 ### 3DS Screen modes
 
-- Any unedited scratch project will be displayed on the top screen only.
+- Any scratch project with an unmodified resolution setting will be displayed on the top screen only.
 - If using a modded Scratch client like TurboWarp, you can go into the projects' Advanced Settings and change the resolution.
 	- Setting it to `400x480` will enable both the top and bottom screen.
-	- Setting it to `320x240` will enable only the Bottom screen.
+	- Setting it to `320x240` will enable only the bottom screen.
 	- Setting it to `400x240` will make the project perfectly fit to the top screen.
 	- NOTE: make sure to click `Store Settings In Project` on TurboWarp to properly apply the settings.
 
@@ -42,8 +44,8 @@ A work in progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 	- Known Bug: On 3DS, if a sound has to load while other sounds are playing, all sounds will stop playing until the sound is loaded.
 - If you play any sound from the "Stage," the sound will play as a "Streamed Sound" and will not need to load.
 - Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
-- [Wii,GameCube] "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
-- [3DS,Wii,GameCube] Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
+- [Wii, GameCube, Vita] "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
+- [3DS, Wii, GameCube] Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
 
 ### Framerate
 
@@ -53,57 +55,64 @@ A work in progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 - The `Username` block returns the 3DS's nickname, and the Wii U's current Mii name.
 - The `Touching __?` block uses simpler box collision, which may lead to projects working incorrectly.
-- The `Stop 'All'` block brings you back to the Project menu.
+- The `Stop 'All'` block brings you back to the project menu.
 
 ## Limitations
 
 As this is in a very work in progress state, you will encounter many bugs, crashes, and things that will just not work. 
 
 **List of Known Limitations:**
-- If any vector image contains text, the text will not show up.
-- Extensions (eg: pen and music extensions) are not yet supported.
-- Some blocks may lead to crashing/unintended behavior (please open an issue if you know a block that's causing problems.)
-- **[Wii and Switch]** Cloud Variables aren't currently supported but likely will be in the future.
+- Text will not show up on vector images containing it.
+- Extensions (e.g.: pen and music extensions) are not yet supported.
+- Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
+- Performance is poor when using many (30+) clones (memory management issue).
+- **[Wii and Switch]** Cloud Variables aren't currently supported, but likely will be in the future.
 - **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
-- **[Wii]** If You're using a PAL Wii, you must use 50hz.
+- **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 - **[GameCube]** Cloud Variables will not be supported.
 - **[GameCube]** The GameCube has very little memory, so try to keep projects small.
 - **[3DS]** Performace is poor when lots of blocks are running at once.
 - **[3DS]** If you have a bunch of large images, some may not load.
 - **[3DS]** Some vector images will appear bigger than they should.
+- **[Vita]** As of writing, cloud variables are not yet supported, likely due to bugs outside of this project.
+- **[Vita]** Back touch will not be supported.
 
 
 ## Unimplimented blocks
 
-- All say and think blocks.
-- Most Costume Effects.
+- All say and think blocks
+- Most costume effects;
 	- Only the `Ghost` costume effect is supported.
-- Show/hide list.
-- When loudness > ___.
-- All Color touching blocks.
-- Loudness.
+- Show/hide list
+- When loudness > ___
+- All color touching blocks
+- Loudness
 
 ## Roadmap
 
 ### Runtime
 
-- Bug fixing and Scratch Parity.
-- Get all blocks working.
-- Pen support.
-- Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pull/210)).
+- Bug fixing and Scratch parity
+- Get all blocks working
+- Pen support
+- Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pull/210))
 
 ### Wii U
 
-- Dual screen support.
-- Improved controller support (multiple controllers.)
+- Dual screen support
+- Improved controller support (multiple controllers)
 
 ### Wii
 
-- Cloud Variable support.
+- Cloud Variable support
+
+### Vita
+
+- Cloud variable support
 
 ### Other
 
-- Download projects from the Scratch website.
+- Download projects from the Scratch website
 
 ## Installation
 
