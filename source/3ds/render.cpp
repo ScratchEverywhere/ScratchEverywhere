@@ -225,6 +225,8 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     if (isSVG) {
         spriteSizeX *= 2;
         spriteSizeY *= 2;
+        currentSprite->spriteHeight *= 2;
+        currentSprite->spriteWidth *= 2;
     }
     double scale;
     double heightMultiplier = 0.5;
