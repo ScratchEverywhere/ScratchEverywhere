@@ -2,7 +2,7 @@
   <img src="gfx/logo.png" alt="Scratch Everywhere! logo" />
 </p>
 
-A work-in-progress runtime made in C++, aimed to bring most Scratch 3 projects over to 8th through 6th-generation console and handheld platforms and more!
+A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
 
 ![Runtime running a Scratch project on Wii U, Wii, and 3DS](scratchcats3ds.gif)
 <small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
@@ -82,7 +82,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 - All say and think blocks
 - Most costume effects;
-	- Only the `Ghost` costume effect is supported.
+	- Only the `Ghost` costume effect is supported
 - Show/hide list
 - When loudness > ___
 - All color touching blocks
@@ -108,7 +108,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ### Vita
 
-- Cloud variable support
+- Cloud variable support (compiling with cloud variables enabled currently makes the app crash on startup)
 
 ### Other
 
@@ -117,7 +117,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 ## Installation
 
 Scratch Everywhere! is Homebrew software and requires a hacked/modded console.
-There are 2 methods to install the runtime:
+There are two methods to install the runtime:
 - Download the release or nightly build (easy), or
 - Build the file yourself (harder)
 
@@ -182,33 +182,38 @@ Put your Scratch projects in the same place you put your `.nro` file.
 Then it should be as simple as opening the app on your Nintendo Switch!
 
 ### Get up and running for Vita
-WIP
+
+Download the `scratch-vita.vpk` file from the releases tab (Or the build artifact in the actions tab for nightly), transfer it over to the Vita's storage, and install it using VitaShell on your Vita.
+
+Put your Scratch Projects in `ux0:data/scratch-vita/` (you will need to create the folder yourself).
+
+Then it should be as simple as opening and starting the app from your Vita's LiveArea homescreen!
 
 ## Building
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
 
 If you would like to change the name of the app or any other information you can edit one of the Makefiles.
-- For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
-- For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
-- For the Wii you need to edit `Makefile_wii` and change anything under `Application Info` to whatever you please.
-- For the Vita you can edit the properties at `App metadata/config` to whatever you please. Do note however, if you're using custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
+- **For the 3DS**, you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+- **For the Wii U**, you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+- **For the Wii**, you need to edit `Makefile_wii` and change anything under `Application Info` to whatever you please.
+- **For the Vita**, you need to edit the properties at `App metadata/config` to whatever you please. Do note however, if you're going to use custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
 
 #### Docker
 
 The recommended way to compile Scratch Everywhere! is with Docker. To compile with Docker all you need installed is Docker and Buildx.
 
-To compile for the 3DS, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
+- To compile for the **3DS**, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
 
-To compile for the Wii U, run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
+- To compile for the **Wii U**, run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
 
-To compile for the Wii, run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
+- To compile for the **Wii**, run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
 
-To compile for the GameCube, run `docker build -f docker/Dockerfile.gamecube --target exporter -o . .`.
+- To compile for the **GameCube**, run `docker build -f docker/Dockerfile.gamecube --target exporter -o . .`.
 
-To compile for the Nintendo Switch run `docker build -f docker/Dockerfile.switch --target exporter -o . .`.
+- To compile for the **Nintendo Switch** run `docker build -f docker/Dockerfile.switch --target exporter -o . .`.
 
-To compile for the Vita, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
+- To compile for the **Vita**, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
 
 
 #### Manual
