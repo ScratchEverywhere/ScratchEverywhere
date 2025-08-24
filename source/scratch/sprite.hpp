@@ -146,6 +146,7 @@ class Sprite {
     bool isClone;
     bool toDelete;
     bool isDeleted = false;
+    bool shouldDoSpriteClick = false;
     int currentCostume;
     std::string lastCostumeId = "";
     float volume;

@@ -56,6 +56,12 @@ class Scratch {
  */
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite);
 
+bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, std::string targetName = "");
+
+bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
+                 const std::vector<std::pair<double, double>> &poly2,
+                 double axisX, double axisY);
+
 /**
  * Loads every Sprite from the Scratch's project.json file.
  * @param json The file to load

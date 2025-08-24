@@ -154,6 +154,18 @@ void Input::getInput() {
     }
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
+
+    if (mousePointer.isPressed) {
+        mousePointer.heldFrames++;
+        for (auto &sprite : sprites) {
+            if (!sprite->shouldDoSpriteClick) continue;
+            if (mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
+                BlockExecutor::runAllBlocksByOpcode("event_whenthisspriteclicked");
+            }
+        }
+    } else {
+        mousePointer.heldFrames = 0;
+    }
 }
 
 /**

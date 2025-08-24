@@ -93,6 +93,7 @@ void BlockExecutor::registerHandlers() {
     handlers["event_broadcast"] = EventBlocks::broadcast;
     handlers["event_broadcastandwait"] = EventBlocks::broadcastAndWait;
     handlers["event_whenkeypressed"] = EventBlocks::whenKeyPressed;
+    handlers["event_whenbackdropswitchesto"] = EventBlocks::whenBackdropSwitchesTo;
 
     // control
     handlers["control_if"] = ControlBlocks::If;
@@ -152,11 +153,14 @@ void BlockExecutor::registerHandlers() {
     valueHandlers["sensing_mousex"] = SensingBlocks::mouseX;
     valueHandlers["sensing_mousey"] = SensingBlocks::mouseY;
     valueHandlers["sensing_distanceto"] = SensingBlocks::distanceTo;
+    valueHandlers["sensing_distancetomenu"] = SensingBlocks::distanceTo; // Menu variant
     valueHandlers["sensing_dayssince2000"] = SensingBlocks::daysSince2000;
     valueHandlers["sensing_current"] = SensingBlocks::current;
     valueHandlers["sensing_answer"] = SensingBlocks::sensingAnswer;
     valueHandlers["sensing_keypressed"] = SensingBlocks::keyPressed;
+    valueHandlers["sensing_keyoptions"] = SensingBlocks::keyPressed; // Menu variant
     valueHandlers["sensing_touchingobject"] = SensingBlocks::touchingObject;
+    valueHandlers["sensing_touchingobjectmenu"] = SensingBlocks::touchingObject; // Menu variant
     valueHandlers["sensing_mousedown"] = SensingBlocks::mouseDown;
     valueHandlers["sensing_username"] = SensingBlocks::username;
 

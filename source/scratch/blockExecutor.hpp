@@ -21,6 +21,7 @@ class BlockExecutor {
   private:
     std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
     std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
+    // std::unordered_map<Block::opCode, std::function<Value(Block&,Sprite*)>> conditionBlockHandlers;
 
   public:
     /**

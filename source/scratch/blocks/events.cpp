@@ -8,6 +8,10 @@ BlockResult EventBlocks::flagClicked(Block &block, Sprite *sprite, bool *without
     return BlockResult::CONTINUE;
 }
 
+BlockResult EventBlocks::whenBackdropSwitchesTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    return BlockResult::CONTINUE;
+}
+
 BlockResult EventBlocks::broadcast(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
     return BlockResult::CONTINUE;
