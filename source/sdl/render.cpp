@@ -144,11 +144,6 @@ postAccount:
     windowHeight = 544;
 #endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
-    #ifdef VITA // Disable vita back touch right after SDL inits
-    sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_STOP);
-    sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
-    sceTouchDisableTouchForce(SCE_TOUCH_PORT_BACK);
-    #endif
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
 #ifdef ENABLE_AUDIO
     // Initialize SDL_mixer
