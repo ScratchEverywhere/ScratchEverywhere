@@ -149,8 +149,7 @@ Then it should be as simple as opening the app on the Wii U Menu or in the Homeb
 
 ### Get up and running for Wii
 
-Download the `scratch-wii.zip` file in t
-he Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-wii/main/Scratch%20Everywhere!%20Wii%20Nightly.zip).
+Download the `scratch-wii.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-wii/main/Scratch%20Everywhere!%20Wii%20Nightly.zip).
 
 Unzip the file and put the `apps` folder inside of the root of your SD card.
 
@@ -182,7 +181,7 @@ Then it should be as simple as opening the app on your Nintendo Switch!
 
 ### Get up and running for Vita
 
-Download the `scratch-vita.vpk` file from the releases tab (Or the build artifact in the actions tab for nightly), transfer it over to the Vita's storage, and install it using VitaShell on your Vita.
+Download the `scratch-vita.vpk` file from the releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-vita/main/Scratch%20Everywhere!%20Vita%20Nightly.zip), transfer it over to the Vita's storage, and install it using VitaShell on your Vita.
 
 Put your Scratch Projects in `ux0:data/scratch-vita/` (you will need to create the folder yourself).
 
@@ -196,7 +195,7 @@ If you would like to change the name of the app or any other information you can
 - **For the 3DS**, you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 - **For the Wii U**, you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 - **For the Wii**, you need to edit `Makefile_wii` and change anything under `Application Info` to whatever you please.
-- **For the Vita**, you need to edit the properties at `App metadata/config` to whatever you please. Do note however, if you're going to use custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
+- **For the Vita**, you need to edit the properties under `# METADATA/CONFIG` to whatever you please. Do note however, if you're going to use custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
 
 #### Docker
 
@@ -226,7 +225,8 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 - **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
 - **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
 
-- DevkitPro's install instructions are available at : https://devkitpro.org/wiki/Getting_Started
+> [!NOTE]
+> DevkitPro's install instructions are available at: https://devkitpro.org/wiki/Getting_Started
 
 Download the source code from the releases tab and unzip it.
 
