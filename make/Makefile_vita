@@ -97,6 +97,7 @@ $(VPK): $(EBOOT) $(SFO)
 		--add gfx/vita/icon0.png=sce_sys/icon0.png \
 		--add gfx/vita/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png \
 		--add gfx/vita/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml \
+		--add gfx/vita/livearea/contents/startup.png=sce_sys/livearea/contents/startup.png \
 		$(PROJ_ARGS) \
 		$(GFX_ARGS) \
 		$(VPK)
