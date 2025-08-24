@@ -1,5 +1,5 @@
 #include "sound.hpp"
 
-Value SoundBlocks::volume(Block& block, Sprite* sprite) {
+Value SoundBlocks::volume(Block &block, Sprite *sprite) {
     return Value(sprite->volume);
 }

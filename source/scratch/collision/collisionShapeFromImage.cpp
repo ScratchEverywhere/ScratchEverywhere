@@ -1,12 +1,12 @@
-#include <citro3d.h>
-#include <citro2d.h>
 #include "collisionShape.hpp"
+#include <citro2d.h>
+#include <citro3d.h>
 #include <iostream>
 
-CollisionShape CollisionShapeFromImageData(C2D_Image* image) {
-    C3D_Tex* baseTex = image->tex;
-    
-    const uint32_t* pixels = (const uint32_t*)baseTex->data;
+CollisionShape CollisionShapeFromImageData(C2D_Image *image) {
+    C3D_Tex *baseTex = image->tex;
+
+    const uint32_t *pixels = (const uint32_t *)baseTex->data;
     int width = baseTex->width;
     int height = baseTex->height;
 
@@ -26,8 +26,7 @@ CollisionShape CollisionShapeFromImageData(C2D_Image* image) {
             }
         }
     }
-    CollisionShape shape = CollisionShape(std::max(width,height)*0.25);
-
+    CollisionShape shape = CollisionShape(std::max(width, height) * 0.25);
 
     if (count == 0) {
         // return the default circle if there's no shape
@@ -47,12 +46,12 @@ CollisionShape CollisionShapeFromImageData(C2D_Image* image) {
             if (a > 160) {
                 float dx = x - centerX;
                 float dy = y - centerY;
-                float dist = sqrt(pow(dx,2)+pow(dy,2));
-                float angle = atan2(dy,dx);
+                float dist = sqrt(pow(dx, 2) + pow(dy, 2));
+                float angle = atan2(dy, dx);
                 float normalizedAngle = angle;
                 if (normalizedAngle < 0) normalizedAngle += 2 * M_PI;
                 int index = (int)(normalizedAngle / (2.0f * M_PI) * COLLISION_POINT_COUNT);
-                if (index >= COLLISION_POINT_COUNT) index = COLLISION_POINT_COUNT - 1;  // just in case
+                if (index >= COLLISION_POINT_COUNT) index = COLLISION_POINT_COUNT - 1; // just in case
                 if (dist > radiusCircle[index]) radiusCircle[index] = dist;
             }
         }

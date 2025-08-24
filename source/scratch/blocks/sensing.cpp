@@ -1,66 +1,63 @@
 #include "sensing.hpp"
+#include "../collision/collisionShape.hpp"
 #include "../input.hpp"
 #include "../keyboard.hpp"
-#include "../collision/collisionShape.hpp"
-#include "image.hpp"
 #include "../render.hpp"
 #include "../scratch/collision/collisionShapeFromImage.hpp"
+#include "image.hpp"
 
-
-BlockResult SensingBlocks::resetTimer(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh) {
+BlockResult SensingBlocks::resetTimer(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
     BlockExecutor::timer = std::chrono::high_resolution_clock::now();
     return BlockResult::CONTINUE;
 }
 
-BlockResult SensingBlocks::askAndWait(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh) {
+BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
     Keyboard kbd;
-    Value inputValue = Scratch::getInputValue(block,"QUESTION",sprite);
+    Value inputValue = Scratch::getInputValue(block, "QUESTION", sprite);
     std::string output = kbd.openKeyboard(inputValue.asString().c_str());
     answer = output;
     return BlockResult::CONTINUE;
 }
 
-BlockResult SensingBlocks::setDragMode(Block& block, Sprite* sprite, Block** waitingBlock, bool* withoutScreenRefresh){
+BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, Block **waitingBlock, bool *withoutScreenRefresh) {
 
     std::string mode = block.fields.at("DRAG_MODE")[0];
 
-    if(mode == "draggable"){
+    if (mode == "draggable") {
         sprite->draggable = true;
-    }
-    else if(mode == "not draggable"){
+    } else if (mode == "not draggable") {
         sprite->draggable = false;
     }
-
 
     return BlockResult::CONTINUE;
 }
 
-Value SensingBlocks::sensingTimer(Block& block, Sprite* sprite) {
+Value SensingBlocks::sensingTimer(Block &block, Sprite *sprite) {
     auto now = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(now - BlockExecutor::timer).count();
     return Value(elapsed);
 }
 
-Value SensingBlocks::of(Block& block, Sprite* sprite) {
+Value SensingBlocks::of(Block &block, Sprite *sprite) {
     std::string value = block.fields.at("PROPERTY")[0];
     std::string object;
     auto objectFind = block.parsedInputs.find("OBJECT");
-    Block* objectBlock = findBlock(objectFind->second.literalValue.asString());
-    if(!objectBlock || objectBlock == nullptr)
+    Block *objectBlock = findBlock(objectFind->second.literalValue.asString());
+    if (!objectBlock || objectBlock == nullptr)
         return Value();
-    
+
     object = objectBlock->fields.at("OBJECT")[0];
 
-    Sprite* spriteObject = nullptr;
-    for (Sprite* currentSprite : sprites) {
+    Sprite *spriteObject = nullptr;
+    for (Sprite *currentSprite : sprites) {
         if (currentSprite->name == object && !currentSprite->isClone) {
             spriteObject = currentSprite;
             break;
         }
     }
-    
+
     if (!spriteObject) return Value(0);
-    
+
     if (value == "timer") {
         auto now = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(now - BlockExecutor::timer).count();
@@ -80,8 +77,8 @@ Value SensingBlocks::of(Block& block, Sprite* sprite) {
     } else if (value == "volume") {
         return Value(spriteObject->volume);
     }
-    
-    for (const auto& [id, variable] : spriteObject->variables) {
+
+    for (const auto &[id, variable] : spriteObject->variables) {
         if (value == variable.name) {
             return variable.value;
         }
@@ -89,46 +86,46 @@ Value SensingBlocks::of(Block& block, Sprite* sprite) {
     return Value(0);
 }
 
-Value SensingBlocks::mouseX(Block& block, Sprite* sprite) {
+Value SensingBlocks::mouseX(Block &block, Sprite *sprite) {
     return Value(Input::mousePointer.x);
 }
 
-Value SensingBlocks::mouseY(Block& block, Sprite* sprite) {
+Value SensingBlocks::mouseY(Block &block, Sprite *sprite) {
     return Value(Input::mousePointer.y);
 }
 
-Value SensingBlocks::distanceTo(Block& block, Sprite* sprite) {
+Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
     auto inputFind = block.parsedInputs.find("DISTANCETOMENU");
-    Block* inputBlock = findBlock(inputFind->second.literalValue.asString());
+    Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
     std::string object = inputBlock->fields.at("DISTANCETOMENU")[0];
-    
+
     if (object == "_mouse_") {
-        return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) + 
-                                 pow(Input::mousePointer.y - sprite->yPosition, 2)));
+        return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) +
+                          pow(Input::mousePointer.y - sprite->yPosition, 2)));
     }
-    
-    for (Sprite* currentSprite : sprites) {
+
+    for (Sprite *currentSprite : sprites) {
         if (currentSprite->name == object && !currentSprite->isClone) {
-            double distance = sqrt(pow(currentSprite->xPosition - sprite->xPosition, 2) + 
-                                 pow(currentSprite->yPosition - sprite->yPosition, 2));
+            double distance = sqrt(pow(currentSprite->xPosition - sprite->xPosition, 2) +
+                                   pow(currentSprite->yPosition - sprite->yPosition, 2));
             return Value(distance);
         }
     }
     return Value(0);
 }
 
-Value SensingBlocks::daysSince2000(Block& block, Sprite* sprite) {
+Value SensingBlocks::daysSince2000(Block &block, Sprite *sprite) {
     return Value(Time::getDaysSince2000());
 }
 
-Value SensingBlocks::current(Block& block, Sprite* sprite) {
+Value SensingBlocks::current(Block &block, Sprite *sprite) {
     std::string inputValue;
     try {
         inputValue = block.fields.at("CURRENTMENU")[0];
     } catch (...) {
         return Value();
     }
-    
+
     if (inputValue == "YEAR") return Value(Time::getYear());
     if (inputValue == "MONTH") return Value(Time::getMonth());
     if (inputValue == "DATE") return Value(Time::getDay());
@@ -136,17 +133,17 @@ Value SensingBlocks::current(Block& block, Sprite* sprite) {
     if (inputValue == "HOUR") return Value(Time::getHours());
     if (inputValue == "MINUTE") return Value(Time::getMinutes());
     if (inputValue == "SECOND") return Value(Time::getSeconds());
-    
+
     return Value();
 }
 
-Value SensingBlocks::sensingAnswer(Block& block, Sprite* sprite) {
+Value SensingBlocks::sensingAnswer(Block &block, Sprite *sprite) {
     return Value(answer);
 }
 
-Value SensingBlocks::keyPressed(Block& block, Sprite* sprite){
+Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
     auto inputFind = block.parsedInputs.find("KEY_OPTION");
-    Block* inputBlock = findBlock(inputFind->second.literalValue.asString());
+    Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
     for (std::string button : Input::inputButtons) {
         if (inputBlock->fields["KEY_OPTION"][0] == button) {
             return Value(true);
@@ -155,9 +152,9 @@ Value SensingBlocks::keyPressed(Block& block, Sprite* sprite){
     return Value(false);
 }
 
-Value SensingBlocks::touchingObject(Block& block, Sprite* sprite){
+Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
     auto inputFind = block.parsedInputs.find("TOUCHINGOBJECTMENU");
-    Block* inputBlock = findBlock(inputFind->second.literalValue.asString());
+    Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
     std::string objectName;
     try {
         objectName = inputBlock->fields["TOUCHINGOBJECTMENU"][0];
@@ -168,7 +165,7 @@ Value SensingBlocks::touchingObject(Block& block, Sprite* sprite){
     // Get collision points of the current sprite
     std::vector<std::pair<double, double>> currentSpritePoints = getCollisionPoints(sprite);
 
-    if(objectName == "_mouse_") {
+    if (objectName == "_mouse_") {
         // Check if the mouse pointer's position is within the bounds of the current sprite
         if (Input::mousePointer.x >= sprite->xPosition - sprite->spriteWidth / 2 &&
             Input::mousePointer.x <= sprite->xPosition + sprite->spriteWidth / 2 &&
@@ -191,37 +188,37 @@ Value SensingBlocks::touchingObject(Block& block, Sprite* sprite){
         return Value(false);
     }
 
-    for (Sprite* targetSprite : sprites) {
+    for (Sprite *targetSprite : sprites) {
         if (targetSprite->name == objectName && targetSprite->visible) {
             // Get collision points of the target sprite
             // std::vector<std::pair<double, double>> targetSpritePoints = getCollisionPoints(targetSprite);
             CollisionShape myCollider;
             CollisionShape targetCollider;
             int costumeIndex = 0;
-            for(const auto& costume : sprite->costumes) {
-                if(costumeIndex == sprite->currentCostume) {
-                        // myCollider = CollisionShapeFromImageData(&imageC2Ds[costume.id].image);
-                        myCollider = imageCollisions[costume.id];
-                        // std::cout << "costume: " << costume.id << std::endl;
+            for (const auto &costume : sprite->costumes) {
+                if (costumeIndex == sprite->currentCostume) {
+                    // myCollider = CollisionShapeFromImageData(&imageC2Ds[costume.id].image);
+                    myCollider = imageCollisions[costume.id];
+                    // std::cout << "costume: " << costume.id << std::endl;
                     break;
                 }
                 costumeIndex++;
             }
             costumeIndex = 0;
-            for(const auto& costume : targetSprite->costumes) {
-                if(costumeIndex == targetSprite->currentCostume) {
-                        targetCollider = imageCollisions[costume.id];
+            for (const auto &costume : targetSprite->costumes) {
+                if (costumeIndex == targetSprite->currentCostume) {
+                    targetCollider = imageCollisions[costume.id];
                     break;
                 }
                 costumeIndex++;
             }
 
-            myCollider.SetCollision(sprite->xPosition,sprite->yPosition,-sprite->rotation/57.2958,sprite->size*0.01);
-            targetCollider.SetCollision(targetSprite->xPosition,targetSprite->yPosition,-targetSprite->rotation/57.2958,targetSprite->size*0.01);
+            myCollider.SetCollision(sprite->xPosition, sprite->yPosition, -sprite->rotation / 57.2958, sprite->size * 0.01);
+            targetCollider.SetCollision(targetSprite->xPosition, targetSprite->yPosition, -targetSprite->rotation / 57.2958, targetSprite->size * 0.01);
 
-            for (int i = 0;i<COLLISION_POINT_COUNT;i++){
+            for (int i = 0; i < COLLISION_POINT_COUNT; i++) {
                 debugPoints[i] = myCollider.points[i];
-                debugPoints[i+COLLISION_POINT_COUNT] = targetCollider.points[i];
+                debugPoints[i + COLLISION_POINT_COUNT] = targetCollider.points[i];
             }
             return Value(myCollider.CheckCollision(targetCollider));
         }
@@ -229,10 +226,10 @@ Value SensingBlocks::touchingObject(Block& block, Sprite* sprite){
     return Value(false);
 }
 
-Value SensingBlocks::mouseDown(Block& block, Sprite* sprite){
+Value SensingBlocks::mouseDown(Block &block, Sprite *sprite) {
     return Value(Input::mousePointer.isPressed);
 }
 
-Value SensingBlocks::username(Block& block, Sprite* sprite){
+Value SensingBlocks::username(Block &block, Sprite *sprite) {
     return Value(Input::getUsername());
 }

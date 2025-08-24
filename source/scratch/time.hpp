@@ -1,26 +1,24 @@
-#include <stdio.h>
 #include <stdint.h>
-#include <time.h>
+#include <stdio.h>
 #include <string>
+#include <time.h>
 typedef uint16_t u16;
 
-class Time{
-public:
+class Time {
+  public:
+    static int getHours();
 
-static int getHours();
+    static int getMinutes();
 
-static int getMinutes();
+    static int getSeconds();
 
-static int getSeconds();
+    static int getDay();
 
-static int getDay();
+    static int getDayOfWeek();
 
-static int getDayOfWeek();
+    static int getMonth();
 
-static int getMonth();
+    static int getYear();
 
-static int getYear();
-
-static double getDaysSince2000();
-
+    static double getDaysSince2000();
 };

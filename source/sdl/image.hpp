@@ -1,15 +1,14 @@
 #pragma once
-#include <unordered_map>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <string>
+#include <unordered_map>
 
-
-class SDL_Image{
-public:
-    SDL_Surface* spriteSurface;
-    SDL_Texture* spriteTexture;
-    SDL_Rect renderRect; // this rect is for rendering to the screen
+class SDL_Image {
+  public:
+    SDL_Surface *spriteSurface;
+    SDL_Texture *spriteTexture;
+    SDL_Rect renderRect;  // this rect is for rendering to the screen
     SDL_Rect textureRect; // this is for like texture UV's
     float scale = 1.0f;
     int width;
@@ -24,4 +23,4 @@ public:
     ~SDL_Image();
 };
 
-extern std::unordered_map<std::string,SDL_Image*> images;
+extern std::unordered_map<std::string, SDL_Image *> images;
