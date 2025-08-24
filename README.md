@@ -39,10 +39,10 @@ A work-in-progress runtime made in C++, aimed to bring most Scratch 3 projects o
 
 ### Audio
 
-- mp3, ogg, and wav audio formats are supported.
+- MP3, Ogg Vorbis, and WAV audio formats are supported.
 - A sound will take time to load if playing it for the first time.
 	- Known Bug: On 3DS, if a sound has to load while other sounds are playing, all sounds will stop playing until the sound is loaded.
-- If you play any sound from the "Stage," the sound will play as a "Streamed Sound" and will not need to load.
+- If you play any sound from the "Stage", the sound will play as a "Streamed Sound" and will not need to load.
 - Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
 - [Wii, GameCube, Vita] "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
 - [3DS, Wii, GameCube] Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
@@ -63,9 +63,9 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 **List of Known Limitations:**
 - Text will not show up on vector images containing it.
-- Extensions (e.g.: pen and music extensions) are not yet supported.
+- Extensions (e.g. pen and music extensions) are not yet supported.
 - Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
-- Performance is poor when using many (30+) clones (memory management issue).
+- Performance is poor when using many (~30+) clones (memory management issue).
 - **[Wii and Switch]** Cloud Variables aren't currently supported, but likely will be in the future.
 - **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 - **[Wii]** If you're using a PAL Wii, you must use 50Hz.
@@ -116,12 +116,13 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ## Installation
 
-There are 2 methods to install the runtime.
-- Download the release or nightly build (easy.)
-- Build the file yourself (harder.)
+Scratch Everywhere! is Homebrew software and requires a hacked/modded console.
+There are 2 methods to install the runtime:
+- Download the release or nightly build (easy), or
+- Build the file yourself (harder)
 
 > [!NOTE]
-> Nightly builds are significantly more unstable than releases and should probably only be used if you are instructed to do so in a bug report.
+> Nightly builds are significantly more unstable than releases and should probably only be used if you are instructed to do so in a bug report or you know exactly what using nightlies implies.
 
 ### Get up and running for 3DS
 
@@ -180,6 +181,9 @@ Put your Scratch projects in the same place you put your `.nro` file.
 
 Then it should be as simple as opening the app on your Nintendo Switch!
 
+### Get up and running for Vita
+WIP
+
 ## Building
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
@@ -188,30 +192,35 @@ If you would like to change the name of the app or any other information you can
 - For the 3DS you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 - For the Wii U you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 - For the Wii you need to edit `Makefile_wii` and change anything under `Application Info` to whatever you please.
+- For the Vita you can edit the properties at `App metadata/config` to whatever you please. Do note however, if you're using custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
 
 #### Docker
 
 The recommended way to compile Scratch Everywhere! is with Docker. To compile with Docker all you need installed is Docker and Buildx.
 
-To compile for the 3DS run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
+To compile for the 3DS, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
 
-To compile for the Wii U run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
+To compile for the Wii U, run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
 
-To compile for the Wii run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
+To compile for the Wii, run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
 
-To compile for the GameCube run `docker build -f docker/Dockerfile.gamecube --target exporter -o . .`.
+To compile for the GameCube, run `docker build -f docker/Dockerfile.gamecube --target exporter -o . .`.
 
 To compile for the Nintendo Switch run `docker build -f docker/Dockerfile.switch --target exporter -o . .`.
+
+To compile for the Vita, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
+
 
 #### Manual
 
 If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.grady.link/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
-- For the 3DS you will need the DevkitARM toolchain and libctru.
+- **For the 3DS**, you will need the DevkitARM toolchain and libctru.
 	- If you want to compile with audio support, you will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/NateXS/Scratch-3DS/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
-- For the Wii U you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
-- For the Wii you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
-- For the GameCube you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
-- For the Switch you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
+- **For the Wii U**, you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
+- **For the Wii**, you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
+- **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
+- **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
+- **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
 
 - DevkitPro's install instructions are available at : https://devkitpro.org/wiki/Getting_Started
 
@@ -222,11 +231,12 @@ Make a `romfs` folder inside the unzipped source code and put the Scratch projec
 - For faster load times/less limitations, you can also unzip the sb3 project file and put the contents into a new folder called `project`.
 
 Then you need to compile the projects into proper Homebrew packages.
-- For the 3DS you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
-- For the Wii U you need to run `make PLATFORM=wiiu` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
-- For the Wii you need to run `make PLATFORM=wii package`, then find the zipped file in `build/wii/scratch-wii.zip`. Unzip it and put the `apps` folder inside the root of your Wii SD card.
-- For the GameCube you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
-- For the Switch you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
+- **For the 3DS**, you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
+- **For the Wii U**, you need to run `make PLATFORM=wiiu` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
+- **For the Wii**, you need to run `make PLATFORM=wii package`, then find the zipped file in `build/wii/scratch-wii.zip`. Unzip it and put the `apps` folder inside the root of your Wii SD card.
+- **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
+- **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
+- **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
 
 #### Compilation Flags
 
@@ -234,8 +244,8 @@ Compilation flags are used to select which features will be enabled in the compi
 
 - [3DS, GameCube, and Wii] `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
 - `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
-- `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabledd, if set to `0` cloud variables are treated like normal variables. If you're project doesn't use cloud variables it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
+- `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
 
 ## Disclaimer
 
-This project is not affiliated with Scratch, the Scratch team, or Nintendo.
+This project is not affiliated with Scratch, the Scratch Team, or any of the supported platforms' parent companies or organizations.
