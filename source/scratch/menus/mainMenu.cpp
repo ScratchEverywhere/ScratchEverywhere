@@ -204,6 +204,8 @@ void ProjectMenu::init() {
         noProjectInfo->setText("Put Scratch projects in sd:/3ds/ !");
 #elif defined(WII)
         noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii !");
+#elif defined(VITA)
+        noProjectInfo->setText("Put Scratch projects in ux0:data/scratch-vita/ ! If the folder doesn't exist, create it.");
 #else
         noProjectInfo->setText("Put Scratch projects in the same folder as the app!");
 #endif

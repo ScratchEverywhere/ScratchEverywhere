@@ -1,4 +1,5 @@
 #pragma once
+#include "interpret.hpp"
 #include "os.hpp"
 #include <algorithm>
 #include <fstream>
@@ -17,6 +18,7 @@ class Input {
         bool isMoving;
     };
     static Mouse mousePointer;
+    static Sprite *draggingSprite;
 
     static std::vector<std::string> inputButtons;
     static std::map<std::string, std::string> inputControls;
@@ -86,6 +88,36 @@ class Input {
     static bool isKeyJustPressed(std::string scratchKey) {
         return (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), scratchKey) != Input::inputButtons.end()) &&
                Input::keyHeldFrames < 2;
+    }
+
+    static void doSpriteClicking() {
+        if (mousePointer.isPressed) {
+            mousePointer.heldFrames++;
+            for (auto &sprite : sprites) {
+                // click a sprite
+                if (sprite->shouldDoSpriteClick) {
+                    if (mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
+                        BlockExecutor::runAllBlocksByOpcode("event_whenthisspriteclicked");
+                    }
+                }
+                // start dragging a sprite
+                if (draggingSprite == nullptr && mousePointer.heldFrames < 2 && sprite->draggable && isColliding("mouse", sprite)) {
+                    draggingSprite = sprite;
+                }
+            }
+        } else {
+            mousePointer.heldFrames = 0;
+        }
+
+        // move a dragging sprite
+        if (draggingSprite != nullptr) {
+            if (mousePointer.heldFrames == 0) {
+                draggingSprite = nullptr;
+                return;
+            }
+            draggingSprite->xPosition = mousePointer.x - (draggingSprite->spriteWidth / 2);
+            draggingSprite->yPosition = mousePointer.y + (draggingSprite->spriteHeight / 2);
+        }
     }
 
     static std::vector<int> getTouchPosition();
