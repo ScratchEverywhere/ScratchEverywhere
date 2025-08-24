@@ -66,7 +66,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - Extensions (e.g. pen and music extensions) are not yet supported.
 - Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 - Performance is poor when using many (~30+) clones (memory management issue).
-- **[Wii and Switch]** Cloud Variables aren't currently supported, but likely will be in the future.
+- **[Wii, Switch, Vita]** Cloud Variables aren't currently supported, but likely will be in the future.
 - **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 - **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 - **[GameCube]** Cloud Variables will not be supported.
@@ -74,7 +74,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - **[3DS]** Performace is poor when lots of blocks are running at once.
 - **[3DS]** If you have a bunch of large images, some may not load.
 - **[3DS]** Some vector images will appear bigger than they should.
-- **[Vita]** As of writing, cloud variables are not yet supported, likely due to bugs outside of this project.
 - **[Vita]** Back touch will not be supported.
 
 
