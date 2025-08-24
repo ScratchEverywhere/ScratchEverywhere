@@ -12,6 +12,7 @@ class Input {
     struct Mouse {
         int x;
         int y;
+        size_t heldFrames;
         bool isPressed;
         bool isMoving;
     };
@@ -66,10 +67,12 @@ class Input {
         inputControls["LeftStickLeft"] = "left arrow";
         inputControls["LeftStickDown"] = "down arrow";
         inputControls["LeftStickUp"] = "up arrow";
+        inputControls["LeftStickPressed"] = "c";
         inputControls["RightStickRight"] = "5";
         inputControls["RightStickLeft"] = "4";
         inputControls["RightStickDown"] = "3";
         inputControls["RightStickUp"] = "2";
+        inputControls["RightStickPressed"] = "v";
         inputControls["LT"] = "z";
         inputControls["RT"] = "f";
     }

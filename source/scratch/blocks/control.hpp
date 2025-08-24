@@ -12,6 +12,7 @@ class ControlBlocks {
     static BlockResult wait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult waitUntil(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult repeat(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult While(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult repeatUntil(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult forever(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 };

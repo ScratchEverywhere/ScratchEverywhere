@@ -116,7 +116,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
         return false;
     }
 
-    Log::log("Loading sound: '" + soundId + "'");
+    // Log::log("Loading sound: '" + soundId + "'");
 
     int file_count = (int)mz_zip_reader_get_num_files(zip);
     if (file_count <= 0) {
@@ -149,7 +149,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             }
 
             size_t file_size;
-            Log::log("Extracting sound from sb3...");
+            // Log::log("Extracting sound from sb3...");
             void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
             if (!file_data || file_size == 0) {
                 Log::logWarning("Failed to extract: " + zipFileName);
@@ -166,7 +166,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                     mz_free(file_data);
                     return false;
                 }
-                Log::log("Converting sound into SDL sound...");
+                // Log::log("Converting sound into SDL sound...");
                 chunk = Mix_LoadWAV_RW(rw, 1);
                 mz_free(file_data);
 
@@ -188,7 +188,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                 fclose(fp);
                 mz_free(file_data);
 
-                Log::log("Converting sound into SDL streamed music...");
+                // Log::log("Converting sound into SDL streamed music...");
                 music = Mix_LoadMUS(tempFile.c_str());
 
                 // Clean up temp file
@@ -200,7 +200,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                 }
             }
 
-            Log::log("Creating SDL sound object...");
+            // Log::log("Creating SDL sound object...");
 
             // Create SDL_Audio object
             SDL_Audio *audio;
@@ -228,8 +228,8 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
             SDL_Sounds[soundId] = audio;
 
-            Log::log("Successfully loaded audio: " + soundId);
-            Log::log("memory usage: " + std::to_string(MemoryTracker::getCurrentUsage() / 1024) + " KB");
+            Log::log("Successfully loaded audio!");
+            // Log::log("memory usage: " + std::to_string(MemoryTracker::getCurrentUsage() / 1024) + " KB");
             SDL_Sounds[soundId]->isLoaded = true;
             playSound(soundId);
             setSoundVolume(soundId, sprite->volume);
@@ -243,7 +243,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
 bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
 #ifdef ENABLE_AUDIO
-    Log::log("Loading audio from file: " + fileName);
+    // Log::log("Loading audio from file: " + fileName);
 
     // Check if file has supported extension
     std::string lowerFileName = fileName;
@@ -313,7 +313,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     SDL_Sounds[fileName] = audio;
 
-    Log::log("Successfully loaded audio: " + fileName);
+    Log::log("Successfully loaded audio!");
     SDL_Sounds[fileName]->isLoaded = true;
     playSound(fileName);
     setSoundVolume(fileName, sprite->volume);

@@ -38,8 +38,9 @@ class Render {
 
     /**
      * Stops drawing.
+     * @param shouldFlush determines whether or not images can get freed as the frame ends.
      */
-    static void endFrame();
+    static void endFrame(bool shouldFlush = true);
 
     /**
      * gets the screen Width.

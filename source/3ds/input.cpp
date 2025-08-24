@@ -147,13 +147,25 @@ void Input::getInput() {
             }
         }
         if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHEN_KEY_PRESSED);
+            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
 
     } else {
         keyHeldFrames = 0;
     }
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
+
+    if (mousePointer.isPressed) {
+        mousePointer.heldFrames++;
+        for (auto &sprite : sprites) {
+            if (!sprite->shouldDoSpriteClick) continue;
+            if (mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
+                BlockExecutor::runAllBlocksByOpcode("event_whenthisspriteclicked");
+            }
+        }
+    } else {
+        mousePointer.heldFrames = 0;
+    }
 }
 
 /**
