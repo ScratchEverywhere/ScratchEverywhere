@@ -117,6 +117,19 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         }
     }
 
+    for (auto &currentSprite : sprites) {
+        for (auto &[id, spriteBlock] : currentSprite->blocks) {
+            if (spriteBlock.opcode != "event_whenbackdropswitchesto") continue;
+            try {
+                if (spriteBlock.fields["BACKDROP"][0] == sprite->costumes[sprite->currentCostume].name) {
+                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                }
+            } catch (...) {
+                continue;
+            }
+        }
+    }
+
     return BlockResult::CONTINUE;
 }
 
@@ -135,6 +148,20 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
             Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
         }
     }
+
+    for (auto &currentSprite : sprites) {
+        for (auto &[id, spriteBlock] : currentSprite->blocks) {
+            if (spriteBlock.opcode != "event_whenbackdropswitchesto") continue;
+            try {
+                if (spriteBlock.fields["BACKDROP"][0] == sprite->costumes[sprite->currentCostume].name) {
+                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                }
+            } catch (...) {
+                continue;
+            }
+        }
+    }
+
     return BlockResult::CONTINUE;
 }
 

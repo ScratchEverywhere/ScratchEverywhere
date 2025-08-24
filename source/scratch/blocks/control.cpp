@@ -132,7 +132,7 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
         for (Sprite *currentSprite : sprites) {
             if (currentSprite == addedSprite) {
                 for (auto &[id, block] : currentSprite->blocks) {
-                    if (block.opcode == block.CONTROL_START_AS_CLONE) {
+                    if (block.opcode == "control_start_as_clone") {
                         // std::cout << "Running clone block " << block.id << std::endl;
                         executor.runBlock(block, currentSprite);
                     }

@@ -95,10 +95,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - Pen support.
 - Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pull/210)).
 
-### 3DS
-
-- Stereoscopic 3D support.
-
 ### Wii U
 
 - Dual screen support.

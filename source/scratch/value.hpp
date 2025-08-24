@@ -1,5 +1,6 @@
 #pragma once
 #include "math.hpp"
+#include "os.hpp"
 #include <cmath>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -92,6 +93,7 @@ class Value {
     bool isBoolean() const { return type == ValueType::BOOLEAN; }
     bool isNumeric() const {
         return type == ValueType::INTEGER || type == ValueType::DOUBLE || type == ValueType::BOOLEAN ||
+               (type == ValueType::STRING && (*stringValue == "Infinity" || *stringValue == "-Infinity")) ||
                (type == ValueType::STRING && Math::isNumber(*stringValue));
     }
 
@@ -102,7 +104,13 @@ class Value {
         case ValueType::DOUBLE:
             return doubleValue;
         case ValueType::STRING:
-            return Math::isNumber(*stringValue) ? std::stod(*stringValue) : 0.0;
+            if (*stringValue == "Infinity") return std::numeric_limits<double>::max();
+            if (*stringValue == "-Infinity") return -std::numeric_limits<double>::max();
+            return Math::isNumber(*stringValue) ? ((*stringValue)[0] == '0' ? ((*stringValue)[1] == 'x' ? std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 16) : (*stringValue)[1] == 'b' ? std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 2)
+                                                                                                                                                                              : (*stringValue)[1] == 'o'   ? std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 8)
+                                                                                                                                                                                                           : std::stod(*stringValue))
+                                                                            : std::stod(*stringValue))
+                                                : 0.0; // clang-format really cooked here...
         case ValueType::BOOLEAN:
             return *stringValue == "true" ? 1.0 : 0.0;
         }
@@ -116,8 +124,26 @@ class Value {
         case ValueType::DOUBLE:
             return static_cast<int>(std::round(doubleValue));
         case ValueType::STRING:
+            if (*stringValue == "Infinity") return std::numeric_limits<int>::max();
+            if (*stringValue == "-Infinity") return -std::numeric_limits<int>::max();
             if (Math::isNumber(*stringValue)) {
-                double d = std::stod(*stringValue);
+                double d;
+                if ((*stringValue)[0] == '0') {
+                    switch ((*stringValue)[1]) {
+                    case 'x':
+                        d = std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 16);
+                        break;
+                    case 'b':
+                        d = std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 2);
+                        break;
+                    case 'o':
+                        d = std::stoi((*stringValue).substr(2, (*stringValue).size() - 2), 0, 8);
+                        break;
+                    default:
+                        d = std::stod(*stringValue);
+                        break;
+                    }
+                } else d = std::stod(*stringValue);
                 return static_cast<int>(std::round(d));
             }
         case ValueType::BOOLEAN:
@@ -235,10 +261,27 @@ class Value {
         } else if (jsonVal.is_string()) {
             std::string strVal = jsonVal.get<std::string>();
 
+            if (strVal == "Infinity" || strVal == "-Infinity") return Value(strVal);
+
             if (Math::isNumber(strVal)) {
                 double numVal;
                 try {
-                    numVal = std::stod(strVal);
+                    if (strVal[0] == '0') {
+                        switch (strVal[1]) {
+                        case 'x':
+                            numVal = std::stoi(strVal.substr(2, strVal.size() - 2), 0, 16);
+                            break;
+                        case 'b':
+                            numVal = std::stoi(strVal.substr(2, strVal.size() - 2), 0, 2);
+                            break;
+                        case 'o':
+                            numVal = std::stoi(strVal.substr(2, strVal.size() - 2), 0, 8);
+                            break;
+                        default:
+                            numVal = std::stod(strVal);
+                            break;
+                        }
+                    } else numVal = std::stod(strVal);
                 } catch (const std::invalid_argument &e) {
                     Log::logError("Invalid number format: " + strVal);
                     return Value(0);

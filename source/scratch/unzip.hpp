@@ -70,14 +70,29 @@ class Unzip {
         return projectFiles;
     }
 #else
-    static std::vector<std::string> getProjectFiles(const std::string directory) {
+    static std::vector<std::string> getProjectFiles(const std::string &directory) {
         std::vector<std::string> projectFiles;
-        for (const auto &entry : std::filesystem::directory_iterator(directory)) {
-            if (entry.is_regular_file() && entry.path().extension() == ".sb3") {
-                std::string fileName = entry.path().filename().string();
-                projectFiles.push_back(fileName);
-            }
+
+        if (!std::filesystem::exists(directory)) {
+            Log::logWarning("Directory does not exist! " + directory);
+            return projectFiles;
         }
+
+        if (!std::filesystem::is_directory(directory)) {
+            Log::logWarning("Path is not a directory! " + directory);
+            return projectFiles;
+        }
+
+        try {
+            for (const auto &entry : std::filesystem::directory_iterator(directory)) {
+                if (entry.is_regular_file() && entry.path().extension() == ".sb3") {
+                    projectFiles.push_back(entry.path().filename().string());
+                }
+            }
+        } catch (const std::filesystem::filesystem_error &e) {
+            Log::logWarning(std::string("Failed to open directory: ") + e.what());
+        }
+
         return projectFiles;
     }
 #endif

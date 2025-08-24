@@ -154,10 +154,10 @@ void ProjectMenu::init() {
     backButton->scale = 1.0;
 
     std::vector<std::string> projectFiles;
-#ifdef __WIIU__
-    projectFiles = Unzip::getProjectFiles(std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/");
-#else
+#ifdef __3DS__
     projectFiles = Unzip::getProjectFiles(".");
+#else
+    projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
 #endif
 
     // initialize text and set positions
@@ -465,7 +465,7 @@ void ControlsMenu::init() {
     for (auto &sprite : sprites) {
         for (auto &[id, block] : sprite->blocks) {
             std::string buttonCheck;
-            if (block.opcode == Block::SENSING_KEYPRESSED) {
+            if (block.opcode == "sensing_keypressed") {
 
                 // stolen code from sensing.cpp
 
@@ -479,7 +479,7 @@ void ControlsMenu::init() {
                     buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
                 }
 
-            } else if (block.opcode == Block::EVENT_WHEN_KEY_PRESSED) {
+            } else if (block.opcode == "event_whenkeypressed") {
                 buttonCheck = block.fields.at("KEY_OPTION")[0];
             } else continue;
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
