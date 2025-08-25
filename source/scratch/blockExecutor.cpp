@@ -132,6 +132,8 @@ void BlockExecutor::registerHandlers() {
     handlers["data_changevariableby"] = DataBlocks::changeVariable;
     handlers["data_showvariable"] = DataBlocks::showVariable;
     handlers["data_hidevariable"] = DataBlocks::hideVariable;
+    handlers["data_showlist"] = DataBlocks::showList;
+    handlers["data_hidelist"] = DataBlocks::hideList;
     handlers["data_addtolist"] = DataBlocks::addToList;
     handlers["data_deleteoflist"] = DataBlocks::deleteFromList;
     handlers["data_deletealloflist"] = DataBlocks::deleteAllOfList;
@@ -422,6 +424,50 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
     if (var.opcode == "data_variable") {
         var.value = BlockExecutor::getVariableValue(var.id, sprite);
         monitorName = Math::removeQuotations(var.parameters["VARIABLE"].get<std::string>());
+    } else if(var.opcode == "data_listcontents") {
+        monitorName = Math::removeQuotations(var.parameters["LIST"].get<std::string>());
+        // Check lists
+        auto listIt = sprite->lists.find(var.id);
+        if (listIt != sprite->lists.end()) {
+            std::string result;
+            std::string seperator = "";
+            for (const auto &item : listIt->second.items) {
+                if (item.asString().size() > 1) {
+                    seperator = "\n";
+                    break;
+                }
+            }
+            for (const auto &item : listIt->second.items) {
+                result += item.asString() + seperator;
+            }
+            if (!result.empty() && !seperator.empty()) result.pop_back();
+            Value val(result);
+            var.value = val;
+        }
+
+        // Check global lists
+        for (const auto &currentSprite : sprites) {
+            if (currentSprite->isStage) {
+                auto globalIt = currentSprite->lists.find(var.id);
+                if (globalIt != currentSprite->lists.end()) {
+                    std::string result;
+                    std::string seperator = "";
+                    for (const auto &item : globalIt->second.items) {
+                        if (item.asString().size() > 1) {
+                            seperator = "\n";
+                            break;
+                        }
+                    }
+                    for (const auto &item : globalIt->second.items) {
+                        result += item.asString() + seperator;
+                    }
+                    if (!result.empty() && !seperator.empty()) result.pop_back();
+                    Value val(result);
+                    var.value = val;
+                }
+            }
+        }
+        
     }
 
     std::string renderText;
