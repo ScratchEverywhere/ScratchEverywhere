@@ -19,7 +19,7 @@ COPY --from=sdl2_mixer_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portl
 
 RUN apt-get update && apt-get install -y --no-install-recommends fakeroot zstd
 
-RUN git clone https://github.com/gradylink/dkp-pacman-packages .
+RUN git clone https://github.com/gradylink/dkp-pacman-packages . && git switch feat/3ds-curl
 
 RUN groupadd --gid 1000 builder && useradd --uid 1000 --gid builder --shell /bin/bash --create-home builder
 RUN chown -R builder:builder /pacman-packages

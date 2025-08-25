@@ -195,7 +195,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     std::string imgId = costumeId.substr(0, costumeId.find_last_of('.'));
     if (images.find(imgId) != images.end()) return;
 
-    Log::log("Loading single image: " + costumeId);
+    // Log::log("Loading single image: " + costumeId);
 
     // Find the file in the zip
     int file_index = mz_zip_reader_locate_file(zip, costumeId.c_str(), nullptr, 0);
@@ -284,7 +284,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     image->memorySize = (w * h * bpp) / 8;
     MemoryTracker::allocateVRAM(image->memorySize);
 
-    Log::log("Successfully loaded image: " + costumeId);
+    // Log::log("Successfully loaded image: " + costumeId);
     images[imgId] = image;
 }
 
@@ -310,8 +310,8 @@ void Image::freeImage(const std::string &costumeId) {
     if (imageIt != images.end()) {
         SDL_Image *image = imageIt->second;
 
-        Log::log("Freed image " + costumeId);
-        // Call destructor and deallocate SDL_Image
+        // Log::log("Freed image " + costumeId);
+        //  Call destructor and deallocate SDL_Image
         image->~SDL_Image();
         MemoryTracker::deallocate<SDL_Image>(image);
 
@@ -408,7 +408,7 @@ SDL_Image::SDL_Image(std::string filePath) {
     memorySize = (w * h * bpp) / 8;
     MemoryTracker::allocateVRAM(memorySize);
 
-    Log::log("Image loaded!");
+    // Log::log("Image loaded!");
 }
 
 /**

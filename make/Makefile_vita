@@ -1,0 +1,132 @@
+#   %###########%
+# /###         ###\
+# \( )         ( )/   Scratch Everywhere! on Vita
+#   %###########%
+#
+# Makefile template taken from vitasdk examples [https://github.com/vitasdk/samples/tree/master/hello_world/Makefile]
+# Vita port by @Dogo6647 | Thanks to @PwLDev for helping!
+
+
+# --- INITIAL MAKEFILE SETUP ---
+PHONY := all package clean
+
+TARGET     := scratch-vita
+BUILD      := build/vita
+SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+GFX_FILES := $(shell find gfx -type f)
+GFX_ARGS := $(foreach f,$(GFX_FILES),--add $(f)=$(f))
+PROJ_FILE := project.sb3
+PROJ_ARGS  := $(if $(wildcard romfs/$(PROJ_FILE)),--add romfs/$(PROJ_FILE)=$(PROJ_FILE),)
+
+CC := arm-vita-eabi-gcc
+CXX := arm-vita-eabi-g++
+STRIP := arm-vita-eabi-strip
+
+
+# --- METADATA/CONFIG ---
+PROJECT_TITLE := Scratch Everywhere!
+PROJECT_TITLEID := NTXS00053
+PROJECT := scratch_everywhere
+
+# Set your config options here
+ENABLE_CLOUDVARS	?=	0 # As of writing (2025-08-22), Cloud variables are broken on Vita due to external causes.
+ENABLE_AUDIO	?=	1
+
+
+# --- COMPILE FLAGS ---
+# Base compiler flags
+CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
+CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
+
+# Specify vita as the target platform + SDL flags
+VITAFLAGS := -DVITA -DSDL_BUILD
+CFLAGS   += $(VITAFLAGS)
+CXXFLAGS += $(VITAFLAGS)
+
+# SDL CFlags
+SDL_CFLAGS := $(shell arm-vita-eabi-pkg-config --cflags sdl2)
+CFLAGS   += $(SDL_CFLAGS)
+CXXFLAGS += $(SDL_CFLAGS)
+
+# SDL2 Libs
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs sdl2)
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_image)
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_ttf)
+
+# Feature flags
+ifeq ($(ENABLE_AUDIO),1)
+LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_mixer)
+CFLAGS	+=	-DENABLE_AUDIO
+CXXFLAGS += -DENABLE_AUDIO
+endif
+
+ifeq ($(ENABLE_CLOUDVARS),1)
+CFLAGS		+=	-DENABLE_CLOUDVARS $(shell arm-vita-eabi-pkg-config --cflags mist++)
+CXXFLAGS	+=	-DENABLE_CLOUDVARS $(shell arm-vita-eabi-pkg-config --cflags mist++)
+LIBS		+=	$(shell arm-vita-eabi-pkg-config --libs mist++)
+
+# Mist++ Version Check
+ifeq ($(shell arm-vita-eabi-pkg-config --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+endif
+endif
+
+
+# --- BUILD CONFIGURATION ---
+SRC_C   := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
+SRC_CPP := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
+
+OBJS := $(patsubst %,$(BUILD)/%,$(SRC_C:.c=.o) $(SRC_CPP:.cpp=.o))
+OBJ_DIRS := $(sort $(dir $(OBJS)))
+
+# make sure all build artifacts are placed inside BUILD
+PROJECT_VITA := $(BUILD)/$(TARGET)
+VPK         := $(PROJECT_VITA).vpk
+ELF         := $(PROJECT_VITA).elf
+VELF        := $(PROJECT_VITA).velf
+EBOOT       := $(BUILD)/eboot.bin
+SFO         := $(BUILD)/param.sfo
+
+all: package
+
+package: $(VPK)
+
+$(VPK): $(EBOOT) $(SFO)
+	vita-pack-vpk -s $(SFO) -b $(EBOOT) \
+		--add gfx/vita/icon0.png=sce_sys/icon0.png \
+		--add gfx/vita/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png \
+		--add gfx/vita/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml \
+		--add gfx/vita/livearea/contents/startup.png=sce_sys/livearea/contents/startup.png \
+		$(PROJ_ARGS) \
+		$(GFX_ARGS) \
+		$(VPK)
+
+$(EBOOT): $(VELF)
+	vita-make-fself -c $(VELF) $(EBOOT)
+
+$(SFO):
+	vita-mksfoex -s TITLE_ID="$(PROJECT_TITLEID)" "$(PROJECT_TITLE)" $(SFO)
+
+$(VELF): $(ELF)
+	$(STRIP) -g $<
+	vita-elf-create $< $@
+
+$(ELF): $(OBJS)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LIBS)
+
+$(BUILD):
+	mkdir -p $@
+
+$(OBJ_DIRS):
+	mkdir -p $@
+
+$(BUILD)/%.o : %.cpp | $(OBJ_DIRS)
+	$(CXX) -c $(CXXFLAGS) -o $@ $<
+
+$(BUILD)/%.o : %.c | $(OBJ_DIRS)
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+clean:
+	rm -f $(PROJECT_VITA).velf $(PROJECT_VITA).elf $(PROJECT_VITA).vpk $(BUILD)/param.sfo $(BUILD)/eboot.bin $(OBJS)
+	rm -rf $(abspath $(OBJ_DIRS))

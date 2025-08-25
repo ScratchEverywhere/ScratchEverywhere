@@ -49,6 +49,30 @@ BlockResult DataBlocks::hideVariable(Block &block, Sprite *sprite, bool *without
     return BlockResult::CONTINUE;
 }
 
+
+BlockResult DataBlocks::showList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    std::string varId = block.fields["LIST"][1].get<std::string>();
+    for (Monitor &var : Render::visibleVariables) {
+        if (var.id == varId) {
+            var.visible = true;
+            break;
+        }
+    }
+
+    return BlockResult::CONTINUE;
+}
+
+BlockResult DataBlocks::hideList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    std::string varId = block.fields["LIST"][1].get<std::string>();
+    for (Monitor &var : Render::visibleVariables) {
+        if (var.id == varId) {
+            var.visible = false;
+            break;
+        }
+    }
+    return BlockResult::CONTINUE;
+}
+
 BlockResult DataBlocks::addToList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value val = Scratch::getInputValue(block, "ITEM", sprite);
     std::string listId = block.fields.at("LIST")[1];

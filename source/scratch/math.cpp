@@ -27,7 +27,7 @@ int Math::color(int r, int g, int b, int a) {
 }
 
 bool Math::isNumber(const std::string &str) {
-    return std::regex_match(str, std::regex("^-?\\d+(\\.\\d+)?(e(-|\\+)?\\d+(\\.\\d+)?)?$"));
+    return std::regex_match(str, std::regex("^((0[xbo]\\d+)|(-?\\d+(\\.\\d+)?(e(-|\\+)?\\d+(\\.\\d+)?)?))$")); // I hope I never need to touch this again.
 }
 
 double Math::degreesToRadians(double degrees) {

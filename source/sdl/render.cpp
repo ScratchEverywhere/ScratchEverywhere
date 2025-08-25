@@ -39,6 +39,10 @@
 char nickname[0x21];
 #endif
 
+#ifdef VITA
+#include <psp2/touch.h>
+#endif
+
 #ifdef __OGC__
 #include <fat.h>
 #include <romfs-ogc.h>
@@ -133,8 +137,12 @@ postAccount:
         Log::logError("Failed to init romfs.");
         return false;
     }
-#endif
+#elif defined(VITA)
+    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 
+    windowWidth = 960;
+    windowHeight = 544;
+#endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
 #ifdef ENABLE_AUDIO
@@ -196,10 +204,10 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     }
 }
 
-void Render::endFrame() {
+void Render::endFrame(bool shouldFlush) {
     SDL_RenderPresent(renderer);
     SDL_Delay(16);
-    Image::FlushImages();
+    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
@@ -207,6 +215,43 @@ void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int col
     SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
     SDL_Rect rect = {x - (w / 2), y - (h / 2), w, h};
     SDL_RenderFillRect(renderer, &rect);
+}
+
+std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
+    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    float scratchX, scratchY;
+
+    if (screenAspect > projectAspect) {
+        // Vertical black bars
+        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedX = screenX - barWidth;
+        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+
+    } else if (screenAspect < projectAspect) {
+        // Horizontal black bars
+        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedY = screenY - barHeight;
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
+
+    } else {
+        // no black bars..
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+    }
+
+    return std::make_pair(scratchX, scratchY);
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -274,9 +319,13 @@ void Render::renderSprites() {
             SDL_RendererFlip flip = SDL_FLIP_NONE;
 
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
-            if (image->isSVG) image->setScale(image->scale * 2);
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
+            if (image->isSVG) {
+                image->setScale(image->scale * 2);
+                currentSprite->spriteWidth *= 2;
+                currentSprite->spriteHeight *= 2;
+            }
             const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
             double renderRotation = rotation;
 

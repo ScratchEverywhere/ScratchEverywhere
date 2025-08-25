@@ -10,6 +10,7 @@
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
 Input::Mouse Input::mousePointer;
+Sprite *Input::draggingSprite = nullptr;
 int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
@@ -147,13 +148,15 @@ void Input::getInput() {
             }
         }
         if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode(Block::EVENT_WHEN_KEY_PRESSED);
+            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
 
     } else {
         keyHeldFrames = 0;
     }
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
+
+    doSpriteClicking();
 }
 
 /**

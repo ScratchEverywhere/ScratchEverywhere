@@ -25,49 +25,41 @@ int Unzip::openFile(std::ifstream *file) {
 
     // load Scratch project into memory
     Log::log("Loading SB3 into memory...");
-    std::string filename = "project.sb3";
+    std::string embeddedFilename = "project.sb3";
     std::string unzippedPath = "project/project.json";
 
 #if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
-    file->open("romfs:/" + unzippedPath, std::ios::binary | std::ios::ate);
-#else
-    file->open(unzippedPath, std::ios::binary | std::ios::ate);
+    embeddedFilename = "romfs:/" + embeddedFilename;
+    unzippedPath = "romfs:/" + unzippedPath;
 #endif
+
+    // Unzipped Project in romfs:/
+    file->open(unzippedPath, std::ios::binary | std::ios::ate);
     projectType = UNZIPPED;
     if (!(*file)) {
+
+        // .sb3 Project in romfs:/
         Log::logWarning("No unzipped project, trying embedded.");
-
-#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
-        file->open("romfs:/" + filename, std::ios::binary | std::ios::ate);
-#endif
         projectType = EMBEDDED;
-#ifdef __WIIU__
+        file->open(embeddedFilename, std::ios::binary | std::ios::ate);
         if (!(*file)) {
-            std::ostringstream path;
-            path << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/" << filePath;
-            file->open(path.str(), std::ios::binary | std::ios::ate);
-#elif defined(__SWITCH__)
-        if (!(*file)) {
-            file->open("/switch/scratch-nx/" + filename, std::ios::binary | std::ios::ate);
-#endif
-            if (!(*file)) {
-                projectType = UNEMBEDDED;
-                // if main menu hasn't been loaded yet, load it
-                if (filePath == "") {
-                    Log::log("Activating main menu...");
-                    return -1;
-                } else {
 
-                    file->open(filePath, std::ios::binary | std::ios::ate);
-                    if (!(*file)) {
-                        Log::logError("Couldn't find file. jinkies.");
-                        return 0;
-                    }
+            // Main menu
+            Log::logWarning("No sb3 project, trying Main Menu.");
+            projectType = UNEMBEDDED;
+            if (filePath == "") {
+                Log::log("Activating main menu...");
+                return -1;
+            } else {
+                // SD card Project
+                Log::logWarning("Main Menu already done, loading SD card project.");
+                file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
+                if (!(*file)) {
+                    Log::logError("Couldn't find file. jinkies.");
+                    return 0;
                 }
             }
-#if defined(__WIIU__) || defined(__SWITCH__)
         }
-#endif
     }
     return 1;
 }

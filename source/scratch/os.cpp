@@ -80,7 +80,44 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
 std::string OS::getScratchFolderLocation() {
 #ifdef __WIIU__
     return std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/";
+#elif defined(__SWITCH__)
+    return "/switch/scratch-nx/";
+#elif defined(WII)
+    return "/apps/scratch-wii/";
+#elif defined(GAMECUBE)
+    return "/";
+#elif defined(VITA)
+    return "ux0:data/scratch-vita/";
 #else
     return "scratch-everywhere/";
 #endif
+}
+
+std::string OS::getPlatform() {
+#if defined(__3DS__)
+    return "3DS";
+#elif defined(__WIIU__)
+    return "Wii U";
+#elif defined(__PC__)
+    return "PC";
+#elif defined(GAMECUBE)
+    return "GameCube";
+#elif defined(WII)
+    return "Wii";
+#elif defined(__SWITCH__)
+    return "Switch";
+#elif defined(VITA)
+    return "Vita";
+#else
+    return "Unknown";
+#endif
+}
+
+bool OS::isNew3DS() {
+#ifdef __3DS__
+    bool out = false;
+    APT_CheckNew3DS(&out);
+    return out;
+#endif
+    return false;
 }
