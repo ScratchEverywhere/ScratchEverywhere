@@ -163,6 +163,7 @@ void BlockExecutor::registerHandlers() {
     valueHandlers["sensing_touchingobjectmenu"] = SensingBlocks::touchingObject; // Menu variant
     valueHandlers["sensing_mousedown"] = SensingBlocks::mouseDown;
     valueHandlers["sensing_username"] = SensingBlocks::username;
+    valueHandlers["sensing_loudness"] = SensingBlocks::loudness;
 
     // procedures / arguments
     handlers["procedures_call"] = ProcedureBlocks::call;
