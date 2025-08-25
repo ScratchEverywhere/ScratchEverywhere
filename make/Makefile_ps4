@@ -1,9 +1,10 @@
+# OpenOrbis PS4 Port by PwLDev
 # This Makefile is based on the OpenOrbis Sample
 # Package metadata.
 TITLE       := Scratch Everywhere!
-VERSION     := 0.20
-TITLE_ID    := SCRH00001
-CONTENT_ID  := IV0000-SCRH00001_00-SCRATCHPS4000000
+VERSION     := 0.21
+TITLE_ID    := NTXS10053
+CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 ICON		:= gfx/ps4/icon.png
 
 # Config Options
@@ -11,7 +12,10 @@ ENABLE_CLOUDVARS	?= 0
 ENABLE_AUDIO		?= 1
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -lc++ -lSceFreetype -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad -lSceSysUtil -lSceSysmodule -lSceSystemService -lScePigletv2VSH -lSDL2 -lSDL2_image -lSDL2_ttf
+LIBS        := -lc -lkernel -lc++ -lclang_rt.builtins-x86_64 -lsamplerate -lpng -lz -lbz2 -lturbojpeg -lwebp\
+			   -lSceFreetype -lsceLibcInternal -lScePigletv2VSH -lSceSysmodule\
+			   -lSceAudioOut -lsceVideoOut -lscePad -lsceSystemService -lsceUserService\
+			   -lSDL2 -lSDL2_image -lSDL2_ttf
 
 # Additional compile flags.
 EXTRAFLAGS  := -fcolor-diagnostics -Wall -D__PS4__
@@ -42,13 +46,13 @@ endif
 
 # Handle enable audio
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	    += -lSDL2_mixer -lsamplerate
+LIBS	    += -lSDL2_mixer -logg -lvorbis -lmodplug -lmpg123 -lopus -lopusfile -lvorbisfile
 EXTRAFLAGS	+= -DENABLE_AUDIO
 endif
 
 # Define final C/C++ flags
-CFLAGS      := $(INCLUDE_FLAGS) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include
-CXXFLAGS    := $(CFLAGS) -isystem $(TOOLCHAIN)/include/c++/v1 -Wall -fexceptions
+CFLAGS      := $(INCLUDE_FLAGS) --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include -I$(TOOLCHAIN)/usr/include
+CXXFLAGS    := $(CFLAGS) -I$(TOOLCHAIN)/include/c++/v1
 LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o 
 
 # Create the intermediate directory incase it doesn't already exist.
@@ -58,9 +62,9 @@ _unused     := $(shell mkdir -p $(BUILD)/sce_sys/about $(BUILD)/sce_module)
 _icon		:= $(shell cp $(ICON) $(BUILD)/sce_sys/icon0.png)
 _gfx		:= $(shell cp -r $(GRAPHICS) $(BUILD))
 
-# Copy modules from the source of the toolchain.
-_modules	:= $(shell cp -r $(TOOLCHAIN)/src/modules/*.prx $(BUILD)/sce_module/)
-_about		:= $(shell cp -r $(TOOLCHAIN)/src/modules/right.sprx $(BUILD)/sce_sys/about*)
+# Copy modules from a sample of the toolchain (do not delete the samples).
+_modules	:= $(shell cp -r $(TOOLCHAIN)/samples/piglet/sce_module/*.prx $(BUILD)/sce_module/)
+_about		:= $(shell cp -r $(TOOLCHAIN)/samples/piglet/sce_sys/about/right.sprx $(BUILD)/sce_sys/about*)
 
 # Check for linux vs macOS and account for clang/ld path
 UNAME_S     := $(shell uname -s)
