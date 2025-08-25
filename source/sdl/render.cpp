@@ -68,7 +68,8 @@ SDL_Renderer *renderer = nullptr;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
-#ifndef __PS4__
+// PS4 c++ is weird
+#ifndef __PS4__ 
 std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
 std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
 #endif
@@ -153,26 +154,6 @@ postAccount:
     }
 #elif defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
-#elif defined(__PS4__) // -lturbojpeg -lpng -lminizip -lz -lbz2
-    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
-    if (rc != 0) {
-        Log::logError("Failed to init Freetype.");
-        return false;
-    }
-
-    rc = sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_AUDIOOUT);
-    if (rc != 0)
-	{
-		Log::logError("Failed to init audio output.");
-		return false;
-	}
-
-    rc = scePadInit();
-	if (rc != 0)
-	{
-		Log::logError("Failed to init pad library.");
-		return false;
-	}
 #endif
 
     windowWidth = 960;

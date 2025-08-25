@@ -158,8 +158,6 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
 #if defined(__WIIU__) || defined(__OGC__)
     finalPath = "romfs:/";
-#elif defined(__PS4__)
-    finalPath = "/app0/";
 #endif
     if (fromScratchProject)
         finalPath = finalPath + "project/";
