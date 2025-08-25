@@ -27,7 +27,9 @@ BUILD		:= build/ps4
 GRAPHICS	:= gfx
 SOURCES		:= source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
 INCLUDES	:= include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
-FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx sce_sys/param.sfo sce_sys/icon0.png sce_sys/about/right.sprx $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
+FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
+			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
+			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
 
 # Define objects to build
 CPP_FILES  		:= $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
@@ -59,7 +61,7 @@ LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L
 _unused     := $(shell mkdir -p $(BUILD)/sce_sys/about $(BUILD)/sce_module)
 
 # Copy icon and gfx to the valid directory
-_icon		:= $(shell cp $(ICON) $(BUILD)/sce_sys/icon0.png)
+_icon		:= $(shell cp $(GRAPHICS)/ps4/* $(BUILD)/sce_sys/)
 _gfx		:= $(shell cp -r $(GRAPHICS) $(BUILD))
 
 # Copy modules from a sample of the toolchain (do not delete the samples).
