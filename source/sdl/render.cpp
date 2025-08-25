@@ -154,10 +154,10 @@ postAccount:
     }
 #elif defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
-#endif
 
     windowWidth = 960;
     windowHeight = 544;
+#endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
 #ifdef ENABLE_AUDIO
