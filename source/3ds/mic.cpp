@@ -1,5 +1,3 @@
-#ifdef __3DS__
-
 #include "mic.hpp"
 #include <stdio.h>
 #include <math.h>
@@ -62,19 +60,3 @@ void exitMic() {
     free(micbuf);
     micInitialized = false;
 }
-
-#else
-
-#include <stdio.h>
-
-bool initMic() { 
-    return false; 
-}
-
-int getMicLevel() { 
-    return -1; 
-}
-
-void exitMic() { }
-
-#endif
