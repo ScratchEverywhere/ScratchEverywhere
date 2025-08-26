@@ -6,8 +6,8 @@
 #include <malloc.h>
 #endif
 
-extern u8* micbuf;
-extern u32 micbuf_datasize;
+extern u_int8_t* micbuf;
+extern u_int32_t micbuf_datasize;
 extern bool micInitialized;
 
 int getMicLevel();
