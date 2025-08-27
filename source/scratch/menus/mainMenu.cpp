@@ -163,7 +163,7 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBox.png", 0, yPosition);
+        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
@@ -204,6 +204,8 @@ void ProjectMenu::init() {
         noProjectInfo->setText("Put Scratch projects in sd:/3ds/ !");
 #elif defined(WII)
         noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii !");
+#elif defined(VITA)
+        noProjectInfo->setText("Put Scratch projects in ux0:data/scratch-vita/ ! If the folder doesn't exist, create it.");
 #else
         noProjectInfo->setText("Put Scratch projects in the same folder as the app!");
 #endif
@@ -239,8 +241,8 @@ void ProjectMenu::render() {
     float lerpSpeed = 0.1f;
 
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed({ "a" }) || playButton->isPressed({ "a" })) {
-            Unzip::filePath = projectControl->selectedObject->text->getText();
+        if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
+            Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
             shouldGoBack = true;
             return;
         }

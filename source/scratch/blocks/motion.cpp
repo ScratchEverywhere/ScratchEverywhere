@@ -22,7 +22,7 @@ BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutS
     } else {
         // std::cerr << "Invalid Move steps " << value << std::endl;
     }
-
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
     return BlockResult::CONTINUE;
 }
 

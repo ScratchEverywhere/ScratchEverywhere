@@ -1,6 +1,5 @@
 #include "../scratch/input.hpp"
 #include "../scratch/blockExecutor.hpp"
-#include "interpret.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
 #include <SDL2/SDL_gamecontroller.h>
@@ -26,6 +25,7 @@ extern char nickname[0x21];
 #endif
 
 Input::Mouse Input::mousePointer;
+Sprite *Input::draggingSprite = nullptr;
 
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
@@ -237,17 +237,7 @@ void Input::getInput() {
         mousePointer.isPressed = true;
     }
 
-    if (mousePointer.isPressed) {
-        mousePointer.heldFrames++;
-        for (auto &sprite : sprites) {
-            if (!sprite->shouldDoSpriteClick) continue;
-            if (mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
-                BlockExecutor::runAllBlocksByOpcode("event_whenthisspriteclicked");
-            }
-        }
-    } else {
-        mousePointer.heldFrames = 0;
-    }
+    doSpriteClicking();
 }
 
 std::string Input::getUsername() {

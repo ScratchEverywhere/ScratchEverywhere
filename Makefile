@@ -12,6 +12,8 @@ else ifeq ($(PLATFORM),gamecube)
 include make/Makefile_gamecube
 else ifeq ($(PLATFORM),switch)
 include make/Makefile_switch
+else ifeq ($(PLATFORM),vita)
+include make/Makefile_vita
 else
     $(error Unknown platform: $(PLATFORM))
 endif

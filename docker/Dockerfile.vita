@@ -1,0 +1,10 @@
+FROM vitasdk/vitasdk:latest AS main_builder
+WORKDIR /app
+
+COPY . .
+
+RUN make PLATFORM=vita
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build/vita/scratch-vita.vpk /
