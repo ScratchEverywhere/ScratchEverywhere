@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <math.h>
 
-u8* micbuf = nullptr;
-u32 micbuf_datasize = 0;
+extern u_int8_t* micbuf = nullptr;
+extern u_int32_t micbuf_datasize = 0;
 bool micInitialized = false;
 
 #define SAMPLE_CHUNK 128
