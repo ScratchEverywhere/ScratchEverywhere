@@ -364,13 +364,13 @@ BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, bool *wit
 
     // Reflect the direction based on the edge hit
     if (nearestEdge == "left") {
-        dx = std::max(0.2, std::abs(dx));
+        dx = std::max<double>(0.2, std::abs(dx));
     } else if (nearestEdge == "right") {
-        dx = -std::max(0.2, std::abs(dx));
+        dx = -std::max<double>(0.2, std::abs(dx));
     } else if (nearestEdge == "top") {
-        dy = std::max(0.2, std::abs(dy));
+        dy = std::max<double>(0.2, std::abs(dy));
     } else if (nearestEdge == "bottom") {
-        dy = -std::max(0.2, std::abs(dy));
+        dy = -std::max<double>(0.2, std::abs(dy));
     }
 
     // Calculate new direction from reflected vector

@@ -63,3 +63,6 @@ scratch-wii.zip
 
 # Stored Files
 cloud-username.txt
+
+# macOS
+.DS_Store

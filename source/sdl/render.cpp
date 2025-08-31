@@ -48,6 +48,18 @@ char nickname[0x21];
 #include <romfs-ogc.h>
 #endif
 
+#ifdef __PS4__
+#include <orbis/libkernel.h>
+#include <orbis/Sysmodule.h>
+#include <orbis/Pad.h>
+
+inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h)
+{
+    // On PS4 there is no DPI scaling, so this is fine
+    SDL_GetWindowSize(window, w, h);
+}
+#endif
+
 int windowWidth = 480;
 int windowHeight = 360;
 SDL_Window *window = nullptr;
@@ -56,8 +68,8 @@ SDL_Renderer *renderer = nullptr;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
-std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
+std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
+std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;

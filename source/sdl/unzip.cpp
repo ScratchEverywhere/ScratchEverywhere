@@ -31,6 +31,9 @@ int Unzip::openFile(std::ifstream *file) {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
     embeddedFilename = "romfs:/" + embeddedFilename;
     unzippedPath = "romfs:/" + unzippedPath;
+    file->open("romfs:/" + unzippedPath, std::ios::binary | std::ios::ate);
+#else
+    file->open(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
 
     // Unzipped Project in romfs:/
