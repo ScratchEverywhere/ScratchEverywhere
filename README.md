@@ -48,8 +48,8 @@ Join https://discord.gg/Y2gf5vZHpJ if you need any help with Scratch Everywhere!
 	- Known Bug: On 3DS, if a sound has to load while other sounds are playing, all sounds will stop playing until the sound is loaded.
 - If you play any sound from the "Stage", the sound will play as a "Streamed Sound" and will not need to load.
 - Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
-- [Wii, GameCube, Vita] "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
-- [3DS, Wii, GameCube] Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
+- **[Wii, GameCube, Vita]** "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
+- **[3DS, Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
 
 ### Framerate
 
@@ -81,7 +81,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - **[Vita]** Back touch will not be supported.
 
 
-## Unimplimented blocks
+## Unimplemented blocks
 
 - All say and think blocks
 - Most costume effects;
@@ -133,10 +133,10 @@ There are two methods to install the runtime:
 
 Download the `.3dsx `file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-3ds/main/Scratch%20Everywhere!%203DS%20Nightly.zip).
 
-- Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, along with any Scratch projects you want to run.
-
 > [!NOTE]
-> Scratch Everywhere! is also on Universal Updater, so you can just download it there and keep it updated that way!
+> Scratch Everywhere! for 3DS is also on [Universal Updater](https://db.universal-team.net/3ds/scratch-everywhere), so you can just download it there and keep it updated that way!
+
+Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, along with any Scratch projects you want to run.
 
 Then it should be as simple as opening the Homebrew Launcher on your 3DS and running the app!
 
@@ -144,12 +144,12 @@ Then it should be as simple as opening the Homebrew Launcher on your 3DS and run
 
 Download the `scratch-wiiu.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-wiiu/main/Scratch%20Everywhere!%20Wii%20U%20Nightly.zip).
 
+> [!NOTE]
+> Scratch Everywhere! for Wii U is also on the [Homebrew App Store](https://hb-app.store/wiiu/ScratchWiiU), so you can just download it there and keep it updated that way!
+
 Unzip the file in your `sdcard:/wiiu/apps/` folder.
 
 Place the scratch projects you want in `sdcard:/wiiu/scratch-wiiu/`.
-
-> [!NOTE]
-> Scratch Wii U is also on the Homebrew App Store, so you can just download it there and keep it updated that way!
 
 Then it should be as simple as opening the app on the Wii U Menu or in the Homebrew Launcher on your Wii U!
 
@@ -157,14 +157,14 @@ Then it should be as simple as opening the app on the Wii U Menu or in the Homeb
 
 Download the `scratch-wii.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-wii/main/Scratch%20Everywhere!%20Wii%20Nightly.zip).
 
+> [!NOTE]
+> Scratch Everywhere! for Wii is also on the [Open Shop Channel](https://oscwii.org/library/app/scratch-wii), so you can just download it there and keep it updated that way!
+
 Unzip the file and put the `apps` folder inside of the root of your SD card.
 
 Place the Scratch projects you want in `sdcard:/apps/scratch-wii/`.
 
 Then it should be as simple as opening the app in the Homebrew Menu on your Wii!
-
-> [!NOTE]
-> Scratch Wii is also on the Open Shop Channel, so you can just download it there and keep it updated that way!
 
 ### Get up and running for GameCube
 
@@ -180,6 +180,9 @@ Then it should be as simple as opening the app on your GameCube!
 ### Get up and running for Nintendo Switch
 
 Download the `scratch-nx.nro` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-switch/main/Scratch%20Everywhere!%20Switch%20Nightly.zip).
+
+> [!NOTE]
+> Scratch Everywhere! for Nintendo Switch is also on the [Homebrew App Store](https://hb-app.store/switch/ScratchEverywhere), so you can just download it there and keep it updated that way!
 
 Place the Scratch projects you want in `sdcard:/switch/scratch-nx/`.
 
@@ -252,7 +255,7 @@ Then you need to compile the projects into proper Homebrew packages.
 
 Compilation flags are used to select which features will be enabled in the compiled version of Scratch Everywhere!. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_BUBBLES=0`).
 
-- [3DS, GameCube, and Wii] `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
+- **[3DS, GameCube, Wii]** `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
 - `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
 - `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
 
