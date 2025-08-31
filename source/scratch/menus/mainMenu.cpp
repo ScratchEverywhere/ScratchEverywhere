@@ -153,13 +153,14 @@ void ProjectMenu::init() {
     backButton->needsToBeSelected = false;
     backButton->scale = 1.0;
 
-    std::vector<std::string> projectFiles;
+
 #ifdef __3DS__
     projectFiles = Unzip::getProjectFiles(".");
 #else
     projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
+    
 #endif
-
+    UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
@@ -175,6 +176,20 @@ void ProjectMenu::init() {
         projectControl->buttonObjects.push_back(project);
         yPosition += 50;
     }
+    for (std::string &file : UnzippedFiles) {
+        ButtonObject *project = new ButtonObject(file.substr(OS::getScratchFolderLocation().size(), file.length()), "gfx/menu/projectBoxFast.png", 0, yPosition);
+        project->text->setColor(Math::color(0, 0, 0, 255));
+        project->canBeClicked = false;
+        project->y -= project->text->getSize()[1] / 2;
+        if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
+            float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
+            project->textScale = scale;
+        }
+        projects.push_back(project);
+        projectControl->buttonObjects.push_back(project);
+        yPosition += 50;
+    }
+
     for (size_t i = 0; i < projects.size(); i++) {
         // Check if there's a project above
         if (i > 0) {
@@ -242,9 +257,22 @@ void ProjectMenu::render() {
 
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
-            Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
-            shouldGoBack = true;
-            return;
+            std::string projectpath = projectControl->selectedObject->text->getText() + ".sb3";
+            Log::log(projectControl->selectedObject->buttonTexture->image->imageId);
+
+            if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast")
+            {
+                //Unpacked sb3
+                Unzip::filePath = projectControl->selectedObject->text->getText();
+                shouldGoBack = true;
+                return;
+            } else
+            {
+                //normal sb3
+                Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
+                shouldGoBack = true;
+                return;
+            }
         }
         if (settingsButton->isPressed({"l"})) {
             std::string selectedProject = projectControl->selectedObject->text->getText();
@@ -319,6 +347,8 @@ void ProjectMenu::render() {
 }
 
 void ProjectMenu::cleanup() {
+    projectFiles.clear();
+    UnzippedFiles.clear();
     for (ButtonObject *button : projects) {
         delete button;
     }
@@ -367,8 +397,10 @@ ProjectSettings::~ProjectSettings() {
 
 void ProjectSettings::init() {
     // initialize
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 100);
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 70);
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
+    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.png", 200, 130);
+    UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
     // bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.png", 200, 150);
     // bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     settingsControl = new ControlObject();
@@ -380,6 +412,11 @@ void ProjectSettings::init() {
     settingsControl->selectedObject = changeControlsButton;
     changeControlsButton->isSelected = true;
 
+    changeControlsButton->buttonDown = UnpackProjectButton;
+    changeControlsButton->buttonUp = UnpackProjectButton;
+    UnpackProjectButton->buttonUp = changeControlsButton;
+    UnpackProjectButton->buttonDown = changeControlsButton;
+
     // link buttons
     // changeControlsButton->buttonDown = bottomScreenButton;
     // changeControlsButton->buttonUp = bottomScreenButton;
@@ -388,6 +425,7 @@ void ProjectSettings::init() {
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
+    settingsControl->buttonObjects.push_back(UnpackProjectButton);
     // settingsControl->buttonObjects.push_back(bottomScreenButton);
 }
 void ProjectSettings::render() {
@@ -405,6 +443,15 @@ void ProjectSettings::render() {
     }
     // if (bottomScreenButton->isPressed()) {
     // }
+    if (UnpackProjectButton->isPressed({"a"})) {
+        cleanup();
+        UnpackMenu unpackMenu(projectPath);
+        while (unpackMenu.shouldGoBack == false && Render::appShouldRun()) {
+            unpackMenu.render();
+        }
+        unpackMenu.cleanup();
+        init();
+    }
     if (backButton->isPressed({"b", "y"})) {
         shouldGoBack = true;
     }
@@ -413,6 +460,7 @@ void ProjectSettings::render() {
     Render::beginFrame(1, 147, 138, 168);
 
     changeControlsButton->render();
+    UnpackProjectButton->render();
     // bottomScreenButton->render();
     settingsControl->render();
     backButton->render();
@@ -423,6 +471,10 @@ void ProjectSettings::cleanup() {
     if (changeControlsButton != nullptr) {
         delete changeControlsButton;
         changeControlsButton = nullptr;
+    }
+    if (UnpackProjectButton != nullptr) {
+        delete UnpackProjectButton;
+        UnpackProjectButton = nullptr;
     }
     if (bottomScreenButton != nullptr) {
         delete bottomScreenButton;
@@ -714,4 +766,156 @@ void ControlsMenu::cleanup() {
     Input::getInput();
     Render::endFrame();
     Render::renderMode = Render::BOTH_SCREENS;
+}
+
+UnpackMenu::UnpackMenu(std::string projPath) {
+    projectPath = projPath + ".sb3";
+    size_t pos = projPath.find_last_of("/\\");
+    filename = (pos == std::string::npos) ? projPath : projPath.substr(pos + 1);
+    init();
+}
+
+UnpackMenu::~UnpackMenu() {
+    cleanup();
+}
+
+void UnpackMenu::init() {
+    Render::renderMode = Render::BOTH_SCREENS;
+
+    infoText = createTextObject("Unpack your Project", 200.0, 100.0);
+    infoText->setScale(1.5f);
+    infoText->setCenterAligned(true);
+    descText = createTextObject("Speed up your project by unpacking it", 200.0, 150.0);
+    descText->setScale(0.8f);
+    descText->setCenterAligned(true);
+
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
+    UnpackButton = new ButtonObject("Unpack", "gfx/menu/optionBox.svg", 200, 120);
+    UnpackButton->canBeClicked = true;
+    UnpackButton->needsToBeSelected = false;
+    UnpackButton->isSelected = true;
+    UnpackButton->scale = 0.6;
+    backButton->needsToBeSelected = false;
+    backButton->canBeClicked = true;
+    backButton->scale = 1.0;
+}
+
+void UnpackMenu::render() {
+    Input::getInput();
+    settingsControl->input();
+
+    if (backButton->isPressed({"b"})) {
+        shouldGoBack = true;
+        return;
+    }
+    if (UnpackButton->isPressed({"a"})) {
+        Unzip::extractProject(projectPath, OS::getScratchFolderLocation() + filename);
+        addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", OS::getScratchFolderLocation() + filename);
+        shouldGoBack = true;
+        return;
+    }
+
+    Render::beginFrame(0, 181, 165, 111);
+    infoText->render(200, 110);
+    descText->render(200, 140);
+    Render::beginFrame(1, 181, 165, 111);
+
+    // Render UI elements
+    UnpackButton->render();
+    backButton->render();
+
+    Render::endFrame();
+}
+
+void UnpackMenu::cleanup() {
+    if (backButton != nullptr) {
+        delete backButton;
+        backButton = nullptr;
+    }
+    if (UnpackButton != nullptr) {
+        delete UnpackButton;
+        UnpackButton = nullptr;
+    }
+    if (infoText != nullptr) {
+        delete infoText;
+        infoText = nullptr;
+    }
+    if (descText != nullptr) {
+        delete descText;
+        descText = nullptr;
+    }
+
+    Render::beginFrame(0, 181, 165, 111);
+    Render::beginFrame(1, 181, 165, 111);
+    Render::endFrame();
+    Render::renderMode = Render::BOTH_SCREENS;
+}
+
+void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &value) {
+    nlohmann::json j;
+
+    // Datei einlesen, falls existiert
+    std::ifstream inFile(filePath);
+    if (inFile) {
+        inFile >> j;
+    }
+    inFile.close();
+
+    // Stelle sicher, dass "items" als Array existiert
+    if (!j.contains("items") || !j["items"].is_array()) {
+        j["items"] = nlohmann::json::array();
+    }
+
+    // Neuen Wert hinzufügen
+    j["items"].push_back(value);
+
+    // Parent-Ordner erstellen, falls notwendig
+    std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
+
+    // Datei speichern
+    std::ofstream outFile(filePath);
+    if (!outFile) {
+        std::cerr << "Failed to write JSON file: " << filePath << std::endl;
+        return;
+    }
+    outFile << j.dump(2);
+    outFile.close();
+}
+
+// Liest das Array als vector<string> zurück
+std::vector<std::string> UnpackMenu::getJsonArray(const std::string &filePath) {
+    std::vector<std::string> result;
+    std::ifstream inFile(filePath);
+    if (!inFile) return result;
+
+    nlohmann::json j;
+    inFile >> j;
+    inFile.close();
+
+    if (j.contains("items") && j["items"].is_array()) {
+        for (const auto &el : j["items"]) {
+            result.push_back(el.get<std::string>());
+        }
+    }
+    return result;
+}
+
+// Löscht ein Element nach Name
+void UnpackMenu::removeFromJsonArray(const std::string &filePath, const std::string &value) {
+    std::ifstream inFile(filePath);
+    if (!inFile) return;
+
+    nlohmann::json j;
+    inFile >> j;
+    inFile.close();
+
+    if (j.contains("items") && j["items"].is_array()) {
+        auto &arr = j["items"];
+        arr.erase(std::remove(arr.begin(), arr.end(), value), arr.end());
+    }
+
+    std::ofstream outFile(filePath);
+    if (!outFile) return;
+    outFile << j.dump(2);
+    outFile.close();
 }

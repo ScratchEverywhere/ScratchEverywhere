@@ -9,6 +9,7 @@ volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
+bool Unzip::UnpackedInSD = false;
 
 int Unzip::openFile(std::ifstream *file) {
     Log::log("Unzipping Scratch Project...");
@@ -17,7 +18,7 @@ int Unzip::openFile(std::ifstream *file) {
     Log::log("Loading SB3 into memory...");
     const char *filename = "project.sb3";
     const char *unzippedPath = "romfs:/project/project.json";
-
+    
     // first try embedded unzipped project
     file->open(unzippedPath, std::ios::binary | std::ios::ate);
     projectType = UNZIPPED;
@@ -35,11 +36,32 @@ int Unzip::openFile(std::ifstream *file) {
             if (filePath == "") return -1;
 
             // if main menu was loaded, load the selected file from main menu
-            file->open(filePath, std::ios::binary | std::ios::ate);
-            if (!(*file)) {
-                Log::logError("Couldnt find file. jinkies.");
-                return 0;
+
+            // check if normal Project
+            if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
+
+                Log::log("Normal .sb3 project in SD card ");
+                file->open(filePath, std::ios::binary | std::ios::ate);
+                if (!(*file)) {
+
+                    Log::logError("Couldnt find file. jinkies.");
+                    Log::logWarning(filePath);
+                    return 0;
+                }
+            } else {
+                projectType = UNZIPPED;
+                Log::log("Unpacked .sb3 project in SD card");
+                // check if Unpacked Project
+                file->open(OS::getScratchFolderLocation() + filePath + "/project.json", std::ios::binary | std::ios::ate);
+                if (!(*file)) {
+                    Log::logError("Couldnt open Unpacked Scratch File");
+                    Log::logWarning(filePath + "<");
+                    return 0;
+                }
+                filePath = OS::getScratchFolderLocation() + filePath + "/";
+                UnpackedInSD = true;
             }
+
         } else {
             filePath = "romfs:/" + std::string(filename);
         }

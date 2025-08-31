@@ -17,11 +17,13 @@ class Unzip {
     static std::string loadingState;
     static volatile bool threadFinished;
     static std::string filePath;
+    static bool UnpackedInSD;
     static mz_zip_archive zipArchive;
     static std::vector<char> zipBuffer;
 
     static void openScratchProject(void *arg) {
         loadingState = "Opening Scratch project";
+        Unzip::UnpackedInSD = false;
         std::ifstream file;
         int isFileOpen = openFile(&file);
         if (isFileOpen == 0) {
@@ -161,4 +163,41 @@ class Unzip {
     static int openFile(std::ifstream *file);
 
     static bool load();
+
+    static bool extractProject(const std::string &zipPath, const std::string &destFolder) {
+        mz_zip_archive zip;
+        memset(&zip, 0, sizeof(zip));
+        if (!mz_zip_reader_init_file(&zip, zipPath.c_str(), 0)) {
+            Log::logError("Failed to open zip: " + zipPath);
+            return false;
+        }
+
+        int numFiles = (int)mz_zip_reader_get_num_files(&zip);
+        for (int i = 0; i < numFiles; i++) {
+            mz_zip_archive_file_stat st;
+            if (!mz_zip_reader_file_stat(&zip, i, &st)) continue;
+            std::string filename(st.m_filename);
+
+            if (filename.find('/') != std::string::npos || filename.find('\\') != std::string::npos)
+                continue;
+
+#ifdef GAMECUBE
+            mkdir(destFolder.c_str(), 0777);
+#endif
+            std::string outPath = destFolder + "/" + filename;
+
+#ifndef GAMECUBE
+            std::filesystem::create_directories(std::filesystem::path(outPath).parent_path());
+#endif
+
+            if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
+                Log::logError("Failed to extract: " + outPath);
+                mz_zip_reader_end(&zip);
+                return false;
+            }
+        }
+
+        mz_zip_reader_end(&zip);
+        return true;
+    }
 };

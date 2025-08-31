@@ -19,6 +19,7 @@ std::string Unzip::filePath = "";
 std::string Unzip::loadingState = "";
 mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
+bool Unzip::UnpackedInSD = false;
 
 int Unzip::openFile(std::ifstream *file) {
     Log::log("Unzipping Scratch project...");
@@ -52,11 +53,25 @@ int Unzip::openFile(std::ifstream *file) {
                 return -1;
             } else {
                 // SD card Project
+
+                // check if normal Project
                 Log::logWarning("Main Menu already done, loading SD card project.");
-                file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
-                if (!(*file)) {
-                    Log::logError("Couldn't find file. jinkies.");
-                    return 0;
+                if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
+                    Log::log("Normal .sb3 project in SD card ");
+                    file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
+                    if (!(*file)) {
+                        Log::logError("Couldn't find file. jinkies.");
+                        return 0;
+                    }
+                } else {
+                    projectType = UNZIPPED;
+                    Log::log("Unpacked .sb3 project in SD card");
+                    // check if Unpacked Project
+                    file->open(OS::getScratchFolderLocation() + filePath + "/project.json", std::ios::binary | std::ios::ate);
+                    if (!(*file)) {
+                        Log::logError("Couldnt open Unpacked Scratch File");
+                        return 0;
+                    }
                 }
             }
         }
