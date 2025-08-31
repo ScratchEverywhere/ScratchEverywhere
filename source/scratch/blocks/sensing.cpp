@@ -178,8 +178,15 @@ Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
     } else if (objectName == "_edge_") {
         return Value(isColliding("edge", sprite));
     } else {
-        return Value(isColliding("sprite", sprite, nullptr, objectName));
+        for (size_t i = 0; i < sprites.size(); i++) {
+            Sprite *currentSprite = sprites[i];
+            if (currentSprite->name == objectName &&
+                isColliding("sprite", sprite, currentSprite, objectName)) {
+                return Value(true);
+            }
+        }
     }
+    return Value(false);
 }
 
 Value SensingBlocks::mouseDown(Block &block, Sprite *sprite) {

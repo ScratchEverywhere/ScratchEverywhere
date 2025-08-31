@@ -12,3 +12,6 @@ GameCube:
 
 Switch:
   - '### Device\(s\)\s*.*Switch'
+
+Vita:
+  - '### Device\(s\)\s*.*Vita'

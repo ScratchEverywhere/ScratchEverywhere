@@ -86,6 +86,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - All say and think blocks
 - Most costume effects;
 	- Only the `Ghost` costume effect is supported
+- `Pitch` and `Pan left-right` sound effects
 - When loudness > ___
 - All color touching blocks
 - Loudness
@@ -96,7 +97,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 - Bug fixing and Scratch parity
 - Get all blocks working
-- Pen support
+- Pen support ([#294](https://github.com/NateXS/Scratch-Everywhere/pull/294))
 - Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pull/210))
 
 ### Wii U
@@ -115,6 +116,8 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 ### Other
 
 - Download projects from the Scratch website
+- Make Vector images not/less pixelated
+- Browser extension send directly to device from editor
 
 ## Installation
 
@@ -156,7 +159,7 @@ Download the `scratch-wii.zip` file in the Releases tab or [nightly build](https
 
 Unzip the file and put the `apps` folder inside of the root of your SD card.
 
-Place the Scratch projects you want in `sdcard:/apps/scratch-wii/`
+Place the Scratch projects you want in `sdcard:/apps/scratch-wii/`.
 
 Then it should be as simple as opening the app in the Homebrew Menu on your Wii!
 
@@ -178,7 +181,7 @@ Then it should be as simple as opening the app on your GameCube!
 
 Download the `scratch-nx.nro` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-switch/main/Scratch%20Everywhere!%20Switch%20Nightly.zip).
 
-Put your Scratch projects in the same place you put your `.nro` file.
+Place the Scratch projects you want in `sdcard:/switch/scratch-nx/`.
 
 Then it should be as simple as opening the app on your Nintendo Switch!
 

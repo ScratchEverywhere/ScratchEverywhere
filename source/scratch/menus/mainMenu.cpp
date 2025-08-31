@@ -163,7 +163,7 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBox.png", 0, yPosition);
+        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
@@ -242,7 +242,7 @@ void ProjectMenu::render() {
 
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
-            Unzip::filePath = projectControl->selectedObject->text->getText();
+            Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
             shouldGoBack = true;
             return;
         }
@@ -453,7 +453,7 @@ ControlsMenu::~ControlsMenu() {
 
 void ControlsMenu::init() {
 
-    Unzip::filePath = projectPath;
+    Unzip::filePath = projectPath + ".sb3";
     if (!Unzip::load()) {
         Log::logError("Failed to load project for ControlsMenu.");
         toExit = true;
@@ -661,7 +661,7 @@ void ControlsMenu::render() {
 void ControlsMenu::applyControls() {
     // Build the file path
     std::string folderPath = OS::getScratchFolderLocation() + projectPath;
-    std::string filePath = folderPath + ".json";
+    std::string filePath = folderPath + ".sb3" + ".json";
 
     // Make sure parent directories exist
     try {
