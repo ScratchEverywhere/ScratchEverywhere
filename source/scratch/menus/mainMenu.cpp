@@ -77,8 +77,15 @@ void MainMenu::init() {
 
     logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
-
     logoStartTime.start();
+
+    versionNumber = createTextObject("Beta Build 21", 0, 0);
+    versionNumber->setCenterAligned(false);
+    versionNumber->setScale(0.75);
+
+    splashText = createTextObject(Unzip::getSplashText(), 0, 0);
+    splashText->setCenterAligned(true);
+    splashText->setColor(Math::color(243, 154, 37, 255));
 
     loadButton = new ButtonObject("", "gfx/menu/play.png", 200, 180);
     loadButton->isSelected = true;
@@ -104,6 +111,8 @@ void MainMenu::render() {
     float bobbingOffset = std::sin(elapsed * 0.0025f) * 5.0f;
     logo->y = 75 + bobbingOffset;
     logo->render();
+    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
+    splashText->render(logo->renderX, logo->renderY + 85);
 
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);
@@ -135,6 +144,14 @@ void MainMenu::cleanup() {
     if (mainMenuControl) {
         delete mainMenuControl;
         mainMenuControl = nullptr;
+    }
+    if (versionNumber) {
+        delete versionNumber;
+        versionNumber = nullptr;
+    }
+    if (splashText) {
+        delete splashText;
+        splashText = nullptr;
     }
 }
 

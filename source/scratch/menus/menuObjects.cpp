@@ -136,10 +136,10 @@ void MenuImage::render(double xPos, double yPos) {
     double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
     double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
 
-    double actualX = proportionX * Render::getWidth();
-    double actualY = proportionY * Render::getHeight();
+    renderX = proportionX * Render::getWidth();
+    renderY = proportionY * Render::getHeight();
 
-    image->render(actualX, actualY, true);
+    image->render(renderX, renderY, true);
 }
 
 MenuImage::~MenuImage() {
