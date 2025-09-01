@@ -41,7 +41,7 @@ int Unzip::openFile(std::ifstream *file) {
             if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
 
                 Log::log("Normal .sb3 project in SD card ");
-                file->open(filePath, std::ios::binary | std::ios::ate);
+                file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
                 if (!(*file)) {
 
                     Log::logError("Couldnt find file. jinkies.");
