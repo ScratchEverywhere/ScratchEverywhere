@@ -869,25 +869,20 @@ void UnpackMenu::cleanup() {
 void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &value) {
     nlohmann::json j;
 
-    // Datei einlesen, falls existiert
     std::ifstream inFile(filePath);
     if (inFile) {
         inFile >> j;
     }
     inFile.close();
 
-    // Stelle sicher, dass "items" als Array existiert
     if (!j.contains("items") || !j["items"].is_array()) {
         j["items"] = nlohmann::json::array();
     }
 
-    // Neuen Wert hinzufügen
     j["items"].push_back(value);
 
-    // Parent-Ordner erstellen, falls notwendig
     std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
 
-    // Datei speichern
     std::ofstream outFile(filePath);
     if (!outFile) {
         std::cerr << "Failed to write JSON file: " << filePath << std::endl;
@@ -897,7 +892,6 @@ void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &
     outFile.close();
 }
 
-// Liest das Array als vector<string> zurück
 std::vector<std::string> UnpackMenu::getJsonArray(const std::string &filePath) {
     std::vector<std::string> result;
     std::ifstream inFile(filePath);
@@ -915,7 +909,6 @@ std::vector<std::string> UnpackMenu::getJsonArray(const std::string &filePath) {
     return result;
 }
 
-// Löscht ein Element nach Name
 void UnpackMenu::removeFromJsonArray(const std::string &filePath, const std::string &value) {
     std::ifstream inFile(filePath);
     if (!inFile) return;
