@@ -35,13 +35,32 @@ COPY --from=libcurl_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs
 
 RUN wget https://github.com/gradylink/mistpp-packages/releases/download/0.2.0-1/3ds-libmistpp-0.2.0-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.2.0-1-any.pkg.tar.zst
 
+FROM devkitpro/devkitarm:latest AS makerom_installer
+WORKDIR /makerom
+
+COPY --from=mistpp_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+
+RUN wget https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.18.4/makerom-v0.18.4-ubuntu_x86_64.zip && unzip makerom-v0.18.4-ubuntu_x86_64.zip && chmod +x makerom && cp makerom /opt/devkitpro/portlibs/3ds/bin/
+
+FROM debian:bookworm AS bannertool_builder
+WORKDIR /bannertool
+
+COPY --from=makerom_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+
+RUN apt update && apt install -y --no-install-recommends build-essential git ca-certificates cmake
+
+RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build && cp build/bannertool /opt/devkitpro/portlibs/3ds/bin/
+
 FROM devkitpro/devkitarm:latest AS main_builder
 WORKDIR /app
 
-COPY --from=mistpp_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+# Bring in all built portlibs + makerom + bannertool
+COPY --from=bannertool_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
 COPY . .
 
-RUN make TARGET=Scratch-3DS ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1
+# Build .3dsx and .cia for default TARGET (Scratch)
+RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/3ds/Scratch-3DS.3dsx /
+COPY --from=main_builder /app/build/3ds/Scratch.3dsx /
+COPY --from=main_builder /app/build/3ds/Scratch.cia /
