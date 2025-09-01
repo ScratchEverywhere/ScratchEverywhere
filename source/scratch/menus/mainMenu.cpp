@@ -153,11 +153,10 @@ void ProjectMenu::init() {
     backButton->needsToBeSelected = false;
     backButton->scale = 1.0;
 
-#ifdef __3DS__
-    projectFiles = Unzip::getProjectFiles(".");
-#else
+
+
     projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
-#endif
+
     UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
     // initialize text and set positions
     int yPosition = 120;
@@ -463,11 +462,9 @@ void ProjectSettings::render() {
         cleanup();
         UnpackMenu unpackMenu;
         unpackMenu.render();
-#ifdef __3DS__
-        Unzip::extractProject("./"+ projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath);
-#else
+        
         Unzip::extractProject(OS::getScratchFolderLocation()+ projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath);
-#endif
+
         unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
         shouldGoBack = true;
         unpackMenu.cleanup();
