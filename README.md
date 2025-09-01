@@ -131,12 +131,20 @@ There are two methods to install the runtime:
 
 ### Get up and running for 3DS
 
-Download the `.3dsx `file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-3ds/main/Scratch%20Everywhere!%203DS%20Nightly.zip).
+Download the `.cia` file or `.3dsx` in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-3ds/main/Scratch%20Everywhere!%203DS%20Nightly.zip).
 
 > [!NOTE]
 > Scratch Everywhere! for 3DS is also on [Universal Updater](https://db.universal-team.net/3ds/scratch-everywhere), so you can just download it there and keep it updated that way!
 
-Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, along with any Scratch projects you want to run.
+#### .cia (Installable app)
+
+Place the `.cia` file in the `cias/` folder of your 3DS SD card. Open the FBI application and navigate to the `cias/` folder and install the `.cia` file. 
+
+Put your Scratch projects in `3ds/scratch-everywhere` and open the Scratch Everywhere application on your Home screen. 
+
+#### .3dsx
+
+Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, put Scratch projects in `3ds/scratch-everywhere`.
 
 Then it should be as simple as opening the Homebrew Launcher on your 3DS and running the app!
 
