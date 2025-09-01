@@ -49,6 +49,7 @@ main.code-workspace
 *.nso
 *.elf
 *.smdh
+*.cia
 *.bat
 *.sb3
 *.t3x
@@ -63,3 +64,4 @@ scratch-wii.zip
 
 # Stored Files
 cloud-username.txt
+
