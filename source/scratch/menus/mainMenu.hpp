@@ -61,11 +61,14 @@ class ProjectSettings {
     ButtonObject *backButton = nullptr;
     ButtonObject *changeControlsButton = nullptr;
     ButtonObject *UnpackProjectButton = nullptr;
+    ButtonObject *DeleteUnpackProjectButton = nullptr;
     ButtonObject *bottomScreenButton = nullptr;
+
+    bool canUnpacked = true;
     bool shouldGoBack = false;
     std::string projectPath;
 
-    ProjectSettings(std::string projPath = "");
+    ProjectSettings(std::string projPath = "", bool existUnpacked = false);
     ~ProjectSettings();
 
     void init();
@@ -102,16 +105,15 @@ class ControlsMenu {
 class UnpackMenu {
   public:
     ControlObject *settingsControl = nullptr;
-    ButtonObject *backButton = nullptr;
-    ButtonObject *UnpackButton = nullptr;
+
     TextObject *infoText = nullptr;
     TextObject *descText = nullptr;
+
     bool shouldGoBack = false;
 
     std::string filename;
-    std::string projectPath;
 
-    UnpackMenu(std::string projPath);
+    UnpackMenu();
     ~UnpackMenu();
 
     static void addToJsonArray(const std::string &filePath, const std::string &value);

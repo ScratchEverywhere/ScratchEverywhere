@@ -153,12 +153,10 @@ void ProjectMenu::init() {
     backButton->needsToBeSelected = false;
     backButton->scale = 1.0;
 
-
 #ifdef __3DS__
     projectFiles = Unzip::getProjectFiles(".");
 #else
     projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
-    
 #endif
     UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
     // initialize text and set positions
@@ -177,7 +175,7 @@ void ProjectMenu::init() {
         yPosition += 50;
     }
     for (std::string &file : UnzippedFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(OS::getScratchFolderLocation().size(), file.length()), "gfx/menu/projectBoxFast.png", 0, yPosition);
+        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.png", 0, yPosition);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
@@ -203,7 +201,7 @@ void ProjectMenu::init() {
     }
 
     // check if user has any projects
-    if (projectFiles.size() == 0) {
+    if (projectFiles.size() == 0 && UnzippedFiles.size() == 0) {
         hasProjects = false;
         noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.png", 200, 120);
         projectControl->selectedObject = noProjectsButton;
@@ -246,6 +244,12 @@ void ProjectMenu::init() {
         settingsButton->needsToBeSelected = false;
         playButton->needsToBeSelected = false;
     }
+                Log::log("list all");
+            for (std::string n : UnzippedFiles)
+            {
+                Log::log("-" + n + "-");
+            }
+            Log::log("end List");
 }
 
 void ProjectMenu::render() {
@@ -257,18 +261,16 @@ void ProjectMenu::render() {
 
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
-            std::string projectpath = projectControl->selectedObject->text->getText() + ".sb3";
+            // std::string projectpath = projectControl->selectedObject->text->getText() + ".sb3";
             Log::log(projectControl->selectedObject->buttonTexture->image->imageId);
 
-            if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast")
-            {
-                //Unpacked sb3
+            if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
+                // Unpacked sb3
                 Unzip::filePath = projectControl->selectedObject->text->getText();
                 shouldGoBack = true;
                 return;
-            } else
-            {
-                //normal sb3
+            } else {
+                // normal sb3
                 Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
                 shouldGoBack = true;
                 return;
@@ -277,7 +279,12 @@ void ProjectMenu::render() {
         if (settingsButton->isPressed({"l"})) {
             std::string selectedProject = projectControl->selectedObject->text->getText();
             cleanup();
-            ProjectSettings settings(selectedProject);
+
+            //idk  why UnzippedFiles is emptied
+            //ToDo: Fix
+            UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
+
+            ProjectSettings settings(selectedProject, (std::find(UnzippedFiles.begin(), UnzippedFiles.end(), selectedProject) != UnzippedFiles.end()));
             while (settings.shouldGoBack == false && Render::appShouldRun()) {
                 settings.render();
             }
@@ -387,8 +394,10 @@ void ProjectMenu::cleanup() {
     Render::endFrame();
 }
 
-ProjectSettings::ProjectSettings(std::string projPath) {
+ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
+    Log::log(existUnpacked ? "ALREADY" : "NO");
     projectPath = projPath;
+    canUnpacked = !existUnpacked;
     init();
 }
 ProjectSettings::~ProjectSettings() {
@@ -401,6 +410,8 @@ void ProjectSettings::init() {
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
     UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.png", 200, 130);
     UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
+    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.png", 200, 130);
+    DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
     // bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.png", 200, 150);
     // bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     settingsControl = new ControlObject();
@@ -412,10 +423,17 @@ void ProjectSettings::init() {
     settingsControl->selectedObject = changeControlsButton;
     changeControlsButton->isSelected = true;
 
-    changeControlsButton->buttonDown = UnpackProjectButton;
-    changeControlsButton->buttonUp = UnpackProjectButton;
-    UnpackProjectButton->buttonUp = changeControlsButton;
-    UnpackProjectButton->buttonDown = changeControlsButton;
+    if (canUnpacked) {
+        changeControlsButton->buttonDown = UnpackProjectButton;
+        changeControlsButton->buttonUp = UnpackProjectButton;
+        UnpackProjectButton->buttonUp = changeControlsButton;
+        UnpackProjectButton->buttonDown = changeControlsButton;
+    } else {
+        changeControlsButton->buttonDown = DeleteUnpackProjectButton;
+        changeControlsButton->buttonUp = DeleteUnpackProjectButton;
+        DeleteUnpackProjectButton->buttonUp = changeControlsButton;
+        DeleteUnpackProjectButton->buttonDown = changeControlsButton;
+    }
 
     // link buttons
     // changeControlsButton->buttonDown = bottomScreenButton;
@@ -443,15 +461,32 @@ void ProjectSettings::render() {
     }
     // if (bottomScreenButton->isPressed()) {
     // }
-    if (UnpackProjectButton->isPressed({"a"})) {
+    if (UnpackProjectButton->isPressed({"a"}) && canUnpacked) {
         cleanup();
-        UnpackMenu unpackMenu(projectPath);
-        while (unpackMenu.shouldGoBack == false && Render::appShouldRun()) {
-            unpackMenu.render();
-        }
+        UnpackMenu unpackMenu;
+        unpackMenu.render();
+#ifdef __3DS__
+        Unzip::extractProject("./"+ projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath);
+#else
+        Unzip::extractProject(OS::getScratchFolderLocation()+ projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath);
+#endif
+        unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+        shouldGoBack = true;
         unpackMenu.cleanup();
         init();
     }
+
+    if (DeleteUnpackProjectButton->isPressed({"a"}) && !canUnpacked) {
+        cleanup();
+        UnpackMenu unpackMenu;
+        unpackMenu.render();
+        Unzip::deleteProjectFolder(OS::getScratchFolderLocation() + projectPath);
+        unpackMenu.removeFromJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+        shouldGoBack = true;
+        unpackMenu.cleanup();
+        init();
+    }
+
     if (backButton->isPressed({"b", "y"})) {
         shouldGoBack = true;
     }
@@ -460,7 +495,8 @@ void ProjectSettings::render() {
     Render::beginFrame(1, 147, 138, 168);
 
     changeControlsButton->render();
-    UnpackProjectButton->render();
+    if (canUnpacked) UnpackProjectButton->render();
+    if (!canUnpacked) DeleteUnpackProjectButton->render();
     // bottomScreenButton->render();
     settingsControl->render();
     backButton->render();
@@ -768,10 +804,7 @@ void ControlsMenu::cleanup() {
     Render::renderMode = Render::BOTH_SCREENS;
 }
 
-UnpackMenu::UnpackMenu(std::string projPath) {
-    projectPath = projPath + ".sb3";
-    size_t pos = projPath.find_last_of("/\\");
-    filename = (pos == std::string::npos) ? projPath : projPath.substr(pos + 1);
+UnpackMenu::UnpackMenu() {
     init();
 }
 
@@ -782,64 +815,32 @@ UnpackMenu::~UnpackMenu() {
 void UnpackMenu::init() {
     Render::renderMode = Render::BOTH_SCREENS;
 
-    infoText = createTextObject("Unpack your Project", 200.0, 100.0);
+    infoText = createTextObject("Please wait a moment", 200.0, 100.0);
     infoText->setScale(1.5f);
     infoText->setCenterAligned(true);
-    descText = createTextObject("Speed up your project by unpacking it", 200.0, 150.0);
+    descText = createTextObject("Do not turn off the device", 200.0, 150.0);
     descText->setScale(0.8f);
     descText->setCenterAligned(true);
-
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
-    UnpackButton = new ButtonObject("Unpack", "gfx/menu/optionBox.svg", 200, 120);
-    UnpackButton->canBeClicked = true;
-    UnpackButton->needsToBeSelected = false;
-    UnpackButton->isSelected = true;
-    UnpackButton->scale = 0.6;
-    backButton->needsToBeSelected = false;
-    backButton->canBeClicked = true;
-    backButton->scale = 1.0;
 }
 
 void UnpackMenu::render() {
-    Input::getInput();
-    settingsControl->input();
-
-    if (backButton->isPressed({"b"})) {
-        shouldGoBack = true;
-        return;
-    }
-    if (UnpackButton->isPressed({"a"})) {
-        Unzip::extractProject(projectPath, OS::getScratchFolderLocation() + filename);
-        addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", OS::getScratchFolderLocation() + filename);
-        shouldGoBack = true;
-        return;
-    }
 
     Render::beginFrame(0, 181, 165, 111);
     infoText->render(200, 110);
     descText->render(200, 140);
-    Render::beginFrame(1, 181, 165, 111);
 
-    // Render UI elements
-    UnpackButton->render();
-    backButton->render();
+    Render::beginFrame(1, 181, 165, 111);
 
     Render::endFrame();
 }
 
 void UnpackMenu::cleanup() {
-    if (backButton != nullptr) {
-        delete backButton;
-        backButton = nullptr;
-    }
-    if (UnpackButton != nullptr) {
-        delete UnpackButton;
-        UnpackButton = nullptr;
-    }
+
     if (infoText != nullptr) {
         delete infoText;
         infoText = nullptr;
     }
+
     if (descText != nullptr) {
         delete descText;
         descText = nullptr;

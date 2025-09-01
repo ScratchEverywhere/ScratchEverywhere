@@ -200,4 +200,56 @@ class Unzip {
         mz_zip_reader_end(&zip);
         return true;
     }
+
+#ifdef GAMECUBE
+    static bool deleteProjectFolder(const std::string &directory) {
+        DIR *dir = opendir(directory.c_str());
+        if (dir == nullptr) {
+            Log::logWarning("Directory not found: " + directory);
+            return false;
+        }
+
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            std::string name(entry->d_name);
+            if (name == "." || name == "..") continue;
+
+            std::string path = directory + "/" + name;
+            if (remove(path.c_str()) != 0) {
+                Log::logError("Failed to remove file: " + path);
+                closedir(dir);
+                return false;
+            }
+        }
+        closedir(dir);
+
+        if (rmdir(directory.c_str()) != 0) {
+            Log::logError("Failed to remove directory: " + directory);
+            return false;
+        }
+
+        return true;
+    }
+#else
+    static bool deleteProjectFolder(const std::string &directory) {
+        if (!std::filesystem::exists(directory)) {
+            Log::logWarning("Directory does not exist: " + directory);
+            return false;
+        }
+
+        if (!std::filesystem::is_directory(directory)) {
+            Log::logWarning("Path is not a directory: " + directory);
+            return false;
+        }
+
+        try {
+            std::filesystem::remove_all(directory);
+            return true;
+        } catch (const std::filesystem::filesystem_error &e) {
+            Log::logError(std::string("Failed to delete folder: ") + e.what());
+            return false;
+        }
+    }
+#endif
+
 };
