@@ -156,8 +156,10 @@ void ProjectMenu::init() {
 
 
     projectFiles = Unzip::getProjectFiles(OS::getScratchFolderLocation());
-
     UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
+
+
+
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
@@ -213,7 +215,7 @@ void ProjectMenu::init() {
 #ifdef __WIIU__
         noProjectInfo->setText("Put Scratch projects in sd:/wiiu/scratch-wiiu/ !");
 #elif defined(__3DS__)
-        noProjectInfo->setText("Put Scratch projects in sd:/3ds/ !");
+        noProjectInfo->setText("Project location has moved to sd:/3ds/scratch-everywhere !");
 #elif defined(WII)
         noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii !");
 #elif defined(VITA)
