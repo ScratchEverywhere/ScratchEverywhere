@@ -62,5 +62,5 @@ COPY . .
 RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/3ds/Scratch.3dsx /
-COPY --from=main_builder /app/build/3ds/Scratch.cia /
+COPY --from=main_builder /app/build/3ds/scratch-3ds.3dsx /
+COPY --from=main_builder /app/build/3ds/scratch-3ds.cia /

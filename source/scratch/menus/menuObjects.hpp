@@ -26,6 +26,9 @@ class MenuImage : public MenuObject {
      */
     MenuImage(std::string filePath, int xPos = 0, int yPos = 0);
     virtual ~MenuImage();
+
+    double renderX;
+    double renderY;
 };
 
 class ButtonObject : public MenuObject {
@@ -57,7 +60,7 @@ class ButtonObject : public MenuObject {
      * @param xPosition
      * @param yPosition
      */
-    ButtonObject(std::string buttonText, std::string filePath, int xPos = 0, int yPos = 0);
+    ButtonObject(std::string buttonText, std::string filePath, int xPos = 0, int yPos = 0, std::string fontPath = "");
     virtual ~ButtonObject();
 };
 

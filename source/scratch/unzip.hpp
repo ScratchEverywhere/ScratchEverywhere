@@ -97,6 +97,51 @@ class Unzip {
     }
 #endif
 
+    static std::string getSplashText() {
+        std::string textPath = "gfx/menu/splashText.txt";
+
+#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
+        textPath = "romfs:/" + textPath;
+#endif
+
+        std::vector<std::string> splashLines;
+        std::ifstream file(textPath);
+
+        if (!file.is_open()) {
+            return "Everywhere!"; // fallback text
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (!line.empty()) { // skip empty lines
+                splashLines.push_back(line);
+            }
+        }
+        file.close();
+
+        if (splashLines.empty()) {
+            return "Everywhere!"; // fallback if file is empty
+        }
+
+        // Initialize random number generator with current time
+        static std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
+        std::uniform_int_distribution<size_t> dist(0, splashLines.size() - 1);
+
+        std::string splash = splashLines[dist(rng)];
+
+        // Replace {PlatformName} with OS::getPlatform()
+        const std::string platformName = "{PlatformName}";
+        const std::string platform = OS::getPlatform();
+
+        size_t pos = 0;
+        while ((pos = splash.find(platformName, pos)) != std::string::npos) {
+            splash.replace(pos, platformName.size(), platform);
+            pos += platform.size(); // move past replacement
+        }
+
+        return splash;
+    }
+
     static nlohmann::json unzipProject(std::ifstream *file) {
 
         nlohmann::json project_json;

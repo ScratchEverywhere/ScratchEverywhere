@@ -14,6 +14,8 @@ class MainMenu {
     ButtonObject *loadButton = nullptr;
     ButtonObject *settingsButton = nullptr;
     ControlObject *mainMenuControl = nullptr;
+    TextObject *versionNumber = nullptr;
+    TextObject *splashText = nullptr;
 
     int selectedTextIndex = 0;
 

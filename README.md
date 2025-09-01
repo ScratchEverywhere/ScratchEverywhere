@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="gfx/logo.png" alt="Scratch Everywhere! logo" />
+  <img src="gfx/menu/logo.png" alt="Scratch Everywhere! logo" />
 </p>
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
@@ -131,12 +131,20 @@ There are two methods to install the runtime:
 
 ### Get up and running for 3DS
 
-Download the `.3dsx `file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-3ds/main/Scratch%20Everywhere!%203DS%20Nightly.zip).
+Download the `.cia` file or `.3dsx` in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-3ds/main/Scratch%20Everywhere!%203DS%20Nightly.zip).
 
 > [!NOTE]
 > Scratch Everywhere! for 3DS is also on [Universal Updater](https://db.universal-team.net/3ds/scratch-everywhere), so you can just download it there and keep it updated that way!
 
-Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, along with any Scratch projects you want to run.
+#### .cia (Installable app)
+
+Place the `.cia` file in the `cias/` folder of your 3DS SD card. Open the FBI application and navigate to the `cias/` folder and install the `.cia` file. 
+
+Put your Scratch projects in `3ds/scratch-everywhere` and open the Scratch Everywhere application on your Home screen. 
+
+#### .3dsx
+
+Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, put Scratch projects in `3ds/scratch-everywhere`.
 
 Then it should be as simple as opening the Homebrew Launcher on your 3DS and running the app!
 
@@ -258,6 +266,7 @@ Compilation flags are used to select which features will be enabled in the compi
 - **[3DS, GameCube, Wii]** `ENABLE_BUBBLES` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
 - `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
 - `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
+- **[Old 3DS]** `RAM_AMOUNT` (default: `72`): the amount of RAM, in megabytes, the old 3DS should be using. Can be set to `32`, `64`, `72`, `80`, or `96`.
 
 ## Disclaimer
 

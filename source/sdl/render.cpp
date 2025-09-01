@@ -48,8 +48,8 @@ char nickname[0x21];
 #include <romfs-ogc.h>
 #endif
 
-int windowWidth = 480;
-int windowHeight = 360;
+int windowWidth = 540;
+int windowHeight = 405;
 SDL_Window *window = nullptr;
 SDL_Renderer *renderer = nullptr;
 
