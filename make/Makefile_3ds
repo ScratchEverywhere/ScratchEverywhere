@@ -1,4 +1,4 @@
-.PHONY: all clean
+.PHONY: all clean cia
 
 
 # 3DS MAKEFILE
@@ -24,6 +24,16 @@ APP_TITLE 	:=	Scratch Everywhere!
 APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 20]
 APP_AUTHOR 	:= NateXS
 TARGET		:=	Scratch
+
+# CIA / banner assets (for makerom & bannertool)
+BANNER_PNG 	:= $(TOPDIR)/gfx/banner.png
+BANNER_WAV 	:= $(TOPDIR)/gfx/banner.wav
+ICON_PNG   	:= $(TOPDIR)/gfx/icon.png
+RSF_FILE   	:= $(TOPDIR)/gfx/makerom.rsf
+
+# External tools (override if needed)
+BANNERTOOL ?= bannertool
+MAKEROM    ?= makerom
 #---------------------------------------------------------------------------------
 #	Build Info
 #---------------------------------------------------------------------------------
@@ -224,7 +234,10 @@ endif
 
 #---------------------------------------------------------------------------------
 all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
-	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/make/Makefile_3ds
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/make/Makefile_3ds all
+
+cia: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/make/Makefile_3ds cia
 
 $(BUILD):
 	@mkdir -p $@
@@ -266,7 +279,8 @@ $(ROMFS)/project/%.t3s: $(ROMFS)/project/%.tga
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr build $(BUILD)/$(TARGET).3dsx $(BUILD)/$(TARGET).smdh $(BUILD)/$(TARGET).elf $(GFXBUILD)
+	@rm -fr build $(BUILD)/$(TARGET).3dsx $(BUILD)/$(TARGET).cia $(BUILD)/$(TARGET).smdh $(BUILD)/$(TARGET).elf $(GFXBUILD) \
+		$(BUILD)/banner.bnr $(BUILD)/icon.smdh
 	@find $(ROMFS)/project -name "*.t3s" -delete 2>/dev/null || true
 
 #---------------------------------------------------------------------------------
@@ -296,11 +310,32 @@ else
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
+.PHONY: all cia
+
+# Only build .3dsx by default; CIA via explicit target
+all: $(OUTPUT).3dsx $(OUTPUT).cia
+
+
 $(OUTPUT).3dsx	:	$(OUTPUT).elf $(_3DSXDEPS)
 
 $(OFILES_SOURCES) : $(HFILES)
 
 $(OUTPUT).elf	:	$(OFILES)
+
+#---------------------------------------------------------------------------------
+# CIA build (makerom + bannertool)
+#---------------------------------------------------------------------------------
+banner.bnr: $(BANNER_PNG) $(BANNER_WAV)
+	@$(BANNERTOOL) makebanner -i $(BANNER_PNG) -a $(BANNER_WAV) -o $@
+	@echo "built ... $@"
+
+icon.smdh: $(ICON_PNG)
+	@$(BANNERTOOL) makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p "$(APP_AUTHOR)" -i $(ICON_PNG) -o $@
+	@echo "built ... $@"
+
+$(OUTPUT).cia: $(OUTPUT).elf banner.bnr icon.smdh $(RSF_FILE)
+	@$(MAKEROM) -f cia -o $@ -elf $(OUTPUT).elf -rsf $(RSF_FILE) -banner banner.bnr -icon icon.smdh -target t -exefslogo
+	@echo "built ... $@"
 
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
