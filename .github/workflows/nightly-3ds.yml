@@ -37,5 +37,5 @@ jobs:
         with:
           name: Scratch Everywhere! 3DS Nightly
           path: |
-            Scratch.3dsx
-            Scratch.cia
+            scratch-3ds.3dsx
+            scratch-3ds.cia

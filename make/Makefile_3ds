@@ -23,13 +23,13 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 APP_TITLE 	:=	Scratch Everywhere!
 APP_DESCRIPTION := Play Scratch Games on the 3DS! [Beta 20]
 APP_AUTHOR 	:= NateXS
-TARGET		:=	Scratch
+TARGET		:=	scratch-3ds
 
 # CIA / banner assets (for makerom & bannertool)
-BANNER_PNG 	:= $(TOPDIR)/gfx/banner.png
-BANNER_WAV 	:= $(TOPDIR)/gfx/banner.wav
+BANNER_PNG 	:= $(TOPDIR)/gfx/3ds/banner.png
+BANNER_WAV 	:= $(TOPDIR)/gfx/3ds/banner.wav
 ICON_PNG   	:= $(TOPDIR)/gfx/icon.png
-RSF_FILE   	:= $(TOPDIR)/gfx/makerom.rsf
+RSF_FILE   	:= $(TOPDIR)/gfx/3ds/makerom.rsf
 
 # External tools (override if needed)
 BANNERTOOL ?= bannertool
@@ -50,6 +50,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 ENABLE_CLOUDVARS	?=	0
 ENABLE_BUBBLES	  ?=	1
 ENABLE_AUDIO	?=	1
+RAM_AMOUNT		?= 72
 
 # Check for SDL2 libraries
 ifeq ($(ENABLE_AUDIO),1)
@@ -334,6 +335,8 @@ icon.smdh: $(ICON_PNG)
 	@echo "built ... $@"
 
 $(OUTPUT).cia: $(OUTPUT).elf banner.bnr icon.smdh $(RSF_FILE)
+	@echo "Setting RAM to $(RAM_AMOUNT) MB..."
+	@sed -i '/# Process Settings/,/# New3DS Exclusive Process Settings/ s/SystemMode.*: .*/SystemMode                    : $(RAM_AMOUNT)MB # 64MB(Default)\/96MB\/80MB\/72MB\/32MB/' $(RSF_FILE)
 	@$(MAKEROM) -f cia -o $@ -elf $(OUTPUT).elf -rsf $(RSF_FILE) -banner banner.bnr -icon icon.smdh -target t -exefslogo
 	@echo "built ... $@"
 
