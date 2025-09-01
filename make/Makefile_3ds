@@ -161,6 +161,10 @@ ROMFS_PROJECT_T3X_STEMS := $(patsubst %.bmp,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
 ROMFS_PROJECT_T3X_STEMS := $(patsubst %.tga,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
 ROMFS_PROJECT_T3XFILES := $(patsubst $(ROMFS)/project/%,$(GFXBUILD)/%,$(ROMFS_PROJECT_T3X_STEMS))
 
+FONTFILES := $(shell find $(GRAPHICS) -type f -iname "*.ttf" 2>/dev/null)
+ROMFS_FONTFILES := $(patsubst $(GRAPHICS)/%,$(GFXBUILD)/%,$(FONTFILES:.ttf=.bcfnt))
+
+
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
 #---------------------------------------------------------------------------------
@@ -180,6 +184,7 @@ ifeq ($(GFXBUILD),$(BUILD))
 #---------------------------------------------------------------------------------
 export T3XFILES :=  $(GFXFILES:.t3s=.t3x)
 export ROMFS_ALLGFXFILES	:=	$(ALLGFXFILES)
+export EFONTFILES := $(FONTFILES:.ttf=.bcfnt)
 #---------------------------------------------------------------------------------
 else
 #---------------------------------------------------------------------------------
@@ -234,10 +239,10 @@ endif
 .PHONY: all clean
 
 #---------------------------------------------------------------------------------
-all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
+all: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(ROMFS_FONTFILES) $(T3XHFILES)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/make/Makefile_3ds all
 
-cia: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(T3XHFILES)
+cia: $(BUILD) $(GFXBUILD) $(DEPSDIR) $(ROMFS_T3XFILES) $(ROMFS_FONTFILES) $(T3XHFILES)
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(TOPDIR)/make/Makefile_3ds cia
 
 $(BUILD):
@@ -300,9 +305,18 @@ $(GFXBUILD)/%.t3x: $(ROMFS)/project/%.t3s
 	@rm $<
 
 #---------------------------------------------------------------------------------
+# Generate bcfnt files from .ttf
+#---------------------------------------------------------------------------------
+$(GFXBUILD)/%.bcfnt : $(GRAPHICS)/%.ttf
+	@echo "Converting font: $(notdir $<)"
+	@mkdir -p $(dir $@)
+	@mkbcfnt -o $@ $<
+
+#---------------------------------------------------------------------------------
 # Copy all files from gfx folder to romfs/gfx folder
 $(GFXBUILD)/%	:	gfx/%
 #---------------------------------------------------------------------------------
+	@mkdir -p $(dir $@)
 	@cp $< $@
 
 #---------------------------------------------------------------------------------
@@ -349,12 +363,18 @@ $(OUTPUT).cia: $(OUTPUT).elf banner.bnr icon.smdh $(RSF_FILE)
 	@$(bin2o)
 
 #---------------------------------------------------------------------------------
-.PRECIOUS	:	%.t3x %.shbin
+.PRECIOUS : %.t3x %.shbin %.bcfnt
 #---------------------------------------------------------------------------------
 %.t3x.o	%_t3x.h :	%.t3x
 #---------------------------------------------------------------------------------
 	$(SILENTMSG) $(notdir $<)
 	$(bin2o)
+
+#---------------------------------------------------------------------------------
+%.bcfnt.o %_bcfnt.h : %.bcfnt
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(bin2o)
 
 #---------------------------------------------------------------------------------
 %.shbin.o %_shbin.h : %.shbin
