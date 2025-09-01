@@ -261,8 +261,6 @@ void ProjectMenu::render() {
 
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
-            // std::string projectpath = projectControl->selectedObject->text->getText() + ".sb3";
-            Log::log(projectControl->selectedObject->buttonTexture->image->imageId);
 
             if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
                 // Unpacked sb3
@@ -406,11 +404,11 @@ ProjectSettings::~ProjectSettings() {
 
 void ProjectSettings::init() {
     // initialize
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 70);
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 81);
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
-    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.png", 200, 130);
+    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.png", 200, 159);
     UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
-    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.png", 200, 130);
+    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.png", 200, 159);
     DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
     // bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.png", 200, 150);
     // bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
