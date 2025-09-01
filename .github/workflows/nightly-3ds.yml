@@ -36,4 +36,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! 3DS Nightly
-          path: Scratch-3DS.3dsx
+          path: |
+            Scratch.3dsx
+            Scratch.cia
