@@ -159,7 +159,7 @@ namespace Log {
 void log(std::string message, bool printToScreen = true);
 void logWarning(std::string message, bool printToScreen = true);
 void logError(std::string message, bool printToScreen = true);
-void writeToFile(std::string message, std::string filePath);
+void writeToFile(std::string message);
 } // namespace Log
 
 class Timer {
