@@ -4,6 +4,7 @@
 #include <iostream>
 #include <ostream>
 #include <string>
+#include <fstream>
 #ifdef __OGC__
 #include <gccore.h>
 #endif
@@ -19,16 +20,28 @@ size_t MemoryTracker::totalVRAMAllocated = 0;
 
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
+    writeToFile(message);
 }
 void Log::logWarning(std::string message, bool printToScreen) {
     if (printToScreen)
         std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
+    writeToFile("Warning: " + message);
 }
 void Log::logError(std::string message, bool printToScreen) {
     if (printToScreen)
         std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
+    writeToFile("Error: " + message);
 }
-void Log::writeToFile(std::string message, std::string filePath) {
+void Log::writeToFile(std::string message) {
+    std::string filePath = OS::getScratchFolderLocation() + "scratchlog.txt";
+    std::ofstream logFile;
+    logFile.open(filePath, std::ios::app);
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.close();
+    } else {
+        std::cerr << "Could not open log file: " << filePath << std::endl;
+    }
 }
 
 // Wii and Gamecube Timer implementation
