@@ -43,9 +43,8 @@ Value SensingBlocks::sensingTimer(Block &block, Sprite *sprite) {
 
 Value SensingBlocks::of(Block &block, Sprite *sprite) {
     std::string value = Scratch::getFieldValue(block, "PROPERTY");
-    ;
     std::string object;
-    auto objectFind = block.parsedInputs.find("OBJECT");
+    auto objectFind = block.parsedInputs->find("OBJECT");
     Block *objectBlock = findBlock(objectFind->second.literalValue.asString());
     if (!objectBlock || objectBlock == nullptr)
         return Value();
@@ -97,7 +96,7 @@ Value SensingBlocks::mouseY(Block &block, Sprite *sprite) {
 }
 
 Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
-    auto inputFind = block.parsedInputs.find("DISTANCETOMENU");
+    auto inputFind = block.parsedInputs->find("DISTANCETOMENU");
     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
     std::string object = Scratch::getFieldValue(*inputBlock, "DISTANCETOMENU");
 
@@ -145,7 +144,7 @@ Value SensingBlocks::sensingAnswer(Block &block, Sprite *sprite) {
 }
 
 Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
-    auto inputFind = block.parsedInputs.find("KEY_OPTION");
+    auto inputFind = block.parsedInputs->find("KEY_OPTION");
     std::string buttonCheck;
 
     // if no variable block is in the input
@@ -167,7 +166,7 @@ Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
 }
 
 Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
-    auto inputFind = block.parsedInputs.find("TOUCHINGOBJECTMENU");
+    auto inputFind = block.parsedInputs->find("TOUCHINGOBJECTMENU");
     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
     std::string objectName;
     try {

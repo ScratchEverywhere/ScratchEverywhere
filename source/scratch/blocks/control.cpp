@@ -18,8 +18,8 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
     bool shouldStop = false;
 
     if (condition) {
-        auto it = block.parsedInputs.find("SUBSTACK");
-        if (it != block.parsedInputs.end()) {
+        auto it = block.parsedInputs->find("SUBSTACK");
+        if (it != block.parsedInputs->end()) {
             Block *subBlock = &sprite->blocks[it->second.blockId];
             if (subBlock) {
                 bool isRepeating = false;
@@ -65,8 +65,8 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
 
     // Select correct substack key
     std::string key = condition ? "SUBSTACK" : "SUBSTACK2";
-    auto it = block.parsedInputs.find(key);
-    if (it != block.parsedInputs.end()) {
+    auto it = block.parsedInputs->find(key);
+    if (it != block.parsedInputs->end()) {
         Block *subBlock = &sprite->blocks[it->second.blockId];
         if (subBlock) {
             bool isRepeating = false;
@@ -103,7 +103,7 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
     // std::cout << "Trying " << std::endl;
 
     Block *cloneOptions = nullptr;
-    auto it = block.parsedInputs.find("CLONE_OPTION");
+    auto it = block.parsedInputs->find("CLONE_OPTION");
     cloneOptions = &sprite->blocks[it->second.literalValue.asString()];
 
     Sprite *spriteToClone = getAvailableSprite();
@@ -270,8 +270,8 @@ BlockResult ControlBlocks::repeat(Block &block, Sprite *sprite, bool *withoutScr
     }
 
     if (block.repeatTimes > 0) {
-        auto it = block.parsedInputs.find("SUBSTACK");
-        if (it != block.parsedInputs.end()) {
+        auto it = block.parsedInputs->find("SUBSTACK");
+        if (it != block.parsedInputs->end()) {
             Block *subBlock = &sprite->blocks[it->second.blockId];
             if (subBlock) {
                 executor.runBlock(*subBlock, sprite);
@@ -313,8 +313,8 @@ BlockResult ControlBlocks::While(Block &block, Sprite *sprite, bool *withoutScre
         return BlockResult::CONTINUE;
     }
 
-    auto it = block.parsedInputs.find("SUBSTACK");
-    if (it != block.parsedInputs.end()) {
+    auto it = block.parsedInputs->find("SUBSTACK");
+    if (it != block.parsedInputs->end()) {
         const std::string &blockId = it->second.blockId;
         auto blockIt = sprite->blocks.find(blockId);
         if (blockIt != sprite->blocks.end()) {
@@ -352,8 +352,8 @@ BlockResult ControlBlocks::repeatUntil(Block &block, Sprite *sprite, bool *witho
         return BlockResult::CONTINUE;
     }
 
-    auto it = block.parsedInputs.find("SUBSTACK");
-    if (it != block.parsedInputs.end()) {
+    auto it = block.parsedInputs->find("SUBSTACK");
+    if (it != block.parsedInputs->end()) {
         const std::string &blockId = it->second.blockId;
         auto blockIt = sprite->blocks.find(blockId);
         if (blockIt != sprite->blocks.end()) {
@@ -379,8 +379,8 @@ BlockResult ControlBlocks::forever(Block &block, Sprite *sprite, bool *withoutSc
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
-    auto it = block.parsedInputs.find("SUBSTACK");
-    if (it != block.parsedInputs.end()) {
+    auto it = block.parsedInputs->find("SUBSTACK");
+    if (it != block.parsedInputs->end()) {
         Block *subBlock = &sprite->blocks[it->second.blockId];
         if (subBlock) {
             executor.runBlock(*subBlock, sprite);

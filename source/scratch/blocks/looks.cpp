@@ -27,8 +27,8 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     Value inputValue = Scratch::getInputValue(block, "COSTUME", sprite);
     std::string inputString = inputValue.asString();
 
-    auto inputFind = block.parsedInputs.find("COSTUME");
-    if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
+    auto inputFind = block.parsedInputs->find("COSTUME");
+    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputValue.asString());
         if (inputBlock != nullptr) {
             if (Scratch::getFieldValue(*inputBlock, "COSTUME") != "")
@@ -45,7 +45,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
             break;
         }
     }
-    if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
+    if (Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
         int costumeIndex = inputValue.asInt() - 1;
         if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < sprite->costumes.size()) {
             sprite->currentCostume = costumeIndex;
@@ -79,8 +79,8 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
     Value inputValue = Scratch::getInputValue(block, "BACKDROP", sprite);
     std::string inputString = inputValue.asString();
 
-    auto inputFind = block.parsedInputs.find("BACKDROP");
-    if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
+    auto inputFind = block.parsedInputs->find("BACKDROP");
+    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputString);
         if (inputBlock != nullptr) {
             if (Scratch::getFieldValue(*inputBlock, "BACKDROP") != "")
@@ -102,7 +102,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
                 break;
             }
         }
-        if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
+        if (Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
                 imageFound = true;

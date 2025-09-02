@@ -290,7 +290,7 @@ void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBl
         if (id == block.customBlockId) {
             // Set up argument values
             for (std::string arg : data.argumentIds) {
-                if (block.parsedInputs.find(arg) != block.parsedInputs.end()) {
+                if (block.parsedInputs->find(arg) != block.parsedInputs->end()) {
                     data.argumentValues[arg] = Scratch::getInputValue(block, arg, sprite);
                 }
             }

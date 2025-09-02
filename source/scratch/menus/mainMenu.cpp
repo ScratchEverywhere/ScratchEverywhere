@@ -488,7 +488,7 @@ void ControlsMenu::init() {
 
                 // stolen code from sensing.cpp
 
-                auto inputFind = block.parsedInputs.find("KEY_OPTION");
+                auto inputFind = block.parsedInputs->find("KEY_OPTION");
                 // if no variable block is in the input
                 if (inputFind->second.inputType == ParsedInput::LITERAL) {
                     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
