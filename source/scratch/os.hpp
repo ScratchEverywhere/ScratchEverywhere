@@ -32,7 +32,7 @@ class MemoryTracker {
     const static size_t wii_maxVRAMUsage = 44040192;      // 42 MB
     const static size_t gamecube_maxVRAMUsage = 11010048; // ~10 MB
     const static size_t pc_maxVRAMUsage = 134217728;      // 128 MB
-    const static size_t vita_maxVRAMUsage = 83886080;     // 80 MB
+    const static size_t vita_maxVRAMUsage = 100663296;     // 96 MB
 
   public:
     static size_t getMaxRamUsage() {

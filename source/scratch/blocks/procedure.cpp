@@ -4,21 +4,21 @@
 #include "value.hpp"
 
 Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
-    if (block.fields.at("VALUE")[0].get<std::string>() == "Scratch Everywhere! platform") {
+    if (Scratch::getFieldValue(block, "VALUE") == "Scratch Everywhere! platform") {
         return Value(OS::getPlatform());
     }
 
-    return BlockExecutor::getCustomBlockValue(block.fields.at("VALUE")[0], sprite, block);
+    return BlockExecutor::getCustomBlockValue(Scratch::getFieldValue(block, "VALUE"), sprite, block);
 }
 
 Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
-    const std::string name = block.fields.at("VALUE")[0].get<std::string>();
+    const std::string name = Scratch::getFieldValue(block, "VALUE");
     if (name == "is Scratch Everywhere!?") return Value(true);
     if (name == "is New 3DS?") {
         return Value(OS::isNew3DS());
     }
 
-    Value value = BlockExecutor::getCustomBlockValue(block.fields.at("VALUE")[0], sprite, block);
+    Value value = BlockExecutor::getCustomBlockValue(Scratch::getFieldValue(block, "VALUE"), sprite, block);
     return Value(value.asInt() == 1);
 }
 

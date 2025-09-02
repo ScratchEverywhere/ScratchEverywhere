@@ -108,11 +108,11 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
 
     Sprite *spriteToClone = getAvailableSprite();
     if (!spriteToClone) return BlockResult::CONTINUE;
-    if (cloneOptions->fields["CLONE_OPTION"][0] == "_myself_") {
+    if (Scratch::getFieldValue(*cloneOptions, "CLONE_OPTION") == "_myself_") {
         *spriteToClone = *sprite;
     } else {
         for (Sprite *currentSprite : sprites) {
-            if (currentSprite->name == Math::removeQuotations(cloneOptions->fields["CLONE_OPTION"][0]) && !currentSprite->isClone) {
+            if (currentSprite->name == Math::removeQuotations(Scratch::getFieldValue(*cloneOptions, "CLONE_OPTION")) && !currentSprite->isClone) {
                 *spriteToClone = *currentSprite;
             }
         }
@@ -153,7 +153,8 @@ BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *w
 
 BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     block.shouldStop = false;
-    std::string stopType = block.fields.at("STOP_OPTION")[0];
+    std::string stopType = Scratch::getFieldValue(block, "STOP_OPTION");
+    ;
     if (stopType == "all") {
         Scratch::shouldStop = true;
         return BlockResult::RETURN;

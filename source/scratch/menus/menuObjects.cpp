@@ -24,12 +24,12 @@ std::vector<double> MenuObject::getScaledPosition(double xPos, double yPos) {
     return pos;
 }
 
-ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos) {
+ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos, std::string fontPath) {
     x = xPos;
     y = yPos;
     scale = 1.0;
     textScale = 1.0;
-    text = createTextObject(buttonText, x, y);
+    text = createTextObject(buttonText, x, y, fontPath);
     text->setCenterAligned(true);
     buttonTexture = new MenuImage(filePath);
 }

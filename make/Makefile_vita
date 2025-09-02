@@ -36,8 +36,8 @@ ENABLE_AUDIO	?=	1
 
 # --- COMPILE FLAGS ---
 # Base compiler flags
-CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
-CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
+CFLAGS   := -O2 -Wl,-q $(addprefix -I,$(INCLUDES))
+CXXFLAGS := -O2 -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
 
 # Specify vita as the target platform + SDL flags
 VITAFLAGS := -DVITA -DSDL_BUILD

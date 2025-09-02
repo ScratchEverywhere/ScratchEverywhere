@@ -46,7 +46,7 @@ BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *wi
 
 BlockResult EventBlocks::whenKeyPressed(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     for (std::string button : Input::inputButtons) {
-        if (block.fields.at("KEY_OPTION")[0] == button) {
+        if (Scratch::getFieldValue(block, "KEY_OPTION") == button) {
             return BlockResult::CONTINUE;
         }
     }

@@ -103,7 +103,8 @@ Value OperatorBlocks::round(Block &block, Sprite *sprite) {
 Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
     Value inputValue = Scratch::getInputValue(block, "NUM", sprite);
     if (inputValue.isNumeric()) {
-        std::string operation = block.fields.at("OPERATOR")[0];
+        std::string operation = Scratch::getFieldValue(block, "OPERATOR");
+        ;
         double value = inputValue.asDouble();
 
         if (operation == "abs") {

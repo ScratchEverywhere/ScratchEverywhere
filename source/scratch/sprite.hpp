@@ -18,6 +18,13 @@ struct Variable {
     Value value;
 };
 
+struct ParsedField {
+    std::string value;
+    std::string id;
+
+    ParsedField() : value("") {}
+};
+
 struct ParsedInput {
     enum InputType {
         LITERAL,
@@ -37,14 +44,14 @@ struct ParsedInput {
 struct Block {
 
     std::string id;
+    std::string customBlockId;
     std::string opcode;
     std::string next;
     Block *nextBlock;
     std::string parent;
     std::string blockChainID;
     std::map<std::string, ParsedInput> parsedInputs;
-    std::unordered_map<std::string, nlohmann::json> fields;
-    std::unordered_map<std::string, nlohmann::json> mutation;
+    std::map<std::string, ParsedField> parsedFields;
     bool shadow;
     bool topLevel;
     std::string topLevelParentBlock;
@@ -126,7 +133,7 @@ struct Monitor {
     std::string id;
     std::string mode;
     std::string opcode;
-    std::unordered_map<std::string, nlohmann::json> parameters;
+    std::unordered_map<std::string, std::string> parameters;
     std::string spriteName;
     Value value;
     int x;

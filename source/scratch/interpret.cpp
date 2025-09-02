@@ -531,7 +531,21 @@ void loadSprites(const nlohmann::json &json) {
                 newBlock.parent = data["parent"].get<std::string>();
             } else newBlock.parent = "null";
             if (data.contains("fields")) {
-                newBlock.fields = data["fields"];
+                for (const auto &[fieldName, fieldData] : data["fields"].items()) {
+                    ParsedField parsedField;
+
+                    // Fields are almost always arrays with [0] being the value
+                    if (fieldData.is_array() && !fieldData.empty()) {
+                        parsedField.value = fieldData[0].get<std::string>();
+
+                        // Store ID for variables and lists
+                        if (fieldData.size() > 1 && !fieldData[1].is_null()) {
+                            parsedField.id = fieldData[1].get<std::string>();
+                        }
+                    }
+
+                    newBlock.parsedFields[fieldName] = parsedField;
+                }
             }
             if (data.contains("inputs")) {
 
@@ -559,7 +573,6 @@ void loadSprites(const nlohmann::json &json) {
                         parsedInput.blockId = inputValue.get<std::string>();
                     }
                     newBlock.parsedInputs[inputName] = parsedInput;
-                    // std::cout << "input: " << inputName << ". type = " << parsedInput.inputType << std::endl;
                 }
             }
             if (data.contains("topLevel")) {
@@ -569,7 +582,11 @@ void loadSprites(const nlohmann::json &json) {
                 newBlock.shadow = data["shadow"].get<bool>();
             }
             if (data.contains("mutation")) {
-                newBlock.mutation = data["mutation"];
+                if (data["mutation"].contains("proccode")) {
+                    newBlock.customBlockId = data["mutation"]["proccode"].get<std::string>();
+                } else {
+                    newBlock.customBlockId = "";
+                }
             }
             newSprite->blocks[newBlock.id] = newBlock; // add block
 
@@ -1021,4 +1038,20 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
         return executor.getBlockValue(*findBlock(input.blockId), sprite);
     }
     return Value();
+}
+
+std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
+    auto fieldFind = block.parsedFields.find(fieldName);
+    if (fieldFind == block.parsedFields.end()) {
+        return "";
+    }
+    return fieldFind->second.value;
+}
+
+std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
+    auto fieldFind = block.parsedFields.find(fieldName);
+    if (fieldFind == block.parsedFields.end()) {
+        return "";
+    }
+    return fieldFind->second.id;
 }

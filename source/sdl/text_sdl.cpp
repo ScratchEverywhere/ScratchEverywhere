@@ -22,11 +22,13 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // get font
     if (fontPath.empty()) {
-        fontPath = "gfx/menu/Arialn.ttf";
+        fontPath = "gfx/menu/Arialn";
     }
 #if defined(__WIIU__) || defined(__OGC__)
     fontPath = "romfs:/" + fontPath;
 #endif
+
+    fontPath = fontPath + ".ttf";
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {

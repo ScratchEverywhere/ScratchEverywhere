@@ -1,16 +1,35 @@
 #include "text_3ds.hpp"
 #include <3ds.h>
 
+std::unordered_map<std::string, C2D_Font> TextObject3DS::fonts;
+std::unordered_map<std::string, size_t> TextObject3DS::fontUsageCount;
+
 TextObject3DS::TextObject3DS(std::string txt, double posX, double posY, std::string fontPath)
     : TextObject(txt, posX, posY, fontPath) {
     x = posX;
     y = posY;
     textClass.textBuffer = C2D_TextBufNew(200);
 
-    if (fontPath == "" || fontPath.substr(fontPath.find_last_of('.') + 1) != "bcfnt")
-        textClass.font = C2D_FontLoadSystem(CFG_REGION_USA);
-    else
-        textClass.font = C2D_FontLoad(fontPath.c_str());
+    if (fontPath == "") {
+        fontName = "SYSTEM";
+    } else {
+        fontName = "romfs:/" + fontPath + ".bcfnt";
+    }
+
+    // load font if not already loaded
+    if (fonts.find(fontName) == fonts.end()) {
+        C2D_Font font;
+        if (fontName == "SYSTEM") {
+            font = C2D_FontLoadSystem(CFG_REGION_USA);
+        } else {
+            font = C2D_FontLoad(fontName.c_str());
+        }
+        fonts[fontName] = font;
+    }
+
+    // set font pointer and increment usage count
+    textClass.font = &fonts[fontName];
+    fontUsageCount[fontName] += 1;
     setText(txt);
 }
 
@@ -19,10 +38,14 @@ TextObject3DS::~TextObject3DS() {
         C2D_TextBufDelete(textClass.textBuffer);
         textClass.textBuffer = nullptr;
     }
-    if (textClass.font) {
-        C2D_FontFree(textClass.font);
-        textClass.font = nullptr;
+
+    fontUsageCount[fontName] -= 1;
+    if (fontUsageCount[fontName] == 0) {
+        C2D_FontFree(fonts[fontName]);
+        fonts.erase(fontName);
+        fontUsageCount.erase(fontName);
     }
+    textClass.font = nullptr;
 }
 
 void TextObject3DS::setText(std::string txt) {
@@ -30,7 +53,7 @@ void TextObject3DS::setText(std::string txt) {
     C2D_TextBufClear(textClass.textBuffer);
 
     // set and optimize the text
-    C2D_TextFontParse(&textClass.c2dText, textClass.font, textClass.textBuffer, txt.c_str());
+    C2D_TextFontParse(&textClass.c2dText, *textClass.font, textClass.textBuffer, txt.c_str());
     C2D_TextOptimize(&textClass.c2dText);
 
     scale = scale;

@@ -25,7 +25,8 @@ BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, bool *withou
 
 BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
-    std::string mode = block.fields.at("DRAG_MODE")[0];
+    std::string mode = Scratch::getFieldValue(block, "DRAG_MODE");
+    ;
 
     if (mode == "draggable") {
         sprite->draggable = true;
@@ -41,14 +42,15 @@ Value SensingBlocks::sensingTimer(Block &block, Sprite *sprite) {
 }
 
 Value SensingBlocks::of(Block &block, Sprite *sprite) {
-    std::string value = block.fields.at("PROPERTY")[0];
+    std::string value = Scratch::getFieldValue(block, "PROPERTY");
+    ;
     std::string object;
     auto objectFind = block.parsedInputs.find("OBJECT");
     Block *objectBlock = findBlock(objectFind->second.literalValue.asString());
     if (!objectBlock || objectBlock == nullptr)
         return Value();
 
-    object = objectBlock->fields.at("OBJECT")[0];
+    object = Scratch::getFieldValue(*objectBlock, "OBJECT");
 
     Sprite *spriteObject = nullptr;
     for (Sprite *currentSprite : sprites) {
@@ -97,7 +99,7 @@ Value SensingBlocks::mouseY(Block &block, Sprite *sprite) {
 Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
     auto inputFind = block.parsedInputs.find("DISTANCETOMENU");
     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
-    std::string object = inputBlock->fields.at("DISTANCETOMENU")[0];
+    std::string object = Scratch::getFieldValue(*inputBlock, "DISTANCETOMENU");
 
     if (object == "_mouse_") {
         return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) +
@@ -121,7 +123,8 @@ Value SensingBlocks::daysSince2000(Block &block, Sprite *sprite) {
 Value SensingBlocks::current(Block &block, Sprite *sprite) {
     std::string inputValue;
     try {
-        inputValue = block.fields.at("CURRENTMENU")[0];
+        inputValue = Scratch::getFieldValue(block, "CURRENTMENU");
+        ;
     } catch (...) {
         return Value();
     }
@@ -148,8 +151,8 @@ Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
     // if no variable block is in the input
     if (inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
-        if (!inputBlock->fields["KEY_OPTION"][0].is_null())
-            buttonCheck = inputBlock->fields["KEY_OPTION"][0];
+        if (Scratch::getFieldValue(*inputBlock, "KEY_OPTION") != "")
+            buttonCheck = Scratch::getFieldValue(*inputBlock, "KEY_OPTION");
     } else {
         buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
     }
@@ -168,7 +171,7 @@ Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
     std::string objectName;
     try {
-        objectName = inputBlock->fields["TOUCHINGOBJECTMENU"][0];
+        objectName = Scratch::getFieldValue(*inputBlock, "TOUCHINGOBJECTMENU");
     } catch (...) {
         return Value(false);
     }

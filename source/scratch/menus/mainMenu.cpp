@@ -79,17 +79,20 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 21", 0, 0);
+    versionNumber = createTextObject("Beta Build 21", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
-    splashText = createTextObject(Unzip::getSplashText(), 0, 0);
+    splashText = createTextObject(Unzip::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(243, 154, 37, 255));
+    if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
+        splashText->scale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
+    }
 
-    loadButton = new ButtonObject("", "gfx/menu/play.png", 200, 180);
+    loadButton = new ButtonObject("", "gfx/menu/play.png", 200, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
-    // settingsButton = new ButtonObject("", "gfx/menu/settings.png", 300, 180);
+    // settingsButton = new ButtonObject("", "gfx/menu/settings.png", 300, 180, "gfx/menu/Ubuntu-Bold");
     mainMenuControl = new ControlObject();
     mainMenuControl->selectedObject = loadButton;
     // loadButton->buttonRight = settingsButton;
@@ -109,6 +112,8 @@ void MainMenu::render() {
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
     float bobbingOffset = std::sin(elapsed * 0.0025f) * 5.0f;
+    float splashZoom = std::sin(elapsed * 0.0085f) * 0.01f;
+    splashText->scale += splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
@@ -166,7 +171,7 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 
     projectControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->needsToBeSelected = false;
     backButton->scale = 1.0;
 
@@ -180,7 +185,7 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 120;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition);
+        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.png", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
@@ -221,7 +226,7 @@ void ProjectMenu::init() {
     // check if user has any projects
     if (projectFiles.size() == 0 && UnzippedFiles.size() == 0) {
         hasProjects = false;
-        noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.png", 200, 120);
+        noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.png", 200, 120, "gfx/menu/Ubuntu-Bold");
         projectControl->selectedObject = noProjectsButton;
         projectControl->selectedObject->isSelected = true;
         noProjectsText = createTextObject("No Scratch projects found!", 0, 0);
@@ -255,8 +260,8 @@ void ProjectMenu::init() {
         projectControl->selectedObject->isSelected = true;
         cameraY = projectControl->selectedObject->y;
         hasProjects = true;
-        playButton = new ButtonObject("Play (A)", "gfx/menu/optionBox.svg", 95, 230);
-        settingsButton = new ButtonObject("Settings (L)", "gfx/menu/optionBox.svg", 315, 230);
+        playButton = new ButtonObject("Play (A)", "gfx/menu/optionBox.svg", 95, 230, "gfx/menu/Ubuntu-Bold");
+        settingsButton = new ButtonObject("Settings (L)", "gfx/menu/optionBox.svg", 315, 230, "gfx/menu/Ubuntu-Bold");
         playButton->scale = 0.6;
         settingsButton->scale = 0.6;
         settingsButton->needsToBeSelected = false;
@@ -354,7 +359,6 @@ void ProjectMenu::render() {
             targetScale = 0.0f;
         }
     }
-    backButton->render();
     if (hasProjects) {
         playButton->render();
         settingsButton->render();
@@ -365,7 +369,7 @@ void ProjectMenu::render() {
         noProjectInfo->render(Render::getWidth() / 2, Render::getHeight() * 0.85);
         projectControl->render();
     }
-
+    backButton->render();
     Render::endFrame();
 }
 
@@ -422,16 +426,19 @@ ProjectSettings::~ProjectSettings() {
 
 void ProjectSettings::init() {
     // initialize
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 81);
+  
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.png", 200, 81, "gfx/menu/Ubuntu-Bold"));
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
-    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.png", 200, 159);
+    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.png", 200, 159, "gfx/menu/Ubuntu-Bold"));
     UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
-    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.png", 200, 159);
+    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.png", 200, 159, "gfx/menu/Ubuntu-Bold"));
     DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
     // bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.png", 200, 150);
     // bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
+  
+  
     settingsControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
 
@@ -577,14 +584,15 @@ void ControlsMenu::init() {
                 // if no variable block is in the input
                 if (inputFind->second.inputType == ParsedInput::LITERAL) {
                     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
-                    if (!inputBlock->fields["KEY_OPTION"][0].is_null())
-                        buttonCheck = inputBlock->fields["KEY_OPTION"][0];
+                    if (Scratch::getFieldValue(*inputBlock, "KEY_OPTION") != "")
+                        buttonCheck = Scratch::getFieldValue(*inputBlock, "KEY_OPTION");
                 } else {
                     buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
                 }
 
             } else if (block.opcode == "event_whenkeypressed") {
-                buttonCheck = block.fields.at("KEY_OPTION")[0];
+                buttonCheck = Scratch::getFieldValue(block, "KEY_OPTION");
+                ;
             } else continue;
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                 Log::log("Found new control: " + buttonCheck);
@@ -598,8 +606,8 @@ void ControlsMenu::init() {
 
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20);
-    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 200, 230);
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
+    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 200, 230, "gfx/menu/Ubuntu-Bold");
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;
@@ -614,7 +622,7 @@ void ControlsMenu::init() {
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/optionBox.svg", 0, yPosition);
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/optionBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         controlButton->text->setColor(Math::color(255, 255, 255, 255));
         controlButton->scale = 0.6;
         controlButton->y -= controlButton->text->getSize()[1] / 2;
