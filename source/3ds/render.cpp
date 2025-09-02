@@ -312,13 +312,14 @@ void Render::renderSprites() {
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / sprites.size();
 
-    auto stage = *std::find_if(sprites.begin(), sprites.end(), [](const Sprite *sprite) {
-        return sprite->isStage;
-    }); // TODO: Add handling for the stage is missing for some reason
-
+    // Sort sprites by layer with stage always being first
     std::vector<Sprite *> spritesByLayer = sprites;
     std::sort(spritesByLayer.begin(), spritesByLayer.end(),
               [](const Sprite *a, const Sprite *b) {
+                  // Stage sprite always comes first
+                  if (a->isStage && !b->isStage) return true;
+                  if (!a->isStage && b->isStage) return false;
+                  // Otherwise sort by layer
                   return a->layer < b->layer;
               });
 
@@ -327,12 +328,9 @@ void Render::renderSprites() {
         C2D_SceneBegin(topScreen);
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-        renderImage(&imageC2Ds[stage->costumes[stage->currentCostume].id].image, stage, stage->costumes[stage->currentCostume].id, false, -slider * (static_cast<float>(spritesByLayer.size() - 1) * depthScale)); // TODO: figure out if the 3d stuff is correct
-
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
-            if (currentSprite->isStage) continue;
 
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
@@ -364,12 +362,9 @@ void Render::renderSprites() {
         C2D_SceneBegin(topScreenRightEye);
         C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-        renderImage(&imageC2Ds[stage->costumes[stage->currentCostume].id].image, stage, stage->costumes[stage->currentCostume].id, false, slider * (static_cast<float>(spritesByLayer.size() - 1) * depthScale)); // TODO: figure out if the 3d stuff is correct
-
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
-            if (currentSprite->isStage) continue;
 
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
@@ -400,12 +395,9 @@ void Render::renderSprites() {
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(bottomScreen);
 
-        renderImage(&imageC2Ds[stage->costumes[stage->currentCostume].id].image, stage, stage->costumes[stage->currentCostume].id, false, 0.0f);
-
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
-            if (!currentSprite->isStage) continue;
 
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {

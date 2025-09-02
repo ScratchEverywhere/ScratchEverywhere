@@ -295,37 +295,19 @@ void Render::renderSprites() {
     double scale;
     scale = std::min(scaleX, scaleY);
 
-    auto stage = *std::find_if(sprites.begin(), sprites.end(), [](const Sprite *sprite) {
-        return sprite->isStage;
-    }); // TODO: Add handling for the stage is missing for some reason
-    auto stageImgFind = images.find(stage->costumes[stage->currentCostume].id);
-
-    if (stageImgFind != images.end()) {
-        SDL_Rect renderRect = {0, 0, 0, 0};
-
-        if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
-            renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
-            renderRect.w = windowWidth - renderRect.x * 2;
-            renderRect.h = windowHeight;
-        } else {
-            renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
-            renderRect.h = windowHeight - renderRect.y * 2;
-            renderRect.w = windowWidth;
-        }
-
-        SDL_RenderCopy(renderer, stageImgFind->second->spriteTexture, NULL, &renderRect);
-    }
-
-    // Sort sprites by layer first
+    // Sort sprites by layer with stage always being first
     std::vector<Sprite *> spritesByLayer = sprites;
     std::sort(spritesByLayer.begin(), spritesByLayer.end(),
               [](const Sprite *a, const Sprite *b) {
+                  // Stage sprite always comes first
+                  if (a->isStage && !b->isStage) return true;
+                  if (!a->isStage && b->isStage) return false;
+                  // Otherwise sort by layer
                   return a->layer < b->layer;
               });
 
     for (Sprite *currentSprite : spritesByLayer) {
         if (!currentSprite->visible) continue;
-        if (currentSprite->isStage) continue;
 
         bool legacyDrawing = false;
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);

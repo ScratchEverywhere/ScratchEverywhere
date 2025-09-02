@@ -21,8 +21,6 @@ struct Variable {
 struct ParsedField {
     std::string value;
     std::string id;
-
-    ParsedField() : value("") {}
 };
 
 struct ParsedInput {
@@ -37,8 +35,6 @@ struct ParsedInput {
     Value literalValue;
     std::string variableId;
     std::string blockId;
-
-    ParsedInput() : inputType(LITERAL), literalValue(Value(0)) {}
 };
 
 struct Block {
@@ -50,8 +46,8 @@ struct Block {
     Block *nextBlock;
     std::string parent;
     std::string blockChainID;
-    std::map<std::string, ParsedInput> parsedInputs;
-    std::map<std::string, ParsedField> parsedFields;
+    std::shared_ptr<std::map<std::string, ParsedInput>> parsedInputs;
+    std::shared_ptr<std::map<std::string, ParsedField>> parsedFields;
     bool shadow;
     bool topLevel;
     std::string topLevelParentBlock;
@@ -69,6 +65,11 @@ struct Block {
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
     std::vector<std::string> substackBlocksRan;
     std::string waitingIfBlock = "";
+
+    Block() {
+        parsedFields = std::make_shared<std::map<std::string, ParsedField>>();
+        parsedInputs = std::make_shared<std::map<std::string, ParsedInput>>();
+    }
 };
 
 struct CustomBlock {

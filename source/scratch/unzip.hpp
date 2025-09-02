@@ -201,7 +201,6 @@ class Unzip {
 #endif
             (*file) >> project_json;
         }
-        Image::loadImages(&zipArchive);
         return project_json;
     }
 
