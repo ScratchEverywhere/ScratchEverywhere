@@ -27,7 +27,6 @@ By NateXS and Grady Link!
 Wii U port by Grady Link!
 Switch port by Grady Link!
 PS Vita port by Dogo6647!
-& Knuckles!
 C++!
 devkitPro!
 It works! (most of the time...)
