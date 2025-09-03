@@ -188,7 +188,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     std::string fullPath;
     if (fromScratchProject) fullPath = "romfs:/project/" + filePath;
     else fullPath = "romfs:/" + filePath;
-
+    if (Unzip::UnpackedInSD) fullPath = Unzip::filePath + filePath;
     FILE *file = fopen(fullPath.c_str(), "rb");
     if (!file) {
         Log::logWarning("Invalid image file name " + filePath);

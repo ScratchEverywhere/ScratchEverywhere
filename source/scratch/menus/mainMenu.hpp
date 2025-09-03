@@ -34,6 +34,10 @@ class ProjectMenu {
     int cameraY;
     bool hasProjects;
     bool shouldGoBack = false;
+
+    std::vector<std::string> projectFiles;
+    std::vector<std::string> UnzippedFiles;
+
     std::vector<ButtonObject *> projects;
 
     ControlObject *projectControl = nullptr;
@@ -58,11 +62,15 @@ class ProjectSettings {
     ControlObject *settingsControl = nullptr;
     ButtonObject *backButton = nullptr;
     ButtonObject *changeControlsButton = nullptr;
+    ButtonObject *UnpackProjectButton = nullptr;
+    ButtonObject *DeleteUnpackProjectButton = nullptr;
     ButtonObject *bottomScreenButton = nullptr;
+
+    bool canUnpacked = true;
     bool shouldGoBack = false;
     std::string projectPath;
 
-    ProjectSettings(std::string projPath = "");
+    ProjectSettings(std::string projPath = "", bool existUnpacked = false);
     ~ProjectSettings();
 
     void init();
@@ -93,5 +101,28 @@ class ControlsMenu {
     void init();
     void render();
     void applyControls();
+    void cleanup();
+};
+
+class UnpackMenu {
+  public:
+    ControlObject *settingsControl = nullptr;
+
+    TextObject *infoText = nullptr;
+    TextObject *descText = nullptr;
+
+    bool shouldGoBack = false;
+
+    std::string filename;
+
+    UnpackMenu();
+    ~UnpackMenu();
+
+    static void addToJsonArray(const std::string &filePath, const std::string &value);
+    static std::vector<std::string> getJsonArray(const std::string &filePath);
+    static void removeFromJsonArray(const std::string &filePath, const std::string &value);
+
+    void init();
+    void render();
     void cleanup();
 };
