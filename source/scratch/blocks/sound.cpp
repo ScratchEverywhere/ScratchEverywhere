@@ -12,11 +12,11 @@ BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, bool *
     std::string inputString = inputValue.asString();
 
     // if no blocks are inside the input
-    auto inputFind = block.parsedInputs.find("SOUND_MENU");
-    if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
+    auto inputFind = block.parsedInputs->find("SOUND_MENU");
+    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputValue.asString());
-        if (inputBlock != nullptr && inputBlock->fields["SOUND_MENU"][0].is_string()) {
-            inputString = inputBlock->fields["SOUND_MENU"][0].get<std::string>();
+        if (inputBlock != nullptr) {
+            inputString = Scratch::getFieldValue(*inputBlock, "SOUND_MENU");
         }
     }
 
@@ -59,11 +59,11 @@ BlockResult SoundBlocks::playSound(Block &block, Sprite *sprite, bool *withoutSc
     std::string inputString = inputValue.asString();
 
     // if no blocks are inside the input
-    auto inputFind = block.parsedInputs.find("SOUND_MENU");
-    if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
+    auto inputFind = block.parsedInputs->find("SOUND_MENU");
+    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputValue.asString());
-        if (inputBlock != nullptr && inputBlock->fields["SOUND_MENU"][0].is_string()) {
-            inputString = inputBlock->fields["SOUND_MENU"][0].get<std::string>();
+        if (inputBlock != nullptr) {
+            inputString = Scratch::getFieldValue(*inputBlock, "SOUND_MENU");
         }
     }
 

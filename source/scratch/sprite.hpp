@@ -18,6 +18,11 @@ struct Variable {
     Value value;
 };
 
+struct ParsedField {
+    std::string value;
+    std::string id;
+};
+
 struct ParsedInput {
     enum InputType {
         LITERAL,
@@ -30,21 +35,19 @@ struct ParsedInput {
     Value literalValue;
     std::string variableId;
     std::string blockId;
-
-    ParsedInput() : inputType(LITERAL), literalValue(Value(0)) {}
 };
 
 struct Block {
 
     std::string id;
+    std::string customBlockId;
     std::string opcode;
     std::string next;
     Block *nextBlock;
     std::string parent;
     std::string blockChainID;
-    std::map<std::string, ParsedInput> parsedInputs;
-    std::unordered_map<std::string, nlohmann::json> fields;
-    std::unordered_map<std::string, nlohmann::json> mutation;
+    std::shared_ptr<std::map<std::string, ParsedInput>> parsedInputs;
+    std::shared_ptr<std::map<std::string, ParsedField>> parsedFields;
     bool shadow;
     bool topLevel;
     std::string topLevelParentBlock;
@@ -62,6 +65,11 @@ struct Block {
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
     std::vector<std::string> substackBlocksRan;
     std::string waitingIfBlock = "";
+
+    Block() {
+        parsedFields = std::make_shared<std::map<std::string, ParsedField>>();
+        parsedInputs = std::make_shared<std::map<std::string, ParsedInput>>();
+    }
 };
 
 struct CustomBlock {
@@ -126,7 +134,7 @@ struct Monitor {
     std::string id;
     std::string mode;
     std::string opcode;
-    std::unordered_map<std::string, nlohmann::json> parameters;
+    std::unordered_map<std::string, std::string> parameters;
     std::string spriteName;
     Value value;
     int x;
@@ -160,6 +168,7 @@ class Sprite {
     int layer;
 
     float ghostEffect;
+    float brightnessEffect;
     double colorEffect = -99999;
 
     enum RotationStyle {

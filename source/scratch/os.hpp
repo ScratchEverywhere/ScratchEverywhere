@@ -32,7 +32,7 @@ class MemoryTracker {
     const static size_t wii_maxVRAMUsage = 44040192;      // 42 MB
     const static size_t gamecube_maxVRAMUsage = 11010048; // ~10 MB
     const static size_t pc_maxVRAMUsage = 134217728;      // 128 MB
-    const static size_t vita_maxVRAMUsage = 83886080;     // 80 MB
+    const static size_t vita_maxVRAMUsage = 100663296;     // 96 MB
 
   public:
     static size_t getMaxRamUsage() {
@@ -159,7 +159,7 @@ namespace Log {
 void log(std::string message, bool printToScreen = true);
 void logWarning(std::string message, bool printToScreen = true);
 void logError(std::string message, bool printToScreen = true);
-void writeToFile(std::string message, std::string filePath);
+void writeToFile(std::string message);
 } // namespace Log
 
 class Timer {

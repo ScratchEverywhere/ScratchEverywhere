@@ -23,6 +23,7 @@ body:
         - Wii
         - GameCube
         - Switch
+        - Vita
         - PC
     validations:
       required: false

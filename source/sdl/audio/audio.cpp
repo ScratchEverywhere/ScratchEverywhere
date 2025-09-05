@@ -175,8 +175,19 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                     return false;
                 }
             } else {
-                // need to write to a temp file beacause this is zip file
-                std::string tempFile = "temp_" + soundId;
+                // need to write to a temp file because this is a zip file
+                std::string tempDir = OS::getScratchFolderLocation() + "/cache";
+                std::string tempFile = tempDir + "/temp_" + soundId;
+
+                // make cache directory
+                try {
+                    std::filesystem::create_directories(tempDir);
+                } catch (const std::exception &e) {
+                    Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
+                    mz_free(file_data);
+                    return false;
+                }
+
                 FILE *fp = fopen(tempFile.c_str(), "wb");
                 if (!fp) {
                     Log::logWarning("Failed to create temp file for streaming");

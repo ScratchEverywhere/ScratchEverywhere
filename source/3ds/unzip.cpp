@@ -35,7 +35,7 @@ int Unzip::openFile(std::ifstream *file) {
             if (filePath == "") return -1;
 
             // if main menu was loaded, load the selected file from main menu
-            file->open(filePath, std::ios::binary | std::ios::ate);
+            file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
             if (!(*file)) {
                 Log::logError("Couldnt find file. jinkies.");
                 return 0;

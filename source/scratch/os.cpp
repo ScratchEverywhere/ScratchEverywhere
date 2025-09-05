@@ -1,6 +1,8 @@
 #include "os.hpp"
+#include "render.hpp"
 #include <chrono>
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <ostream>
 #include <string>
@@ -18,30 +20,41 @@ size_t MemoryTracker::allocationCount = 0;
 size_t MemoryTracker::totalVRAMAllocated = 0;
 
 void Log::log(std::string message, bool printToScreen) {
-    if (printToScreen)
+    if (printToScreen) {
 #ifndef XBOX
         std::cout << message << std::endl;
-#else
-        return; // TODO: Implement Xbox Logging
 #endif
+    }
+    writeToFile(message);
 }
 void Log::logWarning(std::string message, bool printToScreen) {
-    if (printToScreen)
+    if (printToScreen) {
 #ifndef XBOX
         std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
-#else
-        return; // TODO: Implement Xbox Logging
 #endif
+    }
+    writeToFile("Warning: " + message);
 }
 void Log::logError(std::string message, bool printToScreen) {
-    if (printToScreen)
+    if (printToScreen) {
 #ifndef XBOX
         std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
-#else
-        return; // TODO: Implement Xbox Logging
 #endif
+    }
+    writeToFile("Error: " + message);
 }
-void Log::writeToFile(std::string message, std::string filePath) {
+void Log::writeToFile(std::string message) {
+    if (Render::debugMode) {
+        std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+        std::ofstream logFile;
+        logFile.open(filePath, std::ios::app);
+        if (logFile.is_open()) {
+            logFile << message << std::endl;
+            logFile.close();
+        } else {
+            std::cerr << "Could not open log file: " << filePath << std::endl;
+        }
+    }
 }
 
 // Wii and Gamecube Timer implementation
@@ -101,6 +114,8 @@ std::string OS::getScratchFolderLocation() {
     return "/";
 #elif defined(VITA)
     return "ux0:data/scratch-vita/";
+#elif defined(__3DS__)
+    return "sdmc:/3ds/scratch-everywhere/";
 #else
     return "scratch-everywhere/";
 #endif

@@ -531,7 +531,21 @@ void loadSprites(const nlohmann::json &json) {
                 newBlock.parent = data["parent"].get<std::string>();
             } else newBlock.parent = "null";
             if (data.contains("fields")) {
-                newBlock.fields = data["fields"];
+                for (const auto &[fieldName, fieldData] : data["fields"].items()) {
+                    ParsedField parsedField;
+
+                    // Fields are almost always arrays with [0] being the value
+                    if (fieldData.is_array() && !fieldData.empty()) {
+                        parsedField.value = fieldData[0].get<std::string>();
+
+                        // Store ID for variables and lists
+                        if (fieldData.size() > 1 && !fieldData[1].is_null()) {
+                            parsedField.id = fieldData[1].get<std::string>();
+                        }
+                    }
+
+                    (*newBlock.parsedFields)[fieldName] = parsedField;
+                }
             }
             if (data.contains("inputs")) {
 
@@ -558,8 +572,7 @@ void loadSprites(const nlohmann::json &json) {
                         parsedInput.inputType = ParsedInput::BOOLEAN;
                         parsedInput.blockId = inputValue.get<std::string>();
                     }
-                    newBlock.parsedInputs[inputName] = parsedInput;
-                    // std::cout << "input: " << inputName << ". type = " << parsedInput.inputType << std::endl;
+                    (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
             }
             if (data.contains("topLevel")) {
@@ -569,7 +582,11 @@ void loadSprites(const nlohmann::json &json) {
                 newBlock.shadow = data["shadow"].get<bool>();
             }
             if (data.contains("mutation")) {
-                newBlock.mutation = data["mutation"];
+                if (data["mutation"].contains("proccode")) {
+                    newBlock.customBlockId = data["mutation"]["proccode"].get<std::string>();
+                } else {
+                    newBlock.customBlockId = "";
+                }
             }
             newSprite->blocks[newBlock.id] = newBlock; // add block
 
@@ -892,9 +909,8 @@ void loadSprites(const nlohmann::json &json) {
     if (!infClones) initializeSpritePool(300);
     else {
         if (OS::getPlatform() == "3DS") {
-            if (OS::isNew3DS()) initializeSpritePool(450);
-            else initializeSpritePool(300);
-        } else if (OS::getPlatform() == "Wii") {
+            initializeSpritePool(OS::isNew3DS() ? 450 : 300);
+        } else if (OS::getPlatform() == "Wii" || OS::getPlatform() == "Vita") {
             initializeSpritePool(450);
         } else if (OS::getPlatform() == "Wii U") {
             initializeSpritePool(800);
@@ -902,8 +918,6 @@ void loadSprites(const nlohmann::json &json) {
             initializeSpritePool(300);
         } else if (OS::getPlatform() == "Switch") {
             initializeSpritePool(1500);
-        } else if (OS::getPlatform() == "Vita") {
-            initializeSpritePool(450);
         } else if (OS::getPlatform() == "PC") {
             initializeSpritePool(2000);
         } else {
@@ -955,8 +969,8 @@ std::vector<Block *> getBlockChain(std::string blockId, std::string *outID) {
         if (outID)
             *outID += currentBlock->id;
 
-        auto substackIt = currentBlock->parsedInputs.find("SUBSTACK");
-        if (substackIt != currentBlock->parsedInputs.end() &&
+        auto substackIt = currentBlock->parsedInputs->find("SUBSTACK");
+        if (substackIt != currentBlock->parsedInputs->end() &&
             (substackIt->second.inputType == ParsedInput::BOOLEAN || substackIt->second.inputType == ParsedInput::BLOCK) &&
             !substackIt->second.blockId.empty()) {
 
@@ -969,8 +983,8 @@ std::vector<Block *> getBlockChain(std::string blockId, std::string *outID) {
             }
         }
 
-        auto substack2It = currentBlock->parsedInputs.find("SUBSTACK2");
-        if (substack2It != currentBlock->parsedInputs.end() &&
+        auto substack2It = currentBlock->parsedInputs->find("SUBSTACK2");
+        if (substack2It != currentBlock->parsedInputs->end() &&
             (substack2It->second.inputType == ParsedInput::BOOLEAN || substack2It->second.inputType == ParsedInput::BLOCK) &&
             !substack2It->second.blockId.empty()) {
 
@@ -1002,9 +1016,9 @@ Block *getBlockParent(const Block *block) {
 }
 
 Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite *sprite) {
-    auto parsedFind = block.parsedInputs.find(inputName);
+    auto parsedFind = block.parsedInputs->find(inputName);
 
-    if (parsedFind == block.parsedInputs.end()) {
+    if (parsedFind == block.parsedInputs->end()) {
         return Value();
     }
 
@@ -1024,4 +1038,20 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
         return executor.getBlockValue(*findBlock(input.blockId), sprite);
     }
     return Value();
+}
+
+std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
+    auto fieldFind = block.parsedFields->find(fieldName);
+    if (fieldFind == block.parsedFields->end()) {
+        return "";
+    }
+    return fieldFind->second.value;
+}
+
+std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
+    auto fieldFind = block.parsedFields->find(fieldName);
+    if (fieldFind == block.parsedFields->end()) {
+        return "";
+    }
+    return fieldFind->second.id;
 }
