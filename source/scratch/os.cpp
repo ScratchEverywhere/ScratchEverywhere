@@ -20,17 +20,27 @@ size_t MemoryTracker::allocationCount = 0;
 size_t MemoryTracker::totalVRAMAllocated = 0;
 
 void Log::log(std::string message, bool printToScreen) {
-    if (printToScreen) std::cout << message << std::endl;
+    if (printToScreen) {
+#ifndef XBOX
+        std::cout << message << std::endl;
+#endif
+    }
     writeToFile(message);
 }
 void Log::logWarning(std::string message, bool printToScreen) {
-    if (printToScreen)
+    if (printToScreen) {
+#ifndef XBOX
         std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
+#endif
+    }
     writeToFile("Warning: " + message);
 }
 void Log::logError(std::string message, bool printToScreen) {
-    if (printToScreen)
+    if (printToScreen) {
+#ifndef XBOX
         std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
+#endif
+    }
     writeToFile("Error: " + message);
 }
 void Log::writeToFile(std::string message) {

@@ -1,8 +1,13 @@
 #pragma once
 
-#include <SDL2/SDL_image.h>
 #include <string>
 #include <unordered_map>
+
+#ifdef XBOX
+#include <SDL_image.h>
+#else
+#include <SDL2/SDL_image.h>
+#endif
 
 class SDL_Image {
   public:

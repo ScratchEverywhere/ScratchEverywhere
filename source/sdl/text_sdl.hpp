@@ -1,9 +1,15 @@
 #pragma once
 #include "../scratch/text.hpp"
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 #include <iostream>
 #include <unordered_map>
+
+#ifdef XBOX
+#include <SDL.h>
+#include <SDL_ttf.h>
+#else
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#endif
 
 class TextObjectSDL : public TextObject {
   private:

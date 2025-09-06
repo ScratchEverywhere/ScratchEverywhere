@@ -1,0 +1,18 @@
+XBE_TITLE	:=	Scratch\ Everywhere!
+GEN_XISO	:=	scratch-xbox.iso
+
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+
+INCLUDE_FLAGS	:=	$(foreach dir,$(INCLUDES),-I$(dir))
+CFLAGS			:=	$(INCLUDE_FLAGS) -DSDL_BUILD
+CXXFLAGS		:=	$(CFLAGS) -std=c++17 -fexceptions
+
+SRC_CPP		:=	$(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
+SRC_C		:=	$(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
+SRCS		:=	$(SRC_CPP) $(SRC_C)
+
+NXDK_SDL	:=	y
+NXDK_CXX	:=	y
+
+include $(NXDK_DIR)/Makefile
