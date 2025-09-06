@@ -57,7 +57,16 @@ class Render {
      */
     static void renderSprites();
 
+    /**
+     * Renders all visible variable and list monitors
+     */
     static void renderVisibleVariables();
+
+    /**
+     * Renders the pen layer
+     */
+    static void renderPenLayer();
+
     /**
      * Draws a simple box to the screen.
      */
