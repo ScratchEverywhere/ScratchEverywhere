@@ -1,7 +1,7 @@
 #include "../scratch/image.hpp"
 #include "../scratch/os.hpp"
 #include "image.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "render.hpp"
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_pixels.h>
