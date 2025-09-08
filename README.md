@@ -3,12 +3,12 @@
 </p>
 
 <p align="center">
-<a href="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-3ds.yml"><img src="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-3ds.yml/badge.svg" alt="3DS Nightly Build"></a>
-<a href="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-wiiu.yml"><img src="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-wiiu.yml/badge.svg" alt="Wii U Nightly Build"></a>
-<a href="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-wii.yml"><img src="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-wii.yml/badge.svg" alt="Wii Nightly Build"></a>
-<a href="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-gamecube.yml"><img src="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-gamecube.yml/badge.svg" alt="GameCube Nightly Build"></a>
-<a href="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-switch.yml"><img src="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-switch.yml/badge.svg" alt="Switch Nightly Build"></a>
-<a href="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-vita.yml"><img src="https://github.com/NateXS/Scratch-Everywhere/actions/workflows/nightly-vita.yml/badge.svg" alt="Vita Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-3ds.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-3ds.yml/badge.svg" alt="3DS Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wiiu.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wiiu.yml/badge.svg" alt="Wii U Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wii.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wii.yml/badge.svg" alt="Wii Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml/badge.svg" alt="GameCube Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml/badge.svg" alt="Switch Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml/badge.svg" alt="Vita Nightly Build"></a>
 </p>
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
@@ -94,7 +94,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 - All say and think blocks
 - Most costume effects;
-	- Only the `Ghost` costume effect is supported
+	- Only the `Ghost` and `Brightness` costume effects are supported
 - `Pitch` and `Pan left-right` sound effects
 - When loudness > ___
 - All color touching blocks
@@ -106,8 +106,8 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 - Bug fixing and Scratch parity
 - Get all blocks working
-- Pen support ([#294](https://github.com/NateXS/Scratch-Everywhere/pull/294))
-- Support most TurboWarp extensions ([#210](https://github.com/NateXS/Scratch-Everywhere/pull/210))
+- Pen support ([#294](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/294))
+- Support most TurboWarp extensions ([#210](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/210))
 
 ### Wii U
 
@@ -140,7 +140,7 @@ There are two methods to install the runtime:
 
 ### Get up and running for 3DS
 
-Download the `.cia` file or `.3dsx` in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-3ds/main/Scratch%20Everywhere!%203DS%20Nightly.zip).
+Download the `.cia` file or `.3dsx` in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-3ds/main/Scratch%20Everywhere!%203DS%20Nightly.zip).
 
 > [!NOTE]
 > Scratch Everywhere! for 3DS is also on [Universal Updater](https://db.universal-team.net/3ds/scratch-everywhere), so you can just download it there and keep it updated that way!
@@ -159,7 +159,7 @@ Then it should be as simple as opening the Homebrew Launcher on your 3DS and run
 
 ### Get up and running for Wii U
 
-Download the `scratch-wiiu.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-wiiu/main/Scratch%20Everywhere!%20Wii%20U%20Nightly.zip).
+Download the `scratch-wiiu.zip` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-wiiu/main/Scratch%20Everywhere!%20Wii%20U%20Nightly.zip).
 
 > [!NOTE]
 > Scratch Everywhere! for Wii U is also on the [Homebrew App Store](https://hb-app.store/wiiu/ScratchWiiU), so you can just download it there and keep it updated that way!
@@ -172,7 +172,7 @@ Then it should be as simple as opening the app on the Wii U Menu or in the Homeb
 
 ### Get up and running for Wii
 
-Download the `scratch-wii.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-wii/main/Scratch%20Everywhere!%20Wii%20Nightly.zip).
+Download the `scratch-wii.zip` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-wii/main/Scratch%20Everywhere!%20Wii%20Nightly.zip).
 
 > [!NOTE]
 > Scratch Everywhere! for Wii is also on the [Open Shop Channel](https://oscwii.org/library/app/scratch-wii), so you can just download it there and keep it updated that way!
@@ -188,7 +188,7 @@ Then it should be as simple as opening the app in the Homebrew Menu on your Wii!
 > [!NOTE]
 > There is currently a bug on the GameCube version causing projects to not show up on the Main Menu. The GameCube release has been temporarily removed from the Releases tab until the issue is fixed. For now, you need to compile from source to use the GameCube version.
 
-Download the `scratch-gamecube.zip` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-gamecube/main/Scratch%20Everywhere!%20GameCube%20Nightly.zip).
+Download the `scratch-gamecube.zip` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-gamecube/main/Scratch%20Everywhere!%20GameCube%20Nightly.zip).
 
 Unzip the file. Put your Scratch projects in the same place you put your `.dol` file.
 
@@ -196,7 +196,7 @@ Then it should be as simple as opening the app on your GameCube!
 
 ### Get up and running for Nintendo Switch
 
-Download the `scratch-nx.nro` file in the Releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-switch/main/Scratch%20Everywhere!%20Switch%20Nightly.zip).
+Download the `scratch-nx.nro` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-switch/main/Scratch%20Everywhere!%20Switch%20Nightly.zip).
 
 > [!NOTE]
 > Scratch Everywhere! for Nintendo Switch is also on the [Homebrew App Store](https://hb-app.store/switch/ScratchEverywhere), so you can just download it there and keep it updated that way!
@@ -207,7 +207,10 @@ Then it should be as simple as opening the app on your Nintendo Switch!
 
 ### Get up and running for Vita
 
-Download the `scratch-vita.vpk` file from the releases tab or [nightly build](https://nightly.link/NateXS/Scratch-Everywhere/workflows/nightly-vita/main/Scratch%20Everywhere!%20Vita%20Nightly.zip), transfer it over to the Vita's storage, and install it using VitaShell on your Vita.
+> [!NOTE]
+> Scratch Everywhere! for PS Vita is also on [VitaDB](https://www.rinnegatamante.eu/vitadb/#/info/1320), so you can just download it there and keep it updated that way!
+
+Download the `scratch-vita.vpk` file from the releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-vita/main/Scratch%20Everywhere!%20Vita%20Nightly.zip), transfer it over to the Vita's storage, and install it using VitaShell on your Vita.
 
 Put your Scratch Projects in `ux0:data/scratch-vita/` (you will need to create the folder yourself).
 
@@ -242,9 +245,9 @@ The recommended way to compile Scratch Everywhere! is with Docker. To compile wi
 
 #### Manual
 
-If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.grady.link/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
+If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.com/ScratchEverywhere/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 - **For the 3DS**, you will need the DevkitARM toolchain and libctru.
-	- If you want to compile with audio support, you will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/NateXS/Scratch-3DS/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
+	- If you want to compile with audio support, you will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/ScratchEverywhere/ScratchEverywhere/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
 - **For the Wii U**, you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
 - **For the Wii**, you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 - **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).

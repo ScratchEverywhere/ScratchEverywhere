@@ -33,7 +33,7 @@ WORKDIR /mistpp-packages
 
 COPY --from=libcurl_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
 
-RUN wget https://github.com/gradylink/mistpp-packages/releases/download/0.2.0-1/3ds-libmistpp-0.2.0-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.2.0-1-any.pkg.tar.zst
+RUN wget https://github.com/ScratchEverywhere/mistpp-packages/releases/download/0.2.0-1/3ds-libmistpp-0.2.0-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.2.0-1-any.pkg.tar.zst
 
 FROM devkitpro/devkitarm:latest AS makerom_installer
 WORKDIR /makerom

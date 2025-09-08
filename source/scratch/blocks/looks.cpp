@@ -293,7 +293,7 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *without
     } else if (effect == "MOSAIC") {
         // blehhh
     } else if (effect == "BRIGHTNESS") {
-        // doable....
+        sprite->brightnessEffect = std::clamp(amount.asDouble(), -100.0, 100.0);
     } else if (effect == "GHOST") {
         sprite->ghostEffect = std::clamp(amount.asDouble(), 0.0, 100.0);
     } else {
@@ -319,7 +319,8 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *with
     } else if (effect == "MOSAIC") {
         // blehhh
     } else if (effect == "BRIGHTNESS") {
-        // doable....
+        sprite->brightnessEffect += amount.asDouble();
+        sprite->brightnessEffect = std::clamp(sprite->brightnessEffect, -100.0f, 100.0f);
     } else if (effect == "GHOST") {
         sprite->ghostEffect += amount.asDouble();
         sprite->ghostEffect = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
@@ -331,6 +332,7 @@ BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool 
 
     sprite->ghostEffect = 0.0f;
     sprite->colorEffect = -99999;
+    sprite->brightnessEffect = 0.0f;
 
     return BlockResult::CONTINUE;
 }

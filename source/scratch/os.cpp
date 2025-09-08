@@ -1,6 +1,8 @@
 #include "os.hpp"
+#include "render.hpp"
 #include <chrono>
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <ostream>
 #include <string>
@@ -21,34 +23,33 @@ size_t MemoryTracker::totalVRAMAllocated = 0;
 
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
-
-    std::ofstream file("Log", std::ios::app);
-    if (file.is_open()) {
-        file << message << std::endl;
-    }
+    writeToFile(message);
 }
 
 void Log::logWarning(std::string message, bool printToScreen) {
     if (printToScreen)
         std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
-
-    std::ofstream file("Log", std::ios::app);
-    if (file.is_open()) {
-        file << "Warning: " << message << std::endl;
-    }
+    writeToFile("Warning: " + message);
 }
 
 void Log::logError(std::string message, bool printToScreen) {
     if (printToScreen)
         std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
 
-    std::ofstream file("Log", std::ios::app);
-    if (file.is_open()) {
-        file << "Error: " << message << std::endl;
-    }
-    
+    writeToFile("Error: " + message);
 }
-void Log::writeToFile(std::string message, std::string filePath) {
+void Log::writeToFile(std::string message) {
+    if (Render::debugMode) {
+        std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+        std::ofstream logFile;
+        logFile.open(filePath, std::ios::app);
+        if (logFile.is_open()) {
+            logFile << message << std::endl;
+            logFile.close();
+        } else {
+            std::cerr << "Could not open log file: " << filePath << std::endl;
+        }
+    }
 }
 
 // Wii and Gamecube Timer implementation
@@ -112,6 +113,14 @@ std::string OS::getScratchFolderLocation() {
     return "sdmc:/3ds/scratch-everywhere/";
 #else
     return "scratch-everywhere/";
+#endif
+}
+
+std::string OS::getRomFSLocation() {
+#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
+    return "romfs:/";
+#else
+    return "";
 #endif
 }
 

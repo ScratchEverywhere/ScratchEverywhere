@@ -29,12 +29,15 @@ Image::Image(std::string filePath) {
     scale = 1.0;
     rotation = 0.0;
     opacity = 1.0;
+    images[imgId]->imageUsageCount++;
 }
 
 Image::~Image() {
     auto it = images.find(imageId);
     if (it != images.end()) {
-        freeImage(imageId);
+        images[imageId]->imageUsageCount--;
+        if (images[imageId]->imageUsageCount <= 0)
+            freeImage(imageId);
     }
 }
 
@@ -156,9 +159,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     std::string finalPath;
 
-#if defined(__WIIU__) || defined(__OGC__)
-    finalPath = "romfs:/";
-#endif
+    finalPath = OS::getRomFSLocation();
     if (fromScratchProject)
         finalPath = finalPath + "project/";
 

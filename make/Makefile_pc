@@ -35,10 +35,10 @@ endif
 CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++17 -Wall -fexceptions
 
 # Debug and Release flags
-CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -g -O0 -DDEBUG
+CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -fsanitize=address -g -O0 -DDEBUG
 CXXFLAGS_RELEASE := $(CXXFLAGS_BASE) -O2 -DNDEBUG
 
-CFLAGS_DEBUG   := $(CFLAGS_BASE) -g -O0 -DDEBUG
+CFLAGS_DEBUG   := $(CFLAGS_BASE) -fsanitize=address -g -O0 -DDEBUG
 CFLAGS_RELEASE := $(CFLAGS_BASE) -O2 -DNDEBUG
 
 # Find all .cpp and .c files recursively
@@ -58,6 +58,7 @@ all: debug
 # Debug build
 debug: CXXFLAGS := $(CXXFLAGS_DEBUG)
 debug: CFLAGS   := $(CFLAGS_DEBUG)
+debug: LDFLAGS	+= -fsanitize=address
 debug: $(BUILD)/debug/$(TARGET)
 
 # Release build

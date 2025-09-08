@@ -6,6 +6,7 @@
 
 class SDL_Image {
   public:
+    size_t imageUsageCount = 0;
     SDL_Surface *spriteSurface;
     SDL_Texture *spriteTexture;
     SDL_Rect renderRect;  // this rect is for rendering to the screen

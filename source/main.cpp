@@ -7,9 +7,7 @@
 #include <switch.h>
 #endif
 
-// arm-none-eabi-addr2line -e Scratch.elf xxx
-// ^ for debug purposes
-#ifdef __OGC__
+#ifdef SDL_BUILD
 #include <SDL2/SDL.h>
 #endif
 
@@ -19,6 +17,29 @@ static void exitApp() {
 
 static bool initApp() {
     return Render::Init();
+}
+
+bool activateMainMenu() {
+    MainMenu *menu = new MainMenu();
+    MenuManager::changeMenu(menu);
+
+    while (Render::appShouldRun()) {
+
+        MenuManager::render();
+
+        if (MenuManager::isProjectLoaded != 0) {
+
+            // -1 means project couldn't load
+            if (MenuManager::isProjectLoaded == -1) {
+                exitApp();
+                return false;
+            } else {
+                MenuManager::isProjectLoaded = 0;
+                break;
+            }
+        }
+    }
+    return true;
 }
 
 int main(int argc, char **argv) {
@@ -31,23 +52,16 @@ int main(int argc, char **argv) {
 
         if (Unzip::projectOpened == -3) { // main menu
 
-            if (!MainMenu::activateMainMenu()) {
-                exitApp();
-                return 0;
-            }
+            if (!activateMainMenu()) return 0;
 
         } else {
-
             exitApp();
             return 0;
         }
     }
 
     while (Scratch::startScratchProject()) {
-        if (!MainMenu::activateMainMenu()) {
-            exitApp();
-            return 0;
-        }
+        if (!activateMainMenu()) break;
     }
     exitApp();
     return 0;

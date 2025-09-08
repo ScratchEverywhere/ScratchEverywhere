@@ -32,7 +32,7 @@ class MemoryTracker {
     const static size_t wii_maxVRAMUsage = 44040192;      // 42 MB
     const static size_t gamecube_maxVRAMUsage = 11010048; // ~10 MB
     const static size_t pc_maxVRAMUsage = 134217728;      // 128 MB
-    const static size_t vita_maxVRAMUsage = 100663296;     // 96 MB
+    const static size_t vita_maxVRAMUsage = 100663296;    // 96 MB
 
   public:
     static size_t getMaxRamUsage() {
@@ -159,7 +159,7 @@ namespace Log {
 void log(std::string message, bool printToScreen = true);
 void logWarning(std::string message, bool printToScreen = true);
 void logError(std::string message, bool printToScreen = true);
-void writeToFile(std::string message, std::string filePath);
+void writeToFile(std::string message);
 } // namespace Log
 
 class Timer {
@@ -195,7 +195,28 @@ class Timer {
 
 class OS {
   public:
+    /**
+     * Gets the location of the current device's Scratch data folder.
+     * This is where the user should put their .sb3 Scratch projects.
+     * This is also where all the extra data of the app lies (custom controls data, etc).
+     * @return The string of the current device's Scratch data folder.
+     */
     static std::string getScratchFolderLocation();
+
+    /**
+     * Gets the location of the `RomFS`, the embedded filesystem within the executable.
+     * This function should be used whenever you need to load an asset from say, the `gfx` folder.
+     * @return The location of the RomFS. On OGC, Switch, Wii U, and 3DS, this is `romfs:/`. everywhere else will be an empty string.
+     */
+    static std::string getRomFSLocation();
+    /**
+     * Get the current platform that's running the app.
+     * @return The string of the current platform. `3DS`, `Wii`, etc.
+     */
     static std::string getPlatform();
+    /**
+     * Function to detect whether the platform is a New 3DS.
+     * @return `true` on New 3DS, `false` everywhere else.
+     */
     static bool isNew3DS();
 };

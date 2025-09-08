@@ -1,6 +1,8 @@
+By (mostly) NateXS and Grady Link!
 Also try TurboWarp!
 Also try PenguinMod!
 Also try Snail IDE!
+Also try Electramod!
 Also try every other Scratch clone!
 Support the Scratch Foundation!
 It's swizzle magic!
@@ -11,9 +13,12 @@ Magic for your {PlatformName}!
 Straight from your {PlatformName}!
 On your {PlatformName}!
 Coming soon to a console near you!
+{PlatformName} on Scratch! ... Wait that's not right.
+Run it all, everything!
 You'll love it!
 Magic!
 Try it out!!!!
+Join the Discord Server!
 Runtime by NateXS!
 3DS port by NateXS!
 Wii port by NateXS!
@@ -23,12 +28,15 @@ Wii U port by Grady Link!
 Switch port by Grady Link!
 PS Vita port by Dogo6647!
 C++!
+devkitPro!
 It works! (most of the time...)
 Woah.
+Are wii gonna have a problem?
 Beta!
 Deja vu!
 Let's play!
 Woo, TurboWarp!
+Woo, ScratchBox!
 Woo, softwaregore!
 As seen on YouTube!
 PolyMars approved!

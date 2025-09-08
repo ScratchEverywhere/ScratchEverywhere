@@ -29,10 +29,8 @@ int Unzip::openFile(std::ifstream *file) {
     std::string embeddedFilename = "project.sb3";
     std::string unzippedPath = "project/project.json";
 
-#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__)
-    embeddedFilename = "romfs:/" + embeddedFilename;
-    unzippedPath = "romfs:/" + unzippedPath;
-#endif
+    embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
+    unzippedPath = OS::getRomFSLocation() + unzippedPath;
 
     // Unzipped Project in romfs:/
     file->open(unzippedPath, std::ios::binary | std::ios::ate);

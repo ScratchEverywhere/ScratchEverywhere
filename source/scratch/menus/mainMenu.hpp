@@ -3,7 +3,28 @@
 #include "../text.hpp"
 #include "menuObjects.hpp"
 
-class MainMenu {
+class Menu {
+  public:
+    bool isInitialized = false;
+    virtual void init() = 0;
+    virtual void render() = 0;
+    virtual void cleanup() = 0;
+    virtual ~Menu();
+};
+
+class MenuManager {
+  private:
+    static Menu *currentMenu;
+
+  public:
+    static Menu *previousMenu;
+    static int isProjectLoaded;
+    static void changeMenu(Menu *menu);
+    static void render();
+    static bool loadProject();
+};
+
+class MainMenu : public Menu {
   private:
   public:
     bool shouldExit = false;
@@ -19,16 +40,15 @@ class MainMenu {
 
     int selectedTextIndex = 0;
 
-    void init();
-    void render();
-    void cleanup();
-    static bool activateMainMenu();
+    void init() override;
+    void render() override;
+    void cleanup() override;
 
     MainMenu();
     ~MainMenu();
 };
 
-class ProjectMenu {
+class ProjectMenu : public Menu {
   public:
     int cameraX;
     int cameraY;
@@ -51,12 +71,12 @@ class ProjectMenu {
     ProjectMenu();
     ~ProjectMenu();
 
-    void init();
-    void render();
-    void cleanup();
+    void init() override;
+    void render() override;
+    void cleanup() override;
 };
 
-class ProjectSettings {
+class ProjectSettings : public Menu {
   private:
   public:
     ControlObject *settingsControl = nullptr;
@@ -73,12 +93,12 @@ class ProjectSettings {
     ProjectSettings(std::string projPath = "", bool existUnpacked = false);
     ~ProjectSettings();
 
-    void init();
-    void render();
-    void cleanup();
+    void init() override;
+    void render() override;
+    void cleanup() override;
 };
 
-class ControlsMenu {
+class ControlsMenu : public Menu {
   public:
     ButtonObject *backButton = nullptr;
     ButtonObject *applyButton = nullptr;
@@ -98,10 +118,10 @@ class ControlsMenu {
     ControlsMenu(std::string projPath);
     ~ControlsMenu();
 
-    void init();
-    void render();
+    void init() override;
+    void render() override;
     void applyControls();
-    void cleanup();
+    void cleanup() override;
 };
 
 class UnpackMenu {
@@ -122,7 +142,7 @@ class UnpackMenu {
     static std::vector<std::string> getJsonArray(const std::string &filePath);
     static void removeFromJsonArray(const std::string &filePath, const std::string &value);
 
-    void init();
-    void render();
-    void cleanup();
+    void init() override;
+    void render() override;
+    void cleanup() override;
 };

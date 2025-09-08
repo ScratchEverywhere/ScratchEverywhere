@@ -102,9 +102,7 @@ class Unzip {
     static std::string getSplashText() {
         std::string textPath = "gfx/menu/splashText.txt";
 
-#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
-        textPath = "romfs:/" + textPath;
-#endif
+        textPath = OS::getRomFSLocation() + textPath;
 
         std::vector<std::string> splashLines;
         std::ifstream file(textPath);
