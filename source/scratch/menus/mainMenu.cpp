@@ -292,12 +292,12 @@ void ProjectMenu::render() {
             if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
                 // Unpacked sb3
                 Unzip::filePath = projectControl->selectedObject->text->getText();
-                shouldGoBack = true;
+                MenuManager::loadProject();
                 return;
             } else {
                 // normal sb3
                 Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
-                shouldGoBack = true;
+                MenuManager::loadProject();
                 return;
             }
         }
@@ -491,9 +491,10 @@ void ProjectSettings::render() {
         Unzip::extractProject(OS::getScratchFolderLocation()+ projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath);
 
         unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
-        shouldGoBack = true;
         unpackMenu.cleanup();
-        init();
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
     }
 
     if (DeleteUnpackProjectButton->isPressed({"a"}) && !canUnpacked) {
@@ -502,9 +503,10 @@ void ProjectSettings::render() {
         unpackMenu.render();
         Unzip::deleteProjectFolder(OS::getScratchFolderLocation() + projectPath);
         unpackMenu.removeFromJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
-        shouldGoBack = true;
         unpackMenu.cleanup();
-        init();
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
     }
 
     if (backButton->isPressed({"b", "y"})) {

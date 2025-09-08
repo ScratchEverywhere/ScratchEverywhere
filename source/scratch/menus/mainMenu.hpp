@@ -124,7 +124,7 @@ class ControlsMenu : public Menu {
     void cleanup() override;
 };
 
-class UnpackMenu {
+class UnpackMenu : public Menu {
   public:
     ControlObject *settingsControl = nullptr;
 
