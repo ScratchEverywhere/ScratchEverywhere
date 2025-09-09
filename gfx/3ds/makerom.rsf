@@ -189,7 +189,7 @@ SystemControlInfo:
   # <module name>:<module titleid>
   Dependency: 
     ac: 0x0004013000002402
-    #act: 0x0004013000003802
+    act: 0x0004013000003802
     am: 0x0004013000001502
     boss: 0x0004013000003402
     camera: 0x0004013000001602
