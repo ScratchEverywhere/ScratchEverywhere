@@ -27,4 +27,5 @@ class TextObject3DS : public TextObject {
     void setText(std::string txt) override;
     void render(int xPos, int yPos) override;
     std::vector<float> getSize() override;
+    static void cleanupText();
 };

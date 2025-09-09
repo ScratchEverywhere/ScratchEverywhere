@@ -27,6 +27,11 @@ class TextObject : public Object {
     virtual ~TextObject() = default;
 
     /**
+     * Cleans up and frees every text currently in memory, as well as frees every font in memory.
+     */
+    static void cleanupText();
+
+    /**
      * Set the color of the text.
      * @param clr Color value
      */

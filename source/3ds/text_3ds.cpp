@@ -1,4 +1,5 @@
 #include "text_3ds.hpp"
+#include "../scratch/os.hpp"
 #include <3ds.h>
 
 std::unordered_map<std::string, C2D_Font> TextObject3DS::fonts;
@@ -39,12 +40,17 @@ TextObject3DS::~TextObject3DS() {
         textClass.textBuffer = nullptr;
     }
 
-    fontUsageCount[fontName] -= 1;
-    if (fontUsageCount[fontName] == 0) {
-        C2D_FontFree(fonts[fontName]);
-        fonts.erase(fontName);
-        fontUsageCount.erase(fontName);
+    if (!fontName.empty() && fontUsageCount.find(fontName) != fontUsageCount.end()) {
+        fontUsageCount[fontName] -= 1;
+        if (fontUsageCount[fontName] == 0) {
+            if (fontName != "SYSTEM") {
+                C2D_FontFree(fonts[fontName]);
+            }
+            fonts.erase(fontName);
+            fontUsageCount.erase(fontName);
+        }
     }
+
     textClass.font = nullptr;
 }
 
@@ -73,4 +79,16 @@ void TextObject3DS::render(int xPos, int yPos) {
     }
     yPos -= getSize()[1] / 2;
     C2D_DrawText(&textClass.c2dText, flags, xPos, yPos, 0, scale, scale, color);
+}
+
+void TextObject3DS::cleanupText() {
+    for (auto &[fontName, font] : fonts) {
+        if (fontName != "SYSTEM") {
+            C2D_FontFree(font);
+        }
+    }
+    fonts.clear();
+    fontUsageCount.clear();
+
+    Log::log("Cleaned up all text.");
 }

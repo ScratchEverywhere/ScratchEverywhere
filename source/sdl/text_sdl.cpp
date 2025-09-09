@@ -16,6 +16,7 @@
 #include <vector>
 
 std::unordered_map<std::string, TTF_Font *> TextObjectSDL::fonts;
+std::unordered_map<std::string, size_t> TextObjectSDL::fontUsageCount;
 
 TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::string fontPath)
     : TextObject(txt, posX, posY, fontPath) {
@@ -25,20 +26,23 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
         fontPath = "gfx/menu/Arialn";
     }
     fontPath = OS::getRomFSLocation() + fontPath;
-
     fontPath = fontPath + ".ttf";
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
         TTF_Font *loadedFont = TTF_OpenFont(fontPath.c_str(), 30);
         if (!loadedFont) {
-            std::cerr << "Failed to load font " << fontPath << ": " << TTF_GetError() << std::endl;
+            Log::logError("Failed to load font " + fontPath + ": " + TTF_GetError());
         } else {
             fonts[fontPath] = loadedFont;
+            fontUsageCount[fontPath] = 1;
+            pathFont = fontPath;
+            font = loadedFont;
         }
-        font = loadedFont;
     } else {
         font = fonts[fontPath];
+        pathFont = fontPath;
+        fontUsageCount[fontPath]++;
     }
 
     // Set initial text
@@ -51,6 +55,15 @@ TextObjectSDL::~TextObjectSDL() {
         MemoryTracker::deallocateVRAM(memorySize);
         SDL_DestroyTexture(texture);
         texture = nullptr;
+    }
+
+    if (font && !pathFont.empty()) {
+        fontUsageCount[pathFont]--;
+        if (fontUsageCount[pathFont] <= 0) {
+            TTF_CloseFont(fonts[pathFont]);
+            fonts.erase(pathFont);
+            fontUsageCount.erase(pathFont);
+        }
     }
 }
 
@@ -135,4 +148,18 @@ std::vector<float> TextObjectSDL::getSize() {
 void TextObjectSDL::setRenderer(void *r) {
     renderer = static_cast<SDL_Renderer *>(r);
     updateTexture();
+}
+
+void TextObjectSDL::cleanupText() {
+    for (auto &[fontPath, font] : fonts) {
+        if (font) {
+            TTF_CloseFont(font);
+        }
+    }
+
+    // Clear the maps
+    fonts.clear();
+    fontUsageCount.clear();
+
+    Log::log("Cleaned up all text.");
 }

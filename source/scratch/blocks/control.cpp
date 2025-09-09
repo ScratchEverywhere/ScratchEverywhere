@@ -145,7 +145,6 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
 BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (sprite->isClone) {
         sprite->toDelete = true;
-        // Log::log("Deleted " + sprite->name + "'s clone.");
         return BlockResult::CONTINUE;
     }
     return BlockResult::CONTINUE;

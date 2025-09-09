@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     }
 
     while (Scratch::startScratchProject()) {
-        if (!activateMainMenu()) break;
+        if (toExit || !activateMainMenu()) break;
     }
     exitApp();
     return 0;

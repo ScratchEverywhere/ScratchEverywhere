@@ -269,8 +269,9 @@ void BlockExecutor::runRepeatBlocks() {
         }
         toDelete->isDeleted = true;
     }
-    // std::cout << "\x1b[19;1HBlocks Running: " << blocksRun << std::endl;
-    sprites.erase(std::remove_if(sprites.begin(), sprites.end(), [](Sprite *s) { return s->toDelete; }), sprites.end());
+    sprites.erase(std::remove_if(sprites.begin(), sprites.end(),
+                                 [](Sprite *s) { return s->toDelete; }),
+                  sprites.end());
 }
 
 void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {

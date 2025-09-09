@@ -146,6 +146,7 @@ bool Scratch::startScratchProject() {
             }
         }
     }
+    cleanupScratchProject();
     return false;
 }
 
@@ -154,22 +155,26 @@ void Scratch::cleanupScratchProject() {
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     blockLookup.clear();
+
+    for (auto &[id, text] : Render::monitorTexts) {
+        delete text;
+    }
+    Render::monitorTexts.clear();
+    TextObject::cleanupText();
+
     Render::visibleVariables.clear();
 
     // Clean up ZIP archive if it was initialized
     if (projectType != UNZIPPED) {
-        mz_zip_reader_end(&Unzip::zipArchive);
 
-        // Clear the ZIP buffer and deallocate its memory
-        size_t bufferSize = Unzip::zipBuffer.size();
+        mz_zip_reader_end(&Unzip::zipArchive);
+        if (Unzip::trackedBufferPtr) {
+            MemoryTracker::deallocate(Unzip::trackedBufferPtr, Unzip::trackedBufferSize);
+            Unzip::trackedBufferPtr = nullptr;
+            Unzip::trackedBufferSize = 0;
+        }
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
-
-        // Update memory tracker for the buffer
-        if (bufferSize > 0) {
-            MemoryTracker::deallocate(nullptr, bufferSize);
-        }
-
         memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
     }
 
@@ -215,11 +220,9 @@ void cleanupSprites() {
     for (Sprite *sprite : sprites) {
         if (sprite) {
             if (sprite->isClone) {
+                sprite->toDelete = true;
                 sprite->isDeleted = true;
-            } else {
-                sprite->~Sprite();
-                MemoryTracker::deallocate<Sprite>(sprite);
-            }
+            } else delete sprite;
         }
     }
     sprites.clear();
@@ -451,9 +454,9 @@ void loadSprites(const nlohmann::json &json) {
     sprites.reserve(400);
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
-        Sprite *newSprite = MemoryTracker::allocate<Sprite>();
-        // Sprite *newSprite = new Sprite();
-        new (newSprite) Sprite();
+        // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
+        Sprite *newSprite = new Sprite();
+        // new (newSprite) Sprite();
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
         }

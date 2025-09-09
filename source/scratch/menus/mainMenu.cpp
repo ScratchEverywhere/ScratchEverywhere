@@ -17,12 +17,12 @@ Menu *MenuManager::previousMenu = nullptr;
 int MenuManager::isProjectLoaded = 0;
 
 void MenuManager::changeMenu(Menu *menu) {
-    // if (currentMenu != nullptr)
-    //     currentMenu->cleanup();
+    if (currentMenu != nullptr)
+        currentMenu->cleanup();
 
     if (previousMenu != nullptr && previousMenu != menu) {
-        // delete previousMenu;
-        // previousMenu = nullptr;
+        delete previousMenu;
+        previousMenu = nullptr;
     }
 
     if (menu != nullptr) {
@@ -80,7 +80,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 22", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 23 Nightly", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 

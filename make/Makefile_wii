@@ -21,7 +21,7 @@ APP_AUTHOR	:= NateXS
 APP_SHORT_DESCRIPTION := Play Scratch games on the Wii!
 APP_LONG_DESCRIPTION	:= A custom Runtime that allows you to play any Scratch 3 project on your Wii!
 RELEASE_DATE	:= 20250907000000
-APP_VERSION	:= 0.22
+APP_VERSION	:= 0.23
 
 #---------------------------------------------------------------------------------
 # Build info

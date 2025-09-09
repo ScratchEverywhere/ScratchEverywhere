@@ -8,6 +8,8 @@
 class TextObjectSDL : public TextObject {
   private:
     static std::unordered_map<std::string, TTF_Font *> fonts;
+    static std::unordered_map<std::string, size_t> fontUsageCount;
+    std::string pathFont;
     TTF_Font *font = nullptr;
     SDL_Renderer *renderer = nullptr;
     SDL_Texture *texture = nullptr;
@@ -26,4 +28,5 @@ class TextObjectSDL : public TextObject {
     void render(int xPos, int yPos) override;
     std::vector<float> getSize() override;
     void setRenderer(void *r) override;
+    static void cleanupText();
 };
