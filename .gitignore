@@ -2,6 +2,7 @@
 .vs/
 .vscode/
 build/
+build-*/
 romfs/project/
 romfs/gfx
 scratch-everywhere/
@@ -65,3 +66,5 @@ scratch-wii.zip
 # Stored Files
 cloud-username.txt
 
+# CMake
+cmake/CPM.cmake

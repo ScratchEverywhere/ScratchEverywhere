@@ -3,8 +3,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=vita
+RUN cmake -B build-vita -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release && cmake --build build-vita
 
 FROM scratch AS exporter
 
-COPY --from=main_builder /app/build/vita/scratch-vita.vpk /
+COPY --from=main_builder /app/build/scratch-vita.vpk /

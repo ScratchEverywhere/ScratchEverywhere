@@ -1,5 +1,5 @@
 #pragma once
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include <string>
 #include <vector>
 

@@ -3,7 +3,7 @@
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "nlohmann/json.hpp"
 #include "os.hpp"
 #include "render.hpp"

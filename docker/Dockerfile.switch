@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=switch ENABLE_AUDIO=1
+RUN /opt/devkitpro/portlibs/switch/bin/aarch64-none-elf-cmake -B build-nx -DCMAKE_BUILD_TYPE=Release && /opt/devkitpro/portlibs/switch/bin/aarch64-none-elf-cmake --build build-nx
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/scratch-nx.nro /
+COPY --from=main_builder /app/build/scratch-nx.nro /
