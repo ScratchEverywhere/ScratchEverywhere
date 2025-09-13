@@ -1,5 +1,6 @@
 #include "../scratch/render.hpp"
 #include "../scratch/audio.hpp"
+#include "../scratch/blocks/pen.hpp"
 #include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
@@ -12,6 +13,7 @@
 #include <SDL2/SDL_gamecontroller.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_joystick.h>
+#include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_stdinc.h>
@@ -164,12 +166,23 @@ postAccount:
     window = SDL_CreateWindow("Scratch Runtime", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
+    penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 480, 360); // TODO: Support other resolutions.
+
+    // Clear the texture
+    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
+
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
     debugMode = true;
     return true;
 }
 void Render::deInit() {
+    SDL_DestroyTexture(penTexture);
+
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
@@ -418,6 +431,8 @@ void Render::renderSprites() {
 
         //     SDL_RenderFillRect(renderer, &debugPointRect);
         // }
+
+        if (currentSprite->isStage) renderPenLayer();
     }
 
     drawBlackBars(windowWidth, windowHeight);
@@ -473,6 +488,22 @@ void Render::renderVisibleVariables() {
             }
         }
     }
+}
+
+void Render::renderPenLayer() {
+    SDL_Rect renderRect = {0, 0, 0, 0};
+
+    if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+        renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
+        renderRect.w = windowWidth - renderRect.x * 2;
+        renderRect.h = windowHeight;
+    } else {
+        renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
+        renderRect.h = windowHeight - renderRect.y * 2;
+        renderRect.w = windowWidth;
+    }
+
+    SDL_RenderCopy(renderer, penTexture, NULL, &renderRect);
 }
 
 bool Render::appShouldRun() {
