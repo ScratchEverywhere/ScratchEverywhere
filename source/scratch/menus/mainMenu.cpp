@@ -1,12 +1,12 @@
 #include "mainMenu.hpp"
-#include <cctype>
 #include "../audio.hpp"
 #include "../image.hpp"
 #include "../input.hpp"
 #include "../interpret.hpp"
+#include "../keyboard.hpp"
 #include "../render.hpp"
 #include "../unzip.hpp"
-#include "../keyboard.hpp"
+#include <cctype>
 #include <nlohmann/json.hpp>
 #ifdef __WIIU__
 #include <whb/sdcard.h>
@@ -453,7 +453,6 @@ void SettingsMenu::init() {
         inFile >> j;
         inFile.close();
 
-        //check if file is empty (or/and if it does not exist)
         if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
             UseCostumeUsername = j["EnableUsername"].get<bool>();
             if (j.contains("Username") && j["Username"].is_string()) {
@@ -466,15 +465,14 @@ void SettingsMenu::init() {
                             break;
                         }
                     }
-                    if(hasNonSpace) username = j["Username"].get<std::string>();
+                    if (hasNonSpace) username = j["Username"].get<std::string>();
                     else username = "Player";
                 }
             }
         }
     }
-    
 
-    if(UseCostumeUsername) {
+    if (UseCostumeUsername) {
         EnableUsername->text->setText("Username: Enabled");
         ChangeUsername->text->setText("name: " + username);
         Credits->buttonDown = EnableUsername;
@@ -491,7 +489,6 @@ void SettingsMenu::init() {
         EnableUsername->buttonUp = Credits;
     }
 
-
     settingsControl->buttonObjects.push_back(Credits);
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
@@ -499,7 +496,7 @@ void SettingsMenu::init() {
     isInitialized = true;
 }
 
-void SettingsMenu::render() {  
+void SettingsMenu::render() {
     Input::getInput();
     settingsControl->input();
     if (backButton->isPressed({"b", "y"})) {
@@ -515,9 +512,9 @@ void SettingsMenu::render() {
     Credits->render();
     EnableUsername->render();
     if (UseCostumeUsername) ChangeUsername->render();
-    
+
     if (EnableUsername->isPressed({"a"})) {
-        if(UseCostumeUsername) {
+        if (UseCostumeUsername) {
             UseCostumeUsername = false;
             EnableUsername->text->setText("Username: disabled");
             if (settingsControl->selectedObject == ChangeUsername) settingsControl->selectedObject = EnableUsername;
@@ -538,12 +535,11 @@ void SettingsMenu::render() {
         }
     }
 
-    if(ChangeUsername->isPressed({"a"}))
-    {
+    if (ChangeUsername->isPressed({"a"})) {
         Keyboard kbd;
         std::string newUsername = kbd.openKeyboard(username.c_str());
-        //You could also use regex here, Idk what would be more sensible
-        //std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))
+        // You could also use regex here, Idk what would be more sensible
+        // std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))
         if (newUsername.length() <= 9) {
             bool hasNonSpace = false;
             for (char c : newUsername) {
@@ -553,13 +549,9 @@ void SettingsMenu::render() {
                     break;
                 }
             }
-            if(hasNonSpace) username = newUsername;
+            if (hasNonSpace) username = newUsername;
             ChangeUsername->text->setText(username);
         }
-            
-
-        
-        
     }
     settingsControl->render();
     Render::endFrame();
@@ -578,12 +570,12 @@ void SettingsMenu::cleanup() {
         delete EnableUsername;
         EnableUsername = nullptr;
     }
-    if(ChangeUsername != nullptr) {
+    if (ChangeUsername != nullptr) {
         delete ChangeUsername;
         ChangeUsername = nullptr;
     }
 
-    //save username and EnableUsername in json
+    // save username and EnableUsername in json
     std::ofstream outFile(OS::getScratchFolderLocation() + "Settings.json");
     nlohmann::json j;
     j["EnableUsername"] = UseCostumeUsername;

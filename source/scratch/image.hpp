@@ -5,8 +5,7 @@
 
 class Image {
   private:
-    
-    int width;
+        int width;
     int height;
 
   public:

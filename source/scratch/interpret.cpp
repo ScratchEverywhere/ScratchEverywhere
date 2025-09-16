@@ -122,30 +122,30 @@ void initMist() {
 bool Scratch::startScratchProject() {
     customUsername = "Player";
     useCustomUsername = false;
-    
-        std::ifstream inFile(OS::getScratchFolderLocation() + "Settings.json");
-        if (inFile.good()) {
-            nlohmann::json j;
-            inFile >> j;
-            inFile.close();
 
-            if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
-                useCustomUsername = j["EnableUsername"].get<bool>();
-            }
-            
-            if (j.contains("Username") && j["Username"].is_string()) {
-                bool hasNonSpace = false;
-                for (char c : j["Username"].get<std::string>()) {
-                    if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-                        hasNonSpace = true;
-                    } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                        break;
-                    }
-                }
-                if(hasNonSpace) customUsername = j["Username"].get<std::string>();
-                else customUsername = "Player";
-            }
+    std::ifstream inFile(OS::getScratchFolderLocation() + "Settings.json");
+    if (inFile.good()) {
+        nlohmann::json j;
+        inFile >> j;
+        inFile.close();
+
+        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
+            useCustomUsername = j["EnableUsername"].get<bool>();
         }
+
+        if (j.contains("Username") && j["Username"].is_string()) {
+            bool hasNonSpace = false;
+            for (char c : j["Username"].get<std::string>()) {
+                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                    hasNonSpace = true;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    break;
+                }
+            }
+            if (hasNonSpace) customUsername = j["Username"].get<std::string>();
+            else customUsername = "Player";
+        }
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
