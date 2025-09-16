@@ -48,6 +48,10 @@ char nickname[0x21];
 #include <romfs-ogc.h>
 #endif
 
+#ifdef GAMECUBE
+#include <sdcard/gcsd.h>
+#endif
+
 int windowWidth = 540;
 int windowHeight = 405;
 SDL_Window *window = nullptr;
@@ -141,6 +145,12 @@ postAccount:
         Log::logError("Failed to init romfs.");
         return false;
     }
+
+#ifdef GAMECUBE
+    if (!fatMountSimple("carda", &__io_gcsda))
+        Log::logError("Failed to initialize SD card.");
+#endif
+
 #elif defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 
@@ -162,7 +172,7 @@ postAccount:
 #endif
     TTF_Init();
     window = SDL_CreateWindow("Scratch Runtime", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
@@ -330,8 +340,9 @@ void Render::renderSprites() {
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
             if (image->isSVG) {
+                currentSprite->isSVG = true;
                 image->setScale(image->scale * 2);
-            }
+            } else currentSprite->isSVG = false;
             const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
             double renderRotation = rotation;
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
@@ -406,7 +417,7 @@ void Render::renderSprites() {
         // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
         // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
-        // for (const auto& point : collisionPoints) {
+        // for (const auto &point : collisionPoints) {
         //     double screenX = (point.first * scale) + (windowWidth / 2);
         //     double screenY = (point.second * -scale) + (windowHeight / 2);
 
@@ -425,6 +436,7 @@ void Render::renderSprites() {
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();
+    SoundPlayer::flushAudio();
 }
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;

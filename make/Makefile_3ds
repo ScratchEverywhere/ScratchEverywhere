@@ -48,7 +48,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
-ENABLE_BUBBLES	  ?=	1
+ENABLE_LOADSCREEN	  ?=	1
 ENABLE_AUDIO	?=	1
 RAM_AMOUNT		?= 72
 
@@ -95,8 +95,8 @@ endif
 
 LIBS	+=	-lcitro2d -lcitro3d -lctru -lm
 
-ifeq ($(ENABLE_BUBBLES),1)
-CFLAGS	+=	-DENABLE_BUBBLES
+ifeq ($(ENABLE_LOADSCREEN),1)
+CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 ifeq ($(ENABLE_CLOUDVARS),1)
 CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_3DS) --cflags mist++`

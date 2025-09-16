@@ -19,6 +19,7 @@ class SoundPlayer {
     static bool isSoundPlaying(const std::string &soundId);
     static bool isSoundLoaded(const std::string &soundId);
     static void freeAudio(const std::string &soundId);
+    static void flushAudio();
     static void cleanupAudio();
     static void deinit();
 };

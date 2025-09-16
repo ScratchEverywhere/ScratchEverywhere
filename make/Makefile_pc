@@ -11,6 +11,7 @@ CC         := gcc
 # Config Options
 ENABLE_CLOUDVARS	?=	0
 ENABLE_AUDIO	?=	1
+ENABLE_LOADSCREEN	?=	1
 
 # Base compiler flags
 CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
@@ -20,6 +21,10 @@ LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf
 ifeq ($(ENABLE_AUDIO),1)
 LDFLAGS	+=	-lSDL2_mixer
 CFLAGS_BASE	+=	-DENABLE_AUDIO
+endif
+
+ifeq ($(ENABLE_LOADSCREEN),1)
+CFLAGS_BASE	+=	-DENABLE_LOADSCREEN
 endif
 
 ifeq ($(ENABLE_CLOUDVARS),1)

@@ -262,8 +262,8 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     std::vector<std::pair<double, double>> collisionPoints;
 
     // Get sprite dimensions, scaled by size
-    double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / 2.0;
-    double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / 2.0;
+    const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / (currentSprite->isSVG ? 1.0 : 2.0);
+    const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / (currentSprite->isSVG ? 1.0 : 2.0);
 
     // Calculate rotation in radians
     double rotation = currentSprite->rotation;
@@ -921,25 +921,6 @@ void loadSprites(const nlohmann::json &json) {
             Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
-    }
-
-    // load initial sprite images
-    Unzip::loadingState = "Loading images";
-    int sprIndex = 1;
-    if (projectType == UNZIPPED) {
-        for (auto &currentSprite : sprites) {
-            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
-            sprIndex++;
-        }
-    } else {
-        for (auto &currentSprite : sprites) {
-            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
-            sprIndex++;
-        }
     }
 
     // if infinite clones are enabled, set a (potentially) higher max clone count

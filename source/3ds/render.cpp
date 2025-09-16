@@ -230,9 +230,10 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     double spriteSizeX = currentSprite->size * 0.01;
     double spriteSizeY = currentSprite->size * 0.01;
     if (isSVG) {
+        currentSprite->isSVG = true;
         spriteSizeX *= 2;
         spriteSizeY *= 2;
-    }
+    } else currentSprite->isSVG = false;
     double scale;
     double heightMultiplier = 0.5;
     int screenWidth = SCREEN_WIDTH;
@@ -323,7 +324,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
 
 void Render::renderSprites() {
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
-    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(topScreen, clrWhite);
     C2D_TargetClear(topScreenRightEye, clrWhite);
     C2D_TargetClear(bottomScreen, clrWhite);
@@ -441,7 +442,11 @@ void Render::renderSprites() {
     }
 
     C3D_FrameEnd(0);
+    C2D_Flush();
     Image::FlushImages();
+#ifdef ENABLE_AUDIO
+    SoundPlayer::flushAudio();
+#endif
     osSetSpeedupEnable(true);
 }
 
