@@ -80,12 +80,39 @@ int Unzip::openFile(std::ifstream *file) {
     return 1;
 }
 
+int projectLoaderThread(void *data) {
+    Unzip::openScratchProject(NULL);
+    return 0;
+}
+
+void loadInitialImages() {
+    Unzip::loadingState = "Loading images";
+    int sprIndex = 1;
+    if (projectType == UNZIPPED) {
+        for (auto &currentSprite : sprites) {
+            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
+            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+            sprIndex++;
+        }
+    } else {
+        for (auto &currentSprite : sprites) {
+            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
+            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
+            sprIndex++;
+        }
+    }
+}
+
 bool Unzip::load() {
 
     Unzip::threadFinished = false;
     Unzip::projectOpened = 0;
 
-#ifdef __3DS__
+#ifdef ENABLE_LOADSCREEN
+
+#ifdef __3DS__ // create 3DS thread for loading screen
     s32 mainPrio = 0;
     svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
 
@@ -106,9 +133,7 @@ bool Unzip::load() {
     loading.init();
 
     while (!Unzip::threadFinished) {
-#ifdef ENABLE_BUBBLES
         loading.render();
-#endif
     }
     threadJoin(projectThread, U64_MAX);
     threadFree(projectThread);
@@ -117,14 +142,34 @@ bool Unzip::load() {
         return false;
     }
     loading.cleanup();
-    // disable new 3ds clock speeds for a bit cus it crashes for some reason otherwise????
     osSetSpeedupEnable(false);
 
-#else
-    openScratchProject(NULL);
+#else // create SDL2 thread for loading screen
+
+    SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, "LoadingScreen", nullptr);
+
+    if (thread != NULL && thread != nullptr) {
+        SDL_DetachThread(thread);
+
+        Loading loading;
+        loading.init();
+
+        while (!Unzip::threadFinished) {
+            loading.render();
+        }
+        loading.cleanup();
+    } else Unzip::openScratchProject(NULL);
+
     if (Unzip::projectOpened != 1)
         return false;
 #endif
 
+#else // non-threaded loading
+    Unzip::openScratchProject(NULL);
+    if (Unzip::projectOpened != 1)
+        return false;
+#endif
+
+    loadInitialImages();
     return true;
 }

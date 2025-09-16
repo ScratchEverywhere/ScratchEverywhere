@@ -9,7 +9,7 @@ class MenuObject {
     double y;
     double scale;
     virtual void render(double xPos = 0, double yPos = 0) = 0;
-    double getScaleFactor(int windowX, int windowY);
+    static double getScaleFactor();
     std::vector<double> getScaledPosition(double xPos, double yPos);
 };
 

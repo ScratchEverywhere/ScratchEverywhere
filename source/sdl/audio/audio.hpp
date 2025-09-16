@@ -7,8 +7,8 @@
 class SDL_Audio {
   public:
 #ifdef ENABLE_AUDIO
-    Mix_Chunk *audioChunk;
-    Mix_Music *music;
+    Mix_Chunk *audioChunk = nullptr;
+    Mix_Music *music = nullptr;
 #endif
     std::string audioId;
     int channelId;
@@ -17,6 +17,7 @@ class SDL_Audio {
     bool isStreaming = false;
     bool needsToBePlayed = true;
     size_t memorySize = 0;
+    size_t freeTimer = 240;
 
     SDL_Audio();
     ~SDL_Audio();
@@ -30,4 +31,4 @@ class SDL_Audio {
     };
 };
 
-extern std::unordered_map<std::string, SDL_Audio *> SDL_Sounds;
+extern std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;

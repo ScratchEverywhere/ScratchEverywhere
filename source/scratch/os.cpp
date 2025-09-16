@@ -6,8 +6,6 @@
 #include <iostream>
 #include <ostream>
 #include <string>
-#include <iostream>
-#include <fstream>
 #ifdef __OGC__
 #include <gccore.h>
 #endif
@@ -106,7 +104,7 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(WII)
     return "/apps/scratch-wii/";
 #elif defined(GAMECUBE)
-    return "/";
+    return "carda:/scratch-gamecube/";
 #elif defined(VITA)
     return "ux0:data/scratch-vita/";
 #elif defined(__3DS__)

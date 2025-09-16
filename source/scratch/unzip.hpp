@@ -5,6 +5,8 @@
 #ifdef GAMECUBE
 #include <dirent.h>
 #include <gccore.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #endif
 
 #ifdef ENABLE_CLOUDVARS
@@ -58,11 +60,11 @@ class Unzip {
 
 #ifdef GAMECUBE
     // use libogc for gamecube because i guess it doesn't support std::filesystem
-    static std::vector<std::string> getProjectFiles(const std::string directory) {
+    static std::vector<std::string> getProjectFiles(const std::string &directory) {
         std::vector<std::string> projectFiles;
         DIR *dir = opendir(directory.c_str());
         if (dir == nullptr) {
-            return projectFiles; // Return empty if directory can't be opened
+            return projectFiles;
         }
 
         struct dirent *entry;
@@ -81,6 +83,10 @@ class Unzip {
 
         if (!std::filesystem::exists(directory)) {
             Log::logWarning("Directory does not exist! " + directory);
+            try {
+                std::filesystem::create_directory(directory);
+            } catch (...) {
+            }
             return projectFiles;
         }
 

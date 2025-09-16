@@ -196,7 +196,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     if (Unzip::UnpackedInSD) fullPath = Unzip::filePath + filePath;
     FILE *file = fopen(fullPath.c_str(), "rb");
     if (!file) {
-        Log::logWarning("Invalid image file name " + filePath);
+        Log::logWarning("Image file not found: " + fullPath);
         return false;
     }
 
@@ -402,8 +402,8 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
     }
 
     // Clamp to 3DS limits
-    width = clamp(width, 64, 1024);
-    height = clamp(height, 64, 1024);
+    width = clamp(width, 0, 1024);
+    height = clamp(height, 0, 1024);
 
     // Create rasterizer
     NSVGrasterizer *rast = nsvgCreateRasterizer();

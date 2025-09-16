@@ -27,7 +27,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
-ENABLE_BUBBLES		?=	1
+ENABLE_LOADSCREEN		?=	1
 ENABLE_AUDIO	?=	1
 
 #---------------------------------------------------------------------------------
@@ -35,7 +35,6 @@ ENABLE_AUDIO	?=	1
 #---------------------------------------------------------------------------------
 CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_mixer SDL2_image freetype2` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DGAMECUBE -D__OGC__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
 
-CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++17 -fexceptions
 
 ASFLAGS	:=	-g $(ARCH)
 
@@ -49,9 +48,11 @@ else
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image freetype2`
 endif
 
-ifeq ($(ENABLE_BUBBLES),1)
-CFLAGS	+=	-DENABLE_BUBBLES
+ifeq ($(ENABLE_LOADSCREEN),1)
+CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
+
+CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++17 -fexceptions
 
 # Include libromfs-ogc support
 include $(DEVKITPRO)/portlibs/gamecube/share/romfs-ogc.mk

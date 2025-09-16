@@ -37,7 +37,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
-ENABLE_BUBBLES		?=	1
+ENABLE_LOADSCREEN		?=	1
 ENABLE_AUDIO	?=	1
 
 #---------------------------------------------------------------------------------
@@ -52,18 +52,17 @@ else
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image freetype2`
 endif
 
-CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++17 -fexceptions
-
 ASFLAGS	:=	-g $(ARCH)
 
 LDFLAGS	:=	-g $(MACHDEP) -Wl,-Map,$(notdir $*.map) \
 		-Wl,--gc-sections
 
 
-ifeq ($(ENABLE_BUBBLES),1)
-CFLAGS	+=	-DENABLE_BUBBLES
+ifeq ($(ENABLE_LOADSCREEN),1)
+CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
+CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++17 -fexceptions
 
 # Include libromfs-wii support
 include $(DEVKITPRO)/portlibs/wii/share/romfs-ogc.mk

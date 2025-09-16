@@ -1,10 +1,10 @@
 #include "math.hpp"
 #include <algorithm>
+#include <boost/regex.hpp>
 #include <cctype>
 #include <cstddef>
 #include <math.h>
 #include <random>
-#include <regex>
 #include <string>
 #ifdef __3DS__
 #include <citro2d.h>
@@ -27,7 +27,7 @@ int Math::color(int r, int g, int b, int a) {
 }
 
 bool Math::isNumber(const std::string &str) {
-    return std::regex_match(str, std::regex("^((0[xbo]\\d+)|(-?\\d+(\\.\\d+)?(e(-|\\+)?\\d+(\\.\\d+)?)?))$")); // I hope I never need to touch this again.
+    return boost::regex_match(str, boost::regex("^((0x[\\da-f]+)|(0b[01]+)|(0o[0-7]+)|([+-]?((\\d+(\\.\\d+)?)|((\\d+)?\\.\\d+))(e[+-]?\\d+)?))$", boost::regex::icase)); // I hope I never need to touch this again x2 (it was rewritten, to handle more edge cases).
 }
 
 double Math::degreesToRadians(double degrees) {
