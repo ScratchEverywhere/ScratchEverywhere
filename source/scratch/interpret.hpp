@@ -49,6 +49,8 @@ class Scratch {
     static bool fencing;
     static bool miscellaneousLimits;
     static bool shouldStop;
+
+    static bool nextProject;
 };
 
 /**

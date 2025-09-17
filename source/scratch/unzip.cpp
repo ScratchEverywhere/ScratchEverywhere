@@ -68,7 +68,7 @@ int Unzip::openFile(std::ifstream *file) {
                     file->open(OS::getScratchFolderLocation() + filePath + "/project.json", std::ios::binary | std::ios::ate);
                     if (!(*file)) {
                         Log::logError("Couldnt open Unpacked Scratch File");
-                        Log::logWarning(filePath + "<");
+                        Log::logWarning(filePath);
                         return 0;
                     }
                     filePath = OS::getScratchFolderLocation() + filePath + "/";

@@ -1,6 +1,7 @@
 #include "procedure.hpp"
 #include "blockExecutor.hpp"
 #include "sprite.hpp"
+#include "unzip.hpp"
 #include "value.hpp"
 
 Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
@@ -23,6 +24,13 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
 }
 
 BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    if (block.customBlockId == "​open %s .sb3") {
+        Log::log("Open next Project with Block");
+        Scratch::nextProject = true;
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Scratch::shouldStop = true;
+        return BlockResult::RETURN;
+    }
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
