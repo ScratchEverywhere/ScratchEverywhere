@@ -10,8 +10,6 @@ Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
         return Value(OS::getPlatform());
     }
     if (name == "data last Project") {
-        Log::log(Scratch::dataNextProject.asString());
-        Log::log("data");
         return Scratch::dataNextProject;
     }
     return BlockExecutor::getCustomBlockValue(name, sprite, block);
@@ -23,7 +21,6 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
     if (name == "is New 3DS?") {
         return Value(OS::isNew3DS());
     }
-    
 
     Value value = BlockExecutor::getCustomBlockValue(name, sprite, block);
     return Value(value.asInt() == 1);

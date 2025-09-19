@@ -11,8 +11,8 @@
 #include "interpret.hpp"
 #include "math.hpp"
 #include "os.hpp"
-#include "unzip.hpp"
 #include "sprite.hpp"
+#include "unzip.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -328,7 +328,6 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     if (block.customBlockId == "\u200B\u200Blog\u200B\u200B %s") Log::log("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
     if (block.customBlockId == "\u200B\u200Bwarn\u200B\u200B %s") Log::logWarning("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
     if (block.customBlockId == "\u200B\u200Berror\u200B\u200B %s") Log::logError("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
-    Log::log(block.customBlockId);
     if (block.customBlockId == "​open %s .sb3") {
         Log::log("Open next Project with Block");
         Scratch::nextProject = true;
