@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "../scratch/audio.hpp"
+#include "../scratch/blocks/pen.hpp"
 #include "../scratch/image.hpp"
 #include "../scratch/input.hpp"
 #include "../scratch/os.hpp"
@@ -63,6 +64,17 @@ bool Render::Init() {
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
+
+    C3D_TexInitVRAM(penImage.tex, 480, 360, GPU_RGBA8); // TODO: Support other resolutions.
+    Tex3DSpenSubtex penSubtex = {
+        480,
+        360,
+        0,
+        0,
+        1,
+        1};
+    penImage.subtex = &penSubtex;
+    penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
 
 #ifdef ENABLE_CLOUDVARS
     int ret;
@@ -504,6 +516,9 @@ void Render::deInit() {
 #ifdef ENABLE_CLOUDVARS
     socExit();
 #endif
+
+    C3D_RenderTargetDelete(penRenderTarget);
+    C3D_TexDelete(penImage.tex);
 
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
