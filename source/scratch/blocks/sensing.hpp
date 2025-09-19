@@ -20,4 +20,5 @@ class SensingBlocks {
     static Value touchingObject(Block &block, Sprite *sprite);
     static Value mouseDown(Block &block, Sprite *sprite);
     static Value username(Block &block, Sprite *sprite);
+    static Value loudness(Block &block, Sprite *sprite);
 };

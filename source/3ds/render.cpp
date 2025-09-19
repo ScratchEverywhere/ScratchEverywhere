@@ -6,6 +6,7 @@
 #include "../scratch/render.hpp"
 #include "../scratch/text.hpp"
 #include "../scratch/unzip.hpp"
+#include "mic.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #ifdef ENABLE_AUDIO
@@ -514,6 +515,7 @@ void Render::deInit() {
 #ifdef ENABLE_AUDIO
     SDL_Quit();
 #endif
+    exitMic();
     romfsExit();
     gfxExit();
 }

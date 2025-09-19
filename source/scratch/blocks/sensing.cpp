@@ -1,6 +1,7 @@
 #include "sensing.hpp"
 #include "../input.hpp"
 #include "../keyboard.hpp"
+#include "mic.hpp"
 #include "blockExecutor.hpp"
 #include "interpret.hpp"
 #include "sprite.hpp"
@@ -197,4 +198,9 @@ Value SensingBlocks::mouseDown(Block &block, Sprite *sprite) {
 
 Value SensingBlocks::username(Block &block, Sprite *sprite) {
     return Value(Input::getUsername());
+}
+
+Value SensingBlocks::loudness(Block &block, Sprite *sprite) {
+    if(!micInitialized) initMic();
+    return Value(getMicLevel());
 }
