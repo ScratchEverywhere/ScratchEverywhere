@@ -58,6 +58,9 @@ bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
 
+bool Scratch::nextProject = false;
+Value Scratch::dataNextProject;
+
 #ifdef ENABLE_CLOUDVARS
 bool cloudProject = false;
 #endif
@@ -149,6 +152,7 @@ bool Scratch::startScratchProject() {
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
+    Scratch::nextProject = false;
 
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
@@ -219,7 +223,7 @@ void Scratch::cleanupScratchProject() {
     Scratch::fencing = true;
     Scratch::miscellaneousLimits = true;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
-    Unzip::filePath = "";
+    // Unzip::filePath = "";
     Log::log("Cleaned up Scratch project.");
 }
 
