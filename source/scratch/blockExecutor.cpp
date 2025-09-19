@@ -399,13 +399,9 @@ std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFin
                 // runBlock(data,currentSprite);
                 blocksRun.push_back(&data);
                 executor.runBlock(data, currentSprite);
-                // Wouldn't a 'goto' be useful here?
-                // Or do I just not understand this code well enough?
-                // goto returnBlocksRun;
             }
         }
     }
-    // returnBlocksRun:
     return blocksRun;
 }
 
