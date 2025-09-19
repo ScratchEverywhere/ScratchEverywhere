@@ -80,6 +80,7 @@ int main(int argc, char **argv) {
         } else {
             Unzip::filePath = "";
             Scratch::nextProject = false;
+            Scratch::dataNextProject = Value();
             if (toExit || !activateMainMenu()) break;
         }
     }

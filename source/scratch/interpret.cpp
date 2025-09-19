@@ -56,6 +56,7 @@ bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
 
 bool Scratch::nextProject = false;
+Value Scratch::dataNextProject;
 
 #ifdef ENABLE_CLOUDVARS
 bool cloudProject = false;

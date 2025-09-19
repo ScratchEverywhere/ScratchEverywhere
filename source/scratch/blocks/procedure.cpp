@@ -5,11 +5,16 @@
 #include "value.hpp"
 
 Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
-    if (Scratch::getFieldValue(block, "VALUE") == "Scratch Everywhere! platform") {
+    const std::string name = Scratch::getFieldValue(block, "VALUE");
+    if (name == "Scratch Everywhere! platform") {
         return Value(OS::getPlatform());
     }
-
-    return BlockExecutor::getCustomBlockValue(Scratch::getFieldValue(block, "VALUE"), sprite, block);
+    if (name == "data last Project") {
+        Log::log(Scratch::dataNextProject.asString());
+        Log::log("data");
+        return Scratch::dataNextProject;
+    }
+    return BlockExecutor::getCustomBlockValue(name, sprite, block);
 }
 
 Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
@@ -18,19 +23,13 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
     if (name == "is New 3DS?") {
         return Value(OS::isNew3DS());
     }
+    
 
-    Value value = BlockExecutor::getCustomBlockValue(Scratch::getFieldValue(block, "VALUE"), sprite, block);
+    Value value = BlockExecutor::getCustomBlockValue(name, sprite, block);
     return Value(value.asInt() == 1);
 }
 
 BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    if (block.customBlockId == "​open %s .sb3") {
-        Log::log("Open next Project with Block");
-        Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
-        Scratch::shouldStop = true;
-        return BlockResult::RETURN;
-    }
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -41,7 +40,7 @@ BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScr
         block.customBlockExecuted = false;
 
         // Run the custom block for the first time
-        BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh);
+        if (BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh) == BlockResult::RETURN) return BlockResult::RETURN;
         block.customBlockExecuted = true;
 
         BlockExecutor::addToRepeatQueue(sprite, &block);

@@ -11,6 +11,7 @@
 #include "interpret.hpp"
 #include "math.hpp"
 #include "os.hpp"
+#include "unzip.hpp"
 #include "sprite.hpp"
 #include <algorithm>
 #include <chrono>
@@ -286,7 +287,7 @@ void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockCh
     }
 }
 
-void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
+BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
     for (auto &[id, data] : sprite->customBlocks) {
         if (id == block.customBlockId) {
             // Set up argument values
@@ -327,6 +328,24 @@ void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBl
     if (block.customBlockId == "\u200B\u200Blog\u200B\u200B %s") Log::log("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
     if (block.customBlockId == "\u200B\u200Bwarn\u200B\u200B %s") Log::logWarning("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
     if (block.customBlockId == "\u200B\u200Berror\u200B\u200B %s") Log::logError("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
+    Log::log(block.customBlockId);
+    if (block.customBlockId == "​open %s .sb3") {
+        Log::log("Open next Project with Block");
+        Scratch::nextProject = true;
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Scratch::dataNextProject = Value();
+        Scratch::shouldStop = true;
+        return BlockResult::RETURN;
+    }
+    if (block.customBlockId == "open %s .sb3 with data %s") {
+        Log::log("Open next Project with Block and data");
+        Scratch::nextProject = true;
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
+        Scratch::shouldStop = true;
+        return BlockResult::RETURN;
+    }
+    return BlockResult::CONTINUE;
 }
 
 std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::string broadcastToRun) {
