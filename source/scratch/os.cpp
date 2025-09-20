@@ -44,7 +44,7 @@ void Log::logError(std::string message, bool printToScreen) {
         sceKernelDebugOutText(0, logBuffer);
     }
 }
-void Log::writeToFile(std::string message, std::string filePath) {
+void Log::writeToFile(std::string message) {
 }
 #else
 void Log::log(std::string message, bool printToScreen) {

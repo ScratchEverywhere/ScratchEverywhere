@@ -65,40 +65,6 @@ int orbisPadHandle;
 int orbisUserId;
 #endif
 
-#ifdef __PS4__
-#include <orbis/libkernel.h>
-#include <orbis/Pad.h>
-#include <orbis/Sysmodule.h>
-#include <orbis/SystemService.h>
-#include <orbis/UserService.h>
-
-inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h)
-{
-    // On PS4 there is no DPI scaling, so this is fine
-    SDL_GetWindowSize(window, w, h);
-}
-
-int orbisPadHandle;
-int orbisUserId;
-#endif
-
-#ifdef __PS4__
-#include <orbis/libkernel.h>
-#include <orbis/Pad.h>
-#include <orbis/Sysmodule.h>
-#include <orbis/SystemService.h>
-#include <orbis/UserService.h>
-
-inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h)
-{
-    // On PS4 there is no DPI scaling, so this is fine
-    SDL_GetWindowSize(window, w, h);
-}
-
-int orbisPadHandle;
-int orbisUserId;
-#endif
-
 #ifdef GAMECUBE
 #include <sdcard/gcsd.h>
 #endif
@@ -208,7 +174,7 @@ postAccount:
     windowWidth = 960;
     windowHeight = 544;
 #elif defined(__PS4__)
-    rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
+    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
     if (rc != ORBIS_OK) {
 		Log::logError("Failed to init freetype.");
 		return false;
