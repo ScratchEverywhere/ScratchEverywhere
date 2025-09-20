@@ -158,6 +158,8 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
 #if defined(__WIIU__) || defined(__OGC__)
     finalPath = "romfs:/";
+#elif defined(__PS4__)
+    finalPath = "/app0/";
 #endif
     if (fromScratchProject)
         finalPath = finalPath + "project/";
@@ -262,7 +264,6 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
         SDL_FreeSurface(surface);
         return;
     }
-
     SDL_FreeSurface(surface);
 
     // Build SDL_Image object
@@ -380,7 +381,7 @@ SDL_Image::SDL_Image(std::string filePath) {
     }
     spriteTexture = SDL_CreateTextureFromSurface(renderer, spriteSurface);
     if (spriteTexture == NULL) {
-        Log::logWarning("Error creating texture");
+        Log::logWarning(std::string("Error creating texture: ") + SDL_GetError());
         return;
     }
     SDL_FreeSurface(spriteSurface);

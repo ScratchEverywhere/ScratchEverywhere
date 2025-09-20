@@ -48,6 +48,7 @@ main.code-workspace
 *.nro
 *.nso
 *.elf
+*.oelf
 *.smdh
 *.bat
 *.sb3
@@ -55,6 +56,7 @@ main.code-workspace
 *.dol
 *.wbfs
 *.vpk
+*.pkg
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
