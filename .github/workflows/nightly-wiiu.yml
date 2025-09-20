@@ -7,10 +7,11 @@ on:
       - source/scratch/**
       - source/sdl/**
       - gfx/wiiu/**
-      - gfx/*
+      - gfx/menu/**
       - include/**
       - .github/workflows/nightly-wiiu.yml
       - docker/Dockerfile.wiiu
+      - source/main.cpp
     branches:
       - main
   workflow_dispatch:

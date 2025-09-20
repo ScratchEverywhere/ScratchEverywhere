@@ -50,6 +50,7 @@ main.code-workspace
 *.elf
 *.oelf
 *.smdh
+*.cia
 *.bat
 *.sb3
 *.t3x

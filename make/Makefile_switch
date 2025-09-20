@@ -15,13 +15,15 @@ TARGET		:=	scratch-nx
 BUILD		:=	build/switch
 SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
 INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann
-APP_VERSION	:=	0.20
+APP_VERSION	:=	0.24
 ICON		:=	gfx/wiiu/icon.png
 APP_TITLE	:=	Scratch Everywhere!
 APP_AUTHOR	:=	NateXS and Grady Link
 ROMFS		:=	romfs
 
 # Flags and Stuff
+
+ENABLE_LOADSCREEN	?=	1
 
 ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -ftls-model=local-exec
 
@@ -35,6 +37,10 @@ CFLAGS	+=	-DENABLE_AUDIO
 LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2`
 else
 LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf sdl2`
+endif
+
+ifeq ($(ENABLE_LOADSCREEN),1)
+CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
 CXXFLAGS	:= $(CFLAGS) -std=c++17 -Wall -fexceptions

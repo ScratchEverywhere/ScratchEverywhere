@@ -6,11 +6,12 @@ on:
       - make/Makefile_vita
       - source/scratch/**
       - source/sdl/**
-      - gfx/wii/**
-      - gfx/*
+      - gfx/vita/**
+      - gfx/menu/**
       - include/**
       - .github/workflows/nightly-vita.yml
       - docker/Dockerfile.vita
+      - source/main.cpp
     branches:
       - main
   workflow_dispatch:

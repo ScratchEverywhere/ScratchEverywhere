@@ -38,6 +38,9 @@ extern bool cloudProject;
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 #endif
 
+bool useCustomUsername;
+std::string customUsername;
+
 std::vector<Sprite *> sprites;
 std::vector<Sprite> spritePool;
 std::vector<std::string> broadcastQueue;
@@ -117,6 +120,32 @@ void initMist() {
 #endif
 
 bool Scratch::startScratchProject() {
+    customUsername = "Player";
+    useCustomUsername = false;
+
+    std::ifstream inFile(OS::getScratchFolderLocation() + "Settings.json");
+    if (inFile.good()) {
+        nlohmann::json j;
+        inFile >> j;
+        inFile.close();
+
+        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
+            useCustomUsername = j["EnableUsername"].get<bool>();
+        }
+
+        if (j.contains("Username") && j["Username"].is_string()) {
+            bool hasNonSpace = false;
+            for (char c : j["Username"].get<std::string>()) {
+                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                    hasNonSpace = true;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    break;
+                }
+            }
+            if (hasNonSpace) customUsername = j["Username"].get<std::string>();
+            else customUsername = "Player";
+        }
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
@@ -146,6 +175,7 @@ bool Scratch::startScratchProject() {
             }
         }
     }
+    cleanupScratchProject();
     return false;
 }
 
@@ -154,22 +184,26 @@ void Scratch::cleanupScratchProject() {
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     blockLookup.clear();
+
+    for (auto &[id, text] : Render::monitorTexts) {
+        delete text;
+    }
+    Render::monitorTexts.clear();
+    TextObject::cleanupText();
+
     Render::visibleVariables.clear();
 
     // Clean up ZIP archive if it was initialized
     if (projectType != UNZIPPED) {
-        mz_zip_reader_end(&Unzip::zipArchive);
 
-        // Clear the ZIP buffer and deallocate its memory
-        size_t bufferSize = Unzip::zipBuffer.size();
+        mz_zip_reader_end(&Unzip::zipArchive);
+        if (Unzip::trackedBufferPtr) {
+            MemoryTracker::deallocate(Unzip::trackedBufferPtr, Unzip::trackedBufferSize);
+            Unzip::trackedBufferPtr = nullptr;
+            Unzip::trackedBufferSize = 0;
+        }
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
-
-        // Update memory tracker for the buffer
-        if (bufferSize > 0) {
-            MemoryTracker::deallocate(nullptr, bufferSize);
-        }
-
         memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
     }
 
@@ -215,11 +249,9 @@ void cleanupSprites() {
     for (Sprite *sprite : sprites) {
         if (sprite) {
             if (sprite->isClone) {
+                sprite->toDelete = true;
                 sprite->isDeleted = true;
-            } else {
-                sprite->~Sprite();
-                MemoryTracker::deallocate<Sprite>(sprite);
-            }
+            } else delete sprite;
         }
     }
     sprites.clear();
@@ -229,9 +261,14 @@ void cleanupSprites() {
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
     std::vector<std::pair<double, double>> collisionPoints;
 
+    double divisionAmount = 2.0;
+
+    if(currentSprite->costumes[currentSprite->currentCostume].isSVG)
+        divisionAmount = 1.0;
+
     // Get sprite dimensions, scaled by size
-    double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / 2.0;
-    double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / 2.0;
+    const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
+    const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / divisionAmount;
 
     // Calculate rotation in radians
     double rotation = currentSprite->rotation;
@@ -451,9 +488,9 @@ void loadSprites(const nlohmann::json &json) {
     sprites.reserve(400);
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
-        Sprite *newSprite = MemoryTracker::allocate<Sprite>();
-        // Sprite *newSprite = new Sprite();
-        new (newSprite) Sprite();
+        // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
+        Sprite *newSprite = new Sprite();
+        // new (newSprite) Sprite();
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
         }
@@ -531,7 +568,21 @@ void loadSprites(const nlohmann::json &json) {
                 newBlock.parent = data["parent"].get<std::string>();
             } else newBlock.parent = "null";
             if (data.contains("fields")) {
-                newBlock.fields = data["fields"];
+                for (const auto &[fieldName, fieldData] : data["fields"].items()) {
+                    ParsedField parsedField;
+
+                    // Fields are almost always arrays with [0] being the value
+                    if (fieldData.is_array() && !fieldData.empty()) {
+                        parsedField.value = fieldData[0].get<std::string>();
+
+                        // Store ID for variables and lists
+                        if (fieldData.size() > 1 && !fieldData[1].is_null()) {
+                            parsedField.id = fieldData[1].get<std::string>();
+                        }
+                    }
+
+                    (*newBlock.parsedFields)[fieldName] = parsedField;
+                }
             }
             if (data.contains("inputs")) {
 
@@ -558,8 +609,7 @@ void loadSprites(const nlohmann::json &json) {
                         parsedInput.inputType = ParsedInput::BOOLEAN;
                         parsedInput.blockId = inputValue.get<std::string>();
                     }
-                    newBlock.parsedInputs[inputName] = parsedInput;
-                    // std::cout << "input: " << inputName << ". type = " << parsedInput.inputType << std::endl;
+                    (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
             }
             if (data.contains("topLevel")) {
@@ -569,7 +619,11 @@ void loadSprites(const nlohmann::json &json) {
                 newBlock.shadow = data["shadow"].get<bool>();
             }
             if (data.contains("mutation")) {
-                newBlock.mutation = data["mutation"];
+                if (data["mutation"].contains("proccode")) {
+                    newBlock.customBlockId = data["mutation"]["proccode"].get<std::string>();
+                } else {
+                    newBlock.customBlockId = "";
+                }
             }
             newSprite->blocks[newBlock.id] = newBlock; // add block
 
@@ -651,6 +705,10 @@ void loadSprites(const nlohmann::json &json) {
             }
             if (data.contains("dataFormat")) {
                 newCostume.dataFormat = data["dataFormat"];
+                if(newCostume.dataFormat == "svg" || newCostume.dataFormat == "SVG")
+                    newCostume.isSVG = true;
+                else
+                    newCostume.isSVG = false;
             }
             if (data.contains("md5ext")) {
                 newCostume.fullName = data["md5ext"];
@@ -866,26 +924,12 @@ void loadSprites(const nlohmann::json &json) {
         Render::renderMode = Render::BOTH_SCREENS;
     else if (wdth == 320 && hght == 240)
         Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
-    else
-        Render::renderMode = Render::TOP_SCREEN_ONLY;
-
-    // load initial sprite images
-    Unzip::loadingState = "Loading images";
-    int sprIndex = 1;
-    if (projectType == UNZIPPED) {
-        for (auto &currentSprite : sprites) {
-            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
-            sprIndex++;
-        }
-    } else {
-        for (auto &currentSprite : sprites) {
-            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
-            sprIndex++;
-        }
+    else {
+        auto bottomScreen = Unzip::getSetting("bottomScreen");
+        if (!bottomScreen.is_null() && bottomScreen.get<bool>())
+            Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+        else
+            Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
 
     // if infinite clones are enabled, set a (potentially) higher max clone count
@@ -952,8 +996,8 @@ std::vector<Block *> getBlockChain(std::string blockId, std::string *outID) {
         if (outID)
             *outID += currentBlock->id;
 
-        auto substackIt = currentBlock->parsedInputs.find("SUBSTACK");
-        if (substackIt != currentBlock->parsedInputs.end() &&
+        auto substackIt = currentBlock->parsedInputs->find("SUBSTACK");
+        if (substackIt != currentBlock->parsedInputs->end() &&
             (substackIt->second.inputType == ParsedInput::BOOLEAN || substackIt->second.inputType == ParsedInput::BLOCK) &&
             !substackIt->second.blockId.empty()) {
 
@@ -966,8 +1010,8 @@ std::vector<Block *> getBlockChain(std::string blockId, std::string *outID) {
             }
         }
 
-        auto substack2It = currentBlock->parsedInputs.find("SUBSTACK2");
-        if (substack2It != currentBlock->parsedInputs.end() &&
+        auto substack2It = currentBlock->parsedInputs->find("SUBSTACK2");
+        if (substack2It != currentBlock->parsedInputs->end() &&
             (substack2It->second.inputType == ParsedInput::BOOLEAN || substack2It->second.inputType == ParsedInput::BLOCK) &&
             !substack2It->second.blockId.empty()) {
 
@@ -999,9 +1043,9 @@ Block *getBlockParent(const Block *block) {
 }
 
 Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite *sprite) {
-    auto parsedFind = block.parsedInputs.find(inputName);
+    auto parsedFind = block.parsedInputs->find(inputName);
 
-    if (parsedFind == block.parsedInputs.end()) {
+    if (parsedFind == block.parsedInputs->end()) {
         return Value();
     }
 
@@ -1021,4 +1065,20 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
         return executor.getBlockValue(*findBlock(input.blockId), sprite);
     }
     return Value();
+}
+
+std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
+    auto fieldFind = block.parsedFields->find(fieldName);
+    if (fieldFind == block.parsedFields->end()) {
+        return "";
+    }
+    return fieldFind->second.value;
+}
+
+std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
+    auto fieldFind = block.parsedFields->find(fieldName);
+    if (fieldFind == block.parsedFields->end()) {
+        return "";
+    }
+    return fieldFind->second.id;
 }

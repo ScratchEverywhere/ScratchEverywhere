@@ -37,7 +37,9 @@ void Loading::render() {
         block3Y = Render::getHeight() * 2;
     }
 
-    Render::beginFrame(0, 0, 0, 0);
+    if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
+        Render::beginFrame(0, 0, 0, 0);
+    else Render::beginFrame(1, 0, 0, 0);
 
     block1->render((Render::getWidth() / 2), block1Y, true);
     block2->render((Render::getWidth() / 2) - 25, block2Y, true);
@@ -46,14 +48,24 @@ void Loading::render() {
     loadingStateText->setText(Unzip::loadingState);
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
 
-    Render::beginFrame(1, 0, 0, 0);
+    if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
+        Render::beginFrame(1, 0, 0, 0);
+    else Render::beginFrame(0, 0, 0, 0);
+
     Render::endFrame();
 }
 
 void Loading::cleanup() {
-    Render::beginFrame(0, 0, 0, 0);
+    if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
+        Render::beginFrame(0, 0, 0, 0);
+    else Render::beginFrame(1, 0, 0, 0);
+
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
-    Render::beginFrame(1, 0, 0, 0);
+
+    if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
+        Render::beginFrame(1, 0, 0, 0);
+    else Render::beginFrame(0, 0, 0, 0);
+
     Render::endFrame();
     delete block1;
     delete block2;

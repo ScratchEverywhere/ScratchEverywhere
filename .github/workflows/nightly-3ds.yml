@@ -6,10 +6,12 @@ on:
       - make/Makefile_3ds
       - source/scratch/**
       - source/3ds/**
-      - gfx/*
+      - gfx/3ds/**
+      - gfx/menu/**
       - include/**
       - .github/workflows/nightly-3ds.yml
       - docker/Dockerfile.3ds
+      - source/main.cpp
     branches:
       - main
   workflow_dispatch:
@@ -36,4 +38,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! 3DS Nightly
-          path: Scratch-3DS.3dsx
+          path: |
+            scratch-3ds.3dsx
+            scratch-3ds.cia

@@ -32,12 +32,13 @@ PROJECT := scratch_everywhere
 # Set your config options here
 ENABLE_CLOUDVARS	?=	0 # As of writing (2025-08-22), Cloud variables are broken on Vita due to external causes.
 ENABLE_AUDIO	?=	1
+ENABLE_LOADSCREEN	?=	1
 
 
 # --- COMPILE FLAGS ---
 # Base compiler flags
-CFLAGS   += -Wl,-q $(addprefix -I,$(INCLUDES))
-CXXFLAGS += -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
+CFLAGS   := -O2 -Wl,-q $(addprefix -I,$(INCLUDES))
+CXXFLAGS := -O2 -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
 
 # Specify vita as the target platform + SDL flags
 VITAFLAGS := -DVITA -DSDL_BUILD
@@ -59,6 +60,11 @@ ifeq ($(ENABLE_AUDIO),1)
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_mixer)
 CFLAGS	+=	-DENABLE_AUDIO
 CXXFLAGS += -DENABLE_AUDIO
+endif
+
+ifeq ($(ENABLE_LOADSCREEN),1)
+CFLAGS	+=	-DENABLE_LOADSCREEN
+CXXFLAGS += -DENABLE_LOADSCREEN
 endif
 
 ifeq ($(ENABLE_CLOUDVARS),1)

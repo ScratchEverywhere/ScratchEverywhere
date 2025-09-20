@@ -93,17 +93,26 @@ class Input {
     static void doSpriteClicking() {
         if (mousePointer.isPressed) {
             mousePointer.heldFrames++;
+            bool hasClicked = false;
             for (auto &sprite : sprites) {
                 // click a sprite
                 if (sprite->shouldDoSpriteClick) {
                     if (mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
-                        BlockExecutor::runAllBlocksByOpcode("event_whenthisspriteclicked");
+
+                        // run all "when this sprite clicked" blocks in the sprite
+                        hasClicked = true;
+                        for (auto &[id, data] : sprite->blocks) {
+                            if (data.opcode == "event_whenthisspriteclicked") {
+                                executor.runBlock(data, sprite);
+                            }
+                        }
                     }
                 }
                 // start dragging a sprite
                 if (draggingSprite == nullptr && mousePointer.heldFrames < 2 && sprite->draggable && isColliding("mouse", sprite)) {
                     draggingSprite = sprite;
                 }
+                if (hasClicked) break;
             }
         } else {
             mousePointer.heldFrames = 0;

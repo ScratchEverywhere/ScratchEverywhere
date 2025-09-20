@@ -38,6 +38,8 @@ class Scratch {
     static void cleanupScratchProject();
 
     static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
+    static std::string getFieldValue(Block &block, const std::string &fieldName);
+    static std::string getFieldId(Block &block, const std::string &fieldName);
 
     static void fenceSpriteWithinBounds(Sprite *sprite);
 

@@ -7,9 +7,11 @@ on:
       - source/scratch/**
       - source/sdl/**
       - include/**
-      - gfx/*
+      - gfx/gamecube/**
+      - gfx/menu/**
       - .github/workflows/nightly-gamecube.yml
       - docker/Dockerfile.gamecube
+      - source/main.cpp
     branches:
       - main
   workflow_dispatch:

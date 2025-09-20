@@ -269,8 +269,9 @@ void BlockExecutor::runRepeatBlocks() {
         }
         toDelete->isDeleted = true;
     }
-    // std::cout << "\x1b[19;1HBlocks Running: " << blocksRun << std::endl;
-    sprites.erase(std::remove_if(sprites.begin(), sprites.end(), [](Sprite *s) { return s->toDelete; }), sprites.end());
+    sprites.erase(std::remove_if(sprites.begin(), sprites.end(),
+                                 [](Sprite *s) { return s->toDelete; }),
+                  sprites.end());
 }
 
 void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
@@ -287,10 +288,10 @@ void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockCh
 
 void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
     for (auto &[id, data] : sprite->customBlocks) {
-        if (id == block.mutation.at("proccode").get<std::string>()) {
+        if (id == block.customBlockId) {
             // Set up argument values
             for (std::string arg : data.argumentIds) {
-                if (block.parsedInputs.find(arg) != block.parsedInputs.end()) {
+                if (block.parsedInputs->find(arg) != block.parsedInputs->end()) {
                     data.argumentValues[arg] = Scratch::getInputValue(block, arg, sprite);
                 }
             }
@@ -323,13 +324,33 @@ void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBl
         }
     }
 
-    if (block.mutation.at("proccode").get<std::string>() == "\u200B\u200Blog\u200B\u200B %s") Log::log("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
-    if (block.mutation.at("proccode").get<std::string>() == "\u200B\u200Bwarn\u200B\u200B %s") Log::logWarning("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
-    if (block.mutation.at("proccode").get<std::string>() == "\u200B\u200Berror\u200B\u200B %s") Log::logError("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
+    if (block.customBlockId == "\u200B\u200Blog\u200B\u200B %s") Log::log("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
+    if (block.customBlockId == "\u200B\u200Bwarn\u200B\u200B %s") Log::logWarning("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
+    if (block.customBlockId == "\u200B\u200Berror\u200B\u200B %s") Log::logError("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
+}
+
+std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::string broadcastToRun) {
+    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
+
+    // find all matching "when I receive" blocks
+    for (auto *currentSprite : sprites) {
+        for (auto &[id, block] : currentSprite->blocks) {
+            if (block.opcode == "event_whenbroadcastreceived" &&
+                Scratch::getFieldValue(block, "BROADCAST_OPTION") == broadcastToRun) {
+                blocksToRun.push_back({&block, currentSprite});
+            }
+        }
+    }
+
+    // run each matching block
+    for (auto &[blockPtr, spritePtr] : blocksToRun) {
+        executor.runBlock(*blockPtr, spritePtr);
+    }
+
+    return blocksToRun;
 }
 
 std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
-
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     if (broadcastQueue.empty()) {
@@ -337,26 +358,16 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
     }
 
     std::string currentBroadcast = broadcastQueue.front();
-    // Log::log("Running Broadcast " + currentBroadcast);
     broadcastQueue.erase(broadcastQueue.begin());
 
-    for (auto *currentSprite : sprites) {
-        for (auto &[id, block] : currentSprite->blocks) {
-            if (block.opcode == "event_whenbroadcastreceived" &&
-                block.fields["BROADCAST_OPTION"][0] == currentBroadcast) {
-                blocksToRun.push_back({&block, currentSprite});
-            }
-        }
-    }
-
-    for (auto &[blockPtr, spritePtr] : blocksToRun) {
-        // std::cout << "Running broadcast block " << blockPtr->id << std::endl;
-        executor.runBlock(*blockPtr, spritePtr);
-    }
+    auto results = runBroadcast(currentBroadcast);
+    blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
 
     if (!broadcastQueue.empty()) {
-        runBroadcasts();
+        auto moreResults = runBroadcasts();
+        blocksToRun.insert(blocksToRun.end(), moreResults.begin(), moreResults.end());
     }
+
     return blocksToRun;
 }
 
@@ -423,9 +434,9 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
     std::string monitorName = "";
     if (var.opcode == "data_variable") {
         var.value = BlockExecutor::getVariableValue(var.id, sprite);
-        monitorName = Math::removeQuotations(var.parameters["VARIABLE"].get<std::string>());
-    } else if(var.opcode == "data_listcontents") {
-        monitorName = Math::removeQuotations(var.parameters["LIST"].get<std::string>());
+        monitorName = Math::removeQuotations(var.parameters["VARIABLE"]);
+    } else if (var.opcode == "data_listcontents") {
+        monitorName = Math::removeQuotations(var.parameters["LIST"]);
         // Check lists
         auto listIt = sprite->lists.find(var.id);
         if (listIt != sprite->lists.end()) {
@@ -467,7 +478,6 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
                 }
             }
         }
-        
     }
 
     std::string renderText;

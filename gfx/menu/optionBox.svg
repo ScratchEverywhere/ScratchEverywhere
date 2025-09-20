@@ -2,9 +2,9 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="68mm"
-   height="14mm"
-   viewBox="0 0 68 14"
+   width="253"
+   height="50"
+   viewBox="0 0 66.939583 13.229166"
    version="1.1"
    id="svg1"
    xmlns="http://www.w3.org/2000/svg"
@@ -12,7 +12,8 @@
   <defs
      id="defs1" />
   <g
-     id="layer1">
+     id="layer1"
+     transform="translate(-0.27089161,-0.10835664)">
     <rect
        style="fill:#454c51;fill-opacity:1;stroke:#252c3e;stroke-width:1;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
        id="rect1"

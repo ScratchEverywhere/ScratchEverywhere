@@ -21,3 +21,13 @@ TextObject *createTextObject(std::string txt, double posX, double posY, std::str
     return nullptr;
 #endif
 }
+
+void TextObject::cleanupText() {
+#ifdef __3DS__
+    TextObject3DS::cleanupText();
+#elif defined(SDL_BUILD)
+    TextObjectSDL::cleanupText();
+#else
+
+#endif
+}

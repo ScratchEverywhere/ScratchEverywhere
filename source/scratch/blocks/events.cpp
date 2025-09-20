@@ -26,14 +26,14 @@ BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *wi
     if (block.repeatTimes == -1) {
         block.repeatTimes = -10;
         BlockExecutor::addToRepeatQueue(sprite, &block);
-        broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
-        block.broadcastsRun = BlockExecutor::runBroadcasts();
+        block.broadcastsRun = BlockExecutor::runBroadcast(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
     }
 
     bool shouldEnd = true;
     for (auto &[blockPtr, spritePtr] : block.broadcastsRun) {
         if (!spritePtr->blockChains[blockPtr->blockChainID].blocksToRepeat.empty()) {
             shouldEnd = false;
+            break;
         }
     }
 
@@ -46,7 +46,7 @@ BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *wi
 
 BlockResult EventBlocks::whenKeyPressed(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     for (std::string button : Input::inputButtons) {
-        if (block.fields.at("KEY_OPTION")[0] == button) {
+        if (Scratch::getFieldValue(block, "KEY_OPTION") == button) {
             return BlockResult::CONTINUE;
         }
     }

@@ -1,5 +1,6 @@
 #include "../scratch/image.hpp"
 #include "../scratch/os.hpp"
+#include "../scratch/unzip.hpp"
 #include "image.hpp"
 #include "miniz/miniz.h"
 #include "render.hpp"
@@ -29,12 +30,15 @@ Image::Image(std::string filePath) {
     scale = 1.0;
     rotation = 0.0;
     opacity = 1.0;
+    images[imgId]->imageUsageCount++;
 }
 
 Image::~Image() {
     auto it = images.find(imageId);
     if (it != images.end()) {
-        freeImage(imageId);
+        images[imageId]->imageUsageCount--;
+        if (images[imageId]->imageUsageCount <= 0)
+            freeImage(imageId);
     }
 }
 
@@ -156,26 +160,15 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     std::string finalPath;
 
-#if defined(__WIIU__) || defined(__OGC__)
-    finalPath = "romfs:/";
-#elif defined(__PS4__)
-    finalPath = "/app0/";
-#endif
+    finalPath = OS::getRomFSLocation();
     if (fromScratchProject)
         finalPath = finalPath + "project/";
 
     finalPath = finalPath + filePath;
-
+    if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
     // SDL_Image *image = new SDL_Image(finalPath);
     SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
     new (image) SDL_Image(finalPath);
-
-    // Check if it's an SVG file
-    bool isSVG = filePath.size() >= 4 &&
-                 (filePath.substr(filePath.size() - 4) == ".svg" ||
-                  filePath.substr(filePath.size() - 4) == ".SVG");
-
-    if (isSVG) image->isSVG = true;
 
     // Track texture memory
     if (image->spriteTexture) {
@@ -214,20 +207,18 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     }
 
     // Check if file is bitmap or SVG
-    bool isBitmap = costumeId.size() > 4 && ([](std::string ext) {
+    bool isSupported = costumeId.size() > 4 && ([](std::string ext) {
                         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
                         return ext == ".bmp" || ext == ".gif" || ext == ".jpg" || ext == ".jpeg" ||
                                ext == ".lbm" || ext == ".iff" || ext == ".pcx" || ext == ".png" ||
                                ext == ".pnm" || ext == ".ppm" || ext == ".pgm" || ext == ".pbm" ||
                                ext == ".qoi" || ext == ".tga" || ext == ".tiff" || ext == ".xcf" ||
                                ext == ".xpm" || ext == ".xv" || ext == ".ico" || ext == ".cur" ||
-                               ext == ".ani" || ext == ".webp" || ext == ".avif" || ext == ".jxl";
+                               ext == ".ani" || ext == ".webp" || ext == ".avif" || ext == ".jxl" ||
+                               ext == ".svg";
                     }(costumeId.substr(costumeId.find_last_of('.'))));
-    bool isSVG = costumeId.size() >= 4 &&
-                 (costumeId.substr(costumeId.size() - 4) == ".svg" ||
-                  costumeId.substr(costumeId.size() - 4) == ".SVG");
 
-    if (!isBitmap && !isSVG) {
+    if (!isSupported) {
         Log::logWarning("File is not a supported image format: " + costumeId);
         return;
     }
@@ -269,7 +260,6 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     // Build SDL_Image object
     SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
     new (image) SDL_Image();
-    if (isSVG) image->isSVG = true;
     image->spriteTexture = texture;
     SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
     image->renderRect = {0, 0, image->width, image->height};

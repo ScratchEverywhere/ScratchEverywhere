@@ -62,13 +62,18 @@ Image::Image(std::string filePath) {
             opacity = 1.0;
             if (imageC2Ds.find(rgba.name) == imageC2Ds.end())
                 get_C2D_Image(rgba);
+            ++imageC2Ds[rgba.name].imageUsageCount;
             return;
         }
     }
 }
 
 Image::~Image() {
-    freeImage(imageId);
+    if (imageC2Ds.find(imageId) != imageC2Ds.end()) {
+        imageC2Ds[imageId].imageUsageCount--;
+        if (imageC2Ds[imageId].imageUsageCount <= 0)
+            freeImage(imageId);
+    }
 }
 
 void Image::render(double xPos, double yPos, bool centered) {
@@ -77,7 +82,7 @@ void Image::render(double xPos, double yPos, bool centered) {
     });
     if (rgbaIt != imageRGBAS.end()) {
         if (imageC2Ds.find(rgbaIt->name) != imageC2Ds.end()) {
-            imageC2Ds[rgbaIt->name].freeTimer = 240;
+            imageC2Ds[rgbaIt->name].freeTimer = imageC2Ds[rgbaIt->name].maxFreeTimer;
             C2D_ImageTint tinty;
             C2D_AlphaImageTint(&tinty, opacity);
 
@@ -188,10 +193,10 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     std::string fullPath;
     if (fromScratchProject) fullPath = "romfs:/project/" + filePath;
     else fullPath = "romfs:/" + filePath;
-
+    if (Unzip::UnpackedInSD) fullPath = Unzip::filePath + filePath;
     FILE *file = fopen(fullPath.c_str(), "rb");
     if (!file) {
-        Log::logWarning("Invalid image file name " + filePath);
+        Log::logWarning("Image file not found: " + fullPath);
         return false;
     }
 
@@ -396,11 +401,9 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
         height = 32;
     }
 
-    std::cout << width << " " << height << std::endl;
-
     // Clamp to 3DS limits
-    width = clamp(width, 64, 1024);
-    height = clamp(height, 64, 1024);
+    width = clamp(width, 0, 1024);
+    height = clamp(height, 0, 1024);
 
     // Create rasterizer
     NSVGrasterizer *rast = nsvgCreateRasterizer();
@@ -521,7 +524,7 @@ bool get_C2D_Image(imageRGBA rgba) {
         delete subtex;
         // MemoryTracker::deallocate(tex);
         // MemoryTracker::deallocate(subtex);
-        Image::cleanupImages();
+        cleanupImagesLite();
         return false;
     }
     C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
@@ -533,7 +536,7 @@ bool get_C2D_Image(imageRGBA rgba) {
         delete subtex;
         // MemoryTracker::deallocate(tex);
         // MemoryTracker::deallocate(subtex);
-        Image::cleanupImages();
+        cleanupImagesLite();
         return false;
     }
 
@@ -556,7 +559,7 @@ bool get_C2D_Image(imageRGBA rgba) {
 
     MemoryTracker::allocateVRAM(rgba.textureMemSize);
 
-    imageC2Ds[rgba.name] = {image, 240};
+    imageC2Ds[rgba.name] = {image};
     C3D_FrameSync(); // wait for Async functions to finish
     return true;
 }
@@ -593,9 +596,24 @@ void Image::freeImage(const std::string &costumeId) {
     afterFreeing:
 
         imageC2Ds.erase(it);
-    } else return;
-
+    } else {
+        Log::logWarning("cant find image to free: " + costumeId);
+    }
     freeRGBA(costumeId);
+}
+
+void cleanupImagesLite() {
+    std::vector<std::string> keysToDelete;
+    keysToDelete.reserve(imageC2Ds.size());
+
+    for (const auto &[id, data] : imageC2Ds) {
+        if (data.freeTimer < data.maxFreeTimer * 0.8)
+            keysToDelete.push_back(id);
+    }
+
+    for (const std::string &id : keysToDelete) {
+        Image::freeImage(id);
+    }
 }
 
 void Image::cleanupImages() {
@@ -655,53 +673,18 @@ void Image::queueFreeImage(const std::string &costumeId) {
  * or if a `C2D_Image` goes unused for 120 frames.
  */
 void Image::FlushImages() {
+    std::vector<std::string> keysToDelete;
 
-    // free unused images if vram usage is high
-    if (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.8) {
-        size_t times = 0;
-
-        // keep freeing until usage is low enough
-        while (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.5 && !imageC2Ds.empty()) {
-            ImageData *imgToDelete = nullptr;
-            std::string toDeleteStr = "";
-
-            for (auto &[id, img] : imageC2Ds) {
-                if (img.freeTimer == 240) continue;
-
-                if (imgToDelete == nullptr) {
-                    imgToDelete = &img;
-                    toDeleteStr = id;
-                    continue;
-                }
-
-                if (img.freeTimer < imgToDelete->freeTimer) {
-                    imgToDelete = &img;
-                    toDeleteStr = id;
-                }
-            }
-
-            if (toDeleteStr != "") {
-                Image::freeImage(toDeleteStr);
-            } else {
-                break;
-            }
-
-            times++;
-            if (times > 15) break;
-        }
-    } else {
-        // timer based freeing
-        for (auto &[id, img] : imageC2Ds) {
-            if (img.freeTimer <= 0) {
-                toDelete.push_back(id);
-            } else {
-                img.freeTimer -= 1;
-            }
+    // timer based freeing
+    for (auto &[id, data] : imageC2Ds) {
+        if (data.freeTimer <= 0) {
+            keysToDelete.push_back(id);
+        } else {
+            data.freeTimer -= 1;
         }
     }
 
-    for (const std::string &id : toDelete) {
+    for (const std::string &id : keysToDelete) {
         Image::freeImage(id);
     }
-    toDelete.clear();
 }

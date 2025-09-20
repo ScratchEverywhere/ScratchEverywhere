@@ -1,6 +1,8 @@
 #include "os.hpp"
+#include "render.hpp"
 #include <chrono>
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <ostream>
 #include <string>
@@ -47,16 +49,33 @@ void Log::writeToFile(std::string message, std::string filePath) {
 #else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
+    writeToFile(message);
 }
+
 void Log::logWarning(std::string message, bool printToScreen) {
     if (printToScreen)
         std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
+    writeToFile("Warning: " + message);
 }
+
 void Log::logError(std::string message, bool printToScreen) {
     if (printToScreen)
         std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
+
+    writeToFile("Error: " + message);
 }
-void Log::writeToFile(std::string message, std::string filePath) {
+void Log::writeToFile(std::string message) {
+    if (Render::debugMode) {
+        std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+        std::ofstream logFile;
+        logFile.open(filePath, std::ios::app);
+        if (logFile.is_open()) {
+            logFile << message << std::endl;
+            logFile.close();
+        } else {
+            std::cerr << "Could not open log file: " << filePath << std::endl;
+        }
+    }
 }
 #endif
 
@@ -114,13 +133,23 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(WII)
     return "/apps/scratch-wii/";
 #elif defined(GAMECUBE)
-    return "/";
+    return "carda:/scratch-gamecube/";
 #elif defined(VITA)
     return "ux0:data/scratch-vita/";
 #elif defined(__PS4__)
     return "/data/scratch-ps4/";
+#elif defined(__3DS__)
+    return "sdmc:/3ds/scratch-everywhere/";
 #else
     return "scratch-everywhere/";
+#endif
+}
+
+std::string OS::getRomFSLocation() {
+#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
+    return "romfs:/";
+#else
+    return "";
 #endif
 }
 

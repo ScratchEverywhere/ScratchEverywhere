@@ -22,6 +22,9 @@ extern std::string cloudUsername;
 extern bool cloudProject;
 #endif
 
+extern bool useCustomUsername;
+extern std::string customUsername;
+
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
 
@@ -164,6 +167,9 @@ void Input::getInput() {
  * @return String of the 3DS's nickname
  */
 std::string Input::getUsername() {
+    if (useCustomUsername) {
+        return customUsername;
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) return cloudUsername;
 #endif

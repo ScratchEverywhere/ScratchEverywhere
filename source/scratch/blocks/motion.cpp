@@ -27,9 +27,9 @@ BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutS
 }
 
 BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    auto inputValue = block.parsedInputs.find("TO");
+    auto inputValue = block.parsedInputs->find("TO");
     Block *inputBlock = findBlock(inputValue->second.literalValue.asString());
-    std::string objectName = inputBlock->fields["TO"][0];
+    std::string objectName = Scratch::getFieldValue(*inputBlock, "TO");
 
     if (objectName == "_random_") {
         sprite->xPosition = rand() % Scratch::projectWidth - Scratch::projectWidth / 2;
@@ -202,11 +202,11 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
         block.glideStartY = sprite->yPosition;
 
         Block *inputBlock;
-        auto itVal = block.parsedInputs.find("TO");
+        auto itVal = block.parsedInputs->find("TO");
         inputBlock = findBlock(itVal->second.literalValue.asString());
         if (!inputBlock) return BlockResult::CONTINUE;
 
-        std::string inputValue = inputBlock->fields["TO"][0];
+        std::string inputValue = Scratch::getFieldValue(*inputBlock, "TO");
         std::string positionXStr;
         std::string positionYStr;
 
@@ -255,14 +255,10 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
 }
 
 BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    auto itVal = block.parsedInputs.find("TOWARDS");
+    auto itVal = block.parsedInputs->find("TOWARDS");
     Block *inputBlock = findBlock(itVal->second.literalValue.asString());
-    if (inputBlock->fields.find("TOWARDS") == inputBlock->fields.end()) {
-        // std::cerr << "Error: Unable to find object for POINT_TOWARD block." << std::endl;
-        return BlockResult::CONTINUE;
-    }
 
-    std::string objectName = inputBlock->fields["TOWARDS"][0];
+    std::string objectName = Scratch::getFieldValue(*inputBlock, "TOWARDS");
     double targetX = 0;
     double targetY = 0;
 
@@ -295,7 +291,8 @@ BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withou
 BlockResult MotionBlocks::setRotationStyle(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string value;
     try {
-        value = block.fields.at("STYLE")[0];
+        value = Scratch::getFieldValue(block, "STYLE");
+        ;
     } catch (...) {
         std::cerr << "unable to find rotation style." << std::endl;
         return BlockResult::CONTINUE;

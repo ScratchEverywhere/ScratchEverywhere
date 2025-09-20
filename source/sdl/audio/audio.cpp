@@ -11,7 +11,7 @@
 #include <3ds.h>
 #endif
 
-std::unordered_map<std::string, SDL_Audio *> SDL_Sounds;
+std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;
 std::string currentStreamedSound = "";
 
 #ifdef ENABLE_AUDIO
@@ -20,16 +20,13 @@ SDL_Audio::SDL_Audio() : audioChunk(nullptr) {}
 
 SDL_Audio::~SDL_Audio() {
 #ifdef ENABLE_AUDIO
-    if (memorySize > 0) {
-        MemoryTracker::deallocate(nullptr, memorySize);
-    }
-    if (audioChunk) {
+    if (audioChunk != nullptr) {
         Mix_FreeChunk(audioChunk);
         audioChunk = nullptr;
     }
     if (music != nullptr) {
-        // Mix_FreeMusic(music);
-        // music = nullptr;
+        Mix_FreeMusic(music);
+        music = nullptr;
     }
 #endif
 }
@@ -68,10 +65,8 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         return;
     }
 
-    // SDL_Audio *audio = new SDL_Audio();
-    SDL_Audio *audio = MemoryTracker::allocate<SDL_Audio>();
-    new (audio) SDL_Audio();
-    SDL_Sounds[soundId] = audio;
+    std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
+    SDL_Sounds[soundId] = std::move(audio);
 
     SDL_Audio::SoundLoadParams *params = new SDL_Audio::SoundLoadParams{
         .sprite = sprite,
@@ -175,8 +170,19 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                     return false;
                 }
             } else {
-                // need to write to a temp file beacause this is zip file
-                std::string tempFile = "temp_" + soundId;
+                // need to write to a temp file because this is a zip file
+                std::string tempDir = OS::getScratchFolderLocation() + "/cache";
+                std::string tempFile = tempDir + "/temp_" + soundId;
+
+                // make cache directory
+                try {
+                    std::filesystem::create_directories(tempDir);
+                } catch (const std::exception &e) {
+                    Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
+                    mz_free(file_data);
+                    return false;
+                }
+
                 FILE *fp = fopen(tempFile.c_str(), "wb");
                 if (!fp) {
                     Log::logWarning("Failed to create temp file for streaming");
@@ -203,34 +209,25 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             // Log::log("Creating SDL sound object...");
 
             // Create SDL_Audio object
-            SDL_Audio *audio;
             auto it = SDL_Sounds.find(soundId);
-            if (it != SDL_Sounds.end()) {
-                audio = it->second;
-            } else {
-                // audio = new SDL_Audio();
-                audio = MemoryTracker::allocate<SDL_Audio>();
-                new (audio) SDL_Audio();
-                SDL_Sounds[soundId] = audio;
+            if (it == SDL_Sounds.end()) {
+                std::unique_ptr<SDL_Audio> audio;
+                audio = std::make_unique<SDL_Audio>();
+                SDL_Sounds[soundId] = std::move(audio);
             }
 
             if (!streamed) {
-                audio->audioChunk = chunk;
-                audio->memorySize = file_size * 2; // Rough estimate..
-                MemoryTracker::allocate(audio->memorySize);
+                SDL_Sounds[soundId]->audioChunk = chunk;
             } else {
-                audio->music = music;
-                audio->isStreaming = true;
-                audio->memorySize = 64 * 1024; // streaming buffer is ~64kb
-                MemoryTracker::allocate(audio->memorySize);
+                SDL_Sounds[soundId]->music = music;
+                SDL_Sounds[soundId]->isStreaming = true;
             }
-            audio->audioId = soundId;
-
-            SDL_Sounds[soundId] = audio;
+            SDL_Sounds[soundId]->audioId = soundId;
 
             Log::log("Successfully loaded audio!");
             // Log::log("memory usage: " + std::to_string(MemoryTracker::getCurrentUsage() / 1024) + " KB");
             SDL_Sounds[soundId]->isLoaded = true;
+            SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
             playSound(soundId);
             setSoundVolume(soundId, sprite->volume);
             return true;
@@ -249,13 +246,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     std::string lowerFileName = fileName;
     std::transform(lowerFileName.begin(), lowerFileName.end(), lowerFileName.begin(), ::tolower);
 
-#if defined(__WIIU__) || defined(__OGC__)
-    std::string romfsExt = "romfs:/";
-    fileName = romfsExt + fileName;
-#elif defined(__PS4__)
-    std::string appExt = "/app0/";
-    fileName = appExt + fileName;
-#endif
+    fileName = OS::getRomFSLocation() + fileName;
 
     bool isSupported = false;
     if (lowerFileName.size() >= 4) {
@@ -280,31 +271,16 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
             Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
         }
-        // estimate memory based on file size
-        FILE *file = fopen(fileName.c_str(), "rb");
-        if (file) {
-            fseek(file, 0, SEEK_END);
-            long file_size = ftell(file);
-            fclose(file);
-            audioMemorySize = file_size * 2; // rough estimate
-        } else {
-            audioMemorySize = 1024 * 1024; // 1MB defualt
-        }
-        MemoryTracker::allocate(audioMemorySize);
     } else {
         music = Mix_LoadMUS(fileName.c_str());
         if (!music) {
             Log::logWarning("Failed to load streamed audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
         }
-        audioMemorySize = 64 * 1024; // estimate
-        MemoryTracker::allocate(audioMemorySize);
     }
 
     // Create SDL_Audio object
-    // SDL_Audio *audio = new SDL_Audio();
-    SDL_Audio *audio = MemoryTracker::allocate<SDL_Audio>();
-    new (audio) SDL_Audio();
+    std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
     if (!streamed)
         audio->audioChunk = chunk;
     else {
@@ -314,10 +290,11 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     audio->audioId = fileName;
     audio->memorySize = audioMemorySize;
 
-    SDL_Sounds[fileName] = audio;
+    SDL_Sounds[fileName] = std::move(audio);
 
     Log::log("Successfully loaded audio!");
     SDL_Sounds[fileName]->isLoaded = true;
+    SDL_Sounds[fileName]->channelId = SDL_Sounds.size();
     playSound(fileName);
     setSoundVolume(fileName, sprite->volume);
     return true;
@@ -370,6 +347,10 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
         if (soundFind->second->isStreaming) {
             Mix_VolumeMusic(sdlVolume);
         } else {
+            if (channel < 0 || channel >= Mix_AllocateChannels(-1)) {
+                Log::logWarning("Invalid channel to set volume to!");
+                return;
+            }
             Mix_Volume(channel, sdlVolume);
         }
     }
@@ -386,7 +367,7 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
             sdlVolume = Mix_VolumeMusic(-1);
         } else {
             int channel = soundFind->second->channelId;
-            if (channel != -1) {
+            if (channel >= 0 && channel < Mix_AllocateChannels(-1)) {
                 sdlVolume = Mix_Volume(channel, -1);
             } else {
                 // no channel assigned
@@ -399,7 +380,6 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
         return (sdlVolume / 128.0f) * 100.0f;
     }
 #endif
-    // return -1 to indicate sound not found
     return -1.0f;
 }
 
@@ -408,7 +388,11 @@ void SoundPlayer::stopSound(const std::string &soundId) {
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         int channel = soundFind->second->channelId;
-        Mix_HaltChannel(channel);
+        if (channel >= 0 && channel < Mix_AllocateChannels(-1)) {
+            Mix_HaltChannel(channel);
+        } else {
+            Log::logWarning("Invalid channel for sound: " + soundId);
+        }
     } else {
         Log::logWarning("No active channel found for sound: " + soundId);
     }
@@ -429,11 +413,13 @@ void SoundPlayer::stopStreamedSound() {
 }
 
 void SoundPlayer::checkAudio() {
+    #ifdef ENABLE_AUDIO
     for (auto &[id, audio] : SDL_Sounds) {
         if (!isSoundPlaying(id)) {
             audio->isPlaying = false;
         }
     }
+    #endif
 }
 
 bool SoundPlayer::isSoundPlaying(const std::string &soundId) {
@@ -453,38 +439,45 @@ bool SoundPlayer::isSoundPlaying(const std::string &soundId) {
 }
 
 bool SoundPlayer::isSoundLoaded(const std::string &soundId) {
+    #ifdef ENABLE_AUDIO
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         return soundFind->second->isLoaded;
     }
+    #endif
     return false;
 }
 
 void SoundPlayer::freeAudio(const std::string &soundId) {
+    #ifdef ENABLE_AUDIO
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
-        SDL_Audio *audio = it->second;
-        // MemoryTracker::deallocate(audio->memorySize);
-        // delete audio;
-        audio->~SDL_Audio();
-        MemoryTracker::deallocate<SDL_Audio>(audio);
-
+        Log::log("A sound has been freed!");
         SDL_Sounds.erase(it);
+    } else Log::logWarning("Could not find sound to free: " + soundId);
+    #endif
+}
+
+void SoundPlayer::flushAudio() {
+#ifdef ENABLE_AUDIO
+    if (SDL_Sounds.empty()) return;
+    for (auto &[id, audio] : SDL_Sounds) {
+        if (!isSoundPlaying(id)) {
+            audio->freeTimer -= 1;
+            if (audio->freeTimer <= 0) {
+                freeAudio(id);
+                return;
+            }
+
+        } else audio->freeTimer = 240;
     }
+#endif
 }
 
 void SoundPlayer::cleanupAudio() {
 #ifdef ENABLE_AUDIO
     Mix_HaltMusic();
     Mix_HaltChannel(-1);
-
-    // Track memory cleanup
-    for (auto &pair : SDL_Sounds) {
-        // MemoryTracker::deallocate(pair.second->memorySize);
-        // delete pair.second;
-        pair.second->~SDL_Audio();
-        MemoryTracker::deallocate<SDL_Audio>(pair.second);
-    }
     SDL_Sounds.clear();
 
 #endif

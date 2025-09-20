@@ -24,6 +24,16 @@
 extern char nickname[0x21];
 #endif
 
+#ifdef VITA
+#include <psp2/apputil.h>
+#include <psp2/system_param.h>
+#endif
+
+#ifdef WII
+#include <gccore.h>
+#include <ogc/conf.h>
+#endif
+
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 
@@ -43,6 +53,9 @@ extern SDL_Point touchPosition;
 extern std::string cloudUsername;
 extern bool cloudProject;
 #endif
+
+extern bool useCustomUsername;
+extern std::string customUsername;
 
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
@@ -241,6 +254,9 @@ void Input::getInput() {
 }
 
 std::string Input::getUsername() {
+    if (useCustomUsername) {
+        return customUsername;
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) return cloudUsername;
 #endif
@@ -250,6 +266,21 @@ std::string Input::getUsername() {
     return std::string(miiName, miiName + sizeof(miiName) / sizeof(miiName[0]));
 #elif defined(__SWITCH__)
     if (std::string(nickname) != "") return std::string(nickname);
+#elif defined(VITA)
+    static SceChar8 username[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE];
+    sceAppUtilSystemParamGetString(
+        SCE_SYSTEM_PARAM_ID_USERNAME,
+        username,
+        sizeof(username));
+    return std::string(reinterpret_cast<char *>(username));
+#elif defined(WII)
+
+    CONF_Init();
+    u8 nickname[24];
+    if (CONF_GetNickName(nickname) != 0) {
+        return std::string(reinterpret_cast<char *>(nickname));
+    }
+
 #endif
     return "Player";
 }

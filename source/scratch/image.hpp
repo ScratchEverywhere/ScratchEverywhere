@@ -5,11 +5,11 @@
 
 class Image {
   private:
-    std::string imageId;
-    int width;
+        int width;
     int height;
 
   public:
+    std::string imageId;
     double scale;
     double opacity;
     double rotation;

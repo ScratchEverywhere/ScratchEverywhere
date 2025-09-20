@@ -27,12 +27,12 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     Value inputValue = Scratch::getInputValue(block, "COSTUME", sprite);
     std::string inputString = inputValue.asString();
 
-    auto inputFind = block.parsedInputs.find("COSTUME");
-    if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
+    auto inputFind = block.parsedInputs->find("COSTUME");
+    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputValue.asString());
         if (inputBlock != nullptr) {
-            if (!inputBlock->fields["COSTUME"][0].is_null())
-                inputString = inputBlock->fields["COSTUME"][0].get<std::string>();
+            if (Scratch::getFieldValue(*inputBlock, "COSTUME") != "")
+                inputString = Scratch::getFieldValue(*inputBlock, "COSTUME");
             else return BlockResult::CONTINUE;
         }
     }
@@ -45,7 +45,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
             break;
         }
     }
-    if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
+    if (Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
         int costumeIndex = inputValue.asInt() - 1;
         if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < sprite->costumes.size()) {
             sprite->currentCostume = costumeIndex;
@@ -79,12 +79,12 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
     Value inputValue = Scratch::getInputValue(block, "BACKDROP", sprite);
     std::string inputString = inputValue.asString();
 
-    auto inputFind = block.parsedInputs.find("BACKDROP");
-    if (inputFind != block.parsedInputs.end() && inputFind->second.inputType == ParsedInput::LITERAL) {
+    auto inputFind = block.parsedInputs->find("BACKDROP");
+    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputString);
         if (inputBlock != nullptr) {
-            if (!inputBlock->fields["BACKDROP"][0].is_null())
-                inputString = inputBlock->fields["BACKDROP"][0].get<std::string>();
+            if (Scratch::getFieldValue(*inputBlock, "BACKDROP") != "")
+                inputString = Scratch::getFieldValue(*inputBlock, "BACKDROP");
             else return BlockResult::CONTINUE;
         }
     }
@@ -102,7 +102,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
                 break;
             }
         }
-        if (Math::isNumber(inputString) && inputFind != block.parsedInputs.end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
+        if (Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE) && !imageFound) {
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
                 imageFound = true;
@@ -121,7 +121,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode != "event_whenbackdropswitchesto") continue;
             try {
-                if (spriteBlock.fields["BACKDROP"][0] == sprite->costumes[sprite->currentCostume].name) {
+                if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == sprite->costumes[sprite->currentCostume].name) {
                     executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
                 }
             } catch (...) {
@@ -153,7 +153,7 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode != "event_whenbackdropswitchesto") continue;
             try {
-                if (spriteBlock.fields["BACKDROP"][0] == sprite->costumes[sprite->currentCostume].name) {
+                if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == sprite->costumes[sprite->currentCostume].name) {
                     executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
                 }
             } catch (...) {
@@ -167,7 +167,8 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
 
 BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "NUM", sprite);
-    std::string forwardBackward = block.fields.at("FORWARD_BACKWARD")[0];
+    std::string forwardBackward = Scratch::getFieldValue(block, "FORWARD_BACKWARD");
+    ;
     if (!value.isNumeric()) return BlockResult::CONTINUE;
 
     int shift = value.asInt();
@@ -203,7 +204,8 @@ BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, b
 }
 
 BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    std::string value = block.fields.at("FRONT_BACK")[0];
+    std::string value = Scratch::getFieldValue(block, "FRONT_BACK");
+    ;
     if (value == "front") {
 
         double maxLayer = 0.0;
@@ -274,7 +276,8 @@ BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withou
 
 BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
-    std::string effect = block.fields.at("EFFECT")[0];
+    std::string effect = Scratch::getFieldValue(block, "EFFECT");
+    ;
     Value amount = Scratch::getInputValue(block, "VALUE", sprite);
 
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
@@ -290,7 +293,7 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *without
     } else if (effect == "MOSAIC") {
         // blehhh
     } else if (effect == "BRIGHTNESS") {
-        // doable....
+        sprite->brightnessEffect = std::clamp(amount.asDouble(), -100.0, 100.0);
     } else if (effect == "GHOST") {
         sprite->ghostEffect = std::clamp(amount.asDouble(), 0.0, 100.0);
     } else {
@@ -299,7 +302,8 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *without
     return BlockResult::CONTINUE;
 }
 BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    std::string effect = block.fields.at("EFFECT")[0];
+    std::string effect = Scratch::getFieldValue(block, "EFFECT");
+    ;
     Value amount = Scratch::getInputValue(block, "CHANGE", sprite);
 
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
@@ -315,7 +319,8 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *with
     } else if (effect == "MOSAIC") {
         // blehhh
     } else if (effect == "BRIGHTNESS") {
-        // doable....
+        sprite->brightnessEffect += amount.asDouble();
+        sprite->brightnessEffect = std::clamp(sprite->brightnessEffect, -100.0f, 100.0f);
     } else if (effect == "GHOST") {
         sprite->ghostEffect += amount.asDouble();
         sprite->ghostEffect = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
@@ -327,6 +332,7 @@ BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool 
 
     sprite->ghostEffect = 0.0f;
     sprite->colorEffect = -99999;
+    sprite->brightnessEffect = 0.0f;
 
     return BlockResult::CONTINUE;
 }
@@ -336,15 +342,16 @@ Value LooksBlocks::size(Block &block, Sprite *sprite) {
 }
 
 Value LooksBlocks::costume(Block &block, Sprite *sprite) {
-    return Value(block.fields.at("COSTUME")[0].get<std::string>());
+    return Value(Scratch::getFieldValue(block, "COSTUME"));
 }
 
 Value LooksBlocks::backdrops(Block &block, Sprite *sprite) {
-    return Value(block.fields.at("BACKDROP")[0].get<std::string>());
+    return Value(Scratch::getFieldValue(block, "BACKDROP"));
 }
 
 Value LooksBlocks::costumeNumberName(Block &block, Sprite *sprite) {
-    std::string value = block.fields.at("NUMBER_NAME")[0];
+    std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
+    ;
     if (value == "name") {
         return Value(sprite->costumes[sprite->currentCostume].name);
     } else if (value == "number") {
@@ -354,7 +361,8 @@ Value LooksBlocks::costumeNumberName(Block &block, Sprite *sprite) {
 }
 
 Value LooksBlocks::backdropNumberName(Block &block, Sprite *sprite) {
-    std::string value = block.fields.at("NUMBER_NAME")[0];
+    std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
+    ;
     if (value == "name") {
         for (Sprite *currentSprite : sprites) {
             if (currentSprite->isStage) {
