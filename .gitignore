@@ -48,6 +48,7 @@ main.code-workspace
 *.nro
 *.nso
 *.elf
+*.oelf
 *.smdh
 *.cia
 *.bat
@@ -56,6 +57,7 @@ main.code-workspace
 *.dol
 *.wbfs
 *.vpk
+*.pkg
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
@@ -65,3 +67,5 @@ scratch-wii.zip
 # Stored Files
 cloud-username.txt
 
+# macOS
+.DS_Store

@@ -13,8 +13,8 @@
 
 class Render {
   public:
-    static std::chrono::_V2::system_clock::time_point startTime;
-    static std::chrono::_V2::system_clock::time_point endTime;
+    static std::chrono::system_clock::time_point startTime;
+    static std::chrono::system_clock::time_point endTime;
     static bool debugMode;
 
     static bool hasFrameBegan;
