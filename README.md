@@ -74,6 +74,17 @@ Join https://discord.gg/Y2gf5vZHpJ if you need any help with Scratch Everywhere!
 
 Like TurboWarp we have special custom blocks that only work on SE! You can find a project containing and explaining them here: https://scratchbox.grady.link/project/K26OtTN2WDJ9
 
+**Project Linking Blocks**
+- `open (____) .sb3`
+- `open (____) .sb3 with data (____)`
+- `received data` (variable)
+  
+These blocks make it possible to split a big game into smaller parts (e.g. a main game, a shop, or a cutscene project) and load them as needed. All paths are relative to the `scratch-everywhere` folder, so subfolders must be specified (e.g. `MyGame/main.sb3`).
+This helps avoid memory issues, keep projects modular, and makes it easier to manage large 
+games. 
+> [!NOTE]
+> In the future, this feature may be replaced by a dedicated extension once extension support is available.
+
 ## Limitations
 
 As this is in a very work in progress state, you will encounter many bugs, crashes, and things that will just not work. 

@@ -9,7 +9,7 @@ Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
     if (name == "Scratch Everywhere! platform") {
         return Value(OS::getPlatform());
     }
-    if (name == "data last Project") {
+    if (name == "received data") {
         return Scratch::dataNextProject;
     }
     return BlockExecutor::getCustomBlockValue(name, sprite, block);

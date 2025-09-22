@@ -328,7 +328,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     if (block.customBlockId == "\u200B\u200Blog\u200B\u200B %s") Log::log("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
     if (block.customBlockId == "\u200B\u200Bwarn\u200B\u200B %s") Log::logWarning("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
     if (block.customBlockId == "\u200B\u200Berror\u200B\u200B %s") Log::logError("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
-    if (block.customBlockId == "​open %s .sb3") {
+    if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3") {
         Log::log("Open next Project with Block");
         Scratch::nextProject = true;
         Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
@@ -336,7 +336,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
     }
-    if (block.customBlockId == "open %s .sb3 with data %s") {
+    if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") {
         Log::log("Open next Project with Block and data");
         Scratch::nextProject = true;
         Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
