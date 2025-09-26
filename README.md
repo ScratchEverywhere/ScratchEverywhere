@@ -81,7 +81,10 @@ Like TurboWarp we have special custom blocks that only work on SE! You can find 
   
 These blocks make it possible to split a big game into smaller parts (e.g. a main game, a shop, or a cutscene project) and load them as needed. All paths are relative to the `scratch-everywhere` folder, so subfolders must be specified (e.g. `MyGame/main.sb3`).
 This helps avoid memory issues, keep projects modular, and makes it easier to manage large 
-games. 
+games.
+
+You can find the blocks in this project: https://scratchbox.grady.link/project/twStEkSKjQaH
+
 > [!NOTE]
 > In the future, this feature may be replaced by a dedicated extension once extension support is available.
 
