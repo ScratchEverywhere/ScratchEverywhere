@@ -1,5 +1,5 @@
 #pragma once
-#include "../scratch/text.hpp"
+#include "text.hpp"
 #include <3ds.h>
 #include <citro2d.h>
 #include <unordered_map>

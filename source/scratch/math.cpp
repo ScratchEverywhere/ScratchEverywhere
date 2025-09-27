@@ -1,8 +1,6 @@
 #include "math.hpp"
 #include <algorithm>
 #include <boost/regex.hpp>
-#include <cctype>
-#include <cstddef>
 #include <math.h>
 #include <random>
 #include <string>

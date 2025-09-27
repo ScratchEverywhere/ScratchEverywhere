@@ -1,4 +1,4 @@
-#include "../scratch/keyboard.hpp"
+#include "keyboard.hpp"
 #include <3ds.h>
 
 static SwkbdState swkbd;

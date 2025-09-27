@@ -1,6 +1,6 @@
 #include "events.hpp"
-#include "../input.hpp"
 #include "blockExecutor.hpp"
+#include "input.hpp"
 #include "interpret.hpp"
 #include "sprite.hpp"
 

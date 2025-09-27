@@ -1,5 +1,6 @@
 #pragma once
-#include "interpret.hpp"
+#include "miniz/miniz.h"
+#include "sprite.hpp"
 #include <string>
 #include <unordered_map>
 

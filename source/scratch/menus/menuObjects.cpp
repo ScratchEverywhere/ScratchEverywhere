@@ -1,6 +1,6 @@
 #include "menuObjects.hpp"
-#include "../input.hpp"
-#include "../render.hpp"
+#include "input.hpp"
+#include "render.hpp"
 
 #define REFERENCE_WIDTH 400
 #define REFERENCE_HEIGHT 240

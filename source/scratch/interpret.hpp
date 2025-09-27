@@ -1,14 +1,7 @@
 #pragma once
 #include "blockExecutor.hpp"
-#include "image.hpp"
-#include "math.hpp"
 #include "sprite.hpp"
-#include <chrono>
-#include <cmath>
-#include <iostream>
-#include <list>
 #include <nlohmann/json.hpp>
-#include <random>
 #include <string>
 #include <time.hpp>
 #include <unordered_map>
@@ -49,6 +42,9 @@ class Scratch {
     static bool fencing;
     static bool miscellaneousLimits;
     static bool shouldStop;
+
+    static bool nextProject;
+    static Value dataNextProject;
 };
 
 /**

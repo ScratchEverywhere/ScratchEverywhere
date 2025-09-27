@@ -1,7 +1,9 @@
 #include "interpret.hpp"
+#include "miniz/miniz.h"
 #include "os.hpp"
 #include <filesystem>
 #include <fstream>
+#include <random>
 #ifdef GAMECUBE
 #include <dirent.h>
 #include <gccore.h>

@@ -1,6 +1,6 @@
 #include "loading.hpp"
-#include "../render.hpp"
-#include "../unzip.hpp"
+#include "render.hpp"
+#include "unzip.hpp"
 
 void Loading::init() {
     block1 = new Image("gfx/menu/block1.svg");

@@ -2,7 +2,6 @@
 #include "../scratch/text.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
-#include <iostream>
 #include <unordered_map>
 
 class TextObjectSDL : public TextObject {

@@ -3,7 +3,6 @@
 #include "sprite.hpp"
 #include "text.hpp"
 #include <chrono>
-#include <cmath>
 #include <vector>
 
 #ifdef __OGC__

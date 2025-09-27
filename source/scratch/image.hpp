@@ -1,11 +1,10 @@
 #pragma once
 #include "miniz/miniz.h"
 #include <string>
-#include <vector>
 
 class Image {
   private:
-        int width;
+    int width;
     int height;
 
   public:

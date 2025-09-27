@@ -2,7 +2,6 @@
 #include <ctime>
 #include <time.hpp>
 
-
 int Time::getHours() {
     time_t unixTime = time(NULL);
     struct tm *timeStruct = gmtime((const time_t *)&unixTime);

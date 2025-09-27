@@ -63,7 +63,26 @@ int main(int argc, char **argv) {
     }
 
     while (Scratch::startScratchProject()) {
-        if (toExit || !activateMainMenu()) break;
+
+        if (Scratch::nextProject) {
+            Log::log(Unzip::filePath);
+            if (!Unzip::load()) {
+
+                if (Unzip::projectOpened == -3) { // main menu
+
+                    if (!activateMainMenu()) break;
+
+                } else {
+                    exitApp();
+                    break;
+                }
+            }
+        } else {
+            Unzip::filePath = "";
+            Scratch::nextProject = false;
+            Scratch::dataNextProject = Value();
+            if (toExit || !activateMainMenu()) break;
+        }
     }
     exitApp();
     return 0;

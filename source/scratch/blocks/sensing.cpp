@@ -1,11 +1,10 @@
 #include "sensing.hpp"
-#include "../input.hpp"
-#include "../keyboard.hpp"
 #include "blockExecutor.hpp"
+#include "input.hpp"
 #include "interpret.hpp"
+#include "keyboard.hpp"
 #include "sprite.hpp"
 #include "value.hpp"
-#include <algorithm>
 #include <cmath>
 #include <utility>
 #include <vector>

@@ -38,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Switch Nightly
-          path: scratch-nx.nro
+          path: build/switch/scratch-nx.nro
