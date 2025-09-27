@@ -26,12 +26,11 @@ std::string Linker::sanitizeString(const std::string &input, bool padWithNull) {
 
 std::vector<unsigned char> Linker::stringToHexWith00(const std::string &input) {
     std::vector<unsigned char> bytes;
-    bytes.reserve(input.size() * 2); // jedes Zeichen + 0x00
+    bytes.reserve(input.size() * 2);
 
     for (size_t i = 0; i < input.size(); i++) {
         bytes.push_back(static_cast<unsigned char>(input[i]));
 
-        // nur 0x00 dazwischen, nicht am Ende
         if (i < input.size() - 1) {
             bytes.push_back(0x00);
         }
@@ -44,11 +43,10 @@ bool Linker::isValidString(const std::string &str) {
     bool hasValidChar = false;
 
     for (unsigned char c : str) {
-        // Prüfen, ob Zeichen erlaubt ist (alphanumerisch)
         if (!std::isalnum(c)) continue;
 
         hasValidChar = true;
-        break; // mindestens ein gültiges Zeichen gefunden
+        break;
     }
 
     return hasValidChar;
@@ -93,7 +91,6 @@ bool Linker::installLinker(std::string title, std::string author, std::string ro
     std::vector<unsigned char> authorHex = stringToHexWith00(author);
 
 
-    //Text: "Link your Apps to SE" (but with 0x00)
     replaceInFile(romPath, OS::getScratchFolderLocation() + "Linker/cache/LinkerCache.cia", originalTitleHex, titleHex);
     replaceInFile(OS::getScratchFolderLocation() + "Linker/cache/LinkerCache.cia", OS::getScratchFolderLocation() + "Linker/cache/LinkerCache.cia", originalAuthorHex, authorHex);
 
