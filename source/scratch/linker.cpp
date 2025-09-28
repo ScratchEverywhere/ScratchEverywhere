@@ -1,6 +1,7 @@
 #include "linker.hpp"
 
 #define BUF_SIZE (64 * 1024)
+// #define __3DS__
 #ifdef __3DS__
 
 std::string Linker::sanitizeString(const std::string &input, bool padWithNull) {
@@ -52,6 +53,61 @@ bool Linker::isValidString(const std::string &str) {
     return hasValidChar;
 }
 
+std::vector<u64> Linker::getInstalledTitles() {
+    std::vector<u64> titles;
+
+    u32 count = 0;
+    Result res = AM_GetTitleCount(MEDIATYPE_SD, &count);
+    if (R_FAILED(res)) return titles;
+
+    std::vector<u64> buffer(count);
+    u32 readCount = count;
+    res = AM_GetTitleList(&readCount, MEDIATYPE_SD, count, buffer.data());
+    if (R_SUCCEEDED(res)) {
+        buffer.resize(readCount);
+        titles = buffer;
+    }
+
+    return titles;
+}
+
+u64 Linker::generateTitleId() {
+
+    u64 prefix = 0x0004000000000000ULL;
+
+    u32 randomPart = (u32)rand();
+
+    return prefix | ((u64)randomPart);
+}
+
+std::vector<unsigned char> Linker::generateUniqueTitleId() {
+    std::vector<u64> installed = getInstalledTitles();
+
+    for (int i = 0; i < 5; i++) {
+        u64 tid = generateTitleId();
+
+        bool exists = false;
+        for (auto &id : installed) {
+            if (id == tid) {
+                exists = true;
+                break;
+            }
+        }
+
+        if (!exists) {
+            std::vector<unsigned char> bytes(8);
+            for (int i = 0; i < 8; i++) {
+                bytes[7 - i] = (tid >> (i * 8)) & 0xFF; // höchstes Byte an Index 0
+                Log::log("ID: " + std::to_string(bytes[7 - i]));
+            }
+
+            return bytes;
+        }
+    }
+
+    return {};
+}
+
 bool Linker::replaceInFile(const std::string &inputFile, const std::string &outputFile, const std::vector<unsigned char> &searchPattern, const std::vector<unsigned char> &replacePattern) {
     if (searchPattern.empty()) return false;
     if (searchPattern.size() != replacePattern.size()) {
@@ -85,18 +141,28 @@ bool Linker::replaceInFile(const std::string &inputFile, const std::string &outp
 bool Linker::installLinker(std::string title, std::string author, std::string romPath, std::string projectName) {
 
     if (!isValidString(title) || !isValidString(author)) return false;
+
+    std::vector<unsigned char> titelIdHex = generateUniqueTitleId();
+    if (titelIdHex.size() == 0) {
+        Log::logWarning("No free ID found (after 5 attempts)");
+        return false;
+    }
+
     std::vector<unsigned char> originalTitleHex = stringToHexWith00("Link your Apps to SE");
     std::vector<unsigned char> originalAuthorHex = stringToHexWith00("Br0tcraft           ");
+    std::vector<unsigned char> originalTitleIdHex = {0x00, 0x04, 0x00, 0x00, 0x0F, 0xA0, 0x3C, 0x00};
     std::vector<unsigned char> titleHex = stringToHexWith00(title);
     std::vector<unsigned char> authorHex = stringToHexWith00(author);
 
+    std::string cachePath = OS::getScratchFolderLocation() + "Linker/cache/LinkerCache.cia";
 
-    replaceInFile(romPath, OS::getScratchFolderLocation() + "Linker/cache/LinkerCache.cia", originalTitleHex, titleHex);
-    replaceInFile(OS::getScratchFolderLocation() + "Linker/cache/LinkerCache.cia", OS::getScratchFolderLocation() + "Linker/cache/LinkerCache.cia", originalAuthorHex, authorHex);
+    replaceInFile(romPath, cachePath, originalTitleHex, titleHex);
+    replaceInFile(cachePath, cachePath, originalAuthorHex, authorHex);
+    replaceInFile(cachePath, cachePath, originalTitleIdHex, titelIdHex);
 
     amInit();
 
-    romPath = (OS::getScratchFolderLocation() + "Linker/cache/LinkerCache.cia").c_str();
+    romPath = (cachePath).c_str();
 
     FILE *in = fopen(romPath.c_str(), "rb");
     if (!in) {
@@ -165,6 +231,6 @@ bool Linker::installLinker(std::string title, std::string author, std::string ro
 bool Linker::installLinker(std::string title, std::string author, std::string romPath, std::string projectName = "") {}
 bool replaceInFile(const std::string &inputFile, const std::string &outputFile, const std::vector<unsigned char> &searchPattern, const std::vector<unsigned char> &replacePattern) {}
 std::string Linker::sanitizeString(const std::string &input, bool padWithNull = false) {}
-std::string Linker::stringToHexWith00(const std::string &input) {}
+std::vector<unsigned char> Linker::stringToHexWith00(const std::string &input) {}
 bool Linker::isValidString(const std::string &str) {}
 #endif

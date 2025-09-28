@@ -23,5 +23,13 @@ class Linker {
 
     static std::vector<unsigned char> stringToHexWith00(const std::string &input);
 
+#ifdef __3DS__
+    static std::vector<u64> getInstalledTitles();
+    
+    static u64 generateTitleId();
+
+    static std::vector<unsigned char> generateUniqueTitleId();
+#endif
+
     static bool replaceInFile(const std::string &inputFile, const std::string &outputFile, const std::vector<unsigned char> &searchPattern, const std::vector<unsigned char> &replacePattern);
 };
