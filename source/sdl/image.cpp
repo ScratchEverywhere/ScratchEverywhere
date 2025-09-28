@@ -1,16 +1,9 @@
-#include "../scratch/image.hpp"
-#include "../scratch/os.hpp"
-#include "../scratch/unzip.hpp"
 #include "image.hpp"
+#include "../scratch/image.hpp"
 #include "miniz/miniz.h"
+#include "os.hpp"
 #include "render.hpp"
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_rwops.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_surface.h>
+#include "unzip.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -125,15 +118,15 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
 
     // Check if file is bitmap or SVG
     bool isSupported = costumeId.size() > 4 && ([](std::string ext) {
-                        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                        return ext == ".bmp" || ext == ".gif" || ext == ".jpg" || ext == ".jpeg" ||
-                               ext == ".lbm" || ext == ".iff" || ext == ".pcx" || ext == ".png" ||
-                               ext == ".pnm" || ext == ".ppm" || ext == ".pgm" || ext == ".pbm" ||
-                               ext == ".qoi" || ext == ".tga" || ext == ".tiff" || ext == ".xcf" ||
-                               ext == ".xpm" || ext == ".xv" || ext == ".ico" || ext == ".cur" ||
-                               ext == ".ani" || ext == ".webp" || ext == ".avif" || ext == ".jxl" ||
-                               ext == ".svg";
-                    }(costumeId.substr(costumeId.find_last_of('.'))));
+                           std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                           return ext == ".bmp" || ext == ".gif" || ext == ".jpg" || ext == ".jpeg" ||
+                                  ext == ".lbm" || ext == ".iff" || ext == ".pcx" || ext == ".png" ||
+                                  ext == ".pnm" || ext == ".ppm" || ext == ".pgm" || ext == ".pbm" ||
+                                  ext == ".qoi" || ext == ".tga" || ext == ".tiff" || ext == ".xcf" ||
+                                  ext == ".xpm" || ext == ".xv" || ext == ".ico" || ext == ".cur" ||
+                                  ext == ".ani" || ext == ".webp" || ext == ".avif" || ext == ".jxl" ||
+                                  ext == ".svg";
+                       }(costumeId.substr(costumeId.find_last_of('.'))));
 
     if (!isSupported) {
         Log::logWarning("File is not a supported image format: " + costumeId);

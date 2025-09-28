@@ -6,4 +6,4 @@ COPY . .
 RUN make PLATFORM=switch ENABLE_AUDIO=1
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/scratch-nx.nro /
+COPY --from=main_builder /app/build/switch/scratch-nx.nro /

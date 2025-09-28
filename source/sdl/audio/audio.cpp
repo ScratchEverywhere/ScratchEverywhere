@@ -1,4 +1,3 @@
-
 #include "../scratch/audio.hpp"
 #include "../scratch/os.hpp"
 #include "audio.hpp"
@@ -413,13 +412,13 @@ void SoundPlayer::stopStreamedSound() {
 }
 
 void SoundPlayer::checkAudio() {
-    #ifdef ENABLE_AUDIO
+#ifdef ENABLE_AUDIO
     for (auto &[id, audio] : SDL_Sounds) {
         if (!isSoundPlaying(id)) {
             audio->isPlaying = false;
         }
     }
-    #endif
+#endif
 }
 
 bool SoundPlayer::isSoundPlaying(const std::string &soundId) {
@@ -439,23 +438,23 @@ bool SoundPlayer::isSoundPlaying(const std::string &soundId) {
 }
 
 bool SoundPlayer::isSoundLoaded(const std::string &soundId) {
-    #ifdef ENABLE_AUDIO
+#ifdef ENABLE_AUDIO
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         return soundFind->second->isLoaded;
     }
-    #endif
+#endif
     return false;
 }
 
 void SoundPlayer::freeAudio(const std::string &soundId) {
-    #ifdef ENABLE_AUDIO
+#ifdef ENABLE_AUDIO
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
         Log::log("A sound has been freed!");
         SDL_Sounds.erase(it);
     } else Log::logWarning("Could not find sound to free: " + soundId);
-    #endif
+#endif
 }
 
 void SoundPlayer::flushAudio() {

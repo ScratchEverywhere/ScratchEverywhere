@@ -3,7 +3,6 @@
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
-#include "miniz/miniz.h"
 #include "nlohmann/json.hpp"
 #include "os.hpp"
 #include "render.hpp"
@@ -57,6 +56,9 @@ int Scratch::FPS = 30;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
+
+bool Scratch::nextProject = false;
+Value Scratch::dataNextProject;
 
 #ifdef ENABLE_CLOUDVARS
 bool cloudProject = false;
@@ -149,6 +151,7 @@ bool Scratch::startScratchProject() {
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
+    Scratch::nextProject = false;
 
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
@@ -219,7 +222,7 @@ void Scratch::cleanupScratchProject() {
     Scratch::fencing = true;
     Scratch::miscellaneousLimits = true;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
-    Unzip::filePath = "";
+    // Unzip::filePath = "";
     Log::log("Cleaned up Scratch project.");
 }
 
@@ -263,7 +266,7 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
 
     double divisionAmount = 2.0;
 
-    if(currentSprite->costumes[currentSprite->currentCostume].isSVG)
+    if (currentSprite->costumes[currentSprite->currentCostume].isSVG)
         divisionAmount = 1.0;
 
     // Get sprite dimensions, scaled by size
@@ -705,7 +708,7 @@ void loadSprites(const nlohmann::json &json) {
             }
             if (data.contains("dataFormat")) {
                 newCostume.dataFormat = data["dataFormat"];
-                if(newCostume.dataFormat == "svg" || newCostume.dataFormat == "SVG")
+                if (newCostume.dataFormat == "svg" || newCostume.dataFormat == "SVG")
                     newCostume.isSVG = true;
                 else
                     newCostume.isSVG = false;

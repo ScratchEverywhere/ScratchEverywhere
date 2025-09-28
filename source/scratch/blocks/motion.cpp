@@ -1,6 +1,6 @@
 #include "motion.hpp"
-#include "../scratch/input.hpp"
 #include "blockExecutor.hpp"
+#include "input.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
 #include "sprite.hpp"

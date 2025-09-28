@@ -1,11 +1,10 @@
 #include "image.hpp"
-#include "../scratch/os.hpp"
+#include "os.hpp"
 #include <algorithm>
-#include <iostream>
 #include <vector>
 #define STBI_NO_GIF
 #define STB_IMAGE_IMPLEMENTATION
-#include "../scratch/unzip.hpp"
+#include "unzip.hpp"
 #define NANOSVG_IMPLEMENTATION
 #include "nanosvg.h"
 #define NANOSVGRAST_IMPLEMENTATION

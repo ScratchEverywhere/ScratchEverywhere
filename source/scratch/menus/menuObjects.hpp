@@ -1,7 +1,7 @@
 #pragma once
-#include "../image.hpp"
-#include "../os.hpp"
-#include "../text.hpp"
+#include "image.hpp"
+#include "os.hpp"
+#include "text.hpp"
 
 class MenuObject {
   public:

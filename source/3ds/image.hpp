@@ -5,6 +5,7 @@
 #include <citro3d.h>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 struct ImageData {
     C2D_Image image;
