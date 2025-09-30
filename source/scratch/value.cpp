@@ -208,7 +208,7 @@ Value Value::fromJson(const nlohmann::json &jsonVal) {
         }
         return Value(strVal);
     } else if (jsonVal.is_boolean()) {
-        return Value(Math::removeQuotations(jsonVal.dump()));
+        return Value(jsonVal.get<bool>());
     } else if (jsonVal.is_array()) {
         if (jsonVal.size() > 1) {
             return fromJson(jsonVal[1]);
