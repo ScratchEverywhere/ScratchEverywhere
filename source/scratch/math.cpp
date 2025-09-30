@@ -28,6 +28,29 @@ bool Math::isNumber(const std::string &str) {
     return boost::regex_match(str, boost::regex("^((0x[\\da-f]+)|(0b[01]+)|(0o[0-7]+)|([+-]?((\\d+(\\.\\d+)?)|((\\d+)?\\.\\d+))(e[+-]?\\d+)?))$", boost::regex::icase)); // I hope I never need to touch this again x2 (it was rewritten, to handle more edge cases).
 }
 
+double Math::parseNumber(const std::string &str) {
+    if (str[0] == '0') {
+        int base = 0;
+
+        switch (str[1]) {
+        case 'x':
+            base = 16;
+            break;
+        case 'b':
+            base = 2;
+            break;
+        case 'o':
+            base = 8;
+            break;
+        }
+
+        if (base != 0)
+            return std::stoi(str.substr(2, str.length() - 2), 0, base);
+    }
+
+    return std::stod(str);
+}
+
 double Math::degreesToRadians(double degrees) {
     return degrees * (M_PI / 180.0);
 }

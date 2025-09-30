@@ -6,6 +6,7 @@
 
 namespace Math {
 bool isNumber(const std::string &str);
+double parseNumber(const std::string &str);
 
 int color(int r, int g, int b, int a);
 
