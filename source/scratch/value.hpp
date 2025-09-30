@@ -1,15 +1,19 @@
 #pragma once
+#include "color.hpp"
 #include "math.hpp"
 #include "os.hpp"
 #include <cmath>
 #include <nlohmann/json.hpp>
+#include <regex>
+#include <sstream>
 #include <string>
 
 enum class ValueType {
     INTEGER,
     DOUBLE,
     BOOLEAN,
-    STRING
+    STRING,
+    COLOR
 };
 
 class Value {
@@ -19,6 +23,7 @@ class Value {
         int intValue;
         double doubleValue;
         std::string *stringValue;
+        Color colorValue;
     };
 
   public:
@@ -30,6 +35,8 @@ class Value {
     explicit Value(int val) : type(ValueType::INTEGER), intValue(val) {}
 
     explicit Value(double val) : type(ValueType::DOUBLE), doubleValue(val) {}
+
+    explicit Value(Color val) : type(ValueType::COLOR), colorValue(val) {}
 
     explicit Value(bool val) : type(ValueType::BOOLEAN) {
         stringValue = new std::string(val ? "true" : "false");
@@ -46,6 +53,9 @@ class Value {
             break;
         case ValueType::DOUBLE:
             doubleValue = other.doubleValue;
+            break;
+        case ValueType::COLOR:
+            colorValue = other.colorValue;
             break;
         case ValueType::STRING:
             stringValue = new std::string(*other.stringValue);
@@ -69,6 +79,9 @@ class Value {
             case ValueType::DOUBLE:
                 doubleValue = other.doubleValue;
                 break;
+            case ValueType::COLOR:
+                colorValue = other.colorValue;
+                break;
             case ValueType::STRING:
                 stringValue = new std::string(*other.stringValue);
                 break;
@@ -90,6 +103,7 @@ class Value {
     bool isDouble() const { return type == ValueType::DOUBLE; }
     bool isString() const { return type == ValueType::STRING; }
     bool isBoolean() const { return type == ValueType::BOOLEAN; }
+    bool isColor() const { return type == ValueType::COLOR; }
     bool isNumeric() const {
         return type == ValueType::INTEGER || type == ValueType::DOUBLE || type == ValueType::BOOLEAN ||
                (type == ValueType::STRING && (*stringValue == "Infinity" || *stringValue == "-Infinity")) ||
@@ -112,6 +126,8 @@ class Value {
                                                 : 0.0; // clang-format really cooked here...
         case ValueType::BOOLEAN:
             return *stringValue == "true" ? 1.0 : 0.0;
+        case ValueType::COLOR:
+            return static_cast<double>(asInt());
         }
         return 0.0;
     }
@@ -147,6 +163,9 @@ class Value {
             }
         case ValueType::BOOLEAN:
             return *stringValue == "true" ? 1 : 0;
+        case ValueType::COLOR:
+            const ColorRGB rgb = HSB2RGB(colorValue);
+            return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
         }
         return 0;
     }
@@ -166,8 +185,41 @@ class Value {
             return *stringValue;
         case ValueType::BOOLEAN:
             return *stringValue;
+        case ValueType::COLOR: {
+            const ColorRGB rgb = HSB2RGB(colorValue);
+            const char hex_chars[] = "0123456789abcdef";
+            const unsigned char r = static_cast<unsigned char>(rgb.r);
+            const unsigned char g = static_cast<unsigned char>(rgb.g);
+            const unsigned char b = static_cast<unsigned char>(rgb.b);
+            std::string hex_str = "#";
+            hex_str += hex_chars[r >> 4];
+            hex_str += hex_chars[r & 0x0F];
+            hex_str += hex_chars[g >> 4];
+            hex_str += hex_chars[g & 0x0F];
+            hex_str += hex_chars[b >> 4];
+            hex_str += hex_chars[b & 0x0F];
+            return hex_str;
+        }
         }
         return "";
+    }
+
+    Color asColor() const {
+        switch (type) {
+        case ValueType::INTEGER:
+            return RGB2HSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
+        case ValueType::DOUBLE:
+            return RGB2HSB({static_cast<float>(doubleValue / 0x10000), static_cast<float>(static_cast<int>(doubleValue / 0x100) % 0x100), static_cast<float>(static_cast<int>(doubleValue) % 0x100)});
+        case ValueType::BOOLEAN:
+            return {0, 0, static_cast<float>((*stringValue == "true" ? 1 : 0) * 100)}; // IDK what the correct thing actually is here...
+        case ValueType::COLOR:
+            return colorValue;
+        case ValueType::STRING:
+            if (!std::regex_match(*stringValue, std::regex("^#[\\dabcdef]{6}$"))) return {0, 0, 0};
+            int intValue = std::stoi(stringValue->substr(1), 0, 16);
+            return RGB2HSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
+        }
+        return {0, 0, 0};
     }
 
     // Arithmetic operations
@@ -230,6 +282,8 @@ class Value {
                 return *stringValue == *other.stringValue;
             case ValueType::BOOLEAN:
                 return *stringValue == *other.stringValue;
+            case ValueType::COLOR:
+                return colorValue == colorValue;
             }
         }
         // Different types - compare as strings (Scratch behavior)

@@ -20,16 +20,6 @@ static std::vector<imageRGBA *> imageLoadQueue;
 static std::vector<std::string> toDelete;
 #define MAX_IMAGE_VRAM 30000000
 
-const u32 next_pow2(u32 n) {
-    n--;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n++;
-    return n;
-}
 const u32 clamp(u32 n, u32 lower, u32 upper) {
     if (n < lower)
         return lower;
@@ -174,8 +164,8 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     newRGBA.fullName = filename;
     newRGBA.width = width;
     newRGBA.height = height;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
@@ -275,8 +265,8 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     newRGBA.fullName = costumeId;
     newRGBA.width = width;
     newRGBA.height = height;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
@@ -380,8 +370,8 @@ bool getImageFromT3x(const std::string &filePath) {
     newRGBA.fullName = filePath;
     newRGBA.name = path2;
     newRGBA.isSVG = false;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = nullptr;
 

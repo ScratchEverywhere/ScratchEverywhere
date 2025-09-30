@@ -1,6 +1,7 @@
 #include "../scratch/render.hpp"
 #include "../scratch/image.hpp"
 #include "audio.hpp"
+#include "blocks/pen.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
@@ -9,6 +10,7 @@
 #include "text.hpp"
 #include "unzip.hpp"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -165,12 +167,23 @@ postAccount:
     window = SDL_CreateWindow("Scratch Runtime", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
+    penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 480, 360); // TODO: Support other resolutions.
+
+    // Clear the texture
+    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, NULL);
+
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
     debugMode = true;
     return true;
 }
 void Render::deInit() {
+    SDL_DestroyTexture(penTexture);
+
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
@@ -200,6 +213,43 @@ int Render::getWidth() {
 int Render::getHeight() {
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     return windowHeight;
+}
+
+bool Render::initPen() {
+    return true;
+}
+
+void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+
+    SDL_SetRenderTarget(renderer, penTexture);
+
+    const double dx = x2 - x1;
+    const double dy = y2 - y1;
+
+    const double length = sqrt(dx * dx + dy * dy);
+
+    if (length > 0) {
+        const double nx = dx / length;
+        const double ny = dy / length;
+
+        int16_t vx[4], vy[4];
+        vx[0] = static_cast<int16_t>(x1 + 240 - ny * (sprite->penData.size / 2));
+        vy[0] = static_cast<int16_t>(-y1 + 180 + nx * (sprite->penData.size / 2));
+        vx[1] = static_cast<int16_t>(x1 + 240 + ny * (sprite->penData.size / 2));
+        vy[1] = static_cast<int16_t>(-y1 + 180 - nx * (sprite->penData.size / 2));
+        vx[2] = static_cast<int16_t>(x2 + 240 + ny * (sprite->penData.size / 2));
+        vy[2] = static_cast<int16_t>(-y2 + 180 - nx * (sprite->penData.size / 2));
+        vx[3] = static_cast<int16_t>(x2 + 240 - ny * (sprite->penData.size / 2));
+        vy[3] = static_cast<int16_t>(-y2 + 180 + nx * (sprite->penData.size / 2));
+
+        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
+    }
+
+    filledCircleRGBA(renderer, x1 + 240, -y1 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
+    filledCircleRGBA(renderer, x2 + 240, -y2 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
+
+    SDL_SetRenderTarget(renderer, nullptr);
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -422,6 +472,8 @@ void Render::renderSprites() {
 
         //     SDL_RenderFillRect(renderer, &debugPointRect);
         // }
+
+        if (currentSprite->isStage) renderPenLayer();
     }
 
     drawBlackBars(windowWidth, windowHeight);
@@ -478,6 +530,22 @@ void Render::renderVisibleVariables() {
             }
         }
     }
+}
+
+void Render::renderPenLayer() {
+    SDL_Rect renderRect = {0, 0, 0, 0};
+
+    if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+        renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
+        renderRect.w = windowWidth - renderRect.x * 2;
+        renderRect.h = windowHeight;
+    } else {
+        renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
+        renderRect.h = windowHeight - renderRect.y * 2;
+        renderRect.w = windowWidth;
+    }
+
+    SDL_RenderCopy(renderer, penTexture, NULL, &renderRect);
 }
 
 bool Render::appShouldRun() {

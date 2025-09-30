@@ -16,7 +16,7 @@ ENABLE_LOADSCREEN	?=	1
 # Base compiler flags
 CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
 
-LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf
+LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx
 
 ifeq ($(ENABLE_AUDIO),1)
 LDFLAGS	+=	-lSDL2_mixer
