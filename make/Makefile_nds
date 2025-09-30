@@ -29,17 +29,17 @@ RANLIB		:= $(PREFIX)ranlib
 #---------------------------------------------------------------------------------
 TARGET		:=	Scratch-ds
 BUILD		:=	build
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/headless include/miniz
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/headless include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/nds include/miniz
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/nds include/nlohmann
 DATA		:=
-NITRODATA	:=
+NITRODATA	:=	romfs
 
 #---------------------------------------------------------------------------------
 # Game info
 #---------------------------------------------------------------------------------
-GAME_TITLE		:=	Scratch DS
-GAME_SUBTITLE1	:=	Scratch for Nintendo DS
-GAME_SUBTITLE2	:=	Your Name
+GAME_TITLE		:=	Scratch Everywhere!
+GAME_SUBTITLE1	:=	Scratch 3 Games on your DS!
+GAME_SUBTITLE2	:=	NateXS
 GAME_ICON		:=	$(BLOCKSDS)/sys/icon.bmp
 
 #---------------------------------------------------------------------------------
@@ -85,7 +85,7 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 ifneq ($(strip $(NITRODATA)),)
 	export NITRO_FILES	:=	$(CURDIR)/$(NITRODATA)
-	_ADDFILES	:=	-d $(NITRO_FILES)
+	export _ADDFILES	:=	-d $(NITRO_FILES)
 endif
 
 # Find all source files recursively
