@@ -13,7 +13,7 @@
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
 
-![Runtime running a Scratch project on Wii U, Wii, and 3DS](docs/scratchcats3ds.gif)
+![Runtime running a Scratch project on Wii U, Wii, and 3DS](docs/demo.gif)
 <small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
 
 ## Controls
