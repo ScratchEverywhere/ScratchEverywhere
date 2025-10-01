@@ -70,9 +70,11 @@ void Render::renderSprites() {
               });
 
     for (auto &sprite : sprites) {
-        if (!sprite->visible) continue;
+        if (!sprite->visible || sprite->isStage) continue;
         const int renderX = static_cast<int>(sprite->xPosition);
-        const int renderY = static_cast<int>(sprite->yPosition);
+        const int renderY = static_cast<int>(sprite->yPosition * -1);
+        sprite->spriteWidth = 6;
+        sprite->spriteHeight = 6;
 
         glBoxFilled(renderX + (SCREEN_HALF_WIDTH - 3), renderY + (SCREEN_HALF_HEIGHT - 3), renderX + (SCREEN_HALF_WIDTH + 3), renderY + (SCREEN_HALF_HEIGHT + 3), RGB15(0, 0, 0));
     }
