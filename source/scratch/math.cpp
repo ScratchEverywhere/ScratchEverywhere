@@ -23,46 +23,9 @@ int Math::color(int r, int g, int b, int a) {
 #endif
 }
 
-bool Math::isNumber(const std::string &str) {
-    try {
-        std::stod(str);
-        return true;
-    } catch (...) {
-        if (str.length() == 2) return false;
-
-        if (str[0] == '0') {
-            switch (str[1]) {
-            case 'b':
-                try {
-                    std::stoi(str.substr(2, str.length() - 2), 0, 2);
-                    return true;
-                } catch (...) {
-                    return false;
-                }
-            case 'o':
-                try {
-                    std::stoi(str.substr(2, str.length() - 2), 0, 8);
-                    return true;
-                } catch (...) {
-                    return false;
-                }
-            case 'x':
-                try {
-                    std::stoi(str.substr(2, str.length() - 2), 0, 16);
-                    return true;
-                } catch (...) {
-                    return false;
-                }
-            }
-        }
-
-        return false;
-    }
-}
-
 double Math::parseNumber(const std::string &str) {
     if (str[0] == '0') {
-        int base = 0;
+        uint8_t base = 0;
 
         switch (str[1]) {
         case 'x':
@@ -81,6 +44,15 @@ double Math::parseNumber(const std::string &str) {
     }
 
     return std::stod(str);
+}
+
+bool Math::isNumber(const std::string &str) {
+    try {
+        parseNumber(str);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 double Math::degreesToRadians(double degrees) {
