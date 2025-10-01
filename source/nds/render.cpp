@@ -12,6 +12,10 @@ Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 std::vector<Monitor> Render::visibleVariables;
 
+//This image stuff is going to be tough; the DS uses memory "banks" of fixed sizes that might not be the best use of space when it comes to images.
+//The vram banks add up to 656 KB.
+uint8_t freeVram = 0;
+
 bool Render::Init() {
     consoleDemoInit();
     if (!nitroFSInit(NULL)) {
@@ -52,6 +56,7 @@ void Render::renderVisibleVariables() {
 }
 
 void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+gl2d.box(x,y,w,h,colorR,colorB,colorG,colorA);
 }
 
 bool Render::appShouldRun() {
