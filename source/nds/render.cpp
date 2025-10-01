@@ -12,6 +12,10 @@ Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 std::vector<Monitor> Render::visibleVariables;
 
+#define SCREEN_WIDTH 256
+#define BOTTOM_SCREEN_WIDTH 256
+#define SCREEN_HEIGHT 192
+
 bool Render::Init() {
     consoleDemoInit();
     if (!nitroFSInit(NULL)) {
