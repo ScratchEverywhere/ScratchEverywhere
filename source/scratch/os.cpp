@@ -14,6 +14,10 @@
 #include <whb/sdcard.h>
 #endif
 
+#ifdef __NDS__
+#include <nds.h>
+#endif
+
 size_t MemoryTracker::totalAllocated = 0;
 size_t MemoryTracker::peakUsage = 0;
 size_t MemoryTracker::allocationCount = 0;
