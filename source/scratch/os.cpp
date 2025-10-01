@@ -172,3 +172,10 @@ bool OS::isNew3DS() {
 #endif
     return false;
 }
+
+bool OS::isDSi() {
+#ifdef __NDS__
+    return isDSiMode();
+#endif
+    return false;
+}

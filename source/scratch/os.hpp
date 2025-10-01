@@ -219,4 +219,10 @@ class OS {
      * @return `true` on New 3DS, `false` everywhere else.
      */
     static bool isNew3DS();
+
+    /**
+     * Function to detect whether the platform is a DSi.
+     * @return `true` on DSi, `false` everywhere else.
+     */
+    static bool isDSi();
 };
