@@ -23,13 +23,6 @@ void Image::render(double xPos, double yPos, bool centered) {
 
 bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 	NF_CreateSprite( 
-		void NF_CreateSprite( u8 screen, // Screen (0 – 1)
-u8 id, // Sprite Id (0 – 127)
-u16 gfx, // Gfx slot (0 – 127)
-u8 pal, // Palette slot (0 – 15)
-s16 x, // X coordinate
-s16 y // Y coordinate
-);0, // Screen (0 – 1)
 		0, // Sprite Id (0 – 127)
 		0, // Gfx slot (0 – 127)
 		0, // Palette slot (0 – 15)
