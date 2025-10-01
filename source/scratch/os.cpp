@@ -14,6 +14,10 @@
 #include <whb/sdcard.h>
 #endif
 
+#ifdef __NDS__
+#include <nds.h>
+#endif
+
 size_t MemoryTracker::totalAllocated = 0;
 size_t MemoryTracker::peakUsage = 0;
 size_t MemoryTracker::allocationCount = 0;
@@ -109,6 +113,8 @@ std::string OS::getScratchFolderLocation() {
     return "ux0:data/scratch-vita/";
 #elif defined(__3DS__)
     return "sdmc:/3ds/scratch-everywhere/";
+#elif defined(__NDS__)
+    return "sdmc:/3ds/scratch-everywhere/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -137,6 +143,8 @@ std::string OS::getPlatform() {
     return "Switch";
 #elif defined(VITA)
     return "Vita";
+#elif defined(__NDS__)
+    return "DS";
 #else
     return "Unknown";
 #endif
