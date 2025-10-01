@@ -40,8 +40,7 @@ std::string Math::generateRandomString(int length) {
     std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-=[];',./_+{}|:<>?~`";
     std::string result;
 
-    static std::random_device rd;
-    static std::mt19937 generator(rd());
+    static std::mt19937 generator(static_cast<unsigned int>(std::time(nullptr)));
     std::uniform_int_distribution<> distribution(0, chars.size() - 1);
 
     for (int i = 0; i < length; i++) {
