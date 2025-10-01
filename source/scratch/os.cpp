@@ -16,6 +16,7 @@
 
 #ifdef __NDS__
 #include <nds.h>
+#include <fat.h>
 #endif
 
 size_t MemoryTracker::totalAllocated = 0;
