@@ -39,6 +39,23 @@ char nickname[0x21];
 #include <romfs-ogc.h>
 #endif
 
+#ifdef __PS4__
+#include <orbis/libkernel.h>
+#include <orbis/Pad.h>
+#include <orbis/Sysmodule.h>
+#include <orbis/SystemService.h>
+#include <orbis/UserService.h>
+
+inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h)
+{
+    // On PS4 there is no DPI scaling, so this is fine
+    SDL_GetWindowSize(window, w, h);
+}
+
+int orbisPadHandle;
+int orbisUserId;
+#endif
+
 #ifdef GAMECUBE
 #include <sdcard/gcsd.h>
 #endif
@@ -51,8 +68,8 @@ SDL_Renderer *renderer = nullptr;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
-std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
+std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
+std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 
 // TODO: properly export these to input.cpp
@@ -147,6 +164,42 @@ postAccount:
 
     windowWidth = 960;
     windowHeight = 544;
+#elif defined(__PS4__)
+    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
+    if (rc != ORBIS_OK) {
+		Log::logError("Failed to init freetype.");
+		return false;
+	}
+
+    // rc = scePadInit();
+    // if (rc != ORBIS_OK) {
+	// 	Log::logError("Failed to init pad.");
+	// 	return false;
+	// }
+
+    // // Get the user ID
+    // OrbisUserServiceInitializeParams userParam;
+    // userParam.priority = ORBIS_KERNEL_PRIO_FIFO_LOWEST;
+    // sceUserServiceInitialize(&userParam);
+    // sceUserServiceGetInitialUser(&orbisUserId);
+
+    // // OpenOrbis pad handle
+    // orbisPadHandle = scePadOpen(orbisUserId, 0, 0, NULL);
+    // if (orbisPadHandle < 0) {
+    //     Log::logError("Failed to open pad.");
+	// 	return false;
+    // }
+
+    // // Change the pad color to SE! purple
+    // OrbisPadColor padColor = { 123, 72, 117, 255 };
+    // rc = scePadSetLightBar(orbisPadHandle, &padColor);
+    // if (rc != ORBIS_OK) {
+	// 	Log::logError("Failed to set custom pad color.");
+	// 	return false;
+	// }
+
+    windowWidth = 1920;
+    windowHeight = 1080;
 #endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
@@ -163,6 +216,9 @@ postAccount:
 #endif
     TTF_Init();
     window = SDL_CreateWindow("Scratch Runtime", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    if (!window) {
+        SDL_Log("Window failed: %s", SDL_GetError());
+    }
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
@@ -186,6 +242,12 @@ void Render::deInit() {
 #ifdef __WIIU__
     WHBUnmountSdCard();
     nn::act::Finalize();
+#endif
+#ifdef __OGC__
+    romfsExit();
+#endif
+#ifdef __PS4__
+    scePadResetLightBar(orbisPadHandle);
 #endif
 }
 

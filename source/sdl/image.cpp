@@ -165,7 +165,6 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
         SDL_FreeSurface(surface);
         return;
     }
-
     SDL_FreeSurface(surface);
 
     // Build SDL_Image object
@@ -282,7 +281,7 @@ SDL_Image::SDL_Image(std::string filePath) {
     }
     spriteTexture = SDL_CreateTextureFromSurface(renderer, spriteSurface);
     if (spriteTexture == NULL) {
-        Log::logWarning("Error creating texture");
+        Log::logWarning(std::string("Error creating texture: ") + SDL_GetError());
         return;
     }
     SDL_FreeSurface(spriteSurface);
