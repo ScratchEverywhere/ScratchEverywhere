@@ -1,5 +1,5 @@
 #include "../scratch/image.hpp"
-#include <gl2d.h>
+#include <nf_lib.h>
 //This image stuff is going to be tough; the DS uses memory "banks" of fixed sizes that might not be the best use of space when it comes to images.
 //The vram banks add up to 656 KB.
 
@@ -18,11 +18,11 @@ void Image::render(double xPos, double yPos, bool centered) {
 		newY += getHeight() /2;
 	}
 
-	
+	NF_load16BitsImage();
 }
 
 bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
-
+	NF_createSprite();
     return false;
 }
 
