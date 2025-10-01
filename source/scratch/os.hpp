@@ -164,8 +164,8 @@ void writeToFile(std::string message);
 
 class Timer {
   private:
-#ifdef __OGC__
-    u64 startTime;
+#if defined(__NDS__) || defined(__OGC__)
+    uint64_t startTime;
 #else
     std::chrono::high_resolution_clock::time_point startTime;
 #endif

@@ -17,6 +17,7 @@ std::vector<Monitor> Render::visibleVariables;
 #define SCREEN_HEIGHT 192
 
 bool Render::Init() {
+    cpuStartTiming(0);
     consoleDemoInit();
     if (!nitroFSInit(NULL)) {
         Log::logError("NitroFS Could not initialize!");
