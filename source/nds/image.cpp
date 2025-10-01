@@ -22,13 +22,13 @@ void Image::render(double xPos, double yPos, bool centered) {
 }
 
 bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) { // TODO
-    NF_CreateSprite(
-        0, // Sprite Id (0 – 127)
-        0, // Gfx slot (0 – 127)
-        0, // Palette slot (0 – 15)
-        0, // X coordinate
-        0  // Y coordinate
-    );
+    // NF_CreateSprite(
+    //     0, // Sprite Id (0 – 127)
+    //     0, // Gfx slot (0 – 127)
+    //     0, // Palette slot (0 – 15)
+    //     0, // X coordinate
+    //     0  // Y coordinate
+    // );
     return false;
 }
 
