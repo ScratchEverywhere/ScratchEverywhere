@@ -53,7 +53,7 @@ CFLAGS	:=	-g -Wall -O2 \
 			-ffunction-sections -fdata-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DHEADLESS_BUILD
+CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH)
