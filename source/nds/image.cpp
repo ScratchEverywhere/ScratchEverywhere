@@ -18,10 +18,10 @@ void Image::render(double xPos, double yPos, bool centered) {
 		newY += getHeight() / 2;
 	}
 
-	NF_load16BitsImage();
+	//NF_load16BitsImage();//TODO
 }
 
-bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
+bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {//TODO
 	NF_CreateSprite( 
 		0, // Sprite Id (0 – 127)
 		0, // Gfx slot (0 – 127)
@@ -32,7 +32,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     return false;
 }
 
-void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {//TODO
 }
 
 void Image::freeImage(const std::string &costumeId) {
