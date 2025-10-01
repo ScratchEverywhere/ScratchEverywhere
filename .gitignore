@@ -40,6 +40,7 @@ main.code-workspace
 
 # Executables
 *.exe
+*.nds
 *.out
 *.app
 *.3dsx

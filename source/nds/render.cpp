@@ -1,5 +1,7 @@
 #include "../scratch/render.hpp"
+#include <filesystem.h>
 #include <nds.h>
+#include <nf_lib.h>
 
 // Static member initialization
 std::chrono::_V2::system_clock::time_point Render::startTime;
@@ -12,10 +14,13 @@ std::vector<Monitor> Render::visibleVariables;
 
 bool Render::Init() {
     consoleDemoInit();
-    Log::log("Scratch Everywhere!");
-    while (1) {
-        swiWaitForVBlank(); // wait for screen refresh
+    if (!nitroFSInit(NULL)) {
+        Log::logError("NitroFS Could not initialize!");
+        while (1)
+            swiWaitForVBlank();
     }
+    NF_Set2D(0, 0);
+
     return true;
 }
 

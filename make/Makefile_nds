@@ -62,12 +62,12 @@ LDFLAGS	=	-specs=$(BLOCKSDS)/sys/crts/ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order matters!)
 #---------------------------------------------------------------------------------
-LIBS	:= -lstdc++ -lc -lnds9
+LIBS	:= -lnflib -lstdc++ -lc -lnds9
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries
 #---------------------------------------------------------------------------------
-LIBDIRS	:=	$(BLOCKSDS)/libs/libnds
+LIBDIRS	:=	$(BLOCKSDS)/libs/libnds /opt/wonderful/thirdparty/blocksds/external/nflib # <- TODO fix that
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
