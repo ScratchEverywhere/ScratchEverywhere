@@ -50,6 +50,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string costumeName = filename.substr(0, filename.find_last_of('.'));
+    if (images.find(costumeName) != images.end()) return true;
 
     std::string fullPath = filePath;
 
