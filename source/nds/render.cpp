@@ -1,4 +1,5 @@
 #include "../scratch/render.hpp"
+#include "image.hpp"
 #include <filesystem.h>
 #include <gl2d.h>
 #include <nds.h>
@@ -30,6 +31,8 @@ bool Render::Init() {
     }
     videoSetMode(MODE_0_3D);
     glScreen2D();
+    vramSetBankA(VRAM_A_TEXTURE);
+    vramSetBankE(VRAM_E_TEX_PALETTE);
 
     return true;
 }
@@ -71,12 +74,42 @@ void Render::renderSprites() {
 
     for (auto &sprite : sprites) {
         if (!sprite->visible || sprite->isStage) continue;
-        const int renderX = static_cast<int>(sprite->xPosition);
-        const int renderY = static_cast<int>(sprite->yPosition * -1);
-        sprite->spriteWidth = 6;
-        sprite->spriteHeight = 6;
 
-        glBoxFilled(renderX + (SCREEN_HALF_WIDTH - 3), renderY + (SCREEN_HALF_HEIGHT - 3), renderX + (SCREEN_HALF_WIDTH + 3), renderY + (SCREEN_HALF_HEIGHT + 3), RGB15(0, 0, 0));
+        auto imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
+        if (imgFind != images.end()) {
+            glImage *image = &imgFind->second.image;
+
+            // Set sprite dimensions
+            sprite->spriteWidth = image->width;
+            sprite->spriteHeight = image->height;
+
+            // TODO: look into making sprite->size a float or int for extra performance
+            const uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
+
+            // Do rotation
+            int16_t renderRotation = 0;
+            GL_FLIP_MODE flip = GL_FLIP_NONE;
+            if (sprite->rotationStyle == sprite->ALL_AROUND && sprite->rotation != 90) {
+                // convert Scratch rotation to whatever tf this is (-32768 to 32767)
+                renderRotation = ((sprite->rotation - 90) * 91);
+            } else if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
+                flip = GL_FLIP_H;
+            }
+
+            // Center the image
+            const int renderX = sprite->xPosition + SCREEN_HALF_WIDTH;
+            const int renderY = -sprite->yPosition + SCREEN_HALF_HEIGHT;
+
+            glSpriteRotateScale(renderX, renderY, renderRotation, renderScale, flip, image);
+
+        } else {
+            const int renderX = static_cast<int>(sprite->xPosition);
+            const int renderY = static_cast<int>(sprite->yPosition * -1);
+            sprite->spriteWidth = 6;
+            sprite->spriteHeight = 6;
+
+            glBoxFilled(renderX + (SCREEN_HALF_WIDTH - 3), renderY + (SCREEN_HALF_HEIGHT - 3), renderX + (SCREEN_HALF_WIDTH + 3), renderY + (SCREEN_HALF_HEIGHT + 3), RGB15(0, 0, 0));
+        }
     }
 
     glEnd2D();

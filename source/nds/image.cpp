@@ -1,7 +1,32 @@
-#include "../scratch/image.hpp"
-#include <nf_lib.h>
+#include "image.hpp"
+// #include <nf_lib.h>
+#define STBI_NO_GIF
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#include "unzip.hpp"
 // This image stuff is going to be tough; the DS uses memory "banks" of fixed sizes that might not be the best use of space when it comes to images.
 // The vram banks add up to 656 KB.
+
+std::unordered_map<std::string, imagePAL8> images;
+
+const uint16_t next_pow2(uint16_t n) {
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
+}
+
+const uint16_t clamp(uint16_t n, uint16_t lower, uint16_t upper) {
+    if (n < lower)
+        return lower;
+    if (n > upper)
+        return upper;
+    return n;
+}
 
 Image::Image(std::string filePath) : width(0), height(0), scale(1.0), opacity(1.0), rotation(0.0) {
 }
@@ -21,21 +46,178 @@ void Image::render(double xPos, double yPos, bool centered) {
     // NF_load16BitsImage();//TODO
 }
 
-bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) { // TODO
-    // NF_CreateSprite(
-    //     0, // Sprite Id (0 – 127)
-    //     0, // Gfx slot (0 – 127)
-    //     0, // Palette slot (0 – 15)
-    //     0, // X coordinate
-    //     0  // Y coordinate
-    // );
-    return false;
+bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
+
+    std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
+    std::string costumeName = filename.substr(0, filename.find_last_of('.'));
+
+    std::string fullPath = filePath;
+
+    if (fromScratchProject) fullPath = "project/" + fullPath;
+
+    FILE *file = fopen(fullPath.c_str(), "rb");
+    if (!file) {
+        Log::logWarning("Image file not found: " + fullPath);
+        return false;
+    }
+
+    imageRGBA newRGBA;
+    int channels;
+    int width, height;
+    newRGBA.data =
+        stbi_load_from_file(file, &width, &height, &channels, 4);
+    fclose(file);
+
+    if (!newRGBA.data) {
+        Log::logWarning("Failed to decode image: " + fullPath);
+        return false;
+    }
+
+    newRGBA.width = width;
+    newRGBA.height = height;
+    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 0, 1024);
+    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 0, 1024);
+    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
+
+    imagePAL8 image = RGBAToPAL8(newRGBA);
+    if (uploadPAL8ToVRAM(image, &image.image)) {
+        images[costumeName] = image;
+    }
+    stbi_image_free(newRGBA.data);
+    return true;
 }
 
 void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) { // TODO
 }
 
+imagePAL8 RGBAToPAL8(const imageRGBA &rgba) {
+    imagePAL8 ds = {};
+    ds.width = rgba.width;
+    ds.height = rgba.height;
+    ds.textureWidth = rgba.textureWidth;
+    ds.textureHeight = rgba.textureHeight;
+
+    const int imgW = rgba.width;
+    const int imgH = rgba.height;
+    const int texW = rgba.textureWidth;
+    const int texH = rgba.textureHeight;
+    const int totalPixels = texW * texH;
+
+    ds.textureData = new unsigned char[totalPixels];
+
+    std::map<unsigned int, int> colorMap;
+    std::vector<unsigned short> palette;
+    palette.reserve(256);
+
+    // reserve index 0 for transparency
+    palette.push_back(0x0000);
+
+    for (int y = 0; y < texH; ++y) {
+        for (int x = 0; x < texW; ++x) {
+            int dstIndex = y * texW + x;
+
+            // If pixel is out of bounds, give it transparency
+            if (x >= imgW || y >= imgH) {
+                ds.textureData[dstIndex] = 0;
+                continue;
+            }
+
+            int srcIndex = (y * imgW + x) * 4;
+            unsigned char r = rgba.data[srcIndex + 0];
+            unsigned char g = rgba.data[srcIndex + 1];
+            unsigned char b = rgba.data[srcIndex + 2];
+            unsigned char a = rgba.data[srcIndex + 3];
+
+            // get transparency from alpha
+            if (a <= 127) {
+                ds.textureData[dstIndex] = 0;
+                continue;
+            }
+
+            unsigned int colorKey = ((unsigned int)r << 16) |
+                                    ((unsigned int)g << 8) |
+                                    ((unsigned int)b);
+
+            auto it = colorMap.find(colorKey);
+            if (it != colorMap.end()) {
+                ds.textureData[dstIndex] = (unsigned char)it->second;
+            } else {
+                if (palette.size() < 256) {
+                    int newIndex = (int)palette.size();
+                    colorMap[colorKey] = newIndex;
+                    unsigned short rgb555 = RGB15(r >> 3, g >> 3, b >> 3) | BIT(15);
+                    palette.push_back(rgb555);
+                    ds.textureData[dstIndex] = (unsigned char)newIndex;
+                } else {
+                    // color palette full: fallback to index 1 (TODO: maybe something else could be done here?)
+                    ds.textureData[dstIndex] = 1;
+                }
+            }
+        }
+    }
+
+    // Copy palette into DS-format array
+    ds.paletteSize = (int)palette.size();
+    ds.paletteData = new unsigned short[256];
+    for (size_t i = 0; i < palette.size(); ++i)
+        ds.paletteData[i] = palette[i];
+    for (size_t i = palette.size(); i < 256; ++i)
+        ds.paletteData[i] = 0x0000;
+
+    ds.textureMemSize = totalPixels + (256 * 2); // texture bytes + palette bytes
+    Log::log("Tex converted! Size: " + std::to_string(ds.textureMemSize / 1000) + " KB");
+    return ds;
+}
+
+bool uploadPAL8ToVRAM(imagePAL8 &image, glImage *outImage) {
+    int texID = glLoadTileSet(
+        outImage,
+        image.width,
+        image.height,
+        image.textureWidth,
+        image.textureHeight,
+        GL_RGB256,
+        image.textureWidth,
+        image.textureHeight,
+        TEXGEN_TEXCOORD | GL_TEXTURE_COLOR0_TRANSPARENT,
+        256,
+        (const u16 *)image.paletteData,
+        (const u8 *)image.textureData);
+
+    freePAL8(image);
+
+    if (texID < 0) {
+        Log::logWarning("Failed to upload tex. " +
+                        (texID == -1
+                             ? std::string(" Out of VRAM!")
+                             : " Error " + std::to_string(texID)));
+
+        return false;
+    }
+
+    image.textureID = texID;
+
+    return true;
+}
+
+void freePAL8(imagePAL8 &image) {
+    delete[] image.paletteData;
+    image.paletteData = nullptr;
+    delete[] image.textureData;
+    image.textureData = nullptr;
+}
+
 void Image::freeImage(const std::string &costumeId) {
+    auto imgFind = images.find(costumeId);
+    if (imgFind == images.end()) {
+        Log::logWarning("Could not find image to free!");
+        return;
+    }
+
+    imagePAL8 &image = imgFind->second;
+    glDeleteTextures(1, &image.textureID);
+
+    images.erase(imgFind);
 }
 
 void Image::cleanupImages() {
