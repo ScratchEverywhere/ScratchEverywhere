@@ -36,7 +36,14 @@ void drawSwzl(swzlImg *img, uint16_t x, uint16_t y, bool centered = false)
     }
     else
     {
-
+		for (uint8_t py = 0; py < img.h; i++)
+        {
+            for (uint8_t px = 0; px < img.w; i++)
+            {
+                swzlPixel thisPixel = img.img[w + (h * img.w)];
+                glBoxFill((px * scale) + x, (py * scale) + y, (px * scale) + x + scale, (py * scale) + y + scale, convertSwzlPixel(thisPixel,img.palette));
+            }
+        }
     }
     glEnd2D();
 }
