@@ -17,7 +17,7 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 <small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
 
 ## Controls
-![Controls](docs/scratch3dscontrols.png)
+![Controls](docs/controls.png)
 
 ### Mouse
 
