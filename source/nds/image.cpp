@@ -228,4 +228,14 @@ void Image::queueFreeImage(const std::string &costumeId) {
 }
 
 void Image::FlushImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, data] : images) {
+        data.freeTimer--;
+        if (data.freeTimer <= 0) {
+            toDelete.push_back(id);
+        }
+    }
+    for (auto &del : toDelete) {
+        freeImage(del);
+    }
 }

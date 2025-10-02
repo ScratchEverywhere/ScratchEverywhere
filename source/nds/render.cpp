@@ -21,6 +21,8 @@ std::vector<Monitor> Render::visibleVariables;
 #define SCREEN_HALF_WIDTH 132.5
 #define SCREEN_HALF_HEIGHT 96
 
+#define IMG_MAX_FREE_TIMER 150
+
 bool Render::Init() {
     cpuStartTiming(0);
     consoleDemoInit();
@@ -81,6 +83,7 @@ void Render::renderSprites() {
 
         auto imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
         if (imgFind != images.end()) {
+            imgFind->second.freeTimer = IMG_MAX_FREE_TIMER;
             glImage *image = &imgFind->second.image;
 
             // Set sprite dimensions
@@ -118,6 +121,7 @@ void Render::renderSprites() {
 
     glEnd2D();
     glFlush(0);
+    Image::FlushImages();
     swiWaitForVBlank();
 }
 

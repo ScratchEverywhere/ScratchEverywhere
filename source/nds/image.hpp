@@ -28,6 +28,7 @@ struct imagePAL8 {
     int textureID;
     int paletteID;
     glImage image;
+    uint8_t freeTimer = 150;
 };
 
 extern std::unordered_map<std::string, imagePAL8> images;
