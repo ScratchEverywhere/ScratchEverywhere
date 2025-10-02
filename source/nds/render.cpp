@@ -32,7 +32,11 @@ bool Render::Init() {
     videoSetMode(MODE_0_3D);
     glScreen2D();
     vramSetBankA(VRAM_A_TEXTURE);
+    vramSetBankB(VRAM_B_TEXTURE);
+    vramSetBankC(VRAM_C_TEXTURE);
+    vramSetBankD(VRAM_D_TEXTURE);
     vramSetBankE(VRAM_E_TEX_PALETTE);
+    vramSetBankF(VRAM_F_TEX_PALETTE);
 
     return true;
 }
@@ -121,9 +125,9 @@ void Render::renderVisibleVariables() {
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-	glBegin2D();
-	glBoxFilled(x, y, w, h, RGB15(colorR, colorB, colorG));
-	glEnd2D();
+    glBegin2D();
+    glBoxFilled(x, y, w, h, RGB15(colorR, colorB, colorG));
+    glEnd2D();
     glFlush(0);
     swiWaitForVBlank();
 }
