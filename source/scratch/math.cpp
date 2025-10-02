@@ -7,6 +7,9 @@
 #ifdef __3DS__
 #include <citro2d.h>
 #endif
+#ifdef __NDS__
+#include <nds.h>
+#endif
 
 int Math::color(int r, int g, int b, int a) {
     r = std::clamp(r, 0, 255);
@@ -14,8 +17,11 @@ int Math::color(int r, int g, int b, int a) {
     b = std::clamp(b, 0, 255);
     a = std::clamp(a, 0, 255);
 
-#ifdef __3DS__
-    return C2D_Color32(r, g, b, a);
+#ifdef __NDS__
+    int r5 = r >> 3;
+    int g5 = g >> 3;
+    int b5 = b >> 3;
+    return RGB15(r5, g5, b5);
 #elif defined(SDL_BUILD)
     return (r << 24) |
            (g << 16) |
