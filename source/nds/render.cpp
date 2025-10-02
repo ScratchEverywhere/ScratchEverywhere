@@ -89,11 +89,10 @@ void Render::renderVisibleVariables() {
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
 	glBegin2D();
-	glBoxFilled(x, y,w, h, RGB15(colorR, colorB, colorG));
-	    glEnd2D();
+	glBoxFilled(x, y, w, h, RGB15(colorR, colorB, colorG));
+	glEnd2D();
     glFlush(0);
     swiWaitForVBlank();
-	
 }
 
 bool Render::appShouldRun() {
