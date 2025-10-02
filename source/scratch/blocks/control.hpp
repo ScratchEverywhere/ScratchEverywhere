@@ -18,4 +18,5 @@ class ControlBlocks {
     static Value getCounter(Block &block, Sprite *sprite);
     static BlockResult clearCounter(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult incrementCounter(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult forEach(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 };
