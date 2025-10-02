@@ -19,7 +19,7 @@ void stbToSwzl(uint8_t *img, swzlImg *swzl)
 { // TODO
 }
 
-void drawSwzl(swzlImg *img, uint16_t x, uint16_t y, bool centered = false)
+void drawSwzl(swzlImg *img, uint16_t x, uint16_t y, bool centered = false)// this is slow, and won't stay for long
 {// swizzle magic
     glBegin2D();
     uint8_t r,g,b;
