@@ -106,6 +106,7 @@ class ProjectSettings : public Menu {
     ButtonObject *UnpackProjectButton = nullptr;
     ButtonObject *DeleteUnpackProjectButton = nullptr;
     ButtonObject *bottomScreenButton = nullptr;
+    ButtonObject *collisionModeButton = nullptr;
 
     bool canUnpacked = true;
     bool shouldGoBack = false;

@@ -4,10 +4,13 @@
 #include "input.hpp"
 #include "interpret.hpp"
 #include "keyboard.hpp"
+#include "math.hpp"
+#include "menus/menuObjects.hpp"
 #include "render.hpp"
 #include "unzip.hpp"
 #include <cctype>
 #include <nlohmann/json.hpp>
+#include <system_error>
 #ifdef __WIIU__
 #include <whb/sdcard.h>
 #endif
@@ -602,15 +605,19 @@ ProjectSettings::~ProjectSettings() {
 void ProjectSettings::init() {
     // initialize
 
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 55, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
-    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 105, "gfx/menu/Ubuntu-Bold");
     UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
-    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.svg", 200, 105, "gfx/menu/Ubuntu-Bold");
     DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
-    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
+    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 155, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
+    collisionModeButton = new ButtonObject("Collision Mode", "gfx/menu/projectBox.svg", 200, 205, "gfx/menu/Ubuntu-Bold");
+    collisionModeButton->text->setColor(Math::color(0, 0, 0, 255));
+    collisionModeButton->text->setScale(0.5);
+    collisionModeButton->buttonTexture->height = collisionModeButton->buttonTexture->image->getHeight();
 
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -623,33 +630,38 @@ void ProjectSettings::init() {
 
     if (canUnpacked) {
         changeControlsButton->buttonDown = UnpackProjectButton;
-        changeControlsButton->buttonUp = UnpackProjectButton;
+        changeControlsButton->buttonUp = collisionModeButton;
         UnpackProjectButton->buttonUp = changeControlsButton;
         UnpackProjectButton->buttonDown = bottomScreenButton;
-        bottomScreenButton->buttonDown = changeControlsButton;
+        bottomScreenButton->buttonDown = collisionModeButton;
         bottomScreenButton->buttonUp = UnpackProjectButton;
+        collisionModeButton->buttonUp = bottomScreenButton;
+        collisionModeButton->buttonDown = changeControlsButton;
     } else {
         changeControlsButton->buttonDown = DeleteUnpackProjectButton;
-        changeControlsButton->buttonUp = DeleteUnpackProjectButton;
+        changeControlsButton->buttonUp = collisionModeButton;
         DeleteUnpackProjectButton->buttonUp = changeControlsButton;
         DeleteUnpackProjectButton->buttonDown = bottomScreenButton;
-        bottomScreenButton->buttonDown = changeControlsButton;
+        bottomScreenButton->buttonDown = collisionModeButton;
         bottomScreenButton->buttonUp = DeleteUnpackProjectButton;
+        collisionModeButton->buttonUp = bottomScreenButton;
+        collisionModeButton->buttonDown = DeleteUnpackProjectButton;
     }
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
     settingsControl->buttonObjects.push_back(bottomScreenButton);
+    settingsControl->buttonObjects.push_back(collisionModeButton);
 
     nlohmann::json settings = getProjectSettings();
-    if (!settings.is_null() && !settings["settings"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
-        bottomScreenButton->text->setText("Bottom Screen: ON");
-    } else {
-        bottomScreenButton->text->setText("Bottom Screen: OFF");
-    }
+    bottomScreenButton->text->setText("Bottom Screen: " + std::string(!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>() ? "ON" : "OFF"));
+    collisionModeButton->text->setText("Collision Mode: " + (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["collisionMode"].is_null() ? settings["settings"]["collisionMode"].get<std::string>() : "Fixed Resolution"));
+    collisionModeButton->buttonTexture->width = settings.is_null() || settings["settings"].is_null() || settings["settings"]["collisionMode"].is_null() || settings["settings"]["collisionMode"] == "Fixed Resolution" ? 500 : settings["settings"]["collisionMode"] == "Box" ? collisionModeButton->buttonTexture->image->getWidth()
+                                                                                                                                                                                                                                                                              : 525;
 
     isInitialized = true;
 }
+
 void ProjectSettings::render() {
     Input::getInput();
     settingsControl->input();
@@ -665,6 +677,15 @@ void ProjectSettings::render() {
         screenSetting["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
         applySettings(screenSetting);
         bottomScreenButton->text->setText(bottomScreenButton->text->getText() == "Bottom Screen: ON" ? "Bottom Screen: OFF" : "Bottom Screen: ON");
+    }
+    if (collisionModeButton->isPressed()) {
+        nlohmann::json collisionModeSetting;
+        collisionModeSetting["collisionMode"] = collisionModeButton->text->getText() == "Collision Mode: Box" ? "Fixed Resolution" : collisionModeButton->text->getText() == "Collision Mode: Fixed Resolution" ? "Percent Resolution"
+                                                                                                                                                                                                                : "Box";
+        applySettings(collisionModeSetting);
+        collisionModeButton->text->setText("Collision Mode: " + collisionModeSetting["collisionMode"].get<std::string>());
+        collisionModeButton->buttonTexture->width = collisionModeSetting["collisionMode"] == "Box" ? collisionModeButton->buttonTexture->image->getWidth() : collisionModeSetting["collisionMode"] == "Fixed Resolution" ? 500
+                                                                                                                                                                                                                         : 525;
     }
     if (UnpackProjectButton->isPressed({"a"}) && canUnpacked) {
         cleanup();
@@ -705,6 +726,7 @@ void ProjectSettings::render() {
     if (canUnpacked) UnpackProjectButton->render();
     if (!canUnpacked) DeleteUnpackProjectButton->render();
     bottomScreenButton->render();
+    collisionModeButton->render();
     settingsControl->render();
     backButton->render();
 
@@ -780,6 +802,10 @@ void ProjectSettings::cleanup() {
     if (backButton != nullptr) {
         delete backButton;
         backButton = nullptr;
+    }
+    if (collisionModeButton != nullptr) {
+        delete collisionModeButton;
+        collisionModeButton = nullptr;
     }
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);
