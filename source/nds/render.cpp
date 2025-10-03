@@ -3,7 +3,6 @@
 #include <filesystem.h>
 #include <gl2d.h>
 #include <nds.h>
-#include <nf_lib.h>
 
 // Static member initialization
 std::chrono::_V2::system_clock::time_point Render::startTime;

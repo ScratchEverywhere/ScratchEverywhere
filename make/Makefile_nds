@@ -27,7 +27,7 @@ RANLIB		:= $(PREFIX)ranlib
 # INCLUDES is a list of directories containing extra header files
 # DATA is a list of directories containing binary files
 #---------------------------------------------------------------------------------
-TARGET		:=	Scratch-ds
+TARGET		:=	scratch-ds
 BUILD		:=	build
 SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/nds include/miniz
 INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/nds include/nlohmann
@@ -62,12 +62,12 @@ LDFLAGS	=	-specs=$(BLOCKSDS)/sys/crts/ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order matters!)
 #---------------------------------------------------------------------------------
-LIBS	:= -lnflib -lstdc++ -lc -lnds9
+LIBS	:= -lstdc++ -lc -lnds9
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries
 #---------------------------------------------------------------------------------
-LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(WONDERFUL_TOOLCHAIN)/thirdparty/blocksds/external/nflib
+LIBDIRS	:=	$(BLOCKSDS)/libs/libnds
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
