@@ -51,8 +51,8 @@ SDL_Renderer *renderer = nullptr;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
-std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
+std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
+std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 
 // TODO: properly export these to input.cpp
@@ -162,7 +162,7 @@ postAccount:
     }
 #endif
     TTF_Init();
-    window = SDL_CreateWindow("Scratch Runtime", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);

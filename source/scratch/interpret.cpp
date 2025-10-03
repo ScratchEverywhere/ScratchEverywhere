@@ -53,9 +53,12 @@ BlockExecutor executor;
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
+bool Scratch::turbo = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
+
+double Scratch::counter = 0;
 
 bool Scratch::nextProject = false;
 Value Scratch::dataNextProject;
@@ -217,10 +220,12 @@ void Scratch::cleanupScratchProject() {
 
     // reset default settings
     Scratch::FPS = 30;
+    Scratch::turbo = false;
     Scratch::projectWidth = 480;
     Scratch::projectHeight = 360;
     Scratch::fencing = true;
     Scratch::miscellaneousLimits = true;
+    Scratch::counter = 0;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
     // Unzip::filePath = "";
     Log::log("Cleaned up Scratch project.");
@@ -874,58 +879,67 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
     // set advanced project settings properties
-    int wdth = 0;
-    int hght = 0;
-    int framerate = 0;
-    bool fncng = true;
-    bool miscLimits = true;
     bool infClones = false;
 
     try {
-        framerate = config["framerate"].get<int>();
-        Scratch::FPS = framerate;
-        Log::log("FPS = " + std::to_string(Scratch::FPS));
+        Scratch::FPS = config["framerate"].get<int>();
+        Log::log("Set FPS to: " + std::to_string(Scratch::FPS));
     } catch (...) {
+#ifdef DEBUG
         Log::logWarning("no framerate property.");
+#endif
     }
     try {
-        wdth = config["width"].get<int>();
-        Scratch::projectWidth = wdth;
-        Log::log("game width = " + std::to_string(Scratch::projectWidth));
+        Scratch::turbo = config["turbo"].get<bool>();
+        Log::log("Set turbo mode to: " + std::to_string(Scratch::turbo));
     } catch (...) {
+#ifdef DEBUG
+        Log::logWarning("no turbo property.");
+#endif
+    }
+    try {
+        Scratch::projectWidth = config["width"].get<int>();
+        Log::log("Set width to:" + std::to_string(Scratch::projectWidth));
+    } catch (...) {
+#ifdef DEBUG
         Log::logWarning("no width property.");
+#endif
     }
     try {
-        hght = config["height"].get<int>();
-        Scratch::projectHeight = hght;
-        Log::log("game height = " + std::to_string(Scratch::projectHeight));
+        Scratch::projectHeight = config["height"].get<int>();
+        Log::log("Set height to: " + std::to_string(Scratch::projectHeight));
     } catch (...) {
+#ifdef DEBUG
         Log::logWarning("no height property.");
+#endif
     }
     try {
-        fncng = config["runtimeOptions"]["fencing"].get<bool>();
-        Scratch::fencing = fncng;
-        Log::log(std::string("Fencing is ") + (Scratch::fencing ? "true" : "false"));
+        Scratch::fencing = config["runtimeOptions"]["fencing"].get<bool>();
+        Log::log("Set fencing to: " + std::to_string(Scratch::fencing));
     } catch (...) {
+#ifdef DEBUG
         Log::logWarning("no fencing property.");
+#endif
     }
     try {
-        miscLimits = config["runtimeOptions"]["miscLimits"].get<bool>();
-        Scratch::miscellaneousLimits = miscLimits;
-        Log::log(std::string("Misc limits is ") + (Scratch::miscellaneousLimits ? "true" : "false"));
+        Scratch::miscellaneousLimits = config["runtimeOptions"]["miscLimits"].get<bool>();
+        Log::log("Set misc limits to: " + std::to_string(Scratch::miscellaneousLimits));
     } catch (...) {
-
+#ifdef DEBUG
         Log::logWarning("no misc limits property.");
+#endif
     }
     try {
         infClones = !config["runtimeOptions"]["maxClones"].is_null();
     } catch (...) {
+#ifdef DEBUG
         Log::logWarning("No Max clones property.");
+#endif
     }
 
-    if (wdth == 400 && hght == 480)
+    if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
-    else if (wdth == 320 && hght == 240)
+    else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
         Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
     else {
         auto bottomScreen = Unzip::getSetting("bottomScreen");

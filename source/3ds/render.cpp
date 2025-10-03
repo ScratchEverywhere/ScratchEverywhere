@@ -6,6 +6,7 @@
 #include "render.hpp"
 #include "text.hpp"
 #include "unzip.hpp"
+#include <chrono>
 #ifdef ENABLE_AUDIO
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
@@ -29,8 +30,8 @@ u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
 u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
 u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
-std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
+std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
+std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 static bool isConsoleInit = false;
 

@@ -92,6 +92,7 @@ void Input::getInput() {
                 else if (keyName == "down") keyName = "down arrow";
                 else if (keyName == "left") keyName = "left arrow";
                 else if (keyName == "right") keyName = "right arrow";
+                else if (keyName == "return") keyName = "enter";
 
                 inputButtons.push_back(keyName);
                 anyKeyPressed = true;
