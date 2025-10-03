@@ -1,5 +1,6 @@
 #include "math.hpp"
 #include <algorithm>
+#include <ctime>
 #include <math.h>
 #include <random>
 #include <string>
