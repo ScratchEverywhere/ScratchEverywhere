@@ -13,11 +13,11 @@
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
 
-![Runtime running a Scratch project on Wii U, Wii, and 3DS](scratchcats3ds.gif)
+![Runtime running a Scratch project on Wii U, Wii, and 3DS](docs/demo.gif)
 <small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
 
 ## Controls
-![Controls](scratch%203ds%20controls.png)
+![Controls](docs/controls.png)
 
 ### Mouse
 
@@ -259,6 +259,8 @@ The recommended way to compile Scratch Everywhere! is with Docker. To compile wi
 
 - To compile for the **Vita**, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
 
+- To compile for the **NDS**, run `docker build -f docker/Dockerfile.nds --target exporter -o . .`.
+
 
 #### Manual
 
@@ -270,6 +272,7 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 - **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 - **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
 - **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
+- **For the NDS**, you will need to install the [BlocksDS](https://blocksds.skylyrac.net/docs/setup/options/) toolchain. Once installed correctly it should have everything you need.
 
 > [!NOTE]
 > DevkitPro's install instructions are available at: https://devkitpro.org/wiki/Getting_Started
@@ -287,6 +290,7 @@ Then you need to compile the projects into proper Homebrew packages.
 - **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
 - **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
 - **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
+- **For the NDS**, run `make PLATFORM=nds`, then find the `.nds` file.
 
 #### Compilation Flags
 

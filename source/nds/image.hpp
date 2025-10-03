@@ -9,6 +9,8 @@ struct imageRGBA {
     std::string fullName; // "image.png"
     uint16_t width;
     uint16_t height;
+    int scaleX;
+    int scaleY;
 
     //  same as width/height but as powers of 2 for NDS
     uint16_t textureWidth;
@@ -21,6 +23,8 @@ struct imageRGBA {
 struct imagePAL8 {
     int width, height;
     int textureWidth, textureHeight;
+    int scaleX;
+    int scaleY;
     unsigned char *textureData;
     unsigned short *paletteData;
     int paletteSize;
@@ -28,9 +32,11 @@ struct imagePAL8 {
     int textureID;
     int paletteID;
     glImage image;
+    uint8_t freeTimer = 150;
 };
 
 extern std::unordered_map<std::string, imagePAL8> images;
 imagePAL8 RGBAToPAL8(const imageRGBA &rgba);
 void freePAL8(imagePAL8 &image);
 bool uploadPAL8ToVRAM(imagePAL8 &image, glImage *outImage);
+bool resizeRGBAImage(uint16_t newWidth, uint16_t newHeight, imageRGBA &rgba);

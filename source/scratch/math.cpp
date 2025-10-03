@@ -1,11 +1,14 @@
 #include "math.hpp"
 #include <algorithm>
-#include <boost/regex.hpp>
+#include <ctime>
 #include <math.h>
 #include <random>
 #include <string>
 #ifdef __3DS__
 #include <citro2d.h>
+#endif
+#ifdef __NDS__
+#include <nds.h>
 #endif
 
 int Math::color(int r, int g, int b, int a) {
@@ -14,8 +17,11 @@ int Math::color(int r, int g, int b, int a) {
     b = std::clamp(b, 0, 255);
     a = std::clamp(a, 0, 255);
 
-#ifdef __3DS__
-    return C2D_Color32(r, g, b, a);
+#ifdef __NDS__
+    int r5 = r >> 3;
+    int g5 = g >> 3;
+    int b5 = b >> 3;
+    return RGB15(r5, g5, b5);
 #elif defined(SDL_BUILD)
     return (r << 24) |
            (g << 16) |
@@ -24,8 +30,36 @@ int Math::color(int r, int g, int b, int a) {
 #endif
 }
 
+double Math::parseNumber(const std::string &str) {
+    if (str[0] == '0') {
+        uint8_t base = 0;
+
+        switch (str[1]) {
+        case 'x':
+            base = 16;
+            break;
+        case 'b':
+            base = 2;
+            break;
+        case 'o':
+            base = 8;
+            break;
+        }
+
+        if (base != 0)
+            return std::stoi(str.substr(2, str.length() - 2), 0, base);
+    }
+
+    return std::stod(str);
+}
+
 bool Math::isNumber(const std::string &str) {
-    return boost::regex_match(str, boost::regex("^((0x[\\da-f]+)|(0b[01]+)|(0o[0-7]+)|([+-]?((\\d+(\\.\\d+)?)|((\\d+)?\\.\\d+))(e[+-]?\\d+)?))$", boost::regex::icase)); // I hope I never need to touch this again x2 (it was rewritten, to handle more edge cases).
+    try {
+        parseNumber(str);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 double Math::degreesToRadians(double degrees) {

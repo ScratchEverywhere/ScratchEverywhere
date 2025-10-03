@@ -1,5 +1,4 @@
 #include "image.hpp"
-// #include <nf_lib.h>
 #define STBI_NO_GIF
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -50,6 +49,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string costumeName = filename.substr(0, filename.find_last_of('.'));
+    if (images.find(costumeName) != images.end()) return true;
 
     std::string fullPath = filePath;
 
@@ -75,9 +75,12 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     newRGBA.width = width;
     newRGBA.height = height;
+    newRGBA.scaleX = 1 << 12;
+    newRGBA.scaleY = 1 << 12;
     newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 0, 1024);
     newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 0, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
+    // resizeRGBAImage(newRGBA.width / 4, newRGBA.height / 4, newRGBA);
 
     imagePAL8 image = RGBAToPAL8(newRGBA);
     if (uploadPAL8ToVRAM(image, &image.image)) {
@@ -90,12 +93,44 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) { // TODO
 }
 
+bool resizeRGBAImage(uint16_t newWidth, uint16_t newHeight, imageRGBA &rgba) {
+    unsigned char *resizedData = new unsigned char[newWidth * newHeight * 4];
+
+    for (int y = 0; y < newHeight; y++) {
+        for (int x = 0; x < newWidth; x++) {
+            int srcX = x * rgba.width / newWidth;
+            int srcY = y * rgba.height / newHeight;
+
+            unsigned char *srcPixel = &rgba.data[(srcY * rgba.width + srcX) * 4];
+            unsigned char *dstPixel = &resizedData[(y * newWidth + x) * 4];
+
+            dstPixel[0] = srcPixel[0]; // R
+            dstPixel[1] = srcPixel[1]; // G
+            dstPixel[2] = srcPixel[2]; // B
+            dstPixel[3] = srcPixel[3]; // A
+        }
+    }
+
+    stbi_image_free(rgba.data);
+    rgba.data = resizedData;
+    rgba.scaleX = (rgba.width << 12) / newWidth;
+    rgba.scaleY = (rgba.height << 12) / newHeight;
+    rgba.width = newWidth;
+    rgba.height = newHeight;
+    rgba.textureWidth = clamp(next_pow2(rgba.width), 0, 1024);
+    rgba.textureHeight = clamp(next_pow2(rgba.height), 0, 1024);
+    rgba.textureMemSize = rgba.textureWidth * rgba.textureHeight * 4;
+    return true;
+}
+
 imagePAL8 RGBAToPAL8(const imageRGBA &rgba) {
     imagePAL8 ds = {};
     ds.width = rgba.width;
     ds.height = rgba.height;
     ds.textureWidth = rgba.textureWidth;
     ds.textureHeight = rgba.textureHeight;
+    ds.scaleX = rgba.scaleX;
+    ds.scaleY = rgba.scaleY;
 
     const int imgW = rgba.width;
     const int imgH = rgba.height;
@@ -227,4 +262,14 @@ void Image::queueFreeImage(const std::string &costumeId) {
 }
 
 void Image::FlushImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, data] : images) {
+        data.freeTimer--;
+        if (data.freeTimer <= 0) {
+            toDelete.push_back(id);
+        }
+    }
+    for (auto &del : toDelete) {
+        freeImage(del);
+    }
 }

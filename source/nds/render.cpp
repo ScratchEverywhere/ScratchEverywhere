@@ -4,7 +4,6 @@
 #include <filesystem.h>
 #include <gl2d.h>
 #include <nds.h>
-#include <nf_lib.h>
 
 // Static member initialization
 std::chrono::_V2::system_clock::time_point Render::startTime;
@@ -21,6 +20,8 @@ std::vector<Monitor> Render::visibleVariables;
 
 #define SCREEN_HALF_WIDTH 132.5
 #define SCREEN_HALF_HEIGHT 96
+
+#define IMG_MAX_FREE_TIMER 150
 
 bool Render::Init() {
     cpuStartTiming(0);
@@ -82,14 +83,19 @@ void Render::renderSprites() {
 
         auto imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
         if (imgFind != images.end()) {
-            glImage *image = &imgFind->second.image;
+            imgFind->second.freeTimer = IMG_MAX_FREE_TIMER;
+            imagePAL8 data = imgFind->second;
+            glImage *image = &data.image;
 
             // Set sprite dimensions
             sprite->spriteWidth = image->width;
             sprite->spriteHeight = image->height;
 
             // TODO: look into making sprite->size a float or int for extra performance
-            const uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
+            uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
+            if (data.scaleX != 1 << 12 || data.scaleY != 1 << 12) {
+                renderScale = (renderScale * data.scaleX) >> 12;
+            }
 
             // Do rotation
             int16_t renderRotation = 0;
@@ -119,6 +125,7 @@ void Render::renderSprites() {
 
     glEnd2D();
     glFlush(0);
+    Image::FlushImages();
     swiWaitForVBlank();
 }
 
