@@ -24,8 +24,8 @@ SOURCES	+=	source/headless
 INCLUDES	+=	source/headless
 LDFLAGS    :=
 CFLAGS_BASE	:= -DHEADLESS_BUILD
-ENABLE_AUDIO=0
-ENABLE_LOADSCREEN=0
+ENABLE_AUDIO	=	0
+ENABLE_LOADSCREEN	=	0
 endif
 
 CFLAGS_BASE   += -D__PC__
@@ -53,10 +53,10 @@ endif
 CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++17 -Wall -fexceptions
 
 # Debug and Release flags
-CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -g -O0 -fsanitize=address -DDEBUG
+CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -fsanitize=address -g -O0 -DDEBUG
 CXXFLAGS_RELEASE := $(CXXFLAGS_BASE) -O2 -DNDEBUG
 
-CFLAGS_DEBUG   := $(CFLAGS_BASE) -g -O0 -fsanitize=address -DDEBUG
+CFLAGS_DEBUG   := $(CFLAGS_BASE) -fsanitize=address -g -O0 -DDEBUG
 CFLAGS_RELEASE := $(CFLAGS_BASE) -O2 -DNDEBUG
 
 # Find all .cpp and .c files recursively
