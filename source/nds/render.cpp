@@ -84,14 +84,18 @@ void Render::renderSprites() {
         auto imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
         if (imgFind != images.end()) {
             imgFind->second.freeTimer = IMG_MAX_FREE_TIMER;
-            glImage *image = &imgFind->second.image;
+            imagePAL8 data = imgFind->second;
+            glImage *image = &data.image;
 
             // Set sprite dimensions
             sprite->spriteWidth = image->width;
             sprite->spriteHeight = image->height;
 
             // TODO: look into making sprite->size a float or int for extra performance
-            const uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
+            uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
+            if (data.scaleX != 1 << 12 || data.scaleY != 1 << 12) {
+                renderScale = (renderScale * data.scaleX) >> 12;
+            }
 
             // Do rotation
             int16_t renderRotation = 0;
