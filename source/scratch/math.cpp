@@ -27,6 +27,8 @@ int Math::color(int r, int g, int b, int a) {
            (g << 16) |
            (b << 8) |
            a;
+#elif defined(__3DS__)
+    return C2D_Color32(r, g, b, a);
 #endif
 }
 

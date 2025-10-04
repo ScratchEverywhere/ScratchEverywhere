@@ -1,4 +1,5 @@
 #include "../scratch/render.hpp"
+#include "../scratch/input.hpp"
 #include "image.hpp"
 #include <filesystem.h>
 #include <gl2d.h>
@@ -117,6 +118,18 @@ void Render::renderSprites() {
 
             glSpriteRotateScale(renderX, renderY, renderRotation, renderScale, flip, image);
 
+            // auto collisionPoints = getCollisionPoints(sprite);
+            // for (const auto &point : collisionPoints) {
+
+            //     int drawX = (int)((point.first) + SCREEN_HALF_WIDTH);
+            //     int drawY = (int)((point.second * -1) + (SCREEN_HALF_HEIGHT));
+
+            //     glBoxFilled(
+            //         drawX - 1, drawY - 1,
+            //         drawX + 1, drawY + 1,
+            //         RGB15(31, 0, 0)); // Red box
+            // }
+
         } else {
             const int renderX = static_cast<int>(sprite->xPosition);
             const int renderY = static_cast<int>(sprite->yPosition * -1);
@@ -125,6 +138,12 @@ void Render::renderSprites() {
 
             glBoxFilled(renderX + (SCREEN_HALF_WIDTH - 3), renderY + (SCREEN_HALF_HEIGHT - 3), renderX + (SCREEN_HALF_WIDTH + 3), renderY + (SCREEN_HALF_HEIGHT + 3), RGB15(0, 0, 0));
         }
+    }
+
+    if (Input::mousePointer.isMoving) {
+        glBoxFilled(Input::mousePointer.x + (SCREEN_HALF_WIDTH - 3), -Input::mousePointer.y + (SCREEN_HALF_HEIGHT - 3),
+                    Input::mousePointer.x + (SCREEN_HALF_WIDTH + 3), -Input::mousePointer.y + (SCREEN_HALF_HEIGHT + 3),
+                    RGB15(0, 0, 15));
     }
 
     glEnd2D();

@@ -217,7 +217,7 @@ void Render::endFrame(bool shouldFlush) {
     hasFrameBegan = false;
 }
 
-void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
     SDL_Rect rect = {x - (w / 2), y - (h / 2), w, h};
     SDL_RenderFillRect(renderer, &rect);
