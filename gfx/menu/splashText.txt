@@ -25,7 +25,7 @@ We are NOT endorsed by the Scratch Foundation.
 "It's dot com!"
 "It's dot org!"
 "It's dot net!"
-"It's .NET Framework!"
+&
 ;
 This splash text was eaten by an evil kumquat.
 0.1 + 0.2 = 0.30000000000000004!
@@ -78,6 +78,8 @@ This code is sus
 error.bfsar
 {UserName}.szs
 {UserName}.bfsar
+{UserName}.bcsar
+{UserName}.brsar
 {UserName}.elf
 {UserName}.rpl
 {UserName}.rpx
@@ -85,6 +87,9 @@ error.bfsar
 {UserName}.aac
 {UserName}.oma
 {UserName}.data
+{UserName}.prx
+{UserName}0.png
+{UserName}.xml
 Hello {UserName}
 Wassup {UserName}
 BOO, {UserName}
@@ -94,18 +99,19 @@ is ur name {UserName}?
 {UserName} is running this on their {PlatformName}
 Look at {UserName} playing on their {PlatformName}!
 {UserName} is having fun on their {PlatformName}!
+{UserName}!
+{UserName} plays {PlatformName}
+{PlatformName}!
 I am in your walls
 W IN THE CHAT
 W NATE
 W GRADY
 Wii would like to play!
 Sound doesn't always work!
-gameboy cooks dino nuggies
+Hopper Heroes is our best game!
 yes??
 ish
 ftp://192.168.x.xxx:5000
-potato ds
 potato {PlatformName}
-あなたはがすきナソバトさんですか
 what???
 no way it's the famous focker
