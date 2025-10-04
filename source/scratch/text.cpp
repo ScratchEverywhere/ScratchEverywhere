@@ -4,6 +4,8 @@
 #include "../3ds/text_3ds.hpp"
 #elif defined(SDL_BUILD)
 #include "../sdl/text_sdl.hpp"
+#elif defined(HEADLESS_BUILD)
+#include "../headless/text_headless.hpp"
 #endif
 
 TextObject::TextObject(std::string txt, double posX, double posY, std::string fontPath) {
@@ -17,6 +19,8 @@ TextObject *createTextObject(std::string txt, double posX, double posY, std::str
     return new TextObject3DS(txt, posX, posY, fontPath);
 #elif defined(SDL_BUILD)
     return new TextObjectSDL(txt, posX, posY, fontPath);
+#elif defined(HEADLESS_BUILD)
+    return new HeadlessText(txt, posX, posY, fontPath);
 #else
     return nullptr;
 #endif

@@ -13,6 +13,9 @@
 #include <sstream>
 #include <whb/sdcard.h>
 #endif
+#ifdef __NDS__
+#include <nds.h>
+#endif
 
 size_t MemoryTracker::totalAllocated = 0;
 size_t MemoryTracker::peakUsage = 0;
@@ -66,6 +69,21 @@ int Timer::getTimeMs() {
     return ticks_to_millisecs(currentTime - startTime);
 }
 
+// Nintendo DS Timer implementation
+#elif defined(__NDS__)
+Timer::Timer() {
+    start();
+}
+void Timer::start() {
+    startTime = cpuGetTiming();
+}
+int Timer::getTimeMs() {
+    uint64_t currentTime = cpuGetTiming();
+    // CPU timing is in units based on the bus clock (33.513982 MHz)
+    // Convert to milliseconds: (ticks * 1000) / BUS_CLOCK
+    return static_cast<int>((currentTime - startTime) * 1000 / BUS_CLOCK);
+}
+
 // everyone else...
 #else
 Timer::Timer() {
@@ -109,6 +127,8 @@ std::string OS::getScratchFolderLocation() {
     return "ux0:data/scratch-vita/";
 #elif defined(__3DS__)
     return "sdmc:/3ds/scratch-everywhere/";
+#elif defined(__NDS__)
+    return "/scratch-everywhere/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -137,6 +157,8 @@ std::string OS::getPlatform() {
     return "Switch";
 #elif defined(VITA)
     return "Vita";
+#elif defined(__NDS__)
+    return "DS";
 #else
     return "Unknown";
 #endif
@@ -147,6 +169,13 @@ bool OS::isNew3DS() {
     bool out = false;
     APT_CheckNew3DS(&out);
     return out;
+#endif
+    return false;
+}
+
+bool OS::isDSi() {
+#ifdef __NDS__
+    return isDSiMode();
 #endif
     return false;
 }
