@@ -90,10 +90,11 @@ BOO, {UserName}
 I see you, {UserName}.
 WAIT I KNOW U ur {UserName} right??
 is ur name {UserName}
-{UserName} is running this on his {PlatformName}
-Look at {UserName} playing on his {PlatformName}!
-{UserName} is having fun on his {PlatformName}!
+{UserName} is running this on their {PlatformName}
+Look at {UserName} playing on their {PlatformName}!
+{UserName} is having fun on their {PlatformName}!
 I am in your walls
 W IN THE CHAT
 W NATE
 W GRADY
+Wii would like to play!
