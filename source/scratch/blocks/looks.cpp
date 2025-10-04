@@ -1,4 +1,5 @@
 #include "looks.hpp"
+#include "speech_manager.hpp"
 #include "blockExecutor.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
@@ -333,6 +334,53 @@ BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool 
     sprite->ghostEffect = 0.0f;
     sprite->colorEffect = -99999;
     sprite->brightnessEffect = 0.0f;
+
+    return BlockResult::CONTINUE;
+}
+
+BlockResult LooksBlocks::say(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+    std::string message = messageValue.asString();
+    
+    if (speechManager) {
+        speechManager->showSpeech(sprite, message, -1, "say");
+    }
+    
+    return BlockResult::CONTINUE;
+}
+// TODO: yield not yet implemented so sayForSeconds and thinkForSeconds blocks fire off next block immediately
+// (i.e. before timer expires, not how Scratch behaves)
+BlockResult LooksBlocks::sayForSeconds(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+    Value secondsValue = Scratch::getInputValue(block, "SECS", sprite);
+    std::string message = messageValue.asString();
+    double seconds = secondsValue.asDouble();
+    
+    if (speechManager) {
+        speechManager->showSpeech(sprite, message, seconds, "say");
+    }
+    
+    return BlockResult::CONTINUE;
+}
+BlockResult LooksBlocks::think(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+    std::string message = messageValue.asString();
+
+    if (speechManager) {
+        speechManager->showSpeech(sprite, message, -1, "think");
+    }
+
+    return BlockResult::CONTINUE;
+}
+BlockResult LooksBlocks::thinkForSeconds(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+    Value secondsValue = Scratch::getInputValue(block, "SECS", sprite);
+    std::string message = messageValue.asString();
+    double seconds = secondsValue.asDouble();
+
+    if (speechManager) {
+        speechManager->showSpeech(sprite, message, seconds, "think");
+    }
 
     return BlockResult::CONTINUE;
 }

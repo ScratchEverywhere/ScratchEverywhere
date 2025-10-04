@@ -6,6 +6,7 @@
 #include "math.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
+#include "speech_manager.hpp"
 #include "text.hpp"
 #include "unzip.hpp"
 #include <SDL2/SDL.h>
@@ -165,12 +166,19 @@ postAccount:
     window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
+    speechManager = new SpeechManager(renderer);
+
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
     debugMode = true;
     return true;
 }
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+    
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
@@ -422,6 +430,10 @@ void Render::renderSprites() {
 
         //     SDL_RenderFillRect(renderer, &debugPointRect);
         // }
+    }
+
+    if (speechManager) {
+        speechManager->render();
     }
 
     drawBlackBars(windowWidth, windowHeight);

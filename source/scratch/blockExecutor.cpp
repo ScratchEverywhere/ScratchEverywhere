@@ -70,6 +70,10 @@ void BlockExecutor::registerHandlers() {
     handlers["looks_seteffectto"] = LooksBlocks::setEffectTo;
     handlers["looks_changeeffectby"] = LooksBlocks::changeEffectBy;
     handlers["looks_cleargraphiceffects"] = LooksBlocks::clearGraphicEffects;
+    handlers["looks_say"] = LooksBlocks::say;
+    handlers["looks_sayforsecs"] = LooksBlocks::sayForSeconds;
+    handlers["looks_think"] = LooksBlocks::think;
+    handlers["looks_thinkforsecs"] = LooksBlocks::thinkForSeconds;
     valueHandlers["looks_size"] = LooksBlocks::size;
     valueHandlers["looks_costume"] = LooksBlocks::costume;
     valueHandlers["looks_backdrops"] = LooksBlocks::backdrops;
