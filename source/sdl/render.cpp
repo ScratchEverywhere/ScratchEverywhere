@@ -5,8 +5,8 @@
 #include "interpret.hpp"
 #include "math.hpp"
 #include "render.hpp"
-#include "sprite.hpp"
 #include "speech_manager.hpp"
+#include "sprite.hpp"
 #include "text.hpp"
 #include "unzip.hpp"
 #include <SDL2/SDL.h>
@@ -178,7 +178,7 @@ void Render::deInit() {
         delete speechManager;
         speechManager = nullptr;
     }
-    
+
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();

@@ -1,9 +1,9 @@
 #include "looks.hpp"
-#include "speech_manager.hpp"
 #include "blockExecutor.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
+#include "speech_manager.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
@@ -341,11 +341,11 @@ BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool 
 BlockResult LooksBlocks::say(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
     std::string message = messageValue.asString();
-    
+
     if (speechManager) {
         speechManager->showSpeech(sprite, message, -1, "say");
     }
-    
+
     return BlockResult::CONTINUE;
 }
 // TODO: yield not yet implemented so sayForSeconds and thinkForSeconds blocks fire off next block immediately
@@ -355,11 +355,11 @@ BlockResult LooksBlocks::sayForSeconds(Block &block, Sprite *sprite, bool *witho
     Value secondsValue = Scratch::getInputValue(block, "SECS", sprite);
     std::string message = messageValue.asString();
     double seconds = secondsValue.asDouble();
-    
+
     if (speechManager) {
         speechManager->showSpeech(sprite, message, seconds, "say");
     }
-    
+
     return BlockResult::CONTINUE;
 }
 BlockResult LooksBlocks::think(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {

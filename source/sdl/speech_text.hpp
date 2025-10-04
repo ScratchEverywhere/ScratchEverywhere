@@ -3,14 +3,14 @@
 #include <string>
 
 class SpeechTextObject : public TextObjectSDL {
-private:
+  private:
     std::string originalText;
     int maxWidth;
 
     void wrapText();
 
-public:
-    SpeechTextObject(const std::string& text, int maxWidth = 200);
+  public:
+    SpeechTextObject(const std::string &text, int maxWidth = 200);
     ~SpeechTextObject() override = default;
 
     void setText(std::string txt) override;

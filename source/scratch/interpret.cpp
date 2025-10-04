@@ -50,7 +50,7 @@ ProjectType projectType;
 
 BlockExecutor executor;
 
-SpeechManager* speechManager = nullptr;
+SpeechManager *speechManager = nullptr;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -164,12 +164,12 @@ bool Scratch::startScratchProject() {
     while (Render::appShouldRun()) {
         if (Render::checkFramerate()) {
             Input::getInput();
-            
+
             if (speechManager) {
                 double deltaTime = BlockExecutor::timer.getTimeMs() / 1000.0;
                 speechManager->update(deltaTime);
             }
-            
+
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
             Render::renderSprites();

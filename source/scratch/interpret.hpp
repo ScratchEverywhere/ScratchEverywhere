@@ -1,7 +1,7 @@
 #pragma once
 #include "blockExecutor.hpp"
-#include "sprite.hpp"
 #include "speech_manager.hpp"
+#include "sprite.hpp"
 #include <nlohmann/json.hpp>
 #include <string>
 #include <time.hpp>
@@ -18,7 +18,7 @@ class BlockExecutor;
 extern BlockExecutor executor;
 
 class SpeechManager;
-extern SpeechManager* speechManager;
+extern SpeechManager *speechManager;
 
 extern ProjectType projectType;
 

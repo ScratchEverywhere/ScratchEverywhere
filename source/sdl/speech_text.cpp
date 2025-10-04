@@ -3,7 +3,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <algorithm>
 
-SpeechTextObject::SpeechTextObject(const std::string& text, int maxWidth)
+SpeechTextObject::SpeechTextObject(const std::string &text, int maxWidth)
     : TextObjectSDL(text, 0, 0), maxWidth(maxWidth) {
     originalText = text;
     setColor(0x00);
@@ -37,7 +37,7 @@ void SpeechTextObject::wrapText() {
                 std::string line = currentLine.empty() ? currentWord : currentLine + " " + currentWord;
                 int width, height;
                 TTF_SizeUTF8(font, line.c_str(), &width, &height);
-                
+
                 if (width <= maxWidth) {
                     currentLine = line;
                 } else {
@@ -58,7 +58,7 @@ void SpeechTextObject::wrapText() {
         std::string line = currentLine.empty() ? currentWord : currentLine + " " + currentWord;
         int width, height;
         TTF_SizeUTF8(font, line.c_str(), &width, &height);
-        
+
         if (width <= maxWidth) {
             currentLine = line;
         } else {
