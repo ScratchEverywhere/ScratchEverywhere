@@ -3,6 +3,7 @@
 
 #define FONT_SIZE 16
 
+std::unordered_map<std::string, FontClass> TextObjectVita::fonts;
 std::unordered_map<std::string, size_t> TextObjectVita::fontUsageCount;
 
 TextObjectVita::TextObjectVita(std::string txt, double posX, double posY, std::string fontPath)

@@ -3,14 +3,14 @@
 #include <vita2d.h>
 #include <unordered_map>
 
+typedef struct {
+	void* font;
+	bool isPVF = false;
+	float pvfDefaultSize = 1.0f;
+} FontClass;
+
 class TextObjectVita : public TextObject {
   private:
-	typedef struct {
-		void* font;
-		bool isPVF = false;
-		float pvfDefaultSize = 1.0f;
-	} FontClass;
-	
 	FontClass fontClass;
 	
     static std::unordered_map<std::string, FontClass> fonts;

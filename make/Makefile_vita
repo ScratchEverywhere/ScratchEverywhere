@@ -45,6 +45,9 @@ VITAFLAGS := -DVITA -DSDL_BUILD -fpermissive
 CFLAGS   += $(VITAFLAGS)
 CXXFLAGS += $(VITAFLAGS)
 
+# vita2d libs
+LIBS	 += -lvita2d -lScePvf_stub -ljpeg
+
 # SDL CFlags
 SDL_CFLAGS := $(shell arm-vita-eabi-pkg-config --cflags sdl2)
 CFLAGS   += $(SDL_CFLAGS)
