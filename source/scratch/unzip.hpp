@@ -151,6 +151,16 @@ class Unzip {
             pos += platform.size(); // move past replacement
         }
 
+		// Replace {UserName} with Input::getUsername
+		const std::string userName = "{UserName}";
+        const std::string user = Input::getUsername();
+
+        size_t pos = 0;
+        while ((pos = splash.find(userName, pos)) != std::string::npos) {
+            splash.replace(pos, userName.size(), user);
+            pos += user.size(); // move past replacement
+        }
+
         return splash;
     }
 

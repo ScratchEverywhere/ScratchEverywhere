@@ -17,14 +17,21 @@ Oooh, nice {PlatformName} you got here! Can I have it?
 ...even on your {PlatformName}!
 Coming soon to a console near you!
 Run it all, everything!
+C++ my beloved
+SDL my beloved
+Citro2D my beloved
 Scratch is the new Doom!
+We are NOT endorsed by the Scratch Foundation.
 "It's dot com!"
+"It's dot org!"
+"It's dot gov!"
 ;
 This splash text was eaten by an evil kumquat.
 0.1 + 0.2 = 0.30000000000000004!
 You'll love it!
 Magic!
 Try it out!!!!
+Try it out, {UserName}!!!!
 Join the Discord Server!
 Contribute on GitHub!
 Formerly Scratch-3DS!
@@ -39,13 +46,20 @@ PS Vita port by Dogo6647!
 C++!
 devkitPro!
 vitasdk!
+I TYPED THOS WIOTH YM EYES CLOSED
 SDL!
 It works! (most of the time...)
+Are you gonna fix your servers?
+:nategrin:
 Woah.
 Are wii gonna have a problem?
 Beta!
 Deja vu!
 Let's play!
+Let's play, {UserName}!
+xoxo
+<3
+#include "sprite.hpp"
 Woo, TurboWarp!
 Woo, ScratchBox!
 Woo, softwaregore!
@@ -55,3 +69,31 @@ PolyMars approved!
 May contain nuts!
 What do you expect?
 (Exclamation mark required!)
+Hey, {UserName}!
+Hat Fridays!
+You are valid!
+I'm glad you're here!
+This code is sus
+error.bfsar
+{UserName}.szs
+{UserName}.bfsar
+{UserName}.elf
+{UserName}.rpl
+{UserName}.rpx
+{UserName}.mp3
+{UserName}.aac
+{UserName}.oma
+{UserName}.data
+Hello {UserName}
+Wassup {UserName}
+BOO, {UserName}
+I see you, {UserName}.
+WAIT I KNOW U ur {UserName} right??
+is ur name {UserName}
+{UserName} is running this on his {PlatformName}
+Look at {UserName} playing on his {PlatformName}!
+{UserName} is having fun on his {PlatformName}!
+I am in your walls
+W IN THE CHAT
+W NATE
+W GRADY
