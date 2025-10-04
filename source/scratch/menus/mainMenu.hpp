@@ -106,6 +106,7 @@ class ProjectSettings : public Menu {
     ButtonObject *UnpackProjectButton = nullptr;
     ButtonObject *DeleteUnpackProjectButton = nullptr;
     ButtonObject *bottomScreenButton = nullptr;
+    ButtonObject *createLinkerButton = nullptr;
 
     bool canUnpacked = true;
     bool shouldGoBack = false;
@@ -164,6 +165,34 @@ class UnpackMenu : public Menu {
     static void addToJsonArray(const std::string &filePath, const std::string &value);
     static std::vector<std::string> getJsonArray(const std::string &filePath);
     static void removeFromJsonArray(const std::string &filePath, const std::string &value);
+
+    void init() override;
+    void render() override;
+    void cleanup() override;
+};
+
+class CreateLinkerMenu : public Menu {
+  public:
+    ControlObject *linkerControl = nullptr;
+
+    TextObject *linkerCreater = nullptr;
+    TextObject *info = nullptr;
+    TextObject *warning = nullptr;
+    TextObject *nameText = nullptr;
+    TextObject *authorText = nullptr;
+
+    ButtonObject *backButton = nullptr;
+    ButtonObject *name = nullptr;
+    ButtonObject *author = nullptr;
+    ButtonObject *install = nullptr;
+    ButtonObject *howDeleteLinker = nullptr;
+
+    std::string newTitle;
+    std::string newAuthor;
+    bool deleteTutorialOpened = false;
+
+    CreateLinkerMenu();
+    ~CreateLinkerMenu();
 
     void init() override;
     void render() override;

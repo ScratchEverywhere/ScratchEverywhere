@@ -6,6 +6,7 @@
 #include "keyboard.hpp"
 #include "render.hpp"
 #include "unzip.hpp"
+#include "linker.hpp"
 #include <cctype>
 #include <nlohmann/json.hpp>
 #ifdef __WIIU__
@@ -92,6 +93,7 @@ void MainMenu::init() {
     if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
         splashText->scale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
     }
+    
 
     loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
@@ -602,16 +604,19 @@ ProjectSettings::~ProjectSettings() {
 void ProjectSettings::init() {
     // initialize
 
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 68, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
-    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 116, "gfx/menu/Ubuntu-Bold");
     UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
-    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.svg", 200, 116, "gfx/menu/Ubuntu-Bold");
     DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
-    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
+    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 164, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
-
+#ifdef __3DS__ // Add: check for cia
+    createLinkerButton = new ButtonObject("Create Linker", "gfx/menu/projectBox.svg", 200, 212, "gfx/menu/Ubuntu-Bold");
+    createLinkerButton->text->setColor(Math::color(0, 0, 0, 255));
+#endif
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
@@ -623,23 +628,39 @@ void ProjectSettings::init() {
 
     if (canUnpacked) {
         changeControlsButton->buttonDown = UnpackProjectButton;
-        changeControlsButton->buttonUp = UnpackProjectButton;
+        changeControlsButton->buttonUp = bottomScreenButton;
         UnpackProjectButton->buttonUp = changeControlsButton;
         UnpackProjectButton->buttonDown = bottomScreenButton;
-        bottomScreenButton->buttonDown = changeControlsButton;
         bottomScreenButton->buttonUp = UnpackProjectButton;
+#ifdef __3DS__ // Add: check for cia
+        bottomScreenButton->buttonDown = createLinkerButton;
+        createLinkerButton->buttonDown = changeControlsButton;
+        createLinkerButton->buttonUp = bottomScreenButton;
+        changeControlsButton->buttonUp = createLinkerButton; // overwrite
+#else
+        bottomScreenButton->buttonDown = changeControlsButton;
+
+#endif
     } else {
         changeControlsButton->buttonDown = DeleteUnpackProjectButton;
         changeControlsButton->buttonUp = DeleteUnpackProjectButton;
         DeleteUnpackProjectButton->buttonUp = changeControlsButton;
         DeleteUnpackProjectButton->buttonDown = bottomScreenButton;
-        bottomScreenButton->buttonDown = changeControlsButton;
         bottomScreenButton->buttonUp = DeleteUnpackProjectButton;
+#ifdef __3DS__ // Add: check for cia
+        bottomScreenButton->buttonDown = createLinkerButton;
+        createLinkerButton->buttonDown = changeControlsButton;
+        createLinkerButton->buttonUp = bottomScreenButton;
+#else
+        bottomScreenButton->buttonDown = changeControlsButton;
+#endif
     }
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
     settingsControl->buttonObjects.push_back(bottomScreenButton);
+    settingsControl->buttonObjects.push_back(DeleteUnpackProjectButton);
+    settingsControl->buttonObjects.push_back(createLinkerButton);
 
     nlohmann::json settings = getProjectSettings();
     if (!settings.is_null() && !settings["settings"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
@@ -691,6 +712,14 @@ void ProjectSettings::render() {
         MenuManager::changeMenu(projectMenu);
         return;
     }
+#ifdef __3DS__ // Add: check for cia
+    if (createLinkerButton->isPressed({"a"})) {
+        cleanup();
+        CreateLinkerMenu *linkerMenu = new CreateLinkerMenu();
+        MenuManager::changeMenu(linkerMenu);
+        return;
+    }
+#endif
 
     if (backButton->isPressed({"b", "y"})) {
         ProjectMenu *projectMenu = new ProjectMenu();
@@ -706,6 +735,7 @@ void ProjectSettings::render() {
     if (!canUnpacked) DeleteUnpackProjectButton->render();
     bottomScreenButton->render();
     settingsControl->render();
+    createLinkerButton->render();
     backButton->render();
 
     Render::endFrame();
@@ -1173,4 +1203,166 @@ void UnpackMenu::removeFromJsonArray(const std::string &filePath, const std::str
     if (!outFile) return;
     outFile << j.dump(2);
     outFile.close();
+}
+
+CreateLinkerMenu::CreateLinkerMenu() {
+    init();
+}
+
+CreateLinkerMenu::~CreateLinkerMenu() {
+    cleanup();
+}
+
+void CreateLinkerMenu::cleanup() {
+
+    if (linkerCreater != nullptr) {
+        delete linkerCreater;
+        linkerCreater = nullptr;
+    }
+
+    if (info != nullptr) {
+        delete info;
+        info = nullptr;
+    }
+
+    if (warning != nullptr) {
+        delete warning;
+        warning = nullptr;
+    }
+
+    if (nameText != nullptr) {
+        delete nameText;
+        nameText = nullptr;
+    }
+
+    if (authorText != nullptr) {
+        delete authorText;
+        authorText = nullptr;
+    }
+
+    if (backButton != nullptr) {
+        delete backButton;
+        backButton = nullptr;
+    }
+
+    if (name != nullptr) {
+        delete name;
+        name = nullptr;
+    }
+
+    if (author != nullptr) {
+        delete author;
+        author = nullptr;
+    }
+
+    if (install != nullptr) {
+        delete install;
+        install = nullptr;
+    }
+
+    Render::beginFrame(0, 181, 165, 111);
+    Render::beginFrame(1, 181, 165, 111);
+    Render::endFrame();
+    Render::renderMode = Render::BOTH_SCREENS;
+}
+void CreateLinkerMenu::init() {
+
+    linkerControl = new ControlObject();
+
+    linkerCreater = createTextObject("CREATE LINKER", 200.0, 100.0, "gfx/menu/Ubuntu-Bold");
+    linkerCreater->setScale(1.5f);
+    info = createTextObject("The linker acts as an installed app that, when opened,\n simply start the SE! app and open the Scratch project\nEven if you update your game, the linker will\nstill work as long as the SB3 has exactly\nthe same name as before.", 200, 40, "gfx/menu/Ubuntu-Bold");
+    info->setScale(0.63f);
+    nameText = createTextObject("Title:  MyGameAsLinker", 200.0, 100.0, "gfx/menu/Ubuntu-Bold");
+    nameText->setCenterAligned(false);
+    authorText = createTextObject("Author:  Br0tcraft", 200.0, 100.0, "gfx/menu/Ubuntu-Bold");
+    authorText->setCenterAligned(false);
+    warning = createTextObject("Creating a linker is at your own risk. This tool manipulates a pre-built CIA file\nWe cannot guarantee that this feature won't evtl. break/brick the console.", 200.0, 100.0, "gfx/menu/Ubuntu-Bold");
+    warning->setScale(0.43f);
+    warning->setColor(Math::color(255, 51, 51, 255));
+
+
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
+    backButton->scale = 1.0;
+    backButton->needsToBeSelected = false;
+    name = new ButtonObject("change Title", "gfx/menu/projectBox.svg", 200, 68, "gfx/menu/Ubuntu-Bold");
+    name->text->setColor(Math::color(0, 0, 0, 255));
+    author = new ButtonObject("change Author", "gfx/menu/projectBox.svg", 200, 116, "gfx/menu/Ubuntu-Bold");
+    author->text->setColor(Math::color(0, 0, 0, 255));
+    install = new ButtonObject("install Linker", "gfx/menu/projectBox.svg", 200, 164, "gfx/menu/Ubuntu-Bold");
+    install->text->setColor(Math::color(0, 0, 0, 255));
+    howDeleteLinker = new ButtonObject("Delete Linker", "gfx/menu/projectBox.svg", 200, 212, "gfx/menu/Ubuntu-Bold");
+    howDeleteLinker->text->setColor(Math::color(0, 0, 0, 255));
+
+    // initial selected object
+    
+    name->buttonDown = author;
+    name->buttonUp = howDeleteLinker;
+    author->buttonDown = install;
+    author->buttonUp = name;
+    install->buttonDown = howDeleteLinker;
+    install->buttonUp = author;
+    howDeleteLinker->buttonDown = name;
+    howDeleteLinker->buttonUp = howDeleteLinker;
+
+    linkerControl->buttonObjects.push_back(name);
+    linkerControl->buttonObjects.push_back(author);
+    linkerControl->buttonObjects.push_back(install);
+    linkerControl->buttonObjects.push_back(howDeleteLinker);
+
+    linkerControl->selectedObject = name;
+
+    isInitialized = true;
+}
+
+void CreateLinkerMenu::render() {
+
+    Input::getInput();
+    linkerControl->input();
+
+    if (backButton->isPressed({"b", "y"})) {
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
+    }
+
+    if (name->isPressed({"a"})) {
+        Keyboard keyboard;
+        std::string newText = keyboard.openKeyboard("New Title");
+        newText = Linker::sanitizeString(newText, true);
+        if (Linker::isValidString(newText)) {
+            newTitle = newText;
+            nameText->setText("Title: " + newTitle);
+        }
+    }
+
+    if (author->isPressed({"a"})) {
+        Keyboard keyboard;
+        std::string newText = keyboard.openKeyboard("New Author");
+        newText = Linker::sanitizeString(newText, true);
+        if (Linker::isValidString(newText)) {
+            newAuthor = newText;
+            authorText->setText("Author: " + newAuthor);
+        }
+    }
+
+    if (install->isPressed({"a"})) {
+        std::string LinkerPath = OS::getScratchFolderLocation() + "Linker/Linker-v0.3.cia";
+        Linker::installLinker(newTitle, newAuthor, LinkerPath, "");
+    }
+
+    Render::beginFrame(0, 181, 165, 111);
+    linkerCreater->render(200, 15);
+    info->render(200, 50);
+    nameText->render(10, 130);
+    authorText->render(10, 145);
+    warning->render(200, 225);
+
+    Render::beginFrame(1, 181, 165, 111);
+    backButton->render();
+    name->render();
+    author->render();
+    install->render();
+    howDeleteLinker->render();
+    Render::endFrame();
 }
