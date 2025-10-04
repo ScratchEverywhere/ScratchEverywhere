@@ -92,7 +92,7 @@ error.bfsar
 {UserName}.xml
 Hello {UserName}
 Wassup {UserName}
-BOO, {UserName}
+Yo {UserName}
 I see you, {UserName}.
 WAIT I KNOW U ur {UserName} right??
 is ur name {UserName}?
@@ -115,3 +115,4 @@ ftp://192.168.x.xxx:5000
 potato {PlatformName}
 what???
 no way it's the famous focker
+no way it's the famous fucker
