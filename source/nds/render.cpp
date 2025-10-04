@@ -1,6 +1,7 @@
 #include "../scratch/render.hpp"
 #include "../scratch/input.hpp"
 #include "image.hpp"
+#include "swzl/swzl.hpp"
 #include <filesystem.h>
 #include <gl2d.h>
 #include <nds.h>
