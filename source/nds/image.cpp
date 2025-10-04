@@ -211,7 +211,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     if (newRGBA.width > 32 || newRGBA.height > 32) {
         const int largest = std::max(newRGBA.width, newRGBA.height);
         const float scale = 1.0f / std::sqrt((float)largest / 32.0f);
-        // resizeRGBAImage(newRGBA.width * scale, newRGBA.height * scale, newRGBA);
+        resizeRGBAImage(newRGBA.width * scale, newRGBA.height * scale, newRGBA);
     }
 
     imagePAL8 image = RGBAToPAL8(newRGBA);

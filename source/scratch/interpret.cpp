@@ -292,7 +292,7 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         else
             rotation = -90;
     }
-    double rotationRadians = (rotation - 90) * M_PI / 180.0;
+    double rotationRadians = -(rotation - 90) * M_PI / 180.0;
 #ifdef __NDS__
     double rotationCenterX = (currentSprite->costumes[currentSprite->currentCostume].rotationCenterX * 2 - currentSprite->spriteWidth);
     double rotationCenterY = (currentSprite->costumes[currentSprite->currentCostume].rotationCenterY * 2 - currentSprite->spriteHeight);
