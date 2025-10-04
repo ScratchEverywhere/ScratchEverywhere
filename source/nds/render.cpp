@@ -93,8 +93,8 @@ void Render::renderSprites() {
             glImage *image = &data.image;
 
             // Set sprite dimensions
-            sprite->spriteWidth = data.width;
-            sprite->spriteHeight = data.height;
+            sprite->spriteWidth = data.originalWidth;
+            sprite->spriteHeight = data.originalHeight;
 
             // TODO: look into making sprite->size a float or int for extra performance
             uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
@@ -118,17 +118,17 @@ void Render::renderSprites() {
 
             glSpriteRotateScale(renderX, renderY, renderRotation, renderScale, flip, image);
 
-            auto collisionPoints = getCollisionPoints(sprite);
-            for (const auto &point : collisionPoints) {
+            // auto collisionPoints = getCollisionPoints(sprite);
+            // for (const auto &point : collisionPoints) {
 
-                int drawX = (int)((point.first) + SCREEN_HALF_WIDTH);
-                int drawY = (int)((point.second * -1) + (SCREEN_HALF_HEIGHT));
+            //     int drawX = (int)((point.first) + SCREEN_HALF_WIDTH);
+            //     int drawY = (int)((point.second * -1) + (SCREEN_HALF_HEIGHT));
 
-                glBoxFilled(
-                    drawX - 1, drawY - 1,
-                    drawX + 1, drawY + 1,
-                    RGB15(31, 0, 0)); // Red box
-            }
+            //     glBoxFilled(
+            //         drawX - 1, drawY - 1,
+            //         drawX + 1, drawY + 1,
+            //         RGB15(31, 0, 0)); // Red box
+            // }
 
         } else {
             const int renderX = static_cast<int>(sprite->xPosition);

@@ -9,6 +9,8 @@ struct imageRGBA {
     std::string fullName; // "image.png"
     uint16_t width;
     uint16_t height;
+    uint16_t originalWidth;
+    uint16_t originalHeight;
     int scaleX;
     int scaleY;
     bool isSVG = false;
@@ -23,6 +25,8 @@ struct imageRGBA {
 
 struct imagePAL8 {
     int width, height;
+    uint16_t originalWidth;
+    uint16_t originalHeight;
     int textureWidth, textureHeight;
     int scaleX;
     int scaleY;

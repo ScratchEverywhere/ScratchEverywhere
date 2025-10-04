@@ -117,6 +117,8 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     newRGBA.width = width;
     newRGBA.height = height;
+    newRGBA.originalWidth = width;
+    newRGBA.originalHeight = height;
     newRGBA.scaleX = (newRGBA.isSVG) ? 2 << 12 : 1 << 12;
     newRGBA.scaleY = (newRGBA.isSVG) ? 2 << 12 : 1 << 12;
     newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 0, 1024);
@@ -201,6 +203,8 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     newRGBA.fullName = costumeId;
     newRGBA.width = width;
     newRGBA.height = height;
+    newRGBA.originalWidth = width;
+    newRGBA.originalHeight = height;
     newRGBA.scaleX = (newRGBA.isSVG) ? 2 << 12 : 1 << 12;
     newRGBA.scaleY = (newRGBA.isSVG) ? 2 << 12 : 1 << 12;
     newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 0, 1024);
@@ -255,6 +259,8 @@ imagePAL8 RGBAToPAL8(const imageRGBA &rgba) {
     imagePAL8 ds = {};
     ds.width = rgba.width;
     ds.height = rgba.height;
+    ds.originalWidth = rgba.originalWidth;
+    ds.originalHeight = rgba.originalHeight;
     ds.textureWidth = rgba.textureWidth;
     ds.textureHeight = rgba.textureHeight;
     ds.scaleX = rgba.scaleX;
