@@ -1,0 +1,110 @@
+.PHONY: all clean debug release
+
+TARGET		:=	scratch-wasm
+BUILD		:=	build/wasm
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+
+CXX	:=	em++
+CC	:=	emcc
+
+GRAPHICS	:=	gfx
+GFXBUILD	:=	romfs/gfx
+
+# Config Options
+ENABLE_AUDIO		?=	1
+ENABLE_LOADSCREEN	?=	1
+
+EMFLAGS	:=	-sUSE_SDL=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_TTF=2 -sSDL2_IMAGE_FORMATS='["png","jpg","svg"]' -sNO_DISABLE_EXCEPTION_CATCHING
+LDFLAGS	:=	$(EMFLAGS) --preload-file romfs --use-preload-plugins -sALLOW_MEMORY_GROWTH=1 -sASYNCIFY --shell-file $(GRAPHICS)/wasm/shell.html
+
+CFLAGS_BASE	:= -DSDL_BUILD $(EMFLAGS)
+
+ifeq ($(ENABLE_AUDIO),1)
+EMFLAGS		+=	-sUSE_SDL_MIXER=2 -sSDL2_MIXER_FORMATS='["ogg","mp3"]'
+CFLAGS_BASE	+=	-DENABLE_AUDIO -sUSE_SDL_MIXER=2 -sSDL2_MIXER_FORMATS='["ogg","mp3"]'
+LDFLAGS		+=	-sUSE_SDL_MIXER=2 -sSDL2_MIXER_FORMATS='["ogg","mp3"]'
+endif
+
+ifeq ($(ENABLE_LOADSCREEN),1)
+CFLAGS_BASE	+=	-DENABLE_LOADSCREEN
+endif
+
+CXXFLAGS_BASE	:=	$(CFLAGS_BASE) -std=c++17 -Wall
+
+# Debug and Release flags
+CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -g -O0 -DDEBUG
+CXXFLAGS_RELEASE := $(CXXFLAGS_BASE) -O3 -DNDEBUG -flto
+
+CFLAGS_DEBUG   := $(CFLAGS_BASE) -g -O0 -DDEBUG
+CFLAGS_RELEASE := $(CFLAGS_BASE) -O3 -DNDEBUG -flto
+
+# Find all .cpp and .c files recursively
+SRC_CPP    := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
+SRC_C      := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
+
+# Convert source files to object files in the build dir with matching structure
+OBJS_CPP   := $(foreach src, $(SRC_CPP), $(BUILD)/$(src:.cpp=.o))
+OBJS_C     := $(foreach src, $(SRC_C),   $(BUILD)/$(src:.c=.o))
+OBJS       := $(OBJS_CPP) $(OBJS_C)
+
+INCLUDE_FLAGS := $(foreach dir,$(INCLUDES),-I$(dir))
+
+# Default build target (debug)
+all: debug
+
+# Debug build
+debug: CXXFLAGS := $(CXXFLAGS_DEBUG)
+debug: CFLAGS   := $(CFLAGS_DEBUG)
+debug: LDFLAGS  += -sSAFE_HEAP -sSTACK_OVERFLOW_CHECK=2
+debug: $(GFXBUILD) $(BUILD)/debug/$(TARGET).html
+
+# Release build
+release: CXXFLAGS := $(CXXFLAGS_RELEASE)
+release: CFLAGS   := $(CFLAGS_RELEASE)
+release: LDFLAGS  += --closure 1
+release: $(GFXBUILD) $(BUILD)/release/$(TARGET).html
+
+# Graphics
+$(GFXBUILD):
+	@mkdir -p $@
+	@cp -r $(GRAPHICS)/* $@/
+
+# Link debug executable
+$(BUILD)/debug/$(TARGET).html: $(patsubst $(BUILD)/%,$(BUILD)/debug/%,$(OBJS))
+	@mkdir -p $(dir $@)
+	@echo "Linking debug build..."
+	@$(CXX) $^ -o $@ $(LDFLAGS)
+
+# Link release executable
+$(BUILD)/release/$(TARGET).html: $(patsubst $(BUILD)/%,$(BUILD)/release/%,$(OBJS))
+	@mkdir -p $(dir $@)
+	@echo "Linking release build..."
+	@$(CXX) $^ -o $@ $(LDFLAGS)
+
+# Compile C++ debug objects
+$(BUILD)/debug/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	@echo "Compiling debug $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+
+# Compile C debug objects
+$(BUILD)/debug/%.o: %.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling debug $<"
+	@$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+
+# Compile C++ release objects
+$(BUILD)/release/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	@echo "Compiling release $<"
+	@$(CXX) $(CXXFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+
+# Compile C release objects
+$(BUILD)/release/%.o: %.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling release $<"
+	@$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+
+clean:
+	rm -rf $(BUILD)
