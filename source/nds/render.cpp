@@ -93,8 +93,8 @@ void Render::renderSprites() {
             glImage *image = &data.image;
 
             // Set sprite dimensions
-            sprite->spriteWidth = image->width;
-            sprite->spriteHeight = image->height;
+            sprite->spriteWidth = data.width;
+            sprite->spriteHeight = data.height;
 
             // TODO: look into making sprite->size a float or int for extra performance
             uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
