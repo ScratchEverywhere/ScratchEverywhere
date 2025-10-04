@@ -24,7 +24,8 @@ Scratch is the new Doom!
 We are NOT endorsed by the Scratch Foundation.
 "It's dot com!"
 "It's dot org!"
-"It's dot gov!"
+"It's dot net!"
+"It's .NET Framework!"
 ;
 This splash text was eaten by an evil kumquat.
 0.1 + 0.2 = 0.30000000000000004!
@@ -89,7 +90,7 @@ Wassup {UserName}
 BOO, {UserName}
 I see you, {UserName}.
 WAIT I KNOW U ur {UserName} right??
-is ur name {UserName}
+is ur name {UserName}?
 {UserName} is running this on their {PlatformName}
 Look at {UserName} playing on their {PlatformName}!
 {UserName} is having fun on their {PlatformName}!
@@ -98,3 +99,13 @@ W IN THE CHAT
 W NATE
 W GRADY
 Wii would like to play!
+Sound doesn't always work!
+gameboy cooks dino nuggies
+yes??
+ish
+ftp://192.168.x.xxx:5000
+potato ds
+potato {PlatformName}
+あなたはがすきナソバトさんですか
+what???
+no way it's the famous focker
