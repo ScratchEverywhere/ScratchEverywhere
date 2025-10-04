@@ -80,7 +80,11 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 0, 1024);
     newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 0, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
-    // resizeRGBAImage(newRGBA.width / 4, newRGBA.height / 4, newRGBA);
+    if (newRGBA.width > 32 || newRGBA.height > 32) {
+        const int largest = std::max(newRGBA.width, newRGBA.height);
+        const float scale = 1.0f / std::sqrt((float)largest / 32.0f);
+        resizeRGBAImage(newRGBA.width * scale, newRGBA.height * scale, newRGBA);
+    }
 
     imagePAL8 image = RGBAToPAL8(newRGBA);
     if (uploadPAL8ToVRAM(image, &image.image)) {
