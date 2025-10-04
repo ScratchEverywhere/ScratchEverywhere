@@ -24,7 +24,7 @@ std::vector<Monitor> Render::visibleVariables;
 
 bool Render::Init() {
     cpuStartTiming(0);
-    consoleDemoInit();
+    // consoleDemoInit();
     if (!nitroFSInit(NULL)) {
         Log::logError("NitroFS Could not initialize!");
         while (1)
@@ -50,17 +50,22 @@ void *Render::getRenderer() {
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    glBegin2D();
 }
 
 void Render::endFrame(bool shouldFlush) {
+    glEnd2D();
+    glFlush(0);
+    if (shouldFlush) Image::FlushImages();
+    swiWaitForVBlank();
 }
 
 int Render::getWidth() {
-    return 0;
+    return SCREEN_WIDTH;
 }
 
 int Render::getHeight() {
-    return 0;
+    return SCREEN_HEIGHT;
 }
 
 void Render::renderSprites() {
@@ -132,11 +137,7 @@ void Render::renderVisibleVariables() {
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    glBegin2D();
     glBoxFilled(x, y, w, h, RGB15(colorR, colorB, colorG));
-    glEnd2D();
-    glFlush(0);
-    swiWaitForVBlank();
 }
 
 bool Render::appShouldRun() {

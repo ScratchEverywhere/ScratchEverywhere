@@ -11,6 +11,7 @@ struct imageRGBA {
     uint16_t height;
     int scaleX;
     int scaleY;
+    bool isSVG = false;
 
     //  same as width/height but as powers of 2 for NDS
     uint16_t textureWidth;

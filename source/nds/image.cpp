@@ -75,6 +75,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
                   filePath.substr(filePath.size() - 4) == ".SVG");
 
     if (isSVG) {
+        newRGBA.isSVG = true;
         fseek(file, 0, SEEK_END);
         long file_size = ftell(file);
         fseek(file, 0, SEEK_SET);
@@ -116,8 +117,8 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     newRGBA.width = width;
     newRGBA.height = height;
-    newRGBA.scaleX = 1 << 12;
-    newRGBA.scaleY = 1 << 12;
+    newRGBA.scaleX = (newRGBA.isSVG) ? 2 << 12 : 1 << 12;
+    newRGBA.scaleY = (newRGBA.isSVG) ? 2 << 12 : 1 << 12;
     newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 0, 1024);
     newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 0, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
@@ -135,7 +136,89 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     return true;
 }
 
-void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) { // TODO
+void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+
+    std::string filename = costumeId.substr(costumeId.find_last_of('/') + 1);
+    std::string costumeName = filename.substr(0, filename.find_last_of('.'));
+    if (images.find(costumeName) != images.end()) return;
+
+    // Find the file in the zip
+    int file_index = mz_zip_reader_locate_file(zip, costumeId.c_str(), nullptr, 0);
+    if (file_index < 0) {
+        Log::logWarning("Image file not found in zip: " + costumeId);
+        return;
+    }
+
+    // Get file stats
+    mz_zip_archive_file_stat file_stat;
+    if (!mz_zip_reader_file_stat(zip, file_index, &file_stat)) {
+        Log::logWarning("Failed to get file stats for: " + costumeId);
+        return;
+    }
+
+    bool isSVG = costumeId.size() >= 4 &&
+                 (costumeId.substr(costumeId.size() - 4) == ".svg" ||
+                  costumeId.substr(costumeId.size() - 4) == ".SVG");
+
+    // Extract file data
+    size_t file_size;
+    void *file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
+    if (!file_data) {
+        Log::logWarning("Failed to extract: " + costumeId);
+        return;
+    }
+
+    int width, height;
+
+    imageRGBA newRGBA;
+
+    if (isSVG) {
+        newRGBA.isSVG = true;
+        newRGBA.data = SVGToRGBA(file_data, file_size, width, height);
+        if (!newRGBA.data) {
+            Log::logWarning("Failed to decode SVG: " + costumeId);
+            mz_free(file_data);
+            Image::cleanupImages();
+            return;
+        }
+    } else {
+        // Handle bitmap files (PNG, JPG)
+        int channels;
+        newRGBA.data = stbi_load_from_memory(
+            (unsigned char *)file_data, file_size,
+            &width, &height, &channels, 4);
+
+        if (!newRGBA.data) {
+            Log::logWarning("Failed to decode image: " + costumeId);
+            mz_free(file_data);
+            Image::cleanupImages();
+            return;
+        }
+    }
+
+    // Set up the image data structure
+    newRGBA.name = costumeName;
+    newRGBA.fullName = costumeId;
+    newRGBA.width = width;
+    newRGBA.height = height;
+    newRGBA.scaleX = (newRGBA.isSVG) ? 2 << 12 : 1 << 12;
+    newRGBA.scaleY = (newRGBA.isSVG) ? 2 << 12 : 1 << 12;
+    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 0, 1024);
+    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 0, 1024);
+    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
+    mz_free(file_data);
+
+    if (newRGBA.width > 32 || newRGBA.height > 32) {
+        const int largest = std::max(newRGBA.width, newRGBA.height);
+        const float scale = 1.0f / std::sqrt((float)largest / 32.0f);
+        resizeRGBAImage(newRGBA.width * scale, newRGBA.height * scale, newRGBA);
+    }
+
+    imagePAL8 image = RGBAToPAL8(newRGBA);
+    if (uploadPAL8ToVRAM(image, &image.image)) {
+        images[costumeName] = image;
+    }
+    stbi_image_free(newRGBA.data);
 }
 
 bool resizeRGBAImage(uint16_t newWidth, uint16_t newHeight, imageRGBA &rgba) {
@@ -158,8 +241,8 @@ bool resizeRGBAImage(uint16_t newWidth, uint16_t newHeight, imageRGBA &rgba) {
 
     stbi_image_free(rgba.data);
     rgba.data = resizedData;
-    rgba.scaleX = (rgba.width << 12) / newWidth;
-    rgba.scaleY = (rgba.height << 12) / newHeight;
+    rgba.scaleX = ((rgba.width << 12) / newWidth) * (rgba.isSVG ? 2 : 1);
+    rgba.scaleY = ((rgba.height << 12) / newHeight) * (rgba.isSVG ? 2 : 1);
     rgba.width = newWidth;
     rgba.height = newHeight;
     rgba.textureWidth = clamp(next_pow2(rgba.width), 0, 1024);
