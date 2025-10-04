@@ -2,9 +2,15 @@
 #define STBI_NO_GIF
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#define NANOSVG_IMPLEMENTATION
+#include "nanosvg.h"
+#define NANOSVGRAST_IMPLEMENTATION
+#include "nanosvgrast.h"
 #include "unzip.hpp"
 // This image stuff is going to be tough; the DS uses memory "banks" of fixed sizes that might not be the best use of space when it comes to images.
 // The vram banks add up to 656 KB.
+
+// There's a bunch of repeated code here from the 3DS. TODO: Look into sharing code between the two.
 
 std::unordered_map<std::string, imagePAL8> images;
 
@@ -62,15 +68,50 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     }
 
     imageRGBA newRGBA;
-    int channels;
     int width, height;
-    newRGBA.data =
-        stbi_load_from_file(file, &width, &height, &channels, 4);
-    fclose(file);
 
-    if (!newRGBA.data) {
-        Log::logWarning("Failed to decode image: " + fullPath);
-        return false;
+    bool isSVG = filePath.size() >= 4 &&
+                 (filePath.substr(filePath.size() - 4) == ".svg" ||
+                  filePath.substr(filePath.size() - 4) == ".SVG");
+
+    if (isSVG) {
+        fseek(file, 0, SEEK_END);
+        long file_size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        char *svg_data = (char *)malloc(file_size);
+        if (!svg_data) {
+            Log::logWarning("Failed to allocate memory for SVG file: " + filePath);
+            fclose(file);
+            return false;
+        }
+
+        size_t read_size = fread(svg_data, 1, file_size, file);
+        fclose(file);
+
+        if (read_size != (size_t)file_size) {
+            Log::logWarning("Failed to read SVG file completely: " + filePath);
+            free(svg_data);
+            return false;
+        }
+
+        newRGBA.data = SVGToRGBA(svg_data, file_size, width, height);
+        free(svg_data);
+
+        if (!newRGBA.data) {
+            Log::logWarning("Failed to decode SVG: " + filePath);
+            return false;
+        }
+    } else {
+        int channels;
+        newRGBA.data =
+            stbi_load_from_file(file, &width, &height, &channels, 4);
+        fclose(file);
+
+        if (!newRGBA.data) {
+            Log::logWarning("Failed to decode image: " + fullPath);
+            return false;
+        }
     }
 
     newRGBA.width = width;
@@ -237,6 +278,76 @@ bool uploadPAL8ToVRAM(imagePAL8 &image, glImage *outImage) {
     image.textureID = texID;
 
     return true;
+}
+
+/**
+ * Loads SVG data and converts it to RGBA pixel data
+ */
+unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height) {
+    // Create a null-terminated string from the SVG data
+    char *svg_string = (char *)malloc(svg_size + 1);
+    if (!svg_string) {
+        Log::logWarning("Failed to allocate memory for SVG string");
+        return nullptr;
+    }
+    memcpy(svg_string, svg_data, svg_size);
+    svg_string[svg_size] = '\0';
+
+    // Parse SVG
+    NSVGimage *image = nsvgParse(svg_string, "px", 96.0f);
+    free(svg_string);
+
+    if (!image) {
+        Log::logWarning("Failed to parse SVG");
+        return nullptr;
+    }
+
+    // Determine render size
+    if (image->width > 0 && image->height > 0) {
+        width = (int)image->width;
+        height = (int)image->height;
+    } else {
+        width = 32;
+        height = 32;
+    }
+
+    // Clamp to 3DS limits
+    width = clamp(width, 0, 1024);
+    height = clamp(height, 0, 1024);
+
+    // Create rasterizer
+    NSVGrasterizer *rast = nsvgCreateRasterizer();
+    if (!rast) {
+        Log::logWarning("Failed to create SVG rasterizer");
+        nsvgDelete(image);
+        return nullptr;
+    }
+
+    // Allocate RGBA buffer
+    unsigned char *rgba_data = (unsigned char *)malloc(width * height * 4);
+    if (!rgba_data) {
+        Log::logWarning("Failed to allocate RGBA buffer for SVG");
+        nsvgDeleteRasterizer(rast);
+        nsvgDelete(image);
+        return nullptr;
+    }
+
+    // Calculate scale
+    float scale = 1.0f;
+    if (image->width > 0 && image->height > 0) {
+        float scaleX = (float)width / image->width;
+        float scaleY = (float)height / image->height;
+        scale = std::min(scaleX, scaleY);
+    }
+
+    // Rasterize SVG
+    nsvgRasterize(rast, image, 0, 0, scale, rgba_data, width, height, width * 4);
+
+    // Clean up
+    nsvgDeleteRasterizer(rast);
+    nsvgDelete(image);
+
+    return rgba_data;
 }
 
 void freePAL8(imagePAL8 &image) {

@@ -40,3 +40,4 @@ imagePAL8 RGBAToPAL8(const imageRGBA &rgba);
 void freePAL8(imagePAL8 &image);
 bool uploadPAL8ToVRAM(imagePAL8 &image, glImage *outImage);
 bool resizeRGBAImage(uint16_t newWidth, uint16_t newHeight, imageRGBA &rgba);
+unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height);
