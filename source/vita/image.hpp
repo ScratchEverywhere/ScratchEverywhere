@@ -1,41 +1,47 @@
 #pragma once
 #include "../scratch/image.hpp"
-#include <3ds.h>
-#include <citro2d.h>
-#include <citro3d.h>
+#include <vita2d.h>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-struct ImageData {
-    C2D_Image image;
-    size_t freeTimer = 120;
-    C2D_SpriteSheet sheet;
-    size_t maxFreeTimer = 120;
-    size_t imageUsageCount = 0;
+class VitaImage {
+public:
+	int width;
+	int height;
+	size_t imageUsageCount = 0;
+	int maxFreeTime = 480;
+	virtual void render(double xPos, double yPos,
+				double scale, double opacity,
+				double rotation, bool centered = true,
+				int scaleX = 1);
+	
+	virtual ~VitaImage() = default;
 };
 
-struct imageRGBA {
-    std::string name;     // "image"
-    std::string fullName; // "image.png"
-    int width;
-    int height;
-    bool isSVG = false;
-
-    //  same as width/height but as powers of 2 for 3DS
-    int textureWidth;
-    int textureHeight;
-
-    size_t textureMemSize;
-    unsigned char *data;
+class BitmapImage : public VitaImage {
+private:
+	vita2d_texture* tex;
+public:
+	BitmapImage(vita2d_texture* tex);
+	~BitmapImage();
+	void render(double xPos, double yPos,
+				double scale, double opacity,
+				double rotation, bool centered = true,
+				int scaleX = 1);
 };
 
-extern std::vector<imageRGBA> imageRGBAS;
+class VectorImage : public VitaImage {
+	// TODO: Load SVG
+	// TODO: Convert SVG shape to pointmap
+	// TODO: Store all pointmaps in vertexListMain
+	// TODO: Copy and translate pointmap to vertexListRender when required (
+	// TODO: Render pointmaps when it's time to render
+	// TODO: Offset and scale rendering (SceGxmContext?)
+private:
+	float *vertexListMain;
+	vita2d_color_vertex *vertexListRender;
+	bool renderListNeedsUpdating = true;
+};
 
-bool get_C2D_Image(imageRGBA rgba);
-void freeRGBA(const std::string &imageName);
-unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height);
-bool getImageFromT3x(const std::string &filePath);
-void cleanupImagesLite();
-
-extern std::unordered_map<std::string, ImageData> imageC2Ds;
+extern std::unordered_map<std::string, VitaImage> imageData;

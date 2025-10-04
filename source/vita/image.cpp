@@ -7,95 +7,44 @@
 #include "unzip.hpp"
 #define NANOSVG_IMPLEMENTATION
 #include "nanosvg.h"
-#define NANOSVGRAST_IMPLEMENTATION
-#include "nanosvgrast.h"
 #include "stb_image.h"
 
-using u32 = uint32_t;
-using u8 = uint8_t;
-
-std::unordered_map<std::string, ImageData> imageC2Ds;
-std::vector<imageRGBA> imageRGBAS;
-static std::vector<imageRGBA *> imageLoadQueue;
+std::unordered_map<std::string, VitaImage> imageData;
 static std::vector<std::string> toDelete;
-#define MAX_IMAGE_VRAM 30000000
-
-const u32 next_pow2(u32 n) {
-    n--;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n++;
-    return n;
-}
-const u32 clamp(u32 n, u32 lower, u32 upper) {
-    if (n < lower)
-        return lower;
-    if (n > upper)
-        return upper;
-    return n;
-}
-const u32 rgba_to_abgr(u32 px) {
-    u8 r = (px & 0xff000000) >> 24;
-    u8 g = (px & 0x00ff0000) >> 16;
-    u8 b = (px & 0x0000ff00) >> 8;
-    u8 a = px & 0x000000ff;
-    return (a << 24) | (b << 16) | (g << 8) | r;
-}
 
 Image::Image(std::string filePath) {
     if (!loadImageFromFile(filePath, false)) return;
 
-    // Find the matching RGBA data in the vector
+    // Find the matching VitaImage in the vector
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
-    for (const auto &rgba : imageRGBAS) {
-        if (rgba.name == path2) {
-            imageId = rgba.name;
-            width = rgba.width;
-            height = rgba.height;
+    for (const auto &imgPair : imageData) {
+		auto img = imgPair.second;
+        if (imgPair.first == path2) {
+            imageId = path2;
+            width = img.width;
+            height = img.height;
             scale = 1.0;
             rotation = 0.0;
             opacity = 1.0;
-            if (imageC2Ds.find(rgba.name) == imageC2Ds.end())
-                get_C2D_Image(rgba);
-            ++imageC2Ds[rgba.name].imageUsageCount;
+			img.imageUsageCount++;
             return;
         }
     }
 }
 
 Image::~Image() {
-    if (imageC2Ds.find(imageId) != imageC2Ds.end()) {
-        imageC2Ds[imageId].imageUsageCount--;
-        if (imageC2Ds[imageId].imageUsageCount <= 0)
+    if (imageData.find(imageId) != imageData.end()) {
+		imageData[imageId].imageUsageCount--;
+        if (imageData[imageId].imageUsageCount <= 0)
             freeImage(imageId);
     }
 }
 
 void Image::render(double xPos, double yPos, bool centered) {
-    auto rgbaIt = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
-        return img.name == imageId;
-    });
-    if (rgbaIt != imageRGBAS.end()) {
-        if (imageC2Ds.find(rgbaIt->name) != imageC2Ds.end()) {
-            imageC2Ds[rgbaIt->name].freeTimer = imageC2Ds[rgbaIt->name].maxFreeTimer;
-            C2D_ImageTint tinty;
-            C2D_AlphaImageTint(&tinty, opacity);
-
-            double renderPositionX = xPos;
-            double renderPositionY = yPos;
-
-            if (!centered) {
-                renderPositionX += getWidth() / 2;
-                renderPositionY += getHeight() / 2;
-            }
-
-            C2D_DrawImageAtRotated(imageC2Ds[rgbaIt->name].image, static_cast<int>(renderPositionX), static_cast<int>(renderPositionY), 1, rotation, &tinty, scale, scale);
-        }
-    }
+    if (imageData.find(imageId) != imageData.end()) {
+		imageData[imageId].render(xPos, yPos, scale, opacity, rotation, centered);
+	}
 }
 
 /**
@@ -105,30 +54,33 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
 
-    auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
-        return img.name == path2;
-    });
-    if (it != imageRGBAS.end()) return true;
-    if (getImageFromT3x("romfs:/gfx/" + path2 + ".t3x")) return true;
+	auto it = std::find_if(imageData.begin(), imageData.end(), [&](const std::pair<std::string, VitaImage> &p) {
+		return p.first == path2;
+	});
+    if (it != imageData.end()) return true;
+	
+	std::string finalPath;
 
-    std::string fullPath;
-    if (fromScratchProject) fullPath = "romfs:/project/" + filePath;
-    else fullPath = "romfs:/" + filePath;
-    if (Unzip::UnpackedInSD) fullPath = Unzip::filePath + filePath;
-    FILE *file = fopen(fullPath.c_str(), "rb");
+	finalPath = OS::getRomFSLocation();
+	if (fromScratchProject)
+		finalPath = finalPath + "project/";
+	
+	finalPath = finalPath + filePath;
+	if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
+	
+    FILE *file = fopen(finalPath.c_str(), "rb");
     if (!file) {
-        Log::logWarning("Image file not found: " + fullPath);
+        Log::logWarning("Image file not found: " + finalPath);
         return false;
     }
 
     int width, height;
-    unsigned char *rgba_data = nullptr;
+	
+	std::string ext;
+	if (filePath.size() >= 4) ext = filePath.substr(filePath.size() - 4);
+	else ext = filePath;
 
-    bool isSVG = filePath.size() >= 4 &&
-                 (filePath.substr(filePath.size() - 4) == ".svg" ||
-                  filePath.substr(filePath.size() - 4) == ".SVG");
-
-    imageRGBA newRGBA;
+    bool isSVG = filePath.size() >= 4 && (ext == ".svg" || ext == ".SVG");
 
     if (isSVG) {
         fseek(file, 0, SEEK_END);
@@ -137,7 +89,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
         char *svg_data = (char *)malloc(file_size);
         if (!svg_data) {
-            Log::logWarning("Failed to allocate memory for SVG file: " + filePath);
+            Log::logWarning("Failed to allocate memory for SVG file: " + finalPath);
             fclose(file);
             return false;
         }
@@ -146,44 +98,83 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
         fclose(file);
 
         if (read_size != (size_t)file_size) {
-            Log::logWarning("Failed to read SVG file completely: " + filePath);
+            Log::logWarning("Failed to read SVG file completely: " + finalPath);
             free(svg_data);
             return false;
         }
-
-        newRGBA.isSVG = true;
-        rgba_data = SVGToRGBA(svg_data, file_size, width, height);
-        free(svg_data);
-
-        if (!rgba_data) {
-            Log::logWarning("Failed to decode SVG: " + filePath);
-            return false;
-        }
+		
+		// TODO: see image.h
+		return false;
     } else {
-        int channels;
-        rgba_data = stbi_load_from_file(file, &width, &height, &channels, 4);
-        fclose(file);
-
-        if (!rgba_data) {
-            Log::logWarning("Failed to decode image: " + filePath);
-            return false;
-        }
+		vita2d_texture* tex = nullptr;
+		if (filePath.size() >= 4) {
+			if (ext == ".jpg" || ext == ".JPG" || ext == "jpeg" || ext == "JPEG") {
+				tex = vita2d_load_JPEG_file(finalPath.c_str());
+			} else if (ext == ".png" || ext == ".PNG") {
+				tex = vita2d_load_PNG_file(finalPath.c_str());
+			} else if (ext == ".bmp" || ext == ".BMP") {
+				tex = vita2d_load_BMP_file(finalPath.c_str());
+			}
+			if (tex) goto skipSTBI;
+		}
+		{ // This coding is cursed, and I need for this stuff to fall
+		  // out of scope immediately before hitting the skip goto
+			int channels;
+			unsigned char *rgba_data = stbi_load_from_file(file, &width, &height, &channels, 4);
+			if (!rgba_data) {
+				Log::logWarning("Failed to decode image: " + finalPath);
+				return false;
+			}
+			// Now we do the funny
+			tex = vita2d_create_empty_texture_rendertarget(width, height, SCE_GXM_TEXTURE_FORMAT_A8R8G8B8);
+			vita2d_start_drawing_advanced(tex, 0);
+			unsigned int channelMask;
+			switch (channels) {
+				case 1:
+					channelMask = 0x000000ff;
+					break;
+				case 2:
+					channelMask = 0x0000ffff;
+					break;
+				case 3:
+					channelMask = 0x00ffffff;
+					break;
+				case 4:
+					channelMask = 0xffffffff;
+					break;
+			}
+			/**
+			 * Explanation of what I'm doing here:
+			 * Above this I set up a mask for the channels
+			 * before writing them to the vita2d texture.
+			 * Here, I'm using pointer manipulation to make
+			 * vita2d interpret the RGBA value as an integer.
+			 * Thanks to the Vita being little-endian, the values
+			 * stored in memory in the order R, G, B, A will
+			 * be interpreted in the order ABGR, which is exactly
+			 * what the `vita2d_draw_pixel` function expects.
+			 * This is done for every pixel in the image.
+			 * What this does is effectively copy the image to VRAM,
+			 * so now the memory doesn't need to be hogging main
+			 * system RAM.
+			 * Thankfully I don't need to worry about accidentally
+			 * reading memory I don't have access to; I only need to
+			 * read 4 bytes, and the 4 bytes both before and behind
+			 * `rgba_data` are taken up by `channels` and
+			 * `channelMask`, meaning those might get stepped on.
+			 */
+			for (int x = 0; x < width; x++)
+				for (int y = 0; y < height; y++)
+					vita2d_draw_pixel(x, y, channelMask &
+									  *(unsigned int*)(rgba_data + (x + y * width + 1) *
+													  channels - sizeof(unsigned int)));
+			vita2d_end_drawing();
+		}
+		skipSTBI:
+		fclose(file);
+		BitmapImage image(tex);
+		imageData[path2] = image;
     }
-
-    newRGBA.name = path2;
-    newRGBA.fullName = filename;
-    newRGBA.width = width;
-    newRGBA.height = height;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
-    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
-    newRGBA.data = rgba_data;
-
-    size_t imageSize = width * height * 4;
-    MemoryTracker::allocate(imageSize);
-
-    // Log::log("successfuly laoded image from file!");
-    imageRGBAS.push_back(newRGBA);
     return true;
 }
 
@@ -193,6 +184,8 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
  * @param costumeId The filename of the image to load (e.g., "sprite1.png")
  */
 void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+	// TODO: loadImageFromSB3
+	/*
     std::string imageId = costumeId.substr(0, costumeId.find_last_of('.'));
 
     // Check if image already exists
@@ -289,206 +282,15 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
 
     // Clean up
     mz_free(file_data);
+	 */
 }
 
 /**
- * Loads SVG data and converts it to RGBA pixel data
- */
-unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height) {
-    // Create a null-terminated string from the SVG data
-    char *svg_string = (char *)malloc(svg_size + 1);
-    if (!svg_string) {
-        Log::logWarning("Failed to allocate memory for SVG string");
-        return nullptr;
-    }
-    memcpy(svg_string, svg_data, svg_size);
-    svg_string[svg_size] = '\0';
-
-    // Parse SVG
-    NSVGimage *image = nsvgParse(svg_string, "px", 96.0f);
-    free(svg_string);
-
-    if (!image) {
-        Log::logWarning("Failed to parse SVG");
-        return nullptr;
-    }
-
-    // Determine render size
-    if (image->width > 0 && image->height > 0) {
-        width = (int)image->width;
-        height = (int)image->height;
-    } else {
-        width = 32;
-        height = 32;
-    }
-
-    // Clamp to 3DS limits
-    width = clamp(width, 0, 1024);
-    height = clamp(height, 0, 1024);
-
-    // Create rasterizer
-    NSVGrasterizer *rast = nsvgCreateRasterizer();
-    if (!rast) {
-        Log::logWarning("Failed to create SVG rasterizer");
-        nsvgDelete(image);
-        return nullptr;
-    }
-
-    // Allocate RGBA buffer
-    unsigned char *rgba_data = (unsigned char *)malloc(width * height * 4);
-    if (!rgba_data) {
-        Log::logWarning("Failed to allocate RGBA buffer for SVG");
-        nsvgDeleteRasterizer(rast);
-        nsvgDelete(image);
-        return nullptr;
-    }
-
-    // Calculate scale
-    float scale = 1.0f;
-    if (image->width > 0 && image->height > 0) {
-        float scaleX = (float)width / image->width;
-        float scaleY = (float)height / image->height;
-        scale = std::min(scaleX, scaleY);
-    }
-
-    // Rasterize SVG
-    nsvgRasterize(rast, image, 0, 0, scale, rgba_data, width, height, width * 4);
-
-    // Clean up
-    nsvgDeleteRasterizer(rast);
-    nsvgDelete(image);
-
-    return rgba_data;
-}
-
-bool getImageFromT3x(const std::string &filePath) {
-    std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
-    std::string path2 = filename.substr(0, filename.find_last_of('.'));
-
-    C2D_SpriteSheet sheet = C2D_SpriteSheetLoad(filePath.c_str());
-    if (!sheet) {
-        // Log::logWarning("Could not load sprite from t3x!");
-        return false;
-    }
-
-    // get first image from spritesheet since that's all we're using
-    C2D_Image image = C2D_SpriteSheetGetImage(sheet, 0);
-
-    imageRGBA newRGBA;
-    newRGBA.width = image.subtex->width;
-    newRGBA.height = image.subtex->height;
-    newRGBA.fullName = filePath;
-    newRGBA.name = path2;
-    newRGBA.isSVG = false;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
-    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
-    newRGBA.data = nullptr;
-
-    // Track memory usage
-    size_t imageSize = newRGBA.width * newRGBA.height * 4;
-    MemoryTracker::allocateVRAM(imageSize);
-
-    // Log::log("Successfully loaded image from t3x!");
-    imageRGBAS.push_back(newRGBA);
-
-    imageC2Ds[newRGBA.name] = {image, 240, sheet};
-
-    return true;
-}
-
-/**
- * Reads an `imageRGBA` image, and adds a `C2D_Image` object to `imageC2Ds`.
- * Assumes image data is stored left->right, top->bottom.
- * Dimensions must be within 64x64 and 1024x1024.
- * Code here originally from https://gbatemp.net/threads/citro2d-c2d_image-example.668574/
- * then edited to fit my code
- */
-bool get_C2D_Image(imageRGBA rgba) {
-
-    // u32 px_count = rgba.width * rgba.height;
-    u32 *rgba_raw = reinterpret_cast<u32 *>(rgba.data);
-
-    // Image data
-    C2D_Image image;
-
-    // Base texture
-    C3D_Tex *tex = new C3D_Tex();
-    // C3D_Tex *tex = MemoryTracker::allocate<C3D_Tex>();
-    // new (tex) C3D_Tex();
-    image.tex = tex;
-
-    // Texture dimensions must be square powers of two between 64x64 and 1024x1024
-    tex->width = rgba.textureWidth;
-    tex->height = rgba.textureHeight;
-
-    size_t textureSize = rgba.textureMemSize;
-
-    // Subtexture
-    Tex3DS_SubTexture *subtex = new Tex3DS_SubTexture();
-    // Tex3DS_SubTexture *subtex = MemoryTracker::allocate<Tex3DS_SubTexture>();
-    // new (subtex) Tex3DS_SubTexture();
-
-    image.subtex = subtex;
-    subtex->width = rgba.width;
-    subtex->height = rgba.height;
-
-    // (U, V) coordinates
-    subtex->left = 0.0f;
-    subtex->top = 1.0f;
-    subtex->right = (float)rgba.width / (float)tex->width;
-    subtex->bottom = 1.0 - ((float)rgba.height / (float)tex->height);
-
-    if (!C3D_TexInit(tex, tex->width, tex->height, GPU_RGBA8)) {
-        Log::logWarning("Texture initializing failed!");
-        delete tex;
-        delete subtex;
-        // MemoryTracker::deallocate(tex);
-        // MemoryTracker::deallocate(subtex);
-        cleanupImagesLite();
-        return false;
-    }
-    C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
-
-    if (!tex->data) {
-        Log::logWarning("Texture data is null!");
-        C3D_TexDelete(tex);
-        delete tex;
-        delete subtex;
-        // MemoryTracker::deallocate(tex);
-        // MemoryTracker::deallocate(subtex);
-        cleanupImagesLite();
-        return false;
-    }
-
-    memset(tex->data, 0, textureSize);
-    for (u32 i = 0; i < (u32)rgba.width; i++) {
-        for (u32 j = 0; j < (u32)rgba.height; j++) {
-            u32 src_idx = (j * rgba.width) + i;
-            u32 rgba_px = rgba_raw[src_idx];
-            u32 abgr_px = rgba_to_abgr(rgba_px);
-
-            // Swizzle magic to convert into a t3x format
-            u32 dst_ptr_offset = ((((j >> 3) * (tex->width >> 3) + (i >> 3)) << 6) +
-                                  ((i & 1) | ((j & 1) << 1) | ((i & 2) << 1) |
-                                   ((j & 2) << 2) | ((i & 4) << 2) | ((j & 4) << 3)));
-            ((u32 *)tex->data)[dst_ptr_offset] = abgr_px;
-        }
-    }
-
-    // Log::log("C2D Image Successfully loaded!");
-
-    MemoryTracker::allocateVRAM(rgba.textureMemSize);
-
-    imageC2Ds[rgba.name] = {image};
-    C3D_FrameSync(); // wait for Async functions to finish
-    return true;
-}
-
-/**
- * Frees a `C2D_Image` from memory using `costumeId` string to find it.
+ * Frees a `VitaImage` from memory using `costumeId` string to find it.
  */
 void Image::freeImage(const std::string &costumeId) {
+	// TODO: freeImage
+	/*
     auto it = imageC2Ds.find(costumeId);
     if (it != imageC2Ds.end()) {
         // Log::log("freed image!");
@@ -521,24 +323,12 @@ void Image::freeImage(const std::string &costumeId) {
         Log::logWarning("cant find image to free: " + costumeId);
     }
     freeRGBA(costumeId);
-}
-
-void cleanupImagesLite() {
-    std::vector<std::string> keysToDelete;
-    keysToDelete.reserve(imageC2Ds.size());
-
-    for (const auto &[id, data] : imageC2Ds) {
-        if (data.freeTimer < data.maxFreeTimer * 0.8)
-            keysToDelete.push_back(id);
-    }
-
-    for (const std::string &id : keysToDelete) {
-        Image::freeImage(id);
-    }
+	 */
 }
 
 void Image::cleanupImages() {
-
+	// TODO: cleanupImages
+	/*
     std::vector<std::string> keysToDelete;
     keysToDelete.reserve(imageC2Ds.size());
 
@@ -556,32 +346,11 @@ void Image::cleanupImages() {
     toDelete.clear();
 
     // Log::log("Image cleanup completed.");
-}
-
-void freeRGBA(const std::string &imageName) {
-    auto it = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
-        return img.name == imageName;
-    });
-
-    if (it != imageRGBAS.end()) {
-        if (it->data != nullptr && it->data) {
-            size_t dataSize = it->width * it->height * 4;
-
-            if (it->isSVG) {
-                MemoryTracker::deallocate(it->data, dataSize);
-            } else {
-                MemoryTracker::deallocate(it->data, dataSize);
-            }
-            MemoryTracker::deallocateVRAM(it->textureMemSize);
-
-            // Log::log("Freed RGBA data for " + imageName);
-        }
-        imageRGBAS.erase(it);
-    }
+	 */
 }
 
 /**
- * Queues a `C2D_Image` to be freed using `costumeId` to find it.
+ * Queues a `VitaImage` to be freed using `costumeId` to find it.
  * The image will be freed once `FlushImages()` is called.
  */
 void Image::queueFreeImage(const std::string &costumeId) {
@@ -589,23 +358,39 @@ void Image::queueFreeImage(const std::string &costumeId) {
 }
 
 /**
- * Checks every `C2D_Image` in memory to see if they can be freed.
- * A `C2D_Image` will get freed if there's either too many images in memory,
- * or if a `C2D_Image` goes unused for 120 frames.
+ * Checks every `VitaImage` in memory to see if they can be freed.
+ * A `VitaImage` will get freed if there's too many images in memory.
  */
 void Image::FlushImages() {
     std::vector<std::string> keysToDelete;
 
-    // timer based freeing
-    for (auto &[id, data] : imageC2Ds) {
-        if (data.freeTimer <= 0) {
-            keysToDelete.push_back(id);
-        } else {
-            data.freeTimer -= 1;
-        }
-    }
-
     for (const std::string &id : keysToDelete) {
         Image::freeImage(id);
     }
+}
+
+void VitaImage::render (double xPos, double yPos,
+						double scale, double opacity,
+						double rotation, bool centered,
+						int scaleX) { } // Stub
+
+BitmapImage::BitmapImage(vita2d_texture* tex) {
+	this->tex = tex;
+	width = vita2d_texture_get_width(tex);
+	height = vita2d_texture_get_height(tex);
+}
+
+BitmapImage::~BitmapImage() {
+	vita2d_free_texture(tex);
+}
+
+void BitmapImage::render(double xPos, double yPos,
+						 double scale, double opacity,
+						 double rotation, bool centered,
+						 int scaleX) {
+	unsigned int tint = 0xffffffff;
+	tint *= opacity;
+	tint |= 0x00ffffff;
+	float center = centered ? 0.5f : 0;
+	vita2d_draw_texture_tint_scale_rotate_hotspot(tex, xPos, yPos, scale * scaleX, scale, rotation, center, center, tint);
 }

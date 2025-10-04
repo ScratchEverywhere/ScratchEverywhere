@@ -3,7 +3,6 @@
 
 #define FONT_SIZE 16
 
-std::unordered_map<std::string, void*> TextObjectVita::fonts;
 std::unordered_map<std::string, size_t> TextObjectVita::fontUsageCount;
 
 TextObjectVita::TextObjectVita(std::string txt, double posX, double posY, std::string fontPath)
@@ -54,8 +53,8 @@ void TextObjectVita::setText(std::string txt) {
 
 std::vector<float> TextObjectVita::getSize() {
     int width, height;
-	if (fontClass.isPVF) vita2d_pvf_text_dimensions(fontClass.font, scale * FONT_SIZE / fontClass.pvfDefaultSize, text, &width, &height);
-	else vita2d_font_text_dimensions(fontClass.font, scale * FONT_SIZE , text, &width, &height);
+	if (fontClass.isPVF) vita2d_pvf_text_dimensions(fontClass.font, scale * FONT_SIZE / fontClass.pvfDefaultSize, text.c_str(), &width, &height);
+	else vita2d_font_text_dimensions(fontClass.font, scale * FONT_SIZE, text.c_str(), &width, &height);
     return {width, height};
 }
 
