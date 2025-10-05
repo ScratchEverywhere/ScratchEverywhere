@@ -2,7 +2,7 @@
 #include "text_sdl.hpp"
 #include <string>
 
-class SpeechTextObject : public TextObjectSDL {
+class SpeechTextObjectSDL : public TextObjectSDL {
   private:
     std::string originalText;
     int maxWidth;
@@ -10,8 +10,8 @@ class SpeechTextObject : public TextObjectSDL {
     void wrapText();
 
   public:
-    SpeechTextObject(const std::string &text, int maxWidth = 200);
-    ~SpeechTextObject() override = default;
+    SpeechTextObjectSDL(const std::string &text, int maxWidth = 200);
+    ~SpeechTextObjectSDL() override = default;
 
     void setText(std::string txt) override;
 };

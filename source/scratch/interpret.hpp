@@ -1,6 +1,12 @@
 #pragma once
 #include "blockExecutor.hpp"
-#include "speech_manager.hpp"
+
+#ifdef __3DS__
+#include "speech_manager_3ds.hpp"
+#else
+#include "speech_manager_sdl.hpp"
+#endif
+
 #include "sprite.hpp"
 #include <nlohmann/json.hpp>
 #include <string>
@@ -17,8 +23,13 @@ enum ProjectType {
 class BlockExecutor;
 extern BlockExecutor executor;
 
-class SpeechManager;
-extern SpeechManager *speechManager;
+#ifdef __3DS__
+class SpeechManager3DS;
+extern SpeechManager3DS *speechManager;
+#else
+class SpeechManagerSDL;
+extern SpeechManagerSDL *speechManager;
+#endif
 
 extern ProjectType projectType;
 

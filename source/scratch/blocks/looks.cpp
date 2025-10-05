@@ -3,7 +3,13 @@
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
-#include "speech_manager.hpp"
+
+#ifdef __3DS__
+#include "speech_manager_3ds.hpp"
+#else
+#include "speech_manager_sdl.hpp"
+#endif
+
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"

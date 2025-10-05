@@ -50,7 +50,11 @@ ProjectType projectType;
 
 BlockExecutor executor;
 
-SpeechManager *speechManager = nullptr;
+#ifdef __3DS__
+SpeechManager3DS *speechManager = nullptr;
+#else
+SpeechManagerSDL *speechManager = nullptr;
+#endif
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;

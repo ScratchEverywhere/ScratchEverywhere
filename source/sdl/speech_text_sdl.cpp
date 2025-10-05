@@ -1,16 +1,16 @@
-#include "speech_text.hpp"
+#include "speech_text_sdl.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <algorithm>
 
-SpeechTextObject::SpeechTextObject(const std::string &text, int maxWidth)
+SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
     : TextObjectSDL(text, 0, 0), maxWidth(maxWidth) {
     originalText = text;
     setColor(0x00);
     wrapText();
 }
 
-void SpeechTextObject::wrapText() {
+void SpeechTextObjectSDL::wrapText() {
     if (!font || originalText.empty()) {
         TextObjectSDL::setText(originalText);
         return;
@@ -76,7 +76,7 @@ void SpeechTextObject::wrapText() {
     TextObjectSDL::setText(result);
 }
 
-void SpeechTextObject::setText(std::string txt) {
+void SpeechTextObjectSDL::setText(std::string txt) {
     if (originalText == txt) return;
     originalText = txt;
     wrapText();

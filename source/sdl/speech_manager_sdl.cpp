@@ -1,20 +1,20 @@
-#include "speech_manager.hpp"
+#include "speech_manager_sdl.hpp"
 #include "interpret.hpp"
 #include <SDL2/SDL.h>
 #include <iostream>
 
-SpeechManager::SpeechManager(SDL_Renderer *renderer) : renderer(renderer) {
+SpeechManagerSDL::SpeechManagerSDL(SDL_Renderer *renderer) : renderer(renderer) {
     this->renderer = renderer;
 }
 
-SpeechManager::~SpeechManager() {
+SpeechManagerSDL::~SpeechManagerSDL() {
     cleanup();
 }
 
-void SpeechManager::showSpeech(Sprite *sprite, const std::string &message, double showForSecs, const std::string &style) {
+void SpeechManagerSDL::showSpeech(Sprite *sprite, const std::string &message, double showForSecs, const std::string &style) {
     if (!sprite) return;
     if (!renderer) {
-        std::cout << "SpeechManager: No renderer set" << std::endl;
+        std::cout << "SpeechManagerSDL: No renderer set" << std::endl;
         return;
     }
 
@@ -31,10 +31,10 @@ void SpeechManager::showSpeech(Sprite *sprite, const std::string &message, doubl
 
     // Create / update speech object
     if (speechObjects.find(sprite) == speechObjects.end()) {
-        speechObjects[sprite] = std::make_unique<SpeechTextObject>(message, 200);
+        speechObjects[sprite] = std::make_unique<SpeechTextObjectSDL>(message, 200);
         speechObjects[sprite]->setRenderer(renderer);
     } else {
-        SpeechTextObject *obj = speechObjects[sprite].get();
+        SpeechTextObjectSDL *obj = speechObjects[sprite].get();
 
         if (obj) {
             obj->setText(message);
@@ -42,7 +42,7 @@ void SpeechManager::showSpeech(Sprite *sprite, const std::string &message, doubl
     }
 }
 
-void SpeechManager::clearSpeech(Sprite *sprite) {
+void SpeechManagerSDL::clearSpeech(Sprite *sprite) {
     if (!sprite) return;
 
     speechStartTimes.erase(sprite);
@@ -51,7 +51,7 @@ void SpeechManager::clearSpeech(Sprite *sprite) {
     speechDurations.erase(sprite);
 }
 
-void SpeechManager::update(double deltaTime) {
+void SpeechManagerSDL::update(double deltaTime) {
     double now = SDL_GetTicks() / 1000.0;
 
     // check timers and clear speech objects if they have expired
@@ -73,7 +73,7 @@ void SpeechManager::update(double deltaTime) {
     }
 }
 
-void SpeechManager::render() {
+void SpeechManagerSDL::render() {
     if (!renderer) return;
 
     // Get window dimensions and scale so speech size aligns with resolution
@@ -99,7 +99,7 @@ void SpeechManager::render() {
     }
 }
 
-void SpeechManager::cleanup() {
+void SpeechManagerSDL::cleanup() {
     speechObjects.clear();
     speechStyles.clear();
     speechStartTimes.clear();
