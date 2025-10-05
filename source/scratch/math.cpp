@@ -21,6 +21,7 @@ int Math::color(int r, int g, int b, int a) {
            (b << 8) |
            a;
 #endif
+    return 0;
 }
 
 double Math::parseNumber(const std::string &str) {
