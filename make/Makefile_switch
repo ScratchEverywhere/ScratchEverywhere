@@ -54,7 +54,7 @@ LIBDIRS	:= $(PORTLIBS) $(LIBNX)
 
 ifneq ($(CURDIR),$(TOPDIR)/$(BUILD))
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
+export OUTPUT	:=	$(TARGET)
 export TOPDIR	:=	$(CURDIR)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) $(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -99,7 +99,7 @@ ifeq ($(strip $(NO_ICON)),)
 endif
 
 ifeq ($(strip $(NO_NACP)),)
-	export NROFLAGS += --nacp=$(CURDIR)/$(TARGET).nacp
+	export NROFLAGS += --nacp=$(OUTPUT).nacp
 endif
 
 ifneq ($(APP_TITLEID),)
@@ -120,7 +120,7 @@ $(BUILD):
 
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT).pfs0 $(OUTPUT).nso $(OUTPUT).nro $(OUTPUT).nacp $(OUTPUT).elf
+	@rm -fr $(BUILD) $(BUILD)/$(TARGET).pfs0 $(BUILD)/$(TARGET).nso $(BUILD)/$(TARGET).nro $(BUILD)/$(TARGET).nacp $(BUILD)/$(TARGET).elf
 
 else
 .PHONY:	all

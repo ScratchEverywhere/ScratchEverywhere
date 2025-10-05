@@ -82,7 +82,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 24 Nightly", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 24", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -433,9 +433,9 @@ void SettingsMenu::init() {
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
-    Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
-    Credits->text->setColor(Math::color(0, 0, 0, 255));
-    Credits->text->setScale(0.5);
+    // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    // Credits->text->setColor(Math::color(0, 0, 0, 255));
+    // Credits->text->setScale(0.5);
     EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
     EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
     EnableUsername->text->setScale(0.5);
@@ -478,21 +478,21 @@ void SettingsMenu::init() {
     if (UseCostumeUsername) {
         EnableUsername->text->setText("Username: Enabled");
         ChangeUsername->text->setText("name: " + username);
-        Credits->buttonDown = EnableUsername;
-        Credits->buttonUp = ChangeUsername;
+        // Credits->buttonDown = EnableUsername;
+        // Credits->buttonUp = ChangeUsername;
         EnableUsername->buttonDown = ChangeUsername;
         EnableUsername->buttonUp = Credits;
         ChangeUsername->buttonUp = EnableUsername;
         ChangeUsername->buttonDown = Credits;
     } else {
         EnableUsername->text->setText("Username: Disabled");
-        Credits->buttonDown = EnableUsername;
-        Credits->buttonUp = EnableUsername;
+        // Credits->buttonDown = EnableUsername;
+        // Credits->buttonUp = EnableUsername;
         EnableUsername->buttonDown = Credits;
         EnableUsername->buttonUp = Credits;
     }
 
-    settingsControl->buttonObjects.push_back(Credits);
+    // settingsControl->buttonObjects.push_back(Credits);
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
 
@@ -512,7 +512,7 @@ void SettingsMenu::render() {
     Render::beginFrame(1, 147, 138, 168);
 
     backButton->render();
-    Credits->render();
+    // Credits->render();
     EnableUsername->render();
     if (UseCostumeUsername) ChangeUsername->render();
 
@@ -521,20 +521,20 @@ void SettingsMenu::render() {
             UseCostumeUsername = false;
             EnableUsername->text->setText("Username: disabled");
             if (settingsControl->selectedObject == ChangeUsername) settingsControl->selectedObject = EnableUsername;
-            Credits->buttonDown = EnableUsername;
-            Credits->buttonUp = EnableUsername;
-            EnableUsername->buttonDown = Credits;
-            EnableUsername->buttonUp = Credits;
+            // Credits->buttonDown = EnableUsername;
+            // Credits->buttonUp = EnableUsername;
+            // EnableUsername->buttonDown = Credits;
+            // EnableUsername->buttonUp = Credits;
         } else {
             UseCostumeUsername = true;
             EnableUsername->text->setText("Username: Enabled");
             ChangeUsername->text->setText("name: " + username);
-            Credits->buttonDown = EnableUsername;
-            Credits->buttonUp = ChangeUsername;
+            // Credits->buttonDown = EnableUsername;
+            // Credits->buttonUp = ChangeUsername;
             EnableUsername->buttonDown = ChangeUsername;
-            EnableUsername->buttonUp = Credits;
+            // EnableUsername->buttonUp = Credits;
             ChangeUsername->buttonUp = EnableUsername;
-            ChangeUsername->buttonDown = Credits;
+            // ChangeUsername->buttonDown = Credits;
         }
     }
 

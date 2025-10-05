@@ -27,6 +27,8 @@ class Image {
 
     void render(double xPos, double yPos, bool centered = false);
 
+    void renderNineslice(double xPos, double yPos, double width, double height, double padding /* IDK if that's the correct name */, bool centered = false);
+
     /**
      * `3DS`: Turns a single image from an unzipped Scratch project into RGBA data.
      * `SDL`: Loads a single `SDL_Image` from an unzipped filepath.

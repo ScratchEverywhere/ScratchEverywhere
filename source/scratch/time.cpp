@@ -1,55 +1,55 @@
+#include <chrono>
 #include <cstddef>
 #include <ctime>
 #include <time.hpp>
 
 int Time::getHours() {
     time_t unixTime = time(NULL);
-    struct tm *timeStruct = gmtime((const time_t *)&unixTime);
+    struct tm *timeStruct = localtime((const time_t *)&unixTime);
     return timeStruct->tm_hour;
 }
 
 int Time::getMinutes() {
     time_t unixTime = time(NULL);
-    struct tm *timeStruct = gmtime((const time_t *)&unixTime);
+    struct tm *timeStruct = localtime((const time_t *)&unixTime);
     return timeStruct->tm_min;
 }
 
 int Time::getSeconds() {
     time_t unixTime = time(NULL);
-    struct tm *timeStruct = gmtime((const time_t *)&unixTime);
+    struct tm *timeStruct = localtime((const time_t *)&unixTime);
     return timeStruct->tm_sec;
 }
 
 int Time::getDay() {
     time_t unixTime = time(NULL);
-    struct tm *timeStruct = gmtime((const time_t *)&unixTime);
+    struct tm *timeStruct = localtime((const time_t *)&unixTime);
     return timeStruct->tm_mday;
 }
 
 int Time::getDayOfWeek() {
     time_t unixTime = time(NULL);
-    struct tm *timeStruct = gmtime((const time_t *)&unixTime);
-    // tm_wday: days since Sunday [0,6], so add 1 to make Sunday=1, Monday=2, etc.
+    struct tm *timeStruct = localtime((const time_t *)&unixTime);
     return timeStruct->tm_wday + 1;
 }
 
 int Time::getMonth() {
     time_t unixTime = time(NULL);
-    struct tm *timeStruct = gmtime((const time_t *)&unixTime);
-    return timeStruct->tm_mon;
+    struct tm *timeStruct = localtime((const time_t *)&unixTime);
+    return timeStruct->tm_mon + 1;
 }
 
 int Time::getYear() {
     time_t unixTime = time(NULL);
-    struct tm *timeStruct = gmtime((const time_t *)&unixTime);
+    struct tm *timeStruct = localtime((const time_t *)&unixTime);
     return timeStruct->tm_year + 1900;
 }
 
-// Returns days (including fractional) since Jan 1, 2000 UTC
 double Time::getDaysSince2000() {
-    time_t now = time(NULL);
+    using namespace std::chrono;
 
-    // Set up struct tm for Jan 1, 2000, 00:00:00 UTC
+    const auto now = system_clock::now();
+
     struct tm start_tm = {0};
     start_tm.tm_year = 2000 - 1900;
     start_tm.tm_mon = 0;
@@ -58,8 +58,11 @@ double Time::getDaysSince2000() {
     start_tm.tm_min = 0;
     start_tm.tm_sec = 0;
 
-    time_t start = mktime(&start_tm);
+    const time_t start_time_t = mktime(&start_tm);
+    const auto start = system_clock::from_time_t(start_time_t);
 
-    double seconds = difftime(now, start);
-    return seconds / 86400.0;
+    const auto diff = now - start;
+    const auto millis = duration_cast<milliseconds>(diff).count();
+
+    return millis / 86400000.0;
 }

@@ -2,14 +2,18 @@
 #include "blockExecutor.hpp"
 #include "interpret.hpp"
 #include "sprite.hpp"
+#include "unzip.hpp"
 #include "value.hpp"
 
 Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
-    if (Scratch::getFieldValue(block, "VALUE") == "Scratch Everywhere! platform") {
+    const std::string name = Scratch::getFieldValue(block, "VALUE");
+    if (name == "Scratch Everywhere! platform") {
         return Value(OS::getPlatform());
     }
-
-    return BlockExecutor::getCustomBlockValue(Scratch::getFieldValue(block, "VALUE"), sprite, block);
+    if (name == "\u200B\u200Breceived data\u200B\u200B") {
+        return Scratch::dataNextProject;
+    }
+    return BlockExecutor::getCustomBlockValue(name, sprite, block);
 }
 
 Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
@@ -19,7 +23,7 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
         return Value(OS::isNew3DS());
     }
 
-    Value value = BlockExecutor::getCustomBlockValue(Scratch::getFieldValue(block, "VALUE"), sprite, block);
+    Value value = BlockExecutor::getCustomBlockValue(name, sprite, block);
     return Value(value.asInt() == 1);
 }
 
@@ -34,7 +38,7 @@ BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScr
         block.customBlockExecuted = false;
 
         // Run the custom block for the first time
-        BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh);
+        if (BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh) == BlockResult::RETURN) return BlockResult::RETURN;
         block.customBlockExecuted = true;
 
         BlockExecutor::addToRepeatQueue(sprite, &block);
