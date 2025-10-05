@@ -43,8 +43,8 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_DestroyTexture(tempTexture);
 #elif defined(__3DS__)
-    // TODO: simplify this code
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const int transparency = 255 * (1 - sprite->penData.transparency / 100);
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C3D_FrameDrawOn(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
@@ -55,7 +55,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     const float scaleX = static_cast<double>(SCREEN_WIDTH) / penSubtex.width;
     const float scaleY = static_cast<double>(SCREEN_HEIGHT) / penSubtex.height;
     const float scale = std::min(scaleX, scaleY);
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * scale), 1, 1000);
 
     const float xSscaled = (sprite->xPosition * scale) + (SCREEN_WIDTH / 2);
