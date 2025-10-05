@@ -28,10 +28,20 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     sprite->penData.down = true;
 
 #ifdef SDL_BUILD
-    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureAlphaMod(tempTexture, (sprite->penData.transparency - 100) / 100 * 255);
+    SDL_SetRenderTarget(renderer, tempTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
-    filledCircleRGBA(renderer, sprite->xPosition + 240, -sprite->yPosition + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, sprite->xPosition + Scratch::projectWidth / 2, -sprite->yPosition + Scratch::projectHeight / 2, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_RenderCopy(renderer, tempTexture, NULL, NULL);
     SDL_SetRenderTarget(renderer, nullptr);
+    SDL_DestroyTexture(tempTexture);
 #elif defined(__3DS__)
     // TODO: simplify this code
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);

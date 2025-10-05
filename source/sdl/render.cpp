@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -167,15 +168,6 @@ postAccount:
     window = SDL_CreateWindow("Scratch Runtime", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
-    penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, 480, 360); // TODO: Support other resolutions.
-
-    // Clear the texture
-    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderTarget(renderer, penTexture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, NULL);
-
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
     debugMode = true;
@@ -216,13 +208,29 @@ int Render::getHeight() {
 }
 
 bool Render::initPen() {
+    if (penTexture != nullptr) return true;
+
+    penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+
+    // Clear the texture
+    SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
+    SDL_SetRenderTarget(renderer, nullptr);
+
     return true;
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
 
-    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureAlphaMod(tempTexture, (sprite->penData.transparency - 100) / 100 * 255);
+    SDL_SetRenderTarget(renderer, tempTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
 
     const double dx = x2 - x1;
     const double dy = y2 - y1;
@@ -234,22 +242,25 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
         const double ny = dy / length;
 
         int16_t vx[4], vy[4];
-        vx[0] = static_cast<int16_t>(x1 + 240 - ny * (sprite->penData.size / 2));
-        vy[0] = static_cast<int16_t>(-y1 + 180 + nx * (sprite->penData.size / 2));
-        vx[1] = static_cast<int16_t>(x1 + 240 + ny * (sprite->penData.size / 2));
-        vy[1] = static_cast<int16_t>(-y1 + 180 - nx * (sprite->penData.size / 2));
-        vx[2] = static_cast<int16_t>(x2 + 240 + ny * (sprite->penData.size / 2));
-        vy[2] = static_cast<int16_t>(-y2 + 180 - nx * (sprite->penData.size / 2));
-        vx[3] = static_cast<int16_t>(x2 + 240 - ny * (sprite->penData.size / 2));
-        vy[3] = static_cast<int16_t>(-y2 + 180 + nx * (sprite->penData.size / 2));
+        vx[0] = static_cast<int16_t>(x1 + Scratch::projectWidth / 2 - ny * (sprite->penData.size / 2));
+        vy[0] = static_cast<int16_t>(-y1 + Scratch::projectHeight / 2 + nx * (sprite->penData.size / 2));
+        vx[1] = static_cast<int16_t>(x1 + Scratch::projectWidth / 2 + ny * (sprite->penData.size / 2));
+        vy[1] = static_cast<int16_t>(-y1 + Scratch::projectHeight / 2 - nx * (sprite->penData.size / 2));
+        vx[2] = static_cast<int16_t>(x2 + Scratch::projectWidth / 2 + ny * (sprite->penData.size / 2));
+        vy[2] = static_cast<int16_t>(-y2 + Scratch::projectHeight / 2 - nx * (sprite->penData.size / 2));
+        vx[3] = static_cast<int16_t>(x2 + Scratch::projectWidth / 2 - ny * (sprite->penData.size / 2));
+        vy[3] = static_cast<int16_t>(-y2 + Scratch::projectHeight / 2 + nx * (sprite->penData.size / 2));
 
-        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
+        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
     }
 
-    filledCircleRGBA(renderer, x1 + 240, -y1 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
-    filledCircleRGBA(renderer, x2 + 240, -y2 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, (sprite->penData.transparency - 100) / 100 * 255);
+    filledCircleRGBA(renderer, x1 + 240, -y1 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, x2 + 240, -y2 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_RenderCopy(renderer, tempTexture, NULL, NULL);
     SDL_SetRenderTarget(renderer, nullptr);
+    SDL_DestroyTexture(tempTexture);
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
