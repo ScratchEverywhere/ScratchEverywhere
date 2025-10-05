@@ -613,11 +613,8 @@ void ProjectSettings::init() {
     DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
     bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 155, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
-    bottomScreenButton->text->setScale(0.5);
     collisionModeButton = new ButtonObject("Collision Mode", "gfx/menu/projectBox.svg", 200, 205, "gfx/menu/Ubuntu-Bold");
     collisionModeButton->text->setColor(Math::color(0, 0, 0, 255));
-    collisionModeButton->text->setScale(0.5);
-    collisionModeButton->buttonTexture->height = collisionModeButton->buttonTexture->image->getHeight();
 
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -655,9 +652,7 @@ void ProjectSettings::init() {
 
     nlohmann::json settings = getProjectSettings();
     bottomScreenButton->text->setText("Bottom Screen: " + std::string(!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>() ? "ON" : "OFF"));
-    collisionModeButton->text->setText("Collision Mode: " + (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["collisionMode"].is_null() ? settings["settings"]["collisionMode"].get<std::string>() : "Fixed Resolution"));
-    collisionModeButton->buttonTexture->width = settings.is_null() || settings["settings"].is_null() || settings["settings"]["collisionMode"].is_null() || settings["settings"]["collisionMode"] == "Fixed Resolution" ? 500 : settings["settings"]["collisionMode"] == "Box" ? collisionModeButton->buttonTexture->image->getWidth()
-                                                                                                                                                                                                                                                                              : 525;
+    collisionModeButton->text->setText("Collision Mode: " + (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["collisionMode"].is_null() ? settings["settings"]["collisionMode"].get<std::string>() : "Fixed"));
 
     isInitialized = true;
 }
@@ -680,12 +675,10 @@ void ProjectSettings::render() {
     }
     if (collisionModeButton->isPressed()) {
         nlohmann::json collisionModeSetting;
-        collisionModeSetting["collisionMode"] = collisionModeButton->text->getText() == "Collision Mode: Box" ? "Fixed Resolution" : collisionModeButton->text->getText() == "Collision Mode: Fixed Resolution" ? "Percent Resolution"
-                                                                                                                                                                                                                : "Box";
+        collisionModeSetting["collisionMode"] = collisionModeButton->text->getText() == "Collision Mode: Box" ? "Fixed" : collisionModeButton->text->getText() == "Collision Mode: Fixed" ? "Percent"
+                                                                                                                                                                                          : "Box";
         applySettings(collisionModeSetting);
         collisionModeButton->text->setText("Collision Mode: " + collisionModeSetting["collisionMode"].get<std::string>());
-        collisionModeButton->buttonTexture->width = collisionModeSetting["collisionMode"] == "Box" ? collisionModeButton->buttonTexture->image->getWidth() : collisionModeSetting["collisionMode"] == "Fixed Resolution" ? 500
-                                                                                                                                                                                                                         : 525;
     }
     if (UnpackProjectButton->isPressed({"a"}) && canUnpacked) {
         cleanup();
