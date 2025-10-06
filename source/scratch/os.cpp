@@ -26,18 +26,17 @@ size_t MemoryTracker::totalVRAMAllocated = 0;
 #if defined(__PS4__)
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) {
-        printf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
+        printf(std::string("<SE!> %s\n", message.c_str()));
     }
 }
 void Log::logWarning(std::string message, bool printToScreen) {
     if (printToScreen) {
-        printf(logBuffer, 1023, "<SE!> Warning: %s\n", message.c_str());
-        sceKernelDebugOutText(0, logBuffer);
+        printf(std::string("<SE!> Warning: %s\n", message.c_str()));
     }
 }
 void Log::logError(std::string message, bool printToScreen) {
     if (printToScreen) {
-        printf(logBuffer, 1023, "<SE!> Error: %s\n", message.c_str());
+        printf(std::string("<SE!> Error: %s\n", message.c_str()));
     }
 }
 void Log::writeToFile(std::string message) {

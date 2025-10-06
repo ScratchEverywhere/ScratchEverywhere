@@ -282,7 +282,6 @@ std::string Input::getUsername() {
 #elif defined(__PS4__)
     char username[32];
     sceUserServiceGetInitialUser(&userId);
-
     if (sceUserServiceGetUserName(userId, username, 31) == 0) {
         return std::string(reinterpret_cast<char *>(username));
     }
