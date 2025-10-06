@@ -1,29 +1,31 @@
 # OpenOrbis PS4 Port by PwLDev
 # This Makefile is based on the OpenOrbis Sample
+
 # Package metadata.
 TITLE       := Scratch Everywhere!
-VERSION     := 0.20
+VERSION     := 0.25
 TITLE_ID    := NTXS10053
 CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 
-# Config Options
+# Options for building Scratch Everywhere!
 ENABLE_CLOUDVARS	?= 0
 ENABLE_AUDIO		?= 1
+ENABLE_LOADSCREEN	?= 1
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceAudioOut -lSceUserService\
-			    -lScePigletv2VSH -lSceSysmodule -lSceFreeType -lScePad\
-			    -lSceSystemService -lSDL2 -lSDL2_image -lSDL2_ttf -lsamplerate\
+LIBS        := -lc -lkernel -lc++ -lSceSysmodule -lSceAudioOut -lSceUserService \
+			    -lScePigletv2VSH -lScePrecompiledShaders -lSceFreeType -lScePad \
+			    -lSceSystemService -lSDL2 -lSDL2_image -lSDL2_ttf -lsamplerate -lpthread \
 			   
 # Additional compile flags.
-EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -D__PS4__ -DSDL_BUILD 
+EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
 
 # Build target
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 TARGET		:= scratch-ps4
 BUILD		:= build/ps4
 GRAPHICS	:= gfx
-SOURCES		:= source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann include/boost
+SOURCES		:= source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
 INCLUDES	:= include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann
 FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
 			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
@@ -45,10 +47,21 @@ ifeq ($(strip $(TOOLCHAIN)),)
 $(error "The OpenOrbis toolchain is required to build for PS4. Please set OO_PS4_TOOLCHAIN in your environment; export OO_PS4_TOOLCHAIN=<path to>OO_PS4_TOOLCHAIN")
 endif
 
+# Handle cloudvars and mist++
+ifeq ($(ENABLE_CLOUDVARS),1)
+LIBS		+= -lSceNet -lSceNetCtl -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lz -lmist++
+EXTRAFLAGS	+= -DENABLE_CLOUDVARS
+endif
+
 # Handle enable audio
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	    += -lSDL2_mixer -logg -lvorbis -lmodplug -lmpg123 -lopus -lopusfile -lvorbisfile
+LIBS		+= -lSDL2_mixer -lmodplug -lmpg123 -logg -lopus -lopusfile -lvorbis -lvorbisfile 
 EXTRAFLAGS	+= -DENABLE_AUDIO
+endif
+
+# Handle loadscreen
+ifeq ($(ENABLE_LOADSCREEN),1)
+EXTRAFLAGS	+= -DENABLE_LOADSCREEN
 endif
 
 # Define final C/C++ flags
@@ -76,10 +89,10 @@ LD      := ld.lld
 
 # Get OS dirname for Pkgtool binaries.
 ifeq ($(UNAME_S),Linux)
-		CDIR    := linux
+	CDIR    := linux
 endif
 ifeq ($(UNAME_S),Darwin)
-		CDIR    := macos
+	CDIR    := macos
 endif
 
 all: $(BUILD)/$(TARGET).pkg
@@ -95,8 +108,8 @@ $(BUILD)/sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_new $@
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_TYPE --type Integer --maxsize 4 --value 1
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_VER --type Utf8 --maxsize 8 --value '$(VERSION)'
-	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ ATTRIBUTE --type Integer --maxsize 18 --value 0  
-	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CATEGORY --type Utf8 --maxsize 4 --value 'gde'  
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ ATTRIBUTE --type Integer --maxsize 18 --value 81936
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CATEGORY --type Utf8 --maxsize 4 --value 'gde'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ FORMAT --type Utf8 --maxsize 4 --value 'obs'  
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CONTENT_ID --type Utf8 --maxsize 48 --value '$(CONTENT_ID)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ DOWNLOAD_DATA_SIZE --type Integer --maxsize 4 --value 0 
