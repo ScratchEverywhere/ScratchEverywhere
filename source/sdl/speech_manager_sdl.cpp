@@ -1,7 +1,5 @@
 #include "speech_manager_sdl.hpp"
 #include "interpret.hpp"
-#include <SDL2/SDL.h>
-#include <iostream>
 
 SpeechManagerSDL::SpeechManagerSDL(SDL_Renderer *renderer) : renderer(renderer) {
     this->renderer = renderer;
@@ -11,66 +9,13 @@ SpeechManagerSDL::~SpeechManagerSDL() {
     cleanup();
 }
 
-void SpeechManagerSDL::showSpeech(Sprite *sprite, const std::string &message, double showForSecs, const std::string &style) {
-    if (!sprite) return;
-    if (!renderer) {
-        std::cout << "SpeechManagerSDL: No renderer set" << std::endl;
-        return;
-    }
-
-    clearSpeech(sprite);
-
-    // start timer if showForSecs value is given
-    if (showForSecs > 0) {
-        double now = SDL_GetTicks() / 1000.0;
-        speechStartTimes[sprite] = now;
-        speechDurations[sprite] = showForSecs;
-    }
-
-    speechStyles[sprite] = style;
-
-    // Create / update speech object
-    if (speechObjects.find(sprite) == speechObjects.end()) {
-        speechObjects[sprite] = std::make_unique<SpeechTextObjectSDL>(message, 200);
-        speechObjects[sprite]->setRenderer(renderer);
-    } else {
-        SpeechTextObjectSDL *obj = speechObjects[sprite].get();
-
-        if (obj) {
-            obj->setText(message);
-        }
-    }
+double SpeechManagerSDL::getCurrentTime() {
+    return SDL_GetTicks() / 1000.0;
 }
 
-void SpeechManagerSDL::clearSpeech(Sprite *sprite) {
-    if (!sprite) return;
-
-    speechStartTimes.erase(sprite);
-    speechObjects.erase(sprite);
-    speechStyles.erase(sprite);
-    speechDurations.erase(sprite);
-}
-
-void SpeechManagerSDL::update(double deltaTime) {
-    double now = SDL_GetTicks() / 1000.0;
-
-    // check timers and clear speech objects if they have expired
-    for (auto it = speechStartTimes.begin(); it != speechStartTimes.end();) {
-        Sprite *sprite = it->first;
-        double startTime = it->second;
-        double duration = speechDurations[sprite];
-        double elapsed = now - startTime;
-
-        if (elapsed >= duration) {
-            it = speechStartTimes.erase(it);
-
-            speechObjects.erase(sprite);
-            speechStyles.erase(sprite);
-            speechDurations.erase(sprite);
-        } else {
-            ++it;
-        }
-    }
+void SpeechManagerSDL::createSpeechObject(Sprite *sprite, const std::string &message) {
+    speechObjects[sprite] = std::make_unique<SpeechTextObjectSDL>(message, 200);
+    static_cast<SpeechTextObjectSDL*>(speechObjects[sprite].get())->setRenderer(renderer);
 }
 
 void SpeechManagerSDL::render() {
@@ -87,21 +32,16 @@ void SpeechManagerSDL::render() {
             // Apply res-respecting transformations
             int spriteX = static_cast<int>((sprite->xPosition * scale) + (windowWidth / 2));
             int spriteY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));
-
+            
             int textX = spriteX;
             int textY = spriteY - static_cast<int>(50 * scale);
-
+            
             textY = std::max(static_cast<int>(20 * scale), textY);
-
-            obj->setScale(static_cast<float>(scale));
-            obj->render(textX, textY);
+            
+            // cast to platform-specific type for rendering
+            SpeechTextObjectSDL *speechObj = static_cast<SpeechTextObjectSDL*>(obj.get());
+            speechObj->setScale(static_cast<float>(scale));
+            speechObj->render(textX, textY);
         }
     }
-}
-
-void SpeechManagerSDL::cleanup() {
-    speechObjects.clear();
-    speechStyles.clear();
-    speechStartTimes.clear();
-    speechDurations.clear();
 }
