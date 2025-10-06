@@ -3,7 +3,6 @@
 #include "text.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
-#include <algorithm>
 
 SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
     : TextObjectSDL(text, 0, 0), maxWidth(maxWidth) {
