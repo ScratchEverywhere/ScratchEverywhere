@@ -122,7 +122,6 @@ void Image::renderNineslice(double xPos, double yPos, double width, double heigh
 
     SDL_SetTextureScaleMode(originalTexture, originalScaleMode);
 }
-
 /**
  * Loads a single `SDL_Image` from an unzipped filepath .
  * @param filePath
