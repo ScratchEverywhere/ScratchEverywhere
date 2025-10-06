@@ -416,7 +416,7 @@ void Render::renderSprites() {
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
             // render the pen texture above the backdrop, but below every other sprite
-            if (i == 1 && initPen()) {
+            if (i == 1 && penRenderTarget != nullptr) {
                 const float scaleX = static_cast<float>(SCREEN_WIDTH) / penSubtex.width;
                 const float scaleY = static_cast<float>(SCREEN_HEIGHT) / penSubtex.height;
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
@@ -466,7 +466,7 @@ void Render::renderSprites() {
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
             // render the pen texture above the backdrop, but below every other sprite
-            if (i == 1 && initPen()) {
+            if (i == 1 && penRenderTarget != nullptr) {
                 const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
                 const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
@@ -516,7 +516,7 @@ void Render::renderSprites() {
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
             // render the pen texture above the backdrop, but below every other sprite
-            if (i == 1 && initPen()) {
+            if (i == 1 && penRenderTarget != nullptr) {
                 const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
                 const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
