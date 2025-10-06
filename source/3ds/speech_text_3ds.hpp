@@ -8,7 +8,7 @@ class SpeechTextObject3DS : public TextObject3DS {
     int maxWidth;
 
     void wrapText();
-    float measureTextWidth(const std::string& text);
+    float measureTextWidth(const std::string &text);
 
   public:
     SpeechTextObject3DS(const std::string &text, int maxWidth = 200);

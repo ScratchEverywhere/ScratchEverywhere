@@ -1,4 +1,6 @@
 #include "speech_text_sdl.hpp"
+#include "os.hpp"
+#include "text.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <algorithm>
@@ -7,6 +9,9 @@ SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
     : TextObjectSDL(text, 0, 0), maxWidth(maxWidth) {
     originalText = text;
     setColor(0x00);
+    setCenterAligned(false); // easier for positioning logic
+    font = TTF_OpenFont("gfx/menu/Arialn.ttf", 16);
+
     wrapText();
 }
 

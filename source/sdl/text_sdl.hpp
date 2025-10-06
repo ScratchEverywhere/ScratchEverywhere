@@ -6,10 +6,7 @@
 
 class TextObjectSDL : public TextObject {
   private:
-    static std::unordered_map<std::string, TTF_Font *> fonts;
-    static std::unordered_map<std::string, size_t> fontUsageCount;
     std::vector<std::string> splitTextByNewlines(const std::string &text);
-    std::string pathFont;
     SDL_Renderer *renderer = nullptr;
     SDL_Texture *texture = nullptr;
     size_t memorySize = 0;
@@ -19,6 +16,9 @@ class TextObjectSDL : public TextObject {
     void updateTexture();
 
   protected:
+    static std::unordered_map<std::string, TTF_Font *> fonts;
+    static std::unordered_map<std::string, size_t> fontUsageCount;
+    std::string pathFont;
     TTF_Font *font = nullptr;
 
   public:

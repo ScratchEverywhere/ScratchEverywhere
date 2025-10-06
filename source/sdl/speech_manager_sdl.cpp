@@ -15,7 +15,7 @@ double SpeechManagerSDL::getCurrentTime() {
 
 void SpeechManagerSDL::createSpeechObject(Sprite *sprite, const std::string &message) {
     speechObjects[sprite] = std::make_unique<SpeechTextObjectSDL>(message, 200);
-    static_cast<SpeechTextObjectSDL*>(speechObjects[sprite].get())->setRenderer(renderer);
+    static_cast<SpeechTextObjectSDL *>(speechObjects[sprite].get())->setRenderer(renderer);
 }
 
 void SpeechManagerSDL::render() {
@@ -32,15 +32,33 @@ void SpeechManagerSDL::render() {
             // Apply res-respecting transformations
             int spriteX = static_cast<int>((sprite->xPosition * scale) + (windowWidth / 2));
             int spriteY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));
-            
-            int textX = spriteX;
-            int textY = spriteY - static_cast<int>(50 * scale);
-            
-            textY = std::max(static_cast<int>(20 * scale), textY);
-            
-            // cast to platform-specific type for rendering
-            SpeechTextObjectSDL *speechObj = static_cast<SpeechTextObjectSDL*>(obj.get());
+
+            int spriteHeight = static_cast<int>(sprite->size * scale); // sprite height
+
+            // determine horizontal positioning based on sprite's side of screen
+            SpeechTextObjectSDL *speechObj = static_cast<SpeechTextObjectSDL *>(obj.get());
             speechObj->setScale(static_cast<float>(scale));
+
+            auto textSize = speechObj->getSize();
+            int textWidth = static_cast<int>(textSize[0]);
+            int textHeight = static_cast<int>(textSize[1]);
+
+            // position text so its bottom edge is above the sprite's top edge
+            int textY = spriteY - (spriteHeight / 2) - static_cast<int>(20 * scale) - textHeight;
+
+            int textX;
+            int screenCenter = windowWidth / 2;
+
+            if (spriteX < screenCenter) {
+                textX = spriteX + static_cast<int>(20 * scale);
+            } else {
+                textX = spriteX - static_cast<int>(20 * scale) - textWidth;
+            }
+
+            // ensure text stays within screen bounds
+            textX = std::max(0, std::min(textX, windowWidth - textWidth));
+            textY = std::max(textHeight, textY);
+
             speechObj->render(textX, textY);
         }
     }

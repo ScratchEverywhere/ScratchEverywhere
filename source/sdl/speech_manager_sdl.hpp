@@ -15,6 +15,6 @@ class SpeechManagerSDL : public SpeechManager {
   public:
     SpeechManagerSDL(SDL_Renderer *renderer);
     ~SpeechManagerSDL();
-    
+
     void render() override;
 };

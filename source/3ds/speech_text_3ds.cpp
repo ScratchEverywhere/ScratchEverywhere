@@ -7,19 +7,20 @@ SpeechTextObject3DS::SpeechTextObject3DS(const std::string &text, int maxWidth)
     : TextObject3DS(text, 0, 0, "gfx/menu/Ubuntu-Bold"), maxWidth(maxWidth) {
     originalText = text;
     setColor(Math::color(0, 0, 0, 255));
+    setCenterAligned(false); // easier for positioning logic
     wrapText();
 }
 
 // Creates a temporary text object to measure its width then deletes it
-float SpeechTextObject3DS::measureTextWidth(const std::string& text) {
+float SpeechTextObject3DS::measureTextWidth(const std::string &text) {
     C2D_Text tempText;
     C2D_TextBuf tempBuffer = C2D_TextBufNew(200);
     C2D_TextFontParse(&tempText, *textClass.font, tempBuffer, text.c_str());
     C2D_TextOptimize(&tempText);
-    
+
     float width, height;
     C2D_TextGetDimensions(&tempText, scale, scale, &width, &height);
-    
+
     C2D_TextBufDelete(tempBuffer);
     return width;
 }
@@ -49,7 +50,7 @@ void SpeechTextObject3DS::wrapText() {
         } else if (c == ' ') { // add new line at space to wrap cleanly (without splitting words in half)
             if (!currentWord.empty()) {
                 std::string line = currentLine.empty() ? currentWord : currentLine + " " + currentWord;
-                
+
                 float width = measureTextWidth(line);
 
                 if (width <= maxWidth) {
@@ -70,7 +71,7 @@ void SpeechTextObject3DS::wrapText() {
     // Handle the last word
     if (!currentWord.empty()) {
         std::string line = currentLine.empty() ? currentWord : currentLine + " " + currentWord;
-        
+
         float width = measureTextWidth(line);
 
         if (width <= maxWidth) {

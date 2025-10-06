@@ -11,6 +11,6 @@ class SpeechManager3DS : public SpeechManager {
   public:
     SpeechManager3DS();
     ~SpeechManager3DS();
-    
+
     void render() override;
 };
