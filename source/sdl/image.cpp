@@ -249,6 +249,19 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
         return;
     }
 
+    // PS4 piglet expects RGBA instead of ABGR.
+    #if defined(__PS4__)
+    SDL_Surface *convert = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA8888, 0);
+    if (convert == NULL) {
+        Log::logWarning(std::string("Error converting image surface: ") + SDL_GetError());
+        SDL_FreeSurface(convert);
+        return;
+    }
+
+    SDL_FreeSurface(surface);
+    surface = convert;
+    #endif
+
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
     if (!texture) {
         Log::logWarning("Failed to create texture: " + costumeId);
@@ -369,6 +382,20 @@ SDL_Image::SDL_Image(std::string filePath) {
         Log::logWarning(std::string("Error loading image: ") + IMG_GetError());
         return;
     }
+
+    // PS4 piglet expects RGBA instead of ABGR.
+    #if defined(__PS4__)
+    SDL_Surface *convert = SDL_ConvertSurfaceFormat(spriteSurface, SDL_PIXELFORMAT_RGBA8888, 0);
+    if (convert == NULL) {
+        Log::logWarning(std::string("Error converting image surface: ") + SDL_GetError());
+        SDL_FreeSurface(convert);
+        return;
+    }
+
+    SDL_FreeSurface(spriteSurface);
+    spriteSurface = convert;
+    #endif
+
     spriteTexture = SDL_CreateTextureFromSurface(renderer, spriteSurface);
     if (spriteTexture == NULL) {
         Log::logWarning(std::string("Error creating texture: ") + SDL_GetError());
