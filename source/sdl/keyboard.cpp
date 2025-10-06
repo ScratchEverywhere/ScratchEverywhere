@@ -1,6 +1,6 @@
-#include "../scratch/keyboard.hpp"
+#include "keyboard.hpp"
 #include "../scratch/render.hpp"
-#include "../scratch/text.hpp"
+#include "text.hpp"
 #include <SDL2/SDL.h>
 #include <string>
 

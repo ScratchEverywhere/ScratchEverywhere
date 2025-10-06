@@ -1,8 +1,6 @@
 #pragma once
 #include "os.hpp"
 #include "value.hpp"
-#include <chrono>
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
@@ -38,7 +36,6 @@ struct ParsedInput {
 };
 
 struct Block {
-
     std::string id;
     std::string customBlockId;
     std::string opcode;
@@ -182,6 +179,13 @@ class Sprite {
     std::vector<std::pair<double, double>> collisionPoints;
     int spriteWidth;
     int spriteHeight;
+
+    struct {
+        bool down;
+        double size;
+        Color color;
+        double transparency;
+    } penData;
 
     std::unordered_map<std::string, Variable> variables;
     std::unordered_map<std::string, Block> blocks;

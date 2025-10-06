@@ -1,8 +1,6 @@
 #pragma once
-#include "interpret.hpp"
 #include "os.hpp"
 #include "sprite.hpp"
-#include <chrono>
 #include <functional>
 #include <unordered_map>
 
@@ -62,7 +60,7 @@ class BlockExecutor {
      * @param callerBlock Pointer to the block that activated the `Custom Block`.
      * @param withoutScreenRefresh Whether or not to run blocks inside the Definition without screen refresh.
      */
-    static void runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh);
+    static BlockResult runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh);
 
     /**
      * Runs and executes every block currently in the `broadcastQueue`.

@@ -1,0 +1,62 @@
+FROM debian:bookworm AS main_builder
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    mingw-w64 \
+    wget unzip make git pkg-config zip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN cd /tmp && \
+    wget -q https://github.com/libsdl-org/SDL/releases/download/release-2.30.5/SDL2-devel-2.30.5-mingw.tar.gz && \
+    tar -xzf SDL2-devel-2.30.5-mingw.tar.gz && \
+    cp -r SDL2-2.30.5/x86_64-w64-mingw32/include/* /usr/x86_64-w64-mingw32/include/ && \
+    cp -r SDL2-2.30.5/x86_64-w64-mingw32/lib/* /usr/x86_64-w64-mingw32/lib/ && \
+    rm -rf /tmp/*
+
+RUN cd /tmp && \
+    wget -q https://github.com/libsdl-org/SDL_image/releases/download/release-2.8.2/SDL2_image-devel-2.8.2-mingw.tar.gz && \
+    tar -xzf SDL2_image-devel-2.8.2-mingw.tar.gz && \
+    cp -r SDL2_image-2.8.2/x86_64-w64-mingw32/include/* /usr/x86_64-w64-mingw32/include/ && \
+    cp -r SDL2_image-2.8.2/x86_64-w64-mingw32/lib/* /usr/x86_64-w64-mingw32/lib/ && \
+    rm -rf /tmp/*
+
+RUN cd /tmp && \
+    wget -q https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.22.0/SDL2_ttf-devel-2.22.0-mingw.tar.gz && \
+    tar -xzf SDL2_ttf-devel-2.22.0-mingw.tar.gz && \
+    cp -r SDL2_ttf-2.22.0/x86_64-w64-mingw32/include/* /usr/x86_64-w64-mingw32/include/ && \
+    cp -r SDL2_ttf-2.22.0/x86_64-w64-mingw32/lib/* /usr/x86_64-w64-mingw32/lib/ && \
+    rm -rf /tmp/*
+
+RUN cd /tmp && \
+    wget -q https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.0/SDL2_mixer-devel-2.8.0-mingw.tar.gz && \
+    tar -xzf SDL2_mixer-devel-2.8.0-mingw.tar.gz && \
+    cp -r SDL2_mixer-2.8.0/x86_64-w64-mingw32/include/* /usr/x86_64-w64-mingw32/include/ && \
+    cp -r SDL2_mixer-2.8.0/x86_64-w64-mingw32/lib/* /usr/x86_64-w64-mingw32/lib/ && \
+    rm -rf /tmp/*
+
+COPY . .
+
+RUN make PLATFORM=pc release ENABLE_CLOUDVARS=0 ENABLE_AUDIO=1 \
+    CC=x86_64-w64-mingw32-gcc \
+    CXX=x86_64-w64-mingw32-g++ \
+    LDFLAGS="-static-libgcc -static-libstdc++ -lmingw32 -lSDL2main -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer"
+
+RUN mkdir -p /runtime_dlls && cd /runtime_dlls && \
+    wget -q https://github.com/libsdl-org/SDL/releases/download/release-2.30.5/SDL2-2.30.5-win32-x64.zip && \
+    wget -q https://github.com/libsdl-org/SDL_image/releases/download/release-2.8.2/SDL2_image-2.8.2-win32-x64.zip && \
+    wget -q https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.22.0/SDL2_ttf-2.22.0-win32-x64.zip && \
+    wget -q https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.0/SDL2_mixer-2.8.0-win32-x64.zip && \
+    unzip -q -o "*.zip"
+
+RUN mkdir -p /release && \
+    cp /app/build/pc/release/Scratch-pc.exe /release/ && \
+    cp -r /app/gfx /release/ && \
+    cp /runtime_dlls/SDL2.dll /release/ && \
+    cp /runtime_dlls/SDL2_image.dll /release/ && \
+    cp /runtime_dlls/SDL2_ttf.dll /release/ && \
+    cp /runtime_dlls/SDL2_mixer.dll /release/ && \
+    cd /release && \
+    zip -r /scratch-windows.zip .
+
+FROM scratch AS exporter
+COPY --from=main_builder /scratch-windows.zip /scratch-windows.zip

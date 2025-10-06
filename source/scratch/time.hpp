@@ -1,7 +1,4 @@
 #include <stdint.h>
-#include <stdio.h>
-#include <string>
-#include <time.h>
 typedef uint16_t u16;
 
 class Time {

@@ -1,7 +1,7 @@
 #pragma once
-#include "../os.hpp"
-#include "../text.hpp"
 #include "menuObjects.hpp"
+#include "os.hpp"
+#include "text.hpp"
 #include <nlohmann/json.hpp>
 
 class Menu {

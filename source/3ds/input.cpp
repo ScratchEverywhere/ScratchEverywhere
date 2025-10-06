@@ -1,7 +1,7 @@
 #include "input.hpp"
-#include "../scratch/blockExecutor.hpp"
-#include "../scratch/input.hpp"
-#include "../scratch/render.hpp"
+#include "blockExecutor.hpp"
+#include "input.hpp"
+#include "render.hpp"
 #include <3ds.h>
 
 #define BOTTOM_SCREEN_WIDTH 320

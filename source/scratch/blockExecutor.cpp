@@ -5,6 +5,7 @@
 #include "blocks/looks.hpp"
 #include "blocks/motion.hpp"
 #include "blocks/operator.hpp"
+#include "blocks/pen.hpp"
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
@@ -12,6 +13,7 @@
 #include "math.hpp"
 #include "os.hpp"
 #include "sprite.hpp"
+#include "unzip.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -106,6 +108,10 @@ void BlockExecutor::registerHandlers() {
     handlers["control_repeat_until"] = ControlBlocks::repeatUntil;
     handlers["control_while"] = ControlBlocks::While;
     handlers["control_forever"] = ControlBlocks::forever;
+    valueHandlers["control_get_counter"] = ControlBlocks::getCounter;
+    handlers["control_clear_counter"] = ControlBlocks::clearCounter;
+    handlers["control_incr_counter"] = ControlBlocks::incrementCounter;
+    handlers["control_for_each"] = ControlBlocks::forEach;
 
     // operators
     valueHandlers["operator_add"] = OperatorBlocks::add;
@@ -169,6 +175,22 @@ void BlockExecutor::registerHandlers() {
     handlers["procedures_definition"] = ProcedureBlocks::definition;
     valueHandlers["argument_reporter_string_number"] = ProcedureBlocks::stringNumber;
     valueHandlers["argument_reporter_boolean"] = ProcedureBlocks::booleanArgument;
+
+    // pen extension
+    handlers["pen_penDown"] = PenBlocks::PenDown;
+    handlers["pen_penUp"] = PenBlocks::PenUp;
+    handlers["pen_clear"] = PenBlocks::EraseAll;
+    handlers["pen_setPenColorParamTo"] = PenBlocks::SetPenOptionTo;
+    handlers["pen_changePenColorParamBy"] = PenBlocks::ChangePenOptionBy;
+    handlers["pen_stamp"] = PenBlocks::Stamp;
+    handlers["pen_setPenColorToColor"] = PenBlocks::SetPenColorTo;
+    handlers["pen_setPenSizeTo"] = PenBlocks::SetPenSizeTo;
+    handlers["pen_changePenSizeBy"] = PenBlocks::ChangePenSizeBy;
+
+    // Other (Don't know where else to put these)
+    valueHandlers["matrix"] = [](Block &block, Sprite *sprite) {
+        return Value(Scratch::getFieldValue(block, "MATRIX"));
+    };
 }
 
 std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -286,7 +308,7 @@ void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockCh
     }
 }
 
-void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
+BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
     for (auto &[id, data] : sprite->customBlocks) {
         if (id == block.customBlockId) {
             // Set up argument values
@@ -327,6 +349,23 @@ void BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBl
     if (block.customBlockId == "\u200B\u200Blog\u200B\u200B %s") Log::log("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
     if (block.customBlockId == "\u200B\u200Bwarn\u200B\u200B %s") Log::logWarning("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
     if (block.customBlockId == "\u200B\u200Berror\u200B\u200B %s") Log::logError("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
+    if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3") {
+        Log::log("Open next Project with Block");
+        Scratch::nextProject = true;
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Scratch::dataNextProject = Value();
+        Scratch::shouldStop = true;
+        return BlockResult::RETURN;
+    }
+    if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") {
+        Log::log("Open next Project with Block and data");
+        Scratch::nextProject = true;
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
+        Scratch::shouldStop = true;
+        return BlockResult::RETURN;
+    }
+    return BlockResult::CONTINUE;
 }
 
 std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::string broadcastToRun) {

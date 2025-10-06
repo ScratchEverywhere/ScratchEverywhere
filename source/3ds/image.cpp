@@ -1,11 +1,11 @@
 #include "image.hpp"
-#include "../scratch/os.hpp"
+#include "os.hpp"
 #include <algorithm>
-#include <iostream>
+#include <string>
 #include <vector>
 #define STBI_NO_GIF
 #define STB_IMAGE_IMPLEMENTATION
-#include "../scratch/unzip.hpp"
+#include "unzip.hpp"
 #define NANOSVG_IMPLEMENTATION
 #include "nanosvg.h"
 #define NANOSVGRAST_IMPLEMENTATION
@@ -21,16 +21,6 @@ static std::vector<imageRGBA *> imageLoadQueue;
 static std::vector<std::string> toDelete;
 #define MAX_IMAGE_VRAM 30000000
 
-const u32 next_pow2(u32 n) {
-    n--;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n++;
-    return n;
-}
 const u32 clamp(u32 n, u32 lower, u32 upper) {
     if (n < lower)
         return lower;
@@ -80,101 +70,77 @@ void Image::render(double xPos, double yPos, bool centered) {
     auto rgbaIt = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
         return img.name == imageId;
     });
-    if (rgbaIt != imageRGBAS.end()) {
-        if (imageC2Ds.find(rgbaIt->name) != imageC2Ds.end()) {
-            imageC2Ds[rgbaIt->name].freeTimer = imageC2Ds[rgbaIt->name].maxFreeTimer;
-            C2D_ImageTint tinty;
-            C2D_AlphaImageTint(&tinty, opacity);
+    if (rgbaIt == imageRGBAS.end() || imageC2Ds.find(rgbaIt->name) == imageC2Ds.end()) return;
 
-            double renderPositionX = xPos;
-            double renderPositionY = yPos;
+    imageC2Ds[rgbaIt->name].freeTimer = imageC2Ds[rgbaIt->name].maxFreeTimer;
+    C2D_ImageTint tinty;
+    C2D_AlphaImageTint(&tinty, opacity);
 
-            if (!centered) {
-                renderPositionX += getWidth() / 2;
-                renderPositionY += getHeight() / 2;
-            }
+    double renderPositionX = xPos;
+    double renderPositionY = yPos;
 
-            C2D_DrawImageAtRotated(imageC2Ds[rgbaIt->name].image, static_cast<int>(renderPositionX), static_cast<int>(renderPositionY), 1, rotation, &tinty, scale, scale);
-        }
+    if (!centered) {
+        renderPositionX += getWidth() / 2;
+        renderPositionY += getHeight() / 2;
     }
+
+    C2D_DrawImageAtRotated(imageC2Ds[rgbaIt->name].image, static_cast<int>(renderPositionX), static_cast<int>(renderPositionY), 1, rotation, &tinty, scale, scale);
 }
 
-/**
- * Takes every Image from the Scratch's sb3 file and converts them to RGBA data
- */
-void Image::loadImages(mz_zip_archive *zip) {
-    // // Loop through all files in the ZIP
-    // Log::log("Loading images...");
+void renderSubrect(C2D_Image img, uint16_t srcX, uint16_t srcY, uint16_t srcW, uint16_t srcH, float destX, float destY, float destW, float destH, C2D_ImageTint *tint) {
+    uint16_t texW = img.subtex->width - 1;
+    texW |= texW >> 1;
+    texW |= texW >> 2;
+    texW |= texW >> 4;
+    texW |= texW >> 8;
+    texW++;
 
-    // int file_count = (int)mz_zip_reader_get_num_files(zip);
+    uint16_t texH = img.subtex->height - 1;
+    texH |= texH >> 1;
+    texH |= texH >> 2;
+    texH |= texH >> 4;
+    texH |= texH >> 8;
+    texH++;
 
-    // for (int i = 0; i < file_count; i++) {
-    //     mz_zip_archive_file_stat file_stat;
-    //     if (!mz_zip_reader_file_stat(zip, i, &file_stat)) continue;
+    const Tex3DS_SubTexture subtex = {
+        srcW,
+        srcH,
+        static_cast<float>(srcX) / texW,
+        1 - static_cast<float>(srcY) / texH,
+        static_cast<float>(srcX + srcW) / texW,
+        1 - static_cast<float>(srcY + srcH) / texH};
 
-    //     std::string zipFileName = file_stat.m_filename;
+    C2D_DrawImageAt({img.tex, &subtex}, destX, destY, 1, tint, 1.0f / srcW * destW, 1.0f / srcH * destH);
+}
 
-    //     // Check if file is bitmap, or SVG
-    //     bool isBitmap = zipFileName.size() >= 4 &&
-    //                     (zipFileName.substr(zipFileName.size() - 4) == ".png" ||
-    //                      zipFileName.substr(zipFileName.size() - 4) == ".PNG" ||
-    //                      zipFileName.substr(zipFileName.size() - 4) == ".jpg" ||
-    //                      zipFileName.substr(zipFileName.size() - 4) == ".JPG");
-    //     bool isSVG = zipFileName.size() >= 4 &&
-    //                  (zipFileName.substr(zipFileName.size() - 4) == ".svg" ||
-    //                   zipFileName.substr(zipFileName.size() - 4) == ".SVG");
+void Image::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
+    auto rgbaIt = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
+        return img.name == imageId;
+    });
+    if (rgbaIt == imageRGBAS.end() || imageC2Ds.find(rgbaIt->name) == imageC2Ds.end()) return;
 
-    //     if (isBitmap || isSVG) {
-    //         size_t file_size;
-    //         void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
-    //         if (!file_data) {
-    //             printf("Failed to extract %s\n", zipFileName.c_str());
-    //             continue;
-    //         }
+    imageC2Ds[rgbaIt->name].freeTimer = imageC2Ds[rgbaIt->name].maxFreeTimer;
+    C2D_ImageTint tinty;
+    C2D_AlphaImageTint(&tinty, opacity);
 
-    //         int width, height;
-    //         unsigned char *rgba_data = nullptr;
+    int renderPositionX = xPos;
+    int renderPositionY = yPos;
 
-    //         imageRGBA newRGBA;
+    if (centered) {
+        renderPositionX -= width / 2;
+        renderPositionY -= height / 2;
+    }
 
-    //         if (isSVG) {
-    //             newRGBA.isSVG = true;
-    //             rgba_data = SVGToRGBA(file_data, file_size, width, height);
-    //             if (!rgba_data) {
-    //                 printf("Failed to decode SVG: %s\n", zipFileName.c_str());
-    //                 mz_free(file_data);
-    //                 continue;
-    //             }
-    //         } else {
-    //             // bitmap files
-    //             int channels;
-    //             rgba_data = stbi_load_from_memory(
-    //                 (unsigned char *)file_data, file_size,
-    //                 &width, &height, &channels, 4);
-
-    //             if (!rgba_data) {
-    //                 printf("Failed to decode image: %s\n", zipFileName.c_str());
-    //                 mz_free(file_data);
-    //                 return; // blablabla running out of memory blablabla
-    //             }
-    //         }
-
-    //         newRGBA.name = zipFileName.substr(0, zipFileName.find_last_of('.'));
-    //         newRGBA.fullName = zipFileName;
-    //         newRGBA.width = width;
-    //         newRGBA.height = height;
-    //         newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    //         newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
-    //         newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
-    //         newRGBA.data = rgba_data;
-
-    //         size_t imageSize = width * height * 4;
-    //         MemoryTracker::allocate(imageSize);
-
-    //         imageRGBAS.push_back(newRGBA);
-    //         mz_free(file_data);
-    //     }
-    // }
+    // To anyone who needs to edit this, I hope you have an ultra-wide monitor
+    renderSubrect(imageC2Ds[rgbaIt->name].image, 0, 0, padding, padding, renderPositionX, renderPositionY, padding, padding, &tinty);                                                                                               // Top Left
+    renderSubrect(imageC2Ds[rgbaIt->name].image, padding, 0, this->width - padding * 2, padding, renderPositionX + padding, renderPositionY, width - padding * 2, padding, &tinty);                                                 // Top
+    renderSubrect(imageC2Ds[rgbaIt->name].image, this->width - padding, 0, padding, padding, renderPositionX + width - padding, renderPositionY, padding, padding, &tinty);                                                         // Top Right
+    renderSubrect(imageC2Ds[rgbaIt->name].image, 0, padding, padding, this->height - padding * 2, renderPositionX, renderPositionY + padding, padding, height - padding * 2, &tinty);                                               // Left
+    renderSubrect(imageC2Ds[rgbaIt->name].image, padding, padding, this->width - padding * 2, this->height - padding * 2, renderPositionX + padding, renderPositionY + padding, width - padding * 2, height - padding * 2, &tinty); // Center
+    renderSubrect(imageC2Ds[rgbaIt->name].image, this->width - padding, padding, padding, this->height - padding * 2, renderPositionX + width - padding, renderPositionY + padding, padding, height - padding * 2, &tinty);         // Right
+    renderSubrect(imageC2Ds[rgbaIt->name].image, 0, this->height - padding, padding, padding, renderPositionX, renderPositionY + height - padding, padding, padding, &tinty);                                                       // Bottom Left
+    renderSubrect(imageC2Ds[rgbaIt->name].image, padding, this->height - padding, this->width - padding * 2, padding, renderPositionX + padding, renderPositionY + height - padding, width - padding * 2, padding, &tinty);         // Bottom
+    renderSubrect(imageC2Ds[rgbaIt->name].image, this->width - padding, this->height - padding, padding, padding, renderPositionX + width - padding, renderPositionY + height - padding, padding, padding, &tinty);                 // Bottom Right
 }
 
 /**
@@ -253,8 +219,8 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     newRGBA.fullName = filename;
     newRGBA.width = width;
     newRGBA.height = height;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
@@ -354,8 +320,8 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     newRGBA.fullName = costumeId;
     newRGBA.width = width;
     newRGBA.height = height;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
@@ -459,8 +425,8 @@ bool getImageFromT3x(const std::string &filePath) {
     newRGBA.fullName = filePath;
     newRGBA.name = path2;
     newRGBA.isSVG = false;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = nullptr;
 

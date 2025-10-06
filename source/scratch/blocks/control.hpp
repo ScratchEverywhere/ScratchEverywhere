@@ -1,5 +1,5 @@
 #pragma once
-#include "../blockExecutor.hpp"
+#include "blockExecutor.hpp"
 
 class ControlBlocks {
   public:
@@ -15,4 +15,8 @@ class ControlBlocks {
     static BlockResult While(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult repeatUntil(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult forever(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static Value getCounter(Block &block, Sprite *sprite);
+    static BlockResult clearCounter(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult incrementCounter(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult forEach(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 };

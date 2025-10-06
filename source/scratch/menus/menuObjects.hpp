@@ -1,7 +1,7 @@
 #pragma once
-#include "../image.hpp"
-#include "../os.hpp"
-#include "../text.hpp"
+#include "image.hpp"
+#include "os.hpp"
+#include "text.hpp"
 
 class MenuObject {
   public:
@@ -17,6 +17,10 @@ class MenuImage : public MenuObject {
   public:
     Image *image;
     void render(double xPos = 0, double yPos = 0) override;
+
+    // These override scale if they are greater than 0.
+    double width = 0;
+    double height = 0;
 
     /*
      * Similar to Image class, but with auto scaling and positioning.

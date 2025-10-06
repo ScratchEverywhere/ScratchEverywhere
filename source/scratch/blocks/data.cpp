@@ -1,8 +1,8 @@
 #include "data.hpp"
-#include "../render.hpp"
 #include "blockExecutor.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
+#include "render.hpp"
 #include "sprite.hpp"
 #include "value.hpp"
 

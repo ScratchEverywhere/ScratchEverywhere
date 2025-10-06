@@ -1,8 +1,5 @@
 #include "math.hpp"
 #include <algorithm>
-#include <boost/regex.hpp>
-#include <cctype>
-#include <cstddef>
 #include <math.h>
 #include <random>
 #include <string>
@@ -26,8 +23,36 @@ int Math::color(int r, int g, int b, int a) {
 #endif
 }
 
+double Math::parseNumber(const std::string &str) {
+    if (str[0] == '0') {
+        uint8_t base = 0;
+
+        switch (str[1]) {
+        case 'x':
+            base = 16;
+            break;
+        case 'b':
+            base = 2;
+            break;
+        case 'o':
+            base = 8;
+            break;
+        }
+
+        if (base != 0)
+            return std::stoi(str.substr(2, str.length() - 2), 0, base);
+    }
+
+    return std::stod(str);
+}
+
 bool Math::isNumber(const std::string &str) {
-    return boost::regex_match(str, boost::regex("^((0x[\\da-f]+)|(0b[01]+)|(0o[0-7]+)|([+-]?((\\d+(\\.\\d+)?)|((\\d+)?\\.\\d+))(e[+-]?\\d+)?))$", boost::regex::icase)); // I hope I never need to touch this again x2 (it was rewritten, to handle more edge cases).
+    try {
+        parseNumber(str);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 double Math::degreesToRadians(double degrees) {
@@ -56,4 +81,15 @@ std::string Math::generateRandomString(int length) {
 std::string Math::removeQuotations(std::string value) {
     value.erase(std::remove_if(value.begin(), value.end(), [](char c) { return c == '"'; }), value.end());
     return value;
+}
+
+const uint32_t Math::next_pow2(uint32_t n) {
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
 }
