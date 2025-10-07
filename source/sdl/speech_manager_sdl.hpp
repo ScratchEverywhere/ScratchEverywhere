@@ -15,8 +15,6 @@ class SpeechManagerSDL : public SpeechManager {
     void createSpeechObject(Sprite *sprite, const std::string &message) override;
 
   private:
-    void renderSpeechBubble9Slice(int x, int y, int width, int height, double scale);
-    void renderSlice(Image &image, int destX, int destY, int destW, int destH, int srcX, int srcY, int srcW, int srcH);
     void renderSpeechIndicator(Sprite *sprite, int spriteX, int spriteY, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
 
   public:
