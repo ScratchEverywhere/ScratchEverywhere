@@ -3,8 +3,10 @@
 
 #ifdef __3DS__
 #include "speech_manager_3ds.hpp"
-#else
+#elif defined(SDL_BUILD)
 #include "speech_manager_sdl.hpp"
+#else
+#include "speech_manager.hpp"
 #endif
 
 #include "sprite.hpp"
@@ -26,9 +28,12 @@ extern BlockExecutor executor;
 #ifdef __3DS__
 class SpeechManager3DS;
 extern SpeechManager3DS *speechManager;
-#else
+#elif defined(SDL_BUILD)
 class SpeechManagerSDL;
 extern SpeechManagerSDL *speechManager;
+#else
+class SpeechManager;
+extern SpeechManager *speechManager;
 #endif
 
 extern ProjectType projectType;

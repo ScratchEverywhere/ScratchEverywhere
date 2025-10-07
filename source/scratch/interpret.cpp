@@ -52,8 +52,10 @@ BlockExecutor executor;
 
 #ifdef __3DS__
 SpeechManager3DS *speechManager = nullptr;
-#else
+#elif defined(SDL_BUILD)
 SpeechManagerSDL *speechManager = nullptr;
+#else
+SpeechManager *speechManager = nullptr;
 #endif
 
 int Scratch::projectWidth = 480;
