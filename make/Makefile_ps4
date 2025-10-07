@@ -15,7 +15,7 @@ ENABLE_LOADSCREEN	?= 1
 # Libraries linked into the ELF.
 LIBS        := -lc -lkernel -lc++ -lSceSysmodule -lSceAudioOut -lSceUserService \
 			    -lScePigletv2VSH -lScePrecompiledShaders -lSceFreeType -lScePad \
-			    -lSceSystemService -lSDL2 -lSDL2_image -lSDL2_ttf -lsamplerate -lpthread \
+			    -lSceSystemService -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lsamplerate -lpthread \
 			   
 # Additional compile flags.
 EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
@@ -42,9 +42,12 @@ OBJS_C			:= $(foreach src,$(C_FILES),$(BUILD)/$(src:.c=.o))
 OBJS			:= $(OBJS_CPP) $(OBJS_C)
 INCLUDE_FLAGS 	:= $(foreach dir,$(INCLUDES),-I$(dir))
 
-# Make sure the OpenOrbis toolchain is installed
+# Make sure the OpenOrbis toolchain and Pacbrew are installed
 ifeq ($(strip $(TOOLCHAIN)),)
 $(error "The OpenOrbis toolchain is required to build for PS4. Please set OO_PS4_TOOLCHAIN in your environment; export OO_PS4_TOOLCHAIN=<path to>OO_PS4_TOOLCHAIN")
+endif
+ifeq ($(strip $(PACBREW)),)
+$(error "Pacbrew packages are required to build for PS4. Please set PACBREW in your environment; export PACBREW=<path to>PACBREW")
 endif
 
 # Handle cloudvars and mist++
@@ -65,9 +68,9 @@ EXTRAFLAGS	+= -DENABLE_LOADSCREEN
 endif
 
 # Define final C/C++ flags
-CFLAGS      := --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) $(INCLUDE_FLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include
+CFLAGS      := --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) $(INCLUDE_FLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include -I$(PACBREW)/ps4/openorbis/usr/include
 CXXFLAGS    := $(CFLAGS) -isystem $(TOOLCHAIN)/include/c++/v1
-LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o
+LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib -L$(PACBREW)/ps4/openorbis/usr/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o
 
 # Create the intermediate directory incase it doesn't already exist.
 _unused     := $(shell mkdir -p $(BUILD)/sce_sys/about $(BUILD)/sce_module)

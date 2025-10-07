@@ -9,6 +9,7 @@
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml/badge.svg" alt="GameCube Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml/badge.svg" alt="Switch Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml/badge.svg" alt="Vita Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml/badge.svg" alt="PS4 Nightly Build"></a>
 </p>
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
@@ -259,8 +260,13 @@ The recommended way to compile Scratch Everywhere! is with Docker. To compile wi
 
 - To compile for the **Vita**, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
 
+- To compile for the **PS4**, run `docker build -f docker/Dockerfile.ps4 --target exporter -o . .`.
+
 
 #### Manual
+
+> [!NOTE]
+> We do not provide manual instructuons for PS4 because of how absolutely messy the environment is, please just use Docker.
 
 If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.com/ScratchEverywhere/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 - **For the 3DS**, you will need the DevkitARM toolchain and libctru.

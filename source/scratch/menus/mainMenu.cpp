@@ -4,6 +4,7 @@
 #include "input.hpp"
 #include "interpret.hpp"
 #include "keyboard.hpp"
+#include "math.hpp"
 #include "render.hpp"
 #include "unzip.hpp"
 #include <cctype>
@@ -255,7 +256,7 @@ void ProjectMenu::init() {
 #elif defined(GAMECUBE)
         noProjectInfo->setText("Put Scratch projects in SD Card A:/scratch-gamecube/ !");
 #elif defined(__PS4__)
-    noProjectInfo->setText("Put Scratch projects in /data/scratch-ps4/ !");
+        noProjectInfo->setText("Put Scratch projects in /data/scratch-ps4/ !");
 #else
         noProjectInfo->setText("Put Scratch projects in the same folder as the app!");
 #endif

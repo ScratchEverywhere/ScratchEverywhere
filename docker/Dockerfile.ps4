@@ -1,14 +1,10 @@
-WORKDIR /openorbis
-ARG OO_VERSION 0.5.2
-RUN wget https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain/releases/download/v${OO_VERSION}/v${OO_VERSION}.tar.gz && tar xf v${OO_VERSION}.tar.gz
-ENV OO_PS4_TOOLCHAIN=/openorbis/v${OO_VERSION}
-
-WORKDIR /sdl2_ttf
-RUN git clone --recursive --branch release-2.20.x https://github.com/libsdl-org/SDL_ttf.git . 
-RUN sed '/^noinst_PROGRAMS/d' -i Makefile.in
-
-WORKDIR /mistpp
-RUN apt-get update && apt-get install -y --no-install-recommends cmake
-RUN git clone https://github.com/gradylink/mistpp . && mkdir build && cd build && PKG_CONFIG_PATH=/usr/local/lib/pkgconfig cmake .. -DCMAKE_BUILD_TYPE=Release && make && make installs
-
+FROM gradylink/pacbrew:latest AS main_builder
 WORKDIR /app
+
+COPY . .
+
+RUN make PLATFORM=ps4
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build/ps4/scratch-ps4.pkg /

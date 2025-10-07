@@ -15,3 +15,6 @@ Switch:
 
 Vita:
   - '### Device\(s\)\s*.*Vita'
+
+PS4:
+  - '### Device\(s\)\s*.*PS4'
