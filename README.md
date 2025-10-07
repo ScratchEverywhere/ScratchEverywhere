@@ -234,6 +234,14 @@ Put your Scratch Projects in `ux0:data/scratch-vita/` (you will need to create t
 
 Then it should be as simple as opening and starting the app from your Vita's LiveArea homescreen!
 
+### Get up and running for PS4
+
+Download the `scratch-ps4.pkg` file from the releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-ps4/main/Scratch%20Everywhere!%20PS4%20Nightly.zip), then install it using your preferred HEN, like GoldHEN, Mira, etc.
+
+Place your Scratch projects in `/data/scratch-ps4`, if the folder doesn't exist, create it.
+
+Then it should be as simple as opening the app on your PS4 from the XMB!
+
 ## Building
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
