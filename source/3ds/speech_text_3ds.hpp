@@ -1,14 +1,12 @@
 #pragma once
+#include "../scratch/speech_text.hpp"
 #include "text_3ds.hpp"
 #include <string>
 
-class SpeechTextObject3DS : public TextObject3DS {
+class SpeechTextObject3DS : public TextObject3DS, public SpeechText {
   private:
-    std::string originalText;
-    int maxWidth;
-
-    void wrapText();
-    float measureTextWidth(const std::string &text);
+    float measureTextWidth(const std::string &text) override;
+    void platformSetText(const std::string &text) override;
 
   public:
     SpeechTextObject3DS(const std::string &text, int maxWidth = 200);

@@ -5,83 +5,26 @@
 #include <SDL2/SDL_ttf.h>
 
 SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
-    : TextObjectSDL(text, 0, 0), maxWidth(maxWidth) {
-    originalText = text;
+    : TextObjectSDL(text, 0, 0), SpeechText(text, maxWidth) {
     setColor(0x00);
     setCenterAligned(false); // easier for positioning logic
     font = TTF_OpenFont("gfx/menu/Arialn.ttf", 16);
 
-    wrapText();
+    platformSetText(wrapText());
 }
 
-void SpeechTextObjectSDL::wrapText() {
-    if (!font || originalText.empty()) {
-        TextObjectSDL::setText(originalText);
-        return;
-    }
+float SpeechTextObjectSDL::measureTextWidth(const std::string &text) {
+    if (!font) return 0.0f;
 
-    std::string result;
-    std::string currentLine;
-    std::string currentWord;
+    int width, height;
+    TTF_SizeUTF8(font, text.c_str(), &width, &height);
+    return static_cast<float>(width);
+}
 
-    for (char c : originalText) {
-        if (c == '\n') {
-            if (!currentWord.empty()) {
-                currentLine += currentWord;
-                currentWord.clear();
-            }
-            if (!currentLine.empty()) {
-                result += currentLine + "\n";
-                currentLine.clear();
-            } else {
-                result += "\n";
-            }
-        } else if (c == ' ') { // add new line at space to wrap cleanly (without splitting words in half)
-            if (!currentWord.empty()) {
-                std::string line = currentLine.empty() ? currentWord : currentLine + " " + currentWord;
-                int width, height;
-                TTF_SizeUTF8(font, line.c_str(), &width, &height);
-
-                if (width <= maxWidth) {
-                    currentLine = line;
-                } else {
-                    if (!currentLine.empty()) {
-                        result += currentLine + "\n";
-                    }
-                    currentLine = currentWord;
-                }
-                currentWord.clear();
-            }
-        } else {
-            currentWord += c;
-        }
-    }
-
-    // Handle the last word
-    if (!currentWord.empty()) {
-        std::string line = currentLine.empty() ? currentWord : currentLine + " " + currentWord;
-        int width, height;
-        TTF_SizeUTF8(font, line.c_str(), &width, &height);
-
-        if (width <= maxWidth) {
-            currentLine = line;
-        } else {
-            if (!currentLine.empty()) {
-                result += currentLine + "\n";
-            }
-            currentLine = currentWord;
-        }
-    }
-
-    if (!currentLine.empty()) {
-        result += currentLine;
-    }
-
-    TextObjectSDL::setText(result);
+void SpeechTextObjectSDL::platformSetText(const std::string &text) {
+    TextObjectSDL::setText(text);
 }
 
 void SpeechTextObjectSDL::setText(std::string txt) {
-    if (originalText == txt) return;
-    originalText = txt;
-    wrapText();
+    SpeechText::setText(txt);
 }

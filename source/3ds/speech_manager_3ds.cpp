@@ -31,36 +31,31 @@ void SpeechManager3DS::render() {
             int spriteX = static_cast<int>((sprite->xPosition * scale) + (SCREEN_WIDTH / 2));
             int spriteY = static_cast<int>((sprite->yPosition * -scale) + (SCREEN_HEIGHT / 2));
 
-            // Position text above sprite's top edge
-            // spriteY is the sprite's center, so we need to go up by half sprite height + gap
-            int spriteHeight = static_cast<int>(sprite->size * scale); // Approximate sprite height
+            int spriteHeight = static_cast<int>(sprite->size * scale); // sprite height
 
-            // Determine horizontal positioning based on sprite's side of screen
+            // determine horizontal positioning based on sprite's side of screen
             SpeechTextObject3DS *speechObj = static_cast<SpeechTextObject3DS *>(obj.get());
-            speechObj->setScale(static_cast<float>(scale * 0.53f)); // unlike SDL2, we cannot dynamically set font size, so scaling from 30px instead (16/30 = 0.53)
+            speechObj->setScale(static_cast<float>(scale));
 
-            // Get text dimensions for positioning calculations
             auto textSize = speechObj->getSize();
             int textWidth = static_cast<int>(textSize[0]);
             int textHeight = static_cast<int>(textSize[1]);
 
-            // Position text so its bottom edge is above the sprite's top edge
+            // position text so its bottom edge is above the sprite's top edge
             int textY = spriteY - (spriteHeight / 2) - static_cast<int>(20 * scale) - textHeight;
 
             int textX;
             int screenCenter = SCREEN_WIDTH / 2;
 
             if (spriteX < screenCenter) {
-                // Sprite is left of center - position text's left edge at sprite's right edge
-                textX = spriteX + static_cast<int>(20 * scale); // Small gap from sprite
+                textX = spriteX + static_cast<int>(20 * scale);
             } else {
-                // Sprite is right of center - position text's right edge at sprite's left edge
-                textX = spriteX - static_cast<int>(20 * scale) - textWidth; // Small gap from sprite
+                textX = spriteX - static_cast<int>(20 * scale) - textWidth;
             }
 
-            // Ensure text stays within screen bounds
+            // ensure text stays within screen bounds
             textX = std::max(0, std::min(textX, SCREEN_WIDTH - textWidth));
-            textY = std::max(textHeight, textY); // Don't go above screen top
+            textY = std::max(textHeight, textY);
 
             speechObj->render(textX, textY);
         }
