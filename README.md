@@ -13,11 +13,11 @@
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
 
-![Runtime running a Scratch project on Wii U, Wii, and 3DS](scratchcats3ds.gif)
+![Runtime running a Scratch project on Wii U, Wii, and 3DS](docs/demo.gif)
 <small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
 
 ## Controls
-![Controls](scratch%203ds%20controls.png)
+![Controls](docs/controls.png)
 
 ### Mouse
 
@@ -81,7 +81,10 @@ Like TurboWarp we have special custom blocks that only work on SE! You can find 
   
 These blocks make it possible to split a big game into smaller parts (e.g. a main game, a shop, or a cutscene project) and load them as needed. All paths are relative to the `scratch-everywhere` folder, so subfolders must be specified (e.g. `MyGame/main.sb3`).
 This helps avoid memory issues, keep projects modular, and makes it easier to manage large 
-games. 
+games.
+
+You can find the blocks in this project: https://scratchbox.grady.link/project/twStEkSKjQaH
+
 > [!NOTE]
 > In the future, this feature may be replaced by a dedicated extension once extension support is available.
 

@@ -20,8 +20,8 @@ APP_TITLE	:= Scratch Everywhere!
 APP_AUTHOR	:= NateXS
 APP_SHORT_DESCRIPTION := Play Scratch games on the Wii!
 APP_LONG_DESCRIPTION	:= A custom Runtime that allows you to play any Scratch 3 project on your Wii!
-RELEASE_DATE	:= 20250914000000
-APP_VERSION	:= 0.24
+RELEASE_DATE	:= 20251006000000
+APP_VERSION	:= 0.25
 
 #---------------------------------------------------------------------------------
 # Build info
@@ -43,13 +43,13 @@ ENABLE_AUDIO	?=	1
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_mixer SDL2_image freetype2` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DWII -D__OGC__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
+CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DWII -D__OGC__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
 
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image freetype2`
-CFLAGS	+=	-DENABLE_AUDIO
+LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image SDL2_gfx freetype2`
+CFLAGS	+=	-DENABLE_AUDIO `pkg-config --cflags SDL2_mixer`
 else
-LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image freetype2`
+LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2`
 endif
 
 ASFLAGS	:=	-g $(ARCH)

@@ -20,6 +20,8 @@ class Render {
 
     static bool Init();
 
+    static bool initPen();
+
     static void deInit();
 
     /**
@@ -56,7 +58,16 @@ class Render {
      */
     static void renderSprites();
 
+    /**
+     * Renders all visible variable and list monitors
+     */
     static void renderVisibleVariables();
+
+    /**
+     * Renders the pen layer
+     */
+    static void renderPenLayer();
+
     /**
      * Draws a simple box to the screen.
      */
@@ -69,10 +80,16 @@ class Render {
     static bool appShouldRun();
 
     /**
+     * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
+     */
+    static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite);
+
+    /**
      * Returns whether or not enough time has passed to advance a frame.
      * @return True if we should go to the next frame, False otherwise.
      */
     static bool checkFramerate() {
+        if (Scratch::turbo) return true;
         static Timer frameTimer;
         int frameDuration = 1000 / Scratch::FPS;
         return frameTimer.hasElapsedAndRestart(frameDuration);

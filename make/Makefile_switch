@@ -15,7 +15,7 @@ TARGET		:=	scratch-nx
 BUILD		:=	build/switch
 SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
 INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann
-APP_VERSION	:=	0.24
+APP_VERSION	:=	0.25
 ICON		:=	gfx/wiiu/icon.png
 APP_TITLE	:=	Scratch Everywhere!
 APP_AUTHOR	:=	NateXS and Grady Link
@@ -30,13 +30,13 @@ ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -ftls-model=local-exec
 CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DSDL_BUILD
-CFLAGS  +=  `$(PKGCONF) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
+CFLAGS  +=  `$(PKGCONF) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2`
 
 ifeq ($(ENABLE_AUDIO),1)
-CFLAGS	+=	-DENABLE_AUDIO
-LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2`
+CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF) --cflags SDL2_mixer`
+LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_mixer SDL2_gfx sdl2`
 else
-LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf sdl2`
+LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_gfx sdl2`
 endif
 
 ifeq ($(ENABLE_LOADSCREEN),1)

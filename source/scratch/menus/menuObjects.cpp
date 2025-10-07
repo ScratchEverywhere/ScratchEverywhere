@@ -51,9 +51,7 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
 
 bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
     for (const auto &button : pressButton) {
-        if ((isSelected || !needsToBeSelected) && Input::isKeyJustPressed(button)) {
-            return true;
-        }
+        if ((isSelected || !needsToBeSelected) && Input::isKeyJustPressed(button)) return true;
     }
 
     if (!canBeClicked) return false;
@@ -108,15 +106,12 @@ bool ButtonObject::isTouchingMouse() {
     bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
     bool withinY = touchY >= (scaledPos[1] - (scaledHeight / 2)) && touchY <= (scaledPos[1] + (scaledHeight / 2));
 
-    if ((withinX && withinY)) {
-        return true;
-    }
+    if ((withinX && withinY)) return true;
 
     return false;
 }
 
 void ButtonObject::render(double xPos, double yPos) {
-
     if (xPos == 0) xPos = x;
     if (yPos == 0) yPos = y;
 
@@ -148,13 +143,17 @@ void MenuImage::render(double xPos, double yPos) {
     if (yPos == 0) yPos = y;
 
     image->scale = scale * getScaleFactor();
-    double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
-    double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
+    const double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
+    const double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
 
     renderX = proportionX * Render::getWidth();
     renderY = proportionY * Render::getHeight();
 
-    image->render(renderX, renderY, true);
+    if (width <= 0 && height <= 0) {
+        image->renderNineslice(renderX, renderY, image->getWidth() * scale, image->getHeight() * scale, 8 /* TODO: make this customizable */, true);
+        return;
+    }
+    image->renderNineslice(renderX, renderY, width * scale, height * scale, 8 /* TODO: make this customizable */, true);
 }
 
 MenuImage::~MenuImage() {
