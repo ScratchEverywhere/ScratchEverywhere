@@ -1,6 +1,7 @@
 #include "image.hpp"
 #include "os.hpp"
 #include <algorithm>
+#include <string>
 #include <vector>
 #define STBI_NO_GIF
 #define STB_IMAGE_IMPLEMENTATION
@@ -20,16 +21,6 @@ static std::vector<imageRGBA *> imageLoadQueue;
 static std::vector<std::string> toDelete;
 #define MAX_IMAGE_VRAM 30000000
 
-const u32 next_pow2(u32 n) {
-    n--;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n++;
-    return n;
-}
 const u32 clamp(u32 n, u32 lower, u32 upper) {
     if (n < lower)
         return lower;
@@ -79,23 +70,77 @@ void Image::render(double xPos, double yPos, bool centered) {
     auto rgbaIt = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
         return img.name == imageId;
     });
-    if (rgbaIt != imageRGBAS.end()) {
-        if (imageC2Ds.find(rgbaIt->name) != imageC2Ds.end()) {
-            imageC2Ds[rgbaIt->name].freeTimer = imageC2Ds[rgbaIt->name].maxFreeTimer;
-            C2D_ImageTint tinty;
-            C2D_AlphaImageTint(&tinty, opacity);
+    if (rgbaIt == imageRGBAS.end() || imageC2Ds.find(rgbaIt->name) == imageC2Ds.end()) return;
 
-            double renderPositionX = xPos;
-            double renderPositionY = yPos;
+    imageC2Ds[rgbaIt->name].freeTimer = imageC2Ds[rgbaIt->name].maxFreeTimer;
+    C2D_ImageTint tinty;
+    C2D_AlphaImageTint(&tinty, opacity);
 
-            if (!centered) {
-                renderPositionX += getWidth() / 2;
-                renderPositionY += getHeight() / 2;
-            }
+    double renderPositionX = xPos;
+    double renderPositionY = yPos;
 
-            C2D_DrawImageAtRotated(imageC2Ds[rgbaIt->name].image, static_cast<int>(renderPositionX), static_cast<int>(renderPositionY), 1, rotation, &tinty, scale, scale);
-        }
+    if (!centered) {
+        renderPositionX += getWidth() / 2;
+        renderPositionY += getHeight() / 2;
     }
+
+    C2D_DrawImageAtRotated(imageC2Ds[rgbaIt->name].image, static_cast<int>(renderPositionX), static_cast<int>(renderPositionY), 1, rotation, &tinty, scale, scale);
+}
+
+void renderSubrect(C2D_Image img, uint16_t srcX, uint16_t srcY, uint16_t srcW, uint16_t srcH, float destX, float destY, float destW, float destH, C2D_ImageTint *tint) {
+    uint16_t texW = img.subtex->width - 1;
+    texW |= texW >> 1;
+    texW |= texW >> 2;
+    texW |= texW >> 4;
+    texW |= texW >> 8;
+    texW++;
+
+    uint16_t texH = img.subtex->height - 1;
+    texH |= texH >> 1;
+    texH |= texH >> 2;
+    texH |= texH >> 4;
+    texH |= texH >> 8;
+    texH++;
+
+    const Tex3DS_SubTexture subtex = {
+        srcW,
+        srcH,
+        static_cast<float>(srcX) / texW,
+        1 - static_cast<float>(srcY) / texH,
+        static_cast<float>(srcX + srcW) / texW,
+        1 - static_cast<float>(srcY + srcH) / texH};
+
+    C2D_DrawImageAt({img.tex, &subtex}, destX, destY, 1, tint, 1.0f / srcW * destW, 1.0f / srcH * destH);
+}
+
+void Image::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
+    auto rgbaIt = std::find_if(imageRGBAS.begin(), imageRGBAS.end(), [&](const imageRGBA &img) {
+        return img.name == imageId;
+    });
+    if (rgbaIt == imageRGBAS.end() || imageC2Ds.find(rgbaIt->name) == imageC2Ds.end()) return;
+
+    imageC2Ds[rgbaIt->name].freeTimer = imageC2Ds[rgbaIt->name].maxFreeTimer;
+    C2D_ImageTint tinty;
+    C2D_AlphaImageTint(&tinty, opacity);
+
+    int renderPositionX = xPos;
+    int renderPositionY = yPos;
+
+    if (centered) {
+        renderPositionX -= width / 2;
+        renderPositionY -= height / 2;
+    }
+
+    // To anyone who needs to edit this, I hope you have an ultra-wide monitor
+    renderSubrect(imageC2Ds[rgbaIt->name].image, 0, 0, padding, padding, renderPositionX, renderPositionY, padding, padding, &tinty);                                                                                               // Top Left
+    renderSubrect(imageC2Ds[rgbaIt->name].image, padding, 0, this->width - padding * 2, padding, renderPositionX + padding, renderPositionY, width - padding * 2, padding, &tinty);                                                 // Top
+    renderSubrect(imageC2Ds[rgbaIt->name].image, this->width - padding, 0, padding, padding, renderPositionX + width - padding, renderPositionY, padding, padding, &tinty);                                                         // Top Right
+    renderSubrect(imageC2Ds[rgbaIt->name].image, 0, padding, padding, this->height - padding * 2, renderPositionX, renderPositionY + padding, padding, height - padding * 2, &tinty);                                               // Left
+    renderSubrect(imageC2Ds[rgbaIt->name].image, padding, padding, this->width - padding * 2, this->height - padding * 2, renderPositionX + padding, renderPositionY + padding, width - padding * 2, height - padding * 2, &tinty); // Center
+    renderSubrect(imageC2Ds[rgbaIt->name].image, this->width - padding, padding, padding, this->height - padding * 2, renderPositionX + width - padding, renderPositionY + padding, padding, height - padding * 2, &tinty);         // Right
+    renderSubrect(imageC2Ds[rgbaIt->name].image, 0, this->height - padding, padding, padding, renderPositionX, renderPositionY + height - padding, padding, padding, &tinty);                                                       // Bottom Left
+    renderSubrect(imageC2Ds[rgbaIt->name].image, padding, this->height - padding, this->width - padding * 2, padding, renderPositionX + padding, renderPositionY + height - padding, width - padding * 2, padding, &tinty);         // Bottom
+    renderSubrect(imageC2Ds[rgbaIt->name].image, this->width - padding, this->height - padding, padding, padding, renderPositionX + width - padding, renderPositionY + height - padding, padding, padding, &tinty);                 // Bottom Right
 }
 
 /**
@@ -174,8 +219,8 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     newRGBA.fullName = filename;
     newRGBA.width = width;
     newRGBA.height = height;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
@@ -275,8 +320,8 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     newRGBA.fullName = costumeId;
     newRGBA.width = width;
     newRGBA.height = height;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
@@ -380,8 +425,8 @@ bool getImageFromT3x(const std::string &filePath) {
     newRGBA.fullName = filePath;
     newRGBA.name = path2;
     newRGBA.isSVG = false;
-    newRGBA.textureWidth = clamp(next_pow2(newRGBA.width), 64, 1024);
-    newRGBA.textureHeight = clamp(next_pow2(newRGBA.height), 64, 1024);
+    newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
+    newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = nullptr;
 

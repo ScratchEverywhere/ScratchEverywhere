@@ -82,3 +82,14 @@ std::string Math::removeQuotations(std::string value) {
     value.erase(std::remove_if(value.begin(), value.end(), [](char c) { return c == '"'; }), value.end());
     return value;
 }
+
+const uint32_t Math::next_pow2(uint32_t n) {
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
+}
