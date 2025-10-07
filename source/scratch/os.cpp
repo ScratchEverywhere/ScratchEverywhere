@@ -22,21 +22,26 @@ size_t MemoryTracker::peakUsage = 0;
 size_t MemoryTracker::allocationCount = 0;
 size_t MemoryTracker::totalVRAMAllocated = 0;
 
-// printf implementation of logging
-#if defined(__PS4__)
+// PS4 implementation of logging
+#ifdef __PS4__
+char logBuffer[1024];
+
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) {
-        printf(std::string("<SE!> %s\n", message.c_str()));
+        snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
     }
 }
 void Log::logWarning(std::string message, bool printToScreen) {
     if (printToScreen) {
-        printf(std::string("<SE!> Warning: %s\n", message.c_str()));
+        snprintf(logBuffer, 1023, "<SE!> Warning: %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
     }
 }
 void Log::logError(std::string message, bool printToScreen) {
     if (printToScreen) {
-        printf(std::string("<SE!> Error: %s\n", message.c_str()));
+        snprintf(logBuffer, 1023, "<SE!> Error: %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
     }
 }
 void Log::writeToFile(std::string message) {
