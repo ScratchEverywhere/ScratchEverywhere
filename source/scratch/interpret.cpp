@@ -274,6 +274,10 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     if (currentSprite->costumes[currentSprite->currentCostume].isSVG)
         divisionAmount = 1.0;
 
+#ifdef __NDS__
+    divisionAmount *= 2;
+#endif
+
     // Get sprite dimensions, scaled by size
     const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
     const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / divisionAmount;
@@ -288,10 +292,14 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         else
             rotation = -90;
     }
-
-    double rotationRadians = (rotation - 90) * M_PI / 180.0;
+    double rotationRadians = -(rotation - 90) * M_PI / 180.0;
+#ifdef __NDS__
+    double rotationCenterX = (currentSprite->costumes[currentSprite->currentCostume].rotationCenterX * 2 - currentSprite->spriteWidth);
+    double rotationCenterY = (currentSprite->costumes[currentSprite->currentCostume].rotationCenterY * 2 - currentSprite->spriteHeight);
+#else
     double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) * 0.75);
     double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight) * 0.75);
+#endif
 
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {

@@ -1,4 +1,5 @@
 #include "../scratch/render.hpp"
+#include "../scratch/input.hpp"
 #include "image.hpp"
 #include "swzl/swzl.hpp"
 #include <filesystem.h>
@@ -25,7 +26,7 @@ std::vector<Monitor> Render::visibleVariables;
 
 bool Render::Init() {
     cpuStartTiming(0);
-    consoleDemoInit();
+    // consoleDemoInit();
     if (!nitroFSInit(NULL)) {
         Log::logError("NitroFS Could not initialize!");
         while (1)
@@ -51,17 +52,22 @@ void *Render::getRenderer() {
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    glBegin2D();
 }
 
 void Render::endFrame(bool shouldFlush) {
+    glEnd2D();
+    glFlush(0);
+    if (shouldFlush) Image::FlushImages();
+    swiWaitForVBlank();
 }
 
 int Render::getWidth() {
-    return 0;
+    return SCREEN_WIDTH;
 }
 
 int Render::getHeight() {
-    return 0;
+    return SCREEN_HEIGHT;
 }
 
 void Render::renderSprites() {
@@ -88,8 +94,8 @@ void Render::renderSprites() {
             glImage *image = &data.image;
 
             // Set sprite dimensions
-            sprite->spriteWidth = image->width;
-            sprite->spriteHeight = image->height;
+            sprite->spriteWidth = data.originalWidth;
+            sprite->spriteHeight = data.originalHeight;
 
             // TODO: look into making sprite->size a float or int for extra performance
             uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
@@ -113,6 +119,18 @@ void Render::renderSprites() {
 
             glSpriteRotateScale(renderX, renderY, renderRotation, renderScale, flip, image);
 
+            // auto collisionPoints = getCollisionPoints(sprite);
+            // for (const auto &point : collisionPoints) {
+
+            //     int drawX = (int)((point.first) + SCREEN_HALF_WIDTH);
+            //     int drawY = (int)((point.second * -1) + (SCREEN_HALF_HEIGHT));
+
+            //     glBoxFilled(
+            //         drawX - 1, drawY - 1,
+            //         drawX + 1, drawY + 1,
+            //         RGB15(31, 0, 0)); // Red box
+            // }
+
         } else {
             const int renderX = static_cast<int>(sprite->xPosition);
             const int renderY = static_cast<int>(sprite->yPosition * -1);
@@ -121,6 +139,12 @@ void Render::renderSprites() {
 
             glBoxFilled(renderX + (SCREEN_HALF_WIDTH - 3), renderY + (SCREEN_HALF_HEIGHT - 3), renderX + (SCREEN_HALF_WIDTH + 3), renderY + (SCREEN_HALF_HEIGHT + 3), RGB15(0, 0, 0));
         }
+    }
+
+    if (Input::mousePointer.isMoving) {
+        glBoxFilled(Input::mousePointer.x + (SCREEN_HALF_WIDTH - 3), -Input::mousePointer.y + (SCREEN_HALF_HEIGHT - 3),
+                    Input::mousePointer.x + (SCREEN_HALF_WIDTH + 3), -Input::mousePointer.y + (SCREEN_HALF_HEIGHT + 3),
+                    RGB15(0, 0, 15));
     }
 
     glEnd2D();
@@ -133,11 +157,7 @@ void Render::renderVisibleVariables() {
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    glBegin2D();
     glBoxFilled(x, y, w, h, RGB15(colorR, colorB, colorG));
-    glEnd2D();
-    glFlush(0);
-    swiWaitForVBlank();
 }
 
 bool Render::appShouldRun() {
