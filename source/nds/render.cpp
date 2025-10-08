@@ -21,11 +21,9 @@ std::vector<Monitor> Render::visibleVariables;
 #define SCREEN_HALF_WIDTH 132.5
 #define SCREEN_HALF_HEIGHT 96
 
-#define IMG_MAX_FREE_TIMER 150
-
 bool Render::Init() {
     cpuStartTiming(0);
-    // consoleDemoInit();
+    consoleDemoInit();
     if (!nitroFSInit(NULL)) {
         Log::logError("NitroFS Could not initialize!");
         while (1)
@@ -34,16 +32,18 @@ bool Render::Init() {
     videoSetMode(MODE_0_3D);
     glScreen2D();
     vramSetBankA(VRAM_A_TEXTURE);
-    vramSetBankB(VRAM_B_TEXTURE);
-    vramSetBankC(VRAM_C_TEXTURE);
-    vramSetBankD(VRAM_D_TEXTURE);
+    // vramSetBankB(VRAM_B_TEXTURE);
+    // vramSetBankC(VRAM_C_TEXTURE);
+    // vramSetBankD(VRAM_D_TEXTURE);
     vramSetBankE(VRAM_E_TEX_PALETTE);
-    vramSetBankF(VRAM_F_TEX_PALETTE);
+    // vramSetBankF(VRAM_F_TEX_PALETTE);
 
     return true;
 }
 
 void Render::deInit() {
+    Image::cleanupImages();
+    TextObject::cleanupText();
 }
 
 void *Render::getRenderer() {
@@ -102,9 +102,9 @@ void Render::renderSprites() {
 
         auto imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
         if (imgFind != images.end()) {
-            imgFind->second.freeTimer = IMG_MAX_FREE_TIMER;
-            imagePAL8 data = imgFind->second;
+            imagePAL8 &data = imgFind->second;
             glImage *image = &data.image;
+            imgFind->second.freeTimer = data.maxFreeTimer;
 
             // Set sprite dimensions
             sprite->spriteWidth = data.originalWidth;
@@ -170,7 +170,8 @@ void Render::renderVisibleVariables() {
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    glBoxFilled(x, y, w, h, RGB15(colorR, colorB, colorG));
+
+    glBoxFilled(x - w / 2, y - h / 2, x + w / 2, y + h / 2, Math::color(colorR, colorG, colorB, colorA));
 }
 
 bool Render::appShouldRun() {

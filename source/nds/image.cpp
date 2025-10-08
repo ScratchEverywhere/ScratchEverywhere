@@ -34,24 +34,48 @@ const uint16_t clamp(uint16_t n, uint16_t lower, uint16_t upper) {
 }
 
 Image::Image(std::string filePath) : width(0), height(0), scale(1.0), opacity(1.0), rotation(0.0) {
+    if (!loadImageFromFile(filePath, false)) return;
+
+    std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
+    std::string path2 = filename.substr(0, filename.find_last_of('.'));
+    if (images.find(path2) != images.end()) {
+        imagePAL8 &img = images[path2];
+        imageId = path2;
+        width = img.width;
+        height = img.height;
+        scale = 1.0;
+        rotation = 0.0;
+        opacity = 1.0;
+        Log::log("loaded!");
+    }
 }
 
 Image::~Image() {
 }
 
 void Image::render(double xPos, double yPos, bool centered) {
-    float newX = xPos; // I think we should move away from doubles and use floats instead to save memory and improve performance since the DS has no fpu.
-    float newY = yPos;
 
-    if (centered) {
-        newX += getWidth() / 2;
-        newY += getHeight() / 2;
+    auto imgFind = images.find(imageId);
+    if (imgFind != images.end()) {
+        imagePAL8 &data = images[imageId];
+        glImage *image = &images[imageId].image;
+
+        int RenderX = xPos;
+        int RenderY = yPos;
+
+        if (centered) {
+            RenderX -= width / 2;
+            RenderY -= height / 2;
+        }
+
+        glSpriteScale(RenderX, RenderY, 1 << 12, GL_FLIP_NONE, image);
+        data.freeTimer = data.maxFreeTimer;
     }
-
-    // NF_load16BitsImage();//TODO
 }
 
 void Image::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
+    // we are NOT doing nine-slice rendering on the DS....
+    render(xPos, yPos, centered);
 }
 
 bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
@@ -463,6 +487,13 @@ void Image::freeImage(const std::string &costumeId) {
 }
 
 void Image::cleanupImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, image] : images) {
+        toDelete.push_back(id);
+    }
+    for (auto &id : toDelete) {
+        freeImage(id);
+    }
 }
 
 void Image::queueFreeImage(const std::string &costumeId) {
