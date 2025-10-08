@@ -12,8 +12,8 @@ PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
 
 TARGET		:=	scratch-wiiu
 BUILD			:=	build/wiiu
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio source/scratch/extensions include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio source/scratch/extensions include/nlohmann
 ROMFS	:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -72,7 +72,7 @@ ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
-CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
+CXXFLAGS	:=	$(CFLAGS) -std=c++23 -Wall -fexceptions
 
 LIBDIRS	:=	$(PORTLIBS) $(WUT_ROOT)
 

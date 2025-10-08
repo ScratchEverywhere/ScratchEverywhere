@@ -2,8 +2,8 @@
 
 TARGET     := Scratch-pc
 BUILD      := build/pc
-SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio source/scratch/extensions include/miniz include/nlohmann
+INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio source/scratch/extensions include/nlohmann
 
 CXX        := g++
 CC         := gcc
@@ -37,7 +37,7 @@ $(error "[ERROR] Mist++ must be v0.1.4 or newer.")
 endif
 endif
 
-CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++17 -Wall -fexceptions
+CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++23 -Wall -fexceptions
 
 # Debug and Release flags
 CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -fsanitize=address -g -O0 -DDEBUG

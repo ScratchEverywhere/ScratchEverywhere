@@ -13,8 +13,8 @@ PKGCONF := $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
 
 TARGET		:=	scratch-nx
 BUILD		:=	build/switch
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio source/scratch/extensions include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/scratch/extensions include/nlohmann
 APP_VERSION	:=	0.25
 ICON		:=	gfx/wiiu/icon.png
 APP_TITLE	:=	Scratch Everywhere!
@@ -43,7 +43,7 @@ ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
-CXXFLAGS	:= $(CFLAGS) -std=c++17 -Wall -fexceptions
+CXXFLAGS	:= $(CFLAGS) -std=c++23 -Wall -fexceptions
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)

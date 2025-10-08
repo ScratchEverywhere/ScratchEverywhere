@@ -28,9 +28,9 @@ APP_VERSION	:= 0.25
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-wii
 BUILD		:=	build/wii
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio source/scratch/extensions include/miniz include/nlohmann
 DATA		:=	data
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio source/scratch/extensions include/nlohmann
 ROMFS		:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -62,7 +62,7 @@ ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
-CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++17 -fexceptions
+CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++23 -fexceptions
 
 # Include libromfs-wii support
 include $(DEVKITPRO)/portlibs/wii/share/romfs-ogc.mk
