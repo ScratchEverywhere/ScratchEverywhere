@@ -17,7 +17,7 @@ C3D_Tex *penTex;
 
 SDL_Texture *penTexture;
 #else
-#error Unsupported Platform.
+#pragma warning Unsupported Platform for pen.
 #endif
 
 const unsigned int minPenSize = 1;
@@ -320,4 +320,14 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     return BlockResult::CONTINUE;
 }
+
+#else
+BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    return BlockResult::CONTINUE;
+}
+
+BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    return BlockResult::CONTINUE;
+}
+
 #endif

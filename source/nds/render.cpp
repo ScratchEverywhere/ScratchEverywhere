@@ -69,6 +69,13 @@ int Render::getHeight() {
     return SCREEN_HEIGHT;
 }
 
+bool Render::initPen() {
+    return false;
+}
+
+void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+}
+
 void Render::renderSprites() {
     glBegin2D();
     glClearColor(31, 31, 31, 31);

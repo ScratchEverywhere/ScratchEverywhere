@@ -51,6 +51,9 @@ void Image::render(double xPos, double yPos, bool centered) {
     // NF_load16BitsImage();//TODO
 }
 
+void Image::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
+}
+
 bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
 
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
