@@ -53,13 +53,14 @@ CXXFLAGS += $(SDL_CFLAGS)
 # SDL2 Libs
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs sdl2)
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_image)
-LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_ttf)
+LIBS	 += $(shell arm-vita-eabi-pkg-config --libs SDL2_ttf)
+LIBS	 += $(shell arm-vita-eabi-pkg-config --libs SDL2_gfx)
 
 # Feature flags
 ifeq ($(ENABLE_AUDIO),1)
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs SDL2_mixer)
-CFLAGS	+=	-DENABLE_AUDIO
-CXXFLAGS += -DENABLE_AUDIO
+CFLAGS	+=	-DENABLE_AUDIO $(shell arm-vita-eabi-pkg-config --cflags SDL2_mixer)
+CXXFLAGS += -DENABLE_AUDIO $(shell arm-vita-eabi-pkg-config --cflags SDL2_mixer)
 endif
 
 ifeq ($(ENABLE_LOADSCREEN),1)

@@ -6,10 +6,12 @@
 #include "sprite.hpp"
 #include "value.hpp"
 
+const unsigned int MAX_LIST_ITEMS = 200000;
+
 BlockResult DataBlocks::setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value val = Scratch::getInputValue(block, "VALUE", sprite);
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
-    ;
+
     BlockExecutor::setVariableValue(varId, val, sprite);
     return BlockResult::CONTINUE;
 }
@@ -17,7 +19,6 @@ BlockResult DataBlocks::setVariable(Block &block, Sprite *sprite, bool *withoutS
 BlockResult DataBlocks::changeVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value val = Scratch::getInputValue(block, "VALUE", sprite);
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
-    ;
     Value oldVariable = BlockExecutor::getVariableValue(varId, sprite);
 
     if (val.isNumeric() && oldVariable.isNumeric()) {
@@ -48,6 +49,7 @@ BlockResult DataBlocks::hideVariable(Block &block, Sprite *sprite, bool *without
             break;
         }
     }
+
     return BlockResult::CONTINUE;
 }
 
@@ -71,6 +73,7 @@ BlockResult DataBlocks::hideList(Block &block, Sprite *sprite, bool *withoutScre
             break;
         }
     }
+
     return BlockResult::CONTINUE;
 }
 
@@ -93,9 +96,7 @@ BlockResult DataBlocks::addToList(Block &block, Sprite *sprite, bool *withoutScr
         }
     }
 
-    if (targetSprite) {
-        targetSprite->lists[listId].items.push_back(val);
-    }
+    if (targetSprite && targetSprite->lists[listId].items.size() < MAX_LIST_ITEMS) targetSprite->lists[listId].items.push_back(val);
 
     return BlockResult::CONTINUE;
 }
@@ -192,7 +193,7 @@ BlockResult DataBlocks::insertAtList(Block &block, Sprite *sprite, bool *without
         }
     }
 
-    if (!targetSprite) return BlockResult::CONTINUE;
+    if (!targetSprite || targetSprite->lists[listId].items.size() >= MAX_LIST_ITEMS) return BlockResult::CONTINUE;
 
     if (index.isNumeric()) {
         int idx = index.asInt() - 1; // Convert to 0-based index
@@ -205,7 +206,10 @@ BlockResult DataBlocks::insertAtList(Block &block, Sprite *sprite, bool *without
 
         return BlockResult::CONTINUE;
     }
-    if (index.asString() == "last") targetSprite->lists[listId].items.push_back(val);
+    if (index.asString() == "last") {
+        targetSprite->lists[listId].items.push_back(val);
+        return BlockResult::CONTINUE;
+    }
 
     if (index.asString() == "random") {
         auto &items = targetSprite->lists[listId].items;

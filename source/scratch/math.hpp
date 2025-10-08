@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -17,4 +18,6 @@ double radiansToDegrees(double radians);
 std::string generateRandomString(int length);
 
 std::string removeQuotations(std::string value);
+
+const uint32_t next_pow2(uint32_t n);
 }; // namespace Math
