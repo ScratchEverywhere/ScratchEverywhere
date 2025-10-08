@@ -45,6 +45,7 @@ class MainMenu : public Menu {
     ControlObject *mainMenuControl = nullptr;
     TextObject *versionNumber = nullptr;
     TextObject *splashText = nullptr;
+    float splashTextOriginalScale = 1.0f;
 
     int selectedTextIndex = 0;
 
