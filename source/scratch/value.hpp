@@ -1,11 +1,6 @@
 #pragma once
 #include "color.hpp"
-#include "math.hpp"
-#include "os.hpp"
-#include <cmath>
 #include <nlohmann/json.hpp>
-#include <regex>
-#include <sstream>
 #include <string>
 
 #include <variant>

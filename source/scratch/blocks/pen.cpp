@@ -1,5 +1,6 @@
 #include "pen.hpp"
 #include "../interpret.hpp"
+#include "../math.hpp"
 #include "../render.hpp"
 
 #ifdef __3DS__

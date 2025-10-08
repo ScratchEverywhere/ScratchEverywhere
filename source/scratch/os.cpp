@@ -13,12 +13,40 @@
 #include <sstream>
 #include <whb/sdcard.h>
 #endif
+#ifdef __PS4__
+#include <orbis/libkernel.h>
+#endif
 
 size_t MemoryTracker::totalAllocated = 0;
 size_t MemoryTracker::peakUsage = 0;
 size_t MemoryTracker::allocationCount = 0;
 size_t MemoryTracker::totalVRAMAllocated = 0;
 
+// PS4 implementation of logging
+#ifdef __PS4__
+char logBuffer[1024];
+
+void Log::log(std::string message, bool printToScreen) {
+    if (printToScreen) {
+        snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
+    }
+}
+void Log::logWarning(std::string message, bool printToScreen) {
+    if (printToScreen) {
+        snprintf(logBuffer, 1023, "<SE!> Warning: %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
+    }
+}
+void Log::logError(std::string message, bool printToScreen) {
+    if (printToScreen) {
+        snprintf(logBuffer, 1023, "<SE!> Error: %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
+    }
+}
+void Log::writeToFile(std::string message) {
+}
+#else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
     writeToFile(message);
@@ -49,6 +77,7 @@ void Log::writeToFile(std::string message) {
         }
     }
 }
+#endif
 
 // Wii and Gamecube Timer implementation
 #ifdef __OGC__
@@ -79,6 +108,7 @@ void Timer::start() {
 int Timer::getTimeMs() {
     auto currentTime = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
+
     return static_cast<int>(duration.count());
 }
 
@@ -107,6 +137,8 @@ std::string OS::getScratchFolderLocation() {
     return "carda:/scratch-gamecube/";
 #elif defined(VITA)
     return "ux0:data/scratch-vita/";
+#elif defined(__PS4__)
+    return "/data/scratch-ps4/";
 #elif defined(__3DS__)
     return "sdmc:/3ds/scratch-everywhere/";
 #else
@@ -117,6 +149,8 @@ std::string OS::getScratchFolderLocation() {
 std::string OS::getRomFSLocation() {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
     return "romfs:/";
+#elif defined(__PS4__)
+    return "/app0/";
 #else
     return "";
 #endif
@@ -137,6 +171,8 @@ std::string OS::getPlatform() {
     return "Switch";
 #elif defined(VITA)
     return "Vita";
+#elif defined(__PS4__)
+    return "PS4";
 #else
     return "Unknown";
 #endif

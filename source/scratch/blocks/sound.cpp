@@ -2,6 +2,7 @@
 #include "audio.hpp"
 #include "blockExecutor.hpp"
 #include "interpret.hpp"
+#include "math.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"

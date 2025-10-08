@@ -42,6 +42,16 @@ char nickname[0x21];
 #include <romfs-ogc.h>
 #endif
 
+#ifdef __PS4__
+#include <orbis/Sysmodule.h>
+#include <orbis/libkernel.h>
+
+inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
+    // On PS4 there is no DPI scaling, so this is fine
+    SDL_GetWindowSize(window, w, h);
+}
+#endif
+
 #ifdef GAMECUBE
 #include <sdcard/gcsd.h>
 #endif
@@ -150,6 +160,15 @@ postAccount:
 
     windowWidth = 960;
     windowHeight = 544;
+#elif defined(__PS4__)
+    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
+    if (rc != ORBIS_OK) {
+        Log::logError("Failed to init freetype.");
+        return false;
+    }
+
+    windowWidth = 1280;
+    windowHeight = 720;
 #endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
@@ -191,6 +210,9 @@ void Render::deInit() {
 #ifdef __WIIU__
     WHBUnmountSdCard();
     nn::act::Finalize();
+#endif
+#ifdef __OGC__
+    romfsExit();
 #endif
 }
 
