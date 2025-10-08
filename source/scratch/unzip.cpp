@@ -41,43 +41,38 @@ int Unzip::openFile(std::ifstream *file) {
         file->open(embeddedFilename, std::ios::binary | std::ios::ate);
         if (!(*file)) {
 
-            file->open(OS::getScratchFolderLocation() + "autoload_project.sb3", std::ios::binary | std::ios::ate);
+            // Main menu
+            Log::logWarning("No sb3 project, trying Main Menu.");
+            projectType = UNEMBEDDED;
+            if (filePath == "") {
+                Log::log("Activating main menu...");
+                return -1;
+            } else {
+                // SD card Project
+                Log::logWarning("Main Menu already done, loading SD card project.");
+                // check if normal Project
+                if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
 
-            if (!file) {
+                    Log::log("Normal .sb3 project in SD card ");
+                    file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
+                    if (!(*file)) {
 
-                // Main menu
-                Log::logWarning("No sb3 project, trying Main Menu.");
-                projectType = UNEMBEDDED;
-                if (filePath == "") {
-                    Log::log("Activating main menu...");
-                    return -1;
-                } else {
-                    // SD card Project
-                    Log::logWarning("Main Menu already done, loading SD card project.");
-                    // check if normal Project
-                    if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
-
-                        Log::log("Normal .sb3 project in SD card ");
-                        file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
-                        if (!(*file)) {
-
-                            Log::logError("Couldnt find file. jinkies.");
-                            Log::logWarning(filePath);
-                            return 0;
-                        }
-                    } else {
-                        projectType = UNZIPPED;
-                        Log::log("Unpacked .sb3 project in SD card");
-                        // check if Unpacked Project
-                        file->open(OS::getScratchFolderLocation() + filePath + "/project.json", std::ios::binary | std::ios::ate);
-                        if (!(*file)) {
-                            Log::logError("Couldnt open Unpacked Scratch File");
-                            Log::logWarning(filePath);
-                            return 0;
-                        }
-                        filePath = OS::getScratchFolderLocation() + filePath + "/";
-                        UnpackedInSD = true;
+                        Log::logError("Couldnt find file. jinkies.");
+                        Log::logWarning(filePath);
+                        return 0;
                     }
+                } else {
+                    projectType = UNZIPPED;
+                    Log::log("Unpacked .sb3 project in SD card");
+                    // check if Unpacked Project
+                    file->open(OS::getScratchFolderLocation() + filePath + "/project.json", std::ios::binary | std::ios::ate);
+                    if (!(*file)) {
+                        Log::logError("Couldnt open Unpacked Scratch File");
+                        Log::logWarning(filePath);
+                        return 0;
+                    }
+                    filePath = OS::getScratchFolderLocation() + filePath + "/";
+                    UnpackedInSD = true;
                 }
             }
         }

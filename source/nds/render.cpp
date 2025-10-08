@@ -51,7 +51,13 @@ void *Render::getRenderer() {
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    if (hasFrameBegan) return;
     glBegin2D();
+    int r5 = colorR >> 3;
+    int g5 = colorG >> 3;
+    int b5 = colorB >> 3;
+    glClearColor(r5, g5, b5, 31);
+    hasFrameBegan = true;
 }
 
 void Render::endFrame(bool shouldFlush) {
@@ -59,6 +65,7 @@ void Render::endFrame(bool shouldFlush) {
     glFlush(0);
     if (shouldFlush) Image::FlushImages();
     swiWaitForVBlank();
+    hasFrameBegan = false;
 }
 
 int Render::getWidth() {
