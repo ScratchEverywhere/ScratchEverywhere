@@ -260,38 +260,19 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     bool legacyDrawing = true;
     bool isSVG = false;
     double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
-    bool imageLoaded = false;
-    for (imageRGBA rgba : imageRGBAS) {
-        if (rgba.name == costumeId) {
 
-            if (rgba.isSVG) isSVG = true;
-            legacyDrawing = false;
-            currentSprite->spriteWidth = rgba.width / 2;
-            currentSprite->spriteHeight = rgba.height / 2;
-
-            if (imageC2Ds.find(costumeId) == imageC2Ds.end() || image->tex == nullptr || image->subtex == nullptr) {
-
-                auto rgbaFind = std::find_if(imageRGBAS.begin(), imageRGBAS.end(),
-                                             [&](const imageRGBA &rgba) { return rgba.name == costumeId; });
-
-                if (rgbaFind != imageRGBAS.end()) {
-                    imageLoaded = get_C2D_Image(*rgbaFind);
-                } else {
-                    imageLoaded = false;
-                }
-
-            } else imageLoaded = true;
-
-            break;
-        }
-    }
-    if (!imageLoaded) {
+    if (images.find(costumeId) != images.end()) {
+        ImageData &data = images[costumeId];
+        isSVG = data.isSVG;
+        legacyDrawing = false;
+        currentSprite->spriteWidth = data.width / 2;
+        currentSprite->spriteHeight = data.height / 2;
+    } else {
         legacyDrawing = true;
         currentSprite->spriteWidth = 64;
         currentSprite->spriteHeight = 64;
     }
 
-    // double maxLayer = getMaxSpriteLayer();
     double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
     double spriteSizeX = currentSprite->size * 0.01;
@@ -347,7 +328,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
         } else C2D_AlphaImageTint(&tinty, 1.0f);
 
         C2D_DrawImageAtRotated(
-            imageC2Ds[costumeId].image,
+            images[costumeId].image,
             static_cast<int>((currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)) + x3DOffset,
             static_cast<int>((currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
             1,
@@ -355,7 +336,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
             &tinty,
             (spriteSizeX)*scale / 2.0f,
             (spriteSizeY)*scale / 2.0f);
-        imageC2Ds[costumeId].freeTimer = imageC2Ds[costumeId].maxFreeTimer;
+        images[costumeId].freeTimer = images[costumeId].maxFreeTimer;
     } else {
         C2D_DrawRectSolid(
             (currentSprite->xPosition * scale) + (screenWidth / 2),
@@ -445,7 +426,7 @@ void Render::renderSprites() {
                     size_t totalSprites = spritesByLayer.size();
                     float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
-                    renderImage(&imageC2Ds[costume.id].image,
+                    renderImage(&images[costume.id].image,
                                 currentSprite,
                                 costume.id,
                                 false,
@@ -498,7 +479,7 @@ void Render::renderSprites() {
                     size_t totalSprites = spritesByLayer.size();
                     float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
-                    renderImage(&imageC2Ds[costume.id].image,
+                    renderImage(&images[costume.id].image,
                                 currentSprite,
                                 costume.id,
                                 false,
@@ -548,7 +529,7 @@ void Render::renderSprites() {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
 
-                    renderImage(&imageC2Ds[costume.id].image,
+                    renderImage(&images[costume.id].image,
                                 currentSprite,
                                 costume.id,
                                 true,

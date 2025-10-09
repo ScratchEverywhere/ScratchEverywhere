@@ -254,8 +254,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     const int SCREEN_WIDTH = 400;
     const int SCREEN_HEIGHT = 240;
 
-    const auto &imgFind = imageC2Ds.find(sprite->costumes[sprite->currentCostume].id);
-    if (imgFind == imageC2Ds.end()) {
+    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
+    if (imgFind == images.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return BlockResult::CONTINUE;
     }

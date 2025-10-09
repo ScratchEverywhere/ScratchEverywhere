@@ -149,7 +149,6 @@ bool Unzip::load() {
     SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, "LoadingScreen", nullptr);
 
     if (thread != NULL && thread != nullptr) {
-        SDL_DetachThread(thread);
 
         Loading loading;
         loading.init();
@@ -157,6 +156,7 @@ bool Unzip::load() {
         while (!Unzip::threadFinished) {
             loading.render();
         }
+        SDL_WaitThread(thread, nullptr);
         loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 

@@ -9,12 +9,16 @@
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml/badge.svg" alt="GameCube Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml/badge.svg" alt="Switch Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml/badge.svg" alt="Vita Nightly Build"></a>
+<img alt="Discord" src="https://img.shields.io/discord/1408875318248345612?style=flat&logo=discord&label=Discord%20Server&link=https%3A%2F%2Fdiscord.gg%2FY2gf5vZHpJ">
 </p>
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
 
 ![Runtime running a Scratch project on Wii U, Wii, and 3DS](docs/demo.gif)
 <small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
+
+## Discord Server
+Join https://discord.gg/Y2gf5vZHpJ if you need any help with Scratch Everywhere! or just want to hang out.
 
 ## Controls
 ![Controls](docs/controls.png)
@@ -31,13 +35,10 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 **Other Controllers:**  Enter Mouse Mode by holding L. Use the D-pad to move the mouse, and press R to click.
 
-## Discord Server
-
-Join https://discord.gg/Y2gf5vZHpJ if you need any help with Scratch Everywhere! or just want to hangout.
 
 ## Unique Features
 
-### 3DS Screen modes
+### 3DS Screen Modes
 
 - Any scratch project with an unmodified resolution setting will be displayed on the top screen only.
 - If using a modded Scratch client like TurboWarp, you can go into the projects' Advanced Settings and change the resolution.
@@ -72,7 +73,7 @@ Join https://discord.gg/Y2gf5vZHpJ if you need any help with Scratch Everywhere!
 
 ### Special Custom Blocks
 
-Like TurboWarp we have special custom blocks that only work on SE! You can find a project containing and explaining them here: https://scratchbox.grady.link/project/K26OtTN2WDJ9
+Like TurboWarp, we have special custom blocks that only work on SE!. You can find a project containing and explaining them here: https://scratchbox.grady.link/project/K26OtTN2WDJ9
 
 **Project Linking Blocks**
 - `open (____) .sb3`
@@ -96,7 +97,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - Text and embedded bitmap images will not show up on vector images containing it.
 - Extensions (e.g. pen and music extensions) are not yet supported.
 - Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
-- Performance is poor when using many (~30+) clones (memory management issue).
+- Performance is poor when using many (~50+) clones (memory management issue).
 - **[Wii, Switch, Vita]** Cloud Variables aren't currently supported, but likely will be in the future.
 - **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 - **[Wii]** If you're using a PAL Wii, you must use 50Hz.
@@ -109,7 +110,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ## Unimplemented blocks
 
-- All say and think blocks
+- All say and think blocks ([#393](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/393))
 - Most costume effects;
 	- Only the `Ghost` and `Brightness` costume effects are supported
 - `Pitch` and `Pan left-right` sound effects
@@ -141,9 +142,11 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ### Other
 
-- Download projects from the Scratch website
-- Make Vector images not/less pixelated
-- Browser extension send directly to device from editor
+- Download projects from the Scratch website ([#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
+- Make vector images not/less pixelated
+- Browser extension to send projects directly to a testing device from the editor
+> [!NOTE]
+> For info about planned/unplanned platform support, please check issue [#166](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/166).
 
 ## Installation
 
@@ -153,7 +156,7 @@ There are two methods to install the runtime:
 - Build the file yourself (harder)
 
 > [!NOTE]
-> Nightly builds are significantly more unstable than releases and should probably only be used if you are instructed to do so in a bug report or you know exactly what using nightlies implies.
+> Nightly builds are significantly more unstable than releases and should probably only be used if you are instructed to do so in a bug report or if you know exactly what using nightlies implies.
 
 ### Get up and running for 3DS
 
