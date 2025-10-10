@@ -137,6 +137,8 @@ std::expected<Extension, std::string> parseMetadata(std::istream &data) {
 void loadLua(Extension &extension, std::istream &data) {
     extension.luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::io, sol::lib::bit32);
 
+    extension.luaState["blocks"] = extension.luaState.create_table();
+
     char buffer[1024];
     struct ReadData {
         std::istream *in;
