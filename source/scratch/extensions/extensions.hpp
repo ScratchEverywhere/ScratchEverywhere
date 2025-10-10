@@ -2,10 +2,15 @@
 #include <expected>
 #include <istream>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <variant>
 #include <vector>
+
+#define SOL_ALL_SAFETIES_ON 1
+#define SOL_LUA_VERSION 501
+#include <sol/sol.hpp>
 
 namespace extensions {
 
@@ -74,11 +79,13 @@ struct Extension {
     std::map<std::string, ExtensionBlockType> blockTypes;
     std::map<std::string, ExtensionSetting> settings;
 
-    // TODO: Add the lua stuff here.
+    sol::state luaState;
 };
 
 std::expected<Extension, std::string> parseMetadata(std::istream &data);
 
-extern std::map<std::string, Extension> extensions;
+void loadLua(Extension &extension, std::istream &data);
+
+extern std::map<std::string, std::unique_ptr<Extension>> extensions;
 
 } // namespace extensions

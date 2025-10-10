@@ -1,13 +1,17 @@
 #include "extensions.hpp"
+#include "os.hpp"
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <expected>
+#include <istream>
 #include <string_view>
 
 static_assert(sizeof(bool) == 1, "Unsupported bool type detected.");
 
 namespace extensions {
+
+std::map<std::string, std::unique_ptr<Extension>> extensions;
 
 static std::expected<std::string, std::string> readNullTerminatedString(std::istream &data) {
     std::string out;
@@ -128,6 +132,37 @@ std::expected<Extension, std::string> parseMetadata(std::istream &data) {
     std::transform(blockIds.begin(), blockIds.end(), blockTypes.begin(), std::inserter(out.blockTypes, out.blockTypes.end()), [](const std::string &id, ExtensionBlockType type) { return std::make_pair(id, type); });
 
     return out;
+}
+
+void loadLua(Extension &extension, std::istream &data) {
+    extension.luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::io, sol::lib::bit32);
+
+    char buffer[1024];
+    struct ReadData {
+        std::istream *in;
+        char *buffer;
+    } readData = {&data, buffer};
+    sol::load_result loadResult = extension.luaState.load(
+        [](lua_State *L, void *data, size_t *size) -> const char * {
+            auto readData = reinterpret_cast<ReadData *>(data);
+            if (!readData->in || readData->in->fail() || readData->in->eof()) {
+                *size = 0;
+                return nullptr;
+            }
+
+            readData->in->read(readData->buffer, 1024);
+            *size = static_cast<size_t>(readData->in->gcount());
+            return readData->buffer;
+        },
+        &readData);
+
+    if (!loadResult.valid()) {
+        Log::logError("Failed to load lua bytecode for extension '" + extension.id + "': " + static_cast<sol::error>(loadResult).what());
+        return;
+    }
+
+    sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
+    if (!result.valid()) Log::logError("Error while running lua bytecode for extension '" + extension.id + "': " + static_cast<sol::error>(result).what());
 }
 
 } // namespace extensions

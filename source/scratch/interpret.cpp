@@ -14,6 +14,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <ios>
 #include <math.h>
 #include <string>
 #include <unordered_map>
@@ -1000,10 +1001,11 @@ void loadSprites(const nlohmann::json &json) {
 
 // btw the reason this function is so complex is because it needs to handle searching for the correct extension if its filename is not the same as its id
 void loadExtensions(const nlohmann::json &json) {
+    std::ifstream in;
     for (const auto &extension : json["extensions"]) {
         std::expected<extensions::Extension, std::string> extensionData;
         if (std::filesystem::exists(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see")) {
-            std::ifstream in(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see", std::ios::binary | std::ios::in);
+            in = std::ifstream(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see", std::ios::binary | std::ios::in);
             extensionData = extensions::parseMetadata(in);
             if (!extensionData.has_value()) {
                 Log::logError("Error loading extension '" + extension.get<std::string>() + "': " + extensionData.error());
@@ -1013,7 +1015,7 @@ void loadExtensions(const nlohmann::json &json) {
         }
         for (const auto &entry : std::filesystem::directory_iterator(OS::getScratchFolderLocation() + "extensions/")) {
             if (!entry.is_regular_file()) continue;
-            std::ifstream in(entry.path(), std::ios::in | std::ios::binary);
+            in = std::ifstream(entry.path(), std::ios::in | std::ios::binary);
             extensionData = extensions::parseMetadata(in);
             if (!extensionData.has_value()) {
                 Log::logWarning("Error loading extension '" + entry.path().string() + "' for search: " + extensionData.error());
@@ -1021,8 +1023,9 @@ void loadExtensions(const nlohmann::json &json) {
             }
             if (extensionData.value().id == extension.get<std::string>()) break;
         }
-    loadLua: // TODO: Actually implement this
-        extensions::extensions[extensionData.value().id] = extensionData.value();
+    loadLua:
+        extensions::extensions.try_emplace(extensionData.value().id, std::make_unique<extensions::Extension>(std::move(extensionData.value())));
+        extensions::loadLua(*extensions::extensions[extensionData.value().id], in);
     }
 }
 

@@ -54,8 +54,8 @@ class Unzip {
             return;
         }
         loadingState = "Loading Sprites";
-        loadExtensions(project_json);
         loadSprites(project_json);
+        loadExtensions(project_json);
         Unzip::projectOpened = 1;
         Unzip::threadFinished = true;
         return;
