@@ -61,6 +61,50 @@ std::expected<ExtensionFile, std::string> parse(std::istream &data) {
     for (unsigned int i = 0; i < 7; i++) // Update as more platforms are added
         if ((platforms >> i) & 1) out.platforms.push_back(static_cast<ExtensionPlatform>(i));
 
+    // Settings
+    char numSettings;
+    if (!data.read(&numSettings, 1)) return std::unexpected("Could not read 1 byte for number of settings. File too short or I/O error.");
+    for (int i = 0; i < numSettings; i++) {
+        ExtensionSetting setting;
+        if (!data.read(reinterpret_cast<char *>(&setting.type), 1)) return std::unexpected("Could not read 1 byte for setting type. File too short or I/O error.");
+        if (setting.type != SLIDER && setting.type != TEXT && setting.type != TOGGLE) return std::unexpected("Unknown setting type: '" + std::to_string(setting.type) + "'");
+
+        auto id = readNullTerminatedString(data);
+        auto name = readNullTerminatedString(data);
+        if (!name.has_value() || !id.has_value()) return std::unexpected("Error parsing settings: " + name.error());
+        setting.name = name.value();
+
+        switch (setting.type) {
+        case TOGGLE: {
+            char toggleDefault;
+            if (!data.read(&toggleDefault, 1)) return std::unexpected("Could not read 1 byte for default value. File too short or I/O error.");
+            setting.defaultValue = toggleDefault != 0;
+            break;
+        }
+        case TEXT: {
+            auto textDefault = readNullTerminatedString(data);
+            if (!textDefault.has_value()) return std::unexpected("Error parsing settings: " + textDefault.error());
+            setting.defaultValue = textDefault.value();
+
+            auto prompt = readNullTerminatedString(data);
+            if (!prompt.has_value()) return std::unexpected("Error parsing settings: " + prompt.error());
+            setting.prompt = prompt.value();
+            break;
+        }
+        case SLIDER: {
+            float sliderDefault;
+            if (!data.read(reinterpret_cast<char *>(&sliderDefault), 4)) return std::unexpected("Could not read 4 bytes for default value. File too short or I/O error.");
+            setting.defaultValue = sliderDefault;
+            if (!data.read(reinterpret_cast<char *>(&setting.min), 4)) return std::unexpected("Could not read 4 bytes for slider minimum. File too short or I/O error.");
+            if (!data.read(reinterpret_cast<char *>(&setting.max), 4)) return std::unexpected("Could not read 4 bytes for slider maximum. File too short or I/O error.");
+            if (!data.read(reinterpret_cast<char *>(&setting.snap), 4)) return std::unexpected("Could not read 4 bytes for slider snap. File too short or I/O error.");
+            break;
+        }
+        }
+
+        out.settings[id.value()] = setting;
+    }
+
     // Block Types
     std::vector<ExtensionBlockType> blockTypes;
     char c;
@@ -72,7 +116,7 @@ std::expected<ExtensionFile, std::string> parse(std::istream &data) {
         }
         blockTypes.push_back(static_cast<ExtensionBlockType>(c));
     }
-    if (!success) return std::unexpected(data.eof() ? "Reached end of file while reading block types." : "Unkown error occurred while reading block types.");
+    if (!success) return std::unexpected(data.eof() ? "Reached end of file while reading block types." : "Unknown error occurred while reading block types.");
 
     std::vector<std::string> blockIds;
     for (unsigned int i = 0; i < blockTypes.size(); i++) {

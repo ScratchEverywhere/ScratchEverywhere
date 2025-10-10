@@ -2,7 +2,9 @@
 #include <expected>
 #include <istream>
 #include <map>
+#include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace extensions {
@@ -42,6 +44,22 @@ enum ExtensionBlockType {
     BOOLEAN = 0x5
 };
 
+enum ExtensionSettingType {
+    TOGGLE = 0x12,
+    TEXT = 0x63,
+    SLIDER = 0x6e
+};
+
+struct ExtensionSetting {
+    std::string name;
+    ExtensionSettingType type;
+    std::variant<std::string, bool, float> defaultValue;
+    std::optional<float> min;
+    std::optional<float> max;
+    std::optional<float> snap;
+    std::optional<std::string> prompt;
+};
+
 struct ExtensionFile {
     bool core;
     std::string id;
@@ -54,6 +72,7 @@ struct ExtensionFile {
         uint8_t minor;
     } minApiVersion;
     std::map<std::string, ExtensionBlockType> blockTypes;
+    std::map<std::string, ExtensionSetting> settings;
 
     // TODO: Add the lua stuff here.
 };
