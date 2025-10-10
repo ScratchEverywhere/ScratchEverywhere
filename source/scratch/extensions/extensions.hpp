@@ -60,7 +60,7 @@ struct ExtensionSetting {
     std::optional<std::string> prompt;
 };
 
-struct ExtensionFile {
+struct Extension {
     bool core;
     std::string id;
     std::string name;
@@ -77,6 +77,8 @@ struct ExtensionFile {
     // TODO: Add the lua stuff here.
 };
 
-std::expected<ExtensionFile, std::string> parse(std::istream &data);
+std::expected<Extension, std::string> parseMetadata(std::istream &data);
+
+extern std::map<std::string, Extension> extensions;
 
 } // namespace extensions

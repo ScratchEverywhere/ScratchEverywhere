@@ -1,6 +1,6 @@
 #include "interpret.hpp"
 #include "os.hpp"
-#include "scratch/extensions/format.hpp"
+#include "scratch/extensions/extensions.hpp"
 #include "scratch/menus/mainMenu.hpp"
 #include "scratch/render.hpp"
 #include <fstream>
@@ -51,13 +51,6 @@ int main(int argc, char **argv) {
     }
 
     srand(time(NULL));
-
-    // Temporary testing code for custom extensions
-    std::ifstream instream("see-example.see", std::ios::in | std::ios::binary);
-    auto extensionData = extensions::parse(instream);
-    if (!extensionData.has_value()) Log::logError("Error when parsing extension: " + extensionData.error());
-    else Log::log(extensionData.value().name);
-    instream.close();
 
     if (!Unzip::load()) {
 

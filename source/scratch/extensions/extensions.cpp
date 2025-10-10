@@ -1,4 +1,4 @@
-#include "format.hpp"
+#include "extensions.hpp"
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -16,11 +16,11 @@ static std::expected<std::string, std::string> readNullTerminatedString(std::ist
     return std::unexpected("I/O Error.");
 }
 
-std::expected<ExtensionFile, std::string> parse(std::istream &data) {
+std::expected<Extension, std::string> parseMetadata(std::istream &data) {
     constexpr std::string_view magicString = "SE! EXTENSION";
     constexpr size_t magicLength = magicString.length();
 
-    ExtensionFile out = {};
+    Extension out = {};
 
     // Magic String Check
     std::array<char, magicLength> magicBuffer;
