@@ -1,4 +1,5 @@
 #include "extensions.hpp"
+#include "interpret.hpp"
 #include "os.hpp"
 #include <algorithm>
 #include <array>
@@ -165,6 +166,58 @@ void loadLua(Extension &extension, std::istream &data) {
 
     sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
     if (!result.valid()) Log::logError("Error while running lua bytecode for extension '" + extension.id + "': " + static_cast<sol::error>(result).what());
+}
+
+void registerHandlers(BlockExecutor *blockExecutor) {
+    for (auto &extension : extensions)
+        registerHandlers(*(extension.second), blockExecutor);
+}
+
+void registerHandlers(Extension &extension, BlockExecutor *blockExecutor) {
+    const auto getArgs = [](Extension *extension, Block &block, Sprite *sprite) {
+        sol::table table = extension->luaState.create_table();
+        for (const auto &parsedInput : *block.parsedInputs) {
+            Value val = Scratch::getInputValue(block, parsedInput.first, sprite);
+            if (val.isBoolean()) {
+                table[parsedInput.first] = val.asInt() == 1;
+                continue;
+            }
+            if (val.isDouble() || val.isInteger()) {
+                table[parsedInput.first] = val.asInt();
+                continue;
+            }
+            table[parsedInput.first] = val.asString();
+        }
+        return table;
+    };
+
+    for (auto &extensionBlock : extension.blockTypes) {
+        switch (extensionBlock.second) {
+        case COMMAND:
+            blockExecutor->handlers[extension.id + "_" + extensionBlock.first] = [&](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+                extension.luaState["blocks"][extensionBlock.first](getArgs(&extension, block, sprite));
+                return BlockResult::CONTINUE;
+            };
+            break;
+        case REPORTER:
+        case BOOLEAN:
+            blockExecutor->valueHandlers[extension.id + "_" + extensionBlock.first] = [&](Block &block, Sprite *sprite) {
+                sol::object ret = extension.luaState["blocks"][extensionBlock.first](getArgs(&extension, block, sprite));
+                if (ret.is<std::string>()) return Value(ret.as<std::string>());
+                if (ret.is<double>()) return Value(ret.as<double>());
+                if (ret.is<bool>()) return Value(ret.as<bool>());
+                Log::logError("Unknown return type from extension block, this should never happen.");
+                return Value();
+            };
+            break;
+        case HAT:
+            Log::logWarning("Hat blocks in custom extensions are not supported yet.");
+            break;
+        case EVENT:
+            Log::logWarning("Event blocks in custom extensions are not supported yet.");
+            break;
+        }
+    }
 }
 
 } // namespace extensions

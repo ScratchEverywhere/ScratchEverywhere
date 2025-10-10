@@ -1027,6 +1027,8 @@ void loadExtensions(const nlohmann::json &json) {
         extensions::extensions.try_emplace(extensionData.value().id, std::make_unique<extensions::Extension>(std::move(extensionData.value())));
         extensions::loadLua(*extensions::extensions[extensionData.value().id], in);
     }
+
+    extensions::registerHandlers(&executor);
 }
 
 Block *findBlock(std::string blockId) {

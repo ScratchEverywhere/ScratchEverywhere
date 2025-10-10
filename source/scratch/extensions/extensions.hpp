@@ -1,3 +1,4 @@
+#include "../blockExecutor.hpp"
 #include <cstdint>
 #include <expected>
 #include <istream>
@@ -85,6 +86,9 @@ struct Extension {
 std::expected<Extension, std::string> parseMetadata(std::istream &data);
 
 void loadLua(Extension &extension, std::istream &data);
+
+void registerHandlers(BlockExecutor *blockExecutor);
+void registerHandlers(Extension &extension, BlockExecutor *blockExecutor);
 
 extern std::map<std::string, std::unique_ptr<Extension>> extensions;
 
