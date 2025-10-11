@@ -28,25 +28,30 @@ bool Render::Init() {
 
     if (!OS::isDSi()) {
         if (!fatInitDefault()) {
-            Log::logError("FAT init failed!");
+            Log::logError("FAT init failed!\nUsing an emulator? Be sure to\nenable SD card emulation in your emulator settings!");
             while (1)
                 swiWaitForVBlank();
         }
     }
 
     if (!nitroFSInit(NULL)) {
-        Log::logError("NitroFS Could not initialize!");
+        Log::logError("NitroFS init failed!");
         while (1)
             swiWaitForVBlank();
     }
     videoSetMode(MODE_0_3D);
     glScreen2D();
     vramSetBankA(VRAM_A_TEXTURE);
-    // vramSetBankB(VRAM_B_TEXTURE);
-    // vramSetBankC(VRAM_C_TEXTURE);
-    // vramSetBankD(VRAM_D_TEXTURE);
     vramSetBankE(VRAM_E_TEX_PALETTE);
-    // vramSetBankF(VRAM_F_TEX_PALETTE);
+
+    scanKeys();
+    uint16_t kDown = keysHeld();
+    if (!(kDown & KEY_SELECT)) {
+        vramSetBankB(VRAM_B_TEXTURE);
+        vramSetBankC(VRAM_C_TEXTURE);
+        vramSetBankD(VRAM_D_TEXTURE);
+        vramSetBankF(VRAM_F_TEX_PALETTE);
+    }
 
     return true;
 }
