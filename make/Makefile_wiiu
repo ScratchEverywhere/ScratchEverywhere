@@ -43,7 +43,7 @@ CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
 CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DSDL_BUILD
-CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2`
+CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2 lua51`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
 ASFLAGS	:=	-g $(MACHDEP)
@@ -51,9 +51,9 @@ LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
 ifeq ($(ENABLE_AUDIO),1)
 CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF_WIIU) --cflags SDL2_mixer`
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng lua51`
 else
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng lua51`
 endif
 
 LIBS	+=	-lharfbuzz -lfreetype
