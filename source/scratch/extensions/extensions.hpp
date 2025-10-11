@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../blockExecutor.hpp"
 #include <cstdint>
 #include <expected>
@@ -86,6 +88,7 @@ struct Extension {
 std::expected<Extension, std::string> parseMetadata(std::istream &data);
 
 void loadLua(Extension &extension, std::istream &data);
+void registerLuaFunctions(Extension &extension);
 
 void registerHandlers(BlockExecutor *blockExecutor);
 void registerHandlers(Extension &extension, BlockExecutor *blockExecutor);

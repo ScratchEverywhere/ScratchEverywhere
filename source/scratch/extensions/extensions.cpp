@@ -1,5 +1,6 @@
 #include "extensions.hpp"
 #include "interpret.hpp"
+#include "json.hpp"
 #include "os.hpp"
 #include <algorithm>
 #include <array>
@@ -136,7 +137,9 @@ std::expected<Extension, std::string> parseMetadata(std::istream &data) {
 }
 
 void loadLua(Extension &extension, std::istream &data) {
-    extension.luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::io, sol::lib::bit32);
+    extension.luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::io, sol::lib::bit32, sol::lib::table);
+
+    registerLuaFunctions(extension);
 
     extension.luaState["blocks"] = extension.luaState.create_table();
 
@@ -166,6 +169,13 @@ void loadLua(Extension &extension, std::istream &data) {
 
     sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
     if (!result.valid()) Log::logError("Error while running lua bytecode for extension '" + extension.id + "': " + static_cast<sol::error>(result).what());
+}
+
+void registerLuaFunctions(Extension &extension) {
+    extension.luaState["json"] = extension.luaState.create_table();
+    extension.luaState["json"]["decode"] = json::decode;
+    extension.luaState["json"]["encode"] = json::encode;
+    extension.luaState["json"]["encodePretty"] = json::encodePretty;
 }
 
 void registerHandlers(BlockExecutor *blockExecutor) {
