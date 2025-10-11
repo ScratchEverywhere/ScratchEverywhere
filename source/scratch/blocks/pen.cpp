@@ -17,7 +17,7 @@ C3D_Tex *penTex;
 
 SDL_Texture *penTexture;
 #else
-#pragma warning Unsupported Platform for pen.
+#warning Unsupported Platform for pen.
 #endif
 
 const unsigned int minPenSize = 1;

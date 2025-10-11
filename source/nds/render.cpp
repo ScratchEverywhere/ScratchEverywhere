@@ -1,6 +1,7 @@
 #include "../scratch/render.hpp"
 #include "../scratch/input.hpp"
 #include "image.hpp"
+#include <fat.h>
 #include <filesystem.h>
 #include <gl2d.h>
 #include <nds.h>
@@ -24,6 +25,15 @@ std::vector<Monitor> Render::visibleVariables;
 bool Render::Init() {
     cpuStartTiming(0);
     consoleDemoInit();
+
+    if (!OS::isDSi()) {
+        if (!fatInitDefault()) {
+            Log::logError("FAT init failed!");
+            while (1)
+                swiWaitForVBlank();
+        }
+    }
+
     if (!nitroFSInit(NULL)) {
         Log::logError("NitroFS Could not initialize!");
         while (1)

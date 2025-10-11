@@ -128,7 +128,9 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(__3DS__)
     return "sdmc:/3ds/scratch-everywhere/";
 #elif defined(__NDS__)
-    return "sd:/scratch-ds/";
+    if (OS::isDSi())
+        return "sd:/scratch-ds/";
+    else return "fat:/scratch-ds/";
 #else
     return "scratch-everywhere/";
 #endif

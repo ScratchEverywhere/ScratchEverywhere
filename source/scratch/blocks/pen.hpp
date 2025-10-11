@@ -14,7 +14,7 @@ extern C3D_Tex *penTex;
 
 extern SDL_Texture *penTexture;
 #else
-#pragma warning Unsupported platform for pen.
+#warning Unsupported platform for pen.
 #endif
 
 class PenBlocks {
