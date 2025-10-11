@@ -8,6 +8,9 @@ scratch-everywhere/
 
 main.code-workspace
 
+# macOS
+.DS_Store
+
 # Prerequisites
 *.d
 
@@ -64,4 +67,3 @@ scratch-wii.zip
 
 # Stored Files
 cloud-username.txt
-
