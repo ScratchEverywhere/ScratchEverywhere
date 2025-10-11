@@ -188,6 +188,8 @@ void registerHandlers(Extension &extension, BlockExecutor *blockExecutor) {
             }
             table[parsedInput.first] = val.asString();
         }
+        for (const auto &parsedField : *block.parsedFields)
+            table[parsedField.first] = parsedField.second.value;
         return table;
     };
 
