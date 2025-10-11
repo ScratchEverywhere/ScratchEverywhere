@@ -267,8 +267,8 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
         filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
     }
 
-    filledCircleRGBA(renderer, x1 + 240, -y1 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
-    filledCircleRGBA(renderer, x2 + 240, -y2 + 180, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, x1 + Scratch::projectWidth / 2, -y1 + Scratch::projectHeight / 2, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, x2 + Scratch::projectWidth / 2, -y2 + Scratch::projectHeight / 2, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawBlendMode(renderer, blendMode);
