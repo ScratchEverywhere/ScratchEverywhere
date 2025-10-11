@@ -1,4 +1,5 @@
 #include "extensions.hpp"
+#include "blockExecutor.hpp"
 #include "interpret.hpp"
 #include "json.hpp"
 #include "os.hpp"
@@ -235,10 +236,23 @@ void registerHandlers(Extension &extension, BlockExecutor *blockExecutor) {
             };
             break;
         case HAT:
-            Log::logWarning("Hat blocks in custom extensions are not supported yet.");
-            break;
         case EVENT:
-            Log::logWarning("Event blocks in custom extensions are not supported yet.");
+            // Hats and events are the same in SE!
+            blockExecutor->handlers[extension.id + "_" + extensionBlock.first] = [&](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+                sol::protected_function func = extension.luaState["blocks"][extensionBlock.first];
+                sol::protected_function_result result = func(getArgs(&extension, block, sprite));
+                if (!result.valid()) {
+                    Log::logError("Error running block '" + block.opcode + "': " + static_cast<sol::error>(result).what());
+                    return BlockResult::RETURN;
+                }
+
+                if (result.get<sol::object>().is<bool>()) {
+                    Log::logError("Extension block '" + block.opcode + "' returned an invalid type.");
+                    return BlockResult::RETURN;
+                }
+
+                return result.get<bool>() ? BlockResult::CONTINUE : BlockResult::RETURN;
+            };
             break;
         }
     }
