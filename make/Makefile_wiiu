@@ -51,9 +51,9 @@ LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
 ifeq ($(ENABLE_AUDIO),1)
 CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF_WIIU) --cflags SDL2_mixer`
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng lua51`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer SDL2_gfx sdl2 lua51` `$(PKGCONF) --libs zlib libpng`
 else
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng lua51`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_gfx sdl2 lua51` `$(PKGCONF) --libs zlib libpng`
 endif
 
 LIBS	+=	-lharfbuzz -lfreetype
