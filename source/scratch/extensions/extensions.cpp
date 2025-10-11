@@ -197,14 +197,26 @@ void registerHandlers(Extension &extension, BlockExecutor *blockExecutor) {
         switch (extensionBlock.second) {
         case COMMAND:
             blockExecutor->handlers[extension.id + "_" + extensionBlock.first] = [&](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-                extension.luaState["blocks"][extensionBlock.first](getArgs(&extension, block, sprite));
+                sol::protected_function func = extension.luaState["blocks"][extensionBlock.first];
+                sol::protected_function_result result = func(getArgs(&extension, block, sprite));
+                if (!result.valid()) {
+                    Log::logError("Error running block '" + block.opcode + "': " + static_cast<sol::error>(result).what());
+                    return BlockResult::CONTINUE;
+                }
                 return BlockResult::CONTINUE;
             };
             break;
         case REPORTER:
         case BOOLEAN:
             blockExecutor->valueHandlers[extension.id + "_" + extensionBlock.first] = [&](Block &block, Sprite *sprite) {
-                sol::object ret = extension.luaState["blocks"][extensionBlock.first](getArgs(&extension, block, sprite));
+                sol::protected_function func = extension.luaState["blocks"][extensionBlock.first];
+                sol::protected_function_result result = func(getArgs(&extension, block, sprite));
+                if (!result.valid()) {
+                    Log::logError("Error running block '" + block.opcode + "': " + static_cast<sol::error>(result).what());
+                    return Value();
+                }
+
+                sol::object ret = result.get<sol::object>();
                 if (ret.is<std::string>()) return Value(ret.as<std::string>());
                 if (ret.is<double>()) return Value(ret.as<double>());
                 if (ret.is<bool>()) return Value(ret.as<bool>());
