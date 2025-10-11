@@ -44,6 +44,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(
 
 CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DSDL_BUILD
 CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2 lua51`
+CFLAGS	+=	-DSOL_NO_THREAD_LOCAL
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
 ASFLAGS	:=	-g $(MACHDEP)
