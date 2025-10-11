@@ -38,7 +38,7 @@ ENABLE_LOADSCREEN	?=	1
 # --- COMPILE FLAGS ---
 # Base compiler flags
 CFLAGS   := -O2 -Wl,-q $(addprefix -I,$(INCLUDES))
-CXXFLAGS := -O2 -Wl,-q -std=c++23 $(addprefix -I,$(INCLUDES))
+CXXFLAGS := -O2 -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
 
 # Specify vita as the target platform + SDL flags
 VITAFLAGS := -DVITA -DSDL_BUILD
@@ -49,6 +49,11 @@ CXXFLAGS += $(VITAFLAGS)
 SDL_CFLAGS := $(shell arm-vita-eabi-pkg-config --cflags sdl2)
 CFLAGS   += $(SDL_CFLAGS)
 CXXFLAGS += $(SDL_CFLAGS)
+
+# Lua Stuff
+CFLAGS		+=	$(shell arm-vita-eabi-pkg-config --cflags luajit)
+CXXFLAGS	+=	$(shell arm-vita-eabi-pkg-config --cflags luajit)
+LIBS		+=	$(shell arm-vita-eabi-pkg-config --libs luajit) -lSceSblSsMgr_stub -ltaihen_stub
 
 # SDL2 Libs
 LIBS     += $(shell arm-vita-eabi-pkg-config --libs sdl2)

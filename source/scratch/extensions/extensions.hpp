@@ -2,7 +2,6 @@
 
 #include "../blockExecutor.hpp"
 #include <cstdint>
-#include <expected>
 #include <istream>
 #include <map>
 #include <memory>
@@ -10,6 +9,8 @@
 #include <string>
 #include <variant>
 #include <vector>
+
+#include "nonstd/expected.hpp"
 
 #define SOL_ALL_SAFETIES_ON 1
 #define SOL_LUA_VERSION 501
@@ -35,13 +36,13 @@ enum ExtensionPermission {
 };
 
 enum ExtensionPlatform {
-    N3DS,
-    WIIU,
-    WII,
-    GAMECUBE,
-    SWITCH,
-    PC,
-    VITA
+    PLATFORM_N3DS,
+    PLATFORM_WIIU,
+    PLATFORM_WII,
+    PLATFORM_GAMECUBE,
+    PLATFORM_SWITCH,
+    PLATFORMPC,
+    PLATFORM_VITA
 };
 
 enum ExtensionBlockType {
@@ -85,7 +86,7 @@ struct Extension {
     sol::state luaState;
 };
 
-std::expected<Extension, std::string> parseMetadata(std::istream &data);
+nonstd::expected<Extension, std::string> parseMetadata(std::istream &data);
 
 void loadLua(Extension &extension, std::istream &data);
 void registerLuaFunctions(Extension &extension);

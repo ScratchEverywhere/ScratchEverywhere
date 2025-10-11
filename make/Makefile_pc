@@ -37,7 +37,7 @@ $(error "[ERROR] Mist++ must be v0.1.4 or newer.")
 endif
 endif
 
-CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++23 -Wall -fexceptions
+CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++17 -Wall -fexceptions
 
 # Debug and Release flags
 CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -fsanitize=address -g -O0 -DDEBUG

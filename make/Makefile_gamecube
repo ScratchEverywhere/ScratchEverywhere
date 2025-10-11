@@ -52,7 +52,7 @@ ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
-CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++23 -fexceptions
+CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++17 -fexceptions
 
 # Include libromfs-ogc support
 include $(DEVKITPRO)/portlibs/gamecube/share/romfs-ogc.mk

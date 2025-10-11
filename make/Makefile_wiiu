@@ -72,7 +72,7 @@ ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
-CXXFLAGS	:=	$(CFLAGS) -std=c++23 -Wall -fexceptions
+CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
 
 LIBDIRS	:=	$(PORTLIBS) $(WUT_ROOT)
 

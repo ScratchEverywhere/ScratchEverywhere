@@ -1003,7 +1003,7 @@ void loadSprites(const nlohmann::json &json) {
 void loadExtensions(const nlohmann::json &json) {
     std::ifstream in;
     for (const auto &extension : json["extensions"]) {
-        std::expected<extensions::Extension, std::string> extensionData;
+        nonstd::expected<extensions::Extension, std::string> extensionData;
         if (std::filesystem::exists(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see")) {
             in = std::ifstream(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see", std::ios::binary | std::ios::in);
             extensionData = extensions::parseMetadata(in);
