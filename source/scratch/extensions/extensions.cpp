@@ -229,6 +229,7 @@ void registerHandlers(Extension &extension, BlockExecutor *blockExecutor) {
                 if (ret.is<std::string>()) return Value(ret.as<std::string>());
                 if (ret.is<double>()) return Value(ret.as<double>());
                 if (ret.is<bool>()) return Value(ret.as<bool>());
+                if (ret.is<sol::table>()) return Value(json::encode(ret.as<sol::table>()));
                 Log::logError("Unknown return type from extension block, this should never happen.");
                 return Value();
             };
