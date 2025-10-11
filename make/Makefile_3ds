@@ -38,9 +38,9 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/sdl/audio
+SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/sdl/audio source/scratch/extensions
 DATA		:=	data
-INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/sdl/audio
+INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/sdl/audio source/scratch/extensions
 GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
@@ -87,6 +87,9 @@ CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+
+CFLAGS	+=	$(shell $(PKGCONF_3DS) --cflags lua51)
+LIBS	+=	$(shell $(PKGCONF_3DS) --libs lua51)
 
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lSDL2_mixer -lSDL2

@@ -1,5 +1,6 @@
 #include "interpret.hpp"
 #include "audio.hpp"
+#include "extensions/extensions.hpp"
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
@@ -11,6 +12,9 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <ios>
 #include <math.h>
 #include <string>
 #include <unordered_map>
@@ -993,6 +997,38 @@ void loadSprites(const nlohmann::json &json) {
 
     Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
+}
+
+// btw the reason this function is so complex is because it needs to handle searching for the correct extension if its filename is not the same as its id
+void loadExtensions(const nlohmann::json &json) {
+    std::ifstream in;
+    for (const auto &extension : json["extensions"]) {
+        nonstd::expected<extensions::Extension, std::string> extensionData;
+        if (std::filesystem::exists(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see")) {
+            in = std::ifstream(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see", std::ios::binary | std::ios::in);
+            extensionData = extensions::parseMetadata(in);
+            if (!extensionData.has_value()) {
+                Log::logError("Error loading extension '" + extension.get<std::string>() + "': " + extensionData.error());
+                continue;
+            }
+            if (extensionData.value().id == extension.get<std::string>()) goto loadLua;
+        }
+        for (const auto &entry : std::filesystem::directory_iterator(OS::getScratchFolderLocation() + "extensions/")) {
+            if (!entry.is_regular_file()) continue;
+            in = std::ifstream(entry.path(), std::ios::in | std::ios::binary);
+            extensionData = extensions::parseMetadata(in);
+            if (!extensionData.has_value()) {
+                Log::logWarning("Error loading extension '" + entry.path().string() + "' for search: " + extensionData.error());
+                continue;
+            }
+            if (extensionData.value().id == extension.get<std::string>()) break;
+        }
+    loadLua:
+        extensions::extensions.try_emplace(extensionData.value().id, std::make_unique<extensions::Extension>(std::move(extensionData.value())));
+        extensions::loadLua(*extensions::extensions[extensionData.value().id], in);
+    }
+
+    extensions::registerHandlers(&executor);
 }
 
 Block *findBlock(std::string blockId) {
