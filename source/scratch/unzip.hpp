@@ -1,4 +1,5 @@
 #include "interpret.hpp"
+#include "input.hpp"
 #include "miniz/miniz.h"
 #include "os.hpp"
 #include <filesystem>
@@ -149,6 +150,16 @@ class Unzip {
         while ((pos = splash.find(platformName, pos)) != std::string::npos) {
             splash.replace(pos, platformName.size(), platform);
             pos += platform.size(); // move past replacement
+        }
+
+		// Replace {UserName} with Input::getUsername
+		const std::string userName = "{UserName}";
+        const std::string user = Input::getUsername();
+
+        pos = 0;
+        while ((pos = splash.find(userName, pos)) != std::string::npos) {
+            splash.replace(pos, userName.size(), user);
+            pos += user.size(); // move past replacement
         }
 
         return splash;
