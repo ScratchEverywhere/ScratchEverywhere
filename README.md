@@ -17,9 +17,6 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 ![Runtime running a Scratch project on Wii U, Wii, and 3DS](docs/demo.gif)
 <small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
 
-## Discord Server
-Join https://discord.gg/Y2gf5vZHpJ if you need any help with Scratch Everywhere! or just want to hang out.
-
 ## Controls
 ![Controls](docs/controls.png)
 
