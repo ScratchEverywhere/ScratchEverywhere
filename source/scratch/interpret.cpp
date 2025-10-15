@@ -1027,6 +1027,8 @@ void loadExtensions(const nlohmann::json &json) {
                 continue;
             }
             if (extensionData.value().id == extension.get<std::string>()) break;
+            in.close();
+            in.clear();
         }
         if (!extensionData.has_value()) {
             Log::logWarning("Could not find or parse extension with ID: " + extension.get<std::string>());
@@ -1035,6 +1037,8 @@ void loadExtensions(const nlohmann::json &json) {
     loadLua:
         extensions::extensions.try_emplace(extensionData.value().id, std::make_unique<extensions::Extension>(std::move(extensionData.value())));
         extensions::loadLua(*extensions::extensions[extensionData.value().id], in);
+        in.close();
+        in.clear();
     }
 
     extensions::registerHandlers(&executor);
