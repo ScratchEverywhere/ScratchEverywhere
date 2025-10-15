@@ -1,5 +1,6 @@
 #include "scratch/render.hpp"
 #include "../scratch/blocks/pen.hpp"
+#include "../scratch/extensions/extensions.hpp"
 #include "../scratch/interpret.hpp"
 #include "audio.hpp"
 #include "blocks/pen.hpp"
@@ -394,6 +395,8 @@ void Render::renderSprites() {
     C2D_TargetClear(bottomScreen, clrWhite);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
+    extensions::runUpdateFunctions(extensions::PRE_RENDER);
+
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / sprites.size();
 
@@ -556,6 +559,8 @@ void Render::renderSprites() {
             renderVisibleVariables();
         }
     }
+
+    extensions::runUpdateFunctions(extensions::POST_RENDER);
 
     C3D_FrameEnd(0);
     C2D_Flush();

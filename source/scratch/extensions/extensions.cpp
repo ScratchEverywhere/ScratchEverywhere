@@ -142,6 +142,7 @@ void loadLua(Extension &extension, std::istream &data) {
     registerLuaFunctions(extension);
 
     extension.luaState["blocks"] = extension.luaState.create_table();
+    if (std::find(extension.permissions.begin(), extension.permissions.end(), UPDATE) != extension.permissions.end()) extension.luaState["update"] = extension.luaState.create_table();
 
     char buffer[1024];
     struct ReadData {
@@ -256,6 +257,18 @@ void registerHandlers(Extension &extension, BlockExecutor *blockExecutor) {
             break;
         }
     }
+}
+
+void runUpdateFunctions(ExtensionUpdateFunction type) {
+    for (auto &extension : extensions)
+        runUpdateFunction(*extension.second, type);
+}
+
+void runUpdateFunction(Extension &extension, ExtensionUpdateFunction type) {
+    const sol::object updateFn = extension.luaState["update"][updateFunctionString(type)];
+    if (!updateFn.is<sol::function>()) return;
+    sol::protected_function_result result = updateFn.as<sol::protected_function>()();
+    if (!result.valid()) Log::logError("Error running update function for extension '" + extension.id + "': " + static_cast<sol::error>(result).what());
 }
 
 } // namespace extensions

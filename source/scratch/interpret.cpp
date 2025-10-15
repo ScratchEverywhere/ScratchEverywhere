@@ -166,9 +166,14 @@ bool Scratch::startScratchProject() {
     while (Render::appShouldRun()) {
         if (Render::checkFramerate()) {
             Input::getInput();
+
+            extensions::runUpdateFunctions(extensions::PRE_UPDATE);
+
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
             Render::renderSprites();
+
+            extensions::runUpdateFunctions(extensions::POST_UPDATE);
 
             if (shouldStop) {
 #ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app

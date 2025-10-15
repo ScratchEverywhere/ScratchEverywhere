@@ -86,13 +86,37 @@ struct Extension {
     sol::state luaState;
 };
 
-nonstd::expected<Extension, std::string> parseMetadata(std::istream &data);
+enum ExtensionUpdateFunction {
+    PRE_UPDATE,
+    POST_UPDATE,
+    PRE_RENDER,
+    POST_RENDER
+};
+
+static inline std::string updateFunctionString(ExtensionUpdateFunction type) {
+    switch (type) {
+    case PRE_UPDATE:
+        return "preUpdate";
+    case POST_UPDATE:
+        return "postUpdate";
+    case PRE_RENDER:
+        return "preRender";
+    case POST_RENDER:
+        return "postRender";
+    }
+}
+
+nonstd::expected<Extension, std::string>
+parseMetadata(std::istream &data);
 
 void loadLua(Extension &extension, std::istream &data);
 void registerLuaFunctions(Extension &extension);
 
 void registerHandlers(BlockExecutor *blockExecutor);
 void registerHandlers(Extension &extension, BlockExecutor *blockExecutor);
+
+void runUpdateFunctions(ExtensionUpdateFunction type);
+void runUpdateFunction(Extension &extension, ExtensionUpdateFunction type);
 
 extern std::map<std::string, std::unique_ptr<Extension>> extensions;
 
