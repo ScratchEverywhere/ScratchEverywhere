@@ -1035,8 +1035,10 @@ void loadExtensions(const nlohmann::json &json) {
             continue;
         }
     loadLua:
-        extensions::extensions.try_emplace(extensionData.value().id, std::make_unique<extensions::Extension>(std::move(extensionData.value())));
-        extensions::loadLua(*extensions::extensions[extensionData.value().id], in);
+        auto ext = std::make_unique<extensions::Extension>(std::move(extensionData.value()));
+        extensions::loadLua(*ext, in);
+        extensions::extensions.try_emplace(ext->id, std::move(ext));
+
         in.close();
         in.clear();
     }
