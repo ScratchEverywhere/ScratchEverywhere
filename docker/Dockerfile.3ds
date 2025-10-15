@@ -1,21 +1,28 @@
-FROM devkitpro/devkitarm:latest AS sdl2_builder
-WORKDIR /sdl2
+FROM devkitpro/devkitarm:latest AS sdl3_builder
+WORKDIR /sdl3
 
-RUN git clone --recursive --branch release-2.32.x https://github.com/libsdl-org/SDL.git . 
-RUN . /opt/devkitpro/3dsvars.sh && mkdir build && cd build && arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -G Ninja && ninja && ninja install
+RUN git clone --recursive --branch main https://github.com/libsdl-org/SDL.git .
 
-FROM devkitpro/devkitarm:latest AS sdl2_mixer_builder
-WORKDIR /sdl2_mixer
+RUN . /opt/devkitpro/3dsvars.sh && \
+    mkdir build && cd build && \
+    arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDL_STATIC=ON -DSDL_SHARED=OFF -G Ninja && ninja && ninja install
 
-COPY --from=sdl2_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+FROM devkitpro/devkitarm:latest AS sdl3_mixer_builder
+WORKDIR /sdl3_mixer
 
-RUN git clone --branch release-2.8.0 --recurse-submodules https://github.com/libsdl-org/SDL_mixer.git . 
-RUN . /opt/devkitpro/3dsvars.sh && mkdir build && cd build && arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDL2MIXER_VORBIS=STB -DSDL2MIXER_MP3=MINIMP3 -DSDL2MIXER_FLAC=DRFLAC -DSDL2MIXER_MOD=OFF -DSDL2MIXER_OPUS=OFF -DSDL2MIXER_FLUIDSYNTH=OFF -DSDL2MIXER_WAVPACK=OFF -DSDL2MIXER_MIDI=OFF -G Ninja && ninja && ninja install
+COPY --from=sdl3_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+
+RUN git clone --branch main --recurse-submodules https://github.com/libsdl-org/SDL_mixer.git .
+
+RUN . /opt/devkitpro/3dsvars.sh && \
+    mkdir build && cd build && \
+    arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDL3MIXER_VORBIS=STB -DSDL3MIXER_MP3=MINIMP3 -DSDL3MIXER_FLAC=DRFLAC -DSDL3MIXER_MOD=ON -DSDL3MIXER_XMP=ON -DSDL3MIXER_OPUS=ON -DSDL3MIXER_FLUIDSYNTH=ON -DSDL3MIXER_WAVPACK=ON -DSDL3MIXER_MIDI=ON -DSDL3MIXER_VENDORED=ON -DCMAKE_DISABLE_FIND_PACKAGE_Opus=ON -DCMAKE_DISABLE_FIND_PACKAGE_OpusFile=ON -DCMAKE_DISABLE_FIND_PACKAGE_Ogg=ON -DCMAKE_DISABLE_FIND_PACKAGE_Vorbis=ON -DCMAKE_DISABLE_FIND_PACKAGE_FLAC=ON -DCMAKE_DISABLE_FIND_PACKAGE_gme=ON -DCMAKE_DISABLE_FIND_PACKAGE_libxmp=ON -DCMAKE_DISABLE_FIND_PACKAGE_mpg123=ON -G Ninja && \
+    ninja && ninja install
 
 FROM devkitpro/devkitarm:latest AS libcurl_builder
 WORKDIR /pacman-packages
 
-COPY --from=sdl2_mixer_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+COPY --from=sdl3_mixer_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
 
 RUN apt-get update && apt-get install -y --no-install-recommends fakeroot zstd
 
