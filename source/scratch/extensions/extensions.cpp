@@ -265,6 +265,8 @@ void runUpdateFunctions(ExtensionUpdateFunction type) {
 }
 
 void runUpdateFunction(Extension &extension, ExtensionUpdateFunction type) {
+    if (std::find(extension.permissions.begin(), extension.permissions.end(), UPDATE) == extension.permissions.end()) return;
+
     const sol::object updateFn = extension.luaState["update"][updateFunctionString(type)];
     if (!updateFn.is<sol::function>()) return;
     sol::protected_function_result result = updateFn.as<sol::protected_function>()();
