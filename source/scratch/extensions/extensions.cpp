@@ -1,5 +1,6 @@
 #include "extensions.hpp"
 #include "blockExecutor.hpp"
+#include "files.hpp"
 #include "interpret.hpp"
 #include "json.hpp"
 #include "os.hpp"
@@ -177,6 +178,18 @@ void registerLuaFunctions(Extension &extension) {
     extension.luaState["json"]["decode"] = json::decode;
     extension.luaState["json"]["encode"] = json::encode;
     extension.luaState["json"]["encodePretty"] = json::encodePretty;
+
+    const bool rootfs = std::find(extension.permissions.begin(), extension.permissions.end(), ROOTFS) != extension.permissions.end();
+    if (rootfs || std::find(extension.permissions.begin(), extension.permissions.end(), LOCALFS) != extension.permissions.end()) {
+        extension.luaState["files"] = extension.luaState.create_table();
+        extension.luaState["files"]["read"] = files::read(rootfs, extension.id);
+        extension.luaState["files"]["write"] = files::write(rootfs, extension.id);
+        extension.luaState["files"]["append"] = files::append(rootfs, extension.id);
+        extension.luaState["files"]["mkdir"] = files::mkdir(rootfs, extension.id);
+        extension.luaState["files"]["ls"] = files::ls(rootfs, extension.id);
+
+        if (rootfs) extension.luaState["files"]["mainDirectory"] = files::mainDirectory;
+    }
 }
 
 void registerHandlers(BlockExecutor *blockExecutor) {
