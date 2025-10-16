@@ -10,8 +10,8 @@
 #include "unzip.hpp"
 #include <chrono>
 #ifdef ENABLE_AUDIO
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_mixer.h>
+#include <SDL3/SDL.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #endif
 
 #ifdef ENABLE_CLOUDVARS
@@ -79,26 +79,6 @@ bool Render::Init() {
 #endif
 
     romfsInit();
-#ifdef ENABLE_AUDIO
-    SDL_Init(SDL_INIT_AUDIO);
-    int sampleRate = 15000;
-    int bufferSize = 1024;
-    int channels = 1;
-
-    if (OS::isNew3DS()) {
-        sampleRate = 48000;
-        bufferSize = 4096;
-        channels = 2;
-    }
-
-    if (Mix_OpenAudio(sampleRate, MIX_DEFAULT_FORMAT, channels, bufferSize) < 0) {
-        Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
-    }
-    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
-    if (Mix_Init(flags) != flags) {
-        Log::logWarning(std::string("SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: ") + Mix_GetError());
-    }
-#endif
 
     return true;
 }
