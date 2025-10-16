@@ -365,12 +365,12 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
         bool collision = true;
 
         for (int i = 0; i < 4; i++) {
-            auto edge1 = std::make_pair(
+            auto edge1 = std::pair{
                 currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
-                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second);
-            auto edge2 = std::make_pair(
+                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
+            auto edge2 = std::pair{
                 mousePoints[(i + 1) % 4].first - mousePoints[i].first,
-                mousePoints[(i + 1) % 4].second - mousePoints[i].second);
+                mousePoints[(i + 1) % 4].second - mousePoints[i].second};
 
             double axis1X = -edge1.second, axis1Y = edge1.first;
             double axis2X = -edge2.second, axis2Y = edge2.first;

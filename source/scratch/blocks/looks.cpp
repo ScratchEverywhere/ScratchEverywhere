@@ -12,9 +12,9 @@
 BlockResult LooksBlocks::show(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->visible = true;
     if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName);
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
     } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName);
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
     }
     return BlockResult::CONTINUE;
 }
@@ -54,9 +54,9 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     }
 
     if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName);
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
     } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName);
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
     }
 
     return BlockResult::CONTINUE;
@@ -68,9 +68,9 @@ BlockResult LooksBlocks::nextCostume(Block &block, Sprite *sprite, bool *without
         sprite->currentCostume = 0;
     }
     if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName);
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
     } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName);
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
     }
     return BlockResult::CONTINUE;
 }
@@ -111,9 +111,9 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         }
 
         if (projectType == UNZIPPED) {
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, sprite);
         } else {
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, sprite);
         }
     }
 
@@ -143,9 +143,9 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
             currentSprite->currentCostume = 0;
         }
         if (projectType == UNZIPPED) {
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, sprite);
         } else {
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, sprite);
         }
     }
 

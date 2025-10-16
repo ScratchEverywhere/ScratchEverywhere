@@ -11,8 +11,11 @@ struct ImageData {
     C2D_Image image;
     size_t freeTimer = 120;
     C2D_SpriteSheet sheet;
-    size_t maxFreeTimer = 120;
+    size_t maxFreeTimer = 640;
     size_t imageUsageCount = 0;
+    uint16_t width;
+    uint16_t height;
+    bool isSVG = false;
 };
 
 struct imageRGBA {
@@ -30,12 +33,9 @@ struct imageRGBA {
     unsigned char *data;
 };
 
-extern std::vector<imageRGBA> imageRGBAS;
-
-bool get_C2D_Image(imageRGBA rgba);
-void freeRGBA(const std::string &imageName);
+bool get_C2D_Image(imageRGBA &rgba);
 unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height);
 bool getImageFromT3x(const std::string &filePath);
 void cleanupImagesLite();
 
-extern std::unordered_map<std::string, ImageData> imageC2Ds;
+extern std::unordered_map<std::string, ImageData> images;

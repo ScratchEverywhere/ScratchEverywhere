@@ -38,9 +38,9 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/sdl/audio source/scratch/extensions
+SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/3ds/audio source/scratch/extensions
 DATA		:=	data
-INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/sdl/audio source/scratch/extensions
+INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/3ds/audio source/scratch/extensions
 GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
@@ -52,24 +52,24 @@ ENABLE_LOADSCREEN	  ?=	1
 ENABLE_AUDIO	?=	1
 RAM_AMOUNT		?= 72
 
-# Check for SDL2 libraries
+# Check for SDL3 libraries
 ifeq ($(ENABLE_AUDIO),1)
-SDL2_AVAILABLE := $(shell $(PKGCONF_3DS) --exists sdl2 >/dev/null 2>&1; echo $$?)
-SDL2_MIXER_AVAILABLE := $(shell $(PKGCONF_3DS) --exists SDL2_mixer >/dev/null 2>&1; echo $$?)
+SDL3_AVAILABLE := $(shell $(PKGCONF_3DS) --exists sdl3 >/dev/null 2>&1; echo $$?)
+SDL3_MIXER_AVAILABLE := $(shell $(PKGCONF_3DS) --exists SDL3_mixer >/dev/null 2>&1; echo $$?)
 
-ifeq ($(SDL2_AVAILABLE),1)
-SDL2_AVAILABLE := $(shell test -f $(DEVKITPRO)/portlibs/3ds/lib/libSDL2.a; echo $$?)
+ifeq ($(SDL3_AVAILABLE),1)
+SDL3_AVAILABLE := $(shell test -f $(DEVKITPRO)/portlibs/3ds/lib/libSDL3.a; echo $$?)
 endif
-ifeq ($(SDL2_MIXER_AVAILABLE),1)
-SDL2_MIXER_AVAILABLE := $(shell test -f $(DEVKITPRO)/portlibs/3ds/lib/libSDL2_mixer.a; echo $$?)
+ifeq ($(SDL3_MIXER_AVAILABLE),1)
+SDL3_MIXER_AVAILABLE := $(shell test -f $(DEVKITPRO)/portlibs/3ds/lib/libSDL3_mixer.a; echo $$?)
 endif
 
-# Disable audio if SDL2 isnt found
-ifneq ($(SDL2_AVAILABLE),0)
-$(warning "[WARNING] SDL2 not found - Disabling audio...")
+# Disable audio if SDL3 isnt found
+ifneq ($(SDL3_AVAILABLE),0)
+$(warning "[WARNING] SDL3 not found - Disabling audio...")
 override ENABLE_AUDIO := 0
-else ifneq ($(SDL2_MIXER_AVAILABLE),0)
-$(warning "[WARNING] SDL2_mixer not found - Disabling audio...") 
+else ifneq ($(SDL3_MIXER_AVAILABLE),0)
+$(warning "[WARNING] SDL3_mixer not found - Disabling audio...") 
 override ENABLE_AUDIO := 0
 endif
 endif
@@ -92,7 +92,7 @@ CFLAGS	+=	$(shell $(PKGCONF_3DS) --cflags lua51)
 LIBS	+=	$(shell $(PKGCONF_3DS) --libs lua51)
 
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	+=	-lSDL2_mixer -lSDL2
+LIBS	+=	-lSDL3_mixer -lSDL3 -lmpg123
 CFLAGS	+=	-DENABLE_AUDIO
 endif
 
