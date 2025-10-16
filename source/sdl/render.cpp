@@ -404,6 +404,8 @@ void Render::renderSprites() {
             image->freeTimer = image->maxFreeTime;
             SDL_RendererFlip flip = SDL_FLIP_NONE;
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
+            currentSprite->spriteWidth = image->textureRect.w / 2;
+            currentSprite->spriteHeight = image->textureRect.h / 2;
 
             // double the image scale if the image is an SVG
             if (currentSprite->costumes[currentSprite->currentCostume].isSVG) {
@@ -421,8 +423,9 @@ void Render::renderSprites() {
             if (currentSprite->rotationStyle == currentSprite->NONE) {
                 renderRotation = 0;
             }
-            double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
-            double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
+            const int divisionAmount = currentSprite->costumes[currentSprite->currentCostume].isSVG ? 1 : 2;
+            double rotationCenterX = (((currentSprite->rotationCenterX - currentSprite->spriteWidth) / divisionAmount) * scale);
+            double rotationCenterY = (((currentSprite->rotationCenterY - currentSprite->spriteHeight) / divisionAmount) * scale);
             const double offsetX = rotationCenterX * (currentSprite->size * 0.01);
             const double offsetY = rotationCenterY * (currentSprite->size * 0.01);
             image->renderRect.x = ((currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
