@@ -64,33 +64,6 @@ SDL_Audio::~SDL_Audio() {
 #endif
 }
 
-// code down here kinda messy,,, TODO fix that
-
-int soundLoaderThread(void *data) {
-    SDL_Audio::SoundLoadParams *params = static_cast<SDL_Audio::SoundLoadParams *>(data);
-    bool success = false;
-    if (projectType != UNZIPPED)
-        success = params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
-    else
-        success = params->player->loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
-
-    delete params;
-
-    return success ? 0 : 1;
-}
-
-void NDS_soundLoaderThread(void *data) {
-    SDL_Audio::SoundLoadParams *params = static_cast<SDL_Audio::SoundLoadParams *>(data);
-    if (projectType != UNZIPPED)
-        params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
-    else
-        params->player->loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
-
-    delete params;
-
-    return;
-}
-
 void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
 #ifdef ENABLE_AUDIO
     if (!init()) return;
@@ -106,36 +79,16 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .sprite = sprite,
         .zip = zip,
         .soundId = soundId,
-        .streamed = true}; // stage sprites / New 3DS
+        .streamed = true};
 
 #if defined(__OGC__) || defined(VITA)
-    params->streamed = false; // streamed sounds crash on wii. vita does not like them either.
+    params->streamed = false;
 #endif
 
-    NDS_soundLoaderThread(params);
-
-// do 3DS threads so it can actually run in the background
-#ifdef __3DS__
-    // s32 mainPrio = 0;
-    // svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
-
-    // threadCreate(
-    //     NDS_soundLoaderThread,
-    //     params,
-    //     0x10000,
-    //     mainPrio + 1,
-    //     1,
-    //     true);
-#else
-
-    SDL_Thread *thread = SDL_CreateThread(soundLoaderThread, "SoundLoader", params);
-
-    if (!thread) {
-        Log::logWarning("Failed to create SDL thread: " + std::string(SDL_GetError()));
-    } else {
-        SDL_DetachThread(thread);
-    }
-#endif
+    if (projectType != UNZIPPED)
+        params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
+    else
+        params->player->loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
 
 #endif
 }
