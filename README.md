@@ -52,7 +52,6 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 - MP3, Ogg Vorbis, and WAV audio formats are supported.
 - A sound will take time to load if playing it for the first time.
-	- Known Bug: On 3DS, if a sound has to load while other sounds are playing, all sounds will stop playing until the sound is loaded.
 - If you play any sound from the "Stage", the sound will play as a "Streamed Sound" and will not need to load.
 - Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
 - **[Wii, GameCube, Vita]** "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
