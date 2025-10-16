@@ -58,6 +58,7 @@ main.code-workspace
 *.vpk
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
+scratch-ds.nds
 Scratch-pc
 scratch-wiiu/
 scratch-wii.zip

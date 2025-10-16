@@ -22,6 +22,9 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
     if (name == "is New 3DS?") {
         return Value(OS::isNew3DS());
     }
+    if (name == "is DSi?") {
+        return Value(OS::isDSi());
+    }
 
     Value value = BlockExecutor::getCustomBlockValue(name, sprite, block);
     return Value(value.asInt() == 1);

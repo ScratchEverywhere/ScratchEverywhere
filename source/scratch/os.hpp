@@ -164,8 +164,8 @@ void writeToFile(std::string message);
 
 class Timer {
   private:
-#ifdef __OGC__
-    u64 startTime;
+#if defined(__NDS__) || defined(__OGC__)
+    uint64_t startTime;
 #else
     std::chrono::high_resolution_clock::time_point startTime;
 #endif
@@ -219,4 +219,10 @@ class OS {
      * @return `true` on New 3DS, `false` everywhere else.
      */
     static bool isNew3DS();
+
+    /**
+     * Function to detect whether the platform is a DSi.
+     * @return `true` on DSi, `false` everywhere else.
+     */
+    static bool isDSi();
 };
