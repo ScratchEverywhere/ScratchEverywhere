@@ -50,7 +50,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 ENABLE_CLOUDVARS	?=	0
 ENABLE_LOADSCREEN	  ?=	1
 ENABLE_AUDIO	?=	1
-RAM_AMOUNT		?= 72
+RAM_AMOUNT		?= 64
 
 # Check for SDL3 libraries
 ifeq ($(ENABLE_AUDIO),1)
@@ -89,7 +89,7 @@ ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	+=	-lSDL3_mixer -lSDL3
+LIBS	+=	-lSDL3_mixer -lSDL3 -lmpg123
 CFLAGS	+=	-DENABLE_AUDIO
 endif
 

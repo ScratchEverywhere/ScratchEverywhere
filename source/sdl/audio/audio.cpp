@@ -30,6 +30,9 @@ SDL_Audio::~SDL_Audio() {
 #endif
 }
 
+bool SoundPlayer::init() {
+}
+
 // code down here kinda messy,,, TODO fix that
 
 int soundLoaderThread(void *data) {

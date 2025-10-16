@@ -15,11 +15,17 @@ std::string currentStreamedSound = "";
 static bool isInit = false;
 static MIX_Mixer *mixer = nullptr;
 
-bool init() {
+bool SoundPlayer::init() {
     if (isInit) return true;
 #ifdef ENABLE_AUDIO
-    SDL_Init(SDL_INIT_AUDIO);
-    MIX_Init();
+    if (!SDL_Init(SDL_INIT_AUDIO)) {
+        Log::logError("Could not init SDL! " + std::string(SDL_GetError()));
+        return false;
+    }
+    if (!MIX_Init()) {
+        Log::logError("Could not init SDL Mixer! " + std::string(SDL_GetError()));
+        return false;
+    }
     SDL_AudioDeviceID device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
     if (!device) {
         Log::logWarning("Failed to open audio device: " + std::string(SDL_GetError()));
@@ -40,6 +46,7 @@ bool init() {
     }
 
     isInit = true;
+    Log::log("Successfuly init SDL3!");
     return true;
 #endif
 }
@@ -99,24 +106,26 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .sprite = sprite,
         .zip = zip,
         .soundId = soundId,
-        .streamed = sprite->isStage || OS::isNew3DS()}; // stage sprites / New 3DS
+        .streamed = true}; // stage sprites / New 3DS
 
 #if defined(__OGC__) || defined(VITA)
     params->streamed = false; // streamed sounds crash on wii. vita does not like them either.
 #endif
 
+    NDS_soundLoaderThread(params);
+
 // do 3DS threads so it can actually run in the background
 #ifdef __3DS__
-    s32 mainPrio = 0;
-    svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
+    // s32 mainPrio = 0;
+    // svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
 
-    threadCreate(
-        NDS_soundLoaderThread,
-        params,
-        0x10000,
-        mainPrio + 1,
-        1,
-        true);
+    // threadCreate(
+    //     NDS_soundLoaderThread,
+    //     params,
+    //     0x10000,
+    //     mainPrio + 1,
+    //     1,
+    //     true);
 #else
 
     SDL_Thread *thread = SDL_CreateThread(soundLoaderThread, "SoundLoader", params);
@@ -170,7 +179,9 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             return false;
         }
 
-        MIX_Audio *sound = MIX_LoadAudio_IO(mixer, rw, false, true);
+        Log::log("about to load audio into memoery.");
+
+        MIX_Audio *sound = MIX_LoadAudio_IO(mixer, rw, !streamed, true);
         mz_free(file_data);
 
         if (!sound) {
@@ -184,6 +195,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
         audio->isLoaded = true;
 
         SDL_Sounds[soundId] = std::move(audio);
+        Log::log(soundId + " has been loaded!");
 
         playSound(soundId);
         setSoundVolume(soundId, sprite->volume);
@@ -219,7 +231,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     MIX_Audio *sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
     if (!sound) {
-        Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " /* + Mix_GetError()*/);
+        Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + std::string(SDL_GetError()));
         return false;
     }
     // Create SDL_Audio object
@@ -247,7 +259,7 @@ int SoundPlayer::playSound(const std::string &soundId) {
         if (it->second->track == nullptr) {
             it->second->track = MIX_CreateTrack(mixer);
             if (!it->second->track) {
-                Log::logWarning("Failed to create track: " /*+ std::string(Mix_GetError())*/);
+                Log::logWarning("Failed to create track: " + std::string(SDL_GetError()));
                 return -1;
             }
         }
@@ -261,6 +273,7 @@ int SoundPlayer::playSound(const std::string &soundId) {
             Log::logWarning("Failed to play track: " + std::string(SDL_GetError()));
             return -1;
         }
+        Log::log(soundId + " is playing!");
         return 0;
     }
 #endif
@@ -284,6 +297,8 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
         if (!MIX_SetTrackGain(soundFind->second->track, sdlVolume)) {
             Log::logWarning("Failed to set track volume: " + std::string(SDL_GetError()));
         }
+
+        Log::log("Volume has been set to " + std::to_string(getSoundVolume(soundId)));
     }
 #endif
 }
