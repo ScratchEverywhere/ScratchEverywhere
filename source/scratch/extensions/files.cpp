@@ -1,4 +1,5 @@
 #include "files.hpp"
+#include "../input.hpp"
 #include "../os.hpp"
 #include <algorithm>
 #include <filesystem>
@@ -39,7 +40,7 @@ std::function<std::string(const std::string path)> read(bool rootfs, std::string
             Log::logWarning("An extension tried to access an invalid path.");
             return "";
         }
-        std::ifstream f(prefix + (path[0] == '/' ? path.substr(1) : path));
+        std::ifstream f(prefix + (Input::isAbsolutePath(path) ? path.substr(1) : path));
         return std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
     };
 }
@@ -51,7 +52,7 @@ std::function<void(const std::string path, const std::string content)> write(boo
             Log::logWarning("An extension tried to access an invalid path.");
             return;
         }
-        std::ofstream(prefix + (path[0] == '/' ? path.substr(1) : path)) << content; // TODO: Error handling
+        std::ofstream(prefix + (Input::isAbsolutePath(path) ? path.substr(1) : path)) << content; // TODO: Error handling
     };
 }
 
@@ -62,7 +63,7 @@ std::function<void(const std::string path, const std::string content)> append(bo
             Log::logWarning("An extension tried to access an invalid path.");
             return;
         }
-        std::ofstream(prefix + (path[0] == '/' ? path.substr(1) : path), std::ios::app) << content; // TODO: Error handling
+        std::ofstream(prefix + (Input::isAbsolutePath(path) ? path.substr(1) : path), std::ios::app) << content; // TODO: Error handling
     };
 }
 
@@ -73,7 +74,7 @@ std::function<void(const std::string path)> mkdir(bool rootfs, std::string exten
             Log::logWarning("An extension tried to access an invalid path.");
             return;
         }
-        std::filesystem::create_directory(prefix + (path[0] == '/' ? path.substr(1) : path)); // TODO: Error handling
+        std::filesystem::create_directory(prefix + (Input::isAbsolutePath(path) ? path.substr(1) : path)); // TODO: Error handling
     };
 }
 
@@ -85,7 +86,7 @@ std::function<std::vector<std::string>(const std::string path)> ls(bool rootfs, 
             return {};
         }
         std::vector<std::string> ret;
-        std::transform(std::filesystem::directory_iterator(prefix + (path[0] == '/' ? path.substr(1) : path)), std::filesystem::directory_iterator{}, std::back_inserter(ret), [](const std::filesystem::directory_entry &entry) { return entry.path().filename().string(); });
+        std::transform(std::filesystem::directory_iterator(prefix + (Input::isAbsolutePath(path) ? path.substr(1) : path)), std::filesystem::directory_iterator{}, std::back_inserter(ret), [](const std::filesystem::directory_entry &entry) { return entry.path().filename().string(); });
         return ret;
     };
 }
