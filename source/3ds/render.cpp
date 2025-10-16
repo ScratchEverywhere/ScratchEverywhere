@@ -243,8 +243,6 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
         ImageData &data = images[costumeId];
         isSVG = data.isSVG;
         legacyDrawing = false;
-        currentSprite->spriteWidth = data.width / 2;
-        currentSprite->spriteHeight = data.height / 2;
     } else {
         legacyDrawing = true;
         currentSprite->spriteWidth = 64;

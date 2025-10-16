@@ -404,8 +404,6 @@ void Render::renderSprites() {
             image->freeTimer = image->maxFreeTime;
             SDL_RendererFlip flip = SDL_FLIP_NONE;
             image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
-            currentSprite->spriteWidth = image->textureRect.w / 2;
-            currentSprite->spriteHeight = image->textureRect.h / 2;
 
             // double the image scale if the image is an SVG
             if (currentSprite->costumes[currentSprite->currentCostume].isSVG) {

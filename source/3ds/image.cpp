@@ -35,7 +35,7 @@ const u32 rgba_to_abgr(u32 px) {
 }
 
 Image::Image(std::string filePath) {
-    if (!loadImageFromFile(filePath, false)) return;
+    if (!loadImageFromFile(filePath, nullptr, false)) return;
 
     // Find the matching RGBA data in the vector
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
@@ -133,7 +133,7 @@ void Image::renderNineslice(double xPos, double yPos, double width, double heigh
 /**
  * Turns a single image from an unzipped Scratch project into RGBA data
  */
-bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
+bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject) {
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
 
@@ -208,6 +208,11 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
+    if (sprite != nullptr) {
+        sprite->spriteWidth = newRGBA.width / 2;
+        sprite->spriteHeight = newRGBA.height / 2;
+    }
+
     bool success = get_C2D_Image(newRGBA);
     stbi_image_free(newRGBA.data);
 
@@ -219,7 +224,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
  * @param zip Pointer to the zip archive
  * @param costumeId The filename of the image to load (e.g., "sprite1.png")
  */
-void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite) {
     std::string imageId = costumeId.substr(0, costumeId.find_last_of('.'));
 
     if (images.find(imageId) != images.end()) return;
@@ -300,6 +305,11 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
     newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
+
+    if (sprite != nullptr) {
+        sprite->spriteWidth = newRGBA.width / 2;
+        sprite->spriteHeight = newRGBA.height / 2;
+    }
 
     get_C2D_Image(newRGBA);
     stbi_image_free(newRGBA.data);
