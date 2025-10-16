@@ -298,7 +298,7 @@ class Unzip {
 
         std::ifstream file(folderPath);
         if (!file.good()) {
-            Log::logError("JSON file not found: " + folderPath);
+            Log::logWarning("Project settings file not found: " + folderPath);
             return nlohmann::json();
         }
 
