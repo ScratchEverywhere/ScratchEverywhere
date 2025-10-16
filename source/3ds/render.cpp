@@ -80,10 +80,6 @@ bool Render::Init() {
 
     romfsInit();
 
-#ifdef ENABLE_AUDIO
-    SoundPlayer::init();
-#endif
-
     return true;
 }
 
