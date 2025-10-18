@@ -21,7 +21,7 @@ class TextObject : public Object {
      * @param text String of text to be displayed.
      * @param positionX
      * @param positionY
-     * @param fontPath Path of a font file (.ttf for SDL, .bcfnt for 3DS)
+     * @param fontPath Path of a font file (.ttf for SDL and Vita, .bcfnt for 3DS)
      */
     TextObject(std::string txt, double posX, double posY, std::string fontPath = "");
     virtual ~TextObject() = default;
