@@ -39,11 +39,13 @@ char nickname[0x21];
 
 #ifdef __OGC__
 #include <fat.h>
+#include <ogc/system.h>
 #include <romfs-ogc.h>
 #endif
 
 #ifdef GAMECUBE
-#include <sdcard/gcsd.h>
+#include <ogc/consol.h>
+#include <ogc/exi.h>
 #endif
 
 int windowWidth = 540;
@@ -131,7 +133,14 @@ bool Render::Init() {
     accountExit();
 postAccount:
 #elif defined(__OGC__)
+#ifdef GAMECUBE
+    if ((SYS_GetConsoleType() & SYS_CONSOLE_MASK) == SYS_CONSOLE_DEVELOPMENT) {
+        CON_EnableBarnacle(EXI_CHANNEL_0, EXI_DEVICE_1);
+    }
+    CON_EnableGecko(EXI_CHANNEL_1, true);
+#else
     SYS_STDIO_Report(true);
+#endif
 
     fatInitDefault();
     windowWidth = 640;
@@ -140,11 +149,6 @@ postAccount:
         Log::logError("Failed to init romfs.");
         return false;
     }
-
-#ifdef GAMECUBE
-    if (!fatMountSimple("carda", &__io_gcsda))
-        Log::logError("Failed to initialize SD card.");
-#endif
 
 #elif defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);

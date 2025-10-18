@@ -23,7 +23,6 @@ extern char nickname[0x21];
 #endif
 
 #ifdef WII
-#include <gccore.h>
 #include <ogc/conf.h>
 #endif
 
@@ -157,7 +156,7 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X)) {
         Input::buttonPress("X");
         anyKeyPressed = true;
-#ifdef __OGC__ // SDL 'x' is the A button on a wii remote
+#ifdef WII // SDL 'x' is the A button on a wii remote
         mousePointer.isPressed = true;
 #endif
     }

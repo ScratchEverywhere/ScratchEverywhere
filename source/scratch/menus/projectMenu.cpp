@@ -81,7 +81,7 @@ void ProjectMenu::init() {
 #elif defined(VITA)
         noProjectInfo->setText("Put Scratch projects in ux0:data/scratch-vita/ !");
 #elif defined(GAMECUBE)
-        noProjectInfo->setText("Put Scratch projects in SD Card A:/scratch-gamecube/ !");
+        noProjectInfo->setText("Put Scratch projects in sd:/scratch-gamecube/ !");
 #elif defined(__SWITCH__)
         noProjectInfo->setText("Put Scratch projects in sd:/switch/scratch-nx !");
 #else
