@@ -20,10 +20,13 @@ ICON		:=	gfx/wiiu/icon.png
 APP_TITLE	:=	Scratch Everywhere!
 APP_AUTHOR	:=	NateXS and Grady Link
 ROMFS		:=	romfs
+GRAPHICS	:=	gfx
+GFXBUILD	:=	$(ROMFS)/gfx
 
 # Flags and Stuff
 
 ENABLE_LOADSCREEN	?=	1
+ENABLE_AUDIO	?=	1
 
 ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -ftls-model=local-exec
 
@@ -112,15 +115,19 @@ endif
 
 .PHONY: $(BUILD) clean all
 
-all: $(BUILD)
+all: $(GFXBUILD) $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/make/Makefile_switch
 
+$(GFXBUILD):
+	@mkdir -p $@
+	@cp -r $(GRAPHICS)/* $@/
+
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(BUILD)/$(TARGET).pfs0 $(BUILD)/$(TARGET).nso $(BUILD)/$(TARGET).nro $(BUILD)/$(TARGET).nacp $(BUILD)/$(TARGET).elf
+	@rm -fr $(BUILD) $(BUILD)/$(TARGET).pfs0 $(BUILD)/$(TARGET).nso $(BUILD)/$(TARGET).nro $(BUILD)/$(TARGET).nacp $(BUILD)/$(TARGET).elf $(GFXBUILD)
 
 else
 .PHONY:	all

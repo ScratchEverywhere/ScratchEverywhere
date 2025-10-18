@@ -80,6 +80,10 @@ bool Render::Init() {
     windowWidth = 854;
     windowHeight = 480;
 #elif defined(__SWITCH__)
+
+    windowWidth = 1280;
+    windowHeight = 720;
+
     AccountUid userID = {0};
     AccountProfile profile;
     AccountProfileBase profilebase;
@@ -125,9 +129,6 @@ bool Render::Init() {
 
     accountProfileClose(&profile);
     accountExit();
-
-    windowWidth = 1280;
-    windowHeight = 720;
 postAccount:
 #elif defined(__OGC__)
     SYS_STDIO_Report(true);
