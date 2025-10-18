@@ -324,8 +324,8 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
 }
 
 bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
-                 const std::vector<std::pair<double, double>> &poly2,
-                 double axisX, double axisY) {
+    const std::vector<std::pair<double, double>> &poly2,
+    double axisX, double axisY) {
     double min1 = 1e9, max1 = -1e9;
     double min2 = 1e9, max2 = -1e9;
 
@@ -610,9 +610,14 @@ void loadSprites(const nlohmann::json &json) {
                     auto &inputValue = inputData[1];
 
                     if (type == 1) {
-                        parsedInput.inputType = ParsedInput::LITERAL;
-                        parsedInput.literalValue = Value::fromJson(inputValue);
-
+                        // Some Hacky Custom Extension Menu Stuff
+                        if (inputValue.is_string()) {
+                            parsedInput.inputType = ParsedInput::BLOCK;
+                            parsedInput.blockId = inputValue.get<std::string>();
+                        } else {
+                            parsedInput.inputType = ParsedInput::LITERAL;
+                            parsedInput.literalValue = Value::fromJson(inputValue);
+                        }
                     } else if (type == 3) {
                         if (inputValue.is_array()) {
                             parsedInput.inputType = ParsedInput::VARIABLE;
@@ -623,7 +628,7 @@ void loadSprites(const nlohmann::json &json) {
                                 parsedInput.blockId = inputValue.get<std::string>();
                         }
                     } else if (type == 2) {
-                        parsedInput.inputType = ParsedInput::BOOLEAN;
+                        parsedInput.inputType = ParsedInput::BLOCK;
                         parsedInput.blockId = inputValue.get<std::string>();
                     }
                     (*newBlock.parsedInputs)[inputName] = parsedInput;

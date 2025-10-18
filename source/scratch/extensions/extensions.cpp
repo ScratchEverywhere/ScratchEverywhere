@@ -1,4 +1,5 @@
 #include "extensions.hpp"
+#include "../input.hpp"
 #include "blockExecutor.hpp"
 #include "files.hpp"
 #include "interpret.hpp"
@@ -9,6 +10,12 @@
 #include <cstddef>
 #include <istream>
 #include <string_view>
+
+#ifdef SDL_BUILD
+#include <SDL2/SDL.h>
+
+extern SDL_GameController *controller;
+#endif
 
 static_assert(sizeof(bool) == 1, "Unsupported bool type detected.");
 
@@ -189,6 +196,39 @@ void registerLuaFunctions(Extension &extension) {
         extension.luaState["files"]["ls"] = files::ls(rootfs, extension.id);
 
         if (rootfs) extension.luaState["files"]["mainDirectory"] = files::mainDirectory;
+    }
+
+    if (std::find(extension.permissions.begin(), extension.permissions.end(), INPUT) != extension.permissions.end()) {
+        extension.luaState["input"] = extension.luaState.create_table();
+        extension.luaState["input"]["mappings"] = extension.luaState.create_table();
+        for (const auto &control : Input::inputControls)
+            extension.luaState["input"]["mappings"][control.first] = control.second;
+        extension.luaState["input"].get<sol::table>().set("mouseX", sol::property([]() { return Input::mousePointer.x; }));
+        extension.luaState["input"].get<sol::table>().set("mouseY", sol::property([]() { return Input::mousePointer.y; }));
+#ifdef __3DS__
+        extension.luaState["input"].get<sol::table>().set("devices", sol::property([]() {
+            return sol::as_table(std::vector<std::string>{"controller", "touchscreen"});
+        }));
+#elif defined(SDL_BUILD) && !defined(__PC__)
+        extension.luaState["input"].get<sol::table>().set("devices", sol::property([]() {
+            std::vector<std::string> devices; // TODO: Add keyboard/mouse for platforms that support them.
+            if (SDL_GameControllerGetAttached(controller) == SDL_TRUE) devices.push_back("controller");
+            if (SDL_GetNumTouchDevices() > 0) devices.push_back("touchscreen");
+            return sol::as_table(devices);
+        }));
+#elif defined(__PC__)
+        extension.luaState["input"].get<sol::table>().set("devices", sol::property([]() {
+            std::vector<std::string> devices = {"keyboard", "mouse"}; // TODO: Don't assume keyboard and mouse
+            if (SDL_GameControllerGetAttached(controller) == SDL_TRUE) devices.push_back("controller");
+            if (SDL_GetNumTouchDevices() > 0) devices.push_back("touchscreen");
+            return sol::as_table(devices);
+        }));
+#endif
+
+        extension.luaState["input"]["keyDown"] = input::keyDown;
+        extension.luaState["input"]["buttonDown"] = input::buttonDown;
+        extension.luaState["input"]["mouseDown"] = input::mouseDown;
+        extension.luaState["input"]["getAxis"] = input::getAxis;
     }
 }
 

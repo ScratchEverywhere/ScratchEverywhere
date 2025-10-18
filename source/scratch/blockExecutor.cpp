@@ -292,8 +292,8 @@ void BlockExecutor::runRepeatBlocks() {
         toDelete->isDeleted = true;
     }
     sprites.erase(std::remove_if(sprites.begin(), sprites.end(),
-                                 [](Sprite *s) { return s->toDelete; }),
-                  sprites.end());
+                      [](Sprite *s) { return s->toDelete; }),
+        sprites.end());
 }
 
 void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
@@ -425,11 +425,11 @@ std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFin
 
 Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
     auto iterator = valueHandlers.find(block.opcode);
-    if (iterator != valueHandlers.end()) {
-        return iterator->second(block, sprite);
-    }
+    if (iterator != valueHandlers.end()) return iterator->second(block, sprite);
 
-    return Value();
+    // Some Hacky Custom Extension Menu Stuff
+    if (block.parsedFields->size() != 1) return Value();
+    return Value(Scratch::getFieldValue(block, block.parsedFields->begin()->first));
 }
 
 void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {

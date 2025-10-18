@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "nonstd/expected.hpp"
+#include "os.hpp"
 
 #define SOL_ALL_SAFETIES_ON 1
 #define SOL_LUA_VERSION 501
@@ -104,6 +105,9 @@ static inline std::string updateFunctionString(ExtensionUpdateFunction type) {
     case POST_RENDER:
         return "postRender";
     }
+
+    Log::logError("How did this even happen...");
+    return "";
 }
 
 nonstd::expected<Extension, std::string>
