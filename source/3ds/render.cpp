@@ -80,6 +80,8 @@ bool Render::Init() {
 
     romfsInit();
 
+    speechManager = new SpeechManager3DS();
+
     return true;
 }
 
@@ -415,6 +417,9 @@ void Render::renderSprites() {
             }
         }
         renderVisibleVariables();
+        if (speechManager) {
+            speechManager->render();
+        }
     }
 
     if (Render::renderMode != Render::BOTH_SCREENS)
@@ -465,6 +470,9 @@ void Render::renderSprites() {
             }
         }
         renderVisibleVariables();
+        if (speechManager) {
+            speechManager->render();
+        }
     }
 
     if (Render::renderMode != Render::BOTH_SCREENS)
@@ -515,6 +523,9 @@ void Render::renderSprites() {
         if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
             renderVisibleVariables();
+            if (speechManager) {
+                speechManager->render();
+            }
         }
     }
 
@@ -579,6 +590,11 @@ void Render::renderVisibleVariables() {
 }
 
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
 #ifdef ENABLE_CLOUDVARS
     socExit();
 #endif
