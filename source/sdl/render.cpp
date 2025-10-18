@@ -1,4 +1,5 @@
 #include "../scratch/render.hpp"
+#include "../scratch/extensions/extensions.hpp"
 #include "../scratch/image.hpp"
 #include "audio.hpp"
 #include "blocks/pen.hpp"
@@ -366,6 +367,8 @@ void Render::renderSprites() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
+    extensions::runUpdateFunctions(extensions::PRE_RENDER);
+
     double scaleX = static_cast<double>(windowWidth) / Scratch::projectWidth;
     double scaleY = static_cast<double>(windowHeight) / Scratch::projectHeight;
     double scale;
@@ -499,6 +502,8 @@ void Render::renderSprites() {
 
     drawBlackBars(windowWidth, windowHeight);
     renderVisibleVariables();
+
+    extensions::runUpdateFunctions(extensions::POST_RENDER);
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();
