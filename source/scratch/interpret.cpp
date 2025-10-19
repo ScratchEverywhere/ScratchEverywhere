@@ -159,7 +159,7 @@ bool Scratch::startScratchProject() {
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
 
-    while (Render::appShouldRun()) {
+    while (Render::appShouldRun(nullptr)) {
         if (Render::checkFramerate()) {
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
@@ -315,8 +315,8 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
 }
 
 bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
-                 const std::vector<std::pair<double, double>> &poly2,
-                 double axisX, double axisY) {
+    const std::vector<std::pair<double, double>> &poly2,
+    double axisX, double axisY) {
     double min1 = 1e9, max1 = -1e9;
     double min2 = 1e9, max2 = -1e9;
 

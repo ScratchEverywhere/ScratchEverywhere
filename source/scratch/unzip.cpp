@@ -1,10 +1,14 @@
 #include "unzip.hpp"
 #include "image.hpp"
-#include "menus/loading.hpp"
+
 #ifdef __3DS__
 #include <3ds.h>
 #elif defined(SDL_BUILD)
 #include "SDL2/SDL.h"
+#endif
+
+#ifdef ENABLE_LOADSCREEN
+#include "menus/loading.hpp"
 #endif
 
 volatile int Unzip::projectOpened = 0;

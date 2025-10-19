@@ -1,4 +1,4 @@
-#include "scratch/render.hpp"
+#include "../scratch/render.hpp"
 #include "../scratch/blocks/pen.hpp"
 #include "../scratch/interpret.hpp"
 #include "audio.hpp"
@@ -6,6 +6,7 @@
 #include "image.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
+#include "menus/menuManager.hpp"
 #include "text.hpp"
 #include "unzip.hpp"
 #include <chrono>
@@ -103,12 +104,13 @@ bool Render::Init() {
     return true;
 }
 
-bool Render::appShouldRun() {
+bool Render::appShouldRun(MenuManager *menuManager) {
     if (toExit) return false;
     if (!aptMainLoop()) {
         toExit = true;
         return false;
     }
+    if (menuManager) menuManager->handleInput(0, 0, 0, 0, false); // TODO: Actually implement this...
     return true;
 }
 
@@ -362,7 +364,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     // Draw mouse pointer
     if (Input::mousePointer.isMoving)
         C2D_DrawRectSolid((Input::mousePointer.x * scale) + (screenWidth / 2),
-                          (Input::mousePointer.y * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset, 1, 5, 5, clrGreen);
+            (Input::mousePointer.y * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset, 1, 5, 5, clrGreen);
 
     currentSprite->lastCostumeId = costumeId;
 }
@@ -381,13 +383,13 @@ void Render::renderSprites() {
     // Sort sprites by layer with stage always being first
     std::vector<Sprite *> spritesByLayer = sprites;
     std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-              [](const Sprite *a, const Sprite *b) {
-                  // Stage sprite always comes first
-                  if (a->isStage && !b->isStage) return true;
-                  if (!a->isStage && b->isStage) return false;
-                  // Otherwise sort by layer
-                  return a->layer < b->layer;
-              });
+        [](const Sprite *a, const Sprite *b) {
+            // Stage sprite always comes first
+            if (a->isStage && !b->isStage) return true;
+            if (!a->isStage && b->isStage) return false;
+            // Otherwise sort by layer
+            return a->layer < b->layer;
+        });
 
     // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
@@ -403,13 +405,13 @@ void Render::renderSprites() {
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
 
                 C2D_DrawImageAtRotated(penImage,
-                                       SCREEN_WIDTH * 0.5f,
-                                       SCREEN_HEIGHT * heightMultiplier,
-                                       0,
-                                       M_PI,
-                                       nullptr,
-                                       scaleX,
-                                       scaleY);
+                    SCREEN_WIDTH * 0.5f,
+                    SCREEN_HEIGHT * heightMultiplier,
+                    0,
+                    M_PI,
+                    nullptr,
+                    scaleX,
+                    scaleY);
             }
 
             Sprite *currentSprite = spritesByLayer[i];
@@ -425,10 +427,10 @@ void Render::renderSprites() {
                     float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
                     renderImage(&images[costume.id].image,
-                                currentSprite,
-                                costume.id,
-                                false,
-                                eyeOffset);
+                        currentSprite,
+                        costume.id,
+                        false,
+                        eyeOffset);
                     break;
                 }
                 costumeIndex++;
@@ -453,13 +455,13 @@ void Render::renderSprites() {
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
 
                 C2D_DrawImageAtRotated(penImage,
-                                       SCREEN_WIDTH * 0.5f,
-                                       SCREEN_HEIGHT * heightMultiplier,
-                                       0,
-                                       M_PI,
-                                       nullptr,
-                                       scaleX,
-                                       scaleY);
+                    SCREEN_WIDTH * 0.5f,
+                    SCREEN_HEIGHT * heightMultiplier,
+                    0,
+                    M_PI,
+                    nullptr,
+                    scaleX,
+                    scaleY);
             }
 
             Sprite *currentSprite = spritesByLayer[i];
@@ -475,10 +477,10 @@ void Render::renderSprites() {
                     float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
                     renderImage(&images[costume.id].image,
-                                currentSprite,
-                                costume.id,
-                                false,
-                                eyeOffset);
+                        currentSprite,
+                        costume.id,
+                        false,
+                        eyeOffset);
                     break;
                 }
                 costumeIndex++;
@@ -503,13 +505,13 @@ void Render::renderSprites() {
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
 
                 C2D_DrawImageAtRotated(penImage,
-                                       SCREEN_WIDTH * 0.5f,
-                                       (SCREEN_HEIGHT * heightMultiplier),
-                                       0,
-                                       M_PI,
-                                       nullptr,
-                                       scaleX,
-                                       scaleY);
+                    SCREEN_WIDTH * 0.5f,
+                    (SCREEN_HEIGHT * heightMultiplier),
+                    0,
+                    M_PI,
+                    nullptr,
+                    scaleX,
+                    scaleY);
             }
 
             Sprite *currentSprite = spritesByLayer[i];
@@ -522,10 +524,10 @@ void Render::renderSprites() {
                     currentSprite->rotationCenterY = costume.rotationCenterY;
 
                     renderImage(&images[costume.id].image,
-                                currentSprite,
-                                costume.id,
-                                true,
-                                0.0f);
+                        currentSprite,
+                        costume.id,
+                        true,
+                        0.0f);
                     break;
                 }
                 costumeIndex++;

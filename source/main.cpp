@@ -1,6 +1,9 @@
 #include "interpret.hpp"
 #include "scratch/menus/mainMenu.hpp"
+#include "scratch/menus/menuManager.hpp"
 #include "scratch/render.hpp"
+#include "scratch/unzip.hpp"
+#include <memory>
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -19,24 +22,26 @@ static bool initApp() {
 }
 
 bool activateMainMenu() {
-    MainMenu *menu = new MainMenu();
-    MenuManager::changeMenu(menu);
+    MenuManager menuManager;
+    if (menuManager.shouldQuit) {
+        exitApp();
+        return false;
+    }
 
-    while (Render::appShouldRun()) {
+    menuManager.changeMenu(MenuID::MainMenu);
 
-        MenuManager::render();
+    while (Render::appShouldRun(&menuManager)) {
+        menuManager.render();
 
-        if (MenuManager::isProjectLoaded != 0) {
+        /* if (MenuManager::isProjectLoaded == 0) continue;
 
-            // -1 means project couldn't load
-            if (MenuManager::isProjectLoaded == -1) {
-                exitApp();
-                return false;
-            } else {
-                MenuManager::isProjectLoaded = 0;
-                break;
-            }
+        if (MenuManager::isProjectLoaded == -1) {
+            exitApp();
+            return false;
         }
+
+        MenuManager::isProjectLoaded = 0;
+        break; */
     }
     return true;
 }
@@ -62,26 +67,22 @@ int main(int argc, char **argv) {
     }
 
     while (Scratch::startScratchProject()) {
-
         if (Scratch::nextProject) {
             Log::log(Unzip::filePath);
-            if (!Unzip::load()) {
+            if (Unzip::load()) continue;
 
-                if (Unzip::projectOpened == -3) { // main menu
-
-                    if (!activateMainMenu()) break;
-
-                } else {
-                    exitApp();
-                    break;
-                }
+            if (Unzip::projectOpened == -3) { // main menu
+                if (!activateMainMenu()) break;
+                continue;
             }
-        } else {
-            Unzip::filePath = "";
-            Scratch::nextProject = false;
-            Scratch::dataNextProject = Value();
-            if (toExit || !activateMainMenu()) break;
+
+            exitApp();
+            break;
         }
+        Unzip::filePath = "";
+        Scratch::nextProject = false;
+        Scratch::dataNextProject = Value();
+        if (toExit || !activateMainMenu()) break;
     }
     exitApp();
     return 0;
