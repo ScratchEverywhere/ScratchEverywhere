@@ -50,12 +50,11 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 ### Audio
 
-- MP3, Ogg Vorbis, and WAV audio formats are supported.
-- A sound will take time to load if playing it for the first time.
-- If you play any sound from the "Stage", the sound will play as a "Streamed Sound" and will not need to load.
-- Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
-- **[Wii, GameCube, Vita]** "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
-- **[3DS, Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
+- A sound may take time to load if playing it for the first time.
+- **[Non-3DS Platforms]** If you play any sound from the `Stage`, the sound will play as a `Streamed Sound` and will not need to load.
+   - Only one `Streamed Sound` can be playing at a time, so this is good for things like background music.
+   - **[Wii, GameCube, Vita]** `Streamed Sound` is not supported. Any sounds in the `Stage` will load and play like a normal sound.
+- **[Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
 
 ### Framerate
 
@@ -201,12 +200,9 @@ Then it should be as simple as opening the app in the Homebrew Menu on your Wii!
 
 ### Get up and running for GameCube
 
-> [!NOTE]
-> There is currently a bug on the GameCube version causing projects to not show up on the Main Menu. The GameCube release has been temporarily removed from the Releases tab until the issue is fixed. For now, you need to compile from source to use the GameCube version.
+Download the `scratch-gamecube.dol` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-gamecube/main/Scratch%20Everywhere!%20GameCube%20Nightly.zip).
 
-Download the `scratch-gamecube.zip` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-gamecube/main/Scratch%20Everywhere!%20GameCube%20Nightly.zip).
-
-Unzip the file. Put your Scratch projects in the same place you put your `.dol` file.
+Put your Scratch projects in the `scratch-gamecube` folder in your storage device.
 
 Then it should be as simple as opening the app on your GameCube!
 
@@ -263,7 +259,7 @@ The recommended way to compile Scratch Everywhere! is with Docker. To compile wi
 
 If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.com/ScratchEverywhere/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 - **For the 3DS**, you will need the DevkitARM toolchain and libctru.
-	- If you want to compile with audio support, you will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/ScratchEverywhere/ScratchEverywhere/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
+	- If you want to compile with audio support, you will also need a 3DS compiled version of SDL3 and SDL3_mixer. See the [Nightly Build commands](https://github.com/ScratchEverywhere/ScratchEverywhere/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL3 3DS for yourself.
 - **For the Wii U**, you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
 - **For the Wii**, you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 - **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
