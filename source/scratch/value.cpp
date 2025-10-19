@@ -35,10 +35,12 @@ bool Value::isNumeric() const {
     return false;
 }
 
+bool Value::isColor() const {
+    return std::holds_alternative<Color>(value);
+}
+
 double Value::asDouble() const {
-    if (isInteger()) {
-        return static_cast<double>(std::get<int>(value));
-    } else if (isDouble()) {
+    if (isDouble()) {
         return std::get<double>(value);
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
@@ -54,8 +56,8 @@ double Value::asDouble() const {
         if (Math::isNumber(strValue)) {
             return Math::parseNumber(strValue);
         }
-    } else if (isBoolean()) {
-        return std::get<bool>(value) ? 1.0 : 0.0;
+    } else if (isColor() || isInteger() || isBoolean()) {
+        return static_cast<double>(asInt());
     }
 
     return 0.0;
@@ -83,6 +85,9 @@ int Value::asInt() const {
         }
     } else if (isBoolean()) {
         return std::get<bool>(value) ? 1 : 0;
+    } else if (isColor()) {
+        const ColorRGB rgb = HSB2RGB(std::get<Color>(value));
+        return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
     }
 
     return 0;
@@ -94,16 +99,49 @@ std::string Value::asString() const {
     } else if (isDouble()) {
         double doubleValue = std::get<double>(value);
         // handle whole numbers too, because scratch i guess
-        if (std::floor(doubleValue) == doubleValue) {
-            return std::to_string(static_cast<int>(doubleValue));
-        }
+        if (std::floor(doubleValue) == doubleValue) return std::to_string(static_cast<int>(doubleValue));
+		return std::to_string(doubleValue);
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
         return std::get<bool>(value) ? "true" : "false";
+    } else if (isColor()) {
+        const ColorRGB rgb = HSB2RGB(std::get<Color>(value));
+        const char hex_chars[] = "0123456789abcdef";
+        const unsigned char r = static_cast<unsigned char>(rgb.r);
+        const unsigned char g = static_cast<unsigned char>(rgb.g);
+        const unsigned char b = static_cast<unsigned char>(rgb.b);
+        std::string hex_str = "#";
+        hex_str += hex_chars[r >> 4];
+        hex_str += hex_chars[r & 0x0F];
+        hex_str += hex_chars[g >> 4];
+        hex_str += hex_chars[g & 0x0F];
+        hex_str += hex_chars[b >> 4];
+        hex_str += hex_chars[b & 0x0F];
+        return hex_str;
     }
 
     return "";
+}
+
+Color Value::asColor() const {
+    if (isInteger()) {
+        const int &intValue = std::get<int>(value);
+        return RGB2HSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
+    }
+    if (isDouble()) {
+        const double &doubleValue = std::get<double>(value);
+        return RGB2HSB({static_cast<float>(doubleValue / 0x10000), static_cast<float>(static_cast<int>(doubleValue / 0x100) % 0x100), static_cast<float>(static_cast<int>(doubleValue) % 0x100)});
+    }
+    if (isColor()) return std::get<Color>(value);
+    if (isString()) {
+        const std::string &stringValue = std::get<std::string>(value);
+        if (!std::regex_match(stringValue, std::regex("^#[\\dabcdef]{6}$"))) return {0, 0, 0};
+        const int intValue = std::stoi(stringValue.substr(1), 0, 16);
+        return RGB2HSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
+    }
+
+    return {0, 0, 0};
 }
 
 Value Value::operator+(const Value &other) const {

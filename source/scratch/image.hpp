@@ -1,4 +1,5 @@
 #pragma once
+#include "interpret.hpp"
 #include "miniz/miniz.h"
 #include <string>
 
@@ -27,19 +28,21 @@ class Image {
 
     void render(double xPos, double yPos, bool centered = false);
 
+    void renderNineslice(double xPos, double yPos, double width, double height, double padding /* IDK if that's the correct name */, bool centered = false);
+
     /**
      * `3DS`: Turns a single image from an unzipped Scratch project into RGBA data.
      * `SDL`: Loads a single `SDL_Image` from an unzipped filepath.
      * @param filePath
      * @param fromScratchProject
      */
-    static bool loadImageFromFile(std::string filePath, bool fromScratchProject = true);
+    static bool loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject = true);
 
     /**
      * `3DS`: Nothing yet yippie
      * `SDL`: Loads a single `SDL_Image` from a zip file.
      */
-    static void loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId);
+    static void loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite);
 
     /**
      * `3DS`: Frees a `C2D_Image` from memory.

@@ -17,7 +17,7 @@ ENABLE_HEADLESS ?= 0
 ifeq ($(ENABLE_HEADLESS),0)
 SOURCES	+=	source/sdl source/sdl/audio
 INCLUDES	+=	source/sdl source/sdl/audio
-LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf
+LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx
 CFLAGS_BASE	:=  -DSDL_BUILD
 else
 SOURCES	+=	source/headless

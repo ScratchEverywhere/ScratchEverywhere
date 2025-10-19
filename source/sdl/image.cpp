@@ -15,7 +15,7 @@ std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;
 
 Image::Image(std::string filePath) {
-    if (!loadImageFromFile(filePath, false)) return;
+    if (!loadImageFromFile(filePath, nullptr, false)) return;
     std::string imgId = filePath.substr(0, filePath.find_last_of('.'));
     imageId = imgId;
     width = images[imgId]->width;
@@ -36,35 +36,98 @@ Image::~Image() {
 }
 
 void Image::render(double xPos, double yPos, bool centered) {
-    if (images.find(imageId) != images.end()) {
-        SDL_Image *image = images[imageId];
+    if (images.find(imageId) == images.end()) return;
+    SDL_Image *image = images[imageId];
 
-        image->setScale(scale);
-        image->setRotation(rotation);
+    image->setScale(scale);
+    image->setRotation(rotation);
 
-        if (centered) {
-            image->renderRect.x = xPos - (image->renderRect.w / 2);
-            image->renderRect.y = yPos - (image->renderRect.h / 2);
-        } else {
-            image->renderRect.x = xPos;
-            image->renderRect.y = yPos;
-        }
-
-        Uint8 alpha = static_cast<Uint8>(opacity * 255);
-        SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
-
-        SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
-
-        image->freeTimer = image->maxFreeTime;
-        SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, rotation, &center, SDL_FLIP_NONE);
+    if (centered) {
+        image->renderRect.x = xPos - (image->renderRect.w / 2);
+        image->renderRect.y = yPos - (image->renderRect.h / 2);
+    } else {
+        image->renderRect.x = xPos;
+        image->renderRect.y = yPos;
     }
+
+    Uint8 alpha = static_cast<Uint8>(opacity * 255);
+    SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+
+    SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
+
+    image->freeTimer = image->maxFreeTime;
+    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, rotation, &center, SDL_FLIP_NONE);
+}
+
+// I doubt you want to mess with this...
+void Image::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
+    if (images.find(imageId) == images.end()) return;
+    SDL_Image *image = images[imageId];
+
+    image->setScale(1.0);
+    image->setRotation(0.0);
+
+    uint8_t alpha = static_cast<Uint8>(opacity * 255);
+    SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+
+    const int iDestX = static_cast<int>(xPos - (centered ? width / 2 : 0));
+    const int iDestY = static_cast<int>(yPos - (centered ? height / 2 : 0));
+    const int iWidth = static_cast<int>(width);
+    const int iHeight = static_cast<int>(height);
+    const int iSrcPadding = std::max(1, static_cast<int>(std::min(std::min(padding, static_cast<double>(image->width) / 2), static_cast<double>(image->height) / 2)));
+
+    const int srcCenterWidth = std::max(0, image->width - 2 * iSrcPadding);
+    const int srcCenterHeight = std::max(0, image->height - 2 * iSrcPadding);
+
+    const SDL_Rect srcTopLeft = {0, 0, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcTop = {iSrcPadding, 0, srcCenterWidth, iSrcPadding};
+    const SDL_Rect srcTopRight = {image->width - iSrcPadding, 0, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcLeft = {0, iSrcPadding, iSrcPadding, srcCenterHeight};
+    const SDL_Rect srcCenter = {iSrcPadding, iSrcPadding, srcCenterWidth, srcCenterHeight};
+    const SDL_Rect srcRight = {image->width - iSrcPadding, iSrcPadding, iSrcPadding, srcCenterHeight};
+    const SDL_Rect srcBottomLeft = {0, image->height - iSrcPadding, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcBottom = {iSrcPadding, image->height - iSrcPadding, srcCenterWidth, iSrcPadding};
+    const SDL_Rect srcBottomRight = {image->width - iSrcPadding, image->height - iSrcPadding, iSrcPadding, iSrcPadding};
+
+    const int dstCenterWidth = std::max(0, iWidth - 2 * iSrcPadding);
+    const int dstCenterHeight = std::max(0, iHeight - 2 * iSrcPadding);
+
+    const SDL_Rect dstTopLeft = {iDestX, iDestY, iSrcPadding, iSrcPadding};
+    const SDL_Rect dstTop = {iDestX + iSrcPadding, iDestY, dstCenterWidth, iSrcPadding};
+    const SDL_Rect dstTopRight = {iDestX + iSrcPadding + dstCenterWidth, iDestY, iSrcPadding, iSrcPadding};
+
+    const SDL_Rect dstLeft = {iDestX, iDestY + iSrcPadding, iSrcPadding, dstCenterHeight};
+    const SDL_Rect dstCenter = {iDestX + iSrcPadding, iDestY + iSrcPadding, dstCenterWidth, dstCenterHeight};
+    const SDL_Rect dstRight = {iDestX + iSrcPadding + dstCenterWidth, iDestY + iSrcPadding, iSrcPadding, dstCenterHeight};
+    const SDL_Rect dstBottomLeft = {iDestX, iDestY + iSrcPadding + dstCenterHeight, iSrcPadding, iSrcPadding};
+    const SDL_Rect dstBottom = {iDestX + iSrcPadding, iDestY + iSrcPadding + dstCenterHeight, dstCenterWidth, iSrcPadding};
+    const SDL_Rect dstBottomRight = {iDestX + iSrcPadding + dstCenterWidth, iDestY + iSrcPadding + dstCenterHeight, iSrcPadding, iSrcPadding};
+
+    image->freeTimer = image->maxFreeTime;
+
+    SDL_Texture *originalTexture = image->spriteTexture;
+    SDL_ScaleMode originalScaleMode;
+    SDL_GetTextureScaleMode(originalTexture, &originalScaleMode);
+    SDL_SetTextureScaleMode(originalTexture, SDL_ScaleModeNearest);
+
+    SDL_RenderCopy(renderer, originalTexture, &srcTopLeft, &dstTopLeft);
+    SDL_RenderCopy(renderer, originalTexture, &srcTop, &dstTop);
+    SDL_RenderCopy(renderer, originalTexture, &srcTopRight, &dstTopRight);
+    SDL_RenderCopy(renderer, originalTexture, &srcLeft, &dstLeft);
+    SDL_RenderCopy(renderer, originalTexture, &srcCenter, &dstCenter);
+    SDL_RenderCopy(renderer, originalTexture, &srcRight, &dstRight);
+    SDL_RenderCopy(renderer, originalTexture, &srcBottomLeft, &dstBottomLeft);
+    SDL_RenderCopy(renderer, originalTexture, &srcBottom, &dstBottom);
+    SDL_RenderCopy(renderer, originalTexture, &srcBottomRight, &dstBottomRight);
+
+    SDL_SetTextureScaleMode(originalTexture, originalScaleMode);
 }
 
 /**
  * Loads a single `SDL_Image` from an unzipped filepath .
  * @param filePath
  */
-bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
+bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject) {
     std::string imgId = filePath.substr(0, filePath.find_last_of('.'));
     if (images.find(imgId) != images.end()) return true;
 
@@ -87,6 +150,11 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
         image->memorySize = textureMemory;
     }
 
+    if (sprite != nullptr) {
+        sprite->spriteWidth = image->textureRect.w / 2;
+        sprite->spriteHeight = image->textureRect.h / 2;
+    }
+
     images[imgId] = image;
     return true;
 }
@@ -96,7 +164,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
  * @param zip Pointer to the zip archive
  * @param costumeId The filename of the image to load (e.g., "sprite1.png")
  */
-void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite) {
     std::string imgId = costumeId.substr(0, costumeId.find_last_of('.'));
     if (images.find(imgId) != images.end()) return;
 
@@ -185,6 +253,11 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     SDL_PixelFormatEnumToMasks(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
     image->memorySize = (w * h * bpp) / 8;
     MemoryTracker::allocateVRAM(image->memorySize);
+
+    if (sprite != nullptr) {
+        sprite->spriteWidth = image->textureRect.w / 2;
+        sprite->spriteHeight = image->textureRect.h / 2;
+    }
 
     // Log::log("Successfully loaded image: " + costumeId);
     images[imgId] = image;

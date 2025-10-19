@@ -5,11 +5,6 @@
 #include <chrono>
 #include <vector>
 
-#ifdef __OGC__
-#include <ogc/lwp_watchdog.h>
-#include <ogc/system.h>
-#endif
-
 class Render {
   public:
     static std::chrono::system_clock::time_point startTime;
@@ -19,6 +14,8 @@ class Render {
     static bool hasFrameBegan;
 
     static bool Init();
+
+    static bool initPen();
 
     static void deInit();
 
@@ -56,7 +53,16 @@ class Render {
      */
     static void renderSprites();
 
+    /**
+     * Renders all visible variable and list monitors
+     */
     static void renderVisibleVariables();
+
+    /**
+     * Renders the pen layer
+     */
+    static void renderPenLayer();
+
     /**
      * Draws a simple box to the screen.
      */
@@ -67,6 +73,11 @@ class Render {
      * If `false`, the app should close.
      */
     static bool appShouldRun();
+
+    /**
+     * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
+     */
+    static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite);
 
     /**
      * Returns whether or not enough time has passed to advance a frame.

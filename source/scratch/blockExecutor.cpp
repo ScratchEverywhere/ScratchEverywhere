@@ -5,6 +5,7 @@
 #include "blocks/looks.hpp"
 #include "blocks/motion.hpp"
 #include "blocks/operator.hpp"
+#include "blocks/pen.hpp"
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
@@ -175,6 +176,17 @@ void BlockExecutor::registerHandlers() {
     valueHandlers["argument_reporter_string_number"] = ProcedureBlocks::stringNumber;
     valueHandlers["argument_reporter_boolean"] = ProcedureBlocks::booleanArgument;
 
+    // pen extension
+    handlers["pen_penDown"] = PenBlocks::PenDown;
+    handlers["pen_penUp"] = PenBlocks::PenUp;
+    handlers["pen_clear"] = PenBlocks::EraseAll;
+    handlers["pen_setPenColorParamTo"] = PenBlocks::SetPenOptionTo;
+    handlers["pen_changePenColorParamBy"] = PenBlocks::ChangePenOptionBy;
+    handlers["pen_stamp"] = PenBlocks::Stamp;
+    handlers["pen_setPenColorToColor"] = PenBlocks::SetPenColorTo;
+    handlers["pen_setPenSizeTo"] = PenBlocks::SetPenSizeTo;
+    handlers["pen_changePenSizeBy"] = PenBlocks::ChangePenSizeBy;
+
     // Other (Don't know where else to put these)
     valueHandlers["matrix"] = [](Block &block, Sprite *sprite) {
         return Value(Scratch::getFieldValue(block, "MATRIX"));
@@ -301,9 +313,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         if (id == block.customBlockId) {
             // Set up argument values
             for (std::string arg : data.argumentIds) {
-                if (block.parsedInputs->find(arg) != block.parsedInputs->end()) {
-                    data.argumentValues[arg] = Scratch::getInputValue(block, arg, sprite);
-                }
+                data.argumentValues[arg] = block.parsedInputs->find(arg) == block.parsedInputs->end() ? Value(0) : Scratch::getInputValue(block, arg, sprite);
             }
 
             // std::cout << "running custom block " << data.blockId << std::endl;
