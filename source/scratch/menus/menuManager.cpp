@@ -68,6 +68,9 @@ MenuManager::~MenuManager() {
 }
 
 void MenuManager::render() {
+#ifdef SDL_BUILD
+    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+#endif
     Clay_SetLayoutDimensions({(float)windowWidth, (float)windowHeight});
 
 #ifdef SDL_BUILD
