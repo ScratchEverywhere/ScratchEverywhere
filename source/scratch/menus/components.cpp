@@ -50,12 +50,12 @@ void Sidebar::renderItem(const std::string tab) {
 		.border = { .color = {255, 255, 255, 255}, .width = {0, 4, 4, 4} },
 	}) {
 		if (images.contains(tab) && images[tab]) CLAY(CLAY_SID(clayImageId), (Clay_ElementDeclaration){
-				.layout = {
-					.sizing = { .width = CLAY_SIZING_PERCENT(0.8) }
-				},
-				.aspectRatio = { 1 },
-				.image = { .imageData = images[tab] }	
-				});
+			.layout = {
+				.sizing = { .width = CLAY_SIZING_PERCENT(0.8) }
+			},
+			.aspectRatio = { 1 },
+			.image = { .imageData = images[tab] }	
+		});
 	}
     // clang-format on
 }
