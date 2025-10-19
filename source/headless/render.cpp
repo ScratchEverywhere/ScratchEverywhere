@@ -26,6 +26,13 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Render::endFrame(bool shouldFlush) {
 }
 
+bool Render::initPen() {
+    return false;
+}
+
+void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+}
+
 int Render::getWidth() {
     return 0;
 }

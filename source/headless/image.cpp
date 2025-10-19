@@ -9,12 +9,15 @@ Image::~Image() {
 void Image::render(double xPos, double yPos, bool centered) {
 }
 
-bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
+void Image::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
+}
+
+bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject) {
 
     return false;
 }
 
-void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite) {
 }
 
 void Image::freeImage(const std::string &costumeId) {
