@@ -10,6 +10,7 @@ class Render {
     static std::chrono::system_clock::time_point startTime;
     static std::chrono::system_clock::time_point endTime;
     static bool debugMode;
+    static float renderScale;
 
     static bool hasFrameBegan;
 
@@ -52,6 +53,14 @@ class Render {
      * Renders every sprite to the screen.
      */
     static void renderSprites();
+
+    static void calculateRenderPosition(Sprite *sprite, const bool &isSVG);
+
+    /**
+     * Sets the sprite rendering scale, based on the aspect ratio of the project and the window's dimension.
+     * This should be called every time either the project or the window changes resolution.
+     */
+    static void setRenderScale();
 
     /**
      * Renders all visible variable and list monitors

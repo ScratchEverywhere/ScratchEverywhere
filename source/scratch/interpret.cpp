@@ -993,6 +993,7 @@ void loadSprites(const nlohmann::json &json) {
     Unzip::loadingState = "Finishing up!";
 
     Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
+    Render::setRenderScale();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }
 

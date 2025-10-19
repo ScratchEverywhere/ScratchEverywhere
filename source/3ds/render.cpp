@@ -1,7 +1,7 @@
 #include "scratch/render.hpp"
+#include "../scratch/audio.hpp"
 #include "../scratch/blocks/pen.hpp"
 #include "../scratch/interpret.hpp"
-#include "audio.hpp"
 #include "blocks/pen.hpp"
 #include "image.hpp"
 #include "input.hpp"
@@ -9,10 +9,6 @@
 #include "text.hpp"
 #include "unzip.hpp"
 #include <chrono>
-#ifdef ENABLE_AUDIO
-#include <SDL3/SDL.h>
-#include <SDL3_mixer/SDL_mixer.h>
-#endif
 
 #ifdef ENABLE_CLOUDVARS
 #include <malloc.h>
@@ -36,6 +32,7 @@ std::chrono::system_clock::time_point Render::startTime = std::chrono::system_cl
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 static bool isConsoleInit = false;
+float Render::renderScale = 1.0f;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
@@ -61,6 +58,7 @@ bool Render::Init() {
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
     gfxSet3D(true);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
@@ -169,7 +167,6 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
         hasFrameBegan = true;
     }
     if (screen == 0) {
@@ -231,7 +228,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 void queueSpriteRender(Sprite *sprite, C2D_Image *image) {
 }
 
-void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false, float x3DOffset = 0.0f) {
+void renderImageOLD(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false, float x3DOffset = 0.0f) {
 
     if (!currentSprite || currentSprite == nullptr) return;
 
@@ -343,17 +340,124 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId,
     if (Input::mousePointer.isMoving)
         C2D_DrawRectSolid((Input::mousePointer.x * scale) + (screenWidth / 2),
                           (Input::mousePointer.y * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset, 1, 5, 5, clrGreen);
+}
 
-    currentSprite->lastCostumeId = costumeId;
+void Render::setRenderScale() {
+    const int screenWidth = renderMode == BOTTOM_SCREEN_ONLY ? 320 : 400;
+    const int screenHeight = 240;
+    renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
+                           static_cast<float>(screenHeight) / Scratch::projectHeight);
+}
+
+void Render::calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
+    const int screenWidth = renderMode == BOTTOM_SCREEN_ONLY ? 320 : 400;
+    const int screenHeight = 240;
+
+    if (sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
+        // change all renderinfo a bit to update position for all
+        sprite->renderInfo.oldX++;
+        sprite->renderInfo.oldY++;
+        sprite->renderInfo.oldRotation++;
+        sprite->renderInfo.oldSize++;
+        sprite->renderInfo.oldCostumeID = sprite->currentCostume;
+    }
+    if (sprite->size != sprite->renderInfo.oldSize) {
+        sprite->renderInfo.oldSize = sprite->size;
+        sprite->renderInfo.renderScale = sprite->size * (isSVG ? 0.01 : 0.005);
+        if (screenHeight != Scratch::projectHeight) {
+            float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
+                                   static_cast<float>(screenHeight) / Scratch::projectHeight);
+            sprite->renderInfo.renderScale *= scale;
+        }
+    }
+    if (sprite->rotation != sprite->renderInfo.oldRotation) {
+        sprite->renderInfo.oldRotation = sprite->rotation;
+        sprite->renderInfo.oldX++;
+        sprite->renderInfo.oldY++;
+        if (sprite->rotationStyle == sprite->ALL_AROUND) {
+            sprite->renderInfo.renderRotation = Math::degreesToRadians(sprite->rotation - 90);
+        } else {
+            sprite->renderInfo.renderRotation = 0;
+        }
+    }
+    if (std::floor(sprite->xPosition) != std::floor(sprite->renderInfo.oldX) ||
+        std::floor(sprite->yPosition) != std::floor(sprite->renderInfo.oldY)) {
+
+        sprite->renderInfo.oldX = sprite->xPosition;
+        sprite->renderInfo.oldY = sprite->yPosition;
+
+        int renderX;
+        int renderY;
+
+        if (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight) {
+            renderX = (sprite->xPosition * renderScale) + (screenWidth >> 1);
+            renderY = (-sprite->yPosition * renderScale) + (screenHeight >> 1);
+        } else {
+            renderX = sprite->xPosition + (screenWidth >> 1);
+            renderY = -sprite->yPosition + (screenHeight >> 1);
+        }
+
+        if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
+            sprite->spriteHeight - sprite->rotationCenterY != 0) {
+
+            int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> (!isSVG ? 1 : 0);
+            int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> (!isSVG ? 1 : 0);
+
+            float rot = sprite->renderInfo.renderRotation;
+
+            if (sprite->renderInfo.renderRotation != 0) {
+                float rotatedX = -offsetX * std::cos(rot) + offsetY * std::sin(rot);
+                float rotatedY = -offsetX * std::sin(rot) - offsetY * std::cos(rot);
+                renderX += rotatedX;
+                renderY += rotatedY;
+            } else {
+                renderX += offsetX;
+                renderY += offsetY;
+            }
+        }
+
+        sprite->renderInfo.renderX = renderX;
+        sprite->renderInfo.renderY = renderY;
+    }
+}
+
+void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, const float &x3DOffset = 0.0f) {
+    if (!currentSprite || currentSprite == nullptr) return;
+
+    bool isSVG = false;
+
+    auto imageIt = images.find(costumeId);
+    if (imageIt == images.end()) {
+        currentSprite->spriteWidth = 64;
+        currentSprite->spriteHeight = 64;
+        return;
+    }
+
+    ImageData &data = imageIt->second;
+    isSVG = data.isSVG;
+    currentSprite->spriteWidth = data.width >> 1;
+    currentSprite->spriteHeight = data.height >> 1;
+
+    Render::calculateRenderPosition(currentSprite, isSVG);
+
+    C2D_DrawImageAtRotated(
+        data.image,
+        currentSprite->renderInfo.renderX,
+        currentSprite->renderInfo.renderY,
+        1,
+        currentSprite->renderInfo.renderRotation,
+        nullptr,
+        currentSprite->renderInfo.renderScale,
+        currentSprite->renderInfo.renderScale);
+    data.freeTimer = data.maxFreeTimer;
 }
 
 void Render::renderSprites() {
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
     C2D_TargetClear(topScreen, clrWhite);
     C2D_TargetClear(topScreenRightEye, clrWhite);
     C2D_TargetClear(bottomScreen, clrWhite);
-    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / sprites.size();
@@ -372,7 +476,6 @@ void Render::renderSprites() {
     // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
-        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
@@ -420,55 +523,55 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTH_SCREENS)
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    // ---------- RIGHT EYE ----------
-    if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(topScreenRightEye);
+    // // ---------- RIGHT EYE ----------
+    // if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
+    //     C2D_SceneBegin(topScreenRightEye);
 
-        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+    //     for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
-            // render the pen texture above the backdrop, but below every other sprite
-            if (i == 1 && penRenderTarget != nullptr) {
-                const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
-                const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
-                const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
+    //         // render the pen texture above the backdrop, but below every other sprite
+    //         if (i == 1 && penRenderTarget != nullptr) {
+    //             const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
+    //             const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
+    //             const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
 
-                C2D_DrawImageAtRotated(penImage,
-                                       SCREEN_WIDTH * 0.5f,
-                                       SCREEN_HEIGHT * heightMultiplier,
-                                       0,
-                                       M_PI,
-                                       nullptr,
-                                       scaleX,
-                                       scaleY);
-            }
+    //             C2D_DrawImageAtRotated(penImage,
+    //                                    SCREEN_WIDTH * 0.5f,
+    //                                    SCREEN_HEIGHT * heightMultiplier,
+    //                                    0,
+    //                                    M_PI,
+    //                                    nullptr,
+    //                                    scaleX,
+    //                                    scaleY);
+    //         }
 
-            Sprite *currentSprite = spritesByLayer[i];
-            if (!currentSprite->visible) continue;
+    //         Sprite *currentSprite = spritesByLayer[i];
+    //         if (!currentSprite->visible) continue;
 
-            int costumeIndex = 0;
-            for (const auto &costume : currentSprite->costumes) {
-                if (costumeIndex == currentSprite->currentCostume) {
-                    currentSprite->rotationCenterX = costume.rotationCenterX;
-                    currentSprite->rotationCenterY = costume.rotationCenterY;
+    //         int costumeIndex = 0;
+    //         for (const auto &costume : currentSprite->costumes) {
+    //             if (costumeIndex == currentSprite->currentCostume) {
+    //                 currentSprite->rotationCenterX = costume.rotationCenterX;
+    //                 currentSprite->rotationCenterY = costume.rotationCenterY;
 
-                    size_t totalSprites = spritesByLayer.size();
-                    float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
+    //                 size_t totalSprites = spritesByLayer.size();
+    //                 float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
-                    renderImage(&images[costume.id].image,
-                                currentSprite,
-                                costume.id,
-                                false,
-                                eyeOffset);
-                    break;
-                }
-                costumeIndex++;
-            }
-        }
-        renderVisibleVariables();
-    }
+    //                 renderImage(&images[costume.id].image,
+    //                             currentSprite,
+    //                             costume.id,
+    //                             false,
+    //                             eyeOffset);
+    //                 break;
+    //             }
+    //             costumeIndex++;
+    //         }
+    //     }
+    //     renderVisibleVariables();
+    // }
 
-    if (Render::renderMode != Render::BOTH_SCREENS)
-        drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+    // if (Render::renderMode != Render::BOTH_SCREENS)
+    //     drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // ---------- BOTTOM SCREEN ----------
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
@@ -525,6 +628,7 @@ void Render::renderSprites() {
     SoundPlayer::flushAudio();
 #endif
     osSetSpeedupEnable(true);
+    C3D_FrameSync();
 }
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
@@ -594,9 +698,6 @@ void Render::deInit() {
     SoundPlayer::deinit();
     C2D_Fini();
     C3D_Fini();
-#ifdef ENABLE_AUDIO
-    SDL_Quit();
-#endif
     romfsExit();
     gfxExit();
 }
