@@ -37,7 +37,7 @@ class MenuManager {
     bool shouldQuit = false;
 
 #ifdef SDL_BUILD
-    static const unsigned int FONT_ID_BODY_16 = 0;
+    static constexpr unsigned int FONT_ID_BODY_16 = 0;
 #endif
 
     MenuManager();
