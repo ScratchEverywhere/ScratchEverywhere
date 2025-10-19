@@ -93,6 +93,7 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
             }
         }
     }
+    block.substackBlocksRan.clear();
 
     if (shouldStop)
         return BlockResult::RETURN;
