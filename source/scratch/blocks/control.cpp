@@ -1,4 +1,5 @@
 #include "control.hpp"
+#include "../audio.hpp"
 #include "blockExecutor.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
@@ -188,6 +189,9 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
                 chainBlock->waitingIfBlock = "";
             }
             chain.blocksToRepeat.clear();
+        }
+        for (auto &[id, sound] : sprite->sounds) {
+            SoundPlayer::stopSound(sound.fullName);
         }
         return BlockResult::CONTINUE;
     }

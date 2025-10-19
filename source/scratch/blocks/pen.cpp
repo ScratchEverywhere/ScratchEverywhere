@@ -1,6 +1,8 @@
 #include "pen.hpp"
 #include "../interpret.hpp"
 #include "../render.hpp"
+#include "image.hpp"
+#include "unzip.hpp"
 
 #ifdef __3DS__
 #include "../../3ds/image.hpp"
@@ -182,11 +184,18 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!sprite->visible || !Render::initPen()) return BlockResult::CONTINUE;
 
+    if (projectType == UNZIPPED) {
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
+    } else {
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
+    }
+
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return BlockResult::CONTINUE;
     }
+    imgFind->second->freeTimer = imgFind->second->maxFreeTime;
 
     SDL_SetRenderTarget(renderer, penTexture);
 
@@ -254,12 +263,18 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     const int SCREEN_WIDTH = 400;
     const int SCREEN_HEIGHT = 240;
 
+    if (projectType == UNZIPPED) {
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
+    } else {
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
+    }
+
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return BlockResult::CONTINUE;
     }
-
+    imgFind->second.freeTimer = imgFind->second.maxFreeTimer;
     C2D_Image *costumeTexture = &imgFind->second.image;
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C3D_FrameDrawOn(penRenderTarget);

@@ -299,8 +299,8 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     }
 
     double rotationRadians = -(rotation - 90) * M_PI / 180.0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) * 0.75);
-    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight) * 0.75);
+    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth));
+    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight));
 
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
@@ -629,7 +629,8 @@ void loadSprites(const nlohmann::json &json) {
                         }
                     } else if (type == 2) {
                         parsedInput.inputType = ParsedInput::BLOCK;
-                        parsedInput.blockId = inputValue.get<std::string>();
+                        if (!inputValue.is_null())
+                            parsedInput.blockId = inputValue.get<std::string>();
                     }
                     (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
@@ -1003,7 +1004,7 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
-    Unzip::loadingState = "Running Flag block";
+    Unzip::loadingState = "Finishing up!";
 
     Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
