@@ -1,3 +1,4 @@
+#include "components.hpp"
 #include "mainMenu.hpp"
 #include "menus/menu.hpp"
 #include "os.hpp"
@@ -28,11 +29,13 @@ void MenuManager::changeMenu(MenuID id) {
     if (currentMenuID != MenuID::None) history.push(currentMenuID);
     currentMenuID = id;
     currentMenu = std::move(createMenu(id));
+    currentMenu->menuManager = this;
 }
 
 void MenuManager::back() {
     if (history.empty()) return;
     currentMenu = std::move(createMenu(history.top()));
+    currentMenu->menuManager = this;
     currentMenuID = history.top();
     history.pop();
 }
@@ -41,8 +44,10 @@ MenuManager::MenuManager() {
     uint64_t totalMemorySize = Clay_MinMemorySize();
     clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, malloc(totalMemorySize));
     Clay_Initialize(clayMemory, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, {[](Clay_ErrorData errorData) {
-        Log::logError(std::string("[CLAY] ") + errorData.errorText.chars);
-    }});
+                        Log::logError(std::string("[CLAY] ") + errorData.errorText.chars);
+                    }});
+
+    components::defaultTextConfig = CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = MenuManager::FONT_ID_BODY_16, .fontSize = 16});
 
 #ifdef SDL_BUILD
     fonts[FONT_ID_BODY_16] = {.fontId = FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};

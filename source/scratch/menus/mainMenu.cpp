@@ -1,5 +1,5 @@
 #include "mainMenu.hpp"
-#include "menuManager.hpp"
+#include "components.hpp"
 
 Clay_RenderCommandArray MainMenu::render() {
     Clay_BeginLayout();
@@ -7,11 +7,14 @@ Clay_RenderCommandArray MainMenu::render() {
     CLAY(CLAY_ID("outer"), (Clay_ElementDeclaration){
 		.layout = {
 			.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
-			.layoutDirection = CLAY_LEFT_TO_RIGHT
+			.childGap = 10,
+			.childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
+			.layoutDirection = CLAY_LEFT_TO_RIGHT,
 		},
 		.backgroundColor = {117, 77, 117, 255}
 	}) {
-        CLAY_TEXT(CLAY_STRING("Test!"), CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = MenuManager::FONT_ID_BODY_16, .fontSize = 16}));
+		sidebar.render();
+        CLAY_TEXT(CLAY_STRING("Test!"), components::defaultTextConfig);
     };
     // clang-format on
     return Clay_EndLayout();
