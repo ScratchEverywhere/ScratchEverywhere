@@ -1,7 +1,10 @@
 #include "components.hpp"
 #include "../os.hpp"
+#include <algorithm>
 
 #ifdef SDL_BUILD
+#include "../../sdl/render.hpp"
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #endif
 
@@ -26,10 +29,21 @@ void Sidebar::renderItem(const std::string tab) {
     const std::string imageId = "sidebar_img_" + tab;
     Clay_String clayImageId = (Clay_String){false, static_cast<int32_t>(imageId.length()), imageId.c_str()};
 
+    if (hovered != tab && Clay_PointerOver(CLAY_SID(clayId))) {
+        unhoverTab = hovered;
+        unhoverTimer.start();
+        hoverTimer.start();
+        hovered = tab;
+    }
+
+    float height = 100;
+    if (hovered == tab) height += (std::min(hoverTimer.getTimeMs(), animationDuration) / static_cast<float>(animationDuration)) * 25;
+    if (unhoverTab == tab) height += (1 - std::min(unhoverTimer.getTimeMs(), animationDuration) / static_cast<float>(animationDuration)) * 25;
+
     // clang-format off
 	CLAY(CLAY_SID(clayId), (Clay_ElementDeclaration){
 		.layout = {
-			.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(100) },
+			.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(height) },
 			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
 		},
 		.cornerRadius = {0, 16, 0, 16},
@@ -56,6 +70,17 @@ void Sidebar::render() {
 		},
 	}) {
 		for (const auto &tab : tabs) renderItem(tab);
+
+#ifdef SDL_BUILD
+		bool windowFocused = (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) != 0;
+#elif __3DS__
+		bool windowFocused == true;
+#endif
+		if (hovered != "" && (!Clay_Hovered() || !windowFocused)) {
+			unhoverTab = hovered;
+			unhoverTimer.start();
+			hovered = "";
+		}
 	}
     // clang-format on
 }
