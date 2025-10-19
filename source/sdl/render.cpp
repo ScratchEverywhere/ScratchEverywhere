@@ -40,11 +40,13 @@ char nickname[0x21];
 
 #ifdef __OGC__
 #include <fat.h>
+#include <ogc/system.h>
 #include <romfs-ogc.h>
 #endif
 
 #ifdef GAMECUBE
-#include <sdcard/gcsd.h>
+#include <ogc/consol.h>
+#include <ogc/exi.h>
 #endif
 
 int windowWidth = 540;
@@ -81,6 +83,10 @@ bool Render::Init() {
     windowWidth = 854;
     windowHeight = 480;
 #elif defined(__SWITCH__)
+
+    windowWidth = 1280;
+    windowHeight = 720;
+
     AccountUid userID = {0};
     AccountProfile profile;
     AccountProfileBase profilebase;
@@ -126,12 +132,16 @@ bool Render::Init() {
 
     accountProfileClose(&profile);
     accountExit();
-
-    windowWidth = 1280;
-    windowHeight = 720;
 postAccount:
 #elif defined(__OGC__)
+#ifdef GAMECUBE
+    if ((SYS_GetConsoleType() & SYS_CONSOLE_MASK) == SYS_CONSOLE_DEVELOPMENT) {
+        CON_EnableBarnacle(EXI_CHANNEL_0, EXI_DEVICE_1);
+    }
+    CON_EnableGecko(EXI_CHANNEL_1, true);
+#else
     SYS_STDIO_Report(true);
+#endif
 
     fatInitDefault();
     windowWidth = 640;
@@ -141,11 +151,6 @@ postAccount:
         return false;
     }
 
-#ifdef GAMECUBE
-    if (!fatMountSimple("carda", &__io_gcsda))
-        Log::logError("Failed to initialize SD card.");
-#endif
-
 #elif defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 
@@ -154,17 +159,6 @@ postAccount:
 #endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
-#ifdef ENABLE_AUDIO
-    // Initialize SDL_mixer
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-        Log::logWarning(std::string("SDL_Mixer could not initialize! ") + Mix_GetError());
-        return false;
-    }
-    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
-    if (Mix_Init(flags) != flags) {
-        Log::logWarning(std::string("SDL_Mixer could not initialize MP3/OGG Support! ") + Mix_GetError());
-    }
-#endif
     TTF_Init();
     window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
@@ -424,8 +418,9 @@ void Render::renderSprites() {
             if (currentSprite->rotationStyle == currentSprite->NONE) {
                 renderRotation = 0;
             }
-            double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
-            double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
+            const int divisionAmount = currentSprite->costumes[currentSprite->currentCostume].isSVG ? 1 : 2;
+            double rotationCenterX = (((currentSprite->rotationCenterX - currentSprite->spriteWidth) / divisionAmount) * scale);
+            double rotationCenterY = (((currentSprite->rotationCenterY - currentSprite->spriteHeight) / divisionAmount) * scale);
             const double offsetX = rotationCenterX * (currentSprite->size * 0.01);
             const double offsetY = rotationCenterY * (currentSprite->size * 0.01);
             image->renderRect.x = ((currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);

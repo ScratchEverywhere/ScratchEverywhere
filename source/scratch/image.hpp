@@ -1,4 +1,5 @@
 #pragma once
+#include "interpret.hpp"
 #include "miniz/miniz.h"
 #include <string>
 
@@ -35,13 +36,13 @@ class Image {
      * @param filePath
      * @param fromScratchProject
      */
-    static bool loadImageFromFile(std::string filePath, bool fromScratchProject = true);
+    static bool loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject = true);
 
     /**
      * `3DS`: Nothing yet yippie
      * `SDL`: Loads a single `SDL_Image` from a zip file.
      */
-    static void loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId);
+    static void loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite);
 
     /**
      * `3DS`: Frees a `C2D_Image` from memory.
