@@ -9,8 +9,27 @@
 #include <SDL2/SDL.h>
 #endif
 
+#if defined(SDL_BUILD) && !defined(HAS_SDL2_FONT)
+#include <SDL2/SDL_ttf.h>
+
+typedef struct
+{
+    uint32_t fontId;
+    TTF_Font *font;
+} SDL2_Font;
+
+#define HAS_SDL2_FONT
+#endif
+
 namespace components {
 extern Clay_TextElementConfig *defaultTextConfig;
+
+#ifdef SDL_BUILD
+extern SDL2_Font fonts[2];
+
+static constexpr unsigned int FONT_ID_BODY_16 = 0;
+static constexpr unsigned int FONT_ID_BODY_BOLD_48 = 1;
+#endif
 
 class Sidebar {
   private:

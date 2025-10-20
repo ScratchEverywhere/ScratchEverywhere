@@ -11,6 +11,10 @@
 namespace components {
 Clay_TextElementConfig *defaultTextConfig;
 
+#ifdef SDL_BUILD
+SDL2_Font fonts[2] = {};
+#endif
+
 Sidebar::Sidebar() {
     for (const auto &tab : tabs) {
 #ifdef SDL_BUILD

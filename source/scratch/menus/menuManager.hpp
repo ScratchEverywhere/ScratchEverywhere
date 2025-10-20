@@ -4,16 +4,6 @@
 #include <memory>
 #include <stack>
 
-#if defined(SDL_BUILD) && !defined(HAS_SDL2_FONT)
-#include <SDL2/SDL_ttf.h>
-
-typedef struct
-{
-    uint32_t fontId;
-    TTF_Font *font;
-} SDL2_Font;
-#endif
-
 enum class MenuID {
     MainMenu,
     None
@@ -27,18 +17,10 @@ class MenuManager {
 
     Clay_Arena clayMemory;
 
-#ifdef SDL_BUILD
-    SDL2_Font fonts[1] = {};
-#endif
-
     std::unique_ptr<Menu> createMenu(MenuID id);
 
   public:
     bool shouldQuit = false;
-
-#ifdef SDL_BUILD
-    static constexpr unsigned int FONT_ID_BODY_16 = 0;
-#endif
 
     MenuManager();
     ~MenuManager();

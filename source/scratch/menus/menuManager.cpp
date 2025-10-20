@@ -47,22 +47,27 @@ MenuManager::MenuManager() {
                         Log::logError(std::string("[CLAY] ") + errorData.errorText.chars);
                     }});
 
-    components::defaultTextConfig = CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = MenuManager::FONT_ID_BODY_16, .fontSize = 16});
+    components::defaultTextConfig = CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16});
 
 #ifdef SDL_BUILD
-    fonts[FONT_ID_BODY_16] = {.fontId = FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
-    if (!fonts[FONT_ID_BODY_16].font) {
+    components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
+    if (!components::fonts[components::FONT_ID_BODY_16].font) {
         Log::logError("Failed to load menu font.");
         shouldQuit = true;
         return;
     }
-    Clay_SetMeasureTextFunction(SDL2_MeasureText, &fonts);
+
+    components::fonts[components::FONT_ID_BODY_BOLD_48] = {.fontId = components::FONT_ID_BODY_BOLD_48, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Bold.ttf").c_str(), 48)};
+    if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError("Failed to load menu font.");
+
+    Clay_SetMeasureTextFunction(SDL2_MeasureText, &components::fonts);
 #endif
 }
 
 MenuManager::~MenuManager() {
 #ifdef SDL_BUILD
-    if (fonts[FONT_ID_BODY_16].font) TTF_CloseFont(fonts[FONT_ID_BODY_16].font);
+    if (components::fonts[components::FONT_ID_BODY_16].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_16].font);
+    if (components::fonts[components::FONT_ID_BODY_BOLD_48].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_BOLD_48].font);
 #endif
     free(clayMemory.memory);
 }
@@ -76,7 +81,7 @@ void MenuManager::render() {
 #ifdef SDL_BUILD
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
-    if (currentMenuID != MenuID::None) Clay_SDL2_Render(renderer, currentMenu->render(), fonts);
+    if (currentMenuID != MenuID::None) Clay_SDL2_Render(renderer, currentMenu->render(), components::fonts);
     SDL_RenderPresent(renderer);
 #endif
 }

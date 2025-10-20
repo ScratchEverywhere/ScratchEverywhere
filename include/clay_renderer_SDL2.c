@@ -13,6 +13,7 @@
 
 #define CLAY_COLOR_TO_SDL_COLOR_ARGS(color) color.r, color.g, color.b, color.a
 
+#ifndef HAS_SDL2_FONT
 #define HAS_SDL2_FONT
 
 typedef struct
@@ -20,6 +21,7 @@ typedef struct
     uint32_t fontId;
     TTF_Font *font;
 } SDL2_Font;
+#endif
 
 static Clay_Dimensions SDL2_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData) {
     SDL2_Font *fonts = (SDL2_Font *)userData;
