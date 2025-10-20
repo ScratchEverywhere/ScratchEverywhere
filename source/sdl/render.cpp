@@ -59,6 +59,7 @@ std::vector<Monitor> Render::visibleVariables;
 std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
+float Render::renderScale = 1.0f;
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;
@@ -366,11 +367,6 @@ void Render::renderSprites() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
-    double scaleX = static_cast<double>(windowWidth) / Scratch::projectWidth;
-    double scaleY = static_cast<double>(windowHeight) / Scratch::projectHeight;
-    double scale;
-    scale = std::min(scaleX, scaleY);
-
     // Sort sprites by layer with stage always being first
     std::vector<Sprite *> spritesByLayer = sprites;
     std::sort(spritesByLayer.begin(), spritesByLayer.end(),
@@ -385,45 +381,25 @@ void Render::renderSprites() {
     for (Sprite *currentSprite : spritesByLayer) {
         if (!currentSprite->visible) continue;
 
-        bool legacyDrawing = false;
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
-        if (imgFind == images.end()) {
-            legacyDrawing = true;
-        } else {
-            currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
-            currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
-        }
-        if (!legacyDrawing) {
+        if (imgFind != images.end()) {
             SDL_Image *image = imgFind->second;
             image->freeTimer = image->maxFreeTime;
+            currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
+            currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
+            currentSprite->spriteWidth = image->textureRect.w >> 1;
+            currentSprite->spriteHeight = image->textureRect.h >> 1;
             SDL_RendererFlip flip = SDL_FLIP_NONE;
-            image->setScale((currentSprite->size * 0.01) * scale / 2.0f);
-            currentSprite->spriteWidth = image->textureRect.w / 2;
-            currentSprite->spriteHeight = image->textureRect.h / 2;
 
-            // double the image scale if the image is an SVG
-            if (currentSprite->costumes[currentSprite->currentCostume].isSVG) {
-                image->setScale(image->scale * 2);
+            calculateRenderPosition(currentSprite, currentSprite->costumes[currentSprite->currentCostume].isSVG);
+
+            image->setScale(currentSprite->renderInfo.renderScale);
+            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
+                flip = SDL_FLIP_HORIZONTAL;
             }
 
-            const double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
-            double renderRotation = rotation;
-            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-                if (std::cos(rotation) < 0) {
-                    flip = SDL_FLIP_HORIZONTAL;
-                }
-                renderRotation = 0;
-            }
-            if (currentSprite->rotationStyle == currentSprite->NONE) {
-                renderRotation = 0;
-            }
-            const int divisionAmount = currentSprite->costumes[currentSprite->currentCostume].isSVG ? 1 : 2;
-            double rotationCenterX = (((currentSprite->rotationCenterX - currentSprite->spriteWidth) / divisionAmount) * scale);
-            double rotationCenterY = (((currentSprite->rotationCenterY - currentSprite->spriteHeight) / divisionAmount) * scale);
-            const double offsetX = rotationCenterX * (currentSprite->size * 0.01);
-            const double offsetY = rotationCenterY * (currentSprite->size * 0.01);
-            image->renderRect.x = ((currentSprite->xPosition * scale) + (windowWidth / 2) - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
-            image->renderRect.y = ((currentSprite->yPosition * -scale) + (windowHeight / 2) - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
+            image->renderRect.x = currentSprite->renderInfo.renderX - image->renderRect.w / 2;
+            image->renderRect.y = currentSprite->renderInfo.renderY - image->renderRect.h / 2;
             SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
             // set ghost effect
@@ -434,28 +410,25 @@ void Render::renderSprites() {
             // set brightness effect
             if (currentSprite->brightnessEffect != 0) {
                 float brightness = currentSprite->brightnessEffect * 0.01f;
-
-                // TODO: find a better way to do this because i hate this
                 if (brightness > 0.0f) {
                     // render the normal image first
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(renderRotation), &center, flip);
+                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), &center, flip);
 
                     // render another, blended image on top
                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
                     SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(renderRotation), &center, flip);
+                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), &center, flip);
 
                     // reset for next frame
                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
                 } else {
-                    // darkening is quite shrimple really
                     Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
                     SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
 
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(renderRotation), &center, flip);
+                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), &center, flip);
                     // reset for next frame
                     SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 }
@@ -463,18 +436,8 @@ void Render::renderSprites() {
                 // if no brightness just render normal image
                 SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                 Math::radiansToDegrees(renderRotation), &center, flip);
+                                 Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), &center, flip);
             }
-        } else {
-            currentSprite->spriteWidth = 64;
-            currentSprite->spriteHeight = 64;
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            SDL_Rect rect;
-            rect.x = (currentSprite->xPosition * scale) + (windowWidth / 2);
-            rect.y = (currentSprite->yPosition * -1 * scale) + (windowHeight * 0.5);
-            rect.w = 16;
-            rect.h = 16;
-            SDL_RenderDrawRect(renderer, &rect);
         }
 
         // Draw collision points (for debugging)
@@ -593,6 +556,9 @@ bool Render::appShouldRun() {
             break;
         case SDL_FINGERUP:
             touchActive = false;
+            break;
+        case SDL_WINDOWEVENT_SIZE_CHANGED:
+            setRenderScale();
             break;
         }
     }
