@@ -380,8 +380,8 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
             sprite->renderInfo.renderRotation = 0;
         }
     }
-    if (std::floor(sprite->xPosition) != std::floor(sprite->renderInfo.oldX) ||
-        std::floor(sprite->yPosition) != std::floor(sprite->renderInfo.oldY)) {
+    if (sprite->xPosition != sprite->renderInfo.oldX ||
+        sprite->yPosition != sprite->renderInfo.oldY) {
 
         sprite->renderInfo.oldX = sprite->xPosition;
         sprite->renderInfo.oldY = sprite->yPosition;
@@ -421,7 +421,7 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
     }
 }
 
-void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, const float &xOffset = 0.0f, const int yOffset = 0) {
+void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
     if (!currentSprite || currentSprite == nullptr) return;
 
     bool isSVG = false;
@@ -440,6 +440,13 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
 
     Render::calculateRenderPosition(currentSprite, isSVG);
 
+    float renderScaleX = currentSprite->renderInfo.renderScale;
+
+    if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
+        renderScaleX *= -1;
+        xOffset -= currentSprite->spriteWidth * (isSVG ? 2 : 1);
+    }
+
     C2D_DrawImageAtRotated(
         data.image,
         currentSprite->renderInfo.renderX + xOffset,
@@ -447,7 +454,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
         1,
         currentSprite->renderInfo.renderRotation,
         nullptr,
-        currentSprite->renderInfo.renderScale,
+        renderScaleX,
         currentSprite->renderInfo.renderScale);
     data.freeTimer = data.maxFreeTimer;
 }
