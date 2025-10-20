@@ -375,13 +375,13 @@ void Render::renderSprites() {
     // Sort sprites by layer with stage always being first
     std::vector<Sprite *> spritesByLayer = sprites;
     std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-        [](const Sprite *a, const Sprite *b) {
-            // Stage sprite always comes first
-            if (a->isStage && !b->isStage) return true;
-            if (!a->isStage && b->isStage) return false;
-            // Otherwise sort by layer
-            return a->layer < b->layer;
-        });
+              [](const Sprite *a, const Sprite *b) {
+                  // Stage sprite always comes first
+                  if (a->isStage && !b->isStage) return true;
+                  if (!a->isStage && b->isStage) return false;
+                  // Otherwise sort by layer
+                  return a->layer < b->layer;
+              });
 
     for (Sprite *currentSprite : spritesByLayer) {
         if (!currentSprite->visible) continue;
@@ -440,13 +440,13 @@ void Render::renderSprites() {
                 if (brightness > 0.0f) {
                     // render the normal image first
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                        Math::radiansToDegrees(renderRotation), &center, flip);
+                                     Math::radiansToDegrees(renderRotation), &center, flip);
 
                     // render another, blended image on top
                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
                     SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                        Math::radiansToDegrees(renderRotation), &center, flip);
+                                     Math::radiansToDegrees(renderRotation), &center, flip);
 
                     // reset for next frame
                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
@@ -456,7 +456,7 @@ void Render::renderSprites() {
                     SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
 
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                        Math::radiansToDegrees(renderRotation), &center, flip);
+                                     Math::radiansToDegrees(renderRotation), &center, flip);
                     // reset for next frame
                     SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 }
@@ -464,7 +464,7 @@ void Render::renderSprites() {
                 // if no brightness just render normal image
                 SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                    Math::radiansToDegrees(renderRotation), &center, flip);
+                                 Math::radiansToDegrees(renderRotation), &center, flip);
             }
         } else {
             currentSprite->spriteWidth = 64;
@@ -610,6 +610,6 @@ bool Render::appShouldRun(MenuManager *menuManager) {
     }
     int mouseX;
     int mouseY;
-    menuManager->handleInput(scrollX, scrollY, mouseX, mouseY, SDL_GetMouseState(&mouseX, &mouseY) | SDL_BUTTON(SDL_BUTTON_LEFT));
+    menuManager->handleInput(scrollX, scrollY, mouseX, mouseY, SDL_GetMouseState(&mouseX, &mouseY) & SDL_BUTTON(SDL_BUTTON_LEFT));
     return true;
 }
