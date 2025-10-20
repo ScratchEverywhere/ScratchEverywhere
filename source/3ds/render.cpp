@@ -364,7 +364,7 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
     if (sprite->size != sprite->renderInfo.oldSize) {
         sprite->renderInfo.oldSize = sprite->size;
         sprite->renderInfo.renderScale = sprite->size * (isSVG ? 0.01 : 0.005);
-        if (screenHeight != Scratch::projectHeight) {
+        if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
             float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                    static_cast<float>(screenHeight) / Scratch::projectHeight);
             sprite->renderInfo.renderScale *= scale;
@@ -389,7 +389,7 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
         int renderX;
         int renderY;
 
-        if (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight) {
+        if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
             renderX = (sprite->xPosition * renderScale) + (screenWidth >> 1);
             renderY = (-sprite->yPosition * renderScale) + (screenHeight >> 1);
         } else {
@@ -421,7 +421,7 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
     }
 }
 
-void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, const float &x3DOffset = 0.0f) {
+void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, const float &xOffset = 0.0f, const int yOffset = 0) {
     if (!currentSprite || currentSprite == nullptr) return;
 
     bool isSVG = false;
@@ -442,8 +442,8 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
 
     C2D_DrawImageAtRotated(
         data.image,
-        currentSprite->renderInfo.renderX,
-        currentSprite->renderInfo.renderY,
+        currentSprite->renderInfo.renderX + xOffset,
+        currentSprite->renderInfo.renderY + yOffset,
         1,
         currentSprite->renderInfo.renderRotation,
         nullptr,
@@ -511,7 +511,8 @@ void Render::renderSprites() {
                                 currentSprite,
                                 costume.id,
                                 false,
-                                eyeOffset);
+                                eyeOffset,
+                                renderMode == BOTH_SCREENS ? 120 : 0);
                     break;
                 }
                 costumeIndex++;
@@ -523,55 +524,56 @@ void Render::renderSprites() {
     if (Render::renderMode != Render::BOTH_SCREENS)
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    // // ---------- RIGHT EYE ----------
-    // if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-    //     C2D_SceneBegin(topScreenRightEye);
+    // ---------- RIGHT EYE ----------
+    if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
+        C2D_SceneBegin(topScreenRightEye);
 
-    //     for (size_t i = 0; i < spritesByLayer.size(); i++) {
+        for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
-    //         // render the pen texture above the backdrop, but below every other sprite
-    //         if (i == 1 && penRenderTarget != nullptr) {
-    //             const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
-    //             const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
-    //             const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
+            // render the pen texture above the backdrop, but below every other sprite
+            if (i == 1 && penRenderTarget != nullptr) {
+                const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
+                const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
+                const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
 
-    //             C2D_DrawImageAtRotated(penImage,
-    //                                    SCREEN_WIDTH * 0.5f,
-    //                                    SCREEN_HEIGHT * heightMultiplier,
-    //                                    0,
-    //                                    M_PI,
-    //                                    nullptr,
-    //                                    scaleX,
-    //                                    scaleY);
-    //         }
+                C2D_DrawImageAtRotated(penImage,
+                                       SCREEN_WIDTH * 0.5f,
+                                       SCREEN_HEIGHT * heightMultiplier,
+                                       0,
+                                       M_PI,
+                                       nullptr,
+                                       scaleX,
+                                       scaleY);
+            }
 
-    //         Sprite *currentSprite = spritesByLayer[i];
-    //         if (!currentSprite->visible) continue;
+            Sprite *currentSprite = spritesByLayer[i];
+            if (!currentSprite->visible) continue;
 
-    //         int costumeIndex = 0;
-    //         for (const auto &costume : currentSprite->costumes) {
-    //             if (costumeIndex == currentSprite->currentCostume) {
-    //                 currentSprite->rotationCenterX = costume.rotationCenterX;
-    //                 currentSprite->rotationCenterY = costume.rotationCenterY;
+            int costumeIndex = 0;
+            for (const auto &costume : currentSprite->costumes) {
+                if (costumeIndex == currentSprite->currentCostume) {
+                    currentSprite->rotationCenterX = costume.rotationCenterX;
+                    currentSprite->rotationCenterY = costume.rotationCenterY;
 
-    //                 size_t totalSprites = spritesByLayer.size();
-    //                 float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
+                    size_t totalSprites = spritesByLayer.size();
+                    float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
-    //                 renderImage(&images[costume.id].image,
-    //                             currentSprite,
-    //                             costume.id,
-    //                             false,
-    //                             eyeOffset);
-    //                 break;
-    //             }
-    //             costumeIndex++;
-    //         }
-    //     }
-    //     renderVisibleVariables();
-    // }
+                    renderImage(&images[costume.id].image,
+                                currentSprite,
+                                costume.id,
+                                false,
+                                eyeOffset,
+                                renderMode == BOTH_SCREENS ? 120 : 0);
+                    break;
+                }
+                costumeIndex++;
+            }
+        }
+        renderVisibleVariables();
 
-    // if (Render::renderMode != Render::BOTH_SCREENS)
-    //     drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+        if (Render::renderMode != Render::BOTH_SCREENS)
+            drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+    }
 
     // ---------- BOTTOM SCREEN ----------
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
@@ -608,7 +610,8 @@ void Render::renderSprites() {
                                 currentSprite,
                                 costume.id,
                                 true,
-                                0.0f);
+                                renderMode == BOTH_SCREENS ? -40 : 0.0f,
+                                renderMode == BOTH_SCREENS ? -120 : 0);
                     break;
                 }
                 costumeIndex++;
