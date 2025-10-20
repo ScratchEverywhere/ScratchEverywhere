@@ -20,7 +20,13 @@ Sidebar::Sidebar() {
     }
 }
 
-Sidebar::~Sidebar() {}
+Sidebar::~Sidebar() {
+    for (const auto &tab : tabs) {
+#ifdef SDL_BUILD
+        if (images.contains(tab) && images[tab]) SDL_FreeSurface(images[tab]);
+#endif
+    }
+}
 
 void Sidebar::renderItem(const std::string tab) {
     const std::string id = "sidebar_" + tab;
