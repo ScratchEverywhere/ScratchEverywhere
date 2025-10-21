@@ -21,8 +21,10 @@ typedef struct
 #define HAS_SDL2_FONT
 #endif
 
+class MenuManager;
+
 namespace components {
-extern Clay_TextElementConfig *defaultTextConfig;
+#define DEFAULT_TEXT_CONFIG CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16})
 
 #ifdef SDL_BUILD
 extern SDL2_Font fonts[2];
@@ -35,11 +37,16 @@ class Sidebar {
   private:
     static constexpr std::string tabs[] = {"home", "projects", "settings"};
 
-    static constexpr int animationDuration = 100; // ms
-    std::string hovered = "";
-    Timer hoverTimer;
-    std::string unhoverTab = "";
-    Timer unhoverTimer;
+    struct HoverData {
+        MenuManager *menuManager;
+        std::string tab;
+    };
+    std::map<std::string, HoverData> hoverData;
+
+    static constexpr unsigned int animationDuration = 150; // ms
+    std::string selected = "";
+    Timer animationTimer;
+    std::string unSelectedTab = "";
 
 #ifdef SDL_BUILD
     std::map<std::string, SDL_Surface *> images;
@@ -48,6 +55,8 @@ class Sidebar {
     void renderItem(const std::string tab);
 
   public:
+    MenuManager *menuManager = nullptr;
+
     Sidebar();
     ~Sidebar();
     void render();

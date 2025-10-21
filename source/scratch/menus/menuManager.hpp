@@ -1,18 +1,19 @@
 #pragma once
 
+#include "components.hpp"
 #include "menu.hpp"
 #include <memory>
 #include <stack>
 
 enum class MenuID {
     MainMenu,
+    ProjectsMenu,
     None
 };
 
 class MenuManager {
   private:
     std::unique_ptr<Menu> currentMenu;
-    MenuID currentMenuID = MenuID::None;
     std::stack<MenuID> history;
 
     Clay_Arena clayMemory;
@@ -20,6 +21,10 @@ class MenuManager {
     std::unique_ptr<Menu> createMenu(MenuID id);
 
   public:
+    components::Sidebar sidebar;
+
+    MenuID currentMenuID = MenuID::None;
+
     bool shouldQuit = false;
 
     MenuManager();

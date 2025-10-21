@@ -1,14 +1,14 @@
+#include "menuManager.hpp"
 #include "components.hpp"
 #include "mainMenu.hpp"
-#include "menus/menu.hpp"
+#include "menu.hpp"
 #include "os.hpp"
+#include "projectsMenu.hpp"
 #include <clay_renderer_SDL2.c>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
 #include <utility>
-
-#include "menuManager.hpp"
 
 // TODO: 3ds support
 #ifdef SDL_BUILD
@@ -19,6 +19,8 @@ std::unique_ptr<Menu> MenuManager::createMenu(MenuID id) {
     switch (id) {
     case MenuID::MainMenu:
         return std::make_unique<MainMenu>();
+    case MenuID::ProjectsMenu:
+        return std::make_unique<ProjectsMenu>();
     default:
         return nullptr;
     }
@@ -47,7 +49,7 @@ MenuManager::MenuManager() {
                         Log::logError(std::string("[CLAY] ") + errorData.errorText.chars);
                     }});
 
-    components::defaultTextConfig = CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16});
+    sidebar.menuManager = this;
 
 #ifdef SDL_BUILD
     components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
@@ -79,9 +81,21 @@ void MenuManager::render() {
     Clay_SetLayoutDimensions({(float)windowWidth, (float)windowHeight});
 
 #ifdef SDL_BUILD
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
     SDL_RenderClear(renderer);
-    if (currentMenuID != MenuID::None) Clay_SDL2_Render(renderer, currentMenu->render(), components::fonts);
+    Clay_BeginLayout();
+    // clang-format off
+	CLAY(CLAY_ID("outer"), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
+			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+		},
+	}) {
+		sidebar.render();
+		currentMenu->render();
+	}
+    // clang-format on
+    Clay_SDL2_Render(renderer, Clay_EndLayout(), components::fonts);
     SDL_RenderPresent(renderer);
 #endif
 }

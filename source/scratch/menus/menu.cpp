@@ -2,6 +2,4 @@
 
 Menu::~Menu() {}
 
-Clay_RenderCommandArray Menu::render() {
-    return {0, 0, nullptr};
-}
+void Menu::render() {}

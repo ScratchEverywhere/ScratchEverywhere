@@ -8,7 +8,7 @@ class Menu {
   public:
     MenuManager *menuManager;
 
-    virtual Clay_RenderCommandArray render();
+    virtual void render();
 
     virtual ~Menu();
 };

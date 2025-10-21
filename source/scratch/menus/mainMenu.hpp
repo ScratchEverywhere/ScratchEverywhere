@@ -1,7 +1,7 @@
 #pragma once
 
-#include "components.hpp"
 #include "menu.hpp"
+#include <string>
 
 #ifdef SDL_BUILD
 #include <SDL2/SDL.h>
@@ -9,8 +9,7 @@
 
 class MainMenu : public Menu {
   private:
-    components::Sidebar sidebar;
-    std::string splash;
+    static std::string splash;
 
 #ifdef SDL_BUILD
     SDL_Surface *logo;
@@ -19,5 +18,5 @@ class MainMenu : public Menu {
   public:
     MainMenu();
     ~MainMenu();
-    Clay_RenderCommandArray render() override;
+    void render() override;
 };

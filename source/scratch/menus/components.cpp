@@ -1,6 +1,8 @@
 #include "components.hpp"
 #include "../os.hpp"
+#include "menus/menuManager.hpp"
 #include <algorithm>
+#include <cmath>
 
 #ifdef SDL_BUILD
 #include "../../sdl/render.hpp"
@@ -9,8 +11,6 @@
 #endif
 
 namespace components {
-Clay_TextElementConfig *defaultTextConfig;
-
 #ifdef SDL_BUILD
 SDL2_Font fonts[2] = {};
 #endif
@@ -32,23 +32,49 @@ Sidebar::~Sidebar() {
     }
 }
 
+static MenuID tabToMenuID(const std::string tab) {
+    if (tab == "home") return MenuID::MainMenu;
+    if (tab == "projects") return MenuID::ProjectsMenu;
+    return MenuID::None;
+}
+
+constexpr Clay_Color unfocusedTabColor = {90, 60, 90, 255};
+constexpr Clay_Color focusedTabColor = {115, 75, 115, 255};
+
 void Sidebar::renderItem(const std::string tab) {
+    if (!hoverData.contains(tab)) hoverData[tab] = {menuManager, tab};
+
     const std::string id = "sidebar_" + tab;
     Clay_String clayId = (Clay_String){false, static_cast<int32_t>(id.length()), id.c_str()};
 
     const std::string imageId = "sidebar_img_" + tab;
     Clay_String clayImageId = (Clay_String){false, static_cast<int32_t>(imageId.length()), imageId.c_str()};
 
-    if (hovered != tab && Clay_PointerOver(CLAY_SID(clayId))) {
-        unhoverTab = hovered;
-        unhoverTimer.start();
-        hoverTimer.start();
-        hovered = tab;
+    if (selected != tab && tabToMenuID(tab) == menuManager->currentMenuID) {
+        unSelectedTab = selected;
+        animationTimer.start();
+        selected = tab;
+    }
+
+    float t = std::min(animationTimer.getTimeMs(), static_cast<int>(animationDuration)) / static_cast<float>(animationDuration);
+
+    Clay_Color bgColor = unfocusedTabColor;
+    if (selected == tab) {
+        bgColor.r = std::lerp(unfocusedTabColor.r, focusedTabColor.r, t);
+        bgColor.g = std::lerp(unfocusedTabColor.g, focusedTabColor.g, t);
+        bgColor.b = std::lerp(unfocusedTabColor.b, focusedTabColor.b, t);
+    } else if (unSelectedTab == tab) {
+        bgColor.r = std::lerp(focusedTabColor.r, unfocusedTabColor.r, t);
+        bgColor.g = std::lerp(focusedTabColor.g, unfocusedTabColor.g, t);
+        bgColor.b = std::lerp(focusedTabColor.b, unfocusedTabColor.b, t);
     }
 
     float height = 100;
-    if (hovered == tab) height += (std::min(hoverTimer.getTimeMs(), animationDuration) / static_cast<float>(animationDuration)) * 25;
-    if (unhoverTab == tab) height += (1 - std::min(unhoverTimer.getTimeMs(), animationDuration) / static_cast<float>(animationDuration)) * 25;
+    if (selected == tab) {
+        height += std::lerp(0, 25, t);
+    } else if (unSelectedTab == tab) {
+        height += std::lerp(25, 0, t);
+    }
 
     // clang-format off
 	CLAY(CLAY_SID(clayId), (Clay_ElementDeclaration){
@@ -56,12 +82,17 @@ void Sidebar::renderItem(const std::string tab) {
 			.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(height) },
 			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
 		},
-		.cornerRadius = {0, 16, 0, 16},
-		.border = { .color = {255, 255, 255, 255}, .width = {0, 4, 4, 4} },
+		.backgroundColor = bgColor,
+		.cornerRadius = {16, 0, 16, 0},
 	}) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
+			const auto hoverData = *(const HoverData*)userdata;
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && hoverData.menuManager->currentMenuID != tabToMenuID(hoverData.tab)) hoverData.menuManager->changeMenu(tabToMenuID(hoverData.tab));
+		}, (intptr_t)&hoverData[tab]);
+
 		if (images.contains(tab) && images[tab]) CLAY(CLAY_SID(clayImageId), (Clay_ElementDeclaration){
 			.layout = {
-				.sizing = { .width = CLAY_SIZING_PERCENT(0.8) }
+				.sizing = { .width = CLAY_SIZING_PERCENT(0.5) }
 			},
 			.aspectRatio = { 1 },
 			.image = { .imageData = images[tab] }	
@@ -74,8 +105,10 @@ void Sidebar::render() {
     // clang-format off
 	CLAY(CLAY_ID("sidebar"), (Clay_ElementDeclaration){
 		.layout = {
-			.sizing = { .width = CLAY_SIZING_FIXED(60) },
+			.sizing = { .width = CLAY_SIZING_FIXED(60), .height = CLAY_SIZING_GROW(0) },
+			.padding = { 8, 0, 0, 0 },
 			.childGap = 10,
+			.childAlignment = { .x = CLAY_ALIGN_X_RIGHT, .y = CLAY_ALIGN_Y_CENTER },
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
 		},
 	}) {
@@ -86,11 +119,6 @@ void Sidebar::render() {
 #elif __3DS__
 		bool windowFocused == true;
 #endif
-		if (hovered != "" && (!Clay_Hovered() || !windowFocused)) {
-			unhoverTab = hovered;
-			unhoverTimer.start();
-			hovered = "";
-		}
 	}
     // clang-format on
 }
