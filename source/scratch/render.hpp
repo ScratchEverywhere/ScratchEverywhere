@@ -11,6 +11,7 @@ class Render {
     static std::chrono::system_clock::time_point endTime;
     static bool debugMode;
     static float renderScale;
+    static bool sizeChanged;
 
     static bool hasFrameBegan;
 
@@ -62,8 +63,7 @@ class Render {
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
 #endif
-
-        if (sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
+        if (sizeChanged || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
             // change all renderinfo a bit to update position for all
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
@@ -73,12 +73,13 @@ class Render {
         }
         if (sprite->size != sprite->renderInfo.oldSize) {
             sprite->renderInfo.oldSize = sprite->size;
-            sprite->renderInfo.renderScale = sprite->size * (isSVG ? 0.01 : 0.005);
+            sprite->renderInfo.renderScaleX = sprite->size * (isSVG ? 0.01 : 0.005);
             if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
                 float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                        static_cast<float>(screenHeight) / Scratch::projectHeight);
-                sprite->renderInfo.renderScale *= scale;
+                sprite->renderInfo.renderScaleX *= scale;
             }
+            sprite->renderInfo.renderScaleY = sprite->renderInfo.renderScaleX;
         }
         if (sprite->rotation != sprite->renderInfo.oldRotation) {
             sprite->renderInfo.oldRotation = sprite->rotation;
@@ -89,6 +90,9 @@ class Render {
             } else {
                 sprite->renderInfo.renderRotation = 0;
             }
+            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
+                sprite->renderInfo.renderScaleX = -std::abs(sprite->renderInfo.renderScaleX);
+            }
         }
         if (sprite->xPosition != sprite->renderInfo.oldX ||
             sprite->yPosition != sprite->renderInfo.oldY) {
@@ -98,14 +102,8 @@ class Render {
 
             int renderX;
             int renderY;
-
-            if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
-                renderX = (sprite->xPosition * renderScale) + (screenWidth >> 1);
-                renderY = (-sprite->yPosition * renderScale) + (screenHeight >> 1);
-            } else {
-                renderX = sprite->xPosition + (screenWidth >> 1);
-                renderY = -sprite->yPosition + (screenHeight >> 1);
-            }
+            int spriteX = static_cast<int>(sprite->xPosition);
+            int spriteY = static_cast<int>(sprite->yPosition);
 
             if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
                 sprite->spriteHeight - sprite->rotationCenterY != 0) {
@@ -117,12 +115,25 @@ class Render {
                     float rot = sprite->renderInfo.renderRotation;
                     float rotatedX = -offsetX * std::cos(rot) + offsetY * std::sin(rot);
                     float rotatedY = -offsetX * std::sin(rot) - offsetY * std::cos(rot);
-                    renderX += rotatedX;
-                    renderY += rotatedY;
+                    spriteX += rotatedX;
+                    spriteY -= rotatedY;
                 } else {
-                    renderX += offsetX;
-                    renderY += offsetY;
+                    spriteX += offsetX;
+                    spriteY -= offsetY;
                 }
+            }
+
+            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
+                spriteX += sprite->spriteWidth;
+                spriteX *= -1;
+            }
+
+            if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
+                renderX = (spriteX * renderScale) + (screenWidth >> 1);
+                renderY = (-spriteY * renderScale) + (screenHeight >> 1);
+            } else {
+                renderX = spriteX + (screenWidth >> 1);
+                renderY = -spriteY + (screenHeight >> 1);
             }
 
             sprite->renderInfo.renderX = renderX;
@@ -144,6 +155,7 @@ class Render {
 #endif
         renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                static_cast<float>(screenHeight) / Scratch::projectHeight);
+        sizeChanged = true;
     }
 
     /**

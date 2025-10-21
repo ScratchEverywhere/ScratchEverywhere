@@ -60,6 +60,7 @@ std::chrono::system_clock::time_point Render::startTime = std::chrono::system_cl
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
+bool Render::sizeChanged = false;
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;
@@ -194,11 +195,9 @@ void *Render::getRenderer() {
 }
 
 int Render::getWidth() {
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     return windowWidth;
 }
 int Render::getHeight() {
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     return windowHeight;
 }
 
@@ -363,7 +362,6 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 }
 
 void Render::renderSprites() {
-    SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
@@ -392,15 +390,14 @@ void Render::renderSprites() {
             SDL_RendererFlip flip = SDL_FLIP_NONE;
 
             calculateRenderPosition(currentSprite, currentSprite->costumes[currentSprite->currentCostume].isSVG);
-
-            image->setScale(currentSprite->renderInfo.renderScale);
-            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-                flip = SDL_FLIP_HORIZONTAL;
-            }
-
             image->renderRect.x = currentSprite->renderInfo.renderX - image->renderRect.w / 2;
             image->renderRect.y = currentSprite->renderInfo.renderY - image->renderRect.h / 2;
-            SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
+
+            image->setScale(currentSprite->renderInfo.renderScaleY);
+            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
+                flip = SDL_FLIP_HORIZONTAL;
+                image->renderRect.x += currentSprite->spriteWidth;
+            }
 
             // set ghost effect
             float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
@@ -413,13 +410,13 @@ void Render::renderSprites() {
                 if (brightness > 0.0f) {
                     // render the normal image first
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), &center, flip);
+                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
 
                     // render another, blended image on top
                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
                     SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), &center, flip);
+                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
 
                     // reset for next frame
                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
@@ -428,7 +425,7 @@ void Render::renderSprites() {
                     SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
 
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), &center, flip);
+                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
                     // reset for next frame
                     SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 }
@@ -436,7 +433,7 @@ void Render::renderSprites() {
                 // if no brightness just render normal image
                 SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                 Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), &center, flip);
+                                 Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
             }
         }
 
@@ -466,6 +463,7 @@ void Render::renderSprites() {
     SDL_RenderPresent(renderer);
     Image::FlushImages();
     SoundPlayer::flushAudio();
+    sizeChanged = false;
 }
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
@@ -557,8 +555,13 @@ bool Render::appShouldRun() {
         case SDL_FINGERUP:
             touchActive = false;
             break;
-        case SDL_WINDOWEVENT_SIZE_CHANGED:
-            setRenderScale();
+        case SDL_WINDOWEVENT:
+            switch (event.window.event) {
+            case SDL_WINDOWEVENT_SIZE_CHANGED:
+                SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+                setRenderScale();
+                break;
+            }
             break;
         }
     }

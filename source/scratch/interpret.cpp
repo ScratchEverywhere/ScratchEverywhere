@@ -933,7 +933,7 @@ void loadSprites(const nlohmann::json &json) {
         Log::logWarning("No Max clones property.");
 #endif
     }
-
+#ifdef __3DS__
     if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
     else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
@@ -945,6 +945,9 @@ void loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
+#else
+    Render::renderMode = Render::TOP_SCREEN_ONLY;
+#endif
 
     // if infinite clones are enabled, set a (potentially) higher max clone count
     if (!infClones) initializeSpritePool(300);

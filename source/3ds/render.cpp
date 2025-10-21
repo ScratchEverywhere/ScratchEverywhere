@@ -35,6 +35,7 @@ static bool isConsoleInit = false;
 float Render::renderScale = 1.0f;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
+bool Render::sizeChanged = false;
 bool Render::hasFrameBegan;
 static int currentScreen = 0;
 std::vector<Monitor> Render::visibleVariables;
@@ -47,7 +48,7 @@ bool Render::Init() {
     gfxInitDefault();
     hidScanInput();
     u32 kDown = hidKeysHeld();
-    if (kDown & KEY_SELECT) {
+    if (1 == 1 || kDown & KEY_SELECT) {
         consoleInit(GFX_BOTTOM, NULL);
         debugMode = true;
         isConsoleInit = true;
@@ -361,13 +362,6 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
 
     Render::calculateRenderPosition(currentSprite, isSVG);
 
-    float renderScaleX = currentSprite->renderInfo.renderScale;
-
-    if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-        renderScaleX *= -1;
-        xOffset -= currentSprite->spriteWidth * (isSVG ? 2 : 1);
-    }
-
     C2D_DrawImageAtRotated(
         data.image,
         currentSprite->renderInfo.renderX + xOffset,
@@ -375,8 +369,8 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
         1,
         currentSprite->renderInfo.renderRotation,
         nullptr,
-        renderScaleX,
-        currentSprite->renderInfo.renderScale);
+        currentSprite->renderInfo.renderScaleX,
+        currentSprite->renderInfo.renderScaleY);
     data.freeTimer = data.maxFreeTimer;
 }
 

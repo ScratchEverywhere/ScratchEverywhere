@@ -10,7 +10,8 @@ class Sprite;
 struct RenderInfo {
     int renderX;
     int renderY;
-    float renderScale;
+    float renderScaleX;
+    float renderScaleY;
     float renderRotation;
 
     float oldX, oldY;
