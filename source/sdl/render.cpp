@@ -537,7 +537,6 @@ int Render::renderMenu(bool onlyRender) {
     const int totalItemHeight = static_cast<int>(items.size()) * (itemHeight);
     const int boxH = totalItemHeight;
 
-    //top-left corner
     const int boxX = 0;
     const int boxY = 0;
 
@@ -574,7 +573,6 @@ int Render::renderMenu(bool onlyRender) {
     for (size_t i = 0; i < items.size(); ++i) {
         if (i >= menuTexts.size()) continue;
 
-        // Auswahlhintergrund
         if (static_cast<int>(i) == selected) {
             SDL_SetRenderDrawColor(renderer, 200, 160, 220, 255);
             SDL_Rect highlightRect = {textX - 5, currentY, boxW, itemHeight};
@@ -584,7 +582,6 @@ int Render::renderMenu(bool onlyRender) {
             menuTexts[i]->setColor(0x000000C8);
         }
 
-        // Text zeichnen
         menuTexts[i]->setText(items[i]);
         menuTexts[i]->setCenterAligned(false);
         menuTexts[i]->render(textX, currentY);

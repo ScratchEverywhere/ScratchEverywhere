@@ -566,26 +566,20 @@ void Render::cleanupMenu() {
 }
 
 int Render::renderMenu(bool onlyRender) {
-    // Menüeinträge
     static const std::vector<std::string> items = {"Continue", "Restart", "Close"};
     static int selected = 0;
 
-    // Menü-Grundparameter
     const int boxW = 135;
     const int itemHeight = 20;
 
-    // Höhe dynamisch anpassen
     const int totalItemHeight = static_cast<int>(items.size()) * itemHeight;
     const int boxH = totalItemHeight;
 
-    // Position links oben
     const int boxX = 0;
     const int boxY = 0;
 
-    // Hintergrundbox zeichnen
     drawBox(boxW, boxH, boxX + boxW / 2, boxY + boxH / 2, 117, 77, 117, 255);
 
-    // Textobjekte vorbereiten
     if (!menuInitialized) {
         cleanupMenu();
         menuTexts.reserve(items.size());
@@ -597,7 +591,6 @@ int Render::renderMenu(bool onlyRender) {
         menuInitialized = true;
     }
 
-    // Eingabe
     if (!onlyRender) {
         if (Input::isKeyJustPressed("up arrow"))
             selected = (selected - 1 + static_cast<int>(items.size())) % static_cast<int>(items.size());
@@ -609,15 +602,12 @@ int Render::renderMenu(bool onlyRender) {
         }
     }
 
-    // Textpositionierung
     const int textX = boxX + 5;
     int currentY = boxY;
 
-    // Rendern
     for (size_t i = 0; i < items.size(); ++i) {
         if (i >= menuTexts.size()) continue;
 
-        // Highlight-Hintergrund
         if (static_cast<int>(i) == selected) {
             C2D_DrawRectSolid(textX - 5, currentY, 1,
                               boxW, itemHeight, C2D_Color32(200, 160, 220, 255));
@@ -626,7 +616,6 @@ int Render::renderMenu(bool onlyRender) {
             menuTexts[i]->setColor(C2D_Color32(0, 0, 0, 200));
         }
 
-        // Text setzen und rendern
         menuTexts[i]->setText(items[i]);
         menuTexts[i]->setCenterAligned(false);
         menuTexts[i]->render(textX, currentY + itemHeight / 2);
@@ -641,12 +630,10 @@ std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 
 void Render::renderVisibleVariables() {
 
-    // get screen scale
     double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
     double scale = std::min(scaleX, scaleY);
 
-    // calculate black bar offset
     float screenAspect = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
     float barOffsetX = 0.0f;
