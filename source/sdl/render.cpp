@@ -4,6 +4,7 @@
 #include "blocks/pen.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
+#include "input.hpp"
 #include "math.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
@@ -367,7 +368,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(int &withMenu) {
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
@@ -504,10 +505,94 @@ void Render::renderSprites() {
 
     drawBlackBars(windowWidth, windowHeight);
     renderVisibleVariables();
-
+    if (withMenu >= 0) 
+        withMenu = Render::renderMenu();
     SDL_RenderPresent(renderer);
     Image::FlushImages();
     SoundPlayer::flushAudio();
+}
+
+std::vector<TextObject *> Render::menuTexts;
+bool Render::menuInitialized = false;
+
+void Render::cleanupMenu() {
+    for (auto *text : menuTexts) {
+        delete text;
+    }
+    menuTexts.clear();
+    menuInitialized = false;
+}
+
+int Render::renderMenu(bool onlyRender) {
+
+    const int windowW = windowWidth;
+    const int windowH = windowHeight;
+
+    static const std::vector<std::string> items = {"Continue", "Restart", "Close"};
+    static int selected = 0;
+
+    const int boxW = 115;
+    const int itemHeight = 36;
+
+    const int totalItemHeight = static_cast<int>(items.size()) * (itemHeight);
+    const int boxH = totalItemHeight;
+
+    //top-left corner
+    const int boxX = 0;
+    const int boxY = 0;
+
+    SDL_SetRenderDrawColor(renderer, 117, 77, 117, 255);
+    SDL_Rect menuBox = {boxX, boxY, boxW, boxH};
+    SDL_RenderFillRect(renderer, &menuBox);
+
+    if (!menuInitialized) {
+        cleanupMenu();
+        menuTexts.reserve(items.size());
+        for (const auto &it : items) {
+            TextObject *t = createTextObject(it, 0, 0);
+            t->setScale(1.0f);
+            menuTexts.push_back(t);
+        }
+        menuInitialized = true;
+    }
+
+    if (!onlyRender) {
+        if (Input::isKeyJustPressed("up arrow"))
+            selected = (selected - 1 + static_cast<int>(items.size())) % static_cast<int>(items.size());
+        if (Input::isKeyJustPressed("down arrow"))
+            selected = (selected + 1) % static_cast<int>(items.size());
+        if (Input::isKeyJustPressed("a")) {
+            Log::log("Menu item selected: " + items[selected]);
+            return selected + 1;
+        }
+    }
+
+
+    const int textX = boxX + 5;
+    int currentY = boxY;
+
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (i >= menuTexts.size()) continue;
+
+        // Auswahlhintergrund
+        if (static_cast<int>(i) == selected) {
+            SDL_SetRenderDrawColor(renderer, 200, 160, 220, 255);
+            SDL_Rect highlightRect = {textX - 5, currentY, boxW, itemHeight};
+            SDL_RenderFillRect(renderer, &highlightRect);
+            menuTexts[i]->setColor(0x000000FF);
+        } else {
+            menuTexts[i]->setColor(0x000000C8);
+        }
+
+        // Text zeichnen
+        menuTexts[i]->setText(items[i]);
+        menuTexts[i]->setCenterAligned(false);
+        menuTexts[i]->render(textX, currentY);
+
+        currentY += itemHeight;
+    }
+
+    return 0;
 }
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;

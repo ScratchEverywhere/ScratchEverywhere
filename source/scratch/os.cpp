@@ -37,7 +37,7 @@ void Log::logError(std::string message, bool printToScreen) {
     writeToFile("Error: " + message);
 }
 void Log::writeToFile(std::string message) {
-    if (Render::debugMode) {
+    if (Render::debugMode || true) {
         std::string filePath = OS::getScratchFolderLocation() + "log.txt";
         std::ofstream logFile;
         logFile.open(filePath, std::ios::app);

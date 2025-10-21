@@ -90,6 +90,16 @@ class Input {
                Input::keyHeldFrames < 2;
     }
 
+    static bool isButtonPressed(const std::string &buttonName) {
+
+        auto it = inputControls.find(buttonName);
+        if (it == inputControls.end()) return false;
+
+        const std::string &mappedKey = it->second;
+
+        return std::find(inputButtons.begin(), inputButtons.end(), mappedKey) != inputButtons.end();
+    }
+
     static void doSpriteClicking() {
         if (mousePointer.isPressed) {
             mousePointer.heldFrames++;

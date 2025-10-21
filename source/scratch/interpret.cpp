@@ -164,7 +164,8 @@ bool Scratch::startScratchProject() {
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
-            Render::renderSprites();
+            int selection = -1; //no menu selected
+            Render::renderSprites(selection);
 
             if (shouldStop) {
 #ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app
@@ -179,6 +180,38 @@ bool Scratch::startScratchProject() {
                 shouldStop = false;
                 return true;
             }
+            if (Input::keyHeldFrames > 30 && Input::isButtonPressed("start")) {
+                Log::log("Open Menu");
+                Input::getInput();
+                bool showMenu = true;
+                while (Render::appShouldRun() && showMenu) {
+                    Input::getInput();
+                    int selection = 0; //open menu
+                    Render::renderSprites(selection);
+                    if (selection > 0) {
+                        switch (selection) {
+                        case 1: // Resume
+                            showMenu = false;
+                            break;
+                        case 2: // Restart
+                            cleanupScratchProject();
+                            shouldStop = false;
+                            Scratch::nextProject = true; //to load same project again
+                            return true;
+                        case 3: // Exit
+                            cleanupScratchProject();
+                            shouldStop = false;
+                            return true;
+                        default:
+                            break;
+                        }
+                    }
+                    if (Input::isKeyJustPressed("1")) {
+                        showMenu = false;
+                    }
+                }
+                Log::log("Menu closed");
+            }
         }
     }
     cleanupScratchProject();
@@ -187,6 +220,7 @@ bool Scratch::startScratchProject() {
 
 void Scratch::cleanupScratchProject() {
     cleanupSprites();
+    Render::cleanupMenu();
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     blockLookup.clear();
