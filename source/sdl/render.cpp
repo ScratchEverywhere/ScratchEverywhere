@@ -573,8 +573,8 @@ void Render::renderPenLayer() {
 bool Render::appShouldRun(MenuManager *menuManager) {
     if (toExit) return false;
     SDL_Event event;
-    float scrollX;
-    float scrollY;
+    float scrollX = 0;
+    float scrollY = 0;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
