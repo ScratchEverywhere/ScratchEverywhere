@@ -156,7 +156,7 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 			.clip = { .horizontal = true, .childOffset = {textScroll, 0} }
 		}) {
 			const Clay_String clayName = {false, static_cast<int32_t>(projectInfo.name.length()), projectInfo.name.c_str()};
-			CLAY_TEXT(clayName, CLAY_TEXT_CONFIG({.textColor = {0, 0, 0, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16}));
+			CLAY_TEXT(clayName, CLAY_TEXT_CONFIG({.textColor = {0, 0, 0, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 12}));
 		}
 	}
     // clang-format on
