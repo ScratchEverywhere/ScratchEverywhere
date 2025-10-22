@@ -48,7 +48,7 @@ bool Render::Init() {
     gfxInitDefault();
     hidScanInput();
     u32 kDown = hidKeysHeld();
-    if (1 == 1 || kDown & KEY_SELECT) {
+    if (kDown & KEY_SELECT) {
         consoleInit(GFX_BOTTOM, NULL);
         debugMode = true;
         isConsoleInit = true;
@@ -362,13 +362,25 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
 
     Render::calculateRenderPosition(currentSprite, isSVG);
 
+    C2D_ImageTint tinty;
+
+    // set ghost and brightness effect
+    if (currentSprite->brightnessEffect != 0.0f || currentSprite->ghostEffect != 0.0f) {
+        float brightnessEffect = currentSprite->brightnessEffect * 0.01f;
+        float alpha = 255.0f * (1.0f - currentSprite->ghostEffect / 100.0f);
+        if (brightnessEffect > 0)
+            C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
+        else
+            C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
+    } else C2D_AlphaImageTint(&tinty, 1.0f);
+
     C2D_DrawImageAtRotated(
         data.image,
         currentSprite->renderInfo.renderX + xOffset,
         currentSprite->renderInfo.renderY + yOffset,
         1,
         currentSprite->renderInfo.renderRotation,
-        nullptr,
+        &tinty,
         currentSprite->renderInfo.renderScaleX,
         currentSprite->renderInfo.renderScaleY);
     data.freeTimer = data.maxFreeTimer;
@@ -398,6 +410,7 @@ void Render::renderSprites() {
     // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreen);
+        currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
@@ -449,6 +462,7 @@ void Render::renderSprites() {
     // ---------- RIGHT EYE ----------
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreenRightEye);
+        currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
@@ -500,6 +514,7 @@ void Render::renderSprites() {
     // ---------- BOTTOM SCREEN ----------
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(bottomScreen);
+        currentScreen = 1;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
@@ -532,7 +547,7 @@ void Render::renderSprites() {
                                 currentSprite,
                                 costume.id,
                                 true,
-                                renderMode == BOTH_SCREENS ? -40 : 0.0f,
+                                0.0f,
                                 renderMode == BOTH_SCREENS ? -120 : 0);
                     break;
                 }

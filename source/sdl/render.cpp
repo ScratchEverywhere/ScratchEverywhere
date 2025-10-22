@@ -388,10 +388,10 @@ void Render::renderSprites() {
             currentSprite->spriteWidth = image->textureRect.w >> 1;
             currentSprite->spriteHeight = image->textureRect.h >> 1;
             SDL_RendererFlip flip = SDL_FLIP_NONE;
-
-            calculateRenderPosition(currentSprite, currentSprite->costumes[currentSprite->currentCostume].isSVG);
-            image->renderRect.x = currentSprite->renderInfo.renderX - image->renderRect.w / 2;
-            image->renderRect.y = currentSprite->renderInfo.renderY - image->renderRect.h / 2;
+            const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
+            calculateRenderPosition(currentSprite, isSVG);
+            image->renderRect.x = currentSprite->renderInfo.renderX;
+            image->renderRect.y = currentSprite->renderInfo.renderY;
 
             image->setScale(currentSprite->renderInfo.renderScaleY);
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
@@ -438,21 +438,21 @@ void Render::renderSprites() {
         }
 
         // Draw collision points (for debugging)
-        // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
-        // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
+        std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
-        // for (const auto &point : collisionPoints) {
-        //     double screenX = (point.first * scale) + (windowWidth / 2);
-        //     double screenY = (point.second * -scale) + (windowHeight / 2);
+        for (const auto &point : collisionPoints) {
+            double screenX = (point.first * renderScale) + (windowWidth / 2);
+            double screenY = (point.second * -renderScale) + (windowHeight / 2);
 
-        //     SDL_Rect debugPointRect;
-        //     debugPointRect.x = static_cast<int>(screenX - scale); // center it a bit
-        //     debugPointRect.y = static_cast<int>(screenY - scale);
-        //     debugPointRect.w = static_cast<int>(2 * scale);
-        //     debugPointRect.h = static_cast<int>(2 * scale);
+            SDL_Rect debugPointRect;
+            debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
+            debugPointRect.y = static_cast<int>(screenY - renderScale);
+            debugPointRect.w = static_cast<int>(2 * renderScale);
+            debugPointRect.h = static_cast<int>(2 * renderScale);
 
-        //     SDL_RenderFillRect(renderer, &debugPointRect);
-        // }
+            SDL_RenderFillRect(renderer, &debugPointRect);
+        }
 
         if (currentSprite->isStage) renderPenLayer();
     }
@@ -463,7 +463,7 @@ void Render::renderSprites() {
     SDL_RenderPresent(renderer);
     Image::FlushImages();
     SoundPlayer::flushAudio();
-    sizeChanged = false;
+    // sizeChanged = false;
 }
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;

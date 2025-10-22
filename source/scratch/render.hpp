@@ -56,13 +56,9 @@ class Render {
     static void renderSprites();
 
     static void calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
-#ifdef __3DS__
-        const int screenWidth = renderMode == BOTTOM_SCREEN_ONLY ? 320 : 400;
-        const int screenHeight = 240;
-#else
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
-#endif
+
         if (sizeChanged || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
             // change all renderinfo a bit to update position for all
             sprite->renderInfo.oldX++;
@@ -136,6 +132,11 @@ class Render {
                 renderY = -spriteY + (screenHeight >> 1);
             }
 
+#ifdef SDL_BUILD
+            renderX -= (sprite->spriteWidth * sprite->renderInfo.renderScaleY);
+            renderY -= (sprite->spriteHeight * sprite->renderInfo.renderScaleY);
+#endif
+
             sprite->renderInfo.renderX = renderX;
             sprite->renderInfo.renderY = renderY;
         }
@@ -146,13 +147,8 @@ class Render {
      * This should be called every time either the project or the window changes resolution.
      */
     static void setRenderScale() {
-#ifdef __3DS__
-        const int screenWidth = renderMode == BOTTOM_SCREEN_ONLY ? 320 : 400;
-        const int screenHeight = 240;
-#else
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
-#endif
         renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                static_cast<float>(screenHeight) / Scratch::projectHeight);
         sizeChanged = true;
