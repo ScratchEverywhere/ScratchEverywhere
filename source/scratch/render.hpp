@@ -55,10 +55,16 @@ class Render {
      */
     static void renderSprites();
 
+    /**
+     * Fills a sprite's `renderInfo` with information on where to render on screen.
+     * @param sprite the sprite to calculate.
+     * @param isSVG if the sprite's current costume is a Vector image.
+     */
     static void calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
 
+        // If the window size changed, or if the sprite changed costumes
         if (sizeChanged || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
             // change all renderinfo a bit to update position for all
             sprite->renderInfo.oldX++;
@@ -67,8 +73,11 @@ class Render {
             sprite->renderInfo.oldSize++;
             sprite->renderInfo.oldCostumeID = sprite->currentCostume;
         }
+
         if (sprite->size != sprite->renderInfo.oldSize) {
             sprite->renderInfo.oldSize = sprite->size;
+            sprite->renderInfo.oldX++;
+            sprite->renderInfo.oldY++;
             sprite->renderInfo.renderScaleX = sprite->size * (isSVG ? 0.01 : 0.005);
             if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
                 float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
@@ -101,12 +110,24 @@ class Render {
             int spriteX = static_cast<int>(sprite->xPosition);
             int spriteY = static_cast<int>(sprite->yPosition);
 
+            // Handle if the sprite's image is not centered in the costume editor
             if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
                 sprite->spriteHeight - sprite->rotationCenterY != 0) {
 
-                int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> (!isSVG ? 1 : 0);
-                int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> (!isSVG ? 1 : 0);
+                const int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> (!isSVG ? 1 : 0);
+                const int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> (!isSVG ? 1 : 0);
 
+                // Offset based on size
+                if (sprite->size != 100.0f) {
+                    const float scale = sprite->size * (isSVG ? 0.01 : 0.005);
+                    const float scaledX = offsetX * scale;
+                    const float scaledY = offsetY * scale;
+
+                    spriteX += scaledX - offsetX;
+                    spriteY -= scaledY - offsetY;
+                }
+
+                // Offset based on rotation
                 if (sprite->renderInfo.renderRotation != 0) {
                     float rot = sprite->renderInfo.renderRotation;
                     float rotatedX = -offsetX * std::cos(rot) + offsetY * std::sin(rot);
@@ -120,7 +141,7 @@ class Render {
             }
 
             if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-                spriteX += sprite->spriteWidth;
+                spriteX += sprite->spriteWidth * (isSVG ? 2 : 1);
                 spriteX *= -1;
             }
 
