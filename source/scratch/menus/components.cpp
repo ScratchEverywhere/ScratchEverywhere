@@ -122,4 +122,43 @@ void Sidebar::render() {
 	}
     // clang-format on
 }
+
+void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll) {
+    static constexpr unsigned int padding = 10;
+
+    // clang-format off
+    CLAY(CLAY_IDI("project-list-item", i), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = { .width = width, .height = CLAY_SIZING_FIXED(60) },
+			.padding = {padding, padding, padding, padding},
+			.childGap = 5,
+			.childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
+			.layoutDirection = CLAY_LEFT_TO_RIGHT
+		},
+		.backgroundColor = {225, 225, 235, 255},
+		.cornerRadius = {10, 10, 10, 10},
+		.border = { .color = {90, 60, 90, 255}, .width = {5, 5, 5, 5} }
+	}) {
+		if (image) {
+			CLAY(CLAY_IDI("project-list-item-img", i), (Clay_ElementDeclaration){
+				.layout = {
+					.sizing = { .width = CLAY_SIZING_FIXED(Clay_GetElementData(CLAY_IDI("project-list-item", i)).boundingBox.height - 2 * padding) }
+				},
+				.cornerRadius = {5, 5, 5, 5}, // I don't think any renderers support this...
+				.aspectRatio = {1},
+				.image = {.imageData = image},
+			});
+		}
+		CLAY(CLAY_IDI("project-list-item-text-wrapper", i), (Clay_ElementDeclaration){
+			.layout = {
+				.sizing = { .width = CLAY_SIZING_GROW(0) }
+			},
+			.clip = { .horizontal = true, .childOffset = {textScroll, 0} }
+		}) {
+			const Clay_String clayName = {false, static_cast<int32_t>(projectInfo.name.length()), projectInfo.name.c_str()};
+			CLAY_TEXT(clayName, CLAY_TEXT_CONFIG({.textColor = {0, 0, 0, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16}));
+		}
+	}
+    // clang-format on
+}
 } // namespace components

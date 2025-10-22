@@ -33,6 +33,13 @@ static constexpr unsigned int FONT_ID_BODY_16 = 0;
 static constexpr unsigned int FONT_ID_BODY_BOLD_48 = 1;
 #endif
 
+struct ProjectInfo {
+    std::string name;
+    std::string path;
+    std::optional<std::string> description;
+    std::optional<std::string> source;
+};
+
 class Sidebar {
   private:
     static constexpr std::string tabs[] = {"home", "projects", "settings"};
@@ -61,4 +68,6 @@ class Sidebar {
     ~Sidebar();
     void render();
 };
+
+void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll);
 } // namespace components
