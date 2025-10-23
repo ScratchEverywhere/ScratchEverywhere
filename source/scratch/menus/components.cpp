@@ -140,7 +140,6 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
 			if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME) return;
 			const auto projectHoverData = (const ProjectHoverData*)userdata;
-			Log::log(std::to_string((uint64_t)projectHoverData->projectInfo));
 			projectHoverData->menuManager->launchProject(projectHoverData->projectInfo->path);
 		}, (intptr_t)&projectHoverData[i]);
 

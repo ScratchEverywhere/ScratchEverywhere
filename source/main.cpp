@@ -22,7 +22,6 @@ static bool initApp() {
 }
 
 bool activateMainMenu() {
-    Log::log("hi");
     MenuManager menuManager;
 
     menuManager.changeMenu(MenuID::MainMenu);
