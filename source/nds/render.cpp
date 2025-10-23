@@ -11,6 +11,8 @@ std::chrono::_V2::system_clock::time_point Render::startTime;
 std::chrono::_V2::system_clock::time_point Render::endTime;
 bool Render::debugMode = false;
 bool Render::hasFrameBegan = false;
+float Render::renderScale = 1.0f;
+bool Render::sizeChanged = false;
 Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 std::vector<Monitor> Render::visibleVariables;
