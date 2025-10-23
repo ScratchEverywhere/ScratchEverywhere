@@ -176,10 +176,6 @@ bool Scratch::startScratchProject() {
             extensions::runUpdateFunctions(extensions::POST_UPDATE);
 
             if (shouldStop) {
-#ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app
-                toExit = true;
-                return false;
-#endif
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
@@ -951,7 +947,7 @@ void loadSprites(const nlohmann::json &json) {
         Log::logWarning("No Max clones property.");
 #endif
     }
-
+#ifdef __3DS__
     if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
     else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
@@ -963,6 +959,9 @@ void loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
+#else
+    Render::renderMode = Render::TOP_SCREEN_ONLY;
+#endif
 
     // if infinite clones are enabled, set a (potentially) higher max clone count
     if (!infClones) initializeSpritePool(300);
@@ -1007,6 +1006,7 @@ void loadSprites(const nlohmann::json &json) {
     Unzip::loadingState = "Finishing up!";
 
     Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
+    Render::setRenderScale();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }
 
