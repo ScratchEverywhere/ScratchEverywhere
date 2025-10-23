@@ -167,10 +167,6 @@ bool Scratch::startScratchProject() {
             Render::renderSprites();
 
             if (shouldStop) {
-#ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app
-                toExit = true;
-                return false;
-#endif
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
@@ -293,13 +289,8 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
             rotation = -90;
     }
     double rotationRadians = -(rotation - 90) * M_PI / 180.0;
-#ifdef __NDS__
-    double rotationCenterX = (currentSprite->costumes[currentSprite->currentCostume].rotationCenterX * 2 - currentSprite->spriteWidth);
-    double rotationCenterY = (currentSprite->costumes[currentSprite->currentCostume].rotationCenterY * 2 - currentSprite->spriteHeight);
-#else
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) * 0.75);
-    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight) * 0.75);
-#endif
+    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth));
+    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight));
 
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
@@ -364,12 +355,12 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
         bool collision = true;
 
         for (int i = 0; i < 4; i++) {
-            auto edge1 = std::make_pair(
+            auto edge1 = std::pair{
                 currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
-                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second);
-            auto edge2 = std::make_pair(
+                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
+            auto edge2 = std::pair{
                 mousePoints[(i + 1) % 4].first - mousePoints[i].first,
-                mousePoints[(i + 1) % 4].second - mousePoints[i].second);
+                mousePoints[(i + 1) % 4].second - mousePoints[i].second};
 
             double axis1X = -edge1.second, axis1Y = edge1.first;
             double axis2X = -edge2.second, axis2Y = edge2.first;
@@ -622,8 +613,9 @@ void loadSprites(const nlohmann::json &json) {
                                 parsedInput.blockId = inputValue.get<std::string>();
                         }
                     } else if (type == 2) {
-                        parsedInput.inputType = ParsedInput::BOOLEAN;
-                        parsedInput.blockId = inputValue.get<std::string>();
+                        parsedInput.inputType = ParsedInput::BLOCK;
+                        if (!inputValue.is_null())
+                            parsedInput.blockId = inputValue.get<std::string>();
                     }
                     (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
@@ -997,7 +989,7 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
-    Unzip::loadingState = "Running Flag block";
+    Unzip::loadingState = "Finishing up!";
 
     Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");

@@ -23,4 +23,5 @@ class SoundPlayer {
     static void flushAudio();
     static void cleanupAudio();
     static void deinit();
+    static bool init();
 };

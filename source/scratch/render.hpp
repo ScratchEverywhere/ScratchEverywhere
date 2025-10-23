@@ -5,11 +5,6 @@
 #include <chrono>
 #include <vector>
 
-#ifdef __OGC__
-#include <ogc/lwp_watchdog.h>
-#include <ogc/system.h>
-#endif
-
 class Render {
   public:
     static std::chrono::system_clock::time_point startTime;

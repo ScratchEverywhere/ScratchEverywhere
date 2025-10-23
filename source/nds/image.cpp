@@ -34,7 +34,7 @@ const uint16_t clamp(uint16_t n, uint16_t lower, uint16_t upper) {
 }
 
 Image::Image(std::string filePath) : width(0), height(0), scale(1.0), opacity(1.0), rotation(0.0) {
-    if (!loadImageFromFile(filePath, false)) return;
+    if (!loadImageFromFile(filePath, nullptr, false)) return;
 
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
@@ -78,7 +78,7 @@ void Image::renderNineslice(double xPos, double yPos, double width, double heigh
     render(xPos, yPos, centered);
 }
 
-bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
+bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject) {
 
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string costumeName = filename.substr(0, filename.find_last_of('.'));
@@ -165,7 +165,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
     return true;
 }
 
-void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite) {
 
     std::string filename = costumeId.substr(costumeId.find_last_of('/') + 1);
     std::string costumeName = filename.substr(0, filename.find_last_of('.'));

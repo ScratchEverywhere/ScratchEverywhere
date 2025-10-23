@@ -92,14 +92,14 @@ void loadInitialImages() {
         for (auto &currentSprite : sprites) {
             if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
             Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
             sprIndex++;
         }
     } else {
         for (auto &currentSprite : sprites) {
             if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
             Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
             sprIndex++;
         }
     }
