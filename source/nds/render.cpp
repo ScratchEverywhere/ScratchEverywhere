@@ -53,6 +53,7 @@ bool Render::Init() {
         vramSetBankC(VRAM_C_TEXTURE);
         vramSetBankD(VRAM_D_TEXTURE);
         vramSetBankF(VRAM_F_TEX_PALETTE);
+        debugMode = true;
     }
 
     return true;
