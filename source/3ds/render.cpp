@@ -35,7 +35,6 @@ static bool isConsoleInit = false;
 float Render::renderScale = 1.0f;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
-bool Render::sizeChanged = false;
 bool Render::hasFrameBegan;
 static int currentScreen = 0;
 std::vector<Monitor> Render::visibleVariables;

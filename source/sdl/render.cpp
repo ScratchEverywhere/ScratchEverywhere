@@ -60,7 +60,6 @@ std::chrono::system_clock::time_point Render::startTime = std::chrono::system_cl
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
-bool Render::sizeChanged = false;
 
 // TODO: properly export these to input.cpp
 SDL_GameController *controller;
@@ -463,7 +462,6 @@ void Render::renderSprites() {
     SDL_RenderPresent(renderer);
     Image::FlushImages();
     SoundPlayer::flushAudio();
-    sizeChanged = false;
 }
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
@@ -557,7 +555,7 @@ bool Render::appShouldRun() {
             break;
         case SDL_WINDOWEVENT:
             switch (event.window.event) {
-            case SDL_WINDOWEVENT_SIZE_CHANGED:
+            case SDL_WINDOWEVENT_RESIZED:
                 SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
                 setRenderScale();
                 break;

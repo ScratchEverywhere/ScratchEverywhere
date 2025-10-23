@@ -8,8 +8,8 @@
 class Sprite;
 
 struct RenderInfo {
-    int renderX;
-    int renderY;
+    float renderX;
+    float renderY;
     float renderScaleX;
     float renderScaleY;
     float renderRotation;
@@ -17,6 +17,7 @@ struct RenderInfo {
     float oldX, oldY;
     float oldSize, oldRotation;
     int oldCostumeID = -1;
+    bool forceUpdate = false;
 };
 
 struct Variable {

@@ -11,7 +11,6 @@ class Render {
     static std::chrono::system_clock::time_point endTime;
     static bool debugMode;
     static float renderScale;
-    static bool sizeChanged;
 
     static bool hasFrameBegan;
 
@@ -65,13 +64,14 @@ class Render {
         const int screenHeight = getHeight();
 
         // If the window size changed, or if the sprite changed costumes
-        if (sizeChanged || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
+        if (sprite->renderInfo.forceUpdate || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
             // change all renderinfo a bit to update position for all
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
             sprite->renderInfo.oldRotation++;
             sprite->renderInfo.oldSize++;
             sprite->renderInfo.oldCostumeID = sprite->currentCostume;
+            sprite->renderInfo.forceUpdate = false;
         }
 
         if (sprite->size != sprite->renderInfo.oldSize) {
@@ -105,10 +105,10 @@ class Render {
             sprite->renderInfo.oldX = sprite->xPosition;
             sprite->renderInfo.oldY = sprite->yPosition;
 
-            int renderX;
-            int renderY;
-            int spriteX = static_cast<int>(sprite->xPosition);
-            int spriteY = static_cast<int>(sprite->yPosition);
+            float renderX;
+            float renderY;
+            float spriteX = static_cast<int>(sprite->xPosition);
+            float spriteY = static_cast<int>(sprite->yPosition);
 
             // Handle if the sprite's image is not centered in the costume editor
             if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
@@ -119,7 +119,7 @@ class Render {
 
                 // Offset based on size
                 if (sprite->size != 100.0f) {
-                    const float scale = sprite->size * (isSVG ? 0.01 : 0.005);
+                    const float scale = sprite->size * 0.01;
                     const float scaledX = offsetX * scale;
                     const float scaledY = offsetY * scale;
 
@@ -149,8 +149,8 @@ class Render {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
                 renderY = (-spriteY * renderScale) + (screenHeight >> 1);
             } else {
-                renderX = spriteX + (screenWidth >> 1);
-                renderY = -spriteY + (screenHeight >> 1);
+                renderX = static_cast<int>(spriteX + (screenWidth >> 1));
+                renderY = static_cast<int>(-spriteY + (screenHeight >> 1));
             }
 
 #ifdef SDL_BUILD
@@ -172,7 +172,16 @@ class Render {
         const int screenHeight = getHeight();
         renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                static_cast<float>(screenHeight) / Scratch::projectHeight);
-        sizeChanged = true;
+        forceUpdateSpritePosition();
+    }
+
+    /**
+     * Force updates every sprite's position on screen. Should be called when window size changes.
+     */
+    static void forceUpdateSpritePosition() {
+        for (auto &sprite : sprites) {
+            sprite->renderInfo.forceUpdate = true;
+        }
     }
 
     /**
