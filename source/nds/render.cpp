@@ -79,9 +79,8 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 
 void Render::endFrame(bool shouldFlush) {
     glEnd2D();
-    glFlush(0);
+    glFlush(GL_TRANS_MANUALSORT);
     if (shouldFlush) Image::FlushImages();
-    swiWaitForVBlank();
     hasFrameBegan = false;
 }
 
@@ -101,6 +100,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
 }
 
 void Render::renderSprites() {
+    if (renderMode == BOTTOM_SCREEN_ONLY) lcdMainOnBottom();
     glBegin2D();
     glClearColor(31, 31, 31, 31);
 
@@ -114,8 +114,8 @@ void Render::renderSprites() {
                   return a->layer < b->layer;
               });
 
-    for (auto &sprite : sprites) {
-        if (!sprite->visible || sprite->isStage) continue;
+    for (auto &sprite : spritesByLayer) {
+        if (!sprite->visible) continue;
 
         auto imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
         if (imgFind != images.end()) {
@@ -124,11 +124,16 @@ void Render::renderSprites() {
             imgFind->second.freeTimer = data.maxFreeTimer;
 
             // Set sprite dimensions
-            sprite->spriteWidth = data.originalWidth;
-            sprite->spriteHeight = data.originalHeight;
+            sprite->spriteWidth = data.originalWidth >> 1;
+            sprite->spriteHeight = data.originalHeight >> 1;
+            // TODO: put this in calculateRenderPosition() for all platforms since they all do this anyway
+            sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+            sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+            if (sprite->ghostEffect > 75) continue;
 
-            // TODO: look into making sprite->size a float or int for extra performance
-            uint16_t renderScale = ((static_cast<int>(sprite->size) << 12) / 100) >> 1;
+            calculateRenderPosition(sprite, false);
+
+            int renderScale = sprite->renderInfo.renderScaleY * (1 << 12);
             if (data.scaleX != 1 << 12 || data.scaleY != 1 << 12) {
                 renderScale = (renderScale * data.scaleX) >> 12;
             }
@@ -143,11 +148,7 @@ void Render::renderSprites() {
                 flip = GL_FLIP_H;
             }
 
-            // Center the image
-            const int renderX = sprite->xPosition + SCREEN_HALF_WIDTH;
-            const int renderY = -sprite->yPosition + SCREEN_HALF_HEIGHT;
-
-            glSpriteRotateScale(renderX, renderY, renderRotation, renderScale, flip, image);
+            glSpriteRotateScale(sprite->renderInfo.renderX, sprite->renderInfo.renderY, renderRotation, renderScale, flip, image);
 
             // auto collisionPoints = getCollisionPoints(sprite);
             // for (const auto &point : collisionPoints) {
@@ -178,9 +179,9 @@ void Render::renderSprites() {
     }
 
     glEnd2D();
-    glFlush(0);
+    glFlush(GL_TRANS_MANUALSORT);
     Image::FlushImages();
-    swiWaitForVBlank();
+    sizeChanged = false;
 }
 
 void Render::renderVisibleVariables() {
