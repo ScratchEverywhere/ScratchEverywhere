@@ -368,5 +368,6 @@ void SoundPlayer::deinit() {
     cleanupAudio();
     MIX_DestroyMixer(mixer);
     MIX_Quit();
+    SDL_Quit();
 #endif
 }
