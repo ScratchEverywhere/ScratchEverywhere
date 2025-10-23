@@ -15,6 +15,8 @@ static constexpr unsigned int padding = 15;
 static constexpr unsigned int maxColumns = 6;
 
 ProjectsMenu::ProjectsMenu() {
+    components::projectHoverData.clear();
+
 #ifdef SDL_BUILD
     missingIcon = IMG_Load((OS::getRomFSLocation() + "gfx/menu/noicon.svg").c_str());
     if (!missingIcon) Log::logError("Failed to load missing icon image.");
@@ -62,7 +64,7 @@ void ProjectsMenu::render() {
 			}) {
 				for (unsigned int j = 0; j < columns; j++) {
 					if (i * columns + j >= projects.size()) continue;
-					components::renderProjectListItem(projects[i * columns + j], missingIcon, i * columns + j, CLAY_SIZING_FIXED(itemWidth), 0); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
+					components::renderProjectListItem(projects[i * columns + j], missingIcon, i * columns + j, CLAY_SIZING_FIXED(itemWidth), 0, menuManager); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
 				}
 			}
 		}

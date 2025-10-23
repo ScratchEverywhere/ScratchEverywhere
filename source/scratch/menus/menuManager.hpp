@@ -13,10 +13,10 @@ enum class MenuID {
 
 class MenuManager {
   private:
-    std::unique_ptr<Menu> currentMenu;
+    std::unique_ptr<Menu> currentMenu = nullptr;
     std::stack<MenuID> history;
 
-    Clay_Arena clayMemory;
+    static Clay_Arena clayMemory;
 
     std::unique_ptr<Menu> createMenu(MenuID id);
 
@@ -25,12 +25,13 @@ class MenuManager {
 
     MenuID currentMenuID = MenuID::None;
 
-    bool shouldQuit = false;
+    static void initClay();
+    static void freeClay();
 
     MenuManager();
-    ~MenuManager();
 
     void changeMenu(MenuID id);
+    bool launchProject(const std::string path);
     void render();
     void back();
 

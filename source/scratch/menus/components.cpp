@@ -3,6 +3,7 @@
 #include "menus/menuManager.hpp"
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #ifdef SDL_BUILD
 #include "../../sdl/render.hpp"
@@ -113,17 +114,13 @@ void Sidebar::render() {
 		},
 	}) {
 		for (const auto &tab : tabs) renderItem(tab);
-
-#ifdef SDL_BUILD
-		bool windowFocused = (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS) != 0;
-#elif __3DS__
-		bool windowFocused == true;
-#endif
 	}
     // clang-format on
 }
 
-void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll) {
+std::vector<ProjectHoverData> projectHoverData;
+
+void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager) {
     static constexpr unsigned int padding = 10;
 
     // clang-format off
@@ -139,6 +136,14 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 		.cornerRadius = {10, 10, 10, 10},
 		.border = { .color = {90, 60, 90, 255}, .width = {5, 5, 5, 5} }
 	}) {
+		if (i <= projectHoverData.size()) projectHoverData.push_back({ menuManager, &projectInfo });
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
+			if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME) return;
+			const auto projectHoverData = (const ProjectHoverData*)userdata;
+			Log::log(std::to_string((uint64_t)projectHoverData->projectInfo));
+			projectHoverData->menuManager->launchProject(projectHoverData->projectInfo->path);
+		}, (intptr_t)&projectHoverData[i]);
+
 		if (image) {
 			CLAY(CLAY_IDI("project-list-item-img", i), (Clay_ElementDeclaration){
 				.layout = {

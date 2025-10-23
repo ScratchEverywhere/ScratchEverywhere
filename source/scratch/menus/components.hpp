@@ -69,5 +69,12 @@ class Sidebar {
     void render();
 };
 
-void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll);
+struct ProjectHoverData {
+    MenuManager *menuManager;
+    const ProjectInfo *projectInfo;
+};
+
+extern std::vector<ProjectHoverData> projectHoverData;
+
+void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager);
 } // namespace components

@@ -1,10 +1,10 @@
 #include "menuManager.hpp"
+#include "../unzip.hpp"
 #include "components.hpp"
 #include "mainMenu.hpp"
 #include "menu.hpp"
 #include "os.hpp"
 #include "projectsMenu.hpp"
-#include <clay_renderer_SDL2.c>
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
@@ -13,7 +13,10 @@
 // TODO: 3ds support
 #ifdef SDL_BUILD
 #include "../../sdl/render.hpp"
+#include <clay_renderer_SDL2.c>
 #endif
+
+Clay_Arena MenuManager::clayMemory;
 
 std::unique_ptr<Menu> MenuManager::createMenu(MenuID id) {
     switch (id) {
@@ -34,6 +37,15 @@ void MenuManager::changeMenu(MenuID id) {
     currentMenu->menuManager = this;
 }
 
+bool MenuManager::launchProject(const std::string path) {
+    Unzip::filePath = path;
+    if (!Unzip::load()) {
+        Log::logError("Failed to load project '" + path + "', closing app.");
+        return false;
+    }
+    return true;
+}
+
 void MenuManager::back() {
     if (history.empty()) return;
     currentMenu = std::move(createMenu(history.top()));
@@ -43,30 +55,28 @@ void MenuManager::back() {
 }
 
 MenuManager::MenuManager() {
-    uint64_t totalMemorySize = Clay_MinMemorySize();
-    clayMemory = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, malloc(totalMemorySize));
+    sidebar.menuManager = this;
+}
+
+void MenuManager::initClay() {
+    uint64_t clayMinMemory = Clay_MinMemorySize();
+    clayMemory = Clay_CreateArenaWithCapacityAndMemory(clayMinMemory, malloc(clayMinMemory));
     Clay_Initialize(clayMemory, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, {[](Clay_ErrorData errorData) {
                         Log::logError(std::string("[CLAY] ") + errorData.errorText.chars);
                     }});
 
-    sidebar.menuManager = this;
-
 #ifdef SDL_BUILD
     components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
-    if (!components::fonts[components::FONT_ID_BODY_16].font) {
-        Log::logError("Failed to load menu font.");
-        shouldQuit = true;
-        return;
-    }
+    if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError("Failed to load menu font.");
 
     components::fonts[components::FONT_ID_BODY_BOLD_48] = {.fontId = components::FONT_ID_BODY_BOLD_48, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Bold.ttf").c_str(), 48)};
-    if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError("Failed to load menu font.");
+    if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError("Failed to load bold menu font.");
 
     Clay_SetMeasureTextFunction(SDL2_MeasureText, &components::fonts);
 #endif
 }
 
-MenuManager::~MenuManager() {
+void MenuManager::freeClay() {
 #ifdef SDL_BUILD
     if (components::fonts[components::FONT_ID_BODY_16].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_16].font);
     if (components::fonts[components::FONT_ID_BODY_BOLD_48].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_BOLD_48].font);

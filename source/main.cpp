@@ -1,5 +1,4 @@
 #include "interpret.hpp"
-#include "scratch/menus/mainMenu.hpp"
 #include "scratch/menus/menuManager.hpp"
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
@@ -14,6 +13,7 @@
 #endif
 
 static void exitApp() {
+    MenuManager::freeClay();
     Render::deInit();
 }
 
@@ -22,26 +22,14 @@ static bool initApp() {
 }
 
 bool activateMainMenu() {
+    Log::log("hi");
     MenuManager menuManager;
-    if (menuManager.shouldQuit) {
-        exitApp();
-        return false;
-    }
 
     menuManager.changeMenu(MenuID::MainMenu);
 
     while (Render::appShouldRun(&menuManager)) {
         menuManager.render();
-
-        /* if (MenuManager::isProjectLoaded == 0) continue;
-
-        if (MenuManager::isProjectLoaded == -1) {
-            exitApp();
-            return false;
-        }
-
-        MenuManager::isProjectLoaded = 0;
-        break; */
+        if (Unzip::projectOpened >= 0) break;
     }
     return true;
 }
@@ -55,15 +43,12 @@ int main(int argc, char **argv) {
     srand(time(NULL));
 
     if (!Unzip::load()) {
-
-        if (Unzip::projectOpened == -3) { // main menu
-
-            if (!activateMainMenu()) return 0;
-
-        } else {
+        if (Unzip::projectOpened != -3) {
             exitApp();
             return 0;
         }
+        MenuManager::initClay();
+        if (!activateMainMenu()) return 0;
     }
 
     while (Scratch::startScratchProject()) {
@@ -80,6 +65,7 @@ int main(int argc, char **argv) {
             break;
         }
         Unzip::filePath = "";
+        Unzip::projectOpened = -67; // IDK what code to put here, we should migrate to an enum...
         Scratch::nextProject = false;
         Scratch::dataNextProject = Value();
         if (toExit || !activateMainMenu()) break;
