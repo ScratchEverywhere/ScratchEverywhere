@@ -12,7 +12,6 @@ std::chrono::_V2::system_clock::time_point Render::endTime;
 bool Render::debugMode = false;
 bool Render::hasFrameBegan = false;
 float Render::renderScale = 1.0f;
-bool Render::sizeChanged = false;
 Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 std::vector<Monitor> Render::visibleVariables;
@@ -176,54 +175,6 @@ void Render::renderSprites() {
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
     Image::FlushImages();
-    sizeChanged = false;
-}
-
-void Render::renderVisibleVariables() {
-
-    // get screen scale
-    const float scale = renderScale;
-
-    // calculate black bar offset
-    float screenAspect = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-    float barOffsetX = 0.0f;
-    float barOffsetY = 0.0f;
-    if (screenAspect > projectAspect) {
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        barOffsetX = (SCREEN_WIDTH - scaledProjectWidth) / 2.0f;
-    } else if (screenAspect < projectAspect) {
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        barOffsetY = (SCREEN_HEIGHT - scaledProjectHeight) / 2.0f;
-    }
-
-    for (auto &var : visibleVariables) {
-        if (var.visible) {
-
-            std::string renderText = BlockExecutor::getMonitorValue(var).asString();
-
-            if (monitorTexts.find(var.id) == monitorTexts.end()) {
-                monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
-            } else {
-                monitorTexts[var.id]->setText(renderText);
-            }
-            monitorTexts[var.id]->setColor(Math::color(0, 0, 0, 255));
-            if (var.mode != "large") {
-                monitorTexts[var.id]->setCenterAligned(false);
-                monitorTexts[var.id]->setScale(0.6);
-            } else {
-                monitorTexts[var.id]->setCenterAligned(true);
-                monitorTexts[var.id]->setScale(1);
-            }
-
-            monitorTexts[var.id]->render(var.x + barOffsetX, var.y + barOffsetY);
-
-        } else {
-            if (monitorTexts.find(var.id) != monitorTexts.end()) {
-                monitorTexts.erase(var.id);
-            }
-        }
-    }
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
