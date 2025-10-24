@@ -59,16 +59,22 @@ void Image::render(double xPos, double yPos, bool centered) {
     if (imgFind != images.end()) {
         imagePAL8 &data = images[imageId];
         glImage *image = &images[imageId].image;
+        glBindTexture(GL_TEXTURE_2D, data.textureID);
 
         int RenderX = xPos;
         int RenderY = yPos;
 
         if (centered) {
-            RenderX -= width / 2;
-            RenderY -= height / 2;
+            RenderX -= (width * scale) / 2;
+            RenderY -= (height * scale) / 2;
         }
 
-        glSpriteScale(RenderX, RenderY, 1 << 12, GL_FLIP_NONE, image);
+        int renderScale = scale * (1 << 12);
+        // if (data.scaleX != 1 << 12 || data.scaleY != 1 << 12) {
+        //     renderScale = (renderScale * data.scaleX) >> 12;
+        // }
+
+        glSpriteScale(RenderX, RenderY, renderScale, GL_FLIP_NONE, image);
         data.freeTimer = data.maxFreeTimer;
     }
 }

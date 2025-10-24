@@ -41,8 +41,8 @@ bool Render::Init() {
         while (1)
             swiWaitForVBlank();
     }
-    videoSetMode(MODE_0_3D);
     glScreen2D();
+    videoSetMode(MODE_0_3D);
     vramSetBankA(VRAM_A_TEXTURE);
     vramSetBankE(VRAM_E_TEX_PALETTE);
 
@@ -122,6 +122,7 @@ void Render::renderSprites() {
         if (imgFind != images.end()) {
             imagePAL8 &data = imgFind->second;
             glImage *image = &data.image;
+            glBindTexture(GL_TEXTURE_2D, data.textureID);
             imgFind->second.freeTimer = data.maxFreeTimer;
 
             // Set sprite dimensions
@@ -162,14 +163,6 @@ void Render::renderSprites() {
             //         drawX + 1, drawY + 1,
             //         RGB15(31, 0, 0)); // Red box
             // }
-
-        } else {
-            const int renderX = static_cast<int>(sprite->xPosition);
-            const int renderY = static_cast<int>(sprite->yPosition * -1);
-            sprite->spriteWidth = 6;
-            sprite->spriteHeight = 6;
-
-            glBoxFilled(renderX + (SCREEN_HALF_WIDTH - 3), renderY + (SCREEN_HALF_HEIGHT - 3), renderX + (SCREEN_HALF_WIDTH + 3), renderY + (SCREEN_HALF_HEIGHT + 3), RGB15(0, 0, 0));
         }
     }
 
@@ -179,6 +172,7 @@ void Render::renderSprites() {
                     RGB15(0, 0, 15));
     }
 
+    renderVisibleVariables();
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
     Image::FlushImages();
@@ -186,6 +180,50 @@ void Render::renderSprites() {
 }
 
 void Render::renderVisibleVariables() {
+
+    // get screen scale
+    const float scale = renderScale;
+
+    // calculate black bar offset
+    float screenAspect = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    float barOffsetX = 0.0f;
+    float barOffsetY = 0.0f;
+    if (screenAspect > projectAspect) {
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        barOffsetX = (SCREEN_WIDTH - scaledProjectWidth) / 2.0f;
+    } else if (screenAspect < projectAspect) {
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        barOffsetY = (SCREEN_HEIGHT - scaledProjectHeight) / 2.0f;
+    }
+
+    for (auto &var : visibleVariables) {
+        if (var.visible) {
+
+            std::string renderText = BlockExecutor::getMonitorValue(var).asString();
+
+            if (monitorTexts.find(var.id) == monitorTexts.end()) {
+                monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
+            } else {
+                monitorTexts[var.id]->setText(renderText);
+            }
+            monitorTexts[var.id]->setColor(Math::color(0, 0, 0, 255));
+            if (var.mode != "large") {
+                monitorTexts[var.id]->setCenterAligned(false);
+                monitorTexts[var.id]->setScale(0.6);
+            } else {
+                monitorTexts[var.id]->setCenterAligned(true);
+                monitorTexts[var.id]->setScale(1);
+            }
+
+            monitorTexts[var.id]->render(var.x + barOffsetX, var.y + barOffsetY);
+
+        } else {
+            if (monitorTexts.find(var.id) != monitorTexts.end()) {
+                monitorTexts.erase(var.id);
+            }
+        }
+    }
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
