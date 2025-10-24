@@ -187,7 +187,71 @@ class Render {
     /**
      * Renders all visible variable and list monitors
      */
-    static void renderVisibleVariables();
+    static void renderVisibleVariables() {
+        // get screen scale
+        const float scale = renderScale;
+        const float screenWidth = getWidth();
+        const float screenHeight = getHeight();
+
+        // calculate black bar offset
+        float screenAspect = static_cast<float>(screenWidth) / screenHeight;
+        float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+        float barOffsetX = 0.0f;
+        float barOffsetY = 0.0f;
+        if (screenAspect > projectAspect) {
+            float scaledProjectWidth = Scratch::projectWidth * scale;
+            barOffsetX = (screenWidth - scaledProjectWidth) / 2.0f;
+        } else if (screenAspect < projectAspect) {
+            float scaledProjectHeight = Scratch::projectHeight * scale;
+            barOffsetY = (screenHeight - scaledProjectHeight) / 2.0f;
+        }
+
+        for (auto &var : visibleVariables) {
+            if (var.visible) {
+                std::string renderText = BlockExecutor::getMonitorValue(var).asString();
+                if (monitorTexts.find(var.id) == monitorTexts.end()) {
+                    monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
+                } else {
+                    monitorTexts[var.id]->setText(renderText);
+                }
+                float renderX = var.x * scale + barOffsetX;
+                float renderY = var.y * scale + barOffsetY;
+                const std::vector<float> renderSize = monitorTexts[var.id]->getSize();
+                ColorRGB backgroundColor = {
+                    .r = 228,
+                    .g = 240,
+                    .b = 255};
+
+                monitorTexts[var.id]->setCenterAligned(false);
+                if (var.mode != "large") {
+                    monitorTexts[var.id]->setColor(Math::color(0, 0, 0, 255));
+                    monitorTexts[var.id]->setScale(1.0f * (scale / 2.0f));
+                } else {
+                    monitorTexts[var.id]->setColor(Math::color(255, 255, 255, 255));
+                    monitorTexts[var.id]->setScale(1.25f * (scale / 2.0f));
+                    backgroundColor = {
+                        .r = 255,
+                        .g = 141,
+                        .b = 41
+
+                    };
+                }
+
+                // draw background
+                drawBox(renderSize[0] + (2 * scale), renderSize[1] + (2 * scale), renderX + renderSize[0] / 2, renderY + renderSize[1] / 2, 194, 204, 217);
+                drawBox(renderSize[0], renderSize[1], renderX + renderSize[0] / 2, renderY + renderSize[1] / 2, backgroundColor.r, backgroundColor.g, backgroundColor.b);
+#ifdef __3DS__
+                renderY += renderSize[1] / 2;
+#endif
+                monitorTexts[var.id]->render(renderX, renderY);
+            } else {
+                if (monitorTexts.find(var.id) != monitorTexts.end()) {
+                    delete monitorTexts[var.id];
+                    monitorTexts.erase(var.id);
+                }
+            }
+        }
+    }
 
     /**
      * Renders the pen layer

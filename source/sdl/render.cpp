@@ -466,52 +466,6 @@ void Render::renderSprites() {
 
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 
-void Render::renderVisibleVariables() {
-    // get screen scale
-    double scaleX = static_cast<double>(windowWidth) / Scratch::projectWidth;
-    double scaleY = static_cast<double>(windowHeight) / Scratch::projectHeight;
-    double scale = std::min(scaleX, scaleY);
-
-    // calculate black bar offset
-    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-    float barOffsetX = 0.0f;
-    float barOffsetY = 0.0f;
-    if (screenAspect > projectAspect) {
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        barOffsetX = (windowWidth - scaledProjectWidth) / 2.0f;
-    } else if (screenAspect < projectAspect) {
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        barOffsetY = (windowHeight - scaledProjectHeight) / 2.0f;
-    }
-
-    for (auto &var : visibleVariables) {
-        if (var.visible) {
-            std::string renderText = BlockExecutor::getMonitorValue(var).asString();
-            if (monitorTexts.find(var.id) == monitorTexts.end()) {
-                monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
-            } else {
-                monitorTexts[var.id]->setText(renderText);
-            }
-            monitorTexts[var.id]->setColor(0x000000FF);
-
-            if (var.mode != "large") {
-                monitorTexts[var.id]->setCenterAligned(false);
-                monitorTexts[var.id]->setScale(1.0f * (scale / 2.0f));
-            } else {
-                monitorTexts[var.id]->setCenterAligned(true);
-                monitorTexts[var.id]->setScale(1.25f * (scale / 2.0f));
-            }
-            monitorTexts[var.id]->render(var.x * scale + barOffsetX, var.y * scale + barOffsetY);
-        } else {
-            if (monitorTexts.find(var.id) != monitorTexts.end()) {
-                delete monitorTexts[var.id];
-                monitorTexts.erase(var.id);
-            }
-        }
-    }
-}
-
 void Render::renderPenLayer() {
     SDL_Rect renderRect = {0, 0, 0, 0};
 
