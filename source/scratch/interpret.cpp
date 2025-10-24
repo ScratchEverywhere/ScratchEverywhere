@@ -164,7 +164,7 @@ bool Scratch::startScratchProject() {
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
-            int selection = -1; //no menu selected
+            int selection = -1; // no menu selected
             Render::renderSprites(selection);
 
             if (shouldStop) {
@@ -180,13 +180,14 @@ bool Scratch::startScratchProject() {
                 shouldStop = false;
                 return true;
             }
-            if (Input::keyHeldFrames > 30 && Input::isButtonPressed("start")) {
+
+            if (/*Input::keyHeldFrames > 30 &&*/ Input::isButtonPressed("shoulderL") && Input::isButtonPressed("start") && projectType == UNEMBEDDED) {
                 Log::log("Open Menu");
                 Input::getInput();
                 bool showMenu = true;
                 while (Render::appShouldRun() && showMenu) {
                     Input::getInput();
-                    int selection = 0; //open menu
+                    int selection = 0; // open menu
                     Render::renderSprites(selection);
                     if (selection > 0) {
                         switch (selection) {
@@ -196,7 +197,7 @@ bool Scratch::startScratchProject() {
                         case 2: // Restart
                             cleanupScratchProject();
                             shouldStop = false;
-                            Scratch::nextProject = true; //to load same project again
+                            Scratch::nextProject = true; // to load same project again
                             return true;
                         case 3: // Exit
                             cleanupScratchProject();
@@ -206,10 +207,8 @@ bool Scratch::startScratchProject() {
                             break;
                         }
                     }
-                    if (Input::isKeyJustPressed("1")) {
-                        showMenu = false;
-                    }
                 }
+
                 Log::log("Menu closed");
             }
         }

@@ -3,8 +3,8 @@
 #include "audio.hpp"
 #include "blocks/pen.hpp"
 #include "image.hpp"
-#include "interpret.hpp"
 #include "input.hpp"
+#include "interpret.hpp"
 #include "math.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
@@ -505,7 +505,7 @@ void Render::renderSprites(int &withMenu) {
 
     drawBlackBars(windowWidth, windowHeight);
     renderVisibleVariables();
-    if (withMenu >= 0) 
+    if (withMenu >= 0)
         withMenu = Render::renderMenu();
     SDL_RenderPresent(renderer);
     Image::FlushImages();
@@ -565,7 +565,7 @@ int Render::renderMenu(bool onlyRender) {
             return selected + 1;
         }
     }
-
+    
 
     const int textX = boxX + 5;
     int currentY = boxY;
