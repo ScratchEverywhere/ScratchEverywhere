@@ -267,7 +267,7 @@ class Render {
     /**
      * Draws a simple box to the screen.
      */
-    static void drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA);
+    static void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255);
 
     /**
      * Returns whether or not the app should be running.
