@@ -30,7 +30,7 @@ class Input {
     static void applyControls(std::string controlsFilePath = "") {
         inputControls.clear();
 
-        if (controlsFilePath != "") {
+        if (controlsFilePath != "" && projectType == UNEMBEDDED) {
             // load controls from file
             std::ifstream file(controlsFilePath);
             if (file.is_open()) {
