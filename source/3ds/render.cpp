@@ -386,7 +386,8 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
     data.freeTimer = data.maxFreeTimer;
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(int &withMenu) {
+
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
     C3D_FrameBegin(C3D_FRAME_NONBLOCK);
     C2D_TargetClear(topScreen, clrWhite);
@@ -453,11 +454,15 @@ void Render::renderSprites() {
                 costumeIndex++;
             }
         }
-        renderVisibleVariables();
+
+        if (withMenu == -1)
+            renderVisibleVariables();
     }
 
     if (Render::renderMode != Render::BOTH_SCREENS)
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+    if (withMenu >= 0)
+        withMenu = Render::renderMenu();
 
     // ---------- RIGHT EYE ----------
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
@@ -505,10 +510,14 @@ void Render::renderSprites() {
                 costumeIndex++;
             }
         }
-        renderVisibleVariables();
+
+        if (withMenu == -1)
+            renderVisibleVariables();
 
         if (Render::renderMode != Render::BOTH_SCREENS)
             drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+        if (withMenu >= 0)
+            Render::renderMenu(true);
     }
 
     // ---------- BOTTOM SCREEN ----------
@@ -569,6 +578,79 @@ void Render::renderSprites() {
 #endif
     osSetSpeedupEnable(true);
     C3D_FrameSync();
+
+}
+
+std::vector<TextObject *> Render::menuTexts;
+bool Render::menuInitialized = false;
+
+void Render::cleanupMenu() {
+    for (auto *text : menuTexts) {
+        delete text;
+    }
+    menuTexts.clear();
+    menuInitialized = false;
+}
+
+int Render::renderMenu(bool onlyRender) {
+    static const std::vector<std::string> items = {"Continue", "Restart", "Close"};
+    static int selected = 0;
+
+    const int boxW = 135;
+    const int itemHeight = 20;
+
+    const int totalItemHeight = static_cast<int>(items.size()) * itemHeight;
+    const int boxH = totalItemHeight;
+
+    const int boxX = 0;
+    const int boxY = 0;
+
+    drawBox(boxW, boxH, boxX + boxW / 2, boxY + boxH / 2, 117, 77, 117, 255);
+
+    if (!menuInitialized) {
+        cleanupMenu();
+        menuTexts.reserve(items.size());
+        for (const auto &it : items) {
+            TextObject *t = createTextObject(it, 0, 0);
+            t->setScale(0.8f);
+            menuTexts.push_back(t);
+        }
+        menuInitialized = true;
+    }
+
+    if (!onlyRender) {
+        if (Input::isKeyJustPressed("up arrow"))
+            selected = (selected - 1 + static_cast<int>(items.size())) % static_cast<int>(items.size());
+        if (Input::isKeyJustPressed("down arrow"))
+            selected = (selected + 1) % static_cast<int>(items.size());
+        if (Input::isKeyJustPressed("a")) {
+            Log::log("Menu item selected: " + items[selected]);
+            return selected + 1;
+        }
+    }
+
+    const int textX = boxX + 5;
+    int currentY = boxY;
+
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (i >= menuTexts.size()) continue;
+
+        if (static_cast<int>(i) == selected) {
+            C2D_DrawRectSolid(textX - 5, currentY, 1,
+                              boxW, itemHeight, C2D_Color32(200, 160, 220, 255));
+            menuTexts[i]->setColor(C2D_Color32(0, 0, 0, 255));
+        } else {
+            menuTexts[i]->setColor(C2D_Color32(0, 0, 0, 200));
+        }
+
+        menuTexts[i]->setText(items[i]);
+        menuTexts[i]->setCenterAligned(false);
+        menuTexts[i]->render(textX, currentY + itemHeight / 2);
+
+        currentY += itemHeight;
+    }
+
+    return 0;
 }
 
 void Render::deInit() {
