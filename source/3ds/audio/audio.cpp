@@ -1,5 +1,5 @@
-#include "../scratch/audio.hpp"
-#include "../scratch/os.hpp"
+#include "../../scratch/audio.hpp"
+#include "../../scratch/os.hpp"
 #include "audio.hpp"
 #include "interpret.hpp"
 #include "miniz/miniz.h"
