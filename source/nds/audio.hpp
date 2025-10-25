@@ -31,18 +31,20 @@ typedef struct WAVHeader {
 
 class NDS_Audio {
   public:
-    static FILE *streamedFile;
-    static bool isStreaming;
+    std::string id;
+    FILE *audioFile = NULL;
+    bool isPlaying = false;
     static char stream_buffer[BUFFER_LENGTH];
     static int stream_buffer_in;
     static int stream_buffer_out;
 
-    bool init();
+    static bool init();
     static mm_word streamingCallback(mm_word length, mm_addr dest, mm_stream_formats format);
-    static void readFile(char *buffer, size_t size);
-    static void streamingFillBuffer(bool force_fill);
-    static int checkWAVHeader(const WAVHeader_t header);
-    static mm_stream_formats getMMStreamType(uint16_t numChannels, uint16_t bitsPerSample);
+    void readFile(char *buffer, size_t size, bool restartSound = false);
+    void streamingFillBuffer(bool force_fill, bool restartSound = false);
+    void clearStreamBuffer();
+    int checkWAVHeader(const WAVHeader_t header);
+    mm_stream_formats getMMStreamType(uint16_t numChannels, uint16_t bitsPerSample);
 };
 
-extern NDS_Audio streamedSound;
+extern std::unordered_map<std::string, NDS_Audio> NDS_Sounds;

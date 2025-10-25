@@ -7,12 +7,10 @@
 
 std::unordered_map<std::string, Sound> SoundPlayer::soundsPlaying;
 std::unordered_map<std::string, NDS_Audio> NDS_Sounds;
-FILE *NDS_Audio::streamedFile = NULL;
+extern std::unordered_map<std::string, NDS_Audio> NDS_Sounds;
 char NDS_Audio::stream_buffer[BUFFER_LENGTH];
 int NDS_Audio::stream_buffer_in;
 int NDS_Audio::stream_buffer_out;
-bool NDS_Audio::isStreaming = false;
-NDS_Audio streamedSound;
 
 bool NDS_Audio::init() {
     return true;
@@ -55,21 +53,35 @@ mm_word NDS_Audio::streamingCallback(mm_word length, mm_addr dest, mm_stream_for
     return length;
 }
 
-void NDS_Audio::readFile(char *buffer, size_t size) {
+void NDS_Audio::clearStreamBuffer() {
+    memset(stream_buffer, 0, BUFFER_LENGTH);
+    stream_buffer_in = 0;
+    stream_buffer_out = 0;
+}
+
+void NDS_Audio::readFile(char *buffer, size_t size, bool restartSound) {
     while (size > 0) {
-        int res = fread(buffer, 1, size, streamedFile);
+        int res = fread(buffer, 1, size, audioFile);
         size -= res;
         buffer += res;
 
-        if (feof(streamedFile)) {
+        if (feof(audioFile)) {
             memset(buffer, 0, size);
-            SoundPlayer::stopStreamedSound();
+            clearStreamBuffer();
+            SoundPlayer::stopSound(id);
+            break;
+        }
+        if (restartSound) {
+            fseek(audioFile, sizeof(WAVHeader_t), SEEK_SET);
+            res = fread(buffer, 1, size, audioFile);
+            size -= res;
+            buffer += res;
             break;
         }
     }
 }
 
-void NDS_Audio::streamingFillBuffer(bool force_fill) {
+void NDS_Audio::streamingFillBuffer(bool force_fill, bool restartSound) {
     if (!force_fill) {
         if (stream_buffer_in == stream_buffer_out)
             return;
@@ -77,15 +89,15 @@ void NDS_Audio::streamingFillBuffer(bool force_fill) {
 
     if (stream_buffer_in < stream_buffer_out) {
         size_t size = stream_buffer_out - stream_buffer_in;
-        readFile(&stream_buffer[stream_buffer_in], size);
+        readFile(&stream_buffer[stream_buffer_in], size, restartSound);
         stream_buffer_in += size;
     } else {
         size_t size = BUFFER_LENGTH - stream_buffer_in;
-        readFile(&stream_buffer[stream_buffer_in], size);
+        readFile(&stream_buffer[stream_buffer_in], size, restartSound);
         stream_buffer_in = 0;
 
         size = stream_buffer_out - stream_buffer_in;
-        readFile(&stream_buffer[stream_buffer_in], size);
+        readFile(&stream_buffer[stream_buffer_in], size, restartSound);
         stream_buffer_in += size;
     }
 
@@ -166,7 +178,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
         // Create temporary file
         std::string tempDir = OS::getScratchFolderLocation() + "cache/";
-        std::string tempPath = tempDir + "temp_sound.wav";
+        std::string tempPath = tempDir + soundId;
 
         mkdir(tempDir.c_str(), 0777);
 
@@ -224,26 +236,26 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     if (streamed) {
 
-        if (NDS_Audio::isStreaming) stopStreamedSound();
+        NDS_Audio audio;
 
-        NDS_Audio::streamedFile = fopen(fileName.c_str(), "rb");
-        if (NDS_Audio::streamedFile == NULL) {
+        audio.audioFile = fopen(fileName.c_str(), "rb");
+        if (audio.audioFile == NULL) {
             Log::logError("Sound not found. " + fileName);
             return false;
         }
 
         WAVHeader_t wavHeader = {0};
-        if (fread(&wavHeader, 1, sizeof(WAVHeader_t), NDS_Audio::streamedFile) != sizeof(WAVHeader_t)) {
+        if (fread(&wavHeader, 1, sizeof(WAVHeader_t), audio.audioFile) != sizeof(WAVHeader_t)) {
             Log::logError("Failed to read WAV header.");
             return false;
         }
-        if (NDS_Audio::checkWAVHeader(wavHeader) != 0) {
+        if (audio.checkWAVHeader(wavHeader) != 0) {
             Log::logError("WAV file header is corrupt! Make sure it is in the correct PCM format!");
             return false;
         }
 
         // Fill the buffer before we start doing anything
-        NDS_Audio::streamingFillBuffer(true);
+        // audio.streamingFillBuffer(true);
 
         // We are not using a soundbank so we need to manually initialize
         // mm_ds_system.
@@ -261,12 +273,15 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
                 .sampling_rate = wavHeader.sampleRate,
                 .buffer_length = 2048,
                 .callback = NDS_Audio::streamingCallback,
-                .format = NDS_Audio::getMMStreamType(wavHeader.numChannels, wavHeader.bitsPerSample),
+                .format = audio.getMMStreamType(wavHeader.numChannels, wavHeader.bitsPerSample),
                 .timer = MM_TIMER2,
                 .manual = false,
             };
         mmStreamOpen(&stream);
-        NDS_Audio::isStreaming = true;
+        audio.isPlaying = true;
+        std::string baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
+        NDS_Sounds[baseName] = std::move(audio);
+        NDS_Sounds[baseName].id = baseName;
         return true;
     }
 
@@ -275,7 +290,14 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
 int SoundPlayer::playSound(const std::string &soundId) {
 
-    return -1;
+    auto soundFind = NDS_Sounds.find(soundId);
+    if (soundFind != NDS_Sounds.end()) {
+        soundFind->second.isPlaying = true;
+        soundFind->second.streamingFillBuffer(false, true);
+        return 1;
+    }
+
+    return 0;
 }
 
 void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
@@ -287,51 +309,71 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
 }
 
 void SoundPlayer::stopSound(const std::string &soundId) {
+    auto soundFind = NDS_Sounds.find(soundId);
+
+    if (soundFind != NDS_Sounds.end()) {
+        soundFind->second.isPlaying = false;
+    }
 }
 
 void SoundPlayer::stopStreamedSound() {
-    if (NDS_Audio::streamedFile) {
-        fclose(NDS_Audio::streamedFile);
-        NDS_Audio::streamedFile = NULL;
-    }
-    NDS_Audio::isStreaming = false;
-    mmStreamClose();
 }
 
 void SoundPlayer::checkAudio() {
 }
 
 bool SoundPlayer::isSoundPlaying(const std::string &soundId) {
+    auto soundFind = NDS_Sounds.find(soundId);
 
-    return NDS_Audio::isStreaming;
+    if (soundFind != NDS_Sounds.end()) {
+        return soundFind->second.isPlaying;
+    }
+
+    return false;
 }
 
 bool SoundPlayer::isSoundLoaded(const std::string &soundId) {
+    auto soundFind = NDS_Sounds.find(soundId);
+
+    if (soundFind != NDS_Sounds.end()) {
+        return true;
+    }
 
     return false;
 }
 
 void SoundPlayer::freeAudio(const std::string &soundId) {
+    auto soundFind = NDS_Sounds.find(soundId);
+
+    if (soundFind != NDS_Sounds.end()) {
+        if (soundFind->second.audioFile) {
+            fclose(soundFind->second.audioFile);
+            soundFind->second.audioFile = NULL;
+        }
+        NDS_Sounds.erase(soundId);
+    }
 }
 
 void SoundPlayer::flushAudio() {
-
-    // if (NDS_Audio::isStreaming) {
-    //     NDS_Audio::streamingFillBuffer(false);
-    // }
-
-    if (!NDS_Audio::isStreaming) return;
+    if (NDS_Sounds.empty()) return;
 
     int consumed = (NDS_Audio::stream_buffer_out - NDS_Audio::stream_buffer_in + BUFFER_LENGTH) % BUFFER_LENGTH;
 
     if (consumed > 4096) {
-        streamedSound.streamingFillBuffer(false);
+        for (auto &[id, audio] : NDS_Sounds) {
+            if (audio.isPlaying)
+                audio.streamingFillBuffer(false);
+        }
     }
 }
 
 void SoundPlayer::cleanupAudio() {
-    stopStreamedSound();
+    for (auto &[id, audio] : NDS_Sounds) {
+        freeAudio(audio.id);
+    }
 }
 
 void SoundPlayer::deinit() {
+    cleanupAudio();
+    mmStreamClose();
 }
