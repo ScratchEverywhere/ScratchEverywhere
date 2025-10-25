@@ -128,7 +128,7 @@ void MainMenu::render() {
     logo->y = 75 + bobbingOffset;
     logo->render();
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
-    splashText->render(logo->renderX, logo->renderY + 85);
+    splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7) * logo->image->scale);
 
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);
