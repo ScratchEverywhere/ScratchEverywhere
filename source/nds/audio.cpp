@@ -3,6 +3,7 @@
 #include "audio.hpp"
 #include "interpret.hpp"
 #include "miniz/miniz.h"
+#include <sys/stat.h>
 
 std::unordered_map<std::string, Sound> SoundPlayer::soundsPlaying;
 std::unordered_map<std::string, NDS_Audio> NDS_Sounds;
@@ -61,13 +62,8 @@ void NDS_Audio::readFile(char *buffer, size_t size) {
         buffer += res;
 
         if (feof(streamedFile)) {
-            // Loop back when song ends
-            // fseek(streamedFile, sizeof(WAVHeader_t), SEEK_SET);
-            // res = fread(buffer, 1, size, streamedFile);
-            // size -= res;
-            // buffer += res;
-
-            // printf("Restarting...\n");
+            memset(buffer, 0, size);
+            SoundPlayer::stopStreamedSound();
             break;
         }
     }
@@ -145,7 +141,80 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
 }
 
 bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed) {
+    if (!zip) {
+        Log::logWarning("Error: Zip archive is null");
+        return false;
+    }
 
+    int file_count = (int)mz_zip_reader_get_num_files(zip);
+    if (file_count <= 0) {
+        Log::logWarning("Error: No files found in zip archive");
+        return false;
+    }
+
+    for (int i = 0; i < file_count; i++) {
+        mz_zip_archive_file_stat file_stat;
+        if (!mz_zip_reader_file_stat(zip, i, &file_stat)) {
+            continue;
+        }
+
+        std::string zipFileName = file_stat.m_filename;
+
+        if (zipFileName.find(soundId) == std::string::npos) {
+            continue;
+        }
+
+        // Create temporary file
+        std::string tempDir = OS::getScratchFolderLocation() + "cache/";
+        std::string tempPath = tempDir + "temp_sound.wav";
+
+        mkdir(tempDir.c_str(), 0777);
+
+        FILE *tempFile = fopen(tempPath.c_str(), "wb");
+        if (!tempFile) {
+            Log::logWarning("Failed to create temp file");
+            return false;
+        }
+
+        // Extract file in chunks to avoid large allocation
+        mz_zip_reader_extract_iter_state *pState = mz_zip_reader_extract_iter_new(zip, i, 0);
+        if (!pState) {
+            Log::logWarning("Failed to create extraction iterator");
+            fclose(tempFile);
+            return false;
+        }
+
+        const size_t CHUNK_SIZE = 4096; // 4KB chunks
+        char buffer[CHUNK_SIZE];
+        size_t total_read = 0;
+
+        while (true) {
+            size_t read = mz_zip_reader_extract_iter_read(pState, buffer, CHUNK_SIZE);
+            if (read == 0) break;
+
+            fwrite(buffer, 1, read, tempFile);
+            total_read += read;
+        }
+
+        mz_zip_reader_extract_iter_free(pState);
+        fclose(tempFile);
+
+        // Now load from the temp file
+        bool success = loadSoundFromFile(sprite, tempPath, streamed);
+
+        if (!streamed) {
+            remove(tempPath.c_str());
+        } else {
+        }
+
+        if (success) {
+            playSound(soundId);
+            setSoundVolume(soundId, sprite->volume);
+        }
+
+        return success;
+    }
+    Log::logWarning("Audio not found in archive: " + soundId);
     return false;
 }
 
@@ -154,6 +223,9 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     fileName = OS::getRomFSLocation() + fileName;
 
     if (streamed) {
+
+        if (NDS_Audio::isStreaming) stopStreamedSound();
+
         NDS_Audio::streamedFile = fopen(fileName.c_str(), "rb");
         if (NDS_Audio::streamedFile == NULL) {
             Log::logError("Sound not found. " + fileName);
@@ -218,6 +290,12 @@ void SoundPlayer::stopSound(const std::string &soundId) {
 }
 
 void SoundPlayer::stopStreamedSound() {
+    if (NDS_Audio::streamedFile) {
+        fclose(NDS_Audio::streamedFile);
+        NDS_Audio::streamedFile = NULL;
+    }
+    NDS_Audio::isStreaming = false;
+    mmStreamClose();
 }
 
 void SoundPlayer::checkAudio() {
@@ -225,7 +303,7 @@ void SoundPlayer::checkAudio() {
 
 bool SoundPlayer::isSoundPlaying(const std::string &soundId) {
 
-    return false;
+    return NDS_Audio::isStreaming;
 }
 
 bool SoundPlayer::isSoundLoaded(const std::string &soundId) {
@@ -244,15 +322,15 @@ void SoundPlayer::flushAudio() {
 
     if (!NDS_Audio::isStreaming) return;
 
-    // Only refill if callback has consumed at least 4KB
     int consumed = (NDS_Audio::stream_buffer_out - NDS_Audio::stream_buffer_in + BUFFER_LENGTH) % BUFFER_LENGTH;
 
-    if (consumed > 4096 * 2) { // Only refill when 4KB+ consumed
+    if (consumed > 4096) {
         streamedSound.streamingFillBuffer(false);
     }
 }
 
 void SoundPlayer::cleanupAudio() {
+    stopStreamedSound();
 }
 
 void SoundPlayer::deinit() {
