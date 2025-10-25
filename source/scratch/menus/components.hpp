@@ -1,15 +1,18 @@
 #pragma once
 
+#include "image.hpp"
 #include "os.hpp"
 #include <clay.h>
 #include <map>
 #include <string>
 
-#ifdef SDL_BUILD
-#include <SDL2/SDL.h>
+#ifdef __3DS__
+#include <citro2d.h>
 #endif
 
 #if defined(SDL_BUILD) && !defined(HAS_SDL2_FONT)
+
+#include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
 typedef struct
@@ -28,10 +31,12 @@ namespace components {
 
 #ifdef SDL_BUILD
 extern SDL2_Font fonts[2];
-
-static constexpr unsigned int FONT_ID_BODY_16 = 0;
-static constexpr unsigned int FONT_ID_BODY_BOLD_48 = 1;
+#elif defined(__3DS__)
+extern std::vector<C2D_Font> fonts;
 #endif
+
+extern uint16_t FONT_ID_BODY_16;
+extern uint16_t FONT_ID_BODY_BOLD_48;
 
 struct ProjectInfo {
     std::string name;
@@ -55,9 +60,7 @@ class Sidebar {
     Timer animationTimer;
     std::string unSelectedTab = "";
 
-#ifdef SDL_BUILD
-    std::map<std::string, SDL_Surface *> images;
-#endif
+    std::map<std::string, std::unique_ptr<Image>> images;
 
     void renderItem(const std::string tab);
 
@@ -65,7 +68,6 @@ class Sidebar {
     MenuManager *menuManager = nullptr;
 
     Sidebar();
-    ~Sidebar();
     void render();
 };
 

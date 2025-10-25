@@ -1,9 +1,16 @@
 #pragma once
 
 #include "components.hpp"
+#include "image.hpp"
 #include "menu.hpp"
 #include <memory>
 #include <stack>
+
+#ifdef SDL_BUILD
+#include "../../sdl/image.hpp"
+#elif defined(__3DS__)
+#include "../../3ds/image.hpp"
+#endif
 
 enum class MenuID {
     MainMenu,
@@ -21,6 +28,8 @@ class MenuManager {
     std::unique_ptr<Menu> createMenu(MenuID id);
 
   public:
+    float scale;
+
     components::Sidebar sidebar;
 
     MenuID currentMenuID = MenuID::None;
@@ -36,4 +45,12 @@ class MenuManager {
     void back();
 
     void handleInput(float scrollX, float scrollY, float mouseX, float mouseY, bool mouseDown);
+
+    static inline void *getImageData(Image *image) {
+#ifdef SDL_BUILD
+        return images[image->imageId]->spriteTexture;
+#elif defined(__3DS__)
+        return &images[image->imageId].image;
+#endif
+    }
 };

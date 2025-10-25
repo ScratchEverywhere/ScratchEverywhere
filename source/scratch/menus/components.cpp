@@ -14,23 +14,16 @@
 namespace components {
 #ifdef SDL_BUILD
 SDL2_Font fonts[2] = {};
+#elif defined(__3DS__)
+std::vector<C2D_Font> fonts;
 #endif
+
+uint16_t FONT_ID_BODY_16 = 0;
+uint16_t FONT_ID_BODY_BOLD_48 = 1;
 
 Sidebar::Sidebar() {
-    for (const auto &tab : tabs) {
-#ifdef SDL_BUILD
-        images[tab] = IMG_Load((OS::getRomFSLocation() + "gfx/menu/" + tab + ".svg").c_str());
-        if (!images.contains(tab) || !images[tab]) Log::logError("Failed to load image for tab: " + tab);
-#endif
-    }
-}
-
-Sidebar::~Sidebar() {
-    for (const auto &tab : tabs) {
-#ifdef SDL_BUILD
-        if (images.contains(tab) && images[tab]) SDL_FreeSurface(images[tab]);
-#endif
-    }
+    for (const auto &tab : tabs)
+        images[tab] = std::make_unique<Image>("gfx/menu/" + tab + ".svg");
 }
 
 static MenuID tabToMenuID(const std::string tab) {
@@ -70,21 +63,21 @@ void Sidebar::renderItem(const std::string tab) {
         bgColor.b = std::lerp(focusedTabColor.b, unfocusedTabColor.b, t);
     }
 
-    float height = 100;
+    float height = 100 * menuManager->scale;
     if (selected == tab) {
-        height += std::lerp(0, 25, t);
+        height += std::lerp(0, 25 * menuManager->scale, t);
     } else if (unSelectedTab == tab) {
-        height += std::lerp(25, 0, t);
+        height += std::lerp(25 * menuManager->scale, 0, t);
     }
 
     // clang-format off
 	CLAY(CLAY_SID(clayId), (Clay_ElementDeclaration){
 		.layout = {
-			.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_FIXED(height) },
+			.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0, height) },
 			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }
 		},
 		.backgroundColor = bgColor,
-		.cornerRadius = {16, 0, 16, 0},
+		.cornerRadius = {16 * menuManager->scale, 0, 16 * menuManager->scale, 0},
 	}) {
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
 			const auto hoverData = *(const HoverData*)userdata;
@@ -96,7 +89,7 @@ void Sidebar::renderItem(const std::string tab) {
 				.sizing = { .width = CLAY_SIZING_PERCENT(0.5) }
 			},
 			.aspectRatio = { 1 },
-			.image = { .imageData = images[tab] }	
+			.image = { .imageData = MenuManager::getImageData(images[tab].get()) }	
 		});
 	}
     // clang-format on
@@ -106,9 +99,9 @@ void Sidebar::render() {
     // clang-format off
 	CLAY(CLAY_ID("sidebar"), (Clay_ElementDeclaration){
 		.layout = {
-			.sizing = { .width = CLAY_SIZING_FIXED(60), .height = CLAY_SIZING_GROW(0) },
-			.padding = { 8, 0, 0, 0 },
-			.childGap = 10,
+			.sizing = { .width = CLAY_SIZING_FIXED(60.0f * menuManager->scale), .height = CLAY_SIZING_GROW(0) },
+			.padding = { static_cast<uint16_t>(8 * menuManager->scale), 0, static_cast<uint16_t>(15 * menuManager->scale), static_cast<uint16_t>(15 * menuManager->scale) },
+			.childGap = static_cast<uint16_t>(10 * menuManager->scale),
 			.childAlignment = { .x = CLAY_ALIGN_X_RIGHT, .y = CLAY_ALIGN_Y_CENTER },
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
 		},
@@ -121,20 +114,20 @@ void Sidebar::render() {
 std::vector<ProjectHoverData> projectHoverData;
 
 void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager) {
-    static constexpr unsigned int padding = 10;
+    const uint16_t padding = 10 * menuManager->scale;
 
     // clang-format off
     CLAY(CLAY_IDI("project-list-item", i), (Clay_ElementDeclaration){
 		.layout = {
-			.sizing = { .width = width, .height = CLAY_SIZING_FIXED(60) },
+			.sizing = { .width = width, .height = CLAY_SIZING_FIXED(60 * menuManager->scale) },
 			.padding = {padding, padding, padding, padding},
 			.childGap = 5,
 			.childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
 			.layoutDirection = CLAY_LEFT_TO_RIGHT
 		},
 		.backgroundColor = {225, 225, 235, 255},
-		.cornerRadius = {10, 10, 10, 10},
-		.border = { .color = {90, 60, 90, 255}, .width = {5, 5, 5, 5} }
+		.cornerRadius = {10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale},
+		.border = { .color = {90, 60, 90, 255}, .width = {static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale)} }
 	}) {
 		if (i <= projectHoverData.size()) projectHoverData.push_back({ menuManager, &projectInfo });
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
@@ -148,7 +141,6 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 				.layout = {
 					.sizing = { .width = CLAY_SIZING_FIXED(Clay_GetElementData(CLAY_IDI("project-list-item", i)).boundingBox.height - 2 * padding) }
 				},
-				.cornerRadius = {5, 5, 5, 5}, // I don't think any renderers support this...
 				.aspectRatio = {1},
 				.image = {.imageData = image},
 			});
@@ -159,8 +151,11 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 			},
 			.clip = { .horizontal = true, .childOffset = {textScroll, 0} }
 		}) {
+			static constexpr uint16_t minFontSize = 16;
+			uint16_t fontSize = 12 * menuManager->scale;
+			if (fontSize < minFontSize) fontSize = minFontSize;
 			const Clay_String clayName = {false, static_cast<int32_t>(projectInfo.name.length()), projectInfo.name.c_str()};
-			CLAY_TEXT(clayName, CLAY_TEXT_CONFIG({.textColor = {0, 0, 0, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 12}));
+			CLAY_TEXT(clayName, CLAY_TEXT_CONFIG({.textColor = {0, 0, 0, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
 		}
 	}
     // clang-format on

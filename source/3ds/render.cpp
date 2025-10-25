@@ -50,7 +50,7 @@ bool Render::Init() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
     if (kDown & KEY_SELECT) {
-        consoleInit(GFX_BOTTOM, NULL);
+        consoleInit(GFX_TOP, NULL);
         debugMode = true;
         isConsoleInit = true;
     }
@@ -83,13 +83,19 @@ bool Render::Init() {
     return true;
 }
 
+static touchPosition touch;
+
 bool Render::appShouldRun(MenuManager *menuManager) {
     if (toExit) return false;
     if (!aptMainLoop()) {
         toExit = true;
         return false;
     }
-    if (menuManager) menuManager->handleInput(0, 0, 0, 0, false); // TODO: Actually implement this...
+    if (menuManager) {
+        hidScanInput();
+        hidTouchRead(&touch);
+        menuManager->handleInput(0, 0, touch.px, touch.py, touch.px != 0 || touch.py != 0);
+    }
     return true;
 }
 
@@ -401,17 +407,17 @@ void Render::renderSprites() {
     // Sort sprites by layer with stage always being first
     std::vector<Sprite *> spritesByLayer = sprites;
     std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-        [](const Sprite *a, const Sprite *b) {
-            // Stage sprite always comes first
-            if (a->isStage && !b->isStage) return true;
-            if (!a->isStage && b->isStage) return false;
-            // Otherwise sort by layer
-            return a->layer < b->layer;
-        });
+              [](const Sprite *a, const Sprite *b) {
+                  // Stage sprite always comes first
+                  if (a->isStage && !b->isStage) return true;
+                  if (!a->isStage && b->isStage) return false;
+                  // Otherwise sort by layer
+                  return a->layer < b->layer;
+              });
 
     // ---------- LEFT EYE ----------
+    C2D_SceneBegin(topScreen); // Should be done no matter what to properly apply the clear above
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(topScreen);
         currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
@@ -423,13 +429,13 @@ void Render::renderSprites() {
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
 
                 C2D_DrawImageAtRotated(penImage,
-                    SCREEN_WIDTH * 0.5f,
-                    SCREEN_HEIGHT * heightMultiplier,
-                    0,
-                    M_PI,
-                    nullptr,
-                    scaleX,
-                    scaleY);
+                                       SCREEN_WIDTH * 0.5f,
+                                       SCREEN_HEIGHT * heightMultiplier,
+                                       0,
+                                       M_PI,
+                                       nullptr,
+                                       scaleX,
+                                       scaleY);
             }
 
             Sprite *currentSprite = spritesByLayer[i];
@@ -462,8 +468,8 @@ void Render::renderSprites() {
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // ---------- RIGHT EYE ----------
+    C2D_SceneBegin(topScreenRightEye); // Should be done no matter what to properly apply the clear above
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(topScreenRightEye);
         currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
@@ -475,13 +481,13 @@ void Render::renderSprites() {
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
 
                 C2D_DrawImageAtRotated(penImage,
-                    SCREEN_WIDTH * 0.5f,
-                    SCREEN_HEIGHT * heightMultiplier,
-                    0,
-                    M_PI,
-                    nullptr,
-                    scaleX,
-                    scaleY);
+                                       SCREEN_WIDTH * 0.5f,
+                                       SCREEN_HEIGHT * heightMultiplier,
+                                       0,
+                                       M_PI,
+                                       nullptr,
+                                       scaleX,
+                                       scaleY);
             }
 
             Sprite *currentSprite = spritesByLayer[i];
@@ -514,8 +520,8 @@ void Render::renderSprites() {
     }
 
     // ---------- BOTTOM SCREEN ----------
+    C2D_SceneBegin(bottomScreen); // Should be done no matter what to properly apply the clear above
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(bottomScreen);
         currentScreen = 1;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
@@ -527,13 +533,13 @@ void Render::renderSprites() {
                 const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
 
                 C2D_DrawImageAtRotated(penImage,
-                    SCREEN_WIDTH * 0.5f,
-                    (SCREEN_HEIGHT * heightMultiplier),
-                    0,
-                    M_PI,
-                    nullptr,
-                    scaleX,
-                    scaleY);
+                                       SCREEN_WIDTH * 0.5f,
+                                       (SCREEN_HEIGHT * heightMultiplier),
+                                       0,
+                                       M_PI,
+                                       nullptr,
+                                       scaleX,
+                                       scaleY);
             }
 
             Sprite *currentSprite = spritesByLayer[i];

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "components.hpp"
+#include "image.hpp"
 #include "menu.hpp"
 #include <vector>
 
@@ -10,13 +11,10 @@
 
 class ProjectsMenu : public Menu {
   private:
-#ifdef SDL_BUILD
-    SDL_Surface *missingIcon;
-#endif
+    std::unique_ptr<Image> missingIcon;
     std::vector<components::ProjectInfo> projects;
 
   public:
     ProjectsMenu();
-    ~ProjectsMenu();
     void render() override;
 };

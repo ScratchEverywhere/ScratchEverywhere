@@ -373,8 +373,6 @@ static void Clay_SDL2_Render(SDL_Renderer *renderer, Clay_RenderCommandArray ren
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
             Clay_ImageRenderData *config = &renderCommand->renderData.image;
 
-            SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, (SDL_Surface *)config->imageData);
-
             SDL_Rect destination = (SDL_Rect){
                 .x = (int)boundingBox.x,
                 .y = (int)boundingBox.y,
@@ -382,9 +380,7 @@ static void Clay_SDL2_Render(SDL_Renderer *renderer, Clay_RenderCommandArray ren
                 .h = (int)boundingBox.height,
             };
 
-            SDL_RenderCopy(renderer, texture, NULL, &destination);
-
-            SDL_DestroyTexture(texture);
+            SDL_RenderCopy(renderer, (SDL_Texture *)config->imageData, NULL, &destination);
             break;
         }
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {
