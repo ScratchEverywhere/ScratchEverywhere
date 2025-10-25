@@ -1,10 +1,12 @@
 #include "../scratch/render.hpp"
+#include "../scratch/audio.hpp"
 #include "../scratch/input.hpp"
 #include "image.hpp"
 #include <fat.h>
 #include <filesystem.h>
 #include <gl2d.h>
 #include <nds.h>
+#include <nds/arm9/dldi.h>
 
 // Static member initialization
 std::chrono::_V2::system_clock::time_point Render::startTime;
@@ -28,6 +30,7 @@ bool Render::Init() {
     consoleDemoInit();
 
     if (!OS::isDSi()) {
+        dldiSetMode(DLDI_MODE_AUTODETECT);
         if (!fatInitDefault()) {
             Log::logError("FAT init failed!\nUsing an emulator? Be sure to\nenable SD card emulation in your emulator settings!");
             while (1)
@@ -54,7 +57,6 @@ bool Render::Init() {
         vramSetBankF(VRAM_F_TEX_PALETTE);
         debugMode = true;
     }
-
     return true;
 }
 
@@ -69,6 +71,7 @@ void *Render::getRenderer() {
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (hasFrameBegan) return;
+    SoundPlayer::flushAudio();
     glBegin2D();
     int r5 = colorR >> 3;
     int g5 = colorG >> 3;
@@ -175,6 +178,7 @@ void Render::renderSprites() {
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
     Image::FlushImages();
+    SoundPlayer::flushAudio();
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
