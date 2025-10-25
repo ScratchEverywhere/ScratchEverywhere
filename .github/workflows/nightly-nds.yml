@@ -5,7 +5,7 @@ on:
     paths:
       - make/Makefile_nds
       - source/scratch/**
-      - source/sdl/**
+      - source/nds/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-nds.yml

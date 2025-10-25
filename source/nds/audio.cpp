@@ -18,15 +18,16 @@ bool NDS_Audio::init() {
 
 mm_word NDS_Audio::streamingCallback(mm_word length, mm_addr dest, mm_stream_formats format) {
     size_t multiplier = 0;
-
-    if (format == MM_STREAM_8BIT_MONO)
+    switch (format) {
+    case MM_STREAM_8BIT_MONO:
         multiplier = 1;
-    else if (format == MM_STREAM_8BIT_STEREO)
+    case MM_STREAM_8BIT_STEREO:
         multiplier = 2;
-    else if (format == MM_STREAM_16BIT_MONO)
+    case MM_STREAM_16BIT_MONO:
         multiplier = 2;
-    else if (format == MM_STREAM_16BIT_STEREO)
+    case MM_STREAM_16BIT_STEREO:
         multiplier = 4;
+    }
 
     size_t size = length * multiplier;
 
@@ -82,9 +83,8 @@ void NDS_Audio::readFile(char *buffer, size_t size, bool restartSound) {
 }
 
 void NDS_Audio::streamingFillBuffer(bool force_fill, bool restartSound) {
-    if (!force_fill) {
-        if (stream_buffer_in == stream_buffer_out)
-            return;
+    if (!force_fill && stream_buffer_in == stream_buffer_out) {
+        return;
     }
 
     if (stream_buffer_in < stream_buffer_out) {
@@ -234,56 +234,55 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     fileName = OS::getRomFSLocation() + fileName;
 
-    if (streamed) {
+    if (!streamed) return false;
 
-        NDS_Audio audio;
+    NDS_Audio audio;
 
-        audio.audioFile = fopen(fileName.c_str(), "rb");
-        if (audio.audioFile == NULL) {
-            Log::logError("Sound not found. " + fileName);
-            return false;
-        }
-
-        WAVHeader_t wavHeader = {0};
-        if (fread(&wavHeader, 1, sizeof(WAVHeader_t), audio.audioFile) != sizeof(WAVHeader_t)) {
-            Log::logError("Failed to read WAV header.");
-            return false;
-        }
-        if (audio.checkWAVHeader(wavHeader) != 0) {
-            Log::logError("WAV file header is corrupt! Make sure it is in the correct PCM format!");
-            return false;
-        }
-
-        // Fill the buffer before we start doing anything
-        // audio.streamingFillBuffer(true);
-
-        // We are not using a soundbank so we need to manually initialize
-        // mm_ds_system.
-        mm_ds_system mmSys =
-            {
-                .mod_count = 0,
-                .samp_count = 0,
-                .mem_bank = 0,
-                .fifo_channel = FIFO_MAXMOD};
-        mmInit(&mmSys);
-
-        // Open the stream
-        mm_stream stream =
-            {
-                .sampling_rate = wavHeader.sampleRate,
-                .buffer_length = 2048,
-                .callback = NDS_Audio::streamingCallback,
-                .format = audio.getMMStreamType(wavHeader.numChannels, wavHeader.bitsPerSample),
-                .timer = MM_TIMER2,
-                .manual = false,
-            };
-        mmStreamOpen(&stream);
-        audio.isPlaying = true;
-        std::string baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
-        NDS_Sounds[baseName] = std::move(audio);
-        NDS_Sounds[baseName].id = baseName;
-        return true;
+    audio.audioFile = fopen(fileName.c_str(), "rb");
+    if (audio.audioFile == NULL) {
+        Log::logError("Sound not found. " + fileName);
+        return false;
     }
+
+    WAVHeader_t wavHeader = {0};
+    if (fread(&wavHeader, 1, sizeof(WAVHeader_t), audio.audioFile) != sizeof(WAVHeader_t)) {
+        Log::logError("Failed to read WAV header.");
+        return false;
+    }
+    if (audio.checkWAVHeader(wavHeader) != 0) {
+        Log::logError("WAV file header is corrupt! Make sure it is in the correct PCM format!");
+        return false;
+    }
+
+    // Fill the buffer before we start doing anything
+    // audio.streamingFillBuffer(true);
+
+    // We are not using a soundbank so we need to manually initialize
+    // mm_ds_system.
+    mm_ds_system mmSys =
+        {
+            .mod_count = 0,
+            .samp_count = 0,
+            .mem_bank = 0,
+            .fifo_channel = FIFO_MAXMOD};
+    mmInit(&mmSys);
+
+    // Open the stream
+    mm_stream stream =
+        {
+            .sampling_rate = wavHeader.sampleRate,
+            .buffer_length = 2048,
+            .callback = NDS_Audio::streamingCallback,
+            .format = audio.getMMStreamType(wavHeader.numChannels, wavHeader.bitsPerSample),
+            .timer = MM_TIMER2,
+            .manual = false,
+        };
+    mmStreamOpen(&stream);
+    audio.isPlaying = true;
+    std::string baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
+    NDS_Sounds[baseName] = std::move(audio);
+    NDS_Sounds[baseName].id = baseName;
+    return true;
 
     return false;
 }
