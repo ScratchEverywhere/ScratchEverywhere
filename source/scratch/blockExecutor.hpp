@@ -16,12 +16,10 @@ enum class BlockResult {
 };
 
 class BlockExecutor {
-  private:
+  public:
     std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
     std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
-    // std::unordered_map<Block::opCode, std::function<Value(Block&,Sprite*)>> conditionBlockHandlers;
 
-  public:
     /**
      * The main Class for running Scratch Blocks.
      */
