@@ -65,11 +65,11 @@ void Image::render(double xPos, double yPos, bool centered) {
         int RenderY = yPos;
 
         if (centered) {
-            RenderX -= (width * scale) / 2;
-            RenderY -= (height * scale) / 2;
+            RenderX -= width / 2;
+            RenderY -= height / 2;
         }
 
-        int renderScale = scale * (1 << 12);
+        int renderScale = (1 << 12);
         // if (data.scaleX != 1 << 12 || data.scaleY != 1 << 12) {
         //     renderScale = (renderScale * data.scaleX) >> 12;
         // }
@@ -314,6 +314,40 @@ imagePAL8 RGBAToPAL8(const imageRGBA &rgba) {
     // reserve index 0 for transparency
     palette.push_back(0x0000);
 
+    auto findNearestColor = [&](unsigned char r, unsigned char g, unsigned char b) -> int {
+        int bestIndex = 1; // Default to index 1 if nothing better found
+        int bestDistance = INT_MAX;
+
+        // Start from index 1 (skip transparency at 0)
+        for (size_t i = 1; i < palette.size(); ++i) {
+            unsigned short rgb555 = palette[i];
+            // Extract RGB components from RGB555 format
+            int pr = (rgb555 & 0x1F);
+            int pg = ((rgb555 >> 5) & 0x1F);
+            int pb = ((rgb555 >> 10) & 0x1F);
+
+            // Calculate distance in 5-bit color space
+            int r5 = r >> 3;
+            int g5 = g >> 3;
+            int b5 = b >> 3;
+
+            int dr = r5 - pr;
+            int dg = g5 - pg;
+            int db = b5 - pb;
+
+            int distance = dr * dr * 2 + dg * dg * 4 + db * db * 3;
+
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestIndex = (int)i;
+
+                if (distance == 0) break;
+            }
+        }
+
+        return bestIndex;
+    };
+
     for (int y = 0; y < texH; ++y) {
         for (int x = 0; x < texW; ++x) {
             int dstIndex = y * texW + x;
@@ -351,8 +385,11 @@ imagePAL8 RGBAToPAL8(const imageRGBA &rgba) {
                     palette.push_back(rgb555);
                     ds.textureData[dstIndex] = (unsigned char)newIndex;
                 } else {
-                    // color palette full: fallback to index 1 (TODO: maybe something else could be done here?)
-                    ds.textureData[dstIndex] = 1;
+                    // Palette full: find nearest existing color
+                    int nearestIndex = findNearestColor(r, g, b);
+                    ds.textureData[dstIndex] = (unsigned char)nearestIndex;
+                    // Cache this mapping to avoid recalculating
+                    colorMap[colorKey] = nearestIndex;
                 }
             }
         }
