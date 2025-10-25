@@ -47,7 +47,7 @@ CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_image SDL2_gfx freety
 
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image SDL2_gfx freetype2 lua51`
-CFLAGS	+=	-DENABLE_AUDIO `pkg-config --cflags SDL2_mixer`
+CFLAGS	+=	-DENABLE_AUDIO `$(PREFIX)pkg-config --cflags SDL2_mixer`
 else
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2 lua51`
 endif
