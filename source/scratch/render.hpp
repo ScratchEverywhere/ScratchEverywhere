@@ -12,7 +12,6 @@ class Render {
     static std::chrono::system_clock::time_point endTime;
     static bool debugMode;
     static float renderScale;
-    static bool sizeChanged;
 
     static bool hasFrameBegan;
 
@@ -66,13 +65,14 @@ class Render {
         const int screenHeight = getHeight();
 
         // If the window size changed, or if the sprite changed costumes
-        if (sizeChanged || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
+        if (sprite->renderInfo.forceUpdate || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
             // change all renderinfo a bit to update position for all
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
             sprite->renderInfo.oldRotation++;
             sprite->renderInfo.oldSize++;
             sprite->renderInfo.oldCostumeID = sprite->currentCostume;
+            sprite->renderInfo.forceUpdate = false;
         }
 
         if (sprite->size != sprite->renderInfo.oldSize) {
@@ -106,10 +106,10 @@ class Render {
             sprite->renderInfo.oldX = sprite->xPosition;
             sprite->renderInfo.oldY = sprite->yPosition;
 
-            int renderX;
-            int renderY;
-            int spriteX = static_cast<int>(sprite->xPosition);
-            int spriteY = static_cast<int>(sprite->yPosition);
+            float renderX;
+            float renderY;
+            float spriteX = static_cast<int>(sprite->xPosition);
+            float spriteY = static_cast<int>(sprite->yPosition);
 
             // Handle if the sprite's image is not centered in the costume editor
             if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
@@ -120,7 +120,7 @@ class Render {
 
                 // Offset based on size
                 if (sprite->size != 100.0f) {
-                    const float scale = sprite->size * (isSVG ? 0.01 : 0.005);
+                    const float scale = sprite->size * 0.01;
                     const float scaledX = offsetX * scale;
                     const float scaledY = offsetY * scale;
 
@@ -150,8 +150,8 @@ class Render {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
                 renderY = (-spriteY * renderScale) + (screenHeight >> 1);
             } else {
-                renderX = spriteX + (screenWidth >> 1);
-                renderY = -spriteY + (screenHeight >> 1);
+                renderX = static_cast<int>(spriteX + (screenWidth >> 1));
+                renderY = static_cast<int>(-spriteY + (screenHeight >> 1));
             }
 
 #ifdef SDL_BUILD
@@ -173,13 +173,86 @@ class Render {
         const int screenHeight = getHeight();
         renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                static_cast<float>(screenHeight) / Scratch::projectHeight);
-        sizeChanged = true;
+        forceUpdateSpritePosition();
+    }
+
+    /**
+     * Force updates every sprite's position on screen. Should be called when window size changes.
+     */
+    static void forceUpdateSpritePosition() {
+        for (auto &sprite : sprites) {
+            sprite->renderInfo.forceUpdate = true;
+        }
     }
 
     /**
      * Renders all visible variable and list monitors
      */
-    static void renderVisibleVariables();
+    static void renderVisibleVariables() {
+        // get screen scale
+        const float scale = renderScale;
+        const float screenWidth = getWidth();
+        const float screenHeight = getHeight();
+
+        // calculate black bar offset
+        float screenAspect = static_cast<float>(screenWidth) / screenHeight;
+        float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+        float barOffsetX = 0.0f;
+        float barOffsetY = 0.0f;
+        if (screenAspect > projectAspect) {
+            float scaledProjectWidth = Scratch::projectWidth * scale;
+            barOffsetX = (screenWidth - scaledProjectWidth) / 2.0f;
+        } else if (screenAspect < projectAspect) {
+            float scaledProjectHeight = Scratch::projectHeight * scale;
+            barOffsetY = (screenHeight - scaledProjectHeight) / 2.0f;
+        }
+
+        for (auto &var : visibleVariables) {
+            if (var.visible) {
+                std::string renderText = BlockExecutor::getMonitorValue(var).asString();
+                if (monitorTexts.find(var.id) == monitorTexts.end()) {
+                    monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
+                } else {
+                    monitorTexts[var.id]->setText(renderText);
+                }
+                float renderX = var.x * scale + barOffsetX;
+                float renderY = var.y * scale + barOffsetY;
+                const std::vector<float> renderSize = monitorTexts[var.id]->getSize();
+                ColorRGB backgroundColor = {
+                    .r = 228,
+                    .g = 240,
+                    .b = 255};
+
+                monitorTexts[var.id]->setCenterAligned(false);
+                if (var.mode != "large") {
+                    monitorTexts[var.id]->setColor(Math::color(0, 0, 0, 255));
+                    monitorTexts[var.id]->setScale(1.0f * (scale / 2.0f));
+                } else {
+                    monitorTexts[var.id]->setColor(Math::color(255, 255, 255, 255));
+                    monitorTexts[var.id]->setScale(1.25f * (scale / 2.0f));
+                    backgroundColor = {
+                        .r = 255,
+                        .g = 141,
+                        .b = 41
+
+                    };
+                }
+
+                // draw background
+                drawBox(renderSize[0] + (2 * scale), renderSize[1] + (2 * scale), renderX + renderSize[0] / 2, renderY + renderSize[1] / 2, 194, 204, 217);
+                drawBox(renderSize[0], renderSize[1], renderX + renderSize[0] / 2, renderY + renderSize[1] / 2, backgroundColor.r, backgroundColor.g, backgroundColor.b);
+#ifdef __3DS__
+                renderY += renderSize[1] / 2;
+#endif
+                monitorTexts[var.id]->render(renderX, renderY);
+            } else {
+                if (monitorTexts.find(var.id) != monitorTexts.end()) {
+                    delete monitorTexts[var.id];
+                    monitorTexts.erase(var.id);
+                }
+            }
+        }
+    }
 
     /**
      * Renders the pen layer

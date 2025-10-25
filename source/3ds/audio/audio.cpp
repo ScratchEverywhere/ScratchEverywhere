@@ -13,7 +13,9 @@
 std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;
 std::string currentStreamedSound = "";
 static bool isInit = false;
+#ifdef ENABLE_AUDIO
 static MIX_Mixer *mixer = nullptr;
+#endif
 
 bool SoundPlayer::init() {
     if (isInit) return true;

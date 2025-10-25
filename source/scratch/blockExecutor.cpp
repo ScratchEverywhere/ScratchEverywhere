@@ -515,6 +515,15 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
                 }
             }
         }
+    } else {
+        try {
+            Block newBlock;
+            newBlock.opcode = var.opcode;
+            monitorName = var.opcode;
+            var.value = executor.getBlockValue(newBlock, sprite);
+        } catch (...) {
+            var.value = Value("Unknown...");
+        }
     }
 
     std::string renderText;

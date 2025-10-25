@@ -31,12 +31,12 @@ u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
 std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
+std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 bool Render::debugMode = false;
 static bool isConsoleInit = false;
 float Render::renderScale = 1.0f;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
-bool Render::sizeChanged = false;
 bool Render::hasFrameBegan;
 static int currentScreen = 0;
 std::vector<Monitor> Render::visibleVariables;
@@ -571,57 +571,6 @@ void Render::renderSprites() {
 #endif
     osSetSpeedupEnable(true);
     C3D_FrameSync();
-}
-
-std::unordered_map<std::string, TextObject *> Render::monitorTexts;
-
-void Render::renderVisibleVariables() {
-
-    // get screen scale
-    double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
-    double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
-    double scale = std::min(scaleX, scaleY);
-
-    // calculate black bar offset
-    float screenAspect = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-    float barOffsetX = 0.0f;
-    float barOffsetY = 0.0f;
-    if (screenAspect > projectAspect) {
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        barOffsetX = (SCREEN_WIDTH - scaledProjectWidth) / 2.0f;
-    } else if (screenAspect < projectAspect) {
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        barOffsetY = (SCREEN_HEIGHT - scaledProjectHeight) / 2.0f;
-    }
-
-    for (auto &var : visibleVariables) {
-        if (var.visible) {
-
-            std::string renderText = BlockExecutor::getMonitorValue(var).asString();
-
-            if (monitorTexts.find(var.id) == monitorTexts.end()) {
-                monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
-            } else {
-                monitorTexts[var.id]->setText(renderText);
-            }
-            monitorTexts[var.id]->setColor(C2D_Color32(0, 0, 0, 255));
-            if (var.mode != "large") {
-                monitorTexts[var.id]->setCenterAligned(false);
-                monitorTexts[var.id]->setScale(0.6);
-            } else {
-                monitorTexts[var.id]->setCenterAligned(true);
-                monitorTexts[var.id]->setScale(1);
-            }
-
-            monitorTexts[var.id]->render(var.x + barOffsetX, var.y + barOffsetY);
-
-        } else {
-            if (monitorTexts.find(var.id) != monitorTexts.end()) {
-                monitorTexts.erase(var.id);
-            }
-        }
-    }
 }
 
 void Render::deInit() {
