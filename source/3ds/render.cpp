@@ -6,6 +6,7 @@
 #include "image.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
+#include "menus/menuManager.hpp"
 #include "text.hpp"
 #include "unzip.hpp"
 #include <chrono>
@@ -49,7 +50,7 @@ bool Render::Init() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
     if (kDown & KEY_SELECT) {
-        consoleInit(GFX_BOTTOM, NULL);
+        consoleInit(GFX_TOP, NULL);
         debugMode = true;
         isConsoleInit = true;
     }
@@ -82,11 +83,18 @@ bool Render::Init() {
     return true;
 }
 
-bool Render::appShouldRun() {
+static touchPosition touch;
+
+bool Render::appShouldRun(MenuManager *menuManager) {
     if (toExit) return false;
     if (!aptMainLoop()) {
         toExit = true;
         return false;
+    }
+    if (menuManager) {
+        hidScanInput();
+        hidTouchRead(&touch);
+        menuManager->handleInput(0, 0, touch.px, touch.py, touch.px != 0 || touch.py != 0);
     }
     return true;
 }
@@ -408,8 +416,8 @@ void Render::renderSprites() {
               });
 
     // ---------- LEFT EYE ----------
+    C2D_SceneBegin(topScreen); // Should be done no matter what to properly apply the clear above
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(topScreen);
         currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
@@ -460,8 +468,8 @@ void Render::renderSprites() {
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // ---------- RIGHT EYE ----------
+    C2D_SceneBegin(topScreenRightEye); // Should be done no matter what to properly apply the clear above
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(topScreenRightEye);
         currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
@@ -512,8 +520,8 @@ void Render::renderSprites() {
     }
 
     // ---------- BOTTOM SCREEN ----------
+    C2D_SceneBegin(bottomScreen); // Should be done no matter what to properly apply the clear above
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(bottomScreen);
         currentScreen = 1;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {

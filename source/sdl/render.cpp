@@ -5,6 +5,7 @@
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
+#include "menus/menuManager.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
 #include "text.hpp"
@@ -482,9 +483,11 @@ void Render::renderPenLayer() {
     SDL_RenderCopy(renderer, penTexture, NULL, &renderRect);
 }
 
-bool Render::appShouldRun() {
+bool Render::appShouldRun(MenuManager *menuManager) {
     if (toExit) return false;
     SDL_Event event;
+    float scrollX = 0;
+    float scrollY = 0;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
@@ -507,6 +510,10 @@ bool Render::appShouldRun() {
         case SDL_FINGERUP:
             touchActive = false;
             break;
+        case SDL_MOUSEWHEEL:
+            scrollX = event.wheel.x;
+            scrollY = event.wheel.y;
+            break;
         case SDL_WINDOWEVENT:
             switch (event.window.event) {
             case SDL_WINDOWEVENT_RESIZED:
@@ -517,5 +524,13 @@ bool Render::appShouldRun() {
             break;
         }
     }
+    if (!menuManager) return true;
+    if (SDL_GetNumTouchDevices() > 0) {
+        menuManager->handleInput(scrollX, scrollY, touchPosition.x, touchPosition.y, touchActive);
+        return true;
+    }
+    int mouseX;
+    int mouseY;
+    menuManager->handleInput(scrollX, scrollY, mouseX, mouseY, SDL_GetMouseState(&mouseX, &mouseY) & SDL_BUTTON(SDL_BUTTON_LEFT));
     return true;
 }

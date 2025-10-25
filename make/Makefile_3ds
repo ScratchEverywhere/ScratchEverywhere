@@ -111,7 +111,7 @@ endif
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++17 -fexceptions
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -Wno-psabi -std=c++20 -fexceptions
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
