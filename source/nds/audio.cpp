@@ -158,6 +158,11 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
         return false;
     }
 
+    if (soundId.size() < 4 || soundId.substr(soundId.size() - 4) != ".wav") {
+        Log::logError("Audio type not supported!");
+        return false;
+    }
+
     int file_count = (int)mz_zip_reader_get_num_files(zip);
     if (file_count <= 0) {
         Log::logWarning("Error: No files found in zip archive");
@@ -231,6 +236,11 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 }
 
 bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
+
+    if (fileName.size() < 4 || fileName.substr(fileName.size() - 4) != ".wav") {
+        Log::logError("Audio type not supported!");
+        return false;
+    }
 
     fileName = OS::getRomFSLocation() + fileName;
 
