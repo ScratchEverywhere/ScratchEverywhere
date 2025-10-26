@@ -169,6 +169,7 @@ class Render {
         const int screenHeight = getHeight();
         renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                static_cast<float>(screenHeight) / Scratch::projectHeight);
+        if (renderMode == BOTH_SCREENS) renderScale = 1.0f;
         forceUpdateSpritePosition();
     }
 

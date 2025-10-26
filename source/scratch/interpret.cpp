@@ -156,6 +156,9 @@ bool Scratch::startScratchProject() {
 #endif
     Scratch::nextProject = false;
 
+    // Render first before running any blocks, otherwise 3DS rendering may get weird
+    Render::renderSprites();
+
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
 
