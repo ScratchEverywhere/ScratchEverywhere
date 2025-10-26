@@ -1,3 +1,4 @@
+#include "emscripten/emscripten.h"
 #include "interpret.hpp"
 #include "scratch/menus/mainMenu.hpp"
 #include "scratch/render.hpp"
@@ -85,6 +86,10 @@ int main(int argc, char **argv) {
     }
 
     srand(time(NULL));
+
+#ifdef SDL_BUILD
+    emscripten_sleep(1500); // Ummm, this makes it so it has time to load the project from the url, not hacky at all, trust me bro.
+#endif
 
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {
