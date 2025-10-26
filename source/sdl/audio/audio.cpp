@@ -12,6 +12,7 @@
 
 std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;
 std::string currentStreamedSound = "";
+static bool isInit = false;
 
 #ifdef ENABLE_AUDIO
 SDL_Audio::SDL_Audio() : audioChunk(nullptr) {}
@@ -30,35 +31,26 @@ SDL_Audio::~SDL_Audio() {
 #endif
 }
 
-// code down here kinda messy,,, TODO fix that
-
-int soundLoaderThread(void *data) {
-    SDL_Audio::SoundLoadParams *params = static_cast<SDL_Audio::SoundLoadParams *>(data);
-    bool success = false;
-    if (projectType != UNZIPPED)
-        success = params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
-    else
-        success = params->player->loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
-
-    delete params;
-
-    return success ? 0 : 1;
-}
-
-void NDS_soundLoaderThread(void *data) {
-    SDL_Audio::SoundLoadParams *params = static_cast<SDL_Audio::SoundLoadParams *>(data);
-    if (projectType != UNZIPPED)
-        params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
-    else
-        params->player->loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
-
-    delete params;
-
-    return;
+bool SoundPlayer::init() {
+    if (isInit) return true;
+#ifdef ENABLE_AUDIO
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        Log::logWarning(std::string("SDL_Mixer could not initialize! ") + Mix_GetError());
+        return false;
+    }
+    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
+    if (Mix_Init(flags) != flags) {
+        Log::logWarning(std::string("SDL_Mixer could not initialize MP3/OGG Support! ") + Mix_GetError());
+    }
+    isInit = true;
+    return true;
+#endif
+    return false;
 }
 
 void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
 #ifdef ENABLE_AUDIO
+    if (!init()) return;
 
     if (SDL_Sounds.find(soundId) != SDL_Sounds.end()) {
         return;
@@ -67,38 +59,20 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
     SDL_Sounds[soundId] = std::move(audio);
 
-    SDL_Audio::SoundLoadParams *params = new SDL_Audio::SoundLoadParams{
+    SDL_Audio::SoundLoadParams params = {
         .sprite = sprite,
         .zip = zip,
         .soundId = soundId,
         .streamed = sprite->isStage}; // stage sprites get streamed audio
 
-#if defined(__OGC__) || defined(VITA)
-    params->streamed = false; // streamed sounds crash on wii. vita does not like them either.
+#if defined(__OGC__)
+    params.streamed = false; // streamed sounds crash on wii.
 #endif
 
-// do 3DS threads so it can actually run in the background
-#ifdef __3DS__
-    s32 mainPrio = 0;
-    svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
-
-    threadCreate(
-        NDS_soundLoaderThread,
-        params,
-        0x10000,
-        mainPrio + 1,
-        1,
-        true);
-#else
-
-    SDL_Thread *thread = SDL_CreateThread(soundLoaderThread, "SoundLoader", params);
-
-    if (!thread) {
-        Log::logWarning("Failed to create SDL thread: " + std::string(SDL_GetError()));
-    } else {
-        SDL_DetachThread(thread);
-    }
-#endif
+    if (projectType != UNZIPPED)
+        loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
+    else
+        loadSoundFromFile(params.sprite, "project/" + params.soundId, params.streamed);
 
 #endif
 }
@@ -386,14 +360,19 @@ void SoundPlayer::stopSound(const std::string &soundId) {
 #ifdef ENABLE_AUDIO
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
-        int channel = soundFind->second->channelId;
-        if (channel >= 0 && channel < Mix_AllocateChannels(-1)) {
-            Mix_HaltChannel(channel);
+
+        if (!soundFind->second->isStreaming) {
+            int channel = soundFind->second->channelId;
+            if (channel >= 0 && channel < Mix_AllocateChannels(-1)) {
+                Mix_HaltChannel(channel);
+                soundFind->second->isPlaying = false;
+            } else {
+                Log::logWarning("Invalid channel for sound: " + soundId);
+            }
         } else {
-            Log::logWarning("Invalid channel for sound: " + soundId);
+            stopStreamedSound();
+            soundFind->second->isPlaying = false;
         }
-    } else {
-        Log::logWarning("No active channel found for sound: " + soundId);
     }
 #endif
 }
@@ -484,6 +463,7 @@ void SoundPlayer::cleanupAudio() {
 
 void SoundPlayer::deinit() {
 #ifdef ENABLE_AUDIO
+    if (!isInit) return;
     Mix_HaltMusic();
     Mix_HaltChannel(-1);
     cleanupAudio();

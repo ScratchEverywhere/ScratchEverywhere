@@ -116,13 +116,16 @@ void ButtonObject::render(double xPos, double yPos) {
     if (yPos == 0) yPos = y;
 
     std::vector<double> scaledPos = getScaledPosition(xPos, yPos);
+    float renderScale = scale * getScaleFactor();
 
     buttonTexture->x = xPos;
     buttonTexture->y = yPos;
     buttonTexture->scale = scale * getScaleFactor();
-    buttonTexture->render();
+    buttonTexture->image->renderNineslice(scaledPos[0], scaledPos[1],
+                                          std::max(text->getSize()[0] * renderScale, (float)buttonTexture->image->getWidth() * renderScale),
+                                          std::max(text->getSize()[1] * renderScale, (float)buttonTexture->image->getHeight() * renderScale), 8, true);
 
-    text->setScale((scale * getScaleFactor()) * textScale);
+    text->setScale(renderScale * textScale);
     text->render(scaledPos[0], scaledPos[1]);
 }
 
@@ -194,8 +197,10 @@ void ControlObject::render(double xPos, double yPos) {
         std::vector<double> buttonCenter = getScaledPosition(selectedObject->x + xPos, selectedObject->y - yPos);
 
         // Calculate the scaled dimensions of the button
-        double scaledWidth = selectedObject->buttonTexture->image->getWidth() * selectedObject->scale * getScaleFactor();
-        double scaledHeight = selectedObject->buttonTexture->image->getHeight() * selectedObject->scale * getScaleFactor();
+        float renderScale = selectedObject->scale * getScaleFactor();
+
+        double scaledWidth = std::max(selectedObject->text->getSize()[0] * renderScale, (float)selectedObject->buttonTexture->image->getWidth() * renderScale);
+        double scaledHeight = std::max(selectedObject->text->getSize()[1] * renderScale, (float)selectedObject->buttonTexture->image->getHeight() * renderScale);
 
         // animation effect
         double time = animationTimer.getTimeMs() / 1000.0;

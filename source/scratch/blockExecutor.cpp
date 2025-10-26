@@ -313,9 +313,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         if (id == block.customBlockId) {
             // Set up argument values
             for (std::string arg : data.argumentIds) {
-                if (block.parsedInputs->find(arg) != block.parsedInputs->end()) {
-                    data.argumentValues[arg] = Scratch::getInputValue(block, arg, sprite);
-                }
+                data.argumentValues[arg] = block.parsedInputs->find(arg) == block.parsedInputs->end() ? Value(0) : Scratch::getInputValue(block, arg, sprite);
             }
 
             // std::cout << "running custom block " << data.blockId << std::endl;
@@ -516,6 +514,15 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
                     var.value = val;
                 }
             }
+        }
+    } else {
+        try {
+            Block newBlock;
+            newBlock.opcode = var.opcode;
+            monitorName = var.opcode;
+            var.value = executor.getBlockValue(newBlock, sprite);
+        } catch (...) {
+            var.value = Value("Unknown...");
         }
     }
 

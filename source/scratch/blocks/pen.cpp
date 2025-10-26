@@ -1,6 +1,8 @@
 #include "pen.hpp"
 #include "../interpret.hpp"
 #include "../render.hpp"
+#include "image.hpp"
+#include "unzip.hpp"
 
 #ifdef __3DS__
 #include "../../3ds/image.hpp"
@@ -182,11 +184,18 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!sprite->visible || !Render::initPen()) return BlockResult::CONTINUE;
 
+    if (projectType == UNZIPPED) {
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
+    } else {
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
+    }
+
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return BlockResult::CONTINUE;
     }
+    imgFind->second->freeTimer = imgFind->second->maxFreeTime;
 
     SDL_SetRenderTarget(renderer, penTexture);
 
@@ -220,22 +229,16 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     const double offsetX = rotationCenterX * (sprite->size * 0.01);
     const double offsetY = rotationCenterY * (sprite->size * 0.01);
 
-    const double scale = std::min(static_cast<double>(windowWidth) / Scratch::projectWidth, static_cast<double>(windowHeight) / Scratch::projectHeight);
-
-    image->renderRect.w /= scale;
-    image->renderRect.h /= scale;
-
-    image->renderRect.x = (sprite->xPosition + 240 - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
-    image->renderRect.y = (-sprite->yPosition + 180 - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
+    image->renderRect.w = sprite->spriteWidth;
+    image->renderRect.h = sprite->spriteHeight;
+    image->renderRect.x = (sprite->xPosition + Scratch::projectWidth / 2 - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
+    image->renderRect.y = (-sprite->yPosition + Scratch::projectHeight / 2 - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
     const SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
     // ghost effect
     SDL_SetTextureAlphaMod(image->spriteTexture, static_cast<Uint8>(255 * (1.0f - std::clamp(sprite->ghostEffect, 0.0f, 100.0f) / 100.0f)));
 
     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, Math::radiansToDegrees(renderRotation), &center, flip);
-
-    image->renderRect.w *= scale;
-    image->renderRect.h *= scale;
 
     SDL_SetRenderTarget(renderer, NULL);
 
@@ -254,12 +257,18 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     const int SCREEN_WIDTH = 400;
     const int SCREEN_HEIGHT = 240;
 
-    const auto &imgFind = imageC2Ds.find(sprite->costumes[sprite->currentCostume].id);
-    if (imgFind == imageC2Ds.end()) {
+    if (projectType == UNZIPPED) {
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
+    } else {
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
+    }
+
+    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
+    if (imgFind == images.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return BlockResult::CONTINUE;
     }
-
+    imgFind->second.freeTimer = imgFind->second.maxFreeTimer;
     C2D_Image *costumeTexture = &imgFind->second.image;
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C3D_FrameDrawOn(penRenderTarget);
@@ -269,7 +278,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     const float scaleX = static_cast<float>(SCREEN_WIDTH) / penSubtex.width;
     const float scaleY = static_cast<float>(SCREEN_HEIGHT) / penSubtex.height;
-    float spriteSize = sprite->costumes[sprite->currentCostume].isSVG ? (sprite->size * 0.01f) * 2.0f : sprite->size * 0.01f;
+    float spriteSizeX = sprite->costumes[sprite->currentCostume].isSVG ? (sprite->size * 0.01f) * 2.0f : sprite->size * 0.01f;
+    float spriteSizeY = sprite->costumes[sprite->currentCostume].isSVG ? (sprite->size * 0.01f) * 2.0f : sprite->size * 0.01f;
     const float scale = std::min(scaleX, scaleY);
     const int screenWidth = SCREEN_WIDTH;
 
@@ -279,7 +289,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     // check for rotation style
     if (sprite->rotationStyle == sprite->LEFT_RIGHT) {
         if (std::cos(rotation) < 0) {
-            spriteSize *= -1;
+            spriteSizeX *= -1;
             flipX = true;
         }
         rotation = 0;
@@ -293,8 +303,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     double rotationCenterY = ((((sprite->rotationCenterY - sprite->spriteHeight)) / 2) * scale);
     if (flipX) rotationCenterX -= sprite->spriteWidth;
 
-    const double offsetX = rotationCenterX * spriteSize;
-    const double offsetY = rotationCenterY * spriteSize;
+    const double offsetX = rotationCenterX * spriteSizeX;
+    const double offsetY = rotationCenterY * spriteSizeY;
 
     C2D_ImageTint tinty;
 
@@ -315,8 +325,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
         1,
         rotation,
         &tinty,
-        (spriteSize)*scale / 2.0f,
-        (spriteSize)*scale / 2.0f);
+        (spriteSizeX)*scale / 2.0f,
+        (spriteSizeY)*scale / 2.0f);
 
     return BlockResult::CONTINUE;
 }

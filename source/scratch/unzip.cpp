@@ -92,14 +92,14 @@ void loadInitialImages() {
         for (auto &currentSprite : sprites) {
             if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
             Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
             sprIndex++;
         }
     } else {
         for (auto &currentSprite : sprites) {
             if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
             Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
             sprIndex++;
         }
     }
@@ -149,7 +149,6 @@ bool Unzip::load() {
     SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, "LoadingScreen", nullptr);
 
     if (thread != NULL && thread != nullptr) {
-        SDL_DetachThread(thread);
 
         Loading loading;
         loading.init();
@@ -157,6 +156,7 @@ bool Unzip::load() {
         while (!Unzip::threadFinished) {
             loading.render();
         }
+        SDL_WaitThread(thread, nullptr);
         loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 

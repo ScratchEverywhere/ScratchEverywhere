@@ -6,9 +6,6 @@
 #include <iostream>
 #include <ostream>
 #include <string>
-#ifdef __OGC__
-#include <gccore.h>
-#endif
 #ifdef __WIIU__
 #include <sstream>
 #include <whb/sdcard.h>
@@ -50,24 +47,6 @@ void Log::writeToFile(std::string message) {
     }
 }
 
-// Wii and Gamecube Timer implementation
-#ifdef __OGC__
-
-Timer::Timer() {
-    start();
-}
-
-void Timer::start() {
-    startTime = gettick();
-}
-
-int Timer::getTimeMs() {
-    u64 currentTime = gettick();
-    return ticks_to_millisecs(currentTime - startTime);
-}
-
-// everyone else...
-#else
 Timer::Timer() {
     start();
 }
@@ -81,8 +60,6 @@ int Timer::getTimeMs() {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
     return static_cast<int>(duration.count());
 }
-
-#endif
 
 bool Timer::hasElapsed(int milliseconds) {
     return getTimeMs() >= milliseconds;
@@ -104,7 +81,7 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(WII)
     return "/apps/scratch-wii/";
 #elif defined(GAMECUBE)
-    return "carda:/scratch-gamecube/";
+    return "/scratch-gamecube/";
 #elif defined(VITA)
     return "ux0:data/scratch-vita/";
 #elif defined(__3DS__)

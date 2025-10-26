@@ -1,6 +1,6 @@
 #pragma once
 #ifdef ENABLE_AUDIO
-#include <SDL2/SDL_mixer.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #endif
 #include "../../scratch/audio.hpp"
 #include "miniz/miniz.h"
@@ -10,14 +10,12 @@
 class SDL_Audio {
   public:
 #ifdef ENABLE_AUDIO
-    Mix_Chunk *audioChunk = nullptr;
-    Mix_Music *music = nullptr;
+    MIX_Audio *sound = nullptr;
+    MIX_Track *track = nullptr;
 #endif
     std::string audioId;
-    int channelId;
     bool isLoaded = false;
     bool isPlaying = false;
-    bool isStreaming = false;
     bool needsToBePlayed = true;
     size_t memorySize = 0;
     size_t freeTimer = 640;

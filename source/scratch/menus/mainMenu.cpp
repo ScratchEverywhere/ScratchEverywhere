@@ -6,6 +6,7 @@
 #include "projectMenu.hpp"
 #include "settingsMenu.hpp"
 #include <cctype>
+#include <cmath>
 
 Menu::~Menu() = default;
 
@@ -77,7 +78,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 25", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 27 Nightly", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -85,7 +86,10 @@ void MainMenu::init() {
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(243, 154, 37, 255));
     if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
-        splashText->scale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
+        splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
+        splashText->scale = splashTextOriginalScale;
+    } else {
+        splashTextOriginalScale = splashText->scale;
     }
 
     loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
@@ -117,13 +121,14 @@ void MainMenu::render() {
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
-    float bobbingOffset = std::sin(elapsed * 0.0025f) * 5.0f;
-    float splashZoom = std::sin(elapsed * 0.0085f) * 0.005f;
-    splashText->scale += splashZoom;
+    // fmod to prevent precision issues with large elapsed times
+    float bobbingOffset = std::sin(std::fmod(elapsed * 0.0025f, 2.0f * M_PI)) * 5.0f;
+    float splashZoom = std::sin(std::fmod(elapsed * 0.0085f, 2.0f * M_PI)) * 0.05f;
+    splashText->scale = splashTextOriginalScale + splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
-    splashText->render(logo->renderX, logo->renderY + 85);
+    splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7) * logo->image->scale);
 
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);

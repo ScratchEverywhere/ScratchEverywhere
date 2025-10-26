@@ -183,6 +183,10 @@ void ProjectSettings::cleanup() {
         delete UnpackProjectButton;
         UnpackProjectButton = nullptr;
     }
+    if (DeleteUnpackProjectButton != nullptr) {
+        delete DeleteUnpackProjectButton;
+        DeleteUnpackProjectButton = nullptr;
+    }
     if (bottomScreenButton != nullptr) {
         delete bottomScreenButton;
         bottomScreenButton = nullptr;
