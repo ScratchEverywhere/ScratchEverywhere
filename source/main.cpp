@@ -14,6 +14,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#include <emscripten_browser_file.h>
 #endif
 
 static void exitApp() {
@@ -87,7 +88,23 @@ int main(int argc, char **argv) {
 
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {
+#ifdef __EMSCRIPTEN__
+            bool uploadComplete = false;
+            emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
+                *(bool *)userdata = true;
+                if (!std::filesystem::exists(OS::getScratchFolderLocation())) std::filesystem::create_directory(OS::getScratchFolderLocation());
+                std::ofstream f(OS::getScratchFolderLocation() + filename);
+                f << buffer;
+                f.close();
+                Unzip::filePath = filename;
+                Unzip::load(); // TODO: Error handling
+            },
+                                            &uploadComplete);
+            while (Render::appShouldRun() && !uploadComplete)
+                emscripten_sleep(0);
+#else
             if (!activateMainMenu()) return 0;
+#endif
         } else {
             exitApp();
             return 0;
