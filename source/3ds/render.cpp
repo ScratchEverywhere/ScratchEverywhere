@@ -280,7 +280,7 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
 void Render::renderSprites() {
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
     if (!Render::hasFrameBegan)
-        C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 
     // Always start rendering top screen, otherwise bottom screen only rendering gets weird fsr
     C2D_SceneBegin(topScreen);
@@ -463,7 +463,6 @@ void Render::renderSprites() {
     SoundPlayer::flushAudio();
 #endif
     osSetSpeedupEnable(true);
-    C3D_FrameSync();
     hasFrameBegan = false;
 }
 
