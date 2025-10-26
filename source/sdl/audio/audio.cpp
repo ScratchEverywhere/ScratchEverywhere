@@ -59,20 +59,20 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
     SDL_Sounds[soundId] = std::move(audio);
 
-    SDL_Audio::SoundLoadParams *params = new SDL_Audio::SoundLoadParams{
+    SDL_Audio::SoundLoadParams params = {
         .sprite = sprite,
         .zip = zip,
         .soundId = soundId,
         .streamed = sprite->isStage}; // stage sprites get streamed audio
 
 #if defined(__OGC__)
-    params->streamed = false; // streamed sounds crash on wii.
+    params.streamed = false; // streamed sounds crash on wii.
 #endif
 
     if (projectType != UNZIPPED)
-        loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
+        loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
+        loadSoundFromFile(params.sprite, "project/" + params.soundId, params.streamed);
 
 #endif
 }
