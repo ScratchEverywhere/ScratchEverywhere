@@ -37,9 +37,12 @@ class NDS_Audio {
     static char stream_buffer[BUFFER_LENGTH];
     static int stream_buffer_in;
     static int stream_buffer_out;
+    size_t maxFreeTimer = 5;
+    size_t freeTimer = maxFreeTimer;
 
     static bool init();
     static mm_word streamingCallback(mm_word length, mm_addr dest, mm_stream_formats format);
+    static void stopAllSounds();
     void readFile(char *buffer, size_t size, bool restartSound = false);
     void streamingFillBuffer(bool force_fill, bool restartSound = false);
     void clearStreamBuffer();

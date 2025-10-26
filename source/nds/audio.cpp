@@ -21,12 +21,16 @@ mm_word NDS_Audio::streamingCallback(mm_word length, mm_addr dest, mm_stream_for
     switch (format) {
     case MM_STREAM_8BIT_MONO:
         multiplier = 1;
+        break;
     case MM_STREAM_8BIT_STEREO:
         multiplier = 2;
+        break;
     case MM_STREAM_16BIT_MONO:
         multiplier = 2;
+        break;
     case MM_STREAM_16BIT_STEREO:
         multiplier = 4;
+        break;
     }
 
     size_t size = length * multiplier;
@@ -242,6 +246,8 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         return false;
     }
 
+    cleanupAudio();
+
     fileName = OS::getRomFSLocation() + fileName;
 
     if (!streamed) return false;
@@ -301,12 +307,20 @@ int SoundPlayer::playSound(const std::string &soundId) {
 
     auto soundFind = NDS_Sounds.find(soundId);
     if (soundFind != NDS_Sounds.end()) {
+        NDS_Audio::stopAllSounds();
         soundFind->second.isPlaying = true;
         soundFind->second.streamingFillBuffer(false, true);
         return 1;
     }
 
     return 0;
+}
+
+void NDS_Audio::stopAllSounds() {
+    for (auto &[id, audio] : NDS_Sounds) {
+        SoundPlayer::stopSound(audio.id);
+        audio.clearStreamBuffer();
+    }
 }
 
 void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
@@ -365,24 +379,40 @@ void SoundPlayer::freeAudio(const std::string &soundId) {
 
 void SoundPlayer::flushAudio() {
     if (NDS_Sounds.empty()) return;
+    std::vector<std::string> toDelete;
 
     int consumed = (NDS_Audio::stream_buffer_out - NDS_Audio::stream_buffer_in + BUFFER_LENGTH) % BUFFER_LENGTH;
 
     if (consumed > 4096) {
         for (auto &[id, audio] : NDS_Sounds) {
-            if (audio.isPlaying)
+            if (audio.isPlaying) {
                 audio.streamingFillBuffer(false);
+                audio.freeTimer = audio.maxFreeTimer;
+            } else {
+                audio.freeTimer--;
+                if (audio.freeTimer <= 0) {
+                    toDelete.push_back(audio.id);
+                    continue;
+                }
+            }
         }
+    }
+    for (std::string &del : toDelete) {
+        freeAudio(del);
     }
 }
 
 void SoundPlayer::cleanupAudio() {
+    std::vector<std::string> toDelete;
     for (auto &[id, audio] : NDS_Sounds) {
-        freeAudio(audio.id);
+        toDelete.push_back(audio.id);
     }
+    for (std::string &del : toDelete) {
+        freeAudio(del);
+    }
+    mmStreamClose();
 }
 
 void SoundPlayer::deinit() {
     cleanupAudio();
-    mmStreamClose();
 }
