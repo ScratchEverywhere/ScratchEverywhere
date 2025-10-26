@@ -100,7 +100,7 @@ std::string Value::asString() const {
         double doubleValue = std::get<double>(value);
         // handle whole numbers too, because scratch i guess
         if (std::floor(doubleValue) == doubleValue) return std::to_string(static_cast<int>(doubleValue));
-		return std::to_string(doubleValue);
+        return std::to_string(doubleValue);
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
