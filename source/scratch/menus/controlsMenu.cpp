@@ -258,10 +258,6 @@ void ControlsMenu::cleanup() {
         delete backButton;
         backButton = nullptr;
     }
-    for (key button : controlButtons) {
-        delete button.button;
-    }
-    controlButtons.clear();
     if (settingsControl != nullptr) {
         delete settingsControl;
         settingsControl = nullptr;

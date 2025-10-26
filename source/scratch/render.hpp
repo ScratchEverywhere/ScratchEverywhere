@@ -140,10 +140,7 @@ class Render {
                 }
             }
 
-            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-                spriteX += sprite->spriteWidth * (isSVG ? 2 : 1);
-                spriteX *= -1;
-            }
+            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
 
             if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
@@ -172,6 +169,7 @@ class Render {
         const int screenHeight = getHeight();
         renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                static_cast<float>(screenHeight) / Scratch::projectHeight);
+        if (renderMode == BOTH_SCREENS) renderScale = 1.0f;
         forceUpdateSpritePosition();
     }
 

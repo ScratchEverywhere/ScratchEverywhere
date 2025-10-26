@@ -41,6 +41,7 @@ body:
         - Switch
         - Vita
         - PC
+        - Web
     validations:
       required: true
   - type: textarea
