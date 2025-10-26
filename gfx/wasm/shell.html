@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Loading...</title>
+    <style>
+      * {
+        margin: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas
+      id="canvas"
+      oncontextmenu="event.preventDefault()"
+      tabindex="-1"
+    ></canvas>
+    <script type="text/javascript">
+      const resizeCanvas = () => {
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      };
+
+      resizeCanvas();
+
+      Module = {
+        preRun: [],
+        postRun: [],
+        canvas: (() => {
+          const canvas = document.getElementById("canvas");
+          canvas.addEventListener(
+            "webglcontextlost",
+            (e) => {
+              alert(
+                "WebGL context lost. You will need to reload the page.",
+              );
+              e.preventDefault();
+            },
+            false,
+          );
+          return canvas;
+        })(),
+        print: (() => {
+          return (text) => {
+            if (arguments.length > 1) {
+              text = Array.prototype.slice.call(arguments).join(" ");
+            }
+            console.log(text);
+          };
+        })(),
+      };
+
+      window.addEventListener("resize", resizeCanvas);
+    </script>
+    {{{ SCRIPT }}}
+  </body>
+</html>

@@ -15,3 +15,6 @@ Switch:
 
 Vita:
   - '### Device\(s\)\s*.*Vita'
+
+Web:
+  - '### Device\(s\)\s*.*Web'
