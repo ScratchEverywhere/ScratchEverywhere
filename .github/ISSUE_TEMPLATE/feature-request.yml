@@ -27,6 +27,7 @@ body:
         - Switch
         - Vita
         - PC
+        - Web
     validations:
       required: false
   - type: textarea
