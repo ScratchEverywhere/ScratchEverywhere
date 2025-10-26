@@ -84,6 +84,11 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
         return false;
     }
 
+    if (soundId.size() < 4 || soundId.substr(soundId.size() - 4) != ".wav") {
+        Log::logError("Audio type not supported!");
+        return false;
+    }
+
     // Log::log("Loading sound: '" + soundId + "'");
 
     int file_count = (int)mz_zip_reader_get_num_files(zip);
@@ -214,6 +219,11 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
 #ifdef ENABLE_AUDIO
     // Log::log("Loading audio from file: " + fileName);
+
+    if (fileName.size() < 4 || fileName.substr(fileName.size() - 4) != ".wav") {
+        Log::logError("Audio type not supported!");
+        return false;
+    }
 
     // Check if file has supported extension
     std::string lowerFileName = fileName;
