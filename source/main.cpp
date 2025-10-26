@@ -1,4 +1,3 @@
-#include "emscripten/emscripten.h"
 #include "interpret.hpp"
 #include "scratch/menus/mainMenu.hpp"
 #include "scratch/render.hpp"
