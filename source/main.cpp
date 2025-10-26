@@ -24,7 +24,9 @@ static void exitApp() {
 }
 
 static bool initApp() {
-    return Render::Init();
+    const bool result = Render::Init();
+    MenuManager::initClay();
+    return result;
 }
 
 bool activateMainMenu() {
@@ -46,11 +48,13 @@ bool activateMainMenu() {
 void mainLoop() {
     Scratch::startScratchProject();
     if (Scratch::nextProject) {
-        Log::log(Unzip::filePath);
+        Log::log("Loading: " + Unzip::filePath);
         if (!Unzip::load()) {
-
             if (Unzip::projectOpened == -3) { // main menu
-
+                Unzip::filePath = "";
+                Unzip::projectOpened = -67; // I have no idea what the correct number.
+                Scratch::nextProject = false;
+                Scratch::dataNextProject = Value();
                 if (!activateMainMenu()) {
                     exitApp();
                     exit(0);
@@ -63,6 +67,7 @@ void mainLoop() {
         }
     } else {
         Unzip::filePath = "";
+        Unzip::projectOpened = -67; // I have no idea what the correct number.
         Scratch::nextProject = false;
         Scratch::dataNextProject = Value();
         if (toExit || !activateMainMenu()) {
@@ -107,7 +112,6 @@ int main(int argc, char **argv) {
             exitApp();
             return 0;
         }
-        MenuManager::initClay();
         if (!activateMainMenu()) return 0;
     }
 

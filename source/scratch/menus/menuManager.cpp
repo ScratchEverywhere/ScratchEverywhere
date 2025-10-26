@@ -79,10 +79,10 @@ void MenuManager::initClay() {
 
 #ifdef SDL_BUILD
     components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
-    if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError("Failed to load menu font.");
+    if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError(std::string("Failed to load menu font: ") + TTF_GetError());
 
     components::fonts[components::FONT_ID_BODY_BOLD_48] = {.fontId = components::FONT_ID_BODY_BOLD_48, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Bold.ttf").c_str(), 48)};
-    if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError("Failed to load bold menu font.");
+    if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError(std::string("Failed to load bold menu font: ") + TTF_GetError());
 
     Clay_SetMeasureTextFunction(SDL2_MeasureText, &components::fonts);
 #elif defined(__3DS__)
@@ -131,7 +131,7 @@ void MenuManager::render() {
     SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
     SDL_RenderClear(renderer);
 #elif defined(__3DS__)
-    if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) return;
+    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(bottomScreen, C2D_Color32(66, 44, 66, 255));
     C2D_TargetClear(topScreen, C2D_Color32(66, 44, 66, 255));
     C2D_SceneBegin(topScreen);
@@ -155,8 +155,6 @@ void MenuManager::render() {
 #elif defined(__3DS__)
     Clay3DS_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
     C3D_FrameEnd(0);
-    C2D_Flush();
-    C3D_FrameSync();
 #endif
 }
 

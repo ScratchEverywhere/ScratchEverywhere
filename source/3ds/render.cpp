@@ -425,9 +425,9 @@ void Render::renderSprites() {
               });
 
     // ---------- LEFT EYE ----------
-    C2D_SceneBegin(topScreen); // Should be done no matter what to properly apply the clear above
+    C2D_TargetClear(topScreen, clrWhite);
+    C2D_SceneBegin(topScreen);
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_TargetClear(topScreen, clrWhite);
         currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
@@ -475,9 +475,9 @@ void Render::renderSprites() {
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // ---------- RIGHT EYE ----------
-    C2D_SceneBegin(topScreenRightEye); // Should be done no matter what to properly apply the clear above
+    C2D_TargetClear(topScreenRightEye, clrWhite);
+    C2D_SceneBegin(topScreenRightEye);
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_TargetClear(topScreenRightEye, clrWhite);
         currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
@@ -525,9 +525,9 @@ void Render::renderSprites() {
     }
 
     // ---------- BOTTOM SCREEN ----------
-    C2D_SceneBegin(bottomScreen); // Should be done no matter what to properly apply the clear above
+    C2D_TargetClear(bottomScreen, clrWhite);
+    C2D_SceneBegin(bottomScreen);
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
-        C2D_TargetClear(bottomScreen, clrWhite);
 
         if (Render::renderMode != Render::BOTH_SCREENS)
             currentScreen = 1;

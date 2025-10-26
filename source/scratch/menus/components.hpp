@@ -47,7 +47,7 @@ struct ProjectInfo {
 
 class Sidebar {
   private:
-    static constexpr std::string tabs[] = {"home", "projects", "settings"};
+    static constexpr std::array<std::string, 3> tabs = {"home", "projects", "settings"};
 
     struct HoverData {
         MenuManager *menuManager;
