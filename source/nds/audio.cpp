@@ -15,7 +15,7 @@ int NDS_Audio::stream_buffer_out;
 bool NDS_Audio::init() {
     return true;
 }
-
+#ifdef ENABLE_AUDIO
 mm_word NDS_Audio::streamingCallback(mm_word length, mm_addr dest, mm_stream_formats format) {
     size_t multiplier = 0;
     switch (format) {
@@ -147,16 +147,20 @@ mm_stream_formats NDS_Audio::getMMStreamType(uint16_t numChannels, uint16_t bits
     }
     return MM_STREAM_8BIT_MONO;
 }
+#endif
 
 void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
+#ifdef ENABLE_AUDIO
 
     if (projectType != UNZIPPED)
         loadSoundFromSB3(sprite, zip, soundId, true);
     else
         loadSoundFromFile(sprite, "project/" + soundId, true);
+#endif
 }
 
 bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed) {
+#ifdef ENABLE_AUDIO
     if (!zip) {
         Log::logWarning("Error: Zip archive is null");
         return false;
@@ -235,11 +239,13 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
         return success;
     }
+#endif
     Log::logWarning("Audio not found in archive: " + soundId);
     return false;
 }
 
 bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
+#ifdef ENABLE_AUDIO
 
     if (fileName.size() < 4 || fileName.substr(fileName.size() - 4) != ".wav") {
         Log::logError("Audio type not supported!");
@@ -299,11 +305,13 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     NDS_Sounds[baseName] = std::move(audio);
     NDS_Sounds[baseName].id = baseName;
     return true;
+#endif
 
     return false;
 }
 
 int SoundPlayer::playSound(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
 
     auto soundFind = NDS_Sounds.find(soundId);
     if (soundFind != NDS_Sounds.end()) {
@@ -312,16 +320,19 @@ int SoundPlayer::playSound(const std::string &soundId) {
         soundFind->second.streamingFillBuffer(false, true);
         return 1;
     }
+#endif
 
     return 0;
 }
 
+#ifdef ENABLE_AUDIO
 void NDS_Audio::stopAllSounds() {
     for (auto &[id, audio] : NDS_Sounds) {
         SoundPlayer::stopSound(audio.id);
         audio.clearStreamBuffer();
     }
 }
+#endif
 
 void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
 }
@@ -332,11 +343,13 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
 }
 
 void SoundPlayer::stopSound(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
     auto soundFind = NDS_Sounds.find(soundId);
 
     if (soundFind != NDS_Sounds.end()) {
         soundFind->second.isPlaying = false;
     }
+#endif
 }
 
 void SoundPlayer::stopStreamedSound() {
@@ -346,26 +359,30 @@ void SoundPlayer::checkAudio() {
 }
 
 bool SoundPlayer::isSoundPlaying(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
     auto soundFind = NDS_Sounds.find(soundId);
 
     if (soundFind != NDS_Sounds.end()) {
         return soundFind->second.isPlaying;
     }
+#endif
 
     return false;
 }
 
 bool SoundPlayer::isSoundLoaded(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
     auto soundFind = NDS_Sounds.find(soundId);
 
     if (soundFind != NDS_Sounds.end()) {
         return true;
     }
-
+#endif
     return false;
 }
 
 void SoundPlayer::freeAudio(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
     auto soundFind = NDS_Sounds.find(soundId);
 
     if (soundFind != NDS_Sounds.end()) {
@@ -375,9 +392,11 @@ void SoundPlayer::freeAudio(const std::string &soundId) {
         }
         NDS_Sounds.erase(soundId);
     }
+#endif
 }
 
 void SoundPlayer::flushAudio() {
+#ifdef ENABLE_AUDIO
     if (NDS_Sounds.empty()) return;
     std::vector<std::string> toDelete;
 
@@ -400,9 +419,11 @@ void SoundPlayer::flushAudio() {
     for (std::string &del : toDelete) {
         freeAudio(del);
     }
+#endif
 }
 
 void SoundPlayer::cleanupAudio() {
+#ifdef ENABLE_AUDIO
     std::vector<std::string> toDelete;
     for (auto &[id, audio] : NDS_Sounds) {
         toDelete.push_back(audio.id);
@@ -411,6 +432,7 @@ void SoundPlayer::cleanupAudio() {
         freeAudio(del);
     }
     mmStreamClose();
+#endif
 }
 
 void SoundPlayer::deinit() {

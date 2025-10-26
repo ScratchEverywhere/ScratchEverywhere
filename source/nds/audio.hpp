@@ -1,8 +1,10 @@
+#ifdef ENABLE_AUDIO
 #include <filesystem.h>
 #include <maxmod9.h>
 #include <nds.h>
 #include <nds/arm9/dldi.h>
 #include <stdio.h>
+#endif
 
 #define DATA_ID 0x61746164
 #define FMT_ID 0x20746d66
@@ -41,6 +43,7 @@ class NDS_Audio {
     size_t freeTimer = maxFreeTimer;
 
     static bool init();
+#ifdef ENABLE_AUDIO
     static mm_word streamingCallback(mm_word length, mm_addr dest, mm_stream_formats format);
     static void stopAllSounds();
     void readFile(char *buffer, size_t size, bool restartSound = false);
@@ -48,6 +51,7 @@ class NDS_Audio {
     void clearStreamBuffer();
     int checkWAVHeader(const WAVHeader_t header);
     mm_stream_formats getMMStreamType(uint16_t numChannels, uint16_t bitsPerSample);
+#endif
 };
 
 extern std::unordered_map<std::string, NDS_Audio> NDS_Sounds;

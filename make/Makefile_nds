@@ -41,6 +41,13 @@ GAME_SUBTITLE1	:=	Scratch 3 Games on your DS!
 GAME_SUBTITLE2	:=	NateXS
 GAME_ICON		:=	$(CURDIR)/../gfx/nds/icon.bmp
 
+
+#---------------------------------------------------------------------------------
+# Config options
+#---------------------------------------------------------------------------------
+ENABLE_AUDIO	?=	1
+
+
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
@@ -61,12 +68,19 @@ LDFLAGS	=	-specs=$(BLOCKSDS)/sys/crts/ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order matters!)
 #---------------------------------------------------------------------------------
-LIBS	:= -lstdc++ -lc -lnds9 -lmm9
+LIBS	:= -lstdc++ -lc -lnds9
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries
 #---------------------------------------------------------------------------------
-LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
+LIBDIRS	:=	$(BLOCKSDS)/libs/libnds 
+
+
+ifeq ($(ENABLE_AUDIO),1)
+LIBS	+=	-lmm9
+LIBDIRS	+=	$(BLOCKSDS)/libs/maxmod
+CFLAGS_BASE	+=	-DENABLE_AUDIO
+endif
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
