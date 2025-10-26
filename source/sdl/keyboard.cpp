@@ -42,6 +42,10 @@ std::string Keyboard::openKeyboard(const char *hintText) {
                 text->setText(inputText);
                 text->setColor(Math::color(0, 0, 0, 255));
 
+#ifdef __SWITCH__
+                inputActive = false;
+#endif
+
                 break;
 
             case SDL_KEYDOWN:

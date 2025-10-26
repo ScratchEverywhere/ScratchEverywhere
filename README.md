@@ -10,6 +10,7 @@
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml/badge.svg" alt="Switch Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml/badge.svg" alt="Vita Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml/badge.svg" alt="PS4 Nightly Build"></a>
+<a href="https://discord.gg/Y2gf5vZHpJ"><img alt="Discord" src="https://img.shields.io/discord/1408875318248345612?style=flat&logo=discord&label=Discord%20Server&link=https%3A%2F%2Fdiscord.gg%2FY2gf5vZHpJ"></a>
 </p>
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects over to 6-8th-generation console and handheld platforms (and more)!
@@ -18,6 +19,7 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 <small>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</small>
 
 ## Controls
+
 ![Controls](docs/controls.png)
 
 ### Mouse
@@ -30,58 +32,53 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 **PS Vita:** Use the front touchscreen.
 
-**Other Controllers:**  Enter Mouse Mode by holding L. Use the D-pad to move the mouse, and press R to click.
-
-## Discord Server
-
-Join https://discord.gg/Y2gf5vZHpJ if you need any help with Scratch Everywhere! or just want to hangout.
+**Other Controllers:** Enter Mouse Mode by holding L. Use the D-pad to move the mouse, and press R to click.
 
 ## Unique Features
 
-### 3DS Screen modes
+### 3DS Screen Modes
 
-- Any scratch project with an unmodified resolution setting will be displayed on the top screen only.
-- If using a modded Scratch client like TurboWarp, you can go into the projects' Advanced Settings and change the resolution.
-	- Setting it to `400x480` will enable both the top and bottom screen.
-	- Setting it to `320x240` will enable only the bottom screen.
-	- Setting it to `400x240` will make the project perfectly fit to the top screen.
-	- NOTE: make sure to click `Store Settings In Project` on TurboWarp to properly apply the settings.
+-   Any scratch project with an unmodified resolution setting will be displayed on the top screen only.
+-   If using a modded Scratch client like TurboWarp, you can go into the projects' Advanced Settings and change the resolution.
+    -   Setting it to `400x480` will enable both the top and bottom screen.
+    -   Setting it to `320x240` will enable only the bottom screen.
+    -   Setting it to `400x240` will make the project perfectly fit to the top screen.
+    -   NOTE: make sure to click `Store Settings In Project` on TurboWarp to properly apply the settings.
 
 ### Wii U Screen Modes
 
-- Currently, projects display exactly the same on both the TV and the GamePad, and there's no way to change screen modes.
+-   Currently, projects display exactly the same on both the TV and the GamePad, and there's no way to change screen modes.
 
 ### Audio
 
-- MP3, Ogg Vorbis, and WAV audio formats are supported.
-- A sound will take time to load if playing it for the first time.
-	- Known Bug: On 3DS, if a sound has to load while other sounds are playing, all sounds will stop playing until the sound is loaded.
-- If you play any sound from the "Stage", the sound will play as a "Streamed Sound" and will not need to load.
-- Only one "Streamed Sound" can be playing at a time, so this is good for things like background music.
-- **[Wii, GameCube, Vita]** "Streamed Sound" is not supported. Any sounds in "Stage" will load and play like a normal sound.
-- **[3DS, Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
+-   A sound may take time to load if playing it for the first time.
+-   **[Non-3DS Platforms]** If you play any sound from the `Stage`, the sound will play as a `Streamed Sound` and will not need to load.
+    -   Only one `Streamed Sound` can be playing at a time, so this is good for things like background music.
+    -   **[Wii, GameCube, Vita]** `Streamed Sound` is not supported. Any sounds in the `Stage` will load and play like a normal sound.
+-   **[Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
 
 ### Framerate
 
-- When using a modded Scratch client like TurboWarp, you can enable the `60 FPS (Custom FPS)` advanced option, and change the FPS to any value.
+-   When using a modded Scratch client like TurboWarp, you can enable the `60 FPS (Custom FPS)` advanced option, and change the FPS to any value.
 
 ### Differently Implemented Blocks
 
-- The `Username` block returns the 3DS's nickname, and the Wii U's current Mii name.
-- The `Touching __?` block uses simpler box collision, which may lead to projects working incorrectly.
-- The `Stop 'All'` block brings you back to the project menu.
+-   The `Username` block returns the 3DS's nickname, and the Wii U's current Mii name.
+-   The `Touching __?` block uses simpler box collision, which may lead to projects working incorrectly.
+-   The `Stop 'All'` block brings you back to the project menu.
 
 ### Special Custom Blocks
 
-Like TurboWarp we have special custom blocks that only work on SE! You can find a project containing and explaining them here: https://scratchbox.grady.link/project/K26OtTN2WDJ9
+Like TurboWarp, we have special custom blocks that only work on SE!. You can find a project containing and explaining them here: https://scratchbox.grady.link/project/K26OtTN2WDJ9
 
 **Project Linking Blocks**
-- `open (____) .sb3`
-- `open (____) .sb3 with data (____)`
-- `received data` (variable)
-  
+
+-   `open (____) .sb3`
+-   `open (____) .sb3 with data (____)`
+-   `received data` (variable)
+
 These blocks make it possible to split a big game into smaller parts (e.g. a main game, a shop, or a cutscene project) and load them as needed. All paths are relative to the `scratch-everywhere` folder, so subfolders must be specified (e.g. `MyGame/main.sb3`).
-This helps avoid memory issues, keep projects modular, and makes it easier to manage large 
+This helps avoid memory issues, keep projects modular, and makes it easier to manage large
 games.
 
 You can find the blocks in this project: https://scratchbox.grady.link/project/twStEkSKjQaH
@@ -91,70 +88,73 @@ You can find the blocks in this project: https://scratchbox.grady.link/project/t
 
 ## Limitations
 
-As this is in a very work in progress state, you will encounter many bugs, crashes, and things that will just not work. 
+As this is in a very work in progress state, you will encounter many bugs, crashes, and things that will just not work.
 
 **List of Known Limitations:**
-- Text and embedded bitmap images will not show up on vector images containing it.
-- Extensions (e.g. pen and music extensions) are not yet supported.
-- Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
-- Performance is poor when using many (~30+) clones (memory management issue).
-- **[Wii, Switch, Vita]** Cloud Variables aren't currently supported, but likely will be in the future.
-- **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
-- **[Wii]** If you're using a PAL Wii, you must use 50Hz.
-- **[GameCube]** Cloud Variables will not be supported.
-- **[GameCube]** The GameCube has very little memory, so try to keep projects small.
-- **[3DS]** Performace is poor when lots of blocks are running at once.
-- **[3DS]** If you have a bunch of large images, some may not load.
-- **[Vita]** Back touch will not be supported.
 
+-   Text and embedded bitmap images will not show up on vector images containing it.
+-   Extensions (e.g. pen and music extensions) are not yet supported.
+-   Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
+-   Performance is poor when using many (~50+) clones (memory management issue).
+-   **[Wii, Switch, Vita]** Cloud Variables aren't currently supported, but likely will be in the future.
+-   **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
+-   **[Wii]** If you're using a PAL Wii, you must use 50Hz.
+-   **[GameCube]** Cloud Variables will not be supported.
+-   **[GameCube]** The GameCube has very little memory, so try to keep projects small.
+-   **[3DS]** Performace is poor when lots of blocks are running at once.
+-   **[3DS]** If you have a bunch of large images, some may not load.
+-   **[Vita]** Back touch will not be supported.
 
 ## Unimplemented blocks
 
-- All say and think blocks
-- Most costume effects;
-	- Only the `Ghost` and `Brightness` costume effects are supported
-- `Pitch` and `Pan left-right` sound effects
-- When loudness > ___
-- All color touching blocks
-- Loudness
+-   All say and think blocks ([#393](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/393))
+-   Most costume effects;
+    -   Only the `Ghost` and `Brightness` costume effects are supported
+-   `Pitch` and `Pan left-right` sound effects
+-   When loudness > \_\_\_
+-   All color touching blocks
+-   Loudness
 
 ## Roadmap
 
 ### Runtime
 
-- Bug fixing and Scratch parity
-- Get all blocks working
-- Pen support ([#294](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/294))
-- Support most TurboWarp extensions ([#210](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/210))
+-   Bug fixing and Scratch parity
+-   Get all blocks working
+-   Pen support ([#294](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/294))
+-   Support most TurboWarp extensions ([#210](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/210))
 
 ### Wii U
 
-- Dual screen support
-- Improved controller support (multiple controllers)
+-   Dual screen support
+-   Improved controller support (multiple controllers)
 
 ### Wii
 
-- Cloud Variable support
+-   Cloud Variable support
 
 ### Vita
 
-- Cloud variable support (compiling with cloud variables enabled currently makes the app crash on startup)
+-   Cloud variable support (compiling with cloud variables enabled currently makes the app crash on startup)
 
 ### Other
 
-- Download projects from the Scratch website
-- Make Vector images not/less pixelated
-- Browser extension send directly to device from editor
+-   Download projects from the Scratch website ([#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
+-   Make vector images not/less pixelated
+-   Browser extension to send projects directly to a testing device from the editor
+    > [!NOTE]
+    > For info about planned/unplanned platform support, please check issue [#166](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/166).
 
 ## Installation
 
 Scratch Everywhere! is Homebrew software and requires a hacked/modded console.
 There are two methods to install the runtime:
-- Download the release or nightly build (easy), or
-- Build the file yourself (harder)
+
+-   Download the release or nightly build (easy), or
+-   Build the file yourself (harder)
 
 > [!NOTE]
-> Nightly builds are significantly more unstable than releases and should probably only be used if you are instructed to do so in a bug report or you know exactly what using nightlies implies.
+> Nightly builds are significantly more unstable than releases and should probably only be used if you are instructed to do so in a bug report or if you know exactly what using nightlies implies.
 
 ### Get up and running for 3DS
 
@@ -165,9 +165,9 @@ Download the `.cia` file or `.3dsx` in the Releases tab or [nightly build](https
 
 #### .cia (Installable app)
 
-Place the `.cia` file in the `cias/` folder of your 3DS SD card. Open the FBI application and navigate to the `cias/` folder and install the `.cia` file. 
+Place the `.cia` file in the `cias/` folder of your 3DS SD card. Open the FBI application and navigate to the `cias/` folder and install the `.cia` file.
 
-Put your Scratch projects in `3ds/scratch-everywhere` and open the Scratch Everywhere application on your Home screen. 
+Put your Scratch projects in `3ds/scratch-everywhere` and open the Scratch Everywhere application on your Home screen.
 
 #### .3dsx
 
@@ -203,12 +203,9 @@ Then it should be as simple as opening the app in the Homebrew Menu on your Wii!
 
 ### Get up and running for GameCube
 
-> [!NOTE]
-> There is currently a bug on the GameCube version causing projects to not show up on the Main Menu. The GameCube release has been temporarily removed from the Releases tab until the issue is fixed. For now, you need to compile from source to use the GameCube version.
+Download the `scratch-gamecube.dol` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-gamecube/main/Scratch%20Everywhere!%20GameCube%20Nightly.zip).
 
-Download the `scratch-gamecube.zip` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-gamecube/main/Scratch%20Everywhere!%20GameCube%20Nightly.zip).
-
-Unzip the file. Put your Scratch projects in the same place you put your `.dol` file.
+Put your Scratch projects in the `scratch-gamecube` folder in your storage device.
 
 Then it should be as simple as opening the app on your GameCube!
 
@@ -247,29 +244,29 @@ Then it should be as simple as opening the app on your PS4 from the XMB!
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
 
 If you would like to change the name of the app or any other information you can edit one of the Makefiles.
-- **For the 3DS**, you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
-- **For the Wii U**, you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
-- **For the Wii**, you need to edit `Makefile_wii` and change anything under `Application Info` to whatever you please.
-- **For the Vita**, you need to edit the properties under `# METADATA/CONFIG` to whatever you please. Do note however, if you're going to use custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
+
+-   **For the 3DS**, you need to edit `Makefile_3ds` and change `APP_TITLE`, `APP_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+-   **For the Wii U**, you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
+-   **For the Wii**, you need to edit `Makefile_wii` and change anything under `Application Info` to whatever you please.
+-   **For the Vita**, you need to edit the properties under `# METADATA/CONFIG` to whatever you please. Do note however, if you're going to use custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
 
 #### Docker
 
 The recommended way to compile Scratch Everywhere! is with Docker. To compile with Docker all you need installed is Docker and Buildx.
 
-- To compile for the **3DS**, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
+-   To compile for the **3DS**, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
 
-- To compile for the **Wii U**, run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
+-   To compile for the **Wii U**, run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
 
-- To compile for the **Wii**, run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
+-   To compile for the **Wii**, run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
 
-- To compile for the **GameCube**, run `docker build -f docker/Dockerfile.gamecube --target exporter -o . .`.
+-   To compile for the **GameCube**, run `docker build -f docker/Dockerfile.gamecube --target exporter -o . .`.
 
-- To compile for the **Nintendo Switch** run `docker build -f docker/Dockerfile.switch --target exporter -o . .`.
+-   To compile for the **Nintendo Switch** run `docker build -f docker/Dockerfile.switch --target exporter -o . .`.
 
-- To compile for the **Vita**, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
+-   To compile for the **Vita**, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
 
-- To compile for the **PS4**, run `docker build -f docker/Dockerfile.ps4 --target exporter -o . .`.
-
+-   To compile for the **PS4**, run `docker build -f docker/Dockerfile.ps4 --target exporter -o . .`.
 
 #### Manual
 
@@ -277,13 +274,14 @@ The recommended way to compile Scratch Everywhere! is with Docker. To compile wi
 > We do not provide manual instructuons for PS4 because of how absolutely messy the environment is, please just use Docker.
 
 If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.com/ScratchEverywhere/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
-- **For the 3DS**, you will need the DevkitARM toolchain and libctru.
-	- If you want to compile with audio support, you will also need a 3DS compiled version of SDL2 and SDL2_mixer. See the [Nightly Build commands](https://github.com/ScratchEverywhere/ScratchEverywhere/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL2 3DS for yourself.
-- **For the Wii U**, you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
-- **For the Wii**, you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
-- **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
-- **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
-- **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
+
+-   **For the 3DS**, you will need the DevkitARM toolchain and libctru.
+    -   If you want to compile with audio support, you will also need a 3DS compiled version of SDL3 and SDL3_mixer. See the [Nightly Build commands](https://github.com/ScratchEverywhere/ScratchEverywhere/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL3 3DS for yourself.
+-   **For the Wii U**, you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
+-   **For the Wii**, you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
+-   **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
+-   **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
+-   **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
 
 > [!NOTE]
 > DevkitPro's install instructions are available at: https://devkitpro.org/wiki/Getting_Started
@@ -291,25 +289,27 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 Download the source code from the releases tab and unzip it.
 
 Make a `romfs` folder inside the unzipped source code and put the Scratch project inside of that.
-- The Scratch project MUST be named `project.sb3`, all lowercase.
-- For faster load times/less limitations, you can also unzip the sb3 project file and put the contents into a new folder called `project`.
+
+-   The Scratch project MUST be named `project.sb3`, all lowercase.
+-   For faster load times/less limitations, you can also unzip the sb3 project file and put the contents into a new folder called `project`.
 
 Then you need to compile the projects into proper Homebrew packages.
-- **For the 3DS**, you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
-- **For the Wii U**, you need to run `make PLATFORM=wiiu` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
-- **For the Wii**, you need to run `make PLATFORM=wii package`, then find the zipped file in `build/wii/scratch-wii.zip`. Unzip it and put the `apps` folder inside the root of your Wii SD card.
-- **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
-- **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
-- **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
+
+-   **For the 3DS**, you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
+-   **For the Wii U**, you need to run `make PLATFORM=wiiu` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
+-   **For the Wii**, you need to run `make PLATFORM=wii package`, then find the zipped file in `build/wii/scratch-wii.zip`. Unzip it and put the `apps` folder inside the root of your Wii SD card.
+-   **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
+-   **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
+-   **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
 
 #### Compilation Flags
 
 Compilation flags are used to select which features will be enabled in the compiled version of Scratch Everywhere!. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_LOADSCREEN=0`).
 
-- `ENABLE_LOADSCREEN` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
-- `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
-- `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
-- **[Old 3DS]** `RAM_AMOUNT` (default: `72`): the amount of RAM, in megabytes, the old 3DS should be using. Can be set to `32`, `64`, `72`, `80`, or `96`.
+-   `ENABLE_LOADSCREEN` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
+-   `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
+-   `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
+-   **[Old 3DS]** `RAM_AMOUNT` (default: `72`): the amount of RAM, in megabytes, the old 3DS should be using. Can be set to `32`, `64`, `72`, `80`, or `96`.
 
 ## Disclaimer
 

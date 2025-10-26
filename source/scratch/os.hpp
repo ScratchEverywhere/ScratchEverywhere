@@ -3,10 +3,6 @@
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#ifdef __OGC__
-#include <ogc/lwp_watchdog.h>
-#include <ogc/system.h>
-#endif
 #pragma once
 
 class MemoryTracker {
@@ -172,11 +168,7 @@ void writeToFile(std::string message);
 
 class Timer {
   private:
-#ifdef __OGC__
-    u64 startTime;
-#else
     std::chrono::high_resolution_clock::time_point startTime;
-#endif
 
   public:
     Timer();

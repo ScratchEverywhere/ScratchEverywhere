@@ -15,7 +15,7 @@ std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;
 
 Image::Image(std::string filePath) {
-    if (!loadImageFromFile(filePath, false)) return;
+    if (!loadImageFromFile(filePath, nullptr, false)) return;
     std::string imgId = filePath.substr(0, filePath.find_last_of('.'));
     imageId = imgId;
     width = images[imgId]->width;
@@ -127,7 +127,7 @@ void Image::renderNineslice(double xPos, double yPos, double width, double heigh
  * Loads a single `SDL_Image` from an unzipped filepath .
  * @param filePath
  */
-bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
+bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject) {
     std::string imgId = filePath.substr(0, filePath.find_last_of('.'));
     if (images.find(imgId) != images.end()) return true;
 
@@ -150,6 +150,11 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
         image->memorySize = textureMemory;
     }
 
+    if (sprite != nullptr) {
+        sprite->spriteWidth = image->textureRect.w / 2;
+        sprite->spriteHeight = image->textureRect.h / 2;
+    }
+
     images[imgId] = image;
     return true;
 }
@@ -159,7 +164,7 @@ bool Image::loadImageFromFile(std::string filePath, bool fromScratchProject) {
  * @param zip Pointer to the zip archive
  * @param costumeId The filename of the image to load (e.g., "sprite1.png")
  */
-void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) {
+void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite) {
     std::string imgId = costumeId.substr(0, costumeId.find_last_of('.'));
     if (images.find(imgId) != images.end()) return;
 
@@ -260,6 +265,11 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId) 
     SDL_PixelFormatEnumToMasks(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
     image->memorySize = (w * h * bpp) / 8;
     MemoryTracker::allocateVRAM(image->memorySize);
+
+    if (sprite != nullptr) {
+        sprite->spriteWidth = image->textureRect.w / 2;
+        sprite->spriteHeight = image->textureRect.h / 2;
+    }
 
     // Log::log("Successfully loaded image: " + costumeId);
     images[imgId] = image;

@@ -4,12 +4,6 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
-#ifdef GAMECUBE
-#include <dirent.h>
-#include <gccore.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#endif
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string projectJSON;
@@ -61,26 +55,6 @@ class Unzip {
         return;
     }
 
-#ifdef GAMECUBE
-    // use libogc for gamecube because i guess it doesn't support std::filesystem
-    static std::vector<std::string> getProjectFiles(const std::string &directory) {
-        std::vector<std::string> projectFiles;
-        DIR *dir = opendir(directory.c_str());
-        if (dir == nullptr) {
-            return projectFiles;
-        }
-
-        struct dirent *entry;
-        while ((entry = readdir(dir)) != nullptr) {
-            std::string fileName = entry->d_name;
-            if (fileName.length() > 4 && fileName.substr(fileName.length() - 4) == ".sb3") {
-                projectFiles.push_back(fileName);
-            }
-        }
-        closedir(dir);
-        return projectFiles;
-    }
-#else
     static std::vector<std::string> getProjectFiles(const std::string &directory) {
         std::vector<std::string> projectFiles;
 
@@ -110,7 +84,6 @@ class Unzip {
 
         return projectFiles;
     }
-#endif
 
     static std::string getSplashText() {
         std::string textPath = "gfx/menu/splashText.txt";
@@ -254,14 +227,9 @@ class Unzip {
             if (filename.find('/') != std::string::npos || filename.find('\\') != std::string::npos)
                 continue;
 
-#ifdef GAMECUBE
-            mkdir(destFolder.c_str(), 0777);
-#endif
             std::string outPath = destFolder + "/" + filename;
 
-#ifndef GAMECUBE
             std::filesystem::create_directories(std::filesystem::path(outPath).parent_path());
-#endif
 
             if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
                 Log::logError("Failed to extract: " + outPath);
@@ -299,7 +267,7 @@ class Unzip {
 
         std::ifstream file(folderPath);
         if (!file.good()) {
-            Log::logError("JSON file not found: " + folderPath);
+            Log::logWarning("Project settings file not found: " + folderPath);
             return nlohmann::json();
         }
 
