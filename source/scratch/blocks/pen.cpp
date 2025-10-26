@@ -278,7 +278,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     const float scaleX = static_cast<float>(SCREEN_WIDTH) / penSubtex.width;
     const float scaleY = static_cast<float>(SCREEN_HEIGHT) / penSubtex.height;
-    float spriteSize = sprite->costumes[sprite->currentCostume].isSVG ? (sprite->size * 0.01f) * 2.0f : sprite->size * 0.01f;
+    float spriteSizeX = sprite->costumes[sprite->currentCostume].isSVG ? (sprite->size * 0.01f) * 2.0f : sprite->size * 0.01f;
+    float spriteSizeY = sprite->costumes[sprite->currentCostume].isSVG ? (sprite->size * 0.01f) * 2.0f : sprite->size * 0.01f;
     const float scale = std::min(scaleX, scaleY);
     const int screenWidth = SCREEN_WIDTH;
 
@@ -288,7 +289,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     // check for rotation style
     if (sprite->rotationStyle == sprite->LEFT_RIGHT) {
         if (std::cos(rotation) < 0) {
-            spriteSize *= -1;
+            spriteSizeX *= -1;
             flipX = true;
         }
         rotation = 0;
@@ -302,8 +303,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     double rotationCenterY = ((((sprite->rotationCenterY - sprite->spriteHeight)) / 2) * scale);
     if (flipX) rotationCenterX -= sprite->spriteWidth;
 
-    const double offsetX = rotationCenterX * spriteSize;
-    const double offsetY = rotationCenterY * spriteSize;
+    const double offsetX = rotationCenterX * spriteSizeX;
+    const double offsetY = rotationCenterY * spriteSizeY;
 
     C2D_ImageTint tinty;
 
@@ -324,8 +325,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
         1,
         rotation,
         &tinty,
-        (spriteSize)*scale / 2.0f,
-        (spriteSize)*scale / 2.0f);
+        (spriteSizeX)*scale / 2.0f,
+        (spriteSizeY)*scale / 2.0f);
 
     return BlockResult::CONTINUE;
 }
