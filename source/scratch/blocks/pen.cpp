@@ -1,7 +1,7 @@
 #include "pen.hpp"
+#include "../image.hpp"
 #include "../interpret.hpp"
 #include "../render.hpp"
-#include "image.hpp"
 #include "unzip.hpp"
 
 #ifdef __3DS__
@@ -47,23 +47,24 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
 #elif defined(__3DS__)
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
     const int transparency = 255 * (1 - sprite->penData.transparency / 100);
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C3D_FrameDrawOn(penRenderTarget);
+    if (!Render::hasFrameBegan) {
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        Render::hasFrameBegan = true;
+    }
+    C2D_SceneBegin(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    const int SCREEN_WIDTH = 400;
-    const int SCREEN_HEIGHT = 240;
+    const int SCREEN_WIDTH = Render::getWidth();
+    const int SCREEN_HEIGHT = Render::getHeight();
 
-    const float scaleX = static_cast<double>(SCREEN_WIDTH) / penSubtex.width;
-    const float scaleY = static_cast<double>(SCREEN_HEIGHT) / penSubtex.height;
-    const float scale = std::min(scaleX, scaleY);
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
-    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * scale), 1, 1000);
+    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * Render::renderScale), 1, 1000);
 
-    const float xSscaled = (sprite->xPosition * scale) + (SCREEN_WIDTH / 2);
-    const float yScaled = (sprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * 0.5);
+    const float xSscaled = (sprite->xPosition * Render::renderScale) + (SCREEN_WIDTH / 2);
+    const float yScaled = (sprite->yPosition * -1 * Render::renderScale) + (SCREEN_HEIGHT * 0.5);
     const float radius = thickness / 2.0f;
-    C2D_DrawCircleSolid(xSscaled, yScaled, 0, radius, color);
+
+    C2D_DrawCircleSolid(xSscaled, yScaled + TEXTURE_OFFSET, 0, radius, color);
 #endif
 
     return BlockResult::CONTINUE;
@@ -229,22 +230,16 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     const double offsetX = rotationCenterX * (sprite->size * 0.01);
     const double offsetY = rotationCenterY * (sprite->size * 0.01);
 
-    const double scale = std::min(static_cast<double>(windowWidth) / Scratch::projectWidth, static_cast<double>(windowHeight) / Scratch::projectHeight);
-
-    image->renderRect.w /= scale;
-    image->renderRect.h /= scale;
-
-    image->renderRect.x = (sprite->xPosition + 240 - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
-    image->renderRect.y = (-sprite->yPosition + 180 - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
+    image->renderRect.w = sprite->spriteWidth;
+    image->renderRect.h = sprite->spriteHeight;
+    image->renderRect.x = (sprite->xPosition + Scratch::projectWidth / 2 - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
+    image->renderRect.y = (-sprite->yPosition + Scratch::projectHeight / 2 - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
     const SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
     // ghost effect
     SDL_SetTextureAlphaMod(image->spriteTexture, static_cast<Uint8>(255 * (1.0f - std::clamp(sprite->ghostEffect, 0.0f, 100.0f) / 100.0f)));
 
     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, Math::radiansToDegrees(renderRotation), &center, flip);
-
-    image->renderRect.w *= scale;
-    image->renderRect.h *= scale;
 
     SDL_SetRenderTarget(renderer, NULL);
 
@@ -254,14 +249,12 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
-    C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(0, 0, 0, 0), 0);
+    C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
-    const int SCREEN_WIDTH = 400;
-    const int SCREEN_HEIGHT = 240;
 
     if (projectType == UNZIPPED) {
         Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
@@ -274,42 +267,22 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
         Log::logWarning("Invalid Image for Stamp");
         return BlockResult::CONTINUE;
     }
-    imgFind->second.freeTimer = imgFind->second.maxFreeTimer;
-    C2D_Image *costumeTexture = &imgFind->second.image;
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C3D_FrameDrawOn(penRenderTarget);
+    ImageData &data = imgFind->second;
+    imgFind->second.freeTimer = data.maxFreeTimer;
+    C2D_Image *costumeTexture = &data.image;
+    if (!Render::hasFrameBegan) {
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        Render::hasFrameBegan = true;
+    }
+    C2D_SceneBegin(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
-
-    const float scaleX = static_cast<float>(SCREEN_WIDTH) / penSubtex.width;
-    const float scaleY = static_cast<float>(SCREEN_HEIGHT) / penSubtex.height;
-    float spriteSize = sprite->costumes[sprite->currentCostume].isSVG ? (sprite->size * 0.01f) * 2.0f : sprite->size * 0.01f;
-    const float scale = std::min(scaleX, scaleY);
-    const int screenWidth = SCREEN_WIDTH;
-
-    float rotation = Math::degreesToRadians(sprite->rotation - 90.0f);
-    bool flipX = false;
-
-    // check for rotation style
-    if (sprite->rotationStyle == sprite->LEFT_RIGHT) {
-        if (std::cos(rotation) < 0) {
-            spriteSize *= -1;
-            flipX = true;
-        }
-        rotation = 0;
-    }
-    if (sprite->rotationStyle == sprite->NONE) {
-        rotation = 0;
-    }
-
-    // Center the sprite's pivot point
-    double rotationCenterX = ((((sprite->rotationCenterX - sprite->spriteWidth)) / 2) * scale);
-    double rotationCenterY = ((((sprite->rotationCenterY - sprite->spriteHeight)) / 2) * scale);
-    if (flipX) rotationCenterX -= sprite->spriteWidth;
-
-    const double offsetX = rotationCenterX * spriteSize;
-    const double offsetY = rotationCenterY * spriteSize;
+    const bool isSVG = data.isSVG;
+    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+    sprite->spriteWidth = data.width >> 1;
+    sprite->spriteHeight = data.height >> 1;
+    Render::calculateRenderPosition(sprite, isSVG);
 
     C2D_ImageTint tinty;
 
@@ -325,14 +298,13 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     C2D_DrawImageAtRotated(
         *costumeTexture,
-        static_cast<int>((sprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)),
-        static_cast<int>((sprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * 0.5) - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
+        sprite->renderInfo.renderX,
+        sprite->renderInfo.renderY + TEXTURE_OFFSET,
         1,
-        rotation,
+        sprite->renderInfo.renderRotation,
         &tinty,
-        (spriteSize)*scale / 2.0f,
-        (spriteSize)*scale / 2.0f);
-
+        sprite->renderInfo.renderScaleX,
+        sprite->renderInfo.renderScaleY);
     return BlockResult::CONTINUE;
 }
 

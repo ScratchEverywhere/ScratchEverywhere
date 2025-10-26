@@ -164,6 +164,10 @@ void SettingsMenu::cleanup() {
         delete ChangeUsername;
         ChangeUsername = nullptr;
     }
+    if (settingsControl != nullptr) {
+        delete settingsControl;
+        settingsControl = nullptr;
+    }
 
     // save username and EnableUsername in json
     std::ofstream outFile(OS::getScratchFolderLocation() + "Settings.json");

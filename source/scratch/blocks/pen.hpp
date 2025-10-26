@@ -9,6 +9,9 @@ extern C2D_Image penImage;
 extern C3D_RenderTarget *penRenderTarget;
 extern Tex3DS_SubTexture penSubtex;
 extern C3D_Tex *penTex;
+
+#define TEXTURE_OFFSET 15
+
 #elif defined(SDL_BUILD)
 #include <SDL2/SDL.h>
 

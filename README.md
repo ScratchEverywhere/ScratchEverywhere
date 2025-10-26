@@ -119,17 +119,19 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 - Bug fixing and Scratch parity
 - Get all blocks working
-- Pen support ([#294](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/294))
-- Support most TurboWarp extensions ([#210](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/210))
+- Support most TurboWarp extensions ([#398](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/398))
 
 ### Wii U
 
 - Dual screen support
+
+### SDL2 Platforms
+
 - Improved controller support (multiple controllers)
 
 ### Wii
 
-- Cloud Variable support
+- ~~Cloud Variable support~~ (not possible due to licensing issues)
 
 ### Vita
 
@@ -137,9 +139,12 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ### Other
 
-- Download projects from the Scratch website ([#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
+- Download projects from the Scratch website (previously [#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
 - Make vector images not/less pixelated
-- Browser extension to send projects directly to a testing device from the editor
+- Translations (see [#333](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/333))
+- Improved Collision (previously [#375](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/375)/[#57](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/57))
+- ~~Browser extension to send projects directly to a testing device from the editor~~ (not really possible to my understanding)
+
 > [!NOTE]
 > For info about planned/unplanned platform support, please check issue [#166](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/166).
 
