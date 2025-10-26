@@ -104,7 +104,7 @@ void *Render::getRenderer() {
 }
 
 int Render::getWidth() {
-    if (currentScreen == 0)
+    if (currentScreen == 0 && renderMode != BOTTOM_SCREEN_ONLY)
         return SCREEN_WIDTH;
     else return BOTTOM_SCREEN_WIDTH;
 }
@@ -115,51 +115,59 @@ int Render::getHeight() {
 bool Render::initPen() {
     if (penRenderTarget != nullptr) return true;
 
+    const int width = renderMode != BOTTOM_SCREEN_ONLY ? SCREEN_WIDTH : BOTTOM_SCREEN_WIDTH;
+    const int height = renderMode != BOTH_SCREENS ? SCREEN_HEIGHT : SCREEN_HEIGHT * 2;
+
     // texture dimensions must be a power of 2. subtex dimensions can be the actual resolution.
     penTex = new C3D_Tex();
-    penTex->width = Math::next_pow2(Scratch::projectWidth);
-    penTex->height = Math::next_pow2(Scratch::projectHeight);
+    penTex->width = Math::next_pow2(width);
+    penTex->height = Math::next_pow2(height);
     penImage.tex = penTex;
 
-    penSubtex = {
-        static_cast<u16>(Scratch::projectWidth),
-        static_cast<u16>(Scratch::projectHeight),
-        0,
-        0,
-        1,
-        1};
+    penSubtex.width = width;
+    penSubtex.height = height;
+    penSubtex.left = 0.0f;
+    penSubtex.top = 0.0f;
+    penSubtex.right = (float)penSubtex.width / (float)penTex->width;
+    penSubtex.bottom = (float)penSubtex.height / (float)penTex->height;
+
+    if (penSubtex.top < penSubtex.bottom) std::swap(penSubtex.top, penSubtex.bottom);
 
     penImage.subtex = &penSubtex;
 
-    if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) { // TODO: Support other resolutions.
+    if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) {
         penRenderTarget = nullptr;
         Log::logError("Failed to create pen texture.");
         return false;
     } else {
         penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
-        C3D_RenderTargetClear(penRenderTarget, C3D_CLEAR_ALL, C2D_Color32(0, 0, 0, 0), 0);
+        C3D_TexSetFilter(penImage.tex, GPU_LINEAR, GPU_LINEAR);
+        C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
     }
     return true;
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C3D_FrameDrawOn(penRenderTarget);
+    if (!Render::hasFrameBegan) {
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        Render::hasFrameBegan = true;
+    }
+    C2D_SceneBegin(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
+    const int width = getWidth();
+    const int height = getHeight();
+
     const float heightMultiplier = 0.5f;
-    const float scaleX = static_cast<double>(SCREEN_WIDTH) / penSubtex.width;
-    const float scaleY = static_cast<double>(SCREEN_HEIGHT) / penSubtex.height;
-    const float scale = std::min(scaleX, scaleY);
     const int transparency = 255 * (1 - sprite->penData.transparency / 100);
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
-    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * scale), 1, 1000);
+    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * renderScale), 1, 1000);
 
-    const float x1_scaled = (x1 * scale) + (SCREEN_WIDTH / 2);
-    const float y1_scaled = (y1 * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier);
-    const float x2_scaled = (x2 * scale) + (SCREEN_WIDTH / 2);
-    const float y2_scaled = (y2 * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier);
+    const float x1_scaled = (x1 * renderScale) + (width / 2);
+    const float y1_scaled = (y1 * -1 * renderScale) + (height * heightMultiplier) + TEXTURE_OFFSET;
+    const float x2_scaled = (x2 * renderScale) + (width / 2);
+    const float y2_scaled = (y2 * -1 * renderScale) + (height * heightMultiplier) + TEXTURE_OFFSET;
 
     C2D_DrawLine(x1_scaled, y1_scaled, color, x2_scaled, y2_scaled, color, thickness, 0);
 
@@ -200,7 +208,7 @@ void Render::endFrame(bool shouldFlush) {
     hasFrameBegan = false;
 }
 
-void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     C2D_DrawRectSolid(
         x - (w / 2.0f),
         y - (h / 2.0f),
@@ -396,10 +404,11 @@ void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &cos
 
 void Render::renderSprites() {
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
-    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
-    C2D_TargetClear(topScreen, clrWhite);
-    C2D_TargetClear(topScreenRightEye, clrWhite);
-    C2D_TargetClear(bottomScreen, clrWhite);
+    if (!Render::hasFrameBegan)
+        C3D_FrameBegin(C3D_FRAME_NONBLOCK);
+
+    // Always start rendering top screen, otherwise bottom screen only rendering gets weird fsr
+    C2D_SceneBegin(topScreen);
 
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / sprites.size();
@@ -418,24 +427,22 @@ void Render::renderSprites() {
     // ---------- LEFT EYE ----------
     C2D_SceneBegin(topScreen); // Should be done no matter what to properly apply the clear above
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
+        C2D_TargetClear(topScreen, clrWhite);
         currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float scaleX = static_cast<float>(SCREEN_WIDTH) / penSubtex.width;
-                const float scaleY = static_cast<float>(SCREEN_HEIGHT) / penSubtex.height;
-                const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
+                const float yOffset = renderMode == BOTH_SCREENS ? 120.0f + TEXTURE_OFFSET : 0.0f;
 
-                C2D_DrawImageAtRotated(penImage,
-                                       SCREEN_WIDTH * 0.5f,
-                                       SCREEN_HEIGHT * heightMultiplier,
-                                       0,
-                                       M_PI,
-                                       nullptr,
-                                       scaleX,
-                                       scaleY);
+                C2D_DrawImageAt(penImage,
+                                0.0f,
+                                yOffset,
+                                0,
+                                nullptr,
+                                1.0f,
+                                1.0f);
             }
 
             Sprite *currentSprite = spritesByLayer[i];
@@ -470,24 +477,22 @@ void Render::renderSprites() {
     // ---------- RIGHT EYE ----------
     C2D_SceneBegin(topScreenRightEye); // Should be done no matter what to properly apply the clear above
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
+        C2D_TargetClear(topScreenRightEye, clrWhite);
         currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
-                const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
-                const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
+                const float yOffset = renderMode == BOTH_SCREENS ? 120.0f + TEXTURE_OFFSET : 0.0f;
 
-                C2D_DrawImageAtRotated(penImage,
-                                       SCREEN_WIDTH * 0.5f,
-                                       SCREEN_HEIGHT * heightMultiplier,
-                                       0,
-                                       M_PI,
-                                       nullptr,
-                                       scaleX,
-                                       scaleY);
+                C2D_DrawImageAt(penImage,
+                                0.0f,
+                                yOffset,
+                                0,
+                                nullptr,
+                                1.0f,
+                                1.0f);
             }
 
             Sprite *currentSprite = spritesByLayer[i];
@@ -522,24 +527,25 @@ void Render::renderSprites() {
     // ---------- BOTTOM SCREEN ----------
     C2D_SceneBegin(bottomScreen); // Should be done no matter what to properly apply the clear above
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
-        currentScreen = 1;
+        C2D_TargetClear(bottomScreen, clrWhite);
+
+        if (Render::renderMode != Render::BOTH_SCREENS)
+            currentScreen = 1;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float scaleX = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_WIDTH) / penSubtex.width : 1.0f;
-                const float scaleY = Render::renderMode != Render::BOTH_SCREENS ? static_cast<float>(SCREEN_HEIGHT) / penSubtex.height : 1.0f;
-                const float heightMultiplier = Render::renderMode != Render::BOTH_SCREENS ? 0.5f : 1.0f;
+                const float yOffset = renderMode == BOTH_SCREENS ? -120.0f + TEXTURE_OFFSET : 0.0f;
+                const float xOffset = renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0.0f;
 
-                C2D_DrawImageAtRotated(penImage,
-                                       SCREEN_WIDTH * 0.5f,
-                                       (SCREEN_HEIGHT * heightMultiplier),
-                                       0,
-                                       M_PI,
-                                       nullptr,
-                                       scaleX,
-                                       scaleY);
+                C2D_DrawImageAt(penImage,
+                                xOffset,
+                                yOffset,
+                                0,
+                                nullptr,
+                                1.0f,
+                                1.0f);
             }
 
             Sprite *currentSprite = spritesByLayer[i];
@@ -555,7 +561,7 @@ void Render::renderSprites() {
                                 currentSprite,
                                 costume.id,
                                 true,
-                                0.0f,
+                                renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0,
                                 renderMode == BOTH_SCREENS ? -120 : 0);
                     break;
                 }
@@ -577,6 +583,7 @@ void Render::renderSprites() {
 #endif
     osSetSpeedupEnable(true);
     C3D_FrameSync();
+    hasFrameBegan = false;
 }
 
 void Render::deInit() {

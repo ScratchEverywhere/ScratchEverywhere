@@ -60,7 +60,7 @@ class Render {
      * @param sprite the sprite to calculate.
      * @param isSVG if the sprite's current costume is a Vector image.
      */
-    static void calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
+    static void calculateRenderPosition(Sprite *sprite, bool isSVG) {
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
 
@@ -106,6 +106,10 @@ class Render {
             sprite->renderInfo.oldX = sprite->xPosition;
             sprite->renderInfo.oldY = sprite->yPosition;
 
+#ifdef __NDS__
+            isSVG = true;
+#endif
+
             float renderX;
             float renderY;
             float spriteX = static_cast<int>(sprite->xPosition);
@@ -114,9 +118,9 @@ class Render {
             // Handle if the sprite's image is not centered in the costume editor
             if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
                 sprite->spriteHeight - sprite->rotationCenterY != 0) {
-
-                const int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> (!isSVG ? 1 : 0);
-                const int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> (!isSVG ? 1 : 0);
+                const int shiftAmount = !isSVG ? 1 : 0;
+                const int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> shiftAmount;
+                const int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> shiftAmount;
 
                 // Offset based on size
                 if (sprite->size != 100.0f) {
@@ -142,8 +146,11 @@ class Render {
             }
 
             if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
+#ifndef __NDS__
                 spriteX += sprite->spriteWidth * (isSVG ? 2 : 1);
-                spriteX *= -1;
+#else
+                spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
+#endif
             }
 
             if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
@@ -173,6 +180,7 @@ class Render {
         const int screenHeight = getHeight();
         renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                static_cast<float>(screenHeight) / Scratch::projectHeight);
+        if (renderMode == BOTH_SCREENS) renderScale = 1.0f;
         forceUpdateSpritePosition();
     }
 
@@ -262,7 +270,7 @@ class Render {
     /**
      * Draws a simple box to the screen.
      */
-    static void drawBox(int w, int h, int x, int y, int colorR = 0, int colorG = 0, int colorB = 0, int colorA = 255);
+    static void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255);
 
     /**
      * Returns whether or not the app should be running.

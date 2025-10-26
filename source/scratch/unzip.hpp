@@ -1,9 +1,18 @@
+#pragma once
+
 #include "interpret.hpp"
 #include "miniz/miniz.h"
 #include "os.hpp"
 #include <filesystem>
 #include <fstream>
 #include <random>
+#ifdef __NDS__
+#include <cstring>
+#include <dirent.h>
+#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string projectJSON;
@@ -54,6 +63,52 @@ class Unzip {
         return;
     }
 
+#ifdef __NDS__ // This technically could be used for all platforms, but I'm too lazy to test it everywhere so
+    static std::vector<std::string> getProjectFiles(const std::string &directory) {
+        std::vector<std::string> projectFiles;
+        struct stat dirStat;
+
+        if (stat(directory.c_str(), &dirStat) != 0) {
+            Log::logWarning("Directory does not exist! " + directory);
+
+            // Try to create it
+            if (mkdir(directory.c_str(), 0777) != 0) {
+                Log::logWarning("Failed to create directory: " + directory);
+            }
+            return projectFiles;
+        }
+
+        if (!S_ISDIR(dirStat.st_mode)) {
+            Log::logWarning("Path is not a directory! " + directory);
+            return projectFiles;
+        }
+
+        DIR *dir = opendir(directory.c_str());
+        if (!dir) {
+            Log::logWarning("Failed to open directory: " + std::string(strerror(errno)));
+            return projectFiles;
+        }
+
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != nullptr) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+
+            std::string fullPath = directory + "/" + entry->d_name;
+
+            struct stat fileStat;
+            if (stat(fullPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
+                const char *ext = strrchr(entry->d_name, '.');
+                if (ext && strcmp(ext, ".sb3") == 0) {
+                    projectFiles.push_back(entry->d_name);
+                }
+            }
+        }
+
+        closedir(dir);
+        return projectFiles;
+    }
+#else
     static std::vector<std::string> getProjectFiles(const std::string &directory) {
         std::vector<std::string> projectFiles;
 
@@ -83,6 +138,7 @@ class Unzip {
 
         return projectFiles;
     }
+#endif
 
     static std::string getSplashText() {
         std::string textPath = "gfx/menu/splashText.txt";

@@ -287,7 +287,7 @@ void Render::endFrame(bool shouldFlush) {
     hasFrameBegan = false;
 }
 
-void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
     SDL_Rect rect = {x - (w / 2), y - (h / 2), w, h};
     SDL_RenderFillRect(renderer, &rect);
@@ -396,7 +396,7 @@ void Render::renderSprites() {
             image->setScale(currentSprite->renderInfo.renderScaleY);
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
                 flip = SDL_FLIP_HORIZONTAL;
-                image->renderRect.x += currentSprite->spriteWidth * (isSVG ? 2 : 1);
+                image->renderRect.x += (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
             }
 
             // set ghost effect

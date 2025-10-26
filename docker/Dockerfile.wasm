@@ -1,0 +1,11 @@
+FROM emscripten/emsdk:latest AS main_builder
+
+WORKDIR /app
+
+COPY . .
+
+RUN make PLATFORM=wasm release TARGET=index
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build/wasm/release/index.* /scratch-wasm/

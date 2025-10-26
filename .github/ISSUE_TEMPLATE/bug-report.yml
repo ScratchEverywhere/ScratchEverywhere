@@ -35,12 +35,15 @@ body:
       options:
         - New 3DS
         - Old 3DS
+        - DS / DS Lite
+        - DSi
         - Wii U
         - Wii
         - GameCube
         - Switch
         - Vita
         - PC
+        - Web
     validations:
       required: true
   - type: textarea

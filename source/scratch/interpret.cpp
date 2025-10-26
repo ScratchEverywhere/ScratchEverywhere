@@ -156,6 +156,9 @@ bool Scratch::startScratchProject() {
 #endif
     Scratch::nextProject = false;
 
+    // Render first before running any blocks, otherwise 3DS rendering may get weird
+    Render::renderSprites();
+
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
 
@@ -270,6 +273,10 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     if (currentSprite->costumes[currentSprite->currentCostume].isSVG)
         divisionAmount = 1.0;
 
+#ifdef __NDS__
+    divisionAmount *= 2;
+#endif
+
     // Get sprite dimensions, scaled by size
     const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
     const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / divisionAmount;
@@ -284,7 +291,6 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         else
             rotation = -90;
     }
-
     double rotationRadians = -(rotation - 90) * M_PI / 180.0;
     double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth));
     double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight));
