@@ -15,11 +15,9 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
     : TextObject(txt, posX, posY, fontPath) {
 
     // get font
-    if (fontPath.empty()) {
-        fontPath = "gfx/menu/Arialn";
-    }
+    if (fontPath.empty()) fontPath = "gfx/menu/RedditSansFudge-Regular";
     fontPath = OS::getRomFSLocation() + fontPath;
-    fontPath = fontPath + ".ttf";
+    fontPath += ".ttf";
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
