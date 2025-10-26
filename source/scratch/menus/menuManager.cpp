@@ -112,7 +112,7 @@ void MenuManager::freeClay() {
     if (components::fonts[components::FONT_ID_BODY_BOLD_48].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_BOLD_48].font);
 #elif defined(__3DS__)
     for (auto &font : components::fonts)
-        C2D_FontFree(font);
+        C2D_FontFree(font.second);
 #endif
     free(clayMemory.memory);
 }

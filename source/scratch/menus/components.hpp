@@ -32,7 +32,7 @@ namespace components {
 #ifdef SDL_BUILD
 extern SDL2_Font fonts[2];
 #elif defined(__3DS__)
-extern std::vector<C2D_Font> fonts;
+extern std::map<unsigned int, C2D_Font> fonts;
 #endif
 
 extern uint16_t FONT_ID_BODY_16;

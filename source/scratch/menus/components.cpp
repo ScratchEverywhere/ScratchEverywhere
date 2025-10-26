@@ -15,7 +15,7 @@ namespace components {
 #ifdef SDL_BUILD
 SDL2_Font fonts[2] = {};
 #elif defined(__3DS__)
-std::vector<C2D_Font> fonts;
+std::map<unsigned int, C2D_Font> fonts;
 #endif
 
 uint16_t FONT_ID_BODY_16 = 0;
