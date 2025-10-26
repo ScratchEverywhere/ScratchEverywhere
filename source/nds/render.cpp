@@ -169,9 +169,11 @@ void Render::renderSprites() {
     }
 
     if (Input::mousePointer.isMoving) {
-        glBoxFilled(Input::mousePointer.x + (SCREEN_HALF_WIDTH - 3), -Input::mousePointer.y + (SCREEN_HALF_HEIGHT - 3),
-                    Input::mousePointer.x + (SCREEN_HALF_WIDTH + 3), -Input::mousePointer.y + (SCREEN_HALF_HEIGHT + 3),
+        glBoxFilled((Input::mousePointer.x * renderScale) + (SCREEN_HALF_WIDTH - 3), (-Input::mousePointer.y * renderScale) + (SCREEN_HALF_HEIGHT - 3),
+                    (Input::mousePointer.x * renderScale) + (SCREEN_HALF_WIDTH + 3), (-Input::mousePointer.y * renderScale) + (SCREEN_HALF_HEIGHT + 3),
                     RGB15(0, 0, 15));
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
     }
 
     renderVisibleVariables();

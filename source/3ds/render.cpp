@@ -234,123 +234,6 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void queueSpriteRender(Sprite *sprite, C2D_Image *image) {
-}
-
-void renderImageOLD(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false, float x3DOffset = 0.0f) {
-
-    if (!currentSprite || currentSprite == nullptr) return;
-
-    bool legacyDrawing = true;
-    bool isSVG = false;
-    double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
-
-    if (images.find(costumeId) != images.end()) {
-        ImageData &data = images[costumeId];
-        isSVG = data.isSVG;
-        legacyDrawing = false;
-        currentSprite->spriteWidth = data.width / 2;
-        currentSprite->spriteHeight = data.height / 2;
-    } else {
-        legacyDrawing = true;
-        currentSprite->spriteWidth = 64;
-        currentSprite->spriteHeight = 64;
-    }
-
-    double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
-    double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
-    double spriteSizeX = currentSprite->size * 0.01;
-    double spriteSizeY = currentSprite->size * 0.01;
-    if (isSVG) {
-        spriteSizeX *= 2;
-        spriteSizeY *= 2;
-    }
-    double scale;
-    double heightMultiplier = 0.5;
-    int screenWidth = SCREEN_WIDTH;
-    if (bottom) screenWidth = BOTTOM_SCREEN_WIDTH;
-    if (Render::renderMode == Render::BOTH_SCREENS) {
-        scaleY = static_cast<double>(SCREEN_HEIGHT) / (Scratch::projectHeight / 2.0);
-        heightMultiplier = 1.0;
-    }
-    scale = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? 1.0 : std::min(scaleX, scaleY);
-
-    if (!legacyDrawing) {
-        double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
-        bool flipX = false;
-
-        // check for rotation style
-        if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-            if (std::cos(rotation) < 0) {
-                spriteSizeX *= -1;
-                flipX = true;
-            }
-            rotation = 0;
-        }
-        if (currentSprite->rotationStyle == currentSprite->NONE) {
-            rotation = 0;
-        }
-
-        // Center the sprite's pivot point
-        double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
-        double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
-        if (flipX) rotationCenterX -= currentSprite->spriteWidth;
-
-        const double offsetX = rotationCenterX * spriteSizeX;
-        const double offsetY = rotationCenterY * spriteSizeY;
-
-        C2D_ImageTint tinty;
-
-        // set ghost and brightness effect
-        if (currentSprite->brightnessEffect != 0.0f || currentSprite->ghostEffect != 0.0f) {
-            float brightnessEffect = currentSprite->brightnessEffect * 0.01f;
-            float alpha = 255.0f * (1.0f - currentSprite->ghostEffect / 100.0f);
-            if (brightnessEffect > 0)
-                C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
-            else
-                C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
-        } else C2D_AlphaImageTint(&tinty, 1.0f);
-
-        C2D_DrawImageAtRotated(
-            images[costumeId].image,
-            static_cast<int>((currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)) + x3DOffset,
-            static_cast<int>((currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
-            1,
-            rotation,
-            &tinty,
-            (spriteSizeX)*scale / 2.0f,
-            (spriteSizeY)*scale / 2.0f);
-        images[costumeId].freeTimer = images[costumeId].maxFreeTimer;
-    } else {
-        C2D_DrawRectSolid(
-            (currentSprite->xPosition * scale) + (screenWidth / 2),
-            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset,
-            1,
-            10 * scale,
-            10 * scale,
-            clrBlack);
-    }
-
-    // Draw collision points
-    // auto collisionPoints = getCollisionPoints(currentSprite);
-    // for (const auto &point : collisionPoints) {
-    //     double screenOffset = bottom ? -SCREEN_HEIGHT : 0;      // Adjust for bottom screen
-    //     double scale = bottom ? 1.0 : std::min(scaleX, scaleY); // Skip scaling if bottom is true
-
-    //     C2D_DrawRectSolid(
-    //         (point.first * scale) + (screenWidth / 2),
-    //         (point.second * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset,
-    //         1,         // Layer depth
-    //         2 * scale, // Width of the rectangle
-    //         2 * scale, // Height of the rectangle
-    //         clrBlack);
-    // }
-    // Draw mouse pointer
-    if (Input::mousePointer.isMoving)
-        C2D_DrawRectSolid((Input::mousePointer.x * scale) + (screenWidth / 2),
-                          (Input::mousePointer.y * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset, 1, 5, 5, clrGreen);
-}
-
 void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
     if (!currentSprite || currentSprite == nullptr) return;
 
@@ -460,6 +343,13 @@ void Render::renderSprites() {
             }
         }
         renderVisibleVariables();
+        // Draw mouse pointer
+        if (Input::mousePointer.isMoving) {
+            C2D_DrawRectSolid((Input::mousePointer.x * renderScale) + (SCREEN_WIDTH * 0.5),
+                              (Input::mousePointer.y * -1 * renderScale) + (SCREEN_HEIGHT * 0.5), 1, 5, 5, clrGreen);
+            Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+            Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+        }
     }
 
     if (Render::renderMode != Render::BOTH_SCREENS)
