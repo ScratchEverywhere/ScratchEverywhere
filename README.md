@@ -102,6 +102,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 - **[GameCube]** Cloud Variables will not be supported.
 - **[GameCube, NDS]** These platforms have very little memory, so try to keep projects small.
+- **[NDS]** Dual screen mode will not be supported.
 - **[3DS]** Performace is poor when lots of blocks are running at once.
 - **[3DS]** If you have a bunch of large images, some may not load.
 - **[Vita]** Back touch will not be supported.
@@ -180,6 +181,14 @@ Put your Scratch projects in `3ds/scratch-everywhere` and open the Scratch Every
 Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, put Scratch projects in `3ds/scratch-everywhere`.
 
 Then it should be as simple as opening the Homebrew Launcher on your 3DS and running the app!
+
+### Get up and running for NDS
+
+Download the `.nds` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-nds/main/Scratch%20Everywhere!%20DS%20Nightly.zip).
+
+Place the `.nds` file in your SD card, and put Scratch projects in `sd:/scratch-ds/`.
+
+Then it should be as simple as running the app!
 
 ### Get up and running for Wii U
 
