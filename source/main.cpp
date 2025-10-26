@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-#ifdef SDL_BUILD
+#ifdef __EMSCRIPTEN__
     emscripten_sleep(1500); // Ummm, this makes it so it has time to load the project from the url, not hacky at all, trust me bro.
 #endif
 
