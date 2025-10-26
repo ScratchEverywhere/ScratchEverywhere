@@ -1,6 +1,9 @@
 3DS:
   - '### Device\(s\)\s*.*3DS'
 
+DS:
+  - '### Device\(s\)\s*.*DS'
+
 Wii U:
   - '### Device\(s\)\s*.*Wii U'
 
