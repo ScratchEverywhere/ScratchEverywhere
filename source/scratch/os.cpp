@@ -146,6 +146,8 @@ std::string OS::getPlatform() {
     return "Vita";
 #elif defined(__NDS__)
     return "DS";
+#elif defined(__EMSCRIPTEN__)
+    return "WASM";
 #else
     return "Unknown";
 #endif
