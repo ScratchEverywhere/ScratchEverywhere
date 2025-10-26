@@ -55,6 +55,10 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
    - Only one `Streamed Sound` can be playing at a time, so this is good for things like background music.
    - **[Wii, GameCube, Vita]** `Streamed Sound` is not supported. Any sounds in the `Stage` will load and play like a normal sound.
 - **[Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
+- Audio on the **NDS** is currently experimental, and is not recommended to use at this time.
+- **[NDS]** Only .wav is supported.
+- **[NDS]** All audio must be in Signed 16-bit PCM wav format, with a recommended sample rate of 11025 Hz or below.
+- **[NDS]** Only one sound can be playing at a time.
 
 ### Framerate
 
@@ -97,7 +101,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 - **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 - **[GameCube]** Cloud Variables will not be supported.
-- **[GameCube]** The GameCube has very little memory, so try to keep projects small.
+- **[GameCube, NDS]** These platforms have very little memory, so try to keep projects small.
 - **[3DS]** Performace is poor when lots of blocks are running at once.
 - **[3DS]** If you have a bunch of large images, some may not load.
 - **[Vita]** Back touch will not be supported.
