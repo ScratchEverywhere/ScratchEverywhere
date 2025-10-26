@@ -32,6 +32,8 @@ SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus sou
 INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/nds include/nlohmann
 DATA		:=
 NITRODATA	:=	romfs
+GRAPHICS	:=	gfx
+GFXBUILD	:=	$(NITRODATA)/gfx
 
 #---------------------------------------------------------------------------------
 # Game info
@@ -132,17 +134,21 @@ export MAKEFILE_PATH := $(CURDIR)/make/Makefile_nds
 .PHONY: $(BUILD) clean all
 
 #---------------------------------------------------------------------------------
-all: $(BUILD)
+all: $(GFXBUILD) $(BUILD)
 
 #---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(MAKEFILE_PATH)
 
+$(GFXBUILD):
+	@mkdir -p $@
+	@cp -r $(GRAPHICS)/* $@/
+
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nds
+	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nds $(GFXBUILD)
 
 #---------------------------------------------------------------------------------
 else
