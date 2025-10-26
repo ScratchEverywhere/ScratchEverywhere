@@ -35,6 +35,8 @@ body:
       options:
         - New 3DS
         - Old 3DS
+        - DS / DS Lite
+        - DSi
         - Wii U
         - Wii
         - GameCube

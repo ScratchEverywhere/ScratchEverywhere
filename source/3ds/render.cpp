@@ -200,7 +200,7 @@ void Render::endFrame(bool shouldFlush) {
     hasFrameBegan = false;
 }
 
-void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     C2D_DrawRectSolid(
         x - (w / 2.0f),
         y - (h / 2.0f),

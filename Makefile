@@ -16,6 +16,8 @@ else ifeq ($(PLATFORM),vita)
 include make/Makefile_vita
 else ifeq ($(PLATFORM),wasm)
 include make/Makefile_wasm
+else ifeq ($(PLATFORM),nds)
+include make/Makefile_nds
 else
     $(error Unknown platform: $(PLATFORM))
 endif

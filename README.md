@@ -55,6 +55,10 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
    - Only one `Streamed Sound` can be playing at a time, so this is good for things like background music.
    - **[Wii, GameCube, Vita]** `Streamed Sound` is not supported. Any sounds in the `Stage` will load and play like a normal sound.
 - **[Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
+- Audio on the **NDS** is currently experimental, and is not recommended to use at this time.
+- **[NDS]** Only .wav is supported.
+- **[NDS]** All audio must be in Signed 16-bit PCM wav format, with a recommended sample rate of 11025 Hz or below.
+- **[NDS]** Only one sound can be playing at a time.
 
 ### Framerate
 
@@ -97,7 +101,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 - **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 - **[GameCube]** Cloud Variables will not be supported.
-- **[GameCube]** The GameCube has very little memory, so try to keep projects small.
+- **[GameCube, NDS]** These platforms have very little memory, so try to keep projects small.
 - **[3DS]** Performace is poor when lots of blocks are running at once.
 - **[3DS]** If you have a bunch of large images, some may not load.
 - **[Vita]** Back touch will not be supported.
@@ -259,6 +263,8 @@ The recommended way to compile Scratch Everywhere! is with Docker. To compile wi
 
 - To compile for the **Vita**, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
 
+- To compile for the **NDS**, run `docker build -f docker/Dockerfile.nds --target exporter -o . .`.
+
 
 #### Manual
 
@@ -270,6 +276,7 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 - **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 - **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
 - **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
+- **For the NDS**, you will need to install the [BlocksDS](https://blocksds.skylyrac.net/docs/setup/options/) toolchain. Once installed correctly it should have everything you need.
 
 > [!NOTE]
 > DevkitPro's install instructions are available at: https://devkitpro.org/wiki/Getting_Started
@@ -287,6 +294,7 @@ Then you need to compile the projects into proper Homebrew packages.
 - **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
 - **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
 - **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
+- **For the NDS**, run `make PLATFORM=nds`, then find the `.nds` file.
 
 #### Compilation Flags
 

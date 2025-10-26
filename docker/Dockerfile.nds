@@ -1,0 +1,9 @@
+FROM skylyrac/blocksds:slim-latest AS main_builder
+WORKDIR /app
+
+COPY . .
+
+RUN make PLATFORM=nds
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/scratch-ds.nds /scratch-ds.nds
