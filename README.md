@@ -4,6 +4,7 @@
 
 <p align="center">
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-3ds.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-3ds.yml/badge.svg" alt="3DS Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-nds.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-nds.yml/badge.svg" alt="NDS Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wiiu.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wiiu.yml/badge.svg" alt="Wii U Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wii.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wii.yml/badge.svg" alt="Wii Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml/badge.svg" alt="GameCube Nightly Build"></a>
@@ -100,7 +101,8 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 -   **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 -   **[GameCube]** Cloud Variables will not be supported.
--   **[GameCube]** The GameCube has very little memory, so try to keep projects small.
+-   **[GameCube, NDS]** These platforms have very little memory, so try to keep projects small.
+-   **[NDS]** Dual screen mode will not be supported.
 -   **[3DS]** Performace is poor when lots of blocks are running at once.
 -   **[3DS]** If you have a bunch of large images, some may not load.
 -   **[Vita]** Back touch will not be supported.
@@ -128,10 +130,16 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 -   Dual screen support
 -   Improved controller support (multiple controllers)
+-   Dual screen support
+
+### SDL2 Platforms
+
+-   Improved controller support (multiple controllers)
 
 ### Wii
 
 -   Cloud Variable support
+-   ~~Cloud Variable support~~ (not possible due to licensing issues)
 
 ### Vita
 
@@ -144,6 +152,14 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   Browser extension to send projects directly to a testing device from the editor
     > [!NOTE]
     > For info about planned/unplanned platform support, please check issue [#166](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/166).
+-   Download projects from the Scratch website (previously [#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
+-   Make vector images not/less pixelated
+-   Translations (see [#333](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/333))
+-   Improved Collision (previously [#375](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/375)/[#57](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/57))
+-   ~~Browser extension to send projects directly to a testing device from the editor~~ (not really possible to my understanding)
+
+> [!NOTE]
+> For info about planned/unplanned platform support, please check issue [#166](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/166). **Do not** make an issue if your platform is already there.
 
 ## Installation
 
@@ -174,6 +190,14 @@ Put your Scratch projects in `3ds/scratch-everywhere` and open the Scratch Every
 Place the `.3dsx` file in the `3ds/` folder of your 3DS SD card, put Scratch projects in `3ds/scratch-everywhere`.
 
 Then it should be as simple as opening the Homebrew Launcher on your 3DS and running the app!
+
+### Get up and running for NDS
+
+Download the `.nds` file in the Releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-nds/main/Scratch%20Everywhere!%20DS%20Nightly.zip).
+
+Place the `.nds` file in your SD card, and put Scratch projects in `sd:/scratch-ds/`.
+
+Then it should be as simple as running the app!
 
 ### Get up and running for Wii U
 

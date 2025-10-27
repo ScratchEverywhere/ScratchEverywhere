@@ -1,9 +1,13 @@
+#pragma once
 #include <chrono>
 #include <iostream>
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#pragma once
+#ifdef WII
+#include <ogc/lwp_watchdog.h>
+#include <ogc/system.h>
+#endif
 
 class MemoryTracker {
   private:
@@ -168,7 +172,11 @@ void writeToFile(std::string message);
 
 class Timer {
   private:
+#if defined(__NDS__) || defined(WII)
+    uint64_t startTime;
+#else
     std::chrono::high_resolution_clock::time_point startTime;
+#endif
 
   public:
     Timer();
@@ -219,4 +227,10 @@ class OS {
      * @return `true` on New 3DS, `false` everywhere else.
      */
     static bool isNew3DS();
+
+    /**
+     * Function to detect whether the platform is a DSi.
+     * @return `true` on DSi, `false` everywhere else.
+     */
+    static bool isDSi();
 };

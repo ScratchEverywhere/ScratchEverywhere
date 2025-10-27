@@ -57,11 +57,13 @@ main.code-workspace
 *.dol
 *.wbfs
 *.vpk
+*.nds
 *.pkg
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
 scratch-wiiu/
+scratch-wasm/
 scratch-wii.zip
 
 # Stored Files

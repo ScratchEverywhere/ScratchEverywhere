@@ -1,6 +1,7 @@
 #pragma once
 
-#include <math.h>
+#include <algorithm>
+#include <cmath>
 
 // I don't see any reason for these to be double so i just made them float to save memory
 struct Color {

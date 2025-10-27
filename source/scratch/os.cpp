@@ -10,6 +10,12 @@
 #include <sstream>
 #include <whb/sdcard.h>
 #endif
+#ifdef WII
+#include <gccore.h>
+#endif
+#ifdef __NDS__
+#include <nds.h>
+#endif
 #ifdef __PS4__
 #include <orbis/libkernel.h>
 #endif
@@ -76,6 +82,39 @@ void Log::writeToFile(std::string message) {
 }
 #endif
 
+// Nintendo DS Timer implementation
+#ifdef __NDS__
+Timer::Timer() {
+    start();
+}
+void Timer::start() {
+    startTime = cpuGetTiming();
+}
+int Timer::getTimeMs() {
+    uint64_t currentTime = cpuGetTiming();
+    // CPU timing is in units based on the bus clock (33.513982 MHz)
+    // Convert to milliseconds: (ticks * 1000) / BUS_CLOCK
+    return static_cast<int>((currentTime - startTime) * 1000 / BUS_CLOCK);
+}
+
+// Wii's std::chrono support is still pretty bad
+#elif defined(WII)
+
+Timer::Timer() {
+    start();
+}
+
+void Timer::start() {
+    startTime = gettick();
+}
+
+int Timer::getTimeMs() {
+    u64 currentTime = gettick();
+    return ticks_to_millisecs(currentTime - startTime);
+}
+
+// everyone else...
+#else
 Timer::Timer() {
     start();
 }
@@ -90,6 +129,8 @@ int Timer::getTimeMs() {
 
     return static_cast<int>(duration.count());
 }
+
+#endif
 
 bool Timer::hasElapsed(int milliseconds) {
     return getTimeMs() >= milliseconds;
@@ -118,6 +159,12 @@ std::string OS::getScratchFolderLocation() {
     return "/data/scratch-ps4/";
 #elif defined(__3DS__)
     return "sdmc:/3ds/scratch-everywhere/";
+#elif defined(__EMSCRIPTEN__)
+    return "/scratch-everywhere/";
+#elif defined(__NDS__)
+    if (OS::isDSi())
+        return "sd:/scratch-ds/";
+    else return "fat:/scratch-ds/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -126,6 +173,8 @@ std::string OS::getScratchFolderLocation() {
 std::string OS::getRomFSLocation() {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
     return "romfs:/";
+#elif defined(__EMSCRIPTEN__)
+    return "/romfs/";
 #elif defined(__PS4__)
     return "/app0/";
 #else
@@ -148,6 +197,10 @@ std::string OS::getPlatform() {
     return "Switch";
 #elif defined(VITA)
     return "Vita";
+#elif defined(__NDS__)
+    return "DS";
+#elif defined(__EMSCRIPTEN__)
+    return "WASM";
 #elif defined(__PS4__)
     return "PS4";
 #else
@@ -160,6 +213,13 @@ bool OS::isNew3DS() {
     bool out = false;
     APT_CheckNew3DS(&out);
     return out;
+#endif
+    return false;
+}
+
+bool OS::isDSi() {
+#ifdef __NDS__
+    return isDSiMode();
 #endif
     return false;
 }

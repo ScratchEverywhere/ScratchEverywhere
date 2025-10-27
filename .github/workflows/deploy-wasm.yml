@@ -1,0 +1,40 @@
+name: Deploy WASM Port
+
+on:
+  release:
+    types: created
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create `romfs` directory
+        run: mkdir romfs
+      - name: Build and Export
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.wasm
+          target: exporter
+          outputs: type=local,dest=.
+      - name: Upload Build Artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: scratch-wasm/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

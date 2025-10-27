@@ -156,6 +156,9 @@ bool Scratch::startScratchProject() {
 #endif
     Scratch::nextProject = false;
 
+    // Render first before running any blocks, otherwise 3DS rendering may get weird
+    Render::renderSprites();
+
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
 
@@ -167,10 +170,6 @@ bool Scratch::startScratchProject() {
             Render::renderSprites();
 
             if (shouldStop) {
-#ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app
-                toExit = true;
-                return false;
-#endif
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
@@ -270,9 +269,14 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     std::vector<std::pair<double, double>> collisionPoints;
 
     double divisionAmount = 2.0;
+    const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
-    if (currentSprite->costumes[currentSprite->currentCostume].isSVG)
+    if (isSVG)
         divisionAmount = 1.0;
+
+#ifdef __NDS__
+    divisionAmount *= 2;
+#endif
 
     // Get sprite dimensions, scaled by size
     const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
@@ -288,10 +292,10 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         else
             rotation = -90;
     }
-
     double rotationRadians = -(rotation - 90) * M_PI / 180.0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth));
-    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight));
+    const int shiftAmount = !isSVG ? 1 : 0;
+    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) >> shiftAmount);
+    double rotationCenterY = -((currentSprite->rotationCenterY - currentSprite->spriteHeight) >> shiftAmount);
 
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
@@ -937,7 +941,7 @@ void loadSprites(const nlohmann::json &json) {
         Log::logWarning("No Max clones property.");
 #endif
     }
-
+#ifdef __3DS__
     if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
     else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
@@ -949,6 +953,9 @@ void loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
+#else
+    Render::renderMode = Render::TOP_SCREEN_ONLY;
+#endif
 
     // if infinite clones are enabled, set a (potentially) higher max clone count
     if (!infClones) initializeSpritePool(300);
@@ -993,6 +1000,7 @@ void loadSprites(const nlohmann::json &json) {
     Unzip::loadingState = "Finishing up!";
 
     Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
+    Render::setRenderScale();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }
 
