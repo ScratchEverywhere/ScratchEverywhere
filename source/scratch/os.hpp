@@ -24,7 +24,7 @@ class MemoryTracker {
     const static size_t gamecube_maxRamUsage = 23068672; // 22 MB
     const static size_t pc_maxRamUsage = 1073741824;     // 1 GB
     const static size_t vita_maxRamUsage = 335544320;    // 320 MB
-    const static size_t ps4_maxRamUsage = 805306368;     // 768 MB
+    const static size_t ps4_maxRamUsage = 1073741824;     // 1 GB
 
     // ---- Max VRAM values (just an estimate based on how many images i can load before i cant anymore) ----
     const static size_t old3ds_maxVRAMUsage = 30000000;   // ~30 MB
@@ -172,7 +172,7 @@ void writeToFile(std::string message);
 
 class Timer {
   private:
-#if defined(__NDS__) || defined(WII)
+#if defined(__NDS__) || defined(WII) || defined(__PS4__)
     uint64_t startTime;
 #else
     std::chrono::high_resolution_clock::time_point startTime;

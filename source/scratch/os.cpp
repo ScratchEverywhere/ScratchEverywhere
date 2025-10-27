@@ -113,6 +113,22 @@ int Timer::getTimeMs() {
     return ticks_to_millisecs(currentTime - startTime);
 }
 
+// std::chrono on PS4 updates slowly
+#elif defined(__PS4__)
+
+Timer::Timer() {
+    start();
+}
+
+void Timer::start() {
+    startTime = sceKernelReadTsc() * 1000;
+}
+
+int Timer::getTimeMs() {
+    uint64_t currentTime = sceKernelReadTsc() * 1000;
+    return static_cast<int>((currentTime - startTime) / sceKernelGetTscFrequency());
+}
+
 // everyone else...
 #else
 Timer::Timer() {
