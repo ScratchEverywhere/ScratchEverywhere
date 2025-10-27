@@ -152,7 +152,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 - ~~Browser extension to send projects directly to a testing device from the editor~~ (not really possible to my understanding)
 
 > [!NOTE]
-> For info about planned/unplanned platform support, please check issue [#166](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/166).
+> For info about planned/unplanned platform support, please check issue [#166](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/166). **Do not** make an issue if your platform is already there.
 
 ## Installation
 
