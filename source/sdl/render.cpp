@@ -35,6 +35,11 @@ char nickname[0x21];
 
 #ifdef VITA
 #include <psp2/touch.h>
+#include <psp2/net/net.h>
+#include <psp2/net/netctl.h>
+#include <psp2/net/http.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/sysmodule.h>
 #endif
 
 #ifdef __OGC__
@@ -156,6 +161,20 @@ postAccount:
 
     windowWidth = 960;
     windowHeight = 544;
+
+    Log::log("[Vita] Loading module SCE_SYSMODULE_NET");
+    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
+
+    Log::log("[Vita] Running sceNetInit");
+    SceNetInitParam netInitParam;
+    int size = 1*1024*1024; // net buffer size ([size in MB]*1024*1024)
+    netInitParam.memory = malloc(size);
+    netInitParam.size = size;
+    netInitParam.flags = 0;
+    sceNetInit(&netInitParam);
+
+    Log::log("[Vita] Running sceNetCtlInit");
+    sceNetCtlInit();
 #endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
