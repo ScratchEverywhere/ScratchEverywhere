@@ -1,4 +1,5 @@
 #pragma once
+#include "extensions/input.hpp"
 #include "interpret.hpp"
 #include "os.hpp"
 #include <algorithm>
@@ -15,11 +16,17 @@ class Input {
         int y;
         size_t heldFrames;
         bool isPressed;
+        enum {
+            LEFT,
+            MIDDLE,
+            RIGHT
+        } mouseButton;
         bool isMoving;
     };
     static Mouse mousePointer;
     static Sprite *draggingSprite;
 
+    static std::vector<std::string> inputKeys;
     static std::vector<std::string> inputButtons;
     static std::map<std::string, std::string> inputControls;
 
@@ -80,13 +87,14 @@ class Input {
     }
 
     static void buttonPress(std::string button) {
+        inputButtons.push_back(button);
         if (inputControls.find(button) != inputControls.end()) {
-            inputButtons.push_back(inputControls[button]);
+            inputKeys.push_back(inputControls[button]);
         }
     }
 
     static bool isKeyJustPressed(std::string scratchKey) {
-        return (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), scratchKey) != Input::inputButtons.end()) &&
+        return (std::find(Input::inputKeys.begin(), Input::inputKeys.end(), scratchKey) != Input::inputKeys.end()) &&
                Input::keyHeldFrames < 2;
     }
 
