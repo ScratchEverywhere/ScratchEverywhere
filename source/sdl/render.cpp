@@ -174,12 +174,6 @@ postAccount:
         return false;
     }
 
-    rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_INTERNAL_NET);
-    if (rc != ORBIS_OK || sceNetInit() != ORBIS_OK) {
-        Log::logError("Failed to init network.");
-        return false;
-    }
-
     windowWidth = 1280;
     windowHeight = 720;
 #endif

@@ -1,5 +1,6 @@
 #pragma once
 #include "interpret.hpp"
+#include "math.hpp"
 #include "sprite.hpp"
 #include "text.hpp"
 #include <chrono>
