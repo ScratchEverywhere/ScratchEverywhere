@@ -3,7 +3,7 @@
 
 # Package metadata.
 TITLE       := Scratch Everywhere!
-VERSION     := 0.25
+VERSION     := 0.26
 TITLE_ID    := NTXS10053
 CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 
@@ -13,9 +13,9 @@ ENABLE_AUDIO		?= 1
 ENABLE_LOADSCREEN	?= 1
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -lc++ -lSceSysmodule -lSceAudioOut -lSceUserService \
-			    -lScePigletv2VSH -lScePrecompiledShaders -lSceFreeType -lScePad \
-			    -lSceSystemService -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lsamplerate -lpthread \
+LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceSysmodule -lSceAudioOut -lSceUserService \
+			    -lScePigletv2VSH -lScePrecompiledShaders -lSceFreeType -lScePad -lSceSystemService \
+			    -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lsamplerate -lpthread \
 			   
 # Additional compile flags.
 EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
@@ -52,7 +52,7 @@ endif
 
 # Handle cloudvars and mist++
 ifeq ($(ENABLE_CLOUDVARS),1)
-LIBS		+= -lSceNet -lSceNetCtl -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lz -lmist++
+LIBS		+= -lSceNet -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lz -lmist++
 EXTRAFLAGS	+= -DENABLE_CLOUDVARS
 endif
 
