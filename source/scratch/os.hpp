@@ -1,9 +1,13 @@
+#pragma once
 #include <chrono>
 #include <iostream>
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#pragma once
+#ifdef WII
+#include <ogc/lwp_watchdog.h>
+#include <ogc/system.h>
+#endif
 
 class MemoryTracker {
   private:
@@ -160,7 +164,7 @@ void writeToFile(std::string message);
 
 class Timer {
   private:
-#ifdef __NDS__
+#if defined(__NDS__) || defined(WII)
     uint64_t startTime;
 #else
     std::chrono::high_resolution_clock::time_point startTime;

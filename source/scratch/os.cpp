@@ -10,6 +10,9 @@
 #include <sstream>
 #include <whb/sdcard.h>
 #endif
+#ifdef WII
+#include <gccore.h>
+#endif
 #ifdef __NDS__
 #include <nds.h>
 #endif
@@ -63,6 +66,22 @@ int Timer::getTimeMs() {
     // CPU timing is in units based on the bus clock (33.513982 MHz)
     // Convert to milliseconds: (ticks * 1000) / BUS_CLOCK
     return static_cast<int>((currentTime - startTime) * 1000 / BUS_CLOCK);
+}
+
+// Wii's std::chrono support is still pretty bad
+#elif defined(WII)
+
+Timer::Timer() {
+    start();
+}
+
+void Timer::start() {
+    startTime = gettick();
+}
+
+int Timer::getTimeMs() {
+    u64 currentTime = gettick();
+    return ticks_to_millisecs(currentTime - startTime);
 }
 
 // everyone else...
