@@ -81,7 +81,7 @@ LIBDIRS	:=	$(BLOCKSDS)/libs/libnds
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lmm9
 LIBDIRS	+=	$(BLOCKSDS)/libs/maxmod
-CFLAGS_BASE	+=	-DENABLE_AUDIO
+CFLAGS	+=	-DENABLE_AUDIO
 endif
 
 #---------------------------------------------------------------------------------
