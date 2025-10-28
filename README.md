@@ -55,7 +55,7 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 -   A sound may take time to load if playing it for the first time.
 -   **[Non-3DS Platforms]** If you play any sound from the `Stage`, the sound will play as a `Streamed Sound` and will not need to load.
     -   Only one `Streamed Sound` can be playing at a time, so this is good for things like background music.
-    -   **[Wii, GameCube, Vita]** `Streamed Sound` is not supported. Any sounds in the `Stage` will load and play like a normal sound.
+    -   **[Wii, GameCube]** `Streamed Sound` is not supported. Any sounds in the `Stage` will load and play like a normal sound.
 -   **[Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
 
 ### Framerate
