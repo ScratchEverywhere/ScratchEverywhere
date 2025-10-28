@@ -257,6 +257,9 @@ Then it should be as simple as opening and starting the app from your Vita's Liv
 
 ### Get up and running for PS4
 
+> [!NOTE]
+> Scratch Everywhere! for PS4 is also on [PKG-Zone](https://pkg-zone.com/details/NTXS10053), so you can just download it there or directly from the PS4 HB-Store and keep it updated that way!
+
 Download the `scratch-ps4.pkg` file from the releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-ps4/main/Scratch%20Everywhere!%20PS4%20Nightly.zip), then install it using your preferred HEN, like GoldHEN, Mira, etc.
 
 Place your Scratch projects in `/data/scratch-ps4`, if the folder doesn't exist, create it.
