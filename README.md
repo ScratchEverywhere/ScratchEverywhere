@@ -101,7 +101,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   Extensions (e.g. pen and music extensions) are not yet supported.
 -   Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 -   Performance is poor when using many (~50+) clones (memory management issue).
--   **[Wii, Switch, Vita]** Cloud Variables aren't currently supported, but likely will be in the future.
+-   **[Wii, Switch, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
 -   **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 -   **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 -   **[GameCube]** Cloud Variables will not be supported.
@@ -110,7 +110,8 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   **[3DS]** Performace is poor when lots of blocks are running at once.
 -   **[3DS]** If you have a bunch of large images, some may not load.
 -   **[Vita]** Back touch will not be supported.
-
+-   **[PS4]** The software keyboard isn't currently supported.
+c
 ## Unimplemented blocks
 
 -   All say and think blocks ([#393](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/393))
