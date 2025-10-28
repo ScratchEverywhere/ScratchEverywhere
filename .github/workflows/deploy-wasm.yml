@@ -1,8 +1,10 @@
 name: Deploy WASM Port
 
 on:
-  release:
-    types: created
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
 
 jobs:
   build:
