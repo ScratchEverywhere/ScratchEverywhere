@@ -226,9 +226,6 @@ void Render::deInit() {
     WHBUnmountSdCard();
     nn::act::Finalize();
 #endif
-#ifdef __OGC__
-    romfsExit();
-#endif
 }
 
 void *Render::getRenderer() {
