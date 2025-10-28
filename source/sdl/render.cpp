@@ -36,12 +36,28 @@ char nickname[0x21];
 
 #ifdef VITA
 #include <psp2/touch.h>
+#include <psp2/net/net.h>
+#include <psp2/net/netctl.h>
+#include <psp2/net/http.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/sysmodule.h>
 #endif
 
 #ifdef __OGC__
 #include <fat.h>
 #include <ogc/system.h>
 #include <romfs-ogc.h>
+#endif
+
+#ifdef __PS4__
+#include <orbis/Sysmodule.h>
+#include <orbis/libkernel.h>
+#include <orbis/Net.h>
+
+inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
+    // On PS4 there is no DPI scaling, so this is fine
+    SDL_GetWindowSize(window, w, h);
+}
 #endif
 
 #ifdef GAMECUBE
@@ -157,6 +173,29 @@ postAccount:
 
     windowWidth = 960;
     windowHeight = 544;
+
+    Log::log("[Vita] Loading module SCE_SYSMODULE_NET");
+    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
+
+    Log::log("[Vita] Running sceNetInit");
+    SceNetInitParam netInitParam;
+    int size = 1*1024*1024; // net buffer size ([size in MB]*1024*1024)
+    netInitParam.memory = malloc(size);
+    netInitParam.size = size;
+    netInitParam.flags = 0;
+    sceNetInit(&netInitParam);
+
+    Log::log("[Vita] Running sceNetCtlInit");
+    sceNetCtlInit();
+#elif defined(__PS4__)
+    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
+    if (rc != ORBIS_OK) {
+        Log::logError("Failed to init freetype.");
+        return false;
+    }
+
+    windowWidth = 1280;
+    windowHeight = 720;
 #endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);

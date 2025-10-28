@@ -1,0 +1,139 @@
+# OpenOrbis PS4 Port by PwLDev
+# This Makefile is based on the OpenOrbis Sample
+
+# Package metadata.
+TITLE       := Scratch Everywhere!
+VERSION     := 0.26
+TITLE_ID    := NTXS10053
+CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
+
+# Options for building Scratch Everywhere!
+ENABLE_CLOUDVARS	?= 0
+ENABLE_AUDIO		?= 1
+ENABLE_LOADSCREEN	?= 1
+
+# Libraries linked into the ELF.
+LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceSysmodule -lSceAudioOut -lSceUserService \
+			    -lScePigletv2VSH -lScePrecompiledShaders -lSceFreeType -lScePad -lSceSystemService \
+			    -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lsamplerate -lpthread \
+			   
+# Additional compile flags.
+EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
+
+# Build target
+TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
+TARGET		:= scratch-ps4
+BUILD		:= build/ps4
+GRAPHICS	:= gfx
+SOURCES		:= source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES	:= include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann
+FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
+			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
+			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
+AUTHINFO    := "000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+# Define objects to build
+CPP_FILES  		:= $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
+C_FILES    		:= $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
+
+OBJS_CPP       	:= $(foreach src,$(CPP_FILES),$(BUILD)/$(src:.cpp=.o))
+OBJS_C			:= $(foreach src,$(C_FILES),$(BUILD)/$(src:.c=.o))
+
+OBJS			:= $(OBJS_CPP) $(OBJS_C)
+INCLUDE_FLAGS 	:= $(foreach dir,$(INCLUDES),-I$(dir))
+
+# Make sure the OpenOrbis toolchain and Pacbrew are installed
+ifeq ($(strip $(TOOLCHAIN)),)
+$(error "The OpenOrbis toolchain is required to build for PS4. Please set OO_PS4_TOOLCHAIN in your environment; export OO_PS4_TOOLCHAIN=<path to>OO_PS4_TOOLCHAIN")
+endif
+ifeq ($(strip $(PACBREW)),)
+$(error "Pacbrew packages are required to build for PS4. Please set PACBREW in your environment; export PACBREW=<path to>PACBREW")
+endif
+
+# Handle cloudvars and mist++
+ifeq ($(ENABLE_CLOUDVARS),1)
+LIBS		+= -lSceNet -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lz -lmist++
+EXTRAFLAGS	+= -DENABLE_CLOUDVARS
+endif
+
+# Handle enable audio
+ifeq ($(ENABLE_AUDIO),1)
+LIBS		+= -lSDL2_mixer -lmodplug -lmpg123 -logg -lopus -lopusfile -lvorbis -lvorbisfile 
+EXTRAFLAGS	+= -DENABLE_AUDIO
+endif
+
+# Handle loadscreen
+ifeq ($(ENABLE_LOADSCREEN),1)
+EXTRAFLAGS	+= -DENABLE_LOADSCREEN
+endif
+
+# Define final C/C++ flags
+CFLAGS      := --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) $(INCLUDE_FLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include -I$(PACBREW)/ps4/openorbis/usr/include
+CXXFLAGS    := $(CFLAGS) -isystem $(TOOLCHAIN)/include/c++/v1
+LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib -L$(PACBREW)/ps4/openorbis/usr/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o
+
+# Create the intermediate directory incase it doesn't already exist.
+_unused     := $(shell mkdir -p $(BUILD)/sce_sys/about $(BUILD)/sce_module)
+
+# Copy icon and gfx to the valid directory.
+_icon		:= $(shell cp $(GRAPHICS)/ps4/* $(BUILD)/sce_sys/)
+_gfx		:= $(shell cp -r $(GRAPHICS) $(BUILD))
+
+# Copy modules from a sample of the toolchain (do not delete the samples).
+_modules	:= $(shell cp -r $(TOOLCHAIN)/samples/piglet/sce_module/*.prx $(BUILD)/sce_module/)
+_about		:= $(shell cp -r $(TOOLCHAIN)/samples/piglet/sce_sys/about/right.sprx $(BUILD)/sce_sys/about*)
+
+# Check for linux vs macOS and account for clang/ld path
+UNAME_S     := $(shell uname -s)
+
+CC      := clang
+CXX     := clang++
+LD      := ld.lld
+
+# Get OS dirname for Pkgtool binaries.
+ifeq ($(UNAME_S),Linux)
+	CDIR    := linux
+endif
+ifeq ($(UNAME_S),Darwin)
+	CDIR    := macos
+endif
+
+all: $(BUILD)/$(TARGET).pkg
+
+$(BUILD)/$(TARGET).pkg: $(BUILD)/pkg.gp4
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core pkg_build $< $(BUILD)
+	@mv $(BUILD)/$(CONTENT_ID).pkg $(BUILD)/$(TARGET).pkg
+
+$(BUILD)/pkg.gp4: $(patsubst %,$(BUILD)/%,$(FILES))
+	$(TOOLCHAIN)/bin/$(CDIR)/create-gp4 --content-id=$(CONTENT_ID) --files "$(FILES)" -out $@
+
+$(BUILD)/sce_sys/param.sfo: Makefile
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_new $@
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_TYPE --type Integer --maxsize 4 --value 1
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_VER --type Utf8 --maxsize 8 --value '$(VERSION)'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ ATTRIBUTE --type Integer --maxsize 18 --value 81936
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CATEGORY --type Utf8 --maxsize 4 --value 'gde'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ FORMAT --type Utf8 --maxsize 4 --value 'obs'  
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CONTENT_ID --type Utf8 --maxsize 48 --value '$(CONTENT_ID)'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ DOWNLOAD_DATA_SIZE --type Integer --maxsize 4 --value 0 
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ SYSTEM_VER --type Integer --maxsize 4 --value 0 
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE --type Utf8 --maxsize 128 --value '$(TITLE)'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
+
+$(BUILD)/eboot.bin: $(BUILD) $(OBJS)
+	$(LD) $(OBJS) -o $(BUILD)/$(TARGET).elf $(LDFLAGS)
+	$(TOOLCHAIN)/bin/$(CDIR)/create-fself -in=$(BUILD)/$(TARGET).elf -out=$(BUILD)/$(TARGET).oelf --eboot "$(BUILD)/eboot.bin" --paid 0x3900000000000002 --authinfo $(AUTHINFO)
+
+$(BUILD)/%.o: %.c
+	@mkdir -p $(dir $@)
+	@echo "Compiling $(notdir $<)"
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(BUILD)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	@echo "Compiling $(notdir $<)"
+	$(CXX) $(CXXFLAGS) -o $@ $<
+
+clean:
+	rm -rf $(BUILD)/eboot.bin $(BUILD)/$(TARGET).elf $(BUILD)/$(TARGET).oelf $(BUILD)/sce_sys/param.sfo $(BUILD)/pkg.gp4 $(BUILD)/$(TARGET).pkg

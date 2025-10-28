@@ -1,4 +1,7 @@
 #include "value.hpp"
+#include "math.hpp"
+#include "os.hpp"
+#include <regex>
 
 Value::Value(int val) : value(val) {}
 

@@ -1,9 +1,13 @@
+#pragma once
 #include <chrono>
 #include <iostream>
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#pragma once
+#ifdef WII
+#include <ogc/lwp_watchdog.h>
+#include <ogc/system.h>
+#endif
 
 class MemoryTracker {
   private:
@@ -20,6 +24,7 @@ class MemoryTracker {
     const static size_t gamecube_maxRamUsage = 23068672; // 22 MB
     const static size_t pc_maxRamUsage = 1073741824;     // 1 GB
     const static size_t vita_maxRamUsage = 335544320;    // 320 MB
+    const static size_t ps4_maxRamUsage = 1073741824;     // 1 GB
 
     // ---- Max VRAM values (just an estimate based on how many images i can load before i cant anymore) ----
     const static size_t old3ds_maxVRAMUsage = 30000000;   // ~30 MB
@@ -29,6 +34,7 @@ class MemoryTracker {
     const static size_t gamecube_maxVRAMUsage = 11010048; // ~10 MB
     const static size_t pc_maxVRAMUsage = 134217728;      // 128 MB
     const static size_t vita_maxVRAMUsage = 100663296;    // 96 MB
+    const static size_t ps4_maxVRAMUsage = 134217728;      // 128 MB
 
   public:
     static size_t getMaxRamUsage() {
@@ -51,6 +57,9 @@ class MemoryTracker {
 #endif
 #ifdef VITA
         return vita_maxRamUsage;
+#endif
+#ifdef __PS4__
+        return ps4_maxRamUsage;
 #endif
         return pc_maxRamUsage;
     }
@@ -75,6 +84,9 @@ class MemoryTracker {
 #endif
 #ifdef VITA
         return vita_maxVRAMUsage;
+#endif
+#ifdef __PS4__
+        return ps4_maxVRAMUsage;
 #endif
         return pc_maxVRAMUsage;
     }
@@ -160,7 +172,7 @@ void writeToFile(std::string message);
 
 class Timer {
   private:
-#ifdef __NDS__
+#if defined(__NDS__) || defined(WII) || defined(__PS4__)
     uint64_t startTime;
 #else
     std::chrono::high_resolution_clock::time_point startTime;

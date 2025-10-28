@@ -1,6 +1,7 @@
 #pragma once
 #include "interpret.hpp"
 #include "menus/menuManager.hpp"
+#include "math.hpp"
 #include "sprite.hpp"
 #include "text.hpp"
 #include <chrono>
@@ -146,7 +147,7 @@ class Render {
             }
 
             if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-#ifndef __NDS__
+#ifdef __NDS__
                 spriteX += sprite->spriteWidth * (isSVG ? 2 : 1);
 #else
                 spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);

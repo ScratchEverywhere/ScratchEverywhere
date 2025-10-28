@@ -26,6 +26,11 @@ extern char nickname[0x21];
 #include <ogc/conf.h>
 #endif
 
+#ifdef __PS4__
+#include <orbis/UserService.h>
+int userId;
+#endif
+
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 
@@ -299,7 +304,12 @@ std::string Input::getUsername() {
     if (CONF_GetNickName(nickname) != 0) {
         return std::string(reinterpret_cast<char *>(nickname));
     }
-
+#elif defined(__PS4__)
+    char username[32];
+    sceUserServiceGetInitialUser(&userId);
+    if (sceUserServiceGetUserName(userId, username, 31) == 0) {
+        return std::string(reinterpret_cast<char *>(username));
+    }
 #endif
     return "Player";
 }
