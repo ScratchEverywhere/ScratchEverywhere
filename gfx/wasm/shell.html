@@ -80,7 +80,7 @@
             }
           }
 
-          FS.writeFile(
+          Module.FS.writeFile(
             "/romfs/project.sb3",
             new Uint8Array(await res.arrayBuffer()),
           );

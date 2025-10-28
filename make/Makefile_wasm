@@ -16,7 +16,7 @@ ENABLE_AUDIO		?=	1
 ENABLE_LOADSCREEN	?=	1
 
 EMFLAGS	:=	-sUSE_SDL=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_TTF=2 -sUSE_SDL_GFX=2 -sSDL2_IMAGE_FORMATS='["png","jpg","svg"]' -sNO_DISABLE_EXCEPTION_CATCHING
-LDFLAGS	:=	$(EMFLAGS) --preload-file romfs --use-preload-plugins -sALLOW_MEMORY_GROWTH=1 -sASYNCIFY -sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8] -sEXPORTED_FUNCTIONS=[_main,_malloc,_free] --shell-file $(GRAPHICS)/wasm/shell.html
+LDFLAGS	:=	$(EMFLAGS) --preload-file romfs --use-preload-plugins -sALLOW_MEMORY_GROWTH=1 -sASYNCIFY -sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS] -sEXPORTED_FUNCTIONS=[_main,_malloc,_free] --shell-file $(GRAPHICS)/wasm/shell.html
 
 CFLAGS_BASE	:= -DSDL_BUILD $(EMFLAGS)
 
