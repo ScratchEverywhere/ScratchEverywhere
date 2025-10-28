@@ -145,7 +145,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ### Other
 
--   Download projects from the Scratch website ([#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
 -   Make vector images not/less pixelated
 -   Download projects from the Scratch website (previously [#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
 -   Translations (see [#333](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/333))
