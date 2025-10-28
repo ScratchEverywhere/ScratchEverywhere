@@ -114,7 +114,8 @@ mkdir:
 
 $(GFXBUILD):
 	@mkdir -p $@
-	@cp -r $(GRAPHICS)/* $@/
+	@cp -r $(GRAPHICS)/menu $@/
+#	@cp -r $(GRAPHICS)/ingame $@/
 
 test:
 	cemu -g $(OUTPUT).rpx

@@ -131,7 +131,8 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
-	@cp -r $(GRAPHICS)/* $@/
+	@cp -r $(GRAPHICS)/menu $@/
+#	@cp -r $(GRAPHICS)/ingame $@/
 
 ifneq ($(DEPSDIR),$(BUILD))
 $(DEPSDIR):
