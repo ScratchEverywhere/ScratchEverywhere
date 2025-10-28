@@ -130,7 +130,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 -   Dual screen support
 -   Improved controller support (multiple controllers)
--   Dual screen support
 
 ### SDL2 Platforms
 
@@ -143,17 +142,13 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ### Vita
 
--   Cloud variable support (compiling with cloud variables enabled currently makes the app crash on startup)
+-   Cloud variable support
 
 ### Other
 
 -   Download projects from the Scratch website ([#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
 -   Make vector images not/less pixelated
--   Browser extension to send projects directly to a testing device from the editor
-    > [!NOTE]
-    > For info about planned/unplanned platform support, please check issue [#166](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/166).
 -   Download projects from the Scratch website (previously [#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
--   Make vector images not/less pixelated
 -   Translations (see [#333](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/333))
 -   Improved Collision (previously [#375](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/375)/[#57](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/57))
 -   ~~Browser extension to send projects directly to a testing device from the editor~~ (not really possible to my understanding)
