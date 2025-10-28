@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=vita
+RUN make PLATFORM=vita ENABLE_AUDIO=1
 
 FROM scratch AS exporter
 
