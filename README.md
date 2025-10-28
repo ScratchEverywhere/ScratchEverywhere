@@ -137,7 +137,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ### Wii
 
--   Cloud Variable support
 -   ~~Cloud Variable support~~ (not possible due to licensing issues)
 
 ### Vita
