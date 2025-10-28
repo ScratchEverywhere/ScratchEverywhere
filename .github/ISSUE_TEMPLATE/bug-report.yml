@@ -44,6 +44,7 @@ body:
         - Vita
         - PC
         - Web
+        - PS4
     validations:
       required: true
   - type: textarea

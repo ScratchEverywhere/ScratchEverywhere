@@ -1,6 +1,7 @@
 #include "pen.hpp"
 #include "../image.hpp"
 #include "../interpret.hpp"
+#include "../math.hpp"
 #include "../render.hpp"
 #include "unzip.hpp"
 

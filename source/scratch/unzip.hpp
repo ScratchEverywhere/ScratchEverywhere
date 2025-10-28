@@ -36,6 +36,7 @@ class Unzip {
         loadingState = "Opening Scratch project";
         Unzip::UnpackedInSD = false;
         std::ifstream file;
+
         int isFileOpen = openFile(&file);
         if (isFileOpen == 0) {
             Log::logError("Failed to open Scratch project.");

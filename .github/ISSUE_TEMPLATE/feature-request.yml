@@ -28,6 +28,7 @@ body:
         - Vita
         - PC
         - Web
+        - PS4
     validations:
       required: false
   - type: textarea

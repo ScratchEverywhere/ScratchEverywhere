@@ -21,3 +21,6 @@ Vita:
 
 Web:
   - '### Device\(s\)\s*.*Web'
+
+PS4:
+  - '### Device\(s\)\s*.*PS4'
