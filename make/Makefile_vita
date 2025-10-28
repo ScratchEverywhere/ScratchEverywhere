@@ -31,7 +31,7 @@ PROJECT := scratch_everywhere
 
 # Set your config options here
 ENABLE_CLOUDVARS	?=	0 # As of writing (2025-10-27), Cloud variables are broken on Vita due to vitasdk curl not having websocket support.
-ENABLE_AUDIO	?=	1
+ENABLE_AUDIO	    ?=	1
 ENABLE_LOADSCREEN	?=	1
 
 
@@ -61,6 +61,12 @@ LIBS        +=  -lmist++ -lSceNet_stub -lSceNetCtl_stub -lcurl -lssl -lcrypto
 CFLAGS		+=	-DENABLE_CLOUDVARS $(shell arm-vita-eabi-pkg-config --cflags mist++)
 CXXFLAGS	+=	-DENABLE_CLOUDVARS $(shell arm-vita-eabi-pkg-config --cflags mist++)
 
+# Mist++ Version Check
+ifeq ($(shell arm-vita-eabi-pkg-config --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+endif
+endif
+
 ifeq ($(ENABLE_AUDIO),1)
 LIBS        += -lSDL2_mixer -lopusfile -lopus -lvorbisfile -lvorbis -logg \
                 -lmodplug -lxmp-lite -lm \
@@ -72,12 +78,6 @@ endif
 ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 CXXFLAGS += -DENABLE_LOADSCREEN
-endif
-
-# Mist++ Version Check
-ifeq ($(shell arm-vita-eabi-pkg-config --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
-$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
-endif
 endif
 
 
