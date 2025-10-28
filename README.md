@@ -57,6 +57,10 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
     -   Only one `Streamed Sound` can be playing at a time, so this is good for things like background music.
     -   **[Wii, GameCube]** `Streamed Sound` is not supported. Any sounds in the `Stage` will load and play like a normal sound.
 -   **[Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
+- 	Audio on the **NDS** is currently experimental, and is not recommended to use at this time;
+	- Only .wav is supported.
+	- All audio must be in Signed 16-bit PCM wav format, with a recommended sample rate of 11025 Hz or below.
+	- Only one sound can be playing at a time.
 
 ### Framerate
 
