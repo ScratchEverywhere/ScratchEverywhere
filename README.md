@@ -111,7 +111,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   **[3DS]** If you have a bunch of large images, some may not load.
 -   **[Vita]** Back touch will not be supported.
 -   **[PS4]** The software keyboard isn't currently supported.
-c
+
 ## Unimplemented blocks
 
 -   All say and think blocks ([#393](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/393))
