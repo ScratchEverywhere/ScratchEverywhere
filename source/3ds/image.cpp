@@ -1,6 +1,6 @@
 #include "image.hpp"
-#include "os.hpp
 #include "../scratch/math.hpp"
+#include "os.hpp"
 #include <algorithm>
 #include <string>
 #include <vector>
