@@ -205,6 +205,7 @@ bool Value::operator==(const Value &other) const {
 
 bool Value::operator<(const Value &other) const {
     if (isNumeric() && other.isNumeric()) {
+        if (std::isnan(other.asDouble()) && std::isinf(asDouble())) return true;
         return asDouble() < other.asDouble();
     }
     return asString() < other.asString();
@@ -212,6 +213,7 @@ bool Value::operator<(const Value &other) const {
 
 bool Value::operator>(const Value &other) const {
     if (isNumeric() && other.isNumeric()) {
+        if (std::isnan(asDouble()) && std::isinf(other.asDouble())) return true;
         return asDouble() > other.asDouble();
     }
     return asString() > other.asString();

@@ -166,14 +166,17 @@ Value OperatorBlocks::equals(Block &block, Sprite *sprite) {
     }
 
     if (value1.isNumeric() && value2.isNumeric()) {
-        return Value(value1.asDouble() == value2.asDouble());
-    } else {
-        std::string string1 = value1.asString();
-        std::string string2 = value2.asString();
-        std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-        std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-        return Value(string1 == string2);
+        const double double1 = value1.asDouble();
+        const double double2 = value2.asDouble();
+
+        if (std::isnan(double1) && std::isnan(double2)) return Value(true);
+        return Value(double1 == double2);
     }
+    std::string string1 = value1.asString();
+    std::string string2 = value2.asString();
+    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+    return Value(string1 == string2);
 }
 
 Value OperatorBlocks::greaterThan(Block &block, Sprite *sprite) {
