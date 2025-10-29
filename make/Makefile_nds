@@ -44,11 +44,6 @@ GAME_SUBTITLE2	:=	NateXS
 GAME_ICON		:=	$(CURDIR)/../gfx/nds/icon.bmp
 
 
-#---------------------------------------------------------------------------------
-# Config options
-#---------------------------------------------------------------------------------
-ENABLE_AUDIO	?=	1
-
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -61,7 +56,8 @@ CFLAGS	:=	-g -Wall -O2 \
 			-ffunction-sections -fdata-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__
+CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DENABLE_AUDIO
+
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH)
@@ -70,18 +66,17 @@ LDFLAGS	=	-specs=$(BLOCKSDS)/sys/crts/ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project (order matters!)
 #---------------------------------------------------------------------------------
-LIBS	:= -lstdc++ -lc -lnds9
+LIBS	:= -lstdc++ -lc -lnds9 -lmm9
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries
 #---------------------------------------------------------------------------------
-LIBDIRS	:=	$(BLOCKSDS)/libs/libnds 
+LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
 
 
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lmm9
 LIBDIRS	+=	$(BLOCKSDS)/libs/maxmod
-CFLAGS	+=	-DENABLE_AUDIO
 endif
 
 #---------------------------------------------------------------------------------
