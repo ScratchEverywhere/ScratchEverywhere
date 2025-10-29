@@ -1,6 +1,7 @@
 #include "math.hpp"
 #include <algorithm>
 #include <ctime>
+#include <limits>
 #include <math.h>
 #include <random>
 #include <string>
@@ -33,6 +34,10 @@ int Math::color(int r, int g, int b, int a) {
 }
 
 double Math::parseNumber(const std::string &str) {
+    if (str == "Infinity") return std::numeric_limits<double>::infinity();
+    if (str == "NaN") return std::numeric_limits<double>::quiet_NaN();
+    if (str == "-NaN") return -std::numeric_limits<double>::quiet_NaN();
+
     if (str[0] == '0') {
         uint8_t base = 0;
 
