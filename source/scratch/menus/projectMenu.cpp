@@ -86,6 +86,8 @@ void ProjectMenu::init() {
         noProjectInfo->setText("Put Scratch projects in sd:/switch/scratch-nx !");
 #elif defined(__NDS__)
         noProjectInfo->setText("Put Scratch projects in sd:/scratch-ds !");
+#elif defined(__PS4__)
+        noProjectInfo->setText("Put Scratch projects in /data/scratch-ps4 !");
 #else
         noProjectInfo->setText("Put Scratch projects in the scratch-everywhere folder!");
 #endif
