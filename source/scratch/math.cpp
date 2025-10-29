@@ -4,6 +4,7 @@
 #include <limits>
 #include <math.h>
 #include <random>
+#include <stdexcept>
 #include <string>
 #ifdef __3DS__
 #include <citro2d.h>
