@@ -31,9 +31,9 @@ think of it as a small, isolated Linux system that automatically sets everything
 
 1. Go to [https://docker.com](https://docker.com)
 2. Click **“Download Docker Desktop”**
-   ![image](guide/pictures/docker.png)
+   ![image](pictures/docker.png)
 3. Choose your operating system.
-   ![image](guide/pictures/os.png)
+   ![image](pictures/os.png)
 4. On Windows, make sure you select the correct installer for your CPU:
    - **ARM / x64** → use the ARM installer  
    - **AMD64 / x86** → use the AMD64 installer  
@@ -47,11 +47,11 @@ think of it as a small, isolated Linux system that automatically sets everything
 1. Visit the official Scratch Everywhere repository:  
 	[https://github.com/ScratchEverywhere/ScratchEverywhere](https://github.com/ScratchEverywhere/ScratchEverywhere)
 2. Click the green **“<> Code”** button.  
-   ![image](guide/pictures/Github.png)
+   ![image](pictures/Github.png)
 3. Choose **“Download ZIP”**  
-   ![image](guide/pictures/download.png)
+   ![image](pictures/download.png)
 4. Extract this ZIP to a convenient location, for example, near your Scratch project.  
-   ![image](guide/pictures/content.png)
+   ![image](pictures/content.png)
 
 ---
 
@@ -60,9 +60,9 @@ think of it as a small, isolated Linux system that automatically sets everything
 1. Rename your Scratch project’s file extension from `.sb3` → `.zip`  
    Example:  Scratch Project.sb3 → Scratch Project.zip
 2. Right-click both ZIP files (the Scratch Everywhere one and your project) and select **“Extract All...”**  
-![image](guide/pictures/extract.png)
+![image](pictures/extract.png)
 3. You should now have extracted folders that look something like this:  
-![image](guide/pictures/delete.png)
+![image](pictures/delete.png)
 4. You can delete the original `.zip` files, we don’t need them anymore.
 
 ---
@@ -71,11 +71,11 @@ think of it as a small, isolated Linux system that automatically sets everything
 
 1. Open the folder: ScratchEverywhere-main/ScratchEverywhere/
 2. Inside, create a **new folder** named `romfs`  
-![image](guide/pictures/romfs.png)
+![image](pictures/romfs.png)
 3. Copy your extracted Scratch project folder into `romfs`
-![image](guide/pictures/move.png)
+![image](pictures/move.png)
 4. Rename your project folder to **`project`** (all lowercase!)  
-![image](guide/pictures/rename.png)
+![image](pictures/rename.png)
 
 Your structure should now look like this:
 
@@ -106,7 +106,7 @@ To modify banners or special icons, open the subfolder with the name of your tar
 ## Step 6: Change App Information (Title, Description, Author)
 
 1. Go into the `make` folder.
-   ![image](guide/pictures/makefiles.png)
+   ![image](pictures/makefiles.png)
 2. Find the `Makefile` that matches your target platform.  
    For example:  
 	Makefile_3ds
@@ -117,7 +117,7 @@ To modify banners or special icons, open the subfolder with the name of your tar
 - **Description**
 - **Author Name**
 
-![image](guide/pictures/changeName.png)
+![image](pictures/changeName.png)
 
 > Tip: It’s nice (but not required) to mention somewhere in your description that your app was built using **Scratch Everywhere**.
 
@@ -130,13 +130,13 @@ Save the file after making your changes.
 1. Make sure **Docker Desktop is running**.  
 2. Go back to your main `ScratchEverywhere` folder (the one that contains `romfs`, `gfx`, `make`, etc.).
 3. Click in the **address bar** at the top of the window
-![image](guide/pictures/addressbar.png)
+![image](pictures/addressbar.png)
 	and type: cmd 
-![image](guide/pictures/typecmd.png)
+![image](pictures/typecmd.png)
 	Then press **Enter**.  
 4. A Command Prompt window should open in the correct directory.  
 Verify that the path shown matches your `ScratchEverywhere` folder.
-![image](guide/pictures/cmd.png)
+![image](pictures/cmd.png)
 If not, you can manually navigate to it:
 cd C:\Path\To\ScratchEverywhere-main\ScratchEverywhere
 
@@ -159,7 +159,7 @@ Use one of the following commands depending on your target platform:
 The build process may take several minutes, depending on your system.
 
 When finished, it should look something like this:
-![image](guide/pictures/result.png)
+![image](pictures/result.png)
 
 ---
 
