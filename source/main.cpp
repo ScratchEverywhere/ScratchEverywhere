@@ -1,8 +1,9 @@
 #include "interpret.hpp"
-#include "scratch/menus/mainMenu.hpp"
+#include "scratch/menus/menuManager.hpp"
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
 #include <cstdlib>
+#include <memory>
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -18,29 +19,24 @@
 #endif
 
 static void exitApp() {
+    MenuManager::freeClay();
     Render::deInit();
 }
 
 static bool initApp() {
-    return Render::Init();
+    const bool result = Render::Init();
+    MenuManager::initClay();
+    return result;
 }
 
 bool activateMainMenu() {
-    MainMenu *menu = new MainMenu();
-    MenuManager::changeMenu(menu);
+    MenuManager menuManager;
 
-    while (Render::appShouldRun()) {
-        MenuManager::render();
+    menuManager.changeMenu(MenuID::MainMenu);
 
-        if (MenuManager::isProjectLoaded != 0) {
-            if (MenuManager::isProjectLoaded == -1) {
-                exitApp();
-                return false;
-            } else {
-                MenuManager::isProjectLoaded = 0;
-                break;
-            }
-        }
+    while (Render::appShouldRun(&menuManager)) {
+        menuManager.render();
+        if (Unzip::projectOpened >= 0) break;
 
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);
@@ -52,11 +48,13 @@ bool activateMainMenu() {
 void mainLoop() {
     Scratch::startScratchProject();
     if (Scratch::nextProject) {
-        Log::log(Unzip::filePath);
+        Log::log("Loading: " + Unzip::filePath);
         if (!Unzip::load()) {
-
             if (Unzip::projectOpened == -3) { // main menu
-
+                Unzip::filePath = "";
+                Unzip::projectOpened = -67; // I have no idea what the correct number.
+                Scratch::nextProject = false;
+                Scratch::dataNextProject = Value();
                 if (!activateMainMenu()) {
                     exitApp();
                     exit(0);
@@ -69,6 +67,7 @@ void mainLoop() {
         }
     } else {
         Unzip::filePath = "";
+        Unzip::projectOpened = -67; // I have no idea what the correct number.
         Scratch::nextProject = false;
         Scratch::dataNextProject = Value();
         if (toExit || !activateMainMenu()) {
@@ -113,6 +112,7 @@ int main(int argc, char **argv) {
             exitApp();
             return 0;
         }
+        if (!activateMainMenu()) return 0;
     }
 
 #ifdef __EMSCRIPTEN__
@@ -121,6 +121,6 @@ int main(int argc, char **argv) {
     while (1)
         mainLoop();
 #endif
-    exitApp();
+
     return 0;
 }

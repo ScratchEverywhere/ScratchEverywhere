@@ -1,5 +1,6 @@
 #pragma once
 #include "interpret.hpp"
+#include "menus/menuManager.hpp"
 #include "math.hpp"
 #include "sprite.hpp"
 #include "text.hpp"
@@ -276,7 +277,7 @@ class Render {
      * Returns whether or not the app should be running.
      * If `false`, the app should close.
      */
-    static bool appShouldRun();
+    static bool appShouldRun(MenuManager *menuManager);
 
     /**
      * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
