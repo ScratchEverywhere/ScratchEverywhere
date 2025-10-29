@@ -102,6 +102,8 @@ std::string Value::asString() const {
     } else if (isDouble()) {
         double doubleValue = std::get<double>(value);
         // handle whole numbers too, because scratch i guess
+        if (std::isnan(doubleValue)) return "NaN";
+        if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
         if (std::floor(doubleValue) == doubleValue) return std::to_string(static_cast<int>(doubleValue));
         return std::to_string(doubleValue);
     } else if (isString()) {
@@ -189,9 +191,7 @@ Value Value::operator/(const Value &other) const {
     if (!a.isNumeric()) a = Value(0);
     if (!b.isNumeric()) b = Value(0);
 
-    double bVal = b.asDouble();
-    if (bVal == 0.0) return Value(0); // Division by zero
-    return Value(a.asDouble() / bVal);
+    return Value(a.asDouble() / b.asDouble());
 }
 
 bool Value::operator==(const Value &other) const {
