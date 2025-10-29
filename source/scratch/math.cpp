@@ -57,6 +57,7 @@ double Math::parseNumber(const std::string &str) {
             return std::stoi(str.substr(2, str.length() - 2), 0, base);
     }
 
+    if (str[0] == 'I' || str[0] == 'i') throw std::invalid_argument("");
     return std::stod(str);
 }
 
