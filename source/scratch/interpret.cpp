@@ -170,6 +170,10 @@ bool Scratch::startScratchProject() {
             Render::renderSprites();
 
             if (shouldStop) {
+#if defined(HEADLESS_BUILD)
+                toExit = true;
+                return false;
+#endif
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
