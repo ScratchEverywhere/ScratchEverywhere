@@ -8,6 +8,7 @@ bool Render::hasFrameBegan = false;
 Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 std::vector<Monitor> Render::visibleVariables;
+float Render::renderScale;
 
 bool Render::Init() {
     return true;
@@ -44,10 +45,7 @@ int Render::getHeight() {
 void Render::renderSprites() {
 }
 
-void Render::renderVisibleVariables() {
-}
-
-void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
 }
 
 bool Render::appShouldRun() {
