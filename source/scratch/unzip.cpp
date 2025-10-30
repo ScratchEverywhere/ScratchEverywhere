@@ -163,12 +163,13 @@ bool Unzip::load() {
     if (Unzip::projectOpened != 1)
         return false;
 #endif
-#endif
+#else
 
     // non-threaded loading
     Unzip::openScratchProject(NULL);
     if (Unzip::projectOpened != 1)
         return false;
+#endif
 
     loadInitialImages();
     return true;
