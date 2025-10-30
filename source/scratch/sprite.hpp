@@ -7,6 +7,19 @@
 
 class Sprite;
 
+struct RenderInfo {
+    float renderX;
+    float renderY;
+    float renderScaleX;
+    float renderScaleY;
+    float renderRotation;
+
+    float oldX, oldY;
+    float oldSize, oldRotation;
+    int oldCostumeID = -1;
+    bool forceUpdate = false;
+};
+
 struct Variable {
     std::string id;
     std::string name;
@@ -155,15 +168,15 @@ class Sprite {
     bool isDeleted = false;
     bool shouldDoSpriteClick = false;
     int currentCostume;
-    std::string lastCostumeId = "";
     float volume;
-    double xPosition;
-    double yPosition;
+    float xPosition;
+    float yPosition;
     int rotationCenterX;
     int rotationCenterY;
-    double size;
-    double rotation;
+    float size;
+    float rotation;
     int layer;
+    RenderInfo renderInfo;
 
     float ghostEffect;
     float brightnessEffect;

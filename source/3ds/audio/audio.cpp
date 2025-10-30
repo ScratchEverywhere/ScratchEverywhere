@@ -1,5 +1,5 @@
-#include "../scratch/audio.hpp"
-#include "../scratch/os.hpp"
+#include "../../scratch/audio.hpp"
+#include "../../scratch/os.hpp"
 #include "audio.hpp"
 #include "interpret.hpp"
 #include "miniz/miniz.h"
@@ -13,7 +13,9 @@
 std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;
 std::string currentStreamedSound = "";
 static bool isInit = false;
+#ifdef ENABLE_AUDIO
 static MIX_Mixer *mixer = nullptr;
+#endif
 
 bool SoundPlayer::init() {
     if (isInit) return true;
@@ -368,5 +370,6 @@ void SoundPlayer::deinit() {
     cleanupAudio();
     MIX_DestroyMixer(mixer);
     MIX_Quit();
+    SDL_Quit();
 #endif
 }

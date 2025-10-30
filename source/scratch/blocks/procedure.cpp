@@ -5,6 +5,12 @@
 #include "unzip.hpp"
 #include "value.hpp"
 
+#ifdef SDL_BUILD
+#include <SDL2/SDL.h>
+
+extern SDL_GameController *controller;
+#endif
+
 Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
     const std::string name = Scratch::getFieldValue(block, "VALUE");
     if (name == "Scratch Everywhere! platform") {
@@ -12,6 +18,13 @@ Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
     }
     if (name == "\u200B\u200Breceived data\u200B\u200B") {
         return Scratch::dataNextProject;
+    }
+    if (name == "Scratch Everywhere! controller") {
+#ifdef __3DS__
+        return Value("3DS");
+#elif defined(SDL_BUILD)
+        if (controller != nullptr) return Value(std::string(SDL_GameControllerName(controller)));
+#endif
     }
     return BlockExecutor::getCustomBlockValue(name, sprite, block);
 }
@@ -21,6 +34,9 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
     if (name == "is Scratch Everywhere!?") return Value(true);
     if (name == "is New 3DS?") {
         return Value(OS::isNew3DS());
+    }
+    if (name == "is DSi?") {
+        return Value(OS::isDSi());
     }
 
     Value value = BlockExecutor::getCustomBlockValue(name, sprite, block);

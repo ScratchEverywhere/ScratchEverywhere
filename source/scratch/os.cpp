@@ -10,12 +10,46 @@
 #include <sstream>
 #include <whb/sdcard.h>
 #endif
+#ifdef WII
+#include <gccore.h>
+#endif
+#ifdef __NDS__
+#include <nds.h>
+#endif
+#ifdef __PS4__
+#include <orbis/libkernel.h>
+#endif
 
 size_t MemoryTracker::totalAllocated = 0;
 size_t MemoryTracker::peakUsage = 0;
 size_t MemoryTracker::allocationCount = 0;
 size_t MemoryTracker::totalVRAMAllocated = 0;
 
+// PS4 implementation of logging
+#ifdef __PS4__
+char logBuffer[1024];
+
+void Log::log(std::string message, bool printToScreen) {
+    if (printToScreen) {
+        snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
+    }
+}
+void Log::logWarning(std::string message, bool printToScreen) {
+    if (printToScreen) {
+        snprintf(logBuffer, 1023, "<SE!> Warning: %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
+    }
+}
+void Log::logError(std::string message, bool printToScreen) {
+    if (printToScreen) {
+        snprintf(logBuffer, 1023, "<SE!> Error: %s\n", message.c_str());
+        sceKernelDebugOutText(0, logBuffer);
+    }
+}
+void Log::writeToFile(std::string message) {
+}
+#else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
     writeToFile(message);
@@ -46,7 +80,57 @@ void Log::writeToFile(std::string message) {
         }
     }
 }
+#endif
 
+// Nintendo DS Timer implementation
+#ifdef __NDS__
+Timer::Timer() {
+    start();
+}
+void Timer::start() {
+    startTime = cpuGetTiming();
+}
+int Timer::getTimeMs() {
+    uint64_t currentTime = cpuGetTiming();
+    // CPU timing is in units based on the bus clock (33.513982 MHz)
+    // Convert to milliseconds: (ticks * 1000) / BUS_CLOCK
+    return static_cast<int>((currentTime - startTime) * 1000 / BUS_CLOCK);
+}
+
+// Wii's std::chrono support is still pretty bad
+#elif defined(WII)
+
+Timer::Timer() {
+    start();
+}
+
+void Timer::start() {
+    startTime = gettick();
+}
+
+int Timer::getTimeMs() {
+    u64 currentTime = gettick();
+    return ticks_to_millisecs(currentTime - startTime);
+}
+
+// std::chrono on PS4 updates slowly
+#elif defined(__PS4__)
+
+Timer::Timer() {
+    start();
+}
+
+void Timer::start() {
+    startTime = sceKernelReadTsc() * 1000;
+}
+
+int Timer::getTimeMs() {
+    uint64_t currentTime = sceKernelReadTsc() * 1000;
+    return static_cast<int>((currentTime - startTime) / sceKernelGetTscFrequency());
+}
+
+// everyone else...
+#else
 Timer::Timer() {
     start();
 }
@@ -58,8 +142,11 @@ void Timer::start() {
 int Timer::getTimeMs() {
     auto currentTime = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
+
     return static_cast<int>(duration.count());
 }
+
+#endif
 
 bool Timer::hasElapsed(int milliseconds) {
     return getTimeMs() >= milliseconds;
@@ -84,8 +171,16 @@ std::string OS::getScratchFolderLocation() {
     return "/scratch-gamecube/";
 #elif defined(VITA)
     return "ux0:data/scratch-vita/";
+#elif defined(__PS4__)
+    return "/data/scratch-ps4/";
 #elif defined(__3DS__)
     return "sdmc:/3ds/scratch-everywhere/";
+#elif defined(__EMSCRIPTEN__)
+    return "/scratch-everywhere/";
+#elif defined(__NDS__)
+    if (OS::isDSi())
+        return "sd:/scratch-ds/";
+    else return "fat:/scratch-ds/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -94,6 +189,10 @@ std::string OS::getScratchFolderLocation() {
 std::string OS::getRomFSLocation() {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
     return "romfs:/";
+#elif defined(__EMSCRIPTEN__)
+    return "/romfs/";
+#elif defined(__PS4__)
+    return "/app0/";
 #else
     return "";
 #endif
@@ -114,6 +213,12 @@ std::string OS::getPlatform() {
     return "Switch";
 #elif defined(VITA)
     return "Vita";
+#elif defined(__NDS__)
+    return "DS";
+#elif defined(__EMSCRIPTEN__)
+    return "WASM";
+#elif defined(__PS4__)
+    return "PS4";
 #else
     return "Unknown";
 #endif
@@ -124,6 +229,13 @@ bool OS::isNew3DS() {
     bool out = false;
     APT_CheckNew3DS(&out);
     return out;
+#endif
+    return false;
+}
+
+bool OS::isDSi() {
+#ifdef __NDS__
+    return isDSiMode();
 #endif
     return false;
 }
