@@ -13,4 +13,6 @@ class SpeechTextObject3DS : public TextObject3DS, public SpeechText {
     ~SpeechTextObject3DS() override = default;
 
     void setText(std::string txt) override;
+    void render(int xPos, int yPos) override;
+    std::vector<float> getSize() override;
 };
