@@ -48,13 +48,8 @@ double Value::asDouble() const {
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
 
-        if (strValue == "Infinity") {
-            return std::numeric_limits<double>::max();
-        }
-
-        if (strValue == "-Infinity") {
-            return -std::numeric_limits<double>::max();
-        }
+        if (strValue == "Infinity") return std::numeric_limits<double>::infinity();
+        if (strValue == "-Infinity") return -std::numeric_limits<double>::infinity();
 
         if (Math::isNumber(strValue)) {
             return Math::parseNumber(strValue);
