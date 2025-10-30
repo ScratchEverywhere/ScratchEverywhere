@@ -134,6 +134,9 @@ BlockResult DataBlocks::deleteFromList(Block &block, Sprite *sprite, bool *witho
 
         return BlockResult::CONTINUE;
     }
+
+    if (items.empty()) return BlockResult::CONTINUE;
+
     if (val.asString() == "last" && !items.empty()) {
         items.pop_back();
         return BlockResult::CONTINUE;
@@ -206,6 +209,9 @@ BlockResult DataBlocks::insertAtList(Block &block, Sprite *sprite, bool *without
 
         return BlockResult::CONTINUE;
     }
+
+    if (targetSprite->lists[listId].items.empty()) return BlockResult::CONTINUE;
+
     if (index.asString() == "last") {
         targetSprite->lists[listId].items.push_back(val);
         return BlockResult::CONTINUE;
@@ -286,6 +292,8 @@ Value DataBlocks::itemOfList(Block &block, Sprite *sprite) {
     if (!targetSprite) return Value();
 
     auto &items = targetSprite->lists[listName].items;
+
+    if (items.empty()) return Value();
 
     if (indexStr.asString() == "last") return Value(Math::removeQuotations(items.back().asString()));
 
