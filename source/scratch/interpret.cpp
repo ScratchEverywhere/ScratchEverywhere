@@ -685,13 +685,13 @@ void loadSprites(const nlohmann::json &json) {
 
         // set Lists
         for (const auto &[id, data] : target["lists"].items()) {
-            List newList;
+            auto result = newSprite->lists.try_emplace(id).first;
+            List &newList = result->second;
             newList.id = id;
             newList.name = data[0];
-            for (const auto &listItem : data[1]) {
+            newList.items.reserve(data[1].size());
+            for (const auto &listItem : data[1])
                 newList.items.push_back(Value::fromJson(listItem));
-            }
-            newSprite->lists[newList.id] = newList; // add list
         }
 
         // set Sounds

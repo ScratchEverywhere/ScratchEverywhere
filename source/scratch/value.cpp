@@ -215,42 +215,12 @@ bool Value::operator>(const Value &other) const {
 }
 
 Value Value::fromJson(const nlohmann::json &jsonVal) {
-    if (jsonVal.is_null()) return Value();
-
-    if (jsonVal.is_number_integer()) {
-        return Value(jsonVal.get<int>());
-    } else if (jsonVal.is_number_float()) {
-        return Value(jsonVal.get<double>());
-    } else if (jsonVal.is_string()) {
-        std::string strVal = jsonVal.get<std::string>();
-
-        if (strVal == "Infinity" || strVal == "-Infinity")
-            return Value(strVal);
-
-        if (Math::isNumber(strVal)) {
-            double numVal;
-            try {
-                numVal = Math::parseNumber(strVal);
-            } catch (const std::invalid_argument &e) {
-                Log::logError("Invalid number format: " + strVal);
-                return Value(0);
-            } catch (const std::out_of_range &e) {
-                Log::logError("Number out of range: " + strVal);
-                return Value(0);
-            }
-
-            if (std::floor(numVal) == numVal) {
-                return Value(static_cast<int>(numVal));
-            }
-            return Value(numVal);
-        }
-        return Value(strVal);
-    } else if (jsonVal.is_boolean()) {
-        return Value(jsonVal.get<bool>());
-    } else if (jsonVal.is_array()) {
-        if (jsonVal.size() > 1) {
-            return fromJson(jsonVal[1]);
-        }
+    if (jsonVal.is_number_integer()) return Value(jsonVal.get<int>());
+    if (jsonVal.is_number_float()) return Value(jsonVal.get<double>());
+    if (jsonVal.is_string()) return Value(jsonVal.get<std::string>());
+    if (jsonVal.is_boolean()) return Value(jsonVal.get<bool>());
+    if (jsonVal.is_array()) {
+        if (jsonVal.size() > 1) return fromJson(jsonVal[1]);
         return Value(0);
     }
     return Value(0);
