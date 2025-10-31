@@ -16,15 +16,11 @@ C3D_Tex *penTex;
 #elif defined(SDL_BUILD)
 #include "../../sdl/image.hpp"
 #include "../../sdl/render.hpp"
-#include <SDL2/SDL2_gfxPrimitives.h>
+#include <SDL2_gfxPrimitives.h>
 
 SDL_Texture *penTexture;
 #else
 #warning Unsupported Platform for pen.
-#endif
-
-#ifdef __MINGW32__
-#define filledCircleRGBA GFX_filledCircleRGBA
 #endif
 
 const unsigned int minPenSize = 1;

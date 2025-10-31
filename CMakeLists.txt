@@ -1,0 +1,229 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(ScratchEverywhere VERSION 0.27 LANGUAGES CXX C)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
+option(SE_AUDIO "Enables audio in SE!" ON)
+option(SE_CLOUDVARS "Enable cloud variables." ON)
+option(SE_HEADLESS "Makes SE! use a headless renderer instead of SDL2. This will override the SE_AUDIO setting." OFF)
+option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+	message(STATUS "Downloading CPM.cmake...")
+	file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+	file(DOWNLOAD "https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake"
+		 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake"
+		 STATUS status LOG log_content)
+	if(status)
+		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
+	endif()
+endif()
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
+set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
+
+if(SE_SYSTEM)
+	find_package(nlohmann_json 3.12.0 REQUIRED)
+else()
+	CPMAddPackage(
+		NAME nlohmann_json
+		GITHUB_REPOSITORY nlohmann/json
+		VERSION 3.12.0
+	)
+endif()
+include(FetchContent)
+FetchContent_Declare(
+    miniz
+    URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
+)
+FetchContent_MakeAvailable(miniz)
+
+if(NOT SE_HEADLESS)
+	if(SE_SYSTEM)
+		find_package(SDL2 REQUIRED)
+		find_package(SDL2_image REQUIRED)
+		find_package(SDL2_ttf REQUIRED)
+
+		find_package(PkgConfig REQUIRED)
+		pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
+
+		if (SE_AUDIO)
+			find_package(SDL2_mixer REQUIRED)
+		endif()
+	else()
+		CPMAddPackage(
+			NAME SDL2
+			VERSION 2.32.10
+			GITHUB_REPOSITORY libsdl-org/SDL
+			GIT_TAG release-2.32.10
+		)
+		CPMAddPackage(
+			NAME SDL2_image
+			VERSION 2.8.8
+			GITHUB_REPOSITORY libsdl-org/SDL_image
+			GIT_TAG release-2.8.8
+		)
+		set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes FreeType Compilation
+		CPMAddPackage(
+			NAME SDL2_ttf
+			VERSION 2.24.0
+			GITHUB_REPOSITORY libsdl-org/SDL_ttf
+			GIT_TAG release-2.24.0
+			OPTIONS "SDL2TTF_VENDORED ON"
+		)
+		CPMAddPackage(
+			NAME SDL2_gfx
+			VERSION 1.0.4
+			GITHUB_REPOSITORY giroletm/SDL2_gfx
+			GIT_TAG release-1.0.4
+			DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
+		)
+		file(GLOB SDL2_GFX_SOURCES
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
+		)
+		add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
+		target_include_directories(SDL2_gfx PUBLIC
+			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
+		)
+		target_link_libraries(SDL2_gfx PUBLIC 
+			SDL2::SDL2
+		)
+		if(SE_AUDIO)
+			CPMAddPackage(
+				NAME SDL2_mixer
+				VERSION 2.8.1
+				GITHUB_REPOSITORY libsdl-org/SDL_mixer
+				GIT_TAG release-2.8.1
+				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+			)
+		endif()
+	endif()
+endif()
+
+if(SE_CLOUDVARS)
+	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
+	set(CURL_OPTIONS
+		"BUILD_CURL_EXE OFF"
+		"BUILD_TESTING OFF"
+		"BUILD_EXAMPLES OFF"
+		"ENABLE_MANUAL OFF"
+		"CURL_DISABLE_INSTALL ON"
+		"ENABLE_ARES OFF"
+		"USE_LIBIDN2 OFF"
+		"CURL_DISABLE_LDAP ON"
+		"CURL_USE_LIBSSH2 OFF"
+		"CURL_USE_OPENSSL OFF"
+		"CURL_USE_MBEDTLS ON"
+	)
+	if(WIN32)
+		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
+	endif()
+
+	CPMAddPackage(
+		NAME curl
+		GIT_REPOSITORY "https://github.com/curl/curl.git"
+		GIT_TAG "curl-8_16_0"
+		VERSION 8.16.0
+		OPTIONS ${CURL_OPTIONS}
+	)
+	CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
+endif()
+
+if(SE_HEADLESS)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/headless)
+else()
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio)
+endif()
+
+set(SOURCE_FILES)
+foreach(DIR IN LISTS SOURCES)
+	file(GLOB DIR_SOURCES
+		${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
+	)
+	list(APPEND SOURCE_FILES ${DIR_SOURCES})
+endforeach()
+list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+
+add_executable(scratch-everywhere ${SOURCE_FILES})
+
+if(NOT BUILD_SHARED_LIBS AND WIN32)
+	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
+endif()
+
+# Copy graphics files to romfs
+file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
+foreach(file IN LISTS GFXFILES)
+    file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+
+    set(DEST_PATH "${CMAKE_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
+
+    get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
+    file(MAKE_DIRECTORY "${DEST_DIR}")
+
+    configure_file("${file}" "${DEST_PATH}" COPYONLY)
+endforeach()
+
+if (NOT SE_HEADLESS)
+	set(SDL_LINK_LIBS)
+    list(APPEND SDL_LINK_LIBS SDL2::SDL2)
+
+	if (SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
+	else()
+		list(APPEND SDL_LINK_LIBS SDL2_gfx)
+	endif()
+
+	if (BUILD_SHARED_LIBS)
+		list(APPEND SDL_LINK_LIBS SDL2_image::SDL2_image)
+		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)
+
+		if(SE_AUDIO)	
+			list(APPEND SDL_LINK_LIBS SDL2_mixer::SDL2_mixer)
+		endif()
+	else()
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image-static>,
+			SDL2_image::SDL2_image-static,
+			SDL2_image::SDL2_image>)
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf-static>,
+			SDL2_ttf::SDL2_ttf-static,
+			SDL2_ttf::SDL2_ttf>)
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer-static>,
+				SDL2_mixer::SDL2_mixer-static,
+				SDL2_mixer::SDL2_mixer>)
+		endif()
+	endif()
+
+	if (WIN32)
+		list(APPEND SDL_LINK_LIBS SDL2::SDL2main)
+	endif()
+
+	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+endif()
+
+target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD)
+
+if(SE_AUDIO)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
+endif()
+if(SE_LOADSCREEN)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_LOADSCREEN)
+endif()
+if(SE_CLOUDVARS)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CLOUDVARS)
+	target_link_libraries(scratch-everywhere PRIVATE mist++)
+endif()
+
+target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})

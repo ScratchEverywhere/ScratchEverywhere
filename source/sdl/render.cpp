@@ -10,7 +10,7 @@
 #include "text.hpp"
 #include "unzip.hpp"
 #include <SDL2/SDL.h>
-#include <SDL2/SDL2_gfxPrimitives.h>
+#include <SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -62,11 +62,6 @@ inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
 #ifdef GAMECUBE
 #include <ogc/consol.h>
 #include <ogc/exi.h>
-#endif
-
-#ifdef __MINGW32__
-#define filledCircleRGBA GFX_filledCircleRGBA
-#define filledPolygonRGBA GFX_filledPolygonRGBA
 #endif
 
 int windowWidth = 540;

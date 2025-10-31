@@ -1,7 +1,7 @@
 #pragma once
 
 #include "interpret.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "os.hpp"
 #include <filesystem>
 #include <fstream>

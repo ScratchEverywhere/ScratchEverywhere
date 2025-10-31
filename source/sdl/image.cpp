@@ -1,6 +1,6 @@
 #include "image.hpp"
 #include "../scratch/image.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "os.hpp"
 #include "render.hpp"
 #include "unzip.hpp"

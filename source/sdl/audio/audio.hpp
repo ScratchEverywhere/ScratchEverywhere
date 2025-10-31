@@ -1,9 +1,9 @@
 #pragma once
 #ifdef ENABLE_AUDIO
-#include <SDL2/SDL_mixer.h>
+#include <SDL_mixer.h>
 #endif
 #include "../../scratch/audio.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "sprite.hpp"
 #include <string>
 #include <unordered_map>
