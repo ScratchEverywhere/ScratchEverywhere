@@ -32,7 +32,7 @@ bool Value::isNumeric() const {
         return true;
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
-        return strValue == "Infinity" || strValue == "-Infinity" || Math::isNumber(strValue);
+        return Math::isNumber(strValue);
     }
 
     return false;
