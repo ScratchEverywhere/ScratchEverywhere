@@ -128,12 +128,12 @@ void ProjectMenu::render() {
 
             if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
                 // Unpacked sb3
-                Unzip::filePath = projectControl->selectedObject->text->getText();
+                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
                 MenuManager::loadProject();
                 return;
             } else {
                 // normal sb3
-                Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
+                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
                 MenuManager::loadProject();
                 return;
             }

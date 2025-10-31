@@ -24,7 +24,7 @@ class MemoryTracker {
     const static size_t gamecube_maxRamUsage = 23068672; // 22 MB
     const static size_t pc_maxRamUsage = 1073741824;     // 1 GB
     const static size_t vita_maxRamUsage = 335544320;    // 320 MB
-    const static size_t ps4_maxRamUsage = 1073741824;     // 1 GB
+    const static size_t ps4_maxRamUsage = 1073741824;    // 1 GB
 
     // ---- Max VRAM values (just an estimate based on how many images i can load before i cant anymore) ----
     const static size_t old3ds_maxVRAMUsage = 30000000;   // ~30 MB
@@ -34,7 +34,7 @@ class MemoryTracker {
     const static size_t gamecube_maxVRAMUsage = 11010048; // ~10 MB
     const static size_t pc_maxVRAMUsage = 134217728;      // 128 MB
     const static size_t vita_maxVRAMUsage = 100663296;    // 96 MB
-    const static size_t ps4_maxVRAMUsage = 134217728;      // 128 MB
+    const static size_t ps4_maxVRAMUsage = 134217728;     // 128 MB
 
   public:
     static size_t getMaxRamUsage() {
@@ -203,6 +203,12 @@ class Timer {
 
 class OS {
   public:
+    /**
+     * Gets the drive prefix for the current platform.
+     * @return The string of the current platform's drive prefix. (e.g. "sdmc:" on 3DS)
+     **/
+    static std::string getFilesystemRootPrefix();
+
     /**
      * Gets the location of the current device's Scratch data folder.
      * This is where the user should put their .sb3 Scratch projects.

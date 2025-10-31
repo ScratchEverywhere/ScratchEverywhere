@@ -350,7 +350,20 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3") {
         Log::log("Open next Project with Block");
         Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
+        if(Unzip::filePath.rfind("sd:", 0) == 0) {
+            std::string drivePrefix = OS::getFilesystemRootPrefix();
+            Unzip::filePath.replace(0, 3, drivePrefix);
+        } else {
+            Unzip::filePath = Unzip::filePath;
+        }
+        
+        if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
+            Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
+        }
+        if(!std::filesystem::exists(Unzip::filePath + "/project.json"))
+            Unzip::filePath = Unzip::filePath + ".sb3";
+        
         Scratch::dataNextProject = Value();
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
@@ -358,7 +371,20 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") {
         Log::log("Open next Project with Block and data");
         Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
+        //if filepath contains sd:/ at the beginning and only at the beginning, replace it with sdmc:/
+        if (Unzip::filePath.rfind("sd:", 0) == 0) {
+            std::string drivePrefix = OS::getFilesystemRootPrefix();
+            Unzip::filePath.replace(0, 3, drivePrefix);
+        } else {
+            Unzip::filePath = Unzip::filePath;
+        }
+        if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
+            Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
+        }
+        if(!std::filesystem::exists(Unzip::filePath + "/project.json"))
+            Unzip::filePath = Unzip::filePath + ".sb3";
+
         Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
