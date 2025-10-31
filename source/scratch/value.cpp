@@ -71,11 +71,11 @@ int Value::asInt() const {
         auto &strValue = std::get<std::string>(value);
 
         if (strValue == "Infinity") {
-            return std::numeric_limits<int>::max();
+            return std::numeric_limits<int>::infinity();
         }
 
         if (strValue == "-Infinity") {
-            return -std::numeric_limits<int>::max();
+            return -std::numeric_limits<int>::infinity();
         }
 
         if (Math::isNumber(strValue)) {
