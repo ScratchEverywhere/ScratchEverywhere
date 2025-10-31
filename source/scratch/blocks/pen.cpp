@@ -23,6 +23,10 @@ SDL_Texture *penTexture;
 #warning Unsupported Platform for pen.
 #endif
 
+#ifdef __MINGW32__
+#define filledCircleRGBA GFX_filledCircleRGBA
+#endif
+
 const unsigned int minPenSize = 1;
 const unsigned int maxPenSize = 1000;
 

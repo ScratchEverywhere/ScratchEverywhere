@@ -34,12 +34,12 @@ char nickname[0x21];
 #endif
 
 #ifdef VITA
-#include <psp2/touch.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/net/http.h>
 #include <psp2/net/net.h>
 #include <psp2/net/netctl.h>
-#include <psp2/net/http.h>
-#include <psp2/io/fcntl.h>
 #include <psp2/sysmodule.h>
+#include <psp2/touch.h>
 #endif
 
 #ifdef __OGC__
@@ -49,9 +49,9 @@ char nickname[0x21];
 #endif
 
 #ifdef __PS4__
+#include <orbis/Net.h>
 #include <orbis/Sysmodule.h>
 #include <orbis/libkernel.h>
-#include <orbis/Net.h>
 
 inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
     // On PS4 there is no DPI scaling, so this is fine
@@ -62,6 +62,11 @@ inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
 #ifdef GAMECUBE
 #include <ogc/consol.h>
 #include <ogc/exi.h>
+#endif
+
+#ifdef __MINGW32__
+#define filledCircleRGBA GFX_filledCircleRGBA
+#define filledPolygonRGBA GFX_filledPolygonRGBA
 #endif
 
 int windowWidth = 540;
@@ -178,7 +183,7 @@ postAccount:
 
     Log::log("[Vita] Running sceNetInit");
     SceNetInitParam netInitParam;
-    int size = 1*1024*1024; // net buffer size ([size in MB]*1024*1024)
+    int size = 1 * 1024 * 1024; // net buffer size ([size in MB]*1024*1024)
     netInitParam.memory = malloc(size);
     netInitParam.size = size;
     netInitParam.flags = 0;
