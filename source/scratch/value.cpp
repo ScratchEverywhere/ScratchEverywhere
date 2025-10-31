@@ -1,4 +1,7 @@
 #include "value.hpp"
+#include "math.hpp"
+#include "os.hpp"
+#include <regex>
 
 Value::Value(int val) : value(val) {}
 
@@ -29,7 +32,7 @@ bool Value::isNumeric() const {
         return true;
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
-        return strValue == "Infinity" || strValue == "-Infinity" || Math::isNumber(strValue);
+        return Math::isNumber(strValue);
     }
 
     return false;
@@ -45,13 +48,8 @@ double Value::asDouble() const {
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
 
-        if (strValue == "Infinity") {
-            return std::numeric_limits<double>::max();
-        }
-
-        if (strValue == "-Infinity") {
-            return -std::numeric_limits<double>::max();
-        }
+        if (strValue == "Infinity") return std::numeric_limits<double>::infinity();
+        if (strValue == "-Infinity") return -std::numeric_limits<double>::infinity();
 
         if (Math::isNumber(strValue)) {
             return Math::parseNumber(strValue);
@@ -73,11 +71,11 @@ int Value::asInt() const {
         auto &strValue = std::get<std::string>(value);
 
         if (strValue == "Infinity") {
-            return std::numeric_limits<int>::max();
+            return std::numeric_limits<int>::infinity();
         }
 
         if (strValue == "-Infinity") {
-            return -std::numeric_limits<int>::max();
+            return -std::numeric_limits<int>::infinity();
         }
 
         if (Math::isNumber(strValue)) {
@@ -99,8 +97,10 @@ std::string Value::asString() const {
     } else if (isDouble()) {
         double doubleValue = std::get<double>(value);
         // handle whole numbers too, because scratch i guess
+        if (std::isnan(doubleValue)) return "NaN";
+        if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
         if (std::floor(doubleValue) == doubleValue) return std::to_string(static_cast<int>(doubleValue));
-		return std::to_string(doubleValue);
+        return std::to_string(doubleValue);
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
@@ -186,9 +186,7 @@ Value Value::operator/(const Value &other) const {
     if (!a.isNumeric()) a = Value(0);
     if (!b.isNumeric()) b = Value(0);
 
-    double bVal = b.asDouble();
-    if (bVal == 0.0) return Value(0); // Division by zero
-    return Value(a.asDouble() / bVal);
+    return Value(a.asDouble() / b.asDouble());
 }
 
 bool Value::operator==(const Value &other) const {
@@ -202,6 +200,7 @@ bool Value::operator==(const Value &other) const {
 
 bool Value::operator<(const Value &other) const {
     if (isNumeric() && other.isNumeric()) {
+        if (std::isnan(other.asDouble()) && std::isinf(asDouble())) return true;
         return asDouble() < other.asDouble();
     }
     return asString() < other.asString();
@@ -209,48 +208,19 @@ bool Value::operator<(const Value &other) const {
 
 bool Value::operator>(const Value &other) const {
     if (isNumeric() && other.isNumeric()) {
+        if (std::isnan(asDouble()) && std::isinf(other.asDouble())) return true;
         return asDouble() > other.asDouble();
     }
     return asString() > other.asString();
 }
 
 Value Value::fromJson(const nlohmann::json &jsonVal) {
-    if (jsonVal.is_null()) return Value();
-
-    if (jsonVal.is_number_integer()) {
-        return Value(jsonVal.get<int>());
-    } else if (jsonVal.is_number_float()) {
-        return Value(jsonVal.get<double>());
-    } else if (jsonVal.is_string()) {
-        std::string strVal = jsonVal.get<std::string>();
-
-        if (strVal == "Infinity" || strVal == "-Infinity")
-            return Value(strVal);
-
-        if (Math::isNumber(strVal)) {
-            double numVal;
-            try {
-                numVal = Math::parseNumber(strVal);
-            } catch (const std::invalid_argument &e) {
-                Log::logError("Invalid number format: " + strVal);
-                return Value(0);
-            } catch (const std::out_of_range &e) {
-                Log::logError("Number out of range: " + strVal);
-                return Value(0);
-            }
-
-            if (std::floor(numVal) == numVal) {
-                return Value(static_cast<int>(numVal));
-            }
-            return Value(numVal);
-        }
-        return Value(strVal);
-    } else if (jsonVal.is_boolean()) {
-        return Value(jsonVal.get<bool>());
-    } else if (jsonVal.is_array()) {
-        if (jsonVal.size() > 1) {
-            return fromJson(jsonVal[1]);
-        }
+    if (jsonVal.is_number_integer()) return Value(jsonVal.get<int>());
+    if (jsonVal.is_number_float()) return Value(jsonVal.get<double>());
+    if (jsonVal.is_string()) return Value(jsonVal.get<std::string>());
+    if (jsonVal.is_boolean()) return Value(jsonVal.get<bool>());
+    if (jsonVal.is_array()) {
+        if (jsonVal.size() > 1) return fromJson(jsonVal[1]);
         return Value(0);
     }
     return Value(0);

@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "../scratch/math.hpp"
 #include "os.hpp"
 #include <algorithm>
 #include <string>
@@ -490,6 +491,7 @@ bool get_C2D_Image(imageRGBA &rgba) {
     images[rgba.name].width = rgba.width;
     images[rgba.name].height = rgba.height;
     images[rgba.name].isSVG = rgba.isSVG;
+    C3D_FrameSync();
     return true;
 }
 

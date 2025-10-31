@@ -22,7 +22,7 @@ COPY --from=mistpp_builder /usr/local/lib/libmist++.a /usr/local/lib/libmist++.a
 COPY --from=mistpp_builder /usr/local/include /usr/local/include
 COPY --from=mistpp_builder /usr/local/lib/pkgconfig/mist++.pc /usr/local/lib/pkgconfig/mist++.pc
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libsdl2-mixer-dev libsdl2-gfx-dev
 
 COPY . .
 

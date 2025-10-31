@@ -54,6 +54,7 @@ int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
 bool Scratch::turbo = false;
+bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
@@ -156,6 +157,9 @@ bool Scratch::startScratchProject() {
 #endif
     Scratch::nextProject = false;
 
+    // Render first before running any blocks, otherwise 3DS rendering may get weird
+    Render::renderSprites();
+
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
 
@@ -168,6 +172,10 @@ bool Scratch::startScratchProject() {
             Render::renderSprites(selection);
 
             if (shouldStop) {
+#if defined(HEADLESS_BUILD)
+                toExit = true;
+                return false;
+#endif
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
@@ -250,6 +258,7 @@ void Scratch::cleanupScratchProject() {
     // reset default settings
     Scratch::FPS = 30;
     Scratch::turbo = false;
+    Scratch::hqpen = false;
     Scratch::projectWidth = 480;
     Scratch::projectHeight = 360;
     Scratch::fencing = true;
@@ -299,9 +308,14 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     std::vector<std::pair<double, double>> collisionPoints;
 
     double divisionAmount = 2.0;
+    const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
-    if (currentSprite->costumes[currentSprite->currentCostume].isSVG)
+    if (isSVG)
         divisionAmount = 1.0;
+
+#ifdef __NDS__
+    divisionAmount *= 2;
+#endif
 
     // Get sprite dimensions, scaled by size
     const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
@@ -317,10 +331,10 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         else
             rotation = -90;
     }
-
     double rotationRadians = -(rotation - 90) * M_PI / 180.0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth));
-    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight));
+    const int shiftAmount = !isSVG ? 1 : 0;
+    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) >> shiftAmount);
+    double rotationCenterY = -((currentSprite->rotationCenterY - currentSprite->spriteHeight) >> shiftAmount);
 
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
@@ -710,13 +724,13 @@ void loadSprites(const nlohmann::json &json) {
 
         // set Lists
         for (const auto &[id, data] : target["lists"].items()) {
-            List newList;
+            auto result = newSprite->lists.try_emplace(id).first;
+            List &newList = result->second;
             newList.id = id;
             newList.name = data[0];
-            for (const auto &listItem : data[1]) {
+            newList.items.reserve(data[1].size());
+            for (const auto &listItem : data[1])
                 newList.items.push_back(Value::fromJson(listItem));
-            }
-            newSprite->lists[newList.id] = newList; // add list
         }
 
         // set Sounds
@@ -925,6 +939,14 @@ void loadSprites(const nlohmann::json &json) {
     } catch (...) {
 #ifdef DEBUG
         Log::logWarning("no turbo property.");
+#endif
+    }
+    try {
+        Scratch::hqpen = config["hq"].get<bool>();
+        Log::log("Set hqpen mode to: " + std::to_string(Scratch::hqpen));
+    } catch (...) {
+#ifdef DEBUG
+        Log::logWarning("no hqpen property.");
 #endif
     }
     try {

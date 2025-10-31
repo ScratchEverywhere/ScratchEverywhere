@@ -144,7 +144,7 @@ bool Unzip::load() {
     loading.cleanup();
     osSetSpeedupEnable(false);
 
-#else // create SDL2 thread for loading screen
+#elif defined(SDL_BUILD) // create SDL2 thread for loading screen
 
     SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, "LoadingScreen", nullptr);
 
@@ -163,8 +163,9 @@ bool Unzip::load() {
     if (Unzip::projectOpened != 1)
         return false;
 #endif
+#else
 
-#else // non-threaded loading
+    // non-threaded loading
     Unzip::openScratchProject(NULL);
     if (Unzip::projectOpened != 1)
         return false;
