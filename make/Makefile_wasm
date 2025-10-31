@@ -3,7 +3,7 @@
 TARGET		:=	scratch-wasm
 BUILD		:=	build/wasm
 SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann include/miniz
 
 CXX	:=	em++
 CC	:=	emcc

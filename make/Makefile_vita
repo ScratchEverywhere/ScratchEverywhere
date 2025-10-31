@@ -13,7 +13,7 @@ PHONY := all package clean
 TARGET     := scratch-vita
 BUILD      := build/vita
 SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann include/miniz
 GFX_FILES := $(shell find gfx -type f)
 GFX_ARGS := $(foreach f,$(GFX_FILES),--add $(f)=$(f))
 PROJ_FILE := project.sb3
