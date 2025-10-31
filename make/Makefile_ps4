@@ -26,7 +26,7 @@ TARGET		:= scratch-ps4
 BUILD		:= build/ps4
 GRAPHICS	:= gfx
 SOURCES		:= source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:= include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann include/miniz
+INCLUDES	:= include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann include/miniz 
 FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
 			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
 			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
@@ -68,7 +68,7 @@ EXTRAFLAGS	+= -DENABLE_LOADSCREEN
 endif
 
 # Define final C/C++ flags
-CFLAGS      := --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) $(INCLUDE_FLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include -I$(PACBREW)/ps4/openorbis/usr/include
+CFLAGS      := --target=x86_64-pc-freebsd12-elf -fPIC -funwind-tables -c $(EXTRAFLAGS) $(INCLUDE_FLAGS) -isysroot $(TOOLCHAIN) -isystem $(TOOLCHAIN)/include -I$(PACBREW)/ps4/openorbis/usr/include -I$(PACBREW)/ps4/openorbis/usr/include/SDL2
 CXXFLAGS    := $(CFLAGS) -isystem $(TOOLCHAIN)/include/c++/v1
 LDFLAGS     := -m elf_x86_64 -pie --script $(TOOLCHAIN)/link.x --eh-frame-hdr -L$(TOOLCHAIN)/lib -L$(PACBREW)/ps4/openorbis/usr/lib $(LIBS) $(TOOLCHAIN)/lib/crt1.o
 

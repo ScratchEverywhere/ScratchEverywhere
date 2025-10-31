@@ -37,8 +37,8 @@ ENABLE_LOADSCREEN	?=	1
 
 # --- COMPILE FLAGS ---
 # Base compiler flags
-CFLAGS   := -O2 -pipe -Wno-psabi -Wl,-q $(addprefix -I,$(INCLUDES))
-CXXFLAGS := -O2 -pipe -Wno-psabi -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES))
+CFLAGS   := -O2 -pipe -Wno-psabi -Wl,-q $(addprefix -I,$(INCLUDES)) -I$(VITASDK)/arm-vita-eabi/include/SDL2
+CXXFLAGS := -O2 -pipe -Wno-psabi -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES)) -I$(VITASDK)/arm-vita-eabi/include/SDL2
 
 # Specify vita as the target platform + SDL flags
 VITAFLAGS := -DVITA -DSDL_BUILD
