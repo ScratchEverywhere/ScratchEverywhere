@@ -279,7 +279,7 @@ If you would like to change the name of the app or any other information you can
 
 The recommended way to compile Scratch Everywhere! is with Docker. 
 
-We have written a step-by-step guide with pictures (for Windows) that explains the build process very simply, you can find it here: https://github.com/ScratchEverywhere/ScratchEverywhere.github.io/blob/main/docker.md
+We have written a step-by-step guide with pictures (for Windows) that explains the build process very simply, you can find it here: https://ScratchEverywhere.github.io/docker
 To compile with Docker all you need installed is Docker and Buildx.
 
 -   To compile for the **3DS**, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
