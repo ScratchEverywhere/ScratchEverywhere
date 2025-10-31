@@ -15,10 +15,10 @@ SpeechManager3DS::~SpeechManager3DS() {
 void SpeechManager3DS::ensureImagesLoaded() {
     // Check if images were cleaned up and reload them if necessary
     if (images.find(sayIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/say_simple.svg", false);
+        Image::loadImageFromFile("gfx/ingame/say_simple.svg", nullptr, false);
     }
     if (images.find(thinkIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/think_simple.svg", false);
+        Image::loadImageFromFile("gfx/ingame/think_simple.svg", nullptr, false);
     }
 }
 

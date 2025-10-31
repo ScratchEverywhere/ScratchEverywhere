@@ -23,8 +23,12 @@ extern char nickname[0x21];
 #endif
 
 #ifdef WII
-#include <gccore.h>
 #include <ogc/conf.h>
+#endif
+
+#ifdef __PS4__
+#include <orbis/UserService.h>
+int userId;
 #endif
 
 Input::Mouse Input::mousePointer;
@@ -53,9 +57,15 @@ extern std::string customUsername;
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
     int rawMouseX, rawMouseY;
-    SDL_GetMouseState(&rawMouseX, &rawMouseY);
-    pos.push_back(rawMouseX);
-    pos.push_back(rawMouseY);
+    if (SDL_GetNumTouchDevices() > 0) {
+        pos.push_back(touchPosition.x);
+        pos.push_back(touchPosition.y);
+    } else {
+        SDL_GetMouseState(&rawMouseX, &rawMouseY);
+        pos.push_back(rawMouseX);
+        pos.push_back(rawMouseY);
+    }
+
     return pos;
 }
 
@@ -121,6 +131,25 @@ void Input::getInput() {
         anyKeyPressed = true;
         if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) mousePointer.x += 3;
     }
+    // Swap face buttons for Switch
+#ifdef __SWITCH__
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A)) {
+        Input::buttonPress("B");
+        anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_B)) {
+        Input::buttonPress("A");
+        anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X)) {
+        Input::buttonPress("Y");
+        anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_Y)) {
+        Input::buttonPress("X");
+        anyKeyPressed = true;
+    }
+#else
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A)) {
         Input::buttonPress("A");
         anyKeyPressed = true;
@@ -132,7 +161,7 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X)) {
         Input::buttonPress("X");
         anyKeyPressed = true;
-#ifdef __OGC__ // SDL 'x' is the A button on a wii remote
+#ifdef WII // SDL 'x' is the A button on a wii remote
         mousePointer.isPressed = true;
 #endif
     }
@@ -140,6 +169,7 @@ void Input::getInput() {
         Input::buttonPress("Y");
         anyKeyPressed = true;
     }
+#endif
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) {
         Input::buttonPress("shoulderL");
         anyKeyPressed = true;
@@ -274,7 +304,12 @@ std::string Input::getUsername() {
     if (CONF_GetNickName(nickname) != 0) {
         return std::string(reinterpret_cast<char *>(nickname));
     }
-
+#elif defined(__PS4__)
+    char username[32];
+    sceUserServiceGetInitialUser(&userId);
+    if (sceUserServiceGetUserName(userId, username, 31) == 0) {
+        return std::string(reinterpret_cast<char *>(username));
+    }
 #endif
     return "Player";
 }

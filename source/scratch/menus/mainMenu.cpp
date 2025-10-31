@@ -71,6 +71,24 @@ MainMenu::~MainMenu() {
 
 void MainMenu::init() {
 
+// let the user type what project they want to open if headless
+#ifdef HEADLESS_BUILD
+
+    Keyboard kbd;
+    std::string answer = kbd.openKeyboard("Please type what project you want to open.");
+
+    const std::string ext = ".sb3";
+    if (answer.size() >= ext.size() &&
+        answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
+        answer = answer.substr(0, answer.size() - ext.size());
+    }
+
+    Unzip::filePath = answer + ".sb3";
+
+    MenuManager::loadProject();
+
+#endif
+
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
@@ -78,7 +96,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 25", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 27", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -128,7 +146,7 @@ void MainMenu::render() {
     logo->y = 75 + bobbingOffset;
     logo->render();
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
-    splashText->render(logo->renderX, logo->renderY + 85);
+    splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7) * logo->image->scale);
 
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);

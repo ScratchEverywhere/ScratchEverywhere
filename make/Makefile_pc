@@ -2,8 +2,8 @@
 
 TARGET     := Scratch-pc
 BUILD      := build/pc
-SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus include/miniz include/nlohmann
+INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus include/nlohmann
 
 CXX        := g++
 CC         := gcc
@@ -12,11 +12,24 @@ CC         := gcc
 ENABLE_CLOUDVARS	?=	0
 ENABLE_AUDIO	?=	1
 ENABLE_LOADSCREEN	?=	1
+ENABLE_HEADLESS ?= 0
 
-# Base compiler flags
-CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
-
+ifeq ($(ENABLE_HEADLESS),0)
+SOURCES	+=	source/sdl source/sdl/audio
+INCLUDES	+=	source/sdl source/sdl/audio
 LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx
+CFLAGS_BASE	:=  -DSDL_BUILD
+else
+SOURCES	+=	source/headless
+INCLUDES	+=	source/headless
+LDFLAGS    :=
+CFLAGS_BASE	:= -DHEADLESS_BUILD
+ENABLE_AUDIO	=	0
+ENABLE_LOADSCREEN	=	0
+endif
+
+CFLAGS_BASE   += -D__PC__
+
 
 ifeq ($(ENABLE_AUDIO),1)
 LDFLAGS	+=	-lSDL2_mixer

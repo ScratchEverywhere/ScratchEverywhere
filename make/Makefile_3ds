@@ -38,9 +38,9 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/sdl/audio
+SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/3ds/audio
 DATA		:=	data
-INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/sdl/audio
+INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/3ds/audio
 GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
@@ -52,24 +52,24 @@ ENABLE_LOADSCREEN	  ?=	1
 ENABLE_AUDIO	?=	1
 RAM_AMOUNT		?= 72
 
-# Check for SDL2 libraries
+# Check for SDL3 libraries
 ifeq ($(ENABLE_AUDIO),1)
-SDL2_AVAILABLE := $(shell $(PKGCONF_3DS) --exists sdl2 >/dev/null 2>&1; echo $$?)
-SDL2_MIXER_AVAILABLE := $(shell $(PKGCONF_3DS) --exists SDL2_mixer >/dev/null 2>&1; echo $$?)
+SDL3_AVAILABLE := $(shell $(PKGCONF_3DS) --exists sdl3 >/dev/null 2>&1; echo $$?)
+SDL3_MIXER_AVAILABLE := $(shell $(PKGCONF_3DS) --exists SDL3_mixer >/dev/null 2>&1; echo $$?)
 
-ifeq ($(SDL2_AVAILABLE),1)
-SDL2_AVAILABLE := $(shell test -f $(DEVKITPRO)/portlibs/3ds/lib/libSDL2.a; echo $$?)
+ifeq ($(SDL3_AVAILABLE),1)
+SDL3_AVAILABLE := $(shell test -f $(DEVKITPRO)/portlibs/3ds/lib/libSDL3.a; echo $$?)
 endif
-ifeq ($(SDL2_MIXER_AVAILABLE),1)
-SDL2_MIXER_AVAILABLE := $(shell test -f $(DEVKITPRO)/portlibs/3ds/lib/libSDL2_mixer.a; echo $$?)
+ifeq ($(SDL3_MIXER_AVAILABLE),1)
+SDL3_MIXER_AVAILABLE := $(shell test -f $(DEVKITPRO)/portlibs/3ds/lib/libSDL3_mixer.a; echo $$?)
 endif
 
-# Disable audio if SDL2 isnt found
-ifneq ($(SDL2_AVAILABLE),0)
-$(warning "[WARNING] SDL2 not found - Disabling audio...")
+# Disable audio if SDL3 isnt found
+ifneq ($(SDL3_AVAILABLE),0)
+$(warning "[WARNING] SDL3 not found - Disabling audio...")
 override ENABLE_AUDIO := 0
-else ifneq ($(SDL2_MIXER_AVAILABLE),0)
-$(warning "[WARNING] SDL2_mixer not found - Disabling audio...") 
+else ifneq ($(SDL3_MIXER_AVAILABLE),0)
+$(warning "[WARNING] SDL3_mixer not found - Disabling audio...") 
 override ENABLE_AUDIO := 0
 endif
 endif
@@ -89,7 +89,7 @@ ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	+=	-lSDL2_mixer -lSDL2
+LIBS	+=	-lSDL3_mixer -lSDL3 -lmpg123
 CFLAGS	+=	-DENABLE_AUDIO
 endif
 
@@ -126,11 +126,6 @@ LIBDIRS	:= $(CTRULIB)  $(DEVKITPRO)/portlibs/3ds
 #---------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------
-# Find images in romfs/project and generate t3s files for them
-#---------------------------------------------------------------------------------
-ROMFS_PROJECT_IMAGES := $(shell find $(ROMFS)/project -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.bmp" -o -iname "*.tga" \) 2>/dev/null)
-
-#---------------------------------------------------------------------------------
 ifneq ($(notdir $(BUILD)),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
@@ -153,14 +148,6 @@ BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 ALLGFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.*)))
 
-# Add romfs project t3s files
-ROMFS_PROJECT_T3X_STEMS := $(patsubst %.png,%.t3x,$(ROMFS_PROJECT_IMAGES))
-ROMFS_PROJECT_T3X_STEMS := $(patsubst %.jpg,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
-ROMFS_PROJECT_T3X_STEMS := $(patsubst %.jpeg,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
-ROMFS_PROJECT_T3X_STEMS := $(patsubst %.bmp,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
-ROMFS_PROJECT_T3X_STEMS := $(patsubst %.tga,%.t3x,$(ROMFS_PROJECT_T3X_STEMS))
-ROMFS_PROJECT_T3XFILES := $(patsubst $(ROMFS)/project/%,$(GFXBUILD)/%,$(ROMFS_PROJECT_T3X_STEMS))
-
 FONTFILES := $(shell find $(GRAPHICS) -type f -iname "*.ttf" 2>/dev/null)
 ROMFS_FONTFILES := $(patsubst $(GRAPHICS)/%,$(GFXBUILD)/%,$(FONTFILES:.ttf=.bcfnt))
 
@@ -182,14 +169,11 @@ endif
 #---------------------------------------------------------------------------------
 ifeq ($(GFXBUILD),$(BUILD))
 #---------------------------------------------------------------------------------
-export T3XFILES :=  $(GFXFILES:.t3s=.t3x)
-export ROMFS_ALLGFXFILES	:=	$(ALLGFXFILES)
 export EFONTFILES := $(FONTFILES:.ttf=.bcfnt)
 #---------------------------------------------------------------------------------
 else
 #---------------------------------------------------------------------------------
 export ROMFS_T3XFILES	:=	$(patsubst %.t3s, $(GFXBUILD)/%.t3x, $(GFXFILES)) $(ROMFS_PROJECT_T3XFILES)
-export ROMFS_ALLGFXFILES	:=	$(patsubst %, $(GFXBUILD)/%, $(ALLGFXFILES))
 export T3XHFILES		:=	$(patsubst %.t3s, $(BUILD)/%.h, $(GFXFILES))
 #---------------------------------------------------------------------------------
 endif
@@ -251,36 +235,14 @@ $(BUILD):
 ifneq ($(GFXBUILD),$(BUILD))
 $(GFXBUILD):
 	@mkdir -p $@
-	@cp -r $(GRAPHICS)/* $@/
+	@cp -r $(GRAPHICS)/menu $@/
+	@cp -r $(GRAPHICS)/ingame $@/
 endif
 
 ifneq ($(DEPSDIR),$(BUILD))
 $(DEPSDIR):
 	@mkdir -p $@
 endif
-
-#---------------------------------------------------------------------------------
-# Generate .t3s files from images in romfs/project
-#---------------------------------------------------------------------------------
-$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.png
-	@echo "Generating $(notdir $@) from $(notdir $<)"
-	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
-
-$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.jpg
-	@echo "Generating $(notdir $@) from $(notdir $<)"
-	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
-
-$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.jpeg
-	@echo "Generating $(notdir $@) from $(notdir $<)"
-	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
-
-$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.bmp
-	@echo "Generating $(notdir $@) from $(notdir $<)"
-	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
-
-$(ROMFS)/project/%.t3s: $(ROMFS)/project/%.tga
-	@echo "Generating $(notdir $@) from $(notdir $<)"
-	@echo "-f auto-etc1 -z auto \"$(notdir $<)\"" > $@
 
 #---------------------------------------------------------------------------------
 clean:
@@ -295,14 +257,6 @@ $(GFXBUILD)/%.t3x	$(BUILD)/%.h	:	%.t3s
 	@echo $(notdir $<)
 	@tex3ds -i $< -H $(BUILD)/$*.h -d $(DEPSDIR)/$*.d -o $(GFXBUILD)/$*.t3x
 
-#---------------------------------------------------------------------------------
-# Generate t3x files from t3s files in romfs/project
-#---------------------------------------------------------------------------------
-$(GFXBUILD)/%.t3x: $(ROMFS)/project/%.t3s
-	@echo "Processing image: $(notdir $<)"
-	@mkdir -p $(dir $@)
-	@tex3ds -i $< -o $@
-	@rm $<
 
 #---------------------------------------------------------------------------------
 # Generate bcfnt files from .ttf
@@ -311,13 +265,6 @@ $(GFXBUILD)/%.bcfnt : $(GRAPHICS)/%.ttf
 	@echo "Converting font: $(notdir $<)"
 	@mkdir -p $(dir $@)
 	@mkbcfnt -o $@ $<
-
-#---------------------------------------------------------------------------------
-# Copy all files from gfx folder to romfs/gfx folder
-$(GFXBUILD)/%	:	gfx/%
-#---------------------------------------------------------------------------------
-	@mkdir -p $(dir $@)
-	@cp $< $@
 
 #---------------------------------------------------------------------------------
 else

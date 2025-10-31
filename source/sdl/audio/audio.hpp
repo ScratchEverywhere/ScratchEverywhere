@@ -20,7 +20,7 @@ class SDL_Audio {
     bool isStreaming = false;
     bool needsToBePlayed = true;
     size_t memorySize = 0;
-    size_t freeTimer = 240;
+    size_t freeTimer = 640;
 
     SDL_Audio();
     ~SDL_Audio();

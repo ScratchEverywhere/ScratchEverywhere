@@ -9,9 +9,9 @@ $(error "Please set DEVKITPPC in your environment. export DEVKITPPC=<path to>dev
 endif
 
 TOPDIR ?= $(CURDIR)
-include $(DEVKITPPC)/gamecube_rules
+include $(DEVKITPRO)/libogc2/gamecube_rules
 
-PKGCONF_GAMECUBE	:=	$(DEVKITPRO)/portlibs/gamecube/bin/powerpc-eabi-pkg-config
+PKGCONF_GAMECUBE	:=	$(DEVKITPRO)/libogc2/gamecube/bin/powerpc-eabi-pkg-config
 
 #---------------------------------------------------------------------------------
 # Application info
@@ -119,7 +119,8 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
-	@cp -r $(GRAPHICS)/* $@/
+	@cp -r $(GRAPHICS)/menu $@/
+#	@cp -r $(GRAPHICS)/ingame $@/
 
 ifneq ($(DEPSDIR),$(BUILD))
 $(DEPSDIR):

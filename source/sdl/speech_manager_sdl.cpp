@@ -15,13 +15,13 @@ SpeechManagerSDL::~SpeechManagerSDL() {
 
 void SpeechManagerSDL::ensureImagesLoaded() {
     if (images.find(bubbleImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/speechbubble.svg", false);
+        Image::loadImageFromFile("gfx/ingame/speechbubble.svg", nullptr, false);
     }
     if (images.find(sayIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/say.svg", false);
+        Image::loadImageFromFile("gfx/ingame/say.svg", nullptr, false);
     }
     if (images.find(thinkIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/think.svg", false);
+        Image::loadImageFromFile("gfx/ingame/think.svg", nullptr, false);
     }
 }
 

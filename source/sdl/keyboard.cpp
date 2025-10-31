@@ -12,7 +12,7 @@
  * Uses SDL2 text input.
  */
 std::string Keyboard::openKeyboard(const char *hintText) {
-#if defined(__WIIU__) || defined(__OGC__)
+#if defined(__WIIU__) || defined(__OGC__) || defined(__PS4__)
 // doesn't work on these platforms....
 #else
     TextObject *text = createTextObject(std::string(hintText), 0, 0);
@@ -41,6 +41,10 @@ std::string Keyboard::openKeyboard(const char *hintText) {
                 inputText += event.text.text;
                 text->setText(inputText);
                 text->setColor(Math::color(0, 0, 0, 255));
+
+#ifdef __SWITCH__
+                inputActive = false;
+#endif
 
                 break;
 

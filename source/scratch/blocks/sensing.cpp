@@ -149,6 +149,7 @@ Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
     // if no variable block is in the input
     if (inputFind->second.inputType == ParsedInput::LITERAL) {
         Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
+        if (inputBlock == nullptr) return Value(false);
         if (Scratch::getFieldValue(*inputBlock, "KEY_OPTION") != "")
             buttonCheck = Scratch::getFieldValue(*inputBlock, "KEY_OPTION");
     } else {
