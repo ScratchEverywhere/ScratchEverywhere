@@ -54,6 +54,7 @@ int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
 bool Scratch::turbo = false;
+bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
@@ -224,6 +225,7 @@ void Scratch::cleanupScratchProject() {
     // reset default settings
     Scratch::FPS = 30;
     Scratch::turbo = false;
+    Scratch::hqpen = false;
     Scratch::projectWidth = 480;
     Scratch::projectHeight = 360;
     Scratch::fencing = true;
@@ -904,6 +906,14 @@ void loadSprites(const nlohmann::json &json) {
     } catch (...) {
 #ifdef DEBUG
         Log::logWarning("no turbo property.");
+#endif
+    }
+    try {
+        Scratch::hqpen = config["hq"].get<bool>();
+        Log::log("Set hqpen mode to: " + std::to_string(Scratch::hqpen));
+    } catch (...) {
+#ifdef DEBUG
+        Log::logWarning("no hqpen property.");
 #endif
     }
     try {

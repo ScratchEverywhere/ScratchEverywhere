@@ -35,15 +35,21 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     sprite->penData.down = true;
 
 #ifdef SDL_BUILD
-    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+    int penWidth;
+    int penHeight;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+
+    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
     SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(tempTexture, (sprite->penData.transparency - 100) / 100 * 255);
+    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
 
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+
     const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
-    filledCircleRGBA(renderer, sprite->xPosition + Scratch::projectWidth / 2, -sprite->yPosition + Scratch::projectHeight / 2, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_RenderCopy(renderer, tempTexture, NULL, NULL);
@@ -232,13 +238,18 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     const double rotationCenterX = (((sprite->rotationCenterX - sprite->spriteWidth)) / 2);
     const double rotationCenterY = (((sprite->rotationCenterY - sprite->spriteHeight)) / 2);
 
-    const double offsetX = rotationCenterX * (sprite->size * 0.01);
-    const double offsetY = rotationCenterY * (sprite->size * 0.01);
+    int penWidth;
+    int penHeight;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    image->renderRect.w = sprite->spriteWidth;
-    image->renderRect.h = sprite->spriteHeight;
-    image->renderRect.x = (sprite->xPosition + Scratch::projectWidth / 2 - (image->renderRect.w / 2)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
-    image->renderRect.y = (-sprite->yPosition + Scratch::projectHeight / 2 - (image->renderRect.h / 2)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
+    const double offsetX = rotationCenterX * (sprite->size * 0.01) * scale;
+    const double offsetY = rotationCenterY * (sprite->size * 0.01) * scale;
+
+    image->renderRect.w = sprite->spriteWidth * scale;
+    image->renderRect.h = sprite->spriteHeight * scale;
+    image->renderRect.x = (sprite->xPosition * scale + penWidth / 2.0f - (image->renderRect.w / 1.325f)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
+    image->renderRect.y = (-sprite->yPosition * scale + penHeight / 2.0f - (image->renderRect.h / 1.325f)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
     const SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
     // ghost effect
