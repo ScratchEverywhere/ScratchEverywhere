@@ -319,7 +319,7 @@ class Unzip {
     }
 
     static nlohmann::json getSetting(const std::string &settingName) {
-        std::string folderPath = OS::getScratchFolderLocation() + filePath + ".json";
+        std::string folderPath = filePath + ".json";
 
         std::ifstream file(folderPath);
         if (!file.good()) {
