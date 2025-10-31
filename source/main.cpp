@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();
-                Unzip::filePath = filename; //do i have to use OS::getScratchFolderLocation() + filename here?
+                Unzip::filePath = OS::getScratchFolderLocation() + filename;
                 Unzip::load(); // TODO: Error handling
             },
                                             &uploadComplete);

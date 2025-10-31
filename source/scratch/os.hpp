@@ -207,7 +207,7 @@ class OS {
      * Gets the drive prefix for the current platform.
      * @return The string of the current platform's drive prefix. (e.g. "sdmc:" on 3DS)
      **/
-    static std::string getSDDrivePrefix();
+    static std::string getFilesystemRootPrefix();
 
     /**
      * Gets the location of the current device's Scratch data folder.

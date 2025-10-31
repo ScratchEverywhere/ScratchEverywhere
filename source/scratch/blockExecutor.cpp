@@ -352,7 +352,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         Scratch::nextProject = true;
         Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
         if(Unzip::filePath.rfind("sd:", 0) == 0) {
-            std::string drivePrefix = OS::getSDDrivePrefix();
+            std::string drivePrefix = OS::getFilesystemRootPrefix();
             Unzip::filePath.replace(0, 3, drivePrefix);
         } else {
             Unzip::filePath = Unzip::filePath;
@@ -374,7 +374,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
         //if filepath contains sd:/ at the beginning and only at the beginning, replace it with sdmc:/
         if (Unzip::filePath.rfind("sd:", 0) == 0) {
-            std::string drivePrefix = OS::getSDDrivePrefix();
+            std::string drivePrefix = OS::getFilesystemRootPrefix();
             Unzip::filePath.replace(0, 3, drivePrefix);
         } else {
             Unzip::filePath = Unzip::filePath;

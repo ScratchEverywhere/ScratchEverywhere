@@ -160,7 +160,7 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
     return false;
 }
 
-std::string OS::getSDDrivePrefix() {
+std::string OS::getFilesystemRootPrefix() {
 #ifdef __WIIU__
     return std::string(WHBGetSdCardMountPath());
 #elif defined(__SWITCH__)
@@ -185,7 +185,7 @@ std::string OS::getSDDrivePrefix() {
 }
 
 std::string OS::getScratchFolderLocation() {
-    std::string prefix = getSDDrivePrefix();
+    const std::string prefix = getFilesystemRootPrefix();
     #ifdef __WIIU__
     return prefix + "/wiiu/scratch-wiiu/";
     #elif defined(__SWITCH__)
