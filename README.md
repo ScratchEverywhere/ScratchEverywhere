@@ -274,6 +274,7 @@ If you would like to change the name of the app or any other information you can
 -   **For the Wii U**, you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 -   **For the Wii**, you need to edit `Makefile_wii` and change anything under `Application Info` to whatever you please.
 -   **For the Vita**, you need to edit the properties under `# METADATA/CONFIG` to whatever you please. Do note however, if you're going to use custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
+-   **For the PS4**, you need to edit `Makefile_ps4` and change anything under `Package metadata` to whatever you please.
 
 #### Docker
 
@@ -296,7 +297,7 @@ The recommended way to compile Scratch Everywhere! is with Docker. To compile wi
 #### Manual
 
 > [!NOTE]
-> We do not provide manual instructuons for PS4 because of how absolutely messy the environment is, please just use Docker.
+> We recommend using Docker for PS4 because of how absolutely messy the environment is.
 
 If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.com/ScratchEverywhere/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 
@@ -307,6 +308,7 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 -   **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 -   **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
 -   **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
+-   **For the PS4**, you will need the [OpenOrbis](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain) toolchain, [PacBrew](https://github.com/PacBrew/ps4-openorbis-portlibs) portlibs which include SDL2, and our [fixed packages](https://github.com/gradylink/pacbrew-packages).
 
 > [!NOTE]
 > DevkitPro's install instructions are available at: https://devkitpro.org/wiki/Getting_Started
@@ -326,6 +328,7 @@ Then you need to compile the projects into proper Homebrew packages.
 -   **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
 -   **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
 -   **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
+-   **For the PS4**, you will need to run `make PLATFORM=ps4`, then find the `.pkg` file at `build/ps4/scratch-ps4.pkg`.
 
 #### Compilation Flags
 
