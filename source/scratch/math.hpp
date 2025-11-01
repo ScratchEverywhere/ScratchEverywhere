@@ -6,6 +6,9 @@
 #endif
 
 namespace Math {
+
+double stringToNumber(const std::string &str);
+
 bool isNumber(const std::string &str);
 double parseNumber(const std::string &str);
 

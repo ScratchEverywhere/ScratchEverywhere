@@ -35,6 +35,19 @@ int Math::color(int r, int g, int b, int a) {
     return 0;
 }
 
+double Math::stringToNumber(const std::string &str) {
+    std::size_t pos;
+    double conversion = std::stod(str, &pos);
+    while (std::isspace(static_cast<unsigned char>(str[pos])) && pos < str.length()) {
+        pos++;
+    }
+    if (str.length() != pos) {
+        throw std::invalid_argument("");
+    } else {
+        return conversion;
+    }
+}
+
 double Math::parseNumber(const std::string &str) {
     if (str == "Infinity") return std::numeric_limits<double>::infinity();
     if (str == "NaN") return std::numeric_limits<double>::quiet_NaN();
@@ -60,7 +73,7 @@ double Math::parseNumber(const std::string &str) {
     }
 
     if (str[0] == 'I' || str[0] == 'i') throw std::invalid_argument("");
-    return std::stod(str);
+    return Math::stringToNumber(str);
 }
 
 bool Math::isNumber(const std::string &str) {
