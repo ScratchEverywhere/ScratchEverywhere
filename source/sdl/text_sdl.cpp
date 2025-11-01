@@ -8,6 +8,12 @@
 #include <unordered_map>
 #include <vector>
 
+#ifdef __PC__
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
+#endif
+
 std::unordered_map<std::string, TTF_Font *> TextObjectSDL::fonts;
 std::unordered_map<std::string, size_t> TextObjectSDL::fontUsageCount;
 
@@ -23,7 +29,12 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
+#ifdef __PC__
+        const auto &file = cmrc::romfs::get_filesystem().open(fontPath);
+        TTF_Font *loadedFont = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 30);
+#else
         TTF_Font *loadedFont = TTF_OpenFont(fontPath.c_str(), 30);
+#endif
         if (!loadedFont) {
             Log::logError("Failed to load font " + fontPath + ": " + TTF_GetError());
         } else {
