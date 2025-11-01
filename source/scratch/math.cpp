@@ -38,7 +38,7 @@ int Math::color(int r, int g, int b, int a) {
 double Math::stringToNumber(const std::string &str) {
     std::size_t pos;
     double conversion = std::stod(str, &pos);
-    while (std::isspace(static_cast<unsigned char>(str[pos])) && pos < str.length()) {
+    while (pos < str.length() && std::isspace(static_cast<unsigned char>(str[pos]))) {
         pos++;
     }
     if (str.length() != pos) {
