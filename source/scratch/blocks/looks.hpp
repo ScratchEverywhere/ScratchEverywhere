@@ -16,6 +16,10 @@ class LooksBlocks {
     static BlockResult setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
     static BlockResult clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult say(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult sayForSeconds(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult think(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+    static BlockResult thinkForSeconds(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 
     static Value size(Block &block, Sprite *sprite);
     static Value costume(Block &block, Sprite *sprite);
