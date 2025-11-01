@@ -299,6 +299,9 @@ To compile with Docker all you need installed is Docker and Buildx.
 
 #### Manual
 
+> [!WARNING]
+> We are currently migrating our build system from standalone Makefiles to a centralized `CMakeLists.txt` so documentation in this section might be outdated.
+
 > [!NOTE]
 > We recommend using Docker for PS4 because of how absolutely messy the environment is.
 
@@ -334,6 +337,9 @@ Then you need to compile the projects into proper Homebrew packages.
 -   **For the PS4**, you will need to run `make PLATFORM=ps4`, then find the `.pkg` file at `build/ps4/scratch-ps4.pkg`.
 
 #### Compilation Flags
+
+> [!WARNING]
+> We are currently migrating our build system from standalone Makefiles to a centralized `CMakeLists.txt` so documentation in this section might be outdated.
 
 Compilation flags are used to select which features will be enabled in the compiled version of Scratch Everywhere!. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_LOADSCREEN=0`).
 
