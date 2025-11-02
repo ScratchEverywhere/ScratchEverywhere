@@ -131,7 +131,7 @@ jobs:
           curl -L -o lipo https://github.com/konoui/lipo/releases/download/v0.9.4/lipo_linux_amd64
           chmod +x lipo
       - name: Create Universal Binary
-        run: ./lipo create -o scratch-everywhere intel-build/scratch-everywhere arm-build/scratch-everywhere
+        run: ./lipo -output scratch-everywhere -create arm-build/scratch-everywhere intel-build/scratch-everywhere
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
