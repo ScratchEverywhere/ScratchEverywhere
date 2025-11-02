@@ -13,7 +13,9 @@ ProjectMenu::~ProjectMenu() {
 
 void ProjectMenu::init() {
 
-#ifdef __3DS__
+#ifdef __NDS__
+
+#elif defined(__3DS__)
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
     }
@@ -143,7 +145,11 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
-#ifdef __3DS__
+#ifdef __NDS__
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
+        SoundPlayer::playSound("gfx/menu/mm_full.wav");
+    }
+#elif defined(__3DS__)
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
