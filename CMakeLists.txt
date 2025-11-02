@@ -52,15 +52,12 @@ endforeach()
 file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
 cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
 
-if(SE_SYSTEM)
-	find_package(nlohmann_json 3.12.0 REQUIRED)
-else()
-	CPMAddPackage(
-		NAME nlohmann_json
-		GITHUB_REPOSITORY nlohmann/json
-		VERSION 3.12.0
-	)
-endif()
+# They're single header so I just use CPM no matter what
+CPMAddPackage(
+	NAME nlohmann_json
+	GITHUB_REPOSITORY nlohmann/json
+	VERSION 3.12.0
+)
 include(FetchContent)
 FetchContent_Declare(
     miniz
@@ -71,22 +68,29 @@ FetchContent_MakeAvailable(miniz)
 
 if(NOT SE_HEADLESS)
 	if(SE_SYSTEM)
-		find_package(SDL2 REQUIRED)
-		find_package(SDL2_image REQUIRED)
-		find_package(SDL2_ttf REQUIRED)
-
 		find_package(PkgConfig REQUIRED)
+
+		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
+		pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
+		pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
 		pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
 
 		if (SE_AUDIO)
-			find_package(SDL2_mixer REQUIRED)
+			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
 		endif()
 	else()
+		if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
+			message(STATUS "Test!")
+			set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF") # TODO: Fix compiler-rt issues
+		else()
+			set(SDL2_OPTIONS "")
+		endif()
 		CPMAddPackage(
 			NAME SDL2
 			VERSION 2.32.10
 			GITHUB_REPOSITORY libsdl-org/SDL
 			GIT_TAG release-2.32.10
+			OPTIONS ${SDL2_OPTIONS}
 		)
 		CPMAddPackage(
 			NAME SDL2_image
@@ -193,16 +197,23 @@ endif()
 
 if (NOT SE_HEADLESS)
 	set(SDL_LINK_LIBS)
-    list(APPEND SDL_LINK_LIBS SDL2::SDL2)
 
-	if (SE_SYSTEM)
+	if(SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
 	else()
-		list(APPEND SDL_LINK_LIBS SDL2_gfx)
+		list(APPEND SDL_LINK_LIBS SDL2_gfx SDL2::SDL2)
 	endif()
 
-	if (BUILD_SHARED_LIBS)
+	if(SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
+
+		if (SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS ${SDL2_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
+		endif()
+	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL2_image::SDL2_image)
 		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)
 

@@ -1,0 +1,27 @@
+# If you're editing this, would just like to let you know the insane amount of pain getting this Dockerfile to work was; it literally took me over 12 hrs...
+
+FROM --platform=$BUILDPLATFORM crazymax/osxcross:13.1-alpine AS osxcross
+
+FROM alpine:latest AS main_builder
+WORKDIR /app
+
+RUN apk add --no-cache clang lld musl-dev fts cmake make git bash
+
+COPY --from=osxcross /osxcross /osxcross
+ENV PATH="/osxcross/bin:$PATH"
+ENV LD_LIBRARY_PATH="/osxcross/lib"
+ENV MACOSX_DEPLOYMENT_TARGET="10.15"
+
+COPY . .
+
+# TODO: Cloud Variables
+RUN mkdir build && cd build && \
+	x86_64-apple-darwin22.2-cmake \
+	-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET \
+	-DSE_CLOUDVARS=OFF \
+	-DCMAKE_BUILD_TYPE=Release \
+	.. && \
+	cmake --build . -j $(nproc)
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/build/scratch-everywhere /
