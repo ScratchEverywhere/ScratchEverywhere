@@ -8,7 +8,9 @@ SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
     : TextObjectSDL(text, 0, 0), SpeechText(text, maxWidth) {
     setColor(0x00);
     setCenterAligned(false); // easier for positioning logic
-    font = TTF_OpenFont("gfx/menu/Arialn.ttf", 16);
+    
+    std::string fontPath = OS::getRomFSLocation() + "gfx/menu/Arialn.ttf";
+    font = TTF_OpenFont(fontPath.c_str(), 16);
 
     platformSetText(wrapText());
 }
