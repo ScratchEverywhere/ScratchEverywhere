@@ -19,6 +19,8 @@ class SDL_Audio {
     bool isPlaying = false;
     bool isStreaming = false;
     bool needsToBePlayed = true;
+    bool smoothTransition = false;
+    double musicPosition = 0.0;
     size_t memorySize = 0;
     size_t freeTimer = 640;
 
@@ -31,6 +33,7 @@ class SDL_Audio {
         mz_zip_archive *zip;
         std::string soundId;
         bool streamed;
+        bool fromProject;
     };
 };
 

@@ -89,6 +89,32 @@ void MainMenu::init() {
 
 #endif
 
+#ifdef __NDS__
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
+    }
+#elif defined(__3DS__)
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
+    }
+    SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+    if (SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_full.ogg"), "gfx/menu/mm_splash.ogg");
+        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
+    }
+#else
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
+        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
+        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
+        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    }
+    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 0.0f);
+    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 100.0f);
+#endif
+
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
@@ -127,6 +153,21 @@ void MainMenu::render() {
 
     Input::getInput();
     mainMenuControl->input();
+
+#ifdef __NDS__
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
+        SoundPlayer::playSound("gfx/menu/mm_full.wav");
+    }
+#elif defined(__3DS__)
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+    }
+#else
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    }
+#endif
 
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();
