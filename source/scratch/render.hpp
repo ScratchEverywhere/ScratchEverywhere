@@ -7,6 +7,10 @@
 #include <vector>
 
 class Render {
+  private:
+    static std::vector<TextObject *> menuTexts;
+    static bool menuInitialized;
+
   public:
     static std::chrono::system_clock::time_point startTime;
     static std::chrono::system_clock::time_point endTime;
@@ -52,8 +56,19 @@ class Render {
 
     /**
      * Renders every sprite to the screen.
+     * @param withMenu index of menu item selected (if menu is closed: 0)
      */
-    static void renderSprites();
+    static void renderSprites(int &withMenu);
+
+    /**
+     * Renders the menu overlay.
+     * @return index of selected menu item
+     */
+    static int renderMenu(bool onlyRender = false);
+    /**
+     * Cleans up the menu overlay texts.
+     */
+    static void cleanupMenu();
 
     /**
      * Fills a sprite's `renderInfo` with information on where to render on screen.
