@@ -1,0 +1,10 @@
+FROM gradylink/pacbrew:latest AS main_builder
+WORKDIR /app
+
+COPY . .
+
+RUN make PLATFORM=ps4
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build/ps4/scratch-ps4.pkg /

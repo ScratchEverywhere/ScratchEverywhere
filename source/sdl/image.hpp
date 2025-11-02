@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SDL2/SDL_image.h>
+#include <SDL_image.h>
 #include <string>
 #include <unordered_map>
 
@@ -15,7 +15,6 @@ class SDL_Image {
     float scale = 1.0f;
     int width;
     int height;
-    bool isSVG = false;
     float rotation = 0.0f;
 #ifdef GAMECUBE
     int maxFreeTime = 2;

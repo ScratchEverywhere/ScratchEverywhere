@@ -1,13 +1,16 @@
 #include "math.hpp"
 #include <algorithm>
-#include <cctype>
-#include <cstddef>
+#include <ctime>
+#include <limits>
 #include <math.h>
 #include <random>
-#include <regex>
+#include <stdexcept>
 #include <string>
 #ifdef __3DS__
 #include <citro2d.h>
+#endif
+#ifdef __NDS__
+#include <nds.h>
 #endif
 
 int Math::color(int r, int g, int b, int a) {
@@ -16,18 +19,57 @@ int Math::color(int r, int g, int b, int a) {
     b = std::clamp(b, 0, 255);
     a = std::clamp(a, 0, 255);
 
-#ifdef __3DS__
-    return C2D_Color32(r, g, b, a);
+#ifdef __NDS__
+    int r5 = r >> 3;
+    int g5 = g >> 3;
+    int b5 = b >> 3;
+    return RGB15(r5, g5, b5);
 #elif defined(SDL_BUILD)
     return (r << 24) |
            (g << 16) |
            (b << 8) |
            a;
+#elif defined(__3DS__)
+    return C2D_Color32(r, g, b, a);
 #endif
+    return 0;
+}
+
+double Math::parseNumber(const std::string &str) {
+    if (str == "Infinity") return std::numeric_limits<double>::infinity();
+    if (str == "NaN") return std::numeric_limits<double>::quiet_NaN();
+    if (str == "-NaN") return -std::numeric_limits<double>::quiet_NaN();
+
+    if (str[0] == '0') {
+        uint8_t base = 0;
+
+        switch (str[1]) {
+        case 'x':
+            base = 16;
+            break;
+        case 'b':
+            base = 2;
+            break;
+        case 'o':
+            base = 8;
+            break;
+        }
+
+        if (base != 0)
+            return std::stoi(str.substr(2, str.length() - 2), 0, base);
+    }
+
+    if (str[0] == 'I' || str[0] == 'i') throw std::invalid_argument("");
+    return std::stod(str);
 }
 
 bool Math::isNumber(const std::string &str) {
-    return std::regex_match(str, std::regex("^((0[xbo]\\d+)|(-?\\d+(\\.\\d+)?(e(-|\\+)?\\d+(\\.\\d+)?)?))$")); // I hope I never need to touch this again.
+    try {
+        parseNumber(str);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 double Math::degreesToRadians(double degrees) {
@@ -42,8 +84,7 @@ std::string Math::generateRandomString(int length) {
     std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-=[];',./_+{}|:<>?~`";
     std::string result;
 
-    static std::random_device rd;
-    static std::mt19937 generator(rd());
+    static std::mt19937 generator(static_cast<unsigned int>(std::time(nullptr)));
     std::uniform_int_distribution<> distribution(0, chars.size() - 1);
 
     for (int i = 0; i < length; i++) {
@@ -56,4 +97,15 @@ std::string Math::generateRandomString(int length) {
 std::string Math::removeQuotations(std::string value) {
     value.erase(std::remove_if(value.begin(), value.end(), [](char c) { return c == '"'; }), value.end());
     return value;
+}
+
+const uint32_t Math::next_pow2(uint32_t n) {
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n++;
+    return n;
 }

@@ -1,5 +1,5 @@
 #include "text_3ds.hpp"
-#include "../scratch/os.hpp"
+#include "os.hpp"
 #include <3ds.h>
 
 std::unordered_map<std::string, C2D_Font> TextObject3DS::fonts;

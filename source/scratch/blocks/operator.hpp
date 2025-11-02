@@ -1,5 +1,6 @@
 #pragma once
-#include "../blockExecutor.hpp"
+#include "sprite.hpp"
+#include "value.hpp"
 
 class OperatorBlocks {
   public:

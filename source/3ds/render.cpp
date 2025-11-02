@@ -1,17 +1,14 @@
-#include "render.hpp"
+#include "scratch/render.hpp"
 #include "../scratch/audio.hpp"
-#include "../scratch/image.hpp"
-#include "../scratch/input.hpp"
-#include "../scratch/os.hpp"
-#include "../scratch/render.hpp"
-#include "../scratch/text.hpp"
-#include "../scratch/unzip.hpp"
+#include "../scratch/blocks/pen.hpp"
+#include "../scratch/interpret.hpp"
+#include "blocks/pen.hpp"
 #include "image.hpp"
+#include "input.hpp"
 #include "interpret.hpp"
-#ifdef ENABLE_AUDIO
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_mixer.h>
-#endif
+#include "text.hpp"
+#include "unzip.hpp"
+#include <chrono>
 
 #ifdef ENABLE_CLOUDVARS
 #include <malloc.h>
@@ -31,10 +28,12 @@ u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
 u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
 u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
-std::chrono::_V2::system_clock::time_point Render::startTime = std::chrono::high_resolution_clock::now();
-std::chrono::_V2::system_clock::time_point Render::endTime = std::chrono::high_resolution_clock::now();
+std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
+std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
+std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 bool Render::debugMode = false;
 static bool isConsoleInit = false;
+float Render::renderScale = 1.0f;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
@@ -60,6 +59,7 @@ bool Render::Init() {
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
     gfxSet3D(true);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
@@ -78,26 +78,6 @@ bool Render::Init() {
 #endif
 
     romfsInit();
-#ifdef ENABLE_AUDIO
-    SDL_Init(SDL_INIT_AUDIO);
-    int sampleRate = 15000;
-    int bufferSize = 1024;
-    int channels = 1;
-
-    if (OS::isNew3DS()) {
-        // sampleRate = 48000;
-        // bufferSize = 4096;
-        // channels = 2;
-    }
-
-    if (Mix_OpenAudio(sampleRate, MIX_DEFAULT_FORMAT, channels, bufferSize) < 0) {
-        Log::logWarning(std::string("SDL_mixer could not initialize! Error: ") + Mix_GetError());
-    }
-    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
-    if (Mix_Init(flags) != flags) {
-        Log::logWarning(std::string("SDL_mixer could not initialize MP3/OGG support! SDL_mixer Error: ") + Mix_GetError());
-    }
-#endif
 
     return true;
 }
@@ -116,7 +96,7 @@ void *Render::getRenderer() {
 }
 
 int Render::getWidth() {
-    if (currentScreen == 0)
+    if (currentScreen == 0 && renderMode != BOTTOM_SCREEN_ONLY)
         return SCREEN_WIDTH;
     else return BOTTOM_SCREEN_WIDTH;
 }
@@ -124,10 +104,78 @@ int Render::getHeight() {
     return SCREEN_HEIGHT;
 }
 
+bool Render::initPen() {
+    if (penRenderTarget != nullptr) return true;
+
+    const int width = renderMode != BOTTOM_SCREEN_ONLY ? SCREEN_WIDTH : BOTTOM_SCREEN_WIDTH;
+    const int height = renderMode != BOTH_SCREENS ? SCREEN_HEIGHT : SCREEN_HEIGHT * 2;
+
+    // texture dimensions must be a power of 2. subtex dimensions can be the actual resolution.
+    penTex = new C3D_Tex();
+    penTex->width = Math::next_pow2(width);
+    penTex->height = Math::next_pow2(height);
+    penImage.tex = penTex;
+
+    penSubtex.width = width;
+    penSubtex.height = height;
+    penSubtex.left = 0.0f;
+    penSubtex.top = 0.0f;
+    penSubtex.right = (float)penSubtex.width / (float)penTex->width;
+    penSubtex.bottom = (float)penSubtex.height / (float)penTex->height;
+
+    if (penSubtex.top < penSubtex.bottom) std::swap(penSubtex.top, penSubtex.bottom);
+
+    penImage.subtex = &penSubtex;
+
+    if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) {
+        penRenderTarget = nullptr;
+        Log::logError("Failed to create pen texture.");
+        return false;
+    } else {
+        penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
+        C3D_TexSetFilter(penImage.tex, GPU_LINEAR, GPU_LINEAR);
+        C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
+    }
+    return true;
+}
+
+void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    if (!Render::hasFrameBegan) {
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        Render::hasFrameBegan = true;
+    }
+    C2D_SceneBegin(penRenderTarget);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
+    const int width = getWidth();
+    const int height = getHeight();
+
+    const float heightMultiplier = 0.5f;
+    const int transparency = 255 * (1 - sprite->penData.transparency / 100);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
+    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * renderScale), 1, 1000);
+
+    const float x1_scaled = (x1 * renderScale) + (width / 2);
+    const float y1_scaled = (y1 * -1 * renderScale) + (height * heightMultiplier) + TEXTURE_OFFSET;
+    const float x2_scaled = (x2 * renderScale) + (width / 2);
+    const float y2_scaled = (y2 * -1 * renderScale) + (height * heightMultiplier) + TEXTURE_OFFSET;
+
+    C2D_DrawLine(x1_scaled, y1_scaled, color, x2_scaled, y2_scaled, color, thickness, 0);
+
+    // Draw circles at both ends for smooth line caps
+    const float radius = thickness / 2.0f;
+
+    // Circle at start point
+    C2D_DrawCircleSolid(x1_scaled, y1_scaled, 0, radius, color);
+
+    // Circle at end point
+    C2D_DrawCircleSolid(x2_scaled, y2_scaled, 0, radius, color);
+}
+
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-        C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
         hasFrameBegan = true;
     }
     if (screen == 0) {
@@ -152,7 +200,7 @@ void Render::endFrame(bool shouldFlush) {
     hasFrameBegan = false;
 }
 
-void Render::drawBox(int w, int h, int x, int y, int colorR, int colorG, int colorB, int colorA) {
+void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     C2D_DrawRectSolid(
         x - (w / 2.0f),
         y - (h / 2.0f),
@@ -186,148 +234,56 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void renderImage(C2D_Image *image, Sprite *currentSprite, std::string costumeId, bool bottom = false, float x3DOffset = 0.0f) {
-
+void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
     if (!currentSprite || currentSprite == nullptr) return;
 
-    bool legacyDrawing = true;
     bool isSVG = false;
-    double screenOffset = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? -SCREEN_HEIGHT : 0;
-    bool imageLoaded = false;
-    for (imageRGBA rgba : imageRGBAS) {
-        if (rgba.name == costumeId) {
 
-            if (rgba.isSVG) isSVG = true;
-            legacyDrawing = false;
-            currentSprite->spriteWidth = rgba.width / 2;
-            currentSprite->spriteHeight = rgba.height / 2;
-
-            if (imageC2Ds.find(costumeId) == imageC2Ds.end() || image->tex == nullptr || image->subtex == nullptr) {
-
-                auto rgbaFind = std::find_if(imageRGBAS.begin(), imageRGBAS.end(),
-                                             [&](const imageRGBA &rgba) { return rgba.name == costumeId; });
-
-                if (rgbaFind != imageRGBAS.end()) {
-                    imageLoaded = get_C2D_Image(*rgbaFind);
-                } else {
-                    imageLoaded = false;
-                }
-
-            } else imageLoaded = true;
-
-            break;
-        }
-    }
-    if (!imageLoaded) {
-        legacyDrawing = true;
+    auto imageIt = images.find(costumeId);
+    if (imageIt == images.end()) {
         currentSprite->spriteWidth = 64;
         currentSprite->spriteHeight = 64;
+        return;
     }
 
-    // double maxLayer = getMaxSpriteLayer();
-    double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
-    double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
-    double spriteSizeX = currentSprite->size * 0.01;
-    double spriteSizeY = currentSprite->size * 0.01;
-    if (isSVG) {
-        spriteSizeX *= 2;
-        spriteSizeY *= 2;
-    }
-    double scale;
-    double heightMultiplier = 0.5;
-    int screenWidth = SCREEN_WIDTH;
-    if (bottom) screenWidth = BOTTOM_SCREEN_WIDTH;
-    if (Render::renderMode == Render::BOTH_SCREENS) {
-        scaleY = static_cast<double>(SCREEN_HEIGHT) / (Scratch::projectHeight / 2.0);
-        heightMultiplier = 1.0;
-    }
-    scale = (bottom && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) ? 1.0 : std::min(scaleX, scaleY);
+    ImageData &data = imageIt->second;
+    isSVG = data.isSVG;
+    currentSprite->spriteWidth = data.width >> 1;
+    currentSprite->spriteHeight = data.height >> 1;
 
-    if (!legacyDrawing) {
-        double rotation = Math::degreesToRadians(currentSprite->rotation - 90.0f);
-        bool flipX = false;
+    Render::calculateRenderPosition(currentSprite, isSVG);
 
-        // check for rotation style
-        if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-            if (std::cos(rotation) < 0) {
-                spriteSizeX *= -1;
-                flipX = true;
-            }
-            rotation = 0;
-        }
-        if (currentSprite->rotationStyle == currentSprite->NONE) {
-            rotation = 0;
-        }
+    C2D_ImageTint tinty;
 
-        // Center the sprite's pivot point
-        double rotationCenterX = ((((currentSprite->rotationCenterX - currentSprite->spriteWidth)) / 2) * scale);
-        double rotationCenterY = ((((currentSprite->rotationCenterY - currentSprite->spriteHeight)) / 2) * scale);
-        if (flipX) rotationCenterX -= currentSprite->spriteWidth;
+    // set ghost and brightness effect
+    if (currentSprite->brightnessEffect != 0.0f || currentSprite->ghostEffect != 0.0f) {
+        float brightnessEffect = currentSprite->brightnessEffect * 0.01f;
+        float alpha = 255.0f * (1.0f - currentSprite->ghostEffect / 100.0f);
+        if (brightnessEffect > 0)
+            C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
+        else
+            C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
+    } else C2D_AlphaImageTint(&tinty, 1.0f);
 
-        const double offsetX = rotationCenterX * spriteSizeX;
-        const double offsetY = rotationCenterY * spriteSizeY;
-
-        C2D_ImageTint tinty;
-
-        // set ghost and brightness effect
-        if (currentSprite->brightnessEffect != 0.0f || currentSprite->ghostEffect != 0.0f) {
-            float brightnessEffect = currentSprite->brightnessEffect * 0.01f;
-            float alpha = 255.0f * (1.0f - currentSprite->ghostEffect / 100.0f);
-            if (brightnessEffect > 0)
-                C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
-            else
-                C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
-        } else C2D_AlphaImageTint(&tinty, 1.0f);
-
-        C2D_DrawImageAtRotated(
-            imageC2Ds[costumeId].image,
-            static_cast<int>((currentSprite->xPosition * scale) + (screenWidth / 2) - offsetX * std::cos(rotation) + offsetY * std::sin(rotation)) + x3DOffset,
-            static_cast<int>((currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset - offsetX * std::sin(rotation) - offsetY * std::cos(rotation)),
-            1,
-            rotation,
-            &tinty,
-            (spriteSizeX)*scale / 2.0f,
-            (spriteSizeY)*scale / 2.0f);
-        imageC2Ds[costumeId].freeTimer = imageC2Ds[costumeId].maxFreeTimer;
-    } else {
-        C2D_DrawRectSolid(
-            (currentSprite->xPosition * scale) + (screenWidth / 2),
-            (currentSprite->yPosition * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset,
-            1,
-            10 * scale,
-            10 * scale,
-            clrBlack);
-    }
-
-    // Draw collision points
-    // auto collisionPoints = getCollisionPoints(currentSprite);
-    // for (const auto &point : collisionPoints) {
-    //     double screenOffset = bottom ? -SCREEN_HEIGHT : 0;      // Adjust for bottom screen
-    //     double scale = bottom ? 1.0 : std::min(scaleX, scaleY); // Skip scaling if bottom is true
-
-    //     C2D_DrawRectSolid(
-    //         (point.first * scale) + (screenWidth / 2),
-    //         (point.second * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset,
-    //         1,         // Layer depth
-    //         2 * scale, // Width of the rectangle
-    //         2 * scale, // Height of the rectangle
-    //         clrBlack);
-    // }
-    // Draw mouse pointer
-    if (Input::mousePointer.isMoving)
-        C2D_DrawRectSolid((Input::mousePointer.x * scale) + (screenWidth / 2),
-                          (Input::mousePointer.y * -1 * scale) + (SCREEN_HEIGHT * heightMultiplier) + screenOffset, 1, 5, 5, clrGreen);
-
-    currentSprite->lastCostumeId = costumeId;
+    C2D_DrawImageAtRotated(
+        data.image,
+        currentSprite->renderInfo.renderX + xOffset,
+        currentSprite->renderInfo.renderY + yOffset,
+        1,
+        currentSprite->renderInfo.renderRotation,
+        &tinty,
+        currentSprite->renderInfo.renderScaleX,
+        currentSprite->renderInfo.renderScaleY);
+    data.freeTimer = data.maxFreeTimer;
 }
 
 void Render::renderSprites() {
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
-    C3D_FrameBegin(C3D_FRAME_NONBLOCK);
-    C2D_TargetClear(topScreen, clrWhite);
-    C2D_TargetClear(topScreenRightEye, clrWhite);
-    C2D_TargetClear(bottomScreen, clrWhite);
-    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+    if (!Render::hasFrameBegan)
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+
+    // Always start rendering top screen, otherwise bottom screen only rendering gets weird fsr
+    C2D_SceneBegin(topScreen);
 
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / sprites.size();
@@ -345,9 +301,24 @@ void Render::renderSprites() {
 
     // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(topScreen);
+        C2D_TargetClear(topScreen, clrWhite);
+        currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
+
+            // render the pen texture above the backdrop, but below every other sprite
+            if (i == 1 && penRenderTarget != nullptr) {
+                const float yOffset = renderMode == BOTH_SCREENS ? 120.0f + TEXTURE_OFFSET : 0.0f;
+
+                C2D_DrawImageAt(penImage,
+                                0.0f,
+                                yOffset,
+                                0,
+                                nullptr,
+                                1.0f,
+                                1.0f);
+            }
+
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
@@ -360,17 +331,25 @@ void Render::renderSprites() {
                     size_t totalSprites = spritesByLayer.size();
                     float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
-                    renderImage(&imageC2Ds[costume.id].image,
+                    renderImage(&images[costume.id].image,
                                 currentSprite,
                                 costume.id,
                                 false,
-                                eyeOffset);
+                                eyeOffset,
+                                renderMode == BOTH_SCREENS ? 120 : 0);
                     break;
                 }
                 costumeIndex++;
             }
         }
         renderVisibleVariables();
+        // Draw mouse pointer
+        if (Input::mousePointer.isMoving) {
+            C2D_DrawRectSolid((Input::mousePointer.x * renderScale) + (SCREEN_WIDTH * 0.5),
+                              (Input::mousePointer.y * -1 * renderScale) + (SCREEN_HEIGHT * 0.5), 1, 5, 5, clrGreen);
+            Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+            Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+        }
     }
 
     if (Render::renderMode != Render::BOTH_SCREENS)
@@ -379,8 +358,24 @@ void Render::renderSprites() {
     // ---------- RIGHT EYE ----------
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(topScreenRightEye);
+        C2D_TargetClear(topScreenRightEye, clrWhite);
+        currentScreen = 0;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
+
+            // render the pen texture above the backdrop, but below every other sprite
+            if (i == 1 && penRenderTarget != nullptr) {
+                const float yOffset = renderMode == BOTH_SCREENS ? 120.0f + TEXTURE_OFFSET : 0.0f;
+
+                C2D_DrawImageAt(penImage,
+                                0.0f,
+                                yOffset,
+                                0,
+                                nullptr,
+                                1.0f,
+                                1.0f);
+            }
+
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
@@ -393,27 +388,47 @@ void Render::renderSprites() {
                     size_t totalSprites = spritesByLayer.size();
                     float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
-                    renderImage(&imageC2Ds[costume.id].image,
+                    renderImage(&images[costume.id].image,
                                 currentSprite,
                                 costume.id,
                                 false,
-                                eyeOffset);
+                                eyeOffset,
+                                renderMode == BOTH_SCREENS ? 120 : 0);
                     break;
                 }
                 costumeIndex++;
             }
         }
         renderVisibleVariables();
-    }
 
-    if (Render::renderMode != Render::BOTH_SCREENS)
-        drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+        if (Render::renderMode != Render::BOTH_SCREENS)
+            drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+    }
 
     // ---------- BOTTOM SCREEN ----------
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
         C2D_SceneBegin(bottomScreen);
+        C2D_TargetClear(bottomScreen, clrWhite);
+
+        if (Render::renderMode != Render::BOTH_SCREENS)
+            currentScreen = 1;
 
         for (size_t i = 0; i < spritesByLayer.size(); i++) {
+
+            // render the pen texture above the backdrop, but below every other sprite
+            if (i == 1 && penRenderTarget != nullptr) {
+                const float yOffset = renderMode == BOTH_SCREENS ? -120.0f + TEXTURE_OFFSET : 0.0f;
+                const float xOffset = renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0.0f;
+
+                C2D_DrawImageAt(penImage,
+                                xOffset,
+                                yOffset,
+                                0,
+                                nullptr,
+                                1.0f,
+                                1.0f);
+            }
+
             Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
@@ -423,11 +438,12 @@ void Render::renderSprites() {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
 
-                    renderImage(&imageC2Ds[costume.id].image,
+                    renderImage(&images[costume.id].image,
                                 currentSprite,
                                 costume.id,
                                 true,
-                                0.0f);
+                                renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0,
+                                renderMode == BOTH_SCREENS ? -120 : 0);
                     break;
                 }
                 costumeIndex++;
@@ -441,59 +457,13 @@ void Render::renderSprites() {
     }
 
     C3D_FrameEnd(0);
+    C2D_Flush();
     Image::FlushImages();
+#ifdef ENABLE_AUDIO
+    SoundPlayer::flushAudio();
+#endif
     osSetSpeedupEnable(true);
-}
-
-std::unordered_map<std::string, TextObject *> Render::monitorTexts;
-
-void Render::renderVisibleVariables() {
-
-    // get screen scale
-    double scaleX = static_cast<double>(SCREEN_WIDTH) / Scratch::projectWidth;
-    double scaleY = static_cast<double>(SCREEN_HEIGHT) / Scratch::projectHeight;
-    double scale = std::min(scaleX, scaleY);
-
-    // calculate black bar offset
-    float screenAspect = static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-    float barOffsetX = 0.0f;
-    float barOffsetY = 0.0f;
-    if (screenAspect > projectAspect) {
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        barOffsetX = (SCREEN_WIDTH - scaledProjectWidth) / 2.0f;
-    } else if (screenAspect < projectAspect) {
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        barOffsetY = (SCREEN_HEIGHT - scaledProjectHeight) / 2.0f;
-    }
-
-    for (auto &var : visibleVariables) {
-        if (var.visible) {
-
-            std::string renderText = BlockExecutor::getMonitorValue(var).asString();
-
-            if (monitorTexts.find(var.id) == monitorTexts.end()) {
-                monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
-            } else {
-                monitorTexts[var.id]->setText(renderText);
-            }
-            monitorTexts[var.id]->setColor(C2D_Color32(0, 0, 0, 255));
-            if (var.mode != "large") {
-                monitorTexts[var.id]->setCenterAligned(false);
-                monitorTexts[var.id]->setScale(0.6);
-            } else {
-                monitorTexts[var.id]->setCenterAligned(true);
-                monitorTexts[var.id]->setScale(1);
-            }
-
-            monitorTexts[var.id]->render(var.x + barOffsetX, var.y + barOffsetY);
-
-        } else {
-            if (monitorTexts.find(var.id) != monitorTexts.end()) {
-                monitorTexts.erase(var.id);
-            }
-        }
-    }
+    hasFrameBegan = false;
 }
 
 void Render::deInit() {
@@ -501,15 +471,17 @@ void Render::deInit() {
     socExit();
 #endif
 
+    if (penRenderTarget != nullptr) {
+        C3D_RenderTargetDelete(penRenderTarget);
+        C3D_TexDelete(penImage.tex);
+    }
+
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SoundPlayer::deinit();
     C2D_Fini();
     C3D_Fini();
-#ifdef ENABLE_AUDIO
-    SDL_Quit();
-#endif
     romfsExit();
     gfxExit();
 }

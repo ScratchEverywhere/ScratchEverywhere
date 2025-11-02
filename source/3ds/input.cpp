@@ -1,7 +1,7 @@
 #include "input.hpp"
-#include "../scratch/blockExecutor.hpp"
-#include "../scratch/input.hpp"
-#include "../scratch/render.hpp"
+#include "blockExecutor.hpp"
+#include "input.hpp"
+#include "render.hpp"
 #include <3ds.h>
 
 #define BOTTOM_SCREEN_WIDTH 320
@@ -21,6 +21,9 @@ static touchPosition touch;
 extern std::string cloudUsername;
 extern bool cloudProject;
 #endif
+
+extern bool useCustomUsername;
+extern std::string customUsername;
 
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
@@ -164,6 +167,9 @@ void Input::getInput() {
  * @return String of the 3DS's nickname
  */
 std::string Input::getUsername() {
+    if (useCustomUsername) {
+        return customUsername;
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) return cloudUsername;
 #endif

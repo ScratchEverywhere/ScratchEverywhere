@@ -1,4 +1,5 @@
 #include "control.hpp"
+#include "../audio.hpp"
 #include "blockExecutor.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
@@ -92,6 +93,7 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
             }
         }
     }
+    block.substackBlocksRan.clear();
 
     if (shouldStop)
         return BlockResult::RETURN;
@@ -188,6 +190,9 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
                 chainBlock->waitingIfBlock = "";
             }
             chain.blocksToRepeat.clear();
+        }
+        for (auto &[id, sound] : sprite->sounds) {
+            SoundPlayer::stopSound(sound.fullName);
         }
         return BlockResult::CONTINUE;
     }
@@ -386,4 +391,44 @@ BlockResult ControlBlocks::forever(Block &block, Sprite *sprite, bool *withoutSc
         }
     }
     return BlockResult::RETURN;
+}
+
+Value ControlBlocks::getCounter(Block &block, Sprite *sprite) {
+    return Value(Scratch::counter);
+}
+
+BlockResult ControlBlocks::incrementCounter(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Scratch::counter++;
+    return BlockResult::CONTINUE;
+}
+
+BlockResult ControlBlocks::clearCounter(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Scratch::counter = 0;
+    return BlockResult::CONTINUE;
+}
+
+BlockResult ControlBlocks::forEach(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
+
+    if (block.repeatTimes == -1) {
+        block.repeatTimes = Scratch::getInputValue(block, "VALUE", sprite).asInt();
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+    }
+
+    if (block.repeatTimes > 0) {
+        BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(Scratch::getInputValue(block, "VALUE", sprite).asInt() - block.repeatTimes + 1), sprite);
+
+        auto it = block.parsedInputs->find("SUBSTACK");
+        if (it != block.parsedInputs->end()) {
+            Block *subBlock = &sprite->blocks[it->second.blockId];
+            if (subBlock) executor.runBlock(*subBlock, sprite);
+        }
+
+        block.repeatTimes -= 1;
+        return BlockResult::RETURN;
+    }
+    block.repeatTimes = -1;
+
+    BlockExecutor::removeFromRepeatQueue(sprite, &block);
+    return BlockResult::CONTINUE;
 }

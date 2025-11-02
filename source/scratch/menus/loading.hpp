@@ -1,6 +1,7 @@
 #pragma once
-#include "../os.hpp"
-#include "menuObjects.hpp"
+#include "image.hpp"
+#include "os.hpp"
+#include "text.hpp"
 
 class Loading {
   private:

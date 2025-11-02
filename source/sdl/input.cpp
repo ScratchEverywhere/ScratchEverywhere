@@ -1,14 +1,7 @@
-#include "../scratch/input.hpp"
-#include "../scratch/blockExecutor.hpp"
+#include "input.hpp"
+#include "blockExecutor.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
-#include <SDL2/SDL_gamecontroller.h>
-#include <SDL2/SDL_keyboard.h>
-#include <SDL2/SDL_mouse.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_scancode.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_touch.h>
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -30,8 +23,12 @@ extern char nickname[0x21];
 #endif
 
 #ifdef WII
-#include <gccore.h>
 #include <ogc/conf.h>
+#endif
+
+#ifdef __PS4__
+#include <orbis/UserService.h>
+int userId;
 #endif
 
 Input::Mouse Input::mousePointer;
@@ -54,12 +51,21 @@ extern std::string cloudUsername;
 extern bool cloudProject;
 #endif
 
+extern bool useCustomUsername;
+extern std::string customUsername;
+
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
     int rawMouseX, rawMouseY;
-    SDL_GetMouseState(&rawMouseX, &rawMouseY);
-    pos.push_back(rawMouseX);
-    pos.push_back(rawMouseY);
+    if (SDL_GetNumTouchDevices() > 0) {
+        pos.push_back(touchPosition.x);
+        pos.push_back(touchPosition.y);
+    } else {
+        SDL_GetMouseState(&rawMouseX, &rawMouseY);
+        pos.push_back(rawMouseX);
+        pos.push_back(rawMouseY);
+    }
+
     return pos;
 }
 
@@ -96,6 +102,7 @@ void Input::getInput() {
                 else if (keyName == "down") keyName = "down arrow";
                 else if (keyName == "left") keyName = "left arrow";
                 else if (keyName == "right") keyName = "right arrow";
+                else if (keyName == "return") keyName = "enter";
 
                 inputButtons.push_back(keyName);
                 anyKeyPressed = true;
@@ -124,6 +131,25 @@ void Input::getInput() {
         anyKeyPressed = true;
         if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) mousePointer.x += 3;
     }
+    // Swap face buttons for Switch
+#ifdef __SWITCH__
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A)) {
+        Input::buttonPress("B");
+        anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_B)) {
+        Input::buttonPress("A");
+        anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X)) {
+        Input::buttonPress("Y");
+        anyKeyPressed = true;
+    }
+    if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_Y)) {
+        Input::buttonPress("X");
+        anyKeyPressed = true;
+    }
+#else
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A)) {
         Input::buttonPress("A");
         anyKeyPressed = true;
@@ -135,7 +161,7 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X)) {
         Input::buttonPress("X");
         anyKeyPressed = true;
-#ifdef __OGC__ // SDL 'x' is the A button on a wii remote
+#ifdef WII // SDL 'x' is the A button on a wii remote
         mousePointer.isPressed = true;
 #endif
     }
@@ -143,6 +169,7 @@ void Input::getInput() {
         Input::buttonPress("Y");
         anyKeyPressed = true;
     }
+#endif
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) {
         Input::buttonPress("shoulderL");
         anyKeyPressed = true;
@@ -251,6 +278,9 @@ void Input::getInput() {
 }
 
 std::string Input::getUsername() {
+    if (useCustomUsername) {
+        return customUsername;
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) return cloudUsername;
 #endif
@@ -274,7 +304,12 @@ std::string Input::getUsername() {
     if (CONF_GetNickName(nickname) != 0) {
         return std::string(reinterpret_cast<char *>(nickname));
     }
-
+#elif defined(__PS4__)
+    char username[32];
+    sceUserServiceGetInitialUser(&userId);
+    if (sceUserServiceGetUserName(userId, username, 31) == 0) {
+        return std::string(reinterpret_cast<char *>(username));
+    }
 #endif
     return "Player";
 }

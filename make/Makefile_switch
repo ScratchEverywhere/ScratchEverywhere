@@ -14,29 +14,32 @@ PKGCONF := $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
 TARGET		:=	scratch-nx
 BUILD		:=	build/switch
 SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann
-APP_VERSION	:=	0.24
-ICON		:=	gfx/wiiu/icon.png
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann include/miniz
+APP_VERSION	:=	0.27
+ICON		:=	gfx/wiiu/switch-icon.jpg
 APP_TITLE	:=	Scratch Everywhere!
 APP_AUTHOR	:=	NateXS and Grady Link
 ROMFS		:=	romfs
+GRAPHICS	:=	gfx
+GFXBUILD	:=	$(ROMFS)/gfx
 
 # Flags and Stuff
 
 ENABLE_LOADSCREEN	?=	1
+ENABLE_AUDIO	?=	1
 
 ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -ftls-model=local-exec
 
 CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(ARCH) $(DEFINES)
 
 CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DSDL_BUILD
-CFLAGS  +=  `$(PKGCONF) --cflags SDL2_image SDL2_ttf SDL2_mixer sdl2`
+CFLAGS  +=  `$(PKGCONF) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2`
 
 ifeq ($(ENABLE_AUDIO),1)
-CFLAGS	+=	-DENABLE_AUDIO
-LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_mixer sdl2`
+CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF) --cflags SDL2_mixer`
+LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_mixer SDL2_gfx sdl2`
 else
-LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf sdl2`
+LIBS	:=	`$(PKGCONF) --libs SDL2_image SDL2_ttf SDL2_gfx sdl2`
 endif
 
 ifeq ($(ENABLE_LOADSCREEN),1)
@@ -54,7 +57,7 @@ LIBDIRS	:= $(PORTLIBS) $(LIBNX)
 
 ifneq ($(CURDIR),$(TOPDIR)/$(BUILD))
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
+export OUTPUT	:=	$(TARGET)
 export TOPDIR	:=	$(CURDIR)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) $(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -99,7 +102,7 @@ ifeq ($(strip $(NO_ICON)),)
 endif
 
 ifeq ($(strip $(NO_NACP)),)
-	export NROFLAGS += --nacp=$(CURDIR)/$(TARGET).nacp
+	export NROFLAGS += --nacp=$(OUTPUT).nacp
 endif
 
 ifneq ($(APP_TITLEID),)
@@ -112,15 +115,19 @@ endif
 
 .PHONY: $(BUILD) clean all
 
-all: $(BUILD)
+all: $(GFXBUILD) $(BUILD)
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/make/Makefile_switch
 
+$(GFXBUILD):
+	@mkdir -p $@
+	@cp -r $(GRAPHICS)/menu $@/
+#	@cp -r $(GRAPHICS)/ingame $@/
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT).pfs0 $(OUTPUT).nso $(OUTPUT).nro $(OUTPUT).nacp $(OUTPUT).elf
+	@rm -fr $(BUILD) $(BUILD)/$(TARGET).pfs0 $(BUILD)/$(TARGET).nso $(BUILD)/$(TARGET).nro $(BUILD)/$(TARGET).nacp $(BUILD)/$(TARGET).elf $(GFXBUILD)
 
 else
 .PHONY:	all

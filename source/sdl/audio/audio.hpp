@@ -1,7 +1,10 @@
 #pragma once
 #ifdef ENABLE_AUDIO
-#include <SDL2/SDL_mixer.h>
+#include <SDL_mixer.h>
 #endif
+#include "../../scratch/audio.hpp"
+#include "miniz.h"
+#include "sprite.hpp"
 #include <string>
 #include <unordered_map>
 class SDL_Audio {
@@ -19,6 +22,7 @@ class SDL_Audio {
     bool smoothTransition = false;
     double musicPosition = 0.0;
     size_t memorySize = 0;
+    size_t freeTimer = 640;
 
     SDL_Audio();
     ~SDL_Audio();
@@ -33,4 +37,4 @@ class SDL_Audio {
     };
 };
 
-extern std::unordered_map<std::string, SDL_Audio *> SDL_Sounds;
+extern std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;

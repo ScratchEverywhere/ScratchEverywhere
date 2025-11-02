@@ -1,14 +1,32 @@
 #include "procedure.hpp"
 #include "blockExecutor.hpp"
+#include "interpret.hpp"
 #include "sprite.hpp"
+#include "unzip.hpp"
 #include "value.hpp"
 
+#ifdef SDL_BUILD
+#include <SDL2/SDL.h>
+
+extern SDL_GameController *controller;
+#endif
+
 Value ProcedureBlocks::stringNumber(Block &block, Sprite *sprite) {
-    if (Scratch::getFieldValue(block, "VALUE") == "Scratch Everywhere! platform") {
+    const std::string name = Scratch::getFieldValue(block, "VALUE");
+    if (name == "Scratch Everywhere! platform") {
         return Value(OS::getPlatform());
     }
-
-    return BlockExecutor::getCustomBlockValue(Scratch::getFieldValue(block, "VALUE"), sprite, block);
+    if (name == "\u200B\u200Breceived data\u200B\u200B") {
+        return Scratch::dataNextProject;
+    }
+    if (name == "Scratch Everywhere! controller") {
+#ifdef __3DS__
+        return Value("3DS");
+#elif defined(SDL_BUILD)
+        if (controller != nullptr) return Value(std::string(SDL_GameControllerName(controller)));
+#endif
+    }
+    return BlockExecutor::getCustomBlockValue(name, sprite, block);
 }
 
 Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
@@ -17,8 +35,11 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
     if (name == "is New 3DS?") {
         return Value(OS::isNew3DS());
     }
+    if (name == "is DSi?") {
+        return Value(OS::isDSi());
+    }
 
-    Value value = BlockExecutor::getCustomBlockValue(Scratch::getFieldValue(block, "VALUE"), sprite, block);
+    Value value = BlockExecutor::getCustomBlockValue(name, sprite, block);
     return Value(value.asInt() == 1);
 }
 
@@ -33,7 +54,7 @@ BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScr
         block.customBlockExecuted = false;
 
         // Run the custom block for the first time
-        BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh);
+        if (BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh) == BlockResult::RETURN) return BlockResult::RETURN;
         block.customBlockExecuted = true;
 
         BlockExecutor::addToRepeatQueue(sprite, &block);

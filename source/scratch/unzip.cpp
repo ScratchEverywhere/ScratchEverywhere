@@ -1,10 +1,17 @@
 #include "unzip.hpp"
+#include "image.hpp"
 #include "menus/loading.hpp"
-#include "render.hpp"
+#include <fstream>
 #ifdef __3DS__
 #include <3ds.h>
 #elif defined(SDL_BUILD)
 #include "SDL2/SDL.h"
+#endif
+
+#ifdef __PC__
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
 #endif
 
 volatile int Unzip::projectOpened = 0;
@@ -19,7 +26,7 @@ size_t Unzip::trackedBufferSize = 0;
 void *Unzip::trackedJsonPtr = nullptr;
 size_t Unzip::trackedJsonSize = 0;
 
-int Unzip::openFile(std::ifstream *file) {
+int Unzip::openFile(std::istream *&file) {
     Log::log("Unzipping Scratch project...");
 
     // load Scratch project into memory
@@ -30,53 +37,68 @@ int Unzip::openFile(std::ifstream *file) {
     embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
     unzippedPath = OS::getRomFSLocation() + unzippedPath;
 
+#ifdef __PC__
+    const auto &fs = cmrc::romfs::get_filesystem();
+#endif
+
     // Unzipped Project in romfs:/
-    file->open(unzippedPath, std::ios::binary | std::ios::ate);
-    projectType = UNZIPPED;
-    if (!(*file)) {
-
-        // .sb3 Project in romfs:/
-        Log::logWarning("No unzipped project, trying embedded.");
-        projectType = EMBEDDED;
-        file->open(embeddedFilename, std::ios::binary | std::ios::ate);
-        if (!(*file)) {
-
-            // Main menu
-            Log::logWarning("No sb3 project, trying Main Menu.");
-            projectType = UNEMBEDDED;
-            if (filePath == "") {
-                Log::log("Activating main menu...");
-                return -1;
-            } else {
-                // SD card Project
-                Log::logWarning("Main Menu already done, loading SD card project.");
-                // check if normal Project
-                if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
-
-                    Log::log("Normal .sb3 project in SD card ");
-                    file->open(OS::getScratchFolderLocation() + filePath, std::ios::binary | std::ios::ate);
-                    if (!(*file)) {
-
-                        Log::logError("Couldnt find file. jinkies.");
-                        Log::logWarning(filePath);
-                        return 0;
-                    }
-                } else {
-                    projectType = UNZIPPED;
-                    Log::log("Unpacked .sb3 project in SD card");
-                    // check if Unpacked Project
-                    file->open(OS::getScratchFolderLocation() + filePath + "/project.json", std::ios::binary | std::ios::ate);
-                    if (!(*file)) {
-                        Log::logError("Couldnt open Unpacked Scratch File");
-                        Log::logWarning(filePath + "<");
-                        return 0;
-                    }
-                    filePath = OS::getScratchFolderLocation() + filePath + "/";
-                    UnpackedInSD = true;
-                }
-            }
-        }
+#ifdef __PC__
+    if (fs.exists(unzippedPath)) {
+        const auto &romfsFile = fs.open(unzippedPath);
+        const std::string_view content(romfsFile.begin(), romfsFile.size());
+        file = new std::istringstream(std::string(content));
     }
+#else
+    file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
+#endif
+    projectType = UNZIPPED;
+    if (file != nullptr && *file) return 1;
+    // .sb3 Project in romfs:/
+    Log::logWarning("No unzipped project, trying embedded.");
+    projectType = EMBEDDED;
+#ifdef __PC__
+    if (fs.exists(embeddedFilename)) {
+        const auto &romfsFile = fs.open(embeddedFilename);
+        const std::string_view content(romfsFile.begin(), romfsFile.size());
+        file = new std::istringstream(std::string(content));
+    }
+#else
+    file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
+#endif
+    if (file != nullptr && *file) return 1;
+    // Main menu
+    Log::logWarning("No sb3 project, trying Main Menu.");
+    projectType = UNEMBEDDED;
+    if (filePath == "") {
+        Log::log("Activating main menu...");
+        return -1;
+    }
+    // SD card Project
+    Log::logWarning("Main Menu already done, loading SD card project.");
+    // check if normal Project
+    if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
+        Log::log("Normal .sb3 project in SD card ");
+        file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
+        if (!(*file)) {
+            Log::logError("Couldnt find file. jinkies.");
+            Log::logWarning(filePath);
+            return 0;
+        }
+
+        return 1;
+    }
+    projectType = UNZIPPED;
+    Log::log("Unpacked .sb3 project in SD card");
+    // check if Unpacked Project
+    file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
+    if (file == nullptr || !(*file)) {
+        Log::logError("Couldnt open Unpacked Scratch File");
+        Log::logWarning(filePath);
+        return 0;
+    }
+    filePath = filePath + "/";
+    UnpackedInSD = true;
+
     return 1;
 }
 
@@ -92,14 +114,14 @@ void loadInitialImages() {
         for (auto &currentSprite : sprites) {
             if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
             Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
             sprIndex++;
         }
     } else {
         for (auto &currentSprite : sprites) {
             if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
             Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName);
+            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
             sprIndex++;
         }
     }
@@ -144,12 +166,11 @@ bool Unzip::load() {
     loading.cleanup();
     osSetSpeedupEnable(false);
 
-#else // create SDL2 thread for loading screen
+#elif defined(SDL_BUILD) // create SDL2 thread for loading screen
 
     SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, "LoadingScreen", nullptr);
 
     if (thread != NULL && thread != nullptr) {
-        SDL_DetachThread(thread);
 
         Loading loading;
         loading.init();
@@ -157,14 +178,16 @@ bool Unzip::load() {
         while (!Unzip::threadFinished) {
             loading.render();
         }
+        SDL_WaitThread(thread, nullptr);
         loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 
     if (Unzip::projectOpened != 1)
         return false;
 #endif
+#else
 
-#else // non-threaded loading
+    // non-threaded loading
     Unzip::openScratchProject(NULL);
     if (Unzip::projectOpened != 1)
         return false;

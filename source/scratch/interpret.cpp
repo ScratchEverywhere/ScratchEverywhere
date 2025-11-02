@@ -3,7 +3,6 @@
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
-#include "miniz/miniz.h"
 #include "nlohmann/json.hpp"
 #include "os.hpp"
 #include "render.hpp"
@@ -38,6 +37,9 @@ extern bool cloudProject;
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 #endif
 
+bool useCustomUsername;
+std::string customUsername;
+
 std::vector<Sprite *> sprites;
 std::vector<Sprite> spritePool;
 std::vector<std::string> broadcastQueue;
@@ -51,9 +53,16 @@ BlockExecutor executor;
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
+bool Scratch::turbo = false;
+bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
+
+double Scratch::counter = 0;
+
+bool Scratch::nextProject = false;
+Value Scratch::dataNextProject;
 
 #ifdef ENABLE_CLOUDVARS
 bool cloudProject = false;
@@ -108,7 +117,7 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) // These platforms require Mist++ 0.2.0 or later.
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
 #else // These platforms require Mist++ 0.1.4 or later.
     cloudConnection->connect();
@@ -117,9 +126,39 @@ void initMist() {
 #endif
 
 bool Scratch::startScratchProject() {
+    customUsername = "Player";
+    useCustomUsername = false;
+
+    std::ifstream inFile(OS::getScratchFolderLocation() + "Settings.json");
+    if (inFile.good()) {
+        nlohmann::json j;
+        inFile >> j;
+        inFile.close();
+
+        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
+            useCustomUsername = j["EnableUsername"].get<bool>();
+        }
+
+        if (j.contains("Username") && j["Username"].is_string()) {
+            bool hasNonSpace = false;
+            for (char c : j["Username"].get<std::string>()) {
+                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                    hasNonSpace = true;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    break;
+                }
+            }
+            if (hasNonSpace) customUsername = j["Username"].get<std::string>();
+            else customUsername = "Player";
+        }
+    }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
+    Scratch::nextProject = false;
+
+    // Render first before running any blocks, otherwise 3DS rendering may get weird
+    Render::renderSprites();
 
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
@@ -132,7 +171,7 @@ bool Scratch::startScratchProject() {
             Render::renderSprites();
 
             if (shouldStop) {
-#ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app
+#if defined(HEADLESS_BUILD)
                 toExit = true;
                 return false;
 #endif
@@ -185,12 +224,15 @@ void Scratch::cleanupScratchProject() {
 
     // reset default settings
     Scratch::FPS = 30;
+    Scratch::turbo = false;
+    Scratch::hqpen = false;
     Scratch::projectWidth = 480;
     Scratch::projectHeight = 360;
     Scratch::fencing = true;
     Scratch::miscellaneousLimits = true;
+    Scratch::counter = 0;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
-    Unzip::filePath = "";
+    // Unzip::filePath = "";
     Log::log("Cleaned up Scratch project.");
 }
 
@@ -232,9 +274,19 @@ void cleanupSprites() {
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
     std::vector<std::pair<double, double>> collisionPoints;
 
+    double divisionAmount = 2.0;
+    const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
+
+    if (isSVG)
+        divisionAmount = 1.0;
+
+#ifdef __NDS__
+    divisionAmount *= 2;
+#endif
+
     // Get sprite dimensions, scaled by size
-    double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / 2.0;
-    double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / 2.0;
+    const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
+    const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / divisionAmount;
 
     // Calculate rotation in radians
     double rotation = currentSprite->rotation;
@@ -246,10 +298,10 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         else
             rotation = -90;
     }
-
-    double rotationRadians = (rotation - 90) * M_PI / 180.0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) * 0.75);
-    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight) * 0.75);
+    double rotationRadians = -(rotation - 90) * M_PI / 180.0;
+    const int shiftAmount = !isSVG ? 1 : 0;
+    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) >> shiftAmount);
+    double rotationCenterY = -((currentSprite->rotationCenterY - currentSprite->spriteHeight) >> shiftAmount);
 
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
@@ -314,12 +366,12 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
         bool collision = true;
 
         for (int i = 0; i < 4; i++) {
-            auto edge1 = std::make_pair(
+            auto edge1 = std::pair{
                 currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
-                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second);
-            auto edge2 = std::make_pair(
+                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
+            auto edge2 = std::pair{
                 mousePoints[(i + 1) % 4].first - mousePoints[i].first,
-                mousePoints[(i + 1) % 4].second - mousePoints[i].second);
+                mousePoints[(i + 1) % 4].second - mousePoints[i].second};
 
             double axis1X = -edge1.second, axis1Y = edge1.first;
             double axis2X = -edge2.second, axis2Y = edge2.first;
@@ -572,8 +624,9 @@ void loadSprites(const nlohmann::json &json) {
                                 parsedInput.blockId = inputValue.get<std::string>();
                         }
                     } else if (type == 2) {
-                        parsedInput.inputType = ParsedInput::BOOLEAN;
-                        parsedInput.blockId = inputValue.get<std::string>();
+                        parsedInput.inputType = ParsedInput::BLOCK;
+                        if (!inputValue.is_null())
+                            parsedInput.blockId = inputValue.get<std::string>();
                     }
                     (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
@@ -638,13 +691,13 @@ void loadSprites(const nlohmann::json &json) {
 
         // set Lists
         for (const auto &[id, data] : target["lists"].items()) {
-            List newList;
+            auto result = newSprite->lists.try_emplace(id).first;
+            List &newList = result->second;
             newList.id = id;
             newList.name = data[0];
-            for (const auto &listItem : data[1]) {
+            newList.items.reserve(data[1].size());
+            for (const auto &listItem : data[1])
                 newList.items.push_back(Value::fromJson(listItem));
-            }
-            newSprite->lists[newList.id] = newList; // add list
         }
 
         // set Sounds
@@ -671,6 +724,10 @@ void loadSprites(const nlohmann::json &json) {
             }
             if (data.contains("dataFormat")) {
                 newCostume.dataFormat = data["dataFormat"];
+                if (newCostume.dataFormat == "svg" || newCostume.dataFormat == "SVG")
+                    newCostume.isSVG = true;
+                else
+                    newCostume.isSVG = false;
             }
             if (data.contains("md5ext")) {
                 newCostume.fullName = data["md5ext"];
@@ -833,58 +890,75 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
     // set advanced project settings properties
-    int wdth = 0;
-    int hght = 0;
-    int framerate = 0;
-    bool fncng = true;
-    bool miscLimits = true;
     bool infClones = false;
 
     try {
-        framerate = config["framerate"].get<int>();
-        Scratch::FPS = framerate;
-        Log::log("FPS = " + std::to_string(Scratch::FPS));
+        Scratch::FPS = config["framerate"].get<int>();
+        Log::log("Set FPS to: " + std::to_string(Scratch::FPS));
     } catch (...) {
+#ifdef DEBUG
         Log::logWarning("no framerate property.");
+#endif
     }
     try {
-        wdth = config["width"].get<int>();
-        Scratch::projectWidth = wdth;
-        Log::log("game width = " + std::to_string(Scratch::projectWidth));
+        Scratch::turbo = config["turbo"].get<bool>();
+        Log::log("Set turbo mode to: " + std::to_string(Scratch::turbo));
     } catch (...) {
+#ifdef DEBUG
+        Log::logWarning("no turbo property.");
+#endif
+    }
+    try {
+        Scratch::hqpen = config["hq"].get<bool>();
+        Log::log("Set hqpen mode to: " + std::to_string(Scratch::hqpen));
+    } catch (...) {
+#ifdef DEBUG
+        Log::logWarning("no hqpen property.");
+#endif
+    }
+    try {
+        Scratch::projectWidth = config["width"].get<int>();
+        Log::log("Set width to:" + std::to_string(Scratch::projectWidth));
+    } catch (...) {
+#ifdef DEBUG
         Log::logWarning("no width property.");
+#endif
     }
     try {
-        hght = config["height"].get<int>();
-        Scratch::projectHeight = hght;
-        Log::log("game height = " + std::to_string(Scratch::projectHeight));
+        Scratch::projectHeight = config["height"].get<int>();
+        Log::log("Set height to: " + std::to_string(Scratch::projectHeight));
     } catch (...) {
+#ifdef DEBUG
         Log::logWarning("no height property.");
+#endif
     }
     try {
-        fncng = config["runtimeOptions"]["fencing"].get<bool>();
-        Scratch::fencing = fncng;
-        Log::log(std::string("Fencing is ") + (Scratch::fencing ? "true" : "false"));
+        Scratch::fencing = config["runtimeOptions"]["fencing"].get<bool>();
+        Log::log("Set fencing to: " + std::to_string(Scratch::fencing));
     } catch (...) {
+#ifdef DEBUG
         Log::logWarning("no fencing property.");
+#endif
     }
     try {
-        miscLimits = config["runtimeOptions"]["miscLimits"].get<bool>();
-        Scratch::miscellaneousLimits = miscLimits;
-        Log::log(std::string("Misc limits is ") + (Scratch::miscellaneousLimits ? "true" : "false"));
+        Scratch::miscellaneousLimits = config["runtimeOptions"]["miscLimits"].get<bool>();
+        Log::log("Set misc limits to: " + std::to_string(Scratch::miscellaneousLimits));
     } catch (...) {
-
+#ifdef DEBUG
         Log::logWarning("no misc limits property.");
+#endif
     }
     try {
         infClones = !config["runtimeOptions"]["maxClones"].is_null();
     } catch (...) {
+#ifdef DEBUG
         Log::logWarning("No Max clones property.");
+#endif
     }
-
-    if (wdth == 400 && hght == 480)
+#ifdef __3DS__
+    if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
-    else if (wdth == 320 && hght == 240)
+    else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
         Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
     else {
         auto bottomScreen = Unzip::getSetting("bottomScreen");
@@ -893,6 +967,9 @@ void loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
+#else
+    Render::renderMode = Render::TOP_SCREEN_ONLY;
+#endif
 
     // if infinite clones are enabled, set a (potentially) higher max clone count
     if (!infClones) initializeSpritePool(300);
@@ -934,9 +1011,10 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
-    Unzip::loadingState = "Running Flag block";
+    Unzip::loadingState = "Finishing up!";
 
-    Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
+    Input::applyControls(Unzip::filePath + ".json");
+    Render::setRenderScale();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }
 

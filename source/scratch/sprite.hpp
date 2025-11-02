@@ -1,13 +1,24 @@
 #pragma once
 #include "os.hpp"
 #include "value.hpp"
-#include <chrono>
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 
 class Sprite;
+
+struct RenderInfo {
+    float renderX;
+    float renderY;
+    float renderScaleX;
+    float renderScaleY;
+    float renderRotation;
+
+    float oldX, oldY;
+    float oldSize, oldRotation;
+    int oldCostumeID = -1;
+    bool forceUpdate = false;
+};
 
 struct Variable {
     std::string id;
@@ -38,7 +49,6 @@ struct ParsedInput {
 };
 
 struct Block {
-
     std::string id;
     std::string customBlockId;
     std::string opcode;
@@ -105,6 +115,7 @@ struct Costume {
     std::string fullName;
     std::string dataFormat;
     int bitmapResolution;
+    bool isSVG;
     double rotationCenterX;
     double rotationCenterY;
 };
@@ -157,15 +168,15 @@ class Sprite {
     bool isDeleted = false;
     bool shouldDoSpriteClick = false;
     int currentCostume;
-    std::string lastCostumeId = "";
     float volume;
-    double xPosition;
-    double yPosition;
+    float xPosition;
+    float yPosition;
     int rotationCenterX;
     int rotationCenterY;
-    double size;
-    double rotation;
+    float size;
+    float rotation;
     int layer;
+    RenderInfo renderInfo;
 
     float ghostEffect;
     float brightnessEffect;
@@ -182,10 +193,17 @@ class Sprite {
     int spriteWidth;
     int spriteHeight;
 
+    struct {
+        bool down;
+        double size;
+        Color color;
+        double transparency;
+    } penData;
+
     std::unordered_map<std::string, Variable> variables;
     std::unordered_map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
-    std::unordered_map<std::string, Sound> sounds;
+    std::map<std::string, Sound> sounds;
     std::vector<Costume> costumes;
     std::unordered_map<std::string, Comment> comments;
     std::unordered_map<std::string, Broadcast> broadcasts;
