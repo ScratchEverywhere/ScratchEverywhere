@@ -11,8 +11,7 @@ class SpeechManagerSDL : public SpeechManager {
   private:
     SDL_Renderer *renderer;
     std::unique_ptr<Image> bubbleImage;
-    std::unique_ptr<Image> sayIndicatorImage;
-    std::unique_ptr<Image> thinkIndicatorImage;
+    std::unique_ptr<Image> speechIndicatorImage;
 
   protected:
     double getCurrentTime() override;

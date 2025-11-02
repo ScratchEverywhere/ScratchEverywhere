@@ -5,8 +5,7 @@
 
 SpeechManagerSDL::SpeechManagerSDL(SDL_Renderer *renderer) : renderer(renderer) {
     bubbleImage = std::make_unique<Image>("gfx/ingame/speechbubble.svg");
-    sayIndicatorImage = std::make_unique<Image>("gfx/ingame/say.svg");
-    thinkIndicatorImage = std::make_unique<Image>("gfx/ingame/think.svg");
+    speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech.svg");
 }
 
 SpeechManagerSDL::~SpeechManagerSDL() {
@@ -17,11 +16,8 @@ void SpeechManagerSDL::ensureImagesLoaded() {
     if (images.find(bubbleImage->imageId) == images.end()) {
         Image::loadImageFromFile("gfx/ingame/speechbubble.svg", nullptr, false);
     }
-    if (images.find(sayIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/say.svg", nullptr, false);
-    }
-    if (images.find(thinkIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/think.svg", nullptr, false);
+    if (images.find(speechIndicatorImage->imageId) == images.end()) {
+        Image::loadImageFromFile("gfx/ingame/speech.svg", nullptr, false);
     }
 }
 
@@ -106,15 +102,8 @@ void SpeechManagerSDL::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
 
     std::string style = styleIt->second;
 
-    // determine which indicator to use
-    Image *indicatorImage = nullptr;
-    if (style == "think") {
-        indicatorImage = thinkIndicatorImage.get();
-    } else {
-        indicatorImage = sayIndicatorImage.get();
-    }
-
-    if (!indicatorImage || indicatorImage->imageId.empty()) return;
+    if (!speechIndicatorImage || speechIndicatorImage->imageId.empty()) return;
+    if (images.find(speechIndicatorImage->imageId) == images.end()) return;
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(16 * scale);
@@ -130,14 +119,20 @@ void SpeechManagerSDL::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
         indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
     }
 
-    // render the indicator with proper horizontal flipping
-    if (images.find(indicatorImage->imageId) != images.end()) {
-        SDL_Image *sdlImage = images[indicatorImage->imageId];
+    // Indicator sprite sheet
+    SDL_Image *sdlImage = images[speechIndicatorImage->imageId];
+    int halfWidth = sdlImage->width / 2;
 
-        SDL_Rect destRect = {indicatorX, indicatorY, indicatorSize, indicatorSize};
-        SDL_RendererFlip flip = (spriteCenterX >= screenCenter) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-        SDL_Point center = {destRect.w / 2, destRect.h / 2};
+    // Select left half (say) or right half (think)
+    int srcX = (style == "think") ? halfWidth : 0;
+    SDL_Rect sourceRect = {srcX, 0, halfWidth, sdlImage->height};
 
-        SDL_RenderCopyEx(renderer, sdlImage->spriteTexture, &sdlImage->textureRect, &destRect, 0, &center, flip);
-    }
+    Uint8 alpha = static_cast<Uint8>(speechIndicatorImage->opacity * 255);
+    SDL_SetTextureAlphaMod(sdlImage->spriteTexture, alpha);
+
+    SDL_Rect destRect = {indicatorX, indicatorY, indicatorSize, indicatorSize};
+    SDL_RendererFlip flip = (spriteCenterX >= screenCenter) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+    SDL_Point center = {destRect.w / 2, destRect.h / 2};
+
+    SDL_RenderCopyEx(renderer, sdlImage->spriteTexture, &sourceRect, &destRect, 0, &center, flip);
 }

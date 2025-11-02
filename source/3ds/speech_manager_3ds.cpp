@@ -3,9 +3,10 @@
 #include "interpret.hpp"
 #include <3ds.h>
 
+void renderSubrect(C2D_Image img, uint16_t srcX, uint16_t srcY, uint16_t srcW, uint16_t srcH, float destX, float destY, float destW, float destH, C2D_ImageTint *tint);
+
 SpeechManager3DS::SpeechManager3DS() {
-    sayIndicatorImage = std::make_unique<Image>("gfx/ingame/say_simple.svg");
-    thinkIndicatorImage = std::make_unique<Image>("gfx/ingame/think_simple.svg");
+    speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");
 }
 
 SpeechManager3DS::~SpeechManager3DS() {
@@ -14,11 +15,8 @@ SpeechManager3DS::~SpeechManager3DS() {
 
 void SpeechManager3DS::ensureImagesLoaded() {
     // Check if images were cleaned up and reload them if necessary
-    if (images.find(sayIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/say_simple.svg", nullptr, false);
-    }
-    if (images.find(thinkIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/think_simple.svg", nullptr, false);
+    if (images.find(speechIndicatorImage->imageId) == images.end()) {
+        Image::loadImageFromFile("gfx/ingame/speech_simple.svg", nullptr, false);
     }
 }
 
@@ -106,16 +104,8 @@ void SpeechManager3DS::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
 
     std::string style = styleIt->second;
 
-    // determine which indicator to use
-    Image *indicatorImage = nullptr;
-    if (style == "think") {
-        indicatorImage = thinkIndicatorImage.get();
-    } else {
-        indicatorImage = sayIndicatorImage.get();
-    }
-
-    if (!indicatorImage || indicatorImage->imageId.empty()) return;
-    if (images.find(indicatorImage->imageId) == images.end()) return;
+    if (!speechIndicatorImage || speechIndicatorImage->imageId.empty()) return;
+    if (images.find(speechIndicatorImage->imageId) == images.end()) return;
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(16 * scale);
@@ -132,9 +122,44 @@ void SpeechManager3DS::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
         indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
     }
 
-    // render the indicator with proper scale
-    if (images.find(indicatorImage->imageId) != images.end()) {
-        indicatorImage->scale = static_cast<double>(indicatorSize) / static_cast<double>(indicatorImage->getWidth());
-        indicatorImage->render(indicatorX, indicatorY, false);
+    // Indicator sprite sheet
+    C2D_Image image = images[speechIndicatorImage->imageId].image;
+
+    float origLeft = image.subtex->left;
+    float origTop = image.subtex->top;
+    float origRight = image.subtex->right;
+    float origBottom = image.subtex->bottom;
+
+    float uvWidth = origRight - origLeft;
+
+    // Calculate UV coordinates for left half (say) or right half (think)
+    float uvLeft, uvRight;
+    if (style == "think") {
+        uvLeft = origLeft + (uvWidth / 2.0f);
+        uvRight = origRight;
+    } else {
+        uvLeft = origLeft;
+        uvRight = origLeft + (uvWidth / 2.0f);
     }
+
+    // Create a new subtexture with the clipped UV coordinates
+    uint16_t halfWidth = image.subtex->width / 2;
+    uint16_t fullHeight = image.subtex->height;
+
+    Tex3DS_SubTexture clippedSubtex = {
+        halfWidth,
+        fullHeight,
+        uvLeft,
+        origTop,
+        uvRight,
+        origBottom};
+
+    C2D_ImageTint tinty;
+    C2D_AlphaImageTint(&tinty, speechIndicatorImage->opacity);
+
+    // Render using the clipped subtexture
+    float scaleX = static_cast<float>(indicatorSize) / static_cast<float>(halfWidth);
+    float scaleY = static_cast<float>(indicatorSize) / static_cast<float>(fullHeight);
+    float adjustedY = static_cast<float>(indicatorY) + (static_cast<float>(fullHeight) / 2.0f) - (static_cast<float>(indicatorSize) / 2.0f);
+    C2D_DrawImageAt({image.tex, &clippedSubtex}, static_cast<float>(indicatorX), adjustedY, 1, &tinty, scaleX, scaleY);
 }

@@ -8,8 +8,7 @@ class Image;
 
 class SpeechManager3DS : public SpeechManager {
   private:
-    std::unique_ptr<Image> sayIndicatorImage;
-    std::unique_ptr<Image> thinkIndicatorImage;
+    std::unique_ptr<Image> speechIndicatorImage;
 
   protected:
     double getCurrentTime() override;
