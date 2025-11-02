@@ -9,6 +9,11 @@
 #ifdef __3DS__
 #include <3ds.h>
 #endif
+#ifdef __PC__
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
+#endif
 
 std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;
 std::string currentStreamedSound = "";
@@ -239,13 +244,23 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     size_t audioMemorySize = 0;
 
     if (!streamed) {
+#ifdef __PC__
+        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+        chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+#else
         chunk = Mix_LoadWAV(fileName.c_str());
+#endif
         if (!chunk) {
             Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
         }
     } else {
+#ifdef __PC__
+        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+        music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+#else
         music = Mix_LoadMUS(fileName.c_str());
+#endif
         if (!music) {
             Log::logWarning("Failed to load streamed audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
