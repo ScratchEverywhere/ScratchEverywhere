@@ -44,12 +44,10 @@ bool Value::isColor() const {
 
 double Value::asDouble() const {
     if (isDouble()) {
+        if (std::isnan(std::get<double>(value))) return 0.0;
         return std::get<double>(value);
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
-
-        if (strValue == "Infinity") return std::numeric_limits<double>::infinity();
-        if (strValue == "-Infinity") return -std::numeric_limits<double>::infinity();
 
         if (Math::isNumber(strValue)) {
             return Math::parseNumber(strValue);
@@ -69,14 +67,6 @@ int Value::asInt() const {
         return static_cast<int>(std::round(doubleValue));
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
-
-        if (strValue == "Infinity") {
-            return std::numeric_limits<int>::infinity();
-        }
-
-        if (strValue == "-Infinity") {
-            return -std::numeric_limits<int>::infinity();
-        }
 
         if (Math::isNumber(strValue)) {
             return static_cast<int>(std::round(Math::parseNumber(strValue)));
@@ -142,76 +132,6 @@ Color Value::asColor() const {
     }
 
     return {0, 0, 0};
-}
-
-Value Value::operator+(const Value &other) const {
-    Value a = *this;
-    Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
-
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() + b.asInt());
-    }
-    return Value(a.asDouble() + b.asDouble());
-}
-
-Value Value::operator-(const Value &other) const {
-    Value a = *this;
-    Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
-
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() - b.asInt());
-    }
-    return Value(a.asDouble() - b.asDouble());
-}
-
-Value Value::operator*(const Value &other) const {
-    Value a = *this;
-    Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
-
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() * b.asInt());
-    }
-    return Value(a.asDouble() * b.asDouble());
-}
-
-Value Value::operator/(const Value &other) const {
-    Value a = *this;
-    Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
-
-    return Value(a.asDouble() / b.asDouble());
-}
-
-bool Value::operator==(const Value &other) const {
-    if (value.index() == other.value.index()) {
-        return value == other.value;
-    }
-
-    // Different types - compare as strings (Scratch behavior)
-    return asString() == other.asString();
-}
-
-bool Value::operator<(const Value &other) const {
-    if (isNumeric() && other.isNumeric()) {
-        if (std::isnan(other.asDouble()) && std::isinf(asDouble())) return true;
-        return asDouble() < other.asDouble();
-    }
-    return asString() < other.asString();
-}
-
-bool Value::operator>(const Value &other) const {
-    if (isNumeric() && other.isNumeric()) {
-        if (std::isnan(asDouble()) && std::isinf(other.asDouble())) return true;
-        return asDouble() > other.asDouble();
-    }
-    return asString() > other.asString();
 }
 
 Value Value::fromJson(const nlohmann::json &jsonVal) {

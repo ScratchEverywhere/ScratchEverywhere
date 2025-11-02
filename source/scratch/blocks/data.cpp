@@ -22,7 +22,8 @@ BlockResult DataBlocks::changeVariable(Block &block, Sprite *sprite, bool *witho
     Value oldVariable = BlockExecutor::getVariableValue(varId, sprite);
 
     if (val.isNumeric() && oldVariable.isNumeric()) {
-        val = val + oldVariable;
+
+        val = Value(val.asDouble() + oldVariable.asDouble());
     }
 
     BlockExecutor::setVariableValue(varId, val, sprite);
@@ -389,9 +390,14 @@ Value DataBlocks::listContainsItem(Block &block, Sprite *sprite) {
     if (targetSprite) {
         auto &list = targetSprite->lists[listName];
         for (const auto &item : list.items) {
-            if (item == itemToFind) {
-                return Value(true);
+            if (item.isNumeric() && itemToFind.isNumeric() && item.asString() != "NaN" && itemToFind.asString() != "NaN") {
+                if (item.asDouble() == itemToFind.asDouble()) return Value(true);
             }
+            std::string string1 = item.asString();
+            std::string string2 = itemToFind.asString();
+            std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+            std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+            if (string1 == string2) return Value(true);
         }
     }
 

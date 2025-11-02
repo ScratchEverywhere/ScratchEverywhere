@@ -35,21 +35,5 @@ class Value {
 
     Color asColor() const;
 
-    // Arithmetic operations
-    Value operator+(const Value &other) const;
-
-    Value operator-(const Value &other) const;
-
-    Value operator*(const Value &other) const;
-
-    Value operator/(const Value &other) const;
-
-    // Comparison operators
-    bool operator==(const Value &other) const;
-
-    bool operator<(const Value &other) const;
-
-    bool operator>(const Value &other) const;
-
     static Value fromJson(const nlohmann::json &jsonVal);
 };
