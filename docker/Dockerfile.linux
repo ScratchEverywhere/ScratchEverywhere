@@ -2,7 +2,7 @@ FROM gcc:14 AS main_builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake
 
 COPY . .
 
