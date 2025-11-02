@@ -48,7 +48,7 @@ bool Render::Init() {
     gfxInitDefault();
     hidScanInput();
     u32 kDown = hidKeysHeld();
-    if (kDown & KEY_SELECT) {
+    if (1 == 1 || kDown & KEY_SELECT) {
         consoleInit(GFX_BOTTOM, NULL);
         debugMode = true;
         isConsoleInit = true;

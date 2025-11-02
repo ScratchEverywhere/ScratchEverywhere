@@ -72,7 +72,7 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     if (projectType != UNZIPPED && fromProject)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        loadSoundFromFile(params.sprite, (fromProject ? "project/" : "") + params.soundId, params.streamed, fromProject);
+        loadSoundFromFile(params.sprite, (fromProject ? "project/" : "") + params.soundId, params.streamed);
 
 #endif
 }
@@ -211,7 +211,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
     return false;
 }
 
-bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed, const bool &fromProject) {
+bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
 #ifdef ENABLE_AUDIO
     Log::log("Loading audio from file: " + fileName);
 

@@ -144,11 +144,11 @@ void MainMenu::render() {
         SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
 
-        if (loadButton->isPressed()) {
-            ProjectMenu *projectMenu = new ProjectMenu();
-            MenuManager::changeMenu(projectMenu);
-            return;
-        }
+    if (loadButton->isPressed()) {
+        ProjectMenu *projectMenu = new ProjectMenu();
+        MenuManager::changeMenu(projectMenu);
+        return;
+    }
 
     // begin frame
     Render::beginFrame(0, 117, 77, 117);

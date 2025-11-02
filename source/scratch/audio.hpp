@@ -18,7 +18,7 @@ class SoundPlayer {
      * @param fromProject if the sound comes from a scratch project, or elsewhere, like say, the main menu.
      */
     static void startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed = false, const bool &fromProject = true);
-    static bool loadSoundFromFile(Sprite *sprite,std::string fileName, const bool &streamed = false, const bool &fromProject = true);
+    static bool loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed = false);
     static int playSound(const std::string &soundId);
     static void setSoundVolume(const std::string &soundId, float volume);
     static float getSoundVolume(const std::string &soundId);
