@@ -126,8 +126,10 @@ jobs:
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
           path: arm-build
-      - name: Download lipo
-        run: curl -L -o lipo https://github.com/konoui/lipo/releases/download/v0.9.4/lipo_linux_amd64
+      - name: Download and Prepare lipo
+        run: |
+          curl -L -o lipo https://github.com/konoui/lipo/releases/download/v0.9.4/lipo_linux_amd64
+          chmod +x lipo
       - name: Create Universal Binary
         run: ./lipo create -o scratch-everywhere intel-build/scratch-everywhere arm-build/scratch-everywhere
       - name: Upload Artifact
