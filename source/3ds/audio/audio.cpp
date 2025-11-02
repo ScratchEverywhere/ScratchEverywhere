@@ -66,7 +66,7 @@ SDL_Audio::~SDL_Audio() {
 #endif
 }
 
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
 #ifdef ENABLE_AUDIO
     if (!init()) return;
 
@@ -77,20 +77,20 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
     SDL_Sounds[soundId] = std::move(audio);
 
-    SDL_Audio::SoundLoadParams *params = new SDL_Audio::SoundLoadParams{
+    SDL_Audio::SoundLoadParams params = {
         .sprite = sprite,
         .zip = zip,
         .soundId = soundId,
         .streamed = true};
 
-#if defined(__OGC__) || defined(VITA)
-    params->streamed = false;
+#if defined(__OGC__)
+    params.streamed = false;
 #endif
 
-    if (projectType != UNZIPPED)
-        params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
+    if (projectType != UNZIPPED && fromProject)
+        loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        params->player->loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
+        loadSoundFromFile(params.sprite, (fromProject ? "project/" : "") + params.soundId, params.streamed);
 
 #endif
 }
@@ -153,7 +153,8 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
         Log::log(soundId + " has been loaded!");
 
         playSound(soundId);
-        setSoundVolume(soundId, sprite->volume);
+        const int volume = sprite != nullptr ? sprite->volume : 100;
+        setSoundVolume(soundId, volume);
         return true;
     }
 #endif
@@ -189,6 +190,10 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + std::string(SDL_GetError()));
         return false;
     }
+
+    // remove romfs from filename for soundId
+    fileName = fileName.substr(OS::getRomFSLocation().length());
+
     // Create SDL_Audio object
     std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
     audio->sound = sound;
@@ -198,7 +203,8 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     SDL_Sounds[fileName]->isLoaded = true;
     playSound(fileName);
-    setSoundVolume(fileName, sprite->volume);
+    const int volume = sprite != nullptr ? sprite->volume : 100;
+    setSoundVolume(fileName, volume);
     return true;
 #endif
     return false;
@@ -225,7 +231,7 @@ int SoundPlayer::playSound(const std::string &soundId) {
         }
 
         if (!MIX_PlayTrack(it->second->track, 0)) {
-            Log::logWarning("Failed to play track: " + std::string(SDL_GetError()));
+            Log::logWarning("Failed to play track: " + soundId + " " + std::string(SDL_GetError()));
             return -1;
         }
         Log::log(soundId + " is playing!");
@@ -251,6 +257,7 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
 
         if (!MIX_SetTrackGain(soundFind->second->track, sdlVolume)) {
             Log::logWarning("Failed to set track volume: " + std::string(SDL_GetError()));
+            return;
         }
 
         Log::log("Volume has been set to " + std::to_string(getSoundVolume(soundId)));
@@ -274,6 +281,26 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     }
 #endif
     return -1.0f;
+}
+
+double SoundPlayer::getMusicPosition(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        return (double)MIX_TrackFramesToMS(soundFind->second->track, MIX_GetTrackPlaybackPosition(soundFind->second->track));
+    }
+
+#endif
+    return 0.0;
+}
+
+void SoundPlayer::setMusicPosition(double position, const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        MIX_SetTrackPlaybackPosition(soundFind->second->track, MIX_TrackMSToFrames(soundFind->second->track, position));
+    }
+#endif
 }
 
 void SoundPlayer::stopSound(const std::string &soundId) {

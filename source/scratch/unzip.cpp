@@ -10,6 +10,7 @@
 
 #ifdef __PC__
 #include <cmrc/cmrc.hpp>
+#include <sstream>
 
 CMRC_DECLARE(romfs);
 #endif
