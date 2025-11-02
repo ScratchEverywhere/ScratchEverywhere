@@ -89,10 +89,10 @@ void MainMenu::init() {
 
 #endif
 
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg"))
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false, true);
-    else SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
+    // if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg"))
+    //     SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false, true);
+    // else SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+    // SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
 
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
@@ -133,8 +133,8 @@ void MainMenu::render() {
     Input::getInput();
     mainMenuControl->input();
 
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg"))
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+    // if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg"))
+    //     SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
 
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();

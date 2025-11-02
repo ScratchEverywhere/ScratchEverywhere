@@ -16,10 +16,9 @@ class SoundPlayer {
      * @param soundId the path of the sound file.
      * @param streamed if the sound should load and play as a "streamed" sound.
      * @param fromProject if the sound comes from a scratch project, or elsewhere, like say, the main menu.
-     * @param smoothTransition for streamed sounds, if this new sound should smoothly transition from the currently playing streamed sound.
      */
-    static void startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed = false, const bool &fromProject = true, const bool &smoothTransition = false);
-    static bool loadSoundFromFile(Sprite *sprite, const std::string &fileName, const bool &streamed = false, const bool &fromProject = true);
+    static void startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed = false, const bool &fromProject = true);
+    static bool loadSoundFromFile(Sprite *sprite,std::string fileName, const bool &streamed = false, const bool &fromProject = true);
     static int playSound(const std::string &soundId);
     static void setSoundVolume(const std::string &soundId, float volume);
     static float getSoundVolume(const std::string &soundId);

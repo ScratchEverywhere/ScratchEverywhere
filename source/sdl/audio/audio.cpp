@@ -48,7 +48,7 @@ bool SoundPlayer::init() {
     return false;
 }
 
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &smoothTransition) {
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
 #ifdef ENABLE_AUDIO
     if (!init()) return;
 
@@ -63,8 +63,7 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .sprite = sprite,
         .zip = zip,
         .soundId = soundId,
-        .streamed = sprite != nullptr ? sprite->isStage : streamed,
-        .fromProject = fromProject};
+        .streamed = sprite->isStage}; // stage sprites get streamed audio
 
 #if defined(__OGC__)
     params.streamed = false; // streamed sounds crash on wii.
@@ -73,7 +72,7 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     if (projectType != UNZIPPED)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        loadSoundFromFile(params.sprite, "project/" + params.soundId, params.streamed);
+        loadSoundFromFile(params.sprite, "project/" + params.soundId, params.streamed, fromProject);
 
 #endif
 }
@@ -212,17 +211,15 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
     return false;
 }
 
-bool SoundPlayer::loadSoundFromFile(Sprite *sprite, const std::string &fileName, const bool &streamed, const bool &fromProject) {
+bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed, const bool &fromProject) {
 #ifdef ENABLE_AUDIO
+    // Log::log("Loading audio from file: " + fileName);
 
     // Check if file has supported extension
     std::string lowerFileName = fileName;
     std::transform(lowerFileName.begin(), lowerFileName.end(), lowerFileName.begin(), ::tolower);
 
-    std::string filePath = fileName;
-
-    if (fromProject) filePath = "project/" + fileName;
-    filePath = OS::getRomFSLocation() + fileName;
+    fileName = OS::getRomFSLocation() + fileName;
 
     bool isSupported = false;
     if (lowerFileName.size() >= 4) {
@@ -239,15 +236,16 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, const std::string &fileName,
 
     Mix_Chunk *chunk = nullptr;
     Mix_Music *music = nullptr;
+    size_t audioMemorySize = 0;
 
     if (!streamed) {
-        chunk = Mix_LoadWAV(filePath.c_str());
+        chunk = Mix_LoadWAV(fileName.c_str());
         if (!chunk) {
             Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
         }
     } else {
-        music = Mix_LoadMUS(filePath.c_str());
+        music = Mix_LoadMUS(fileName.c_str());
         if (!music) {
             Log::logWarning("Failed to load streamed audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
@@ -258,32 +256,33 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, const std::string &fileName,
     std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
     if (!streamed)
         audio->audioChunk = chunk;
-    audio->isStreaming = false;
-}
-else {
-    audio->music = music;
-    audio->isStreaming = true;
-}
-audio->audioId = fileName;
-audio->memorySize = 0;
-audio->smoothTransition = SDL_Sounds[fileName]->smoothTransition;
+    else {
+        audio->music = music;
+        audio->isStreaming = true;
+    }
+    audio->audioId = fileName;
+    audio->memorySize = audioMemorySize;
 
-SDL_Sounds[fileName] = std::move(audio);
+    SDL_Sounds[fileName] = std::move(audio);
 
-Log::log("Successfully loaded audio!");
-SDL_Sounds[fileName]->isLoaded = true;
-SDL_Sounds[fileName]->channelId = SDL_Sounds.size();
-playSound(fileName);
-setSoundVolume(fileName, sprite != nullptr ? sprite->volume : 100);
-return true;
+    Log::log("Successfully loaded audio!");
+    SDL_Sounds[fileName]->isLoaded = true;
+    SDL_Sounds[fileName]->channelId = SDL_Sounds.size();
+    playSound(fileName);
+    setSoundVolume(fileName, sprite->volume);
+    return true;
 #endif
-return false;
+    return false;
 }
 
 int SoundPlayer::playSound(const std::string &soundId) {
 #ifdef ENABLE_AUDIO
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
+
+        if (!currentStreamedSound.empty() && it->second->isStreaming) {
+            stopStreamedSound();
+        }
 
         it->second->isPlaying = true;
 
@@ -294,21 +293,13 @@ int SoundPlayer::playSound(const std::string &soundId) {
             }
             return channel;
         } else {
-            // set music position of new streamed sound to old streamed sound
-            if (it->second->smoothTransition && SDL_Sounds.find(currentStreamedSound) != SDL_Sounds.end()) {
-                SDL_Sounds[currentStreamedSound]->musicPosition = getMusicPosition();
-                it->second->musicPosition = SDL_Sounds[currentStreamedSound]->musicPosition;
-                SDL_Sounds[currentStreamedSound]->musicPosition = 0.0;
-            }
-            if (currentStreamedSound != soundId)
-                stopStreamedSound();
             currentStreamedSound = soundId;
             int result = Mix_PlayMusic(it->second->music, 0);
             if (result == -1) {
                 Log::logWarning("Failed to play streamed sound: " + std::string(Mix_GetError()));
                 it->second->isPlaying = false;
                 currentStreamedSound = "";
-            } else setMusicPosition(it->second->musicPosition);
+            }
             return result;
         }
     }
@@ -336,21 +327,6 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
             Mix_Volume(channel, sdlVolume);
         }
     }
-#endif
-}
-
-double SoundPlayer::getMusicPosition() {
-#ifdef ENABLE_AUDIO
-    return Mix_GetMusicPosition(SDL_Sounds[currentStreamedSound]->music);
-#endif
-    return -1;
-}
-
-void SoundPlayer::setMusicPosition(double position) {
-#ifdef ENABLE_AUDIO
-    if (SDL_Sounds[currentStreamedSound]->isPlaying)
-        Mix_SetMusicPosition(position);
-    else SDL_Sounds[currentStreamedSound]->musicPosition = position;
 #endif
 }
 
@@ -404,9 +380,12 @@ void SoundPlayer::stopSound(const std::string &soundId) {
 void SoundPlayer::stopStreamedSound() {
 #ifdef ENABLE_AUDIO
     Mix_HaltMusic();
-    auto it = SDL_Sounds.find(currentStreamedSound);
-    if (it != SDL_Sounds.end()) {
-        it->second->isPlaying = false;
+    if (!currentStreamedSound.empty()) {
+        auto it = SDL_Sounds.find(currentStreamedSound);
+        if (it != SDL_Sounds.end()) {
+            it->second->isPlaying = false;
+        }
+        currentStreamedSound = "";
     }
 #endif
 }
