@@ -98,13 +98,13 @@ double Math::parseNumber(std::string str) {
         } else {
             conversion = std::stoi(str, &pos, base);
         }
-    } catch (const std::out_of_range& e) {
+    } catch (const std::out_of_range &e) {
         if (str[0] == '-') {
             return -std::numeric_limits<double>::infinity();
         } else {
             return std::numeric_limits<double>::infinity();
         }
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument &e) {
         return 0;
     }
     return conversion;
