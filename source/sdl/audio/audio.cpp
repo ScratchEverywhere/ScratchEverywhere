@@ -63,16 +63,16 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .sprite = sprite,
         .zip = zip,
         .soundId = soundId,
-        .streamed = sprite->isStage}; // stage sprites get streamed audio
+        .streamed = streamed || (sprite != nullptr && sprite->isStage)}; // stage sprites get streamed audio
 
 #if defined(__OGC__)
     params.streamed = false; // streamed sounds crash on wii.
 #endif
 
-    if (projectType != UNZIPPED)
+    if (projectType != UNZIPPED && fromProject)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        loadSoundFromFile(params.sprite, "project/" + params.soundId, params.streamed, fromProject);
+        loadSoundFromFile(params.sprite, (fromProject ? "project/" : "") + params.soundId, params.streamed, fromProject);
 
 #endif
 }
@@ -213,7 +213,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
 bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed, const bool &fromProject) {
 #ifdef ENABLE_AUDIO
-    // Log::log("Loading audio from file: " + fileName);
+    Log::log("Loading audio from file: " + fileName);
 
     // Check if file has supported extension
     std::string lowerFileName = fileName;
@@ -265,11 +265,12 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     SDL_Sounds[fileName] = std::move(audio);
 
-    Log::log("Successfully loaded audio!");
+    Log::log("Successfully loaded audio! " + fileName);
     SDL_Sounds[fileName]->isLoaded = true;
     SDL_Sounds[fileName]->channelId = SDL_Sounds.size();
     playSound(fileName);
-    setSoundVolume(fileName, sprite->volume);
+    const int volume = sprite != nullptr ? sprite->volume : 100;
+    setSoundVolume(fileName, volume);
     return true;
 #endif
     return false;
