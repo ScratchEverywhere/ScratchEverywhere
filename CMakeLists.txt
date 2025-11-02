@@ -17,14 +17,40 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 	file(DOWNLOAD "https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake"
 		 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake"
 		 STATUS status LOG log_content)
-	if(status)
+	if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
 	endif()
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC
+include(FetchContent)
+FetchContent_Declare(
+  cmrc
+  URL https://github.com/vector-of-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(cmrc)
+include(${cmrc_SOURCE_DIR}/CMakeRC.cmake)   
+
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
+
+# Copy graphics files to romfs
+file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
+foreach(file IN LISTS GFXFILES)
+	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+
+    set(DEST_PATH "${CMAKE_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
+
+    get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
+    file(MAKE_DIRECTORY "${DEST_DIR}")
+
+    configure_file("${file}" "${DEST_PATH}" COPYONLY)
+endforeach()
+
+file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
+cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
 
 if(SE_SYSTEM)
 	find_package(nlohmann_json 3.12.0 REQUIRED)
@@ -39,6 +65,7 @@ include(FetchContent)
 FetchContent_Declare(
     miniz
     URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
+	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(miniz)
 
@@ -67,7 +94,6 @@ if(NOT SE_HEADLESS)
 			GITHUB_REPOSITORY libsdl-org/SDL_image
 			GIT_TAG release-2.8.8
 		)
-		set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes FreeType Compilation
 		CPMAddPackage(
 			NAME SDL2_ttf
 			VERSION 2.24.0
@@ -156,22 +182,14 @@ list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+	add_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+	link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
+endif()
+
 if(NOT BUILD_SHARED_LIBS AND WIN32)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()
-
-# Copy graphics files to romfs
-file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
-foreach(file IN LISTS GFXFILES)
-    file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
-
-    set(DEST_PATH "${CMAKE_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
-
-    get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
-    file(MAKE_DIRECTORY "${DEST_DIR}")
-
-    configure_file("${file}" "${DEST_PATH}" COPYONLY)
-endforeach()
 
 if (NOT SE_HEADLESS)
 	set(SDL_LINK_LIBS)
@@ -225,5 +243,5 @@ if(SE_CLOUDVARS)
 	target_link_libraries(scratch-everywhere PRIVATE mist++)
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json romfs::rc)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
