@@ -17,7 +17,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 	file(DOWNLOAD "https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake"
 		 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake"
 		 STATUS status LOG log_content)
-	if(status)
+	if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
 	endif()
 endif()
