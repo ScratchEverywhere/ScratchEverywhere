@@ -14,9 +14,11 @@ ENV MACOSX_DEPLOYMENT_TARGET="10.15"
 
 COPY . .
 
+ARG ARCH=x86_64
+
 # TODO: Cloud Variables
 RUN mkdir build && cd build && \
-	x86_64-apple-darwin22.2-cmake \
+	${ARCH}-apple-darwin22.2-cmake \
 	-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET \
 	-DSE_CLOUDVARS=OFF \
 	-DCMAKE_BUILD_TYPE=Release \
