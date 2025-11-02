@@ -13,6 +13,16 @@ ProjectMenu::~ProjectMenu() {
 
 void ProjectMenu::init() {
 
+#ifdef __3DS__
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
+    }
+    SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    if (SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_splash.ogg"), "gfx/menu/mm_full.ogg");
+        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
+    }
+#else
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
@@ -23,6 +33,7 @@ void ProjectMenu::init() {
     }
     SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 100.0f);
     SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 0.0f);
+#endif
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -132,10 +143,16 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
+#ifdef __3DS__
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    }
+#else
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
         SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
+#endif
 
     float targetY = 0.0f;
     float lerpSpeed = 0.1f;

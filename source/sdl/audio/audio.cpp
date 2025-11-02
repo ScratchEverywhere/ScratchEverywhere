@@ -260,6 +260,10 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         audio->music = music;
         audio->isStreaming = true;
     }
+
+    // remove romfs from filename for soundId
+    fileName = fileName.substr(OS::getRomFSLocation().length());
+
     audio->audioId = fileName;
     audio->memorySize = audioMemorySize;
 
@@ -355,6 +359,26 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     }
 #endif
     return -1.0f;
+}
+
+double SoundPlayer::getMusicPosition(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        // ill get to it i think
+    }
+
+#endif
+    return 0.0;
+}
+
+void SoundPlayer::setMusicPosition(double position, const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        // ...
+    }
+#endif
 }
 
 void SoundPlayer::stopSound(const std::string &soundId) {

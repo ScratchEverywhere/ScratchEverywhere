@@ -22,8 +22,8 @@ class SoundPlayer {
     static int playSound(const std::string &soundId);
     static void setSoundVolume(const std::string &soundId, float volume);
     static float getSoundVolume(const std::string &soundId);
-    static double getMusicPosition();
-    static void setMusicPosition(double position);
+    static double getMusicPosition(const std::string &soundId = "");
+    static void setMusicPosition(double position, const std::string &soundId = "");
     static void stopSound(const std::string &soundId);
     static void stopStreamedSound();
     static void checkAudio();

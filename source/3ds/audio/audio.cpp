@@ -283,6 +283,26 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     return -1.0f;
 }
 
+double SoundPlayer::getMusicPosition(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        return (double)MIX_TrackFramesToMS(soundFind->second->track, MIX_GetTrackPlaybackPosition(soundFind->second->track));
+    }
+
+#endif
+    return 0.0;
+}
+
+void SoundPlayer::setMusicPosition(double position, const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        MIX_SetTrackPlaybackPosition(soundFind->second->track, MIX_TrackMSToFrames(soundFind->second->track, position));
+    }
+#endif
+}
+
 void SoundPlayer::stopSound(const std::string &soundId) {
 #ifdef ENABLE_AUDIO
     auto soundFind = SDL_Sounds.find(soundId);
