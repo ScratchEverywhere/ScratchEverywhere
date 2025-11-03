@@ -2,7 +2,7 @@
 
 std::unordered_map<std::string, Sound> SoundPlayer::soundsPlaying;
 
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
 }
 
 bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed) {
@@ -26,6 +26,13 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
 float SoundPlayer::getSoundVolume(const std::string &soundId) {
 
     return 0.0f;
+}
+
+double SoundPlayer::getMusicPosition(const std::string &soundId) {
+    return 0.0;
+}
+
+void SoundPlayer::setMusicPosition(double position, const std::string &soundId) {
 }
 
 void SoundPlayer::stopSound(const std::string &soundId) {
