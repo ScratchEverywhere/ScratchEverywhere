@@ -12,7 +12,7 @@ typedef struct {
     int textureID;
     int atlasWidth;
     int atlasHeight;
-    int fontPixels;
+    int fontSize;
     int firstChar;
     int numChars;
     stbtt_bakedchar *charData = nullptr;
@@ -20,17 +20,18 @@ typedef struct {
 
 class TextObjectNDS : public TextObject {
   private:
-    bool loadFont(std::string fontPath);
+    bool loadFont(std::string fontPath, int fontSize);
     void setDimensions();
     int width = 0;
     int height = 0;
 
   protected:
     FontData *font;
+    int fontSize = 16;
 
   public:
     static std::map<std::string, FontData> fonts;
-    TextObjectNDS(std::string txt, double posX, double posY, std::string fontPath = "");
+    TextObjectNDS(std::string txt, double posX, double posY, std::string fontPath = "", int fontSize = 16);
     ~TextObjectNDS() override;
 
     void setText(std::string txt) override;

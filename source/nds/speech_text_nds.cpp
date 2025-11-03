@@ -5,7 +5,7 @@
 #include <vector>
 
 SpeechTextObjectNDS::SpeechTextObjectNDS(const std::string &text, int maxWidth)
-    : TextObjectNDS(text, 0, 0, "gfx/menu/Ubuntu-Bold"), SpeechText(text, maxWidth) {
+    : TextObjectNDS(text, 0, 0, "gfx/menu/Ubuntu-Bold", 14), SpeechText(text, maxWidth) {
     setColor(Math::color(0, 0, 0, 255));
     setCenterAligned(false);
     platformSetText(wrapText());
@@ -14,7 +14,7 @@ SpeechTextObjectNDS::SpeechTextObjectNDS(const std::string &text, int maxWidth)
 float SpeechTextObjectNDS::measureTextWidth(const std::string &text) {
     if (text.empty()) return 0.0f;
 
-    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold");
+    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
     temp.setText(text);
     auto size = temp.getSize();
     return size[0];
@@ -36,7 +36,7 @@ std::vector<float> SpeechTextObjectNDS::getSize() {
 
     float maxWidth = 0.0f;
     float totalHeight = 0.0f;
-    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold");
+    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
     temp.setColor(color);
     temp.setCenterAligned(false);
 
@@ -62,7 +62,7 @@ void SpeechTextObjectNDS::render(int xPos, int yPos) {
     std::vector<std::string> lines = splitTextByNewlines(getText());
     if (lines.empty()) return;
 
-    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold");
+    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
     temp.setColor(color);
     temp.setCenterAligned(false);
 
