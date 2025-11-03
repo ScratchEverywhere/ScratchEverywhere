@@ -241,7 +241,11 @@ if (NOT SE_HEADLESS)
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 endif()
 
-target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD)
+target_compile_definitions(scratch-everywhere PRIVATE __PC__)
+
+if(NOT SE_HEADLESS)
+	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
+endif()
 
 if(SE_AUDIO)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
