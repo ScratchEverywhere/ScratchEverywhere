@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
 #ifdef __EMSCRIPTEN__
     if (argc > 1) {
         while (!std::filesystem::exists("/romfs/project.sb3")) {
-            if (!Render::appShouldRun) {
+            if (!Render::appShouldRun()) {
                 exitApp();
                 exit(0);
             }
