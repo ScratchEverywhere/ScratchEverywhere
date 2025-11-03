@@ -10,7 +10,7 @@ class SpeechTextObjectSDL : public TextObjectSDL, public SpeechText {
 
   public:
     SpeechTextObjectSDL(const std::string &text, int maxWidth = 200);
-    ~SpeechTextObjectSDL() override = default;
+    ~SpeechTextObjectSDL() override;
 
     void setText(std::string txt) override;
 };

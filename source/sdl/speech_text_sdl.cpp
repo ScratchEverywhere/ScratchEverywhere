@@ -9,9 +9,30 @@ SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
     setColor(0x00);
     setCenterAligned(false); // easier for positioning logic
 
+    if (font && !pathFont.empty()) {
+        TextObjectSDL::fontUsageCount[pathFont]--;
+        if (TextObjectSDL::fontUsageCount[pathFont] <= 0) {
+            TTF_CloseFont(TextObjectSDL::fonts[pathFont]);
+            TextObjectSDL::fonts.erase(pathFont);
+            TextObjectSDL::fontUsageCount.erase(pathFont);
+        }
+        font = nullptr;
+        pathFont.clear();
+    }
+
     font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/Arialn.ttf").c_str(), 16);
+    if (!font) {
+        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/menu/Arialn.ttf") + ": " + TTF_GetError());
+    }
 
     platformSetText(wrapText());
+}
+
+SpeechTextObjectSDL::~SpeechTextObjectSDL() {
+    if (font) {
+        TTF_CloseFont(font);
+        font = nullptr;
+    }
 }
 
 float SpeechTextObjectSDL::measureTextWidth(const std::string &text) {
