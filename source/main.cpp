@@ -93,6 +93,7 @@ int main(int argc, char **argv) {
                 exitApp();
                 exit(0);
             }
+            emscripten_sleep(0);
         }
     }
 #endif
