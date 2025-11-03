@@ -70,7 +70,7 @@
         "project_url",
       );
       if (projectUrl) {
-        Module.arguments.push("project_url");
+        Module.arguments = ["project_url"];
 
         Module.preRun.push(async () => {
           let res = await fetch(projectUrl);
