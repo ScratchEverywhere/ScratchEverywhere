@@ -3,7 +3,7 @@ name: PC Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_pc
+      - CMakeLists.txt
       - source/scratch/**
       - source/sdl/**
       - gfx/menu/**
