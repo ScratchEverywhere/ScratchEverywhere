@@ -5,6 +5,8 @@
 #include "speech_manager_3ds.hpp"
 #elif defined(SDL_BUILD)
 #include "speech_manager_sdl.hpp"
+#elif defined(__NDS__)
+#include "speech_manager_nds.hpp"
 #else
 #include "speech_manager.hpp"
 #endif
@@ -31,6 +33,9 @@ extern SpeechManager3DS *speechManager;
 #elif defined(SDL_BUILD)
 class SpeechManagerSDL;
 extern SpeechManagerSDL *speechManager;
+#elif defined(__NDS__)
+class SpeechManagerNDS;
+extern SpeechManagerNDS *speechManager;
 #else
 class SpeechManager;
 extern SpeechManager *speechManager;

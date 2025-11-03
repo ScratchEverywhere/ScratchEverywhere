@@ -22,9 +22,11 @@ class TextObjectNDS : public TextObject {
   private:
     bool loadFont(std::string fontPath);
     void setDimensions();
-    FontData *font;
     int width = 0;
     int height = 0;
+
+  protected:
+    FontData *font;
 
   public:
     static std::map<std::string, FontData> fonts;

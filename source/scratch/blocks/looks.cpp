@@ -8,6 +8,8 @@
 #include "speech_manager_3ds.hpp"
 #elif defined(SDL_BUILD)
 #include "speech_manager_sdl.hpp"
+#elif defined(__NDS__)
+#include "speech_manager_nds.hpp"
 #else
 #include "speech_manager.hpp"
 #endif
