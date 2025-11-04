@@ -21,11 +21,7 @@ BlockResult DataBlocks::changeVariable(Block &block, Sprite *sprite, bool *witho
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
     Value oldVariable = BlockExecutor::getVariableValue(varId, sprite);
 
-    if (val.isNumeric() && oldVariable.isNumeric()) {
-        val = val + oldVariable;
-    }
-
-    BlockExecutor::setVariableValue(varId, val, sprite);
+    BlockExecutor::setVariableValue(varId, Value(val.asDouble() + oldVariable.asDouble()), sprite);
     return BlockResult::CONTINUE;
 }
 
