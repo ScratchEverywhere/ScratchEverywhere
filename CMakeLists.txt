@@ -260,3 +260,15 @@ endif()
 
 target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json romfs::rc)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+
+if(PSP)
+    create_pbp_file(
+        TARGET scratch-everywhere
+		# TODO: add Icon, Background, and preview GFX
+        ICON_PATH NULL
+        BACKGROUND_PATH NULL
+        PREVIEW_PATH NULL
+        TITLE scratch-everywhere
+        VERSION ${PROJECT_VERSION}
+    )
+endif()
