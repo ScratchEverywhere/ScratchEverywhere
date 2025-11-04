@@ -110,7 +110,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             std::string ext4 = zipFileName.substr(zipFileName.size() - 4);
             std::transform(ext4.begin(), ext4.end(), ext4.begin(), ::tolower);
 
-            if (ext4 == ".mp3" || ext4 == ".wav" || ext4 == ".ogg") {
+            if (ext4 == ".mp3" || ext4 == ".mpga" || ext4 == ".wav" || ext4 == ".ogg" || ext4 == ".oga") {
                 isAudio = true;
                 extension = ext4;
             }
@@ -148,36 +148,41 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                     return false;
                 }
             } else {
-                // need to write to a temp file because this is a zip file
-                std::string tempDir = OS::getScratchFolderLocation() + "/cache";
-                std::string tempFile = tempDir + "/temp_" + soundId;
+                SDL_RWops *rw = SDL_RWFromMem(file_data, (int)file_size);
+                if (!rw) {
+                    Log::logWarning("Cannot create RWops for streamed music, falling back to extract method.");
+                    std::string tempDir = OS::getScratchFolderLocation() + "/cache";
+                    std::string tempFile = tempDir + "/temp_" + soundId;
 
-                // make cache directory
-                try {
-                    std::filesystem::create_directories(tempDir);
-                } catch (const std::exception &e) {
-                    Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
+                    // make cache directory
+                    try {
+                        std::filesystem::create_directories(tempDir);
+                    } catch (const std::exception &e) {
+                        Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
+                        mz_free(file_data);
+                        return false;
+                    }
+
+                    FILE *fp = fopen(tempFile.c_str(), "wb");
+                    if (!fp) {
+                        Log::logWarning("Failed to create temp file for streaming");
+                        mz_free(file_data);
+                        return false;
+                    }
+
+                    fwrite(file_data, 1, file_size, fp);
+                    fclose(fp);
                     mz_free(file_data);
-                    return false;
-                }
 
-                FILE *fp = fopen(tempFile.c_str(), "wb");
-                if (!fp) {
-                    Log::logWarning("Failed to create temp file for streaming");
+                    music = Mix_LoadMUS(tempFile.c_str());
+
+                    // Clean up temp file
+                    remove(tempFile.c_str());
+
+                } else {
+                    music = Mix_LoadMUS_RW(rw, 1);
                     mz_free(file_data);
-                    return false;
                 }
-
-                fwrite(file_data, 1, file_size, fp);
-                fclose(fp);
-                mz_free(file_data);
-
-                // Log::log("Converting sound into SDL streamed music...");
-                music = Mix_LoadMUS(tempFile.c_str());
-
-                // Clean up temp file
-                remove(tempFile.c_str());
-
                 if (!music) {
                     Log::logWarning("Failed to load music from memory: " + zipFileName + " - SDL_mixer Error: " + Mix_GetError());
                     return false;
@@ -229,7 +234,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     bool isSupported = false;
     if (lowerFileName.size() >= 4) {
         std::string ext = lowerFileName.substr(lowerFileName.size() - 4);
-        if (ext == ".mp3" || ext == ".wav" || ext == ".ogg") {
+        if (ext == ".mp3" || ext == ".mpga" || ext == ".wav" || ext == ".ogg" || ext == ".oga") {
             isSupported = true;
         }
     }
