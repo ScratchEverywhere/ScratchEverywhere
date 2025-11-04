@@ -19,6 +19,9 @@ Switch:
 Vita:
   - '### Device\(s\)\s*.*Vita'
 
+PSP:
+  - '### Device\(s\)\s*.*PSP'
+
 Web:
   - '### Device\(s\)\s*.*Web'
 

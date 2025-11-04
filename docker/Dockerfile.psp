@@ -1,0 +1,10 @@
+FROM pspdev/pspdev:latest AS main_builder
+WORKDIR /app
+
+COPY . .
+
+RUN psp-cmake -B build/psp -S . -DSE_SYSTEM=ON -DSE_CLOUDVARS=OFF && make -C build/psp -j $(nproc)
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build/psp/scratch-everywhere.zip /

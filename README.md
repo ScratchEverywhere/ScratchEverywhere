@@ -102,7 +102,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   Extensions (e.g. pen and music extensions) are not yet supported.
 -   Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 -   Performance is poor when using many (~50+) clones (memory management issue).
--   **[Wii, Switch, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
+-   **[Wii, Switch, PSP, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
 -   **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 -   **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 -   **[GameCube]** Cloud Variables will not be supported.
@@ -110,6 +110,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   **[NDS]** Dual screen mode will not be supported.
 -   **[3DS]** Performace is poor when lots of blocks are running at once.
 -   **[3DS]** If you have a bunch of large images, some may not load.
+-   **[PSP]** Images cannot be over 512x512.
 -   **[Vita]** Back touch will not be supported.
 -   **[PS4]** The software keyboard isn't currently supported.
 
@@ -254,6 +255,14 @@ Put your Scratch Projects in `ux0:data/scratch-vita/` (you will need to create t
 
 Then it should be as simple as opening and starting the app from your Vita's LiveArea homescreen!
 
+### Get up and running for PSP
+
+Download the `scratch-psp.zip` file from the releases tab or nightly build, and put it in your PSP's memory card in `PSP/GAME`.
+
+Put your Scratch Projects in `PSP/GAME/scratch-psp/scratch-everywhere/` (you will need to create the folder yourself).
+
+Then it should be as simple as opening the app on your PSP!
+
 ### Get up and running for PS4
 
 > [!NOTE]
@@ -296,6 +305,8 @@ To compile with Docker all you need installed is Docker and Buildx.
 
 -   To compile for the **Vita**, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
 
+-   To compile for the **PSP**, run `docker build -f docker/Dockerfile.psp --target exporter -o . .`.
+
 -   To compile for the **PS4**, run `docker build -f docker/Dockerfile.ps4 --target exporter -o . .`.
 
 #### Manual
@@ -315,6 +326,7 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 -   **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 -   **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
 -   **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
+-   **For the PSP**, all you need is the [PSPSDK](https://pspdev.github.io) toolchain. It includes every SDL2 thing you might need.
 -   **For the PS4**, you will need the [OpenOrbis](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain) toolchain, [PacBrew](https://github.com/PacBrew/ps4-openorbis-portlibs) portlibs which include SDL2, and our [fixed packages](https://github.com/gradylink/pacbrew-packages).
 
 > [!NOTE]
@@ -335,6 +347,7 @@ Then you need to compile the projects into proper Homebrew packages.
 -   **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
 -   **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
 -   **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
+-   **For the PSP**, run `psp-cmake -B build/psp -S . -DSE_SYSTEM=ON -DSE_CLOUDVARS=OFF && make -C build/psp`, then unzip the `scratch-everywhere.zip` file at `build/psp` and transfer the `scratch-psp` folder over to your PSP.
 -   **For the PS4**, you will need to run `make PLATFORM=ps4`, then find the `.pkg` file at `build/ps4/scratch-ps4.pkg`.
 
 #### Compilation Flags
