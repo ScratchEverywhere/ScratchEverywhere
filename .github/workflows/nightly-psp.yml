@@ -37,4 +37,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! PSP Nightly
-          path: scratch-everywhere.zip
+          path: scratch-psp.zip

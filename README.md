@@ -347,7 +347,7 @@ Then you need to compile the projects into proper Homebrew packages.
 -   **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
 -   **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
 -   **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
--   **For the PSP**, run `psp-cmake -B build/psp -S . -DSE_SYSTEM=ON -DSE_CLOUDVARS=OFF && make -C build/psp`, then unzip the `scratch-everywhere.zip` file at `build/psp` and transfer the `scratch-psp` folder over to your PSP.
+-   **For the PSP**, run `psp-cmake -B build/psp -S . -DSE_SYSTEM=ON -DSE_CLOUDVARS=OFF && make -C build/psp`, then unzip the `scratch-psp.zip` file at `build/psp` and transfer the `scratch-psp` folder over to your PSP.
 -   **For the PS4**, you will need to run `make PLATFORM=ps4`, then find the `.pkg` file at `build/ps4/scratch-ps4.pkg`.
 
 #### Compilation Flags

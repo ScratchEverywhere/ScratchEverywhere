@@ -7,4 +7,4 @@ RUN psp-cmake -B build/psp -S . -DSE_SYSTEM=ON -DSE_CLOUDVARS=OFF && make -C bui
 
 FROM scratch AS exporter
 
-COPY --from=main_builder /app/build/psp/scratch-everywhere.zip /
+COPY --from=main_builder /app/build/psp/scratch-psp.zip /
