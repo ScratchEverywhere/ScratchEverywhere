@@ -268,10 +268,9 @@ target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_
 if(PSP)
     create_pbp_file(
         TARGET scratch-everywhere
-		# TODO: add Icon, Background, and preview GFX
-        ICON_PATH NULL
+        ICON_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gfx/psp/ICON0.png
         BACKGROUND_PATH NULL
-        PREVIEW_PATH NULL
+        PREVIEW_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gfx/psp/PIC1.png
         TITLE scratch-everywhere
         VERSION ${PROJECT_VERSION}
     )
