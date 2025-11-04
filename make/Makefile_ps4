@@ -3,7 +3,7 @@
 
 # Package metadata.
 TITLE       := Scratch Everywhere!
-VERSION     := 0.27
+VERSION     := 0.28
 TITLE_ID    := NTXS10053
 CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 

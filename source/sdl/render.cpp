@@ -205,6 +205,12 @@ postAccount:
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
     debugMode = true;
+
+    // Print SDL version number. could be useful for debugging
+    SDL_version ver;
+    SDL_VERSION(&ver);
+    Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
+
     return true;
 }
 void Render::deInit() {

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.27 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.28 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -241,7 +241,11 @@ if (NOT SE_HEADLESS)
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 endif()
 
-target_compile_definitions(scratch-everywhere PRIVATE __PC__ SDL_BUILD)
+target_compile_definitions(scratch-everywhere PRIVATE __PC__)
+
+if(NOT SE_HEADLESS)
+	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
+endif()
 
 if(SE_AUDIO)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
