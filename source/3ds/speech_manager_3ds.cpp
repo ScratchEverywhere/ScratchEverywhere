@@ -3,8 +3,6 @@
 #include "interpret.hpp"
 #include <3ds.h>
 
-void renderSubrect(C2D_Image img, uint16_t srcX, uint16_t srcY, uint16_t srcW, uint16_t srcH, float destX, float destY, float destW, float destH, C2D_ImageTint *tint);
-
 SpeechManager3DS::SpeechManager3DS() {
     speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");
 }
