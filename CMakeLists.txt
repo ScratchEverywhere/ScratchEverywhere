@@ -243,6 +243,10 @@ endif()
 
 target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 
+if(PSP)
+target_compile_definitions(scratch-everywhere PRIVATE __PSP__)
+endif()
+
 if(NOT SE_HEADLESS)
 	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
 endif()

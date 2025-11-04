@@ -186,6 +186,9 @@ postAccount:
 
     Log::log("[Vita] Running sceNetCtlInit");
     sceNetCtlInit();
+#elif defined(__PSP__)
+    windowWidth = 480;
+    windowHeight = 272;
 #elif defined(__PS4__)
     int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
     if (rc != ORBIS_OK) {
