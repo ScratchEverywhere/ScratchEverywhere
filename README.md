@@ -10,6 +10,7 @@
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml/badge.svg" alt="GameCube Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml/badge.svg" alt="Switch Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml/badge.svg" alt="Vita Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml/badge.svg" alt="PSP Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml/badge.svg" alt="PS4 Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml/badge.svg" alt="PC Nightly Build"></a>
 <a href="https://discord.gg/Y2gf5vZHpJ"><img alt="Discord" src="https://img.shields.io/discord/1408875318248345612?style=flat&logo=discord&label=Discord%20Server&link=https%3A%2F%2Fdiscord.gg%2FY2gf5vZHpJ"></a>
@@ -257,7 +258,7 @@ Then it should be as simple as opening and starting the app from your Vita's Liv
 
 ### Get up and running for PSP
 
-Download the `scratch-psp.zip` file from the releases tab or nightly build, and put it in your PSP's memory card in `PSP/GAME`.
+Download the `scratch-psp.zip` file from the releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-psp/main/Scratch%20Everywhere!%20PSP%20Nightly.zip), and put it in your PSP's memory card in `PSP/GAME`.
 
 Put your Scratch Projects in `PSP/GAME/scratch-psp/scratch-everywhere/` (you will need to create the folder yourself).
 
