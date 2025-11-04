@@ -1,5 +1,4 @@
 #include "speech_text_3ds.hpp"
-#include "../scratch/image.hpp"
 #include "math.hpp"
 #include <3ds.h>
 

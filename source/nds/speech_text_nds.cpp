@@ -1,8 +1,6 @@
 #include "speech_text_nds.hpp"
 #include "../scratch/math.hpp"
 #include "text_nds.hpp"
-#include <string>
-#include <vector>
 
 SpeechTextObjectNDS::SpeechTextObjectNDS(const std::string &text, int maxWidth)
     : TextObjectNDS(text, 0, 0, "gfx/menu/Ubuntu-Bold", 14), SpeechText(text, maxWidth) {
