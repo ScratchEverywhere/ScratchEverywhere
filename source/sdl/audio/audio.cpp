@@ -53,7 +53,7 @@ bool SoundPlayer::init() {
     return false;
 }
 
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &fromCache) { // fromCache is only necessary for dowmnloaded sounds like from T2S
 #ifdef ENABLE_AUDIO
     if (!init()) return;
 
@@ -74,10 +74,10 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     params.streamed = false; // streamed sounds crash on wii.
 #endif
 
-    if (projectType != UNZIPPED && fromProject)
+    if (projectType != UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        loadSoundFromFile(params.sprite, (fromProject ? "project/" : "") + params.soundId, params.streamed);
+        loadSoundFromFile(params.sprite, (fromProject && !fromCache ? "project/" : "") + params.soundId, params.streamed, fromCache);
 
 #endif
 }
@@ -221,7 +221,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
     return false;
 }
 
-bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
+bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
     Log::log("Loading audio from file: " + fileName);
 
@@ -229,7 +229,8 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     std::string lowerFileName = fileName;
     std::transform(lowerFileName.begin(), lowerFileName.end(), lowerFileName.begin(), ::tolower);
 
-    fileName = OS::getRomFSLocation() + fileName;
+    if (!fromCache)
+        fileName = OS::getRomFSLocation() + fileName;
 
     bool isSupported = false;
     if (lowerFileName.size() >= 4) {
@@ -282,7 +283,8 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     }
 
     // remove romfs from filename for soundId
-    fileName = fileName.substr(OS::getRomFSLocation().length());
+    if (!fromCache)
+        fileName = fileName.substr(OS::getRomFSLocation().length());
 
     audio->audioId = fileName;
     audio->memorySize = audioMemorySize;
