@@ -161,7 +161,7 @@ class Render {
                 renderY = static_cast<int>(-spriteY + (screenHeight >> 1));
             }
 
-#ifdef SDL_BUILD
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
             renderX -= (sprite->spriteWidth * sprite->renderInfo.renderScaleY);
             renderY -= (sprite->spriteHeight * sprite->renderInfo.renderScaleY);
 #endif

@@ -32,7 +32,7 @@ ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -ftls-model=local-exec
 
 CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(ARCH) $(DEFINES)
 
-CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DSDL_BUILD
+CFLAGS	+=	$(INCLUDE) -D__SWITCH__ -DRENDERER_SDL2
 CFLAGS  +=  `$(PKGCONF) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2`
 
 ifeq ($(ENABLE_AUDIO),1)

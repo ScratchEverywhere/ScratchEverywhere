@@ -4,8 +4,10 @@
 #include <fstream>
 #ifdef __3DS__
 #include <3ds.h>
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL2)
 #include "SDL2/SDL.h"
+#elif defined(RENDERER_SDL3)
+#include "SDL3/SDL.h"
 #endif
 
 #ifdef __PC__
@@ -167,8 +169,7 @@ bool Unzip::load() {
     loading.cleanup();
     osSetSpeedupEnable(false);
 
-#elif defined(SDL_BUILD) // create SDL2 thread for loading screen
-
+#elif defined(RENDERER_SDL2) || defined(RENDERER_SDL3) // create SDL thread for loading screen
     SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, "LoadingScreen", nullptr);
 
     if (thread != NULL && thread != nullptr) {

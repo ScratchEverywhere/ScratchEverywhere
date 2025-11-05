@@ -8,8 +8,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
 option(SE_AUDIO "Enables audio in SE!" ON)
 option(SE_CLOUDVARS "Enable cloud variables." ON)
-option(SE_HEADLESS "Makes SE! use a headless renderer instead of SDL2. This will override the SE_AUDIO setting." OFF)
 option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+
+set(
+    SE_RENDERER
+    "headless"
+    CACHE STRING "Select the desired renderer backend. Options: 'headless', 'sdl2', 'sdl3'."
+)
+list(
+    APPEND SE_RENDERER_VALID_OPTIONS
+    "headless"
+    "sdl2"
+    "sdl3"
+)
+if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
+    message(
+        FATAL_ERROR
+        "Invalid value for SE_RENDERER: '${SE_RENDERER}'. Must be one of: ${SE_RENDERER_VALID_OPTIONS}"
+    )
+endif()
 
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 	message(STATUS "Downloading CPM.cmake...")
@@ -66,7 +83,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz)
 
-if(NOT SE_HEADLESS)
+if(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
 		find_package(PkgConfig REQUIRED)
 
@@ -136,6 +153,46 @@ if(NOT SE_HEADLESS)
 			)
 		endif()
 	endif()
+elseif(SE_RENDERER STREQUAL "sdl3")
+	if(SE_SYSTEM)
+		find_package(PkgConfig REQUIRED)
+
+		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
+		pkg_check_modules(SDL3_IMAGE REQUIRED SDL3_image>=3.0.0)
+		pkg_check_modules(SDL3_TTF REQUIRED SDL3_ttf>=3.0.0)
+
+		if (SE_AUDIO)
+			pkg_check_modules(SDL3_MIXER REQUIRED SDL3_mixer>=2.0.0)
+		endif()
+	else()
+		CPMAddPackage(
+			NAME SDL3
+			VERSION 3.2.26
+			GITHUB_REPOSITORY libsdl-org/SDL
+			GIT_TAG release-3.2.26
+		)
+		CPMAddPackage(
+			NAME SDL3_image
+			VERSION 3.2.4
+			GITHUB_REPOSITORY libsdl-org/SDL_image
+			GIT_TAG release-3.2.4
+		)
+		CPMAddPackage(
+			NAME SDL3_ttf
+			VERSION 3.2.2
+			GITHUB_REPOSITORY libsdl-org/SDL_ttf
+			GIT_TAG release-3.2.2
+			OPTIONS "SDLTTF_VENDORED ON"
+		)
+		if(SE_AUDIO)
+			CPMAddPackage(
+				NAME SDL3_mixer
+				VERSION 3
+				GITHUB_REPOSITORY libsdl-org/SDL_mixer
+				GIT_TAG main # TODO: pin version
+			)
+		endif()
+	endif()
 endif()
 
 if(SE_CLOUDVARS)
@@ -167,10 +224,12 @@ if(SE_CLOUDVARS)
 	CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
 endif()
 
-if(SE_HEADLESS)
+if(SE_RENDERER STREQUAL "headless")
 	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/headless)
+elseif(SE_RENDERER STREQUAL "sdl3")
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl3 source/sdl3/audio)
 else()
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio)
 endif()
 
 set(SOURCE_FILES)
@@ -195,7 +254,41 @@ if(NOT BUILD_SHARED_LIBS AND WIN32)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()
 
-if (NOT SE_HEADLESS)
+if(SE_RENDERER STREQUAL "sdl3")
+	set(SDL_LINK_LIBS)
+	list(APPEND SDL_LINK_LIBS SDL3::SDL3)
+
+	if(SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS})
+
+		if (SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS ${SDL3_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL3_MIXER_INCLUDE_DIRS})
+		endif()
+	elseif(BUILD_SHARED_LIBS)
+		list(APPEND SDL_LINK_LIBS SDL3_image::SDL3_image)
+		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
+
+		if(SE_AUDIO)	
+			list(APPEND SDL_LINK_LIBS SDL3_mixer::SDL3_mixer)
+		endif()
+	else()
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_image::SDL3_image-static>,
+			SDL3_image::SDL3_image-static,
+			SDL3_image::SDL3_image>)
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_ttf::SDL3_ttf-static>,
+			SDL3_ttf::SDL3_ttf-static,
+			SDL3_ttf::SDL3_ttf>)
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,
+				SDL3_mixer::SDL3_mixer-static,
+				SDL3_mixer::SDL3_mixer>)
+		endif()
+	endif()
+
+	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+elseif(SE_RENDERER STREQUAL "sdl2")
 	set(SDL_LINK_LIBS)
 
 	if(SE_SYSTEM)
@@ -243,8 +336,12 @@ endif()
 
 target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 
-if(NOT SE_HEADLESS)
-	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
+if(SE_RENDERER STREQUAL "sdl2")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL2)
+elseif(SE_RENDERER STREQUAL "sdl3")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL3)
+elseif(SE_RENDERER STREQUAL "headless")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
 endif()
 
 if(SE_AUDIO)

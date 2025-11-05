@@ -18,7 +18,7 @@ LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceSysmodule -lSceAudioOut
 			    -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lsamplerate -lpthread \
 			   
 # Additional compile flags.
-EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
+EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DRENDERER_SDL2 -DCONSOLE -DMOUSE_INPUT
 
 # Build target
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)

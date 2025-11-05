@@ -41,7 +41,7 @@ CFLAGS   := -O2 -pipe -Wno-psabi -Wl,-q $(addprefix -I,$(INCLUDES)) -I$(VITASDK)
 CXXFLAGS := -O2 -pipe -Wno-psabi -Wl,-q -std=c++17 $(addprefix -I,$(INCLUDES)) -I$(VITASDK)/arm-vita-eabi/include/SDL2
 
 # Specify vita as the target platform + SDL flags
-VITAFLAGS := -DVITA -DSDL_BUILD
+VITAFLAGS := -DVITA -DRENDERER_SDL2
 CFLAGS   += $(VITAFLAGS)
 CXXFLAGS += $(VITAFLAGS)
 
