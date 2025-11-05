@@ -45,15 +45,17 @@ extern std::string customUsername;
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
     float rawMouseX, rawMouseY;
-    if (SDL_GetTouchDevices(NULL) != NULL) {
+    int numDevices;
+    SDL_GetTouchDevices(&numDevices);
+    if (numDevices > 0) {
         pos.push_back(touchPosition.x);
         pos.push_back(touchPosition.y);
-    } else {
-        SDL_GetMouseState(&rawMouseX, &rawMouseY);
-        pos.push_back(rawMouseX);
-        pos.push_back(rawMouseY);
+        return pos;
     }
 
+    SDL_GetMouseState(&rawMouseX, &rawMouseY);
+    pos.push_back(rawMouseX);
+    pos.push_back(rawMouseY);
     return pos;
 }
 
@@ -235,7 +237,9 @@ void Input::getInput() {
     } else keyHeldFrames = 0;
 
     // TODO: Add way to disable touch input (currently overrides mouse input.)
-    if (SDL_GetTouchDevices(NULL) != NULL) {
+    int numDevices;
+    SDL_GetTouchDevices(&numDevices);
+    if (numDevices > 0) {
         // Transform touch coordinates to Scratch space
         auto coords = screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
         mousePointer.x = coords.first;
@@ -251,10 +255,8 @@ void Input::getInput() {
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 
-    Uint32 buttons = SDL_GetMouseState(NULL, NULL);
-    if (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) {
-        mousePointer.isPressed = true;
-    }
+    const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
+    mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;
 
     doSpriteClicking();
 }
