@@ -357,3 +357,20 @@ endif()
 
 target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json romfs::rc)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+
+if(PSP)
+    create_pbp_file(
+        TARGET scratch-everywhere
+        ICON_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gfx/psp/ICON0.png
+        BACKGROUND_PATH NULL
+        PREVIEW_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gfx/psp/PIC1.png
+        TITLE scratch-everywhere
+        VERSION ${PROJECT_VERSION}
+    )
+	# package the EBOOT.pbp
+	add_custom_command(TARGET scratch-everywhere POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/scratch-psp"
+    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:scratch-everywhere>" "${CMAKE_BINARY_DIR}/scratch-psp/EBOOT.PBP"
+    COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/scratch-psp.zip" --format=zip -- "${CMAKE_BINARY_DIR}/scratch-psp"
+)
+endif()

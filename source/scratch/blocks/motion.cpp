@@ -82,25 +82,31 @@ BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, bool *withoutScre
 
 BlockResult MotionBlocks::turnLeft(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DEGREES", sprite);
-    if (value.isNumeric()) {
-        sprite->rotation -= value.asDouble();
+    const double direction = value.asDouble();
+    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
+        return BlockResult::CONTINUE;
     }
+    sprite->rotation -= direction - floor((direction + 179) / 360) * 360;
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::turnRight(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DEGREES", sprite);
-    if (value.isNumeric()) {
-        sprite->rotation += value.asDouble();
+    const double direction = value.asDouble();
+    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
+        return BlockResult::CONTINUE;
     }
+    sprite->rotation += direction - floor((direction + 179) / 360) * 360;
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::pointInDirection(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DIRECTION", sprite);
-    if (value.isNumeric()) {
-        sprite->rotation = value.asDouble();
+    const double direction = value.asDouble();
+    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
+        return BlockResult::CONTINUE;
     }
+    sprite->rotation = direction - floor((direction + 179) / 360) * 360;
     return BlockResult::CONTINUE;
 }
 

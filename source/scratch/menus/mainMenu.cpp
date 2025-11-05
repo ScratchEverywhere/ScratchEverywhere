@@ -96,6 +96,7 @@ void MainMenu::init() {
         SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_full.ogg"), "gfx/menu/mm_splash.ogg");
         SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
     }
+#elif defined(__PSP__)
 #else
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
@@ -156,6 +157,7 @@ void MainMenu::render() {
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
     }
+#elif defined(__PSP__)
 #else
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
