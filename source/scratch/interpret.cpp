@@ -54,6 +54,7 @@ int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
 bool Scratch::turbo = false;
+bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
@@ -116,7 +117,7 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) // These platforms require Mist++ 0.2.0 or later.
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
 #else // These platforms require Mist++ 0.1.4 or later.
     cloudConnection->connect();
@@ -170,6 +171,10 @@ bool Scratch::startScratchProject() {
             Render::renderSprites();
 
             if (shouldStop) {
+#if defined(HEADLESS_BUILD)
+                toExit = true;
+                return false;
+#endif
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
@@ -220,6 +225,7 @@ void Scratch::cleanupScratchProject() {
     // reset default settings
     Scratch::FPS = 30;
     Scratch::turbo = false;
+    Scratch::hqpen = false;
     Scratch::projectWidth = 480;
     Scratch::projectHeight = 360;
     Scratch::fencing = true;
@@ -685,13 +691,13 @@ void loadSprites(const nlohmann::json &json) {
 
         // set Lists
         for (const auto &[id, data] : target["lists"].items()) {
-            List newList;
+            auto result = newSprite->lists.try_emplace(id).first;
+            List &newList = result->second;
             newList.id = id;
             newList.name = data[0];
-            for (const auto &listItem : data[1]) {
+            newList.items.reserve(data[1].size());
+            for (const auto &listItem : data[1])
                 newList.items.push_back(Value::fromJson(listItem));
-            }
-            newSprite->lists[newList.id] = newList; // add list
         }
 
         // set Sounds
@@ -903,6 +909,14 @@ void loadSprites(const nlohmann::json &json) {
 #endif
     }
     try {
+        Scratch::hqpen = config["hq"].get<bool>();
+        Log::log("Set hqpen mode to: " + std::to_string(Scratch::hqpen));
+    } catch (...) {
+#ifdef DEBUG
+        Log::logWarning("no hqpen property.");
+#endif
+    }
+    try {
         Scratch::projectWidth = config["width"].get<int>();
         Log::log("Set width to:" + std::to_string(Scratch::projectWidth));
     } catch (...) {
@@ -999,7 +1013,7 @@ void loadSprites(const nlohmann::json &json) {
 
     Unzip::loadingState = "Finishing up!";
 
-    Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
+    Input::applyControls(Unzip::filePath + ".json");
     Render::setRenderScale();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }

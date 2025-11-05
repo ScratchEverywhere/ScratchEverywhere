@@ -6,6 +6,8 @@
 #include "../sdl/text_sdl.hpp"
 #elif defined(__NDS__)
 #include "../nds/text_nds.hpp"
+#elif defined(HEADLESS_BUILD)
+#include "../headless/text_headless.hpp"
 #endif
 
 TextObject::TextObject(std::string txt, double posX, double posY, std::string fontPath) {
@@ -21,6 +23,8 @@ TextObject *createTextObject(std::string txt, double posX, double posY, std::str
     return new TextObjectSDL(txt, posX, posY, fontPath);
 #elif defined(__NDS__)
     return new TextObjectNDS(txt, posX, posY, fontPath);
+#elif defined(HEADLESS_BUILD)
+    return new HeadlessText(txt, posX, posY, fontPath);
 #else
     return nullptr;
 #endif

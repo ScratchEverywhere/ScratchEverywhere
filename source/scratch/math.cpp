@@ -32,6 +32,7 @@ int Math::color(int r, int g, int b, int a) {
 #elif defined(__3DS__)
     return C2D_Color32(r, g, b, a);
 #endif
+    return 0;
 }
 
 double Math::parseNumber(const std::string &str) {

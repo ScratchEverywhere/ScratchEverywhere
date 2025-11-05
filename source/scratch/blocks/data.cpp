@@ -21,11 +21,7 @@ BlockResult DataBlocks::changeVariable(Block &block, Sprite *sprite, bool *witho
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
     Value oldVariable = BlockExecutor::getVariableValue(varId, sprite);
 
-    if (val.isNumeric() && oldVariable.isNumeric()) {
-        val = val + oldVariable;
-    }
-
-    BlockExecutor::setVariableValue(varId, val, sprite);
+    BlockExecutor::setVariableValue(varId, Value(val.asDouble() + oldVariable.asDouble()), sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -134,6 +130,9 @@ BlockResult DataBlocks::deleteFromList(Block &block, Sprite *sprite, bool *witho
 
         return BlockResult::CONTINUE;
     }
+
+    if (items.empty()) return BlockResult::CONTINUE;
+
     if (val.asString() == "last" && !items.empty()) {
         items.pop_back();
         return BlockResult::CONTINUE;
@@ -206,6 +205,9 @@ BlockResult DataBlocks::insertAtList(Block &block, Sprite *sprite, bool *without
 
         return BlockResult::CONTINUE;
     }
+
+    if (targetSprite->lists[listId].items.empty()) return BlockResult::CONTINUE;
+
     if (index.asString() == "last") {
         targetSprite->lists[listId].items.push_back(val);
         return BlockResult::CONTINUE;
@@ -286,6 +288,8 @@ Value DataBlocks::itemOfList(Block &block, Sprite *sprite) {
     if (!targetSprite) return Value();
 
     auto &items = targetSprite->lists[listName].items;
+
+    if (items.empty()) return Value();
 
     if (indexStr.asString() == "last") return Value(Math::removeQuotations(items.back().asString()));
 

@@ -10,7 +10,7 @@
 #include "text.hpp"
 #include "unzip.hpp"
 #include <SDL2/SDL.h>
-#include <SDL2/SDL2_gfxPrimitives.h>
+#include <SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -34,12 +34,12 @@ char nickname[0x21];
 #endif
 
 #ifdef VITA
-#include <psp2/touch.h>
+#include <psp2/io/fcntl.h>
+#include <psp2/net/http.h>
 #include <psp2/net/net.h>
 #include <psp2/net/netctl.h>
-#include <psp2/net/http.h>
-#include <psp2/io/fcntl.h>
 #include <psp2/sysmodule.h>
+#include <psp2/touch.h>
 #endif
 
 #ifdef __OGC__
@@ -49,9 +49,9 @@ char nickname[0x21];
 #endif
 
 #ifdef __PS4__
+#include <orbis/Net.h>
 #include <orbis/Sysmodule.h>
 #include <orbis/libkernel.h>
-#include <orbis/Net.h>
 
 inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
     // On PS4 there is no DPI scaling, so this is fine
@@ -178,7 +178,7 @@ postAccount:
 
     Log::log("[Vita] Running sceNetInit");
     SceNetInitParam netInitParam;
-    int size = 1*1024*1024; // net buffer size ([size in MB]*1024*1024)
+    int size = 1 * 1024 * 1024; // net buffer size ([size in MB]*1024*1024)
     netInitParam.memory = malloc(size);
     netInitParam.size = size;
     netInitParam.flags = 0;
@@ -186,6 +186,9 @@ postAccount:
 
     Log::log("[Vita] Running sceNetCtlInit");
     sceNetCtlInit();
+#elif defined(__PSP__)
+    windowWidth = 480;
+    windowHeight = 272;
 #elif defined(__PS4__)
     int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
     if (rc != ORBIS_OK) {
@@ -205,6 +208,12 @@ postAccount:
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
     debugMode = true;
+
+    // Print SDL version number. could be useful for debugging
+    SDL_version ver;
+    SDL_VERSION(&ver);
+    Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
+
     return true;
 }
 void Render::deInit() {
@@ -242,7 +251,12 @@ int Render::getHeight() {
 bool Render::initPen() {
     if (penTexture != nullptr) return true;
 
-    penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+    if (Scratch::hqpen) {
+        if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight))
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight)), windowHeight);
+        else
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, windowWidth, Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth)));
+    } else penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
 
     // Clear the texture
     SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
@@ -270,37 +284,44 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
 #endif
 
-    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+    int penWidth;
+    int penHeight;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+
+    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
     SDL_SetTextureBlendMode(tempTexture, blendMode);
-    SDL_SetTextureAlphaMod(tempTexture, (sprite->penData.transparency - 100) / 100 * 255);
+    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
 
-    const double dx = x2 - x1;
-    const double dy = y2 - y1;
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+
+    const double dx = x2 * scale - x1 * scale;
+    const double dy = y2 * scale - y1 * scale;
 
     const double length = sqrt(dx * dx + dy * dy);
+    const double drawWidth = (sprite->penData.size / 2.0f) * scale;
 
     if (length > 0) {
         const double nx = dx / length;
         const double ny = dy / length;
 
         int16_t vx[4], vy[4];
-        vx[0] = static_cast<int16_t>(x1 + Scratch::projectWidth / 2 - ny * (sprite->penData.size / 2));
-        vy[0] = static_cast<int16_t>(-y1 + Scratch::projectHeight / 2 + nx * (sprite->penData.size / 2));
-        vx[1] = static_cast<int16_t>(x1 + Scratch::projectWidth / 2 + ny * (sprite->penData.size / 2));
-        vy[1] = static_cast<int16_t>(-y1 + Scratch::projectHeight / 2 - nx * (sprite->penData.size / 2));
-        vx[2] = static_cast<int16_t>(x2 + Scratch::projectWidth / 2 + ny * (sprite->penData.size / 2));
-        vy[2] = static_cast<int16_t>(-y2 + Scratch::projectHeight / 2 - nx * (sprite->penData.size / 2));
-        vx[3] = static_cast<int16_t>(x2 + Scratch::projectWidth / 2 - ny * (sprite->penData.size / 2));
-        vy[3] = static_cast<int16_t>(-y2 + Scratch::projectHeight / 2 + nx * (sprite->penData.size / 2));
+        vx[0] = static_cast<int16_t>(x1 * scale + penWidth / 2.0f - ny * drawWidth);
+        vy[0] = static_cast<int16_t>(-y1 * scale + penHeight / 2.0f + nx * drawWidth);
+        vx[1] = static_cast<int16_t>(x1 * scale + penWidth / 2.0f + ny * drawWidth);
+        vy[1] = static_cast<int16_t>(-y1 * scale + penHeight / 2.0f - nx * drawWidth);
+        vx[2] = static_cast<int16_t>(x2 * scale + penWidth / 2.0f + ny * drawWidth);
+        vy[2] = static_cast<int16_t>(-y2 * scale + penHeight / 2.0f - nx * drawWidth);
+        vx[3] = static_cast<int16_t>(x2 * scale + penWidth / 2.0 - ny * drawWidth);
+        vy[3] = static_cast<int16_t>(-y2 * scale + penHeight / 2.0f + nx * drawWidth);
 
         filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
     }
 
-    filledCircleRGBA(renderer, x1 + Scratch::projectWidth / 2, -y1 + Scratch::projectHeight / 2, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
-    filledCircleRGBA(renderer, x2 + Scratch::projectWidth / 2, -y2 + Scratch::projectHeight / 2, sprite->penData.size / 2, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, x1 * scale + penWidth / 2.0f, -y1 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, x2 * scale + penWidth / 2.0f, -y2 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawBlendMode(renderer, blendMode);
@@ -551,6 +572,24 @@ bool Render::appShouldRun() {
             case SDL_WINDOWEVENT_RESIZED:
                 SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
                 setRenderScale();
+
+                if (!Scratch::hqpen) break;
+
+                SDL_Texture *newTexture;
+                if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight))
+                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight)), windowHeight);
+                else
+                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, windowWidth, Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth)));
+
+                SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_NONE);
+                SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_NONE);
+                SDL_SetRenderTarget(renderer, newTexture);
+                SDL_RenderCopy(renderer, penTexture, nullptr, nullptr);
+                SDL_SetRenderTarget(renderer, nullptr);
+                SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_BLEND);
+                SDL_DestroyTexture(penTexture);
+                penTexture = newTexture;
+
                 break;
             }
             break;

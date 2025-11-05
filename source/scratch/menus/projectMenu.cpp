@@ -1,4 +1,5 @@
 #include "projectMenu.hpp"
+#include "audio.hpp"
 #include "projectSettings.hpp"
 #include "unpackMenu.hpp"
 
@@ -11,6 +12,31 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
+
+#ifdef __NDS__
+
+#elif defined(__3DS__)
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
+    }
+    SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    if (SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_splash.ogg"), "gfx/menu/mm_full.ogg");
+        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
+    }
+#elif defined(__PSP__)
+#else
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
+        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
+        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
+        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    }
+    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 100.0f);
+    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 0.0f);
+#endif
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -120,6 +146,22 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
+#ifdef __NDS__
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
+        SoundPlayer::playSound("gfx/menu/mm_full.wav");
+    }
+#elif defined(__3DS__)
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    }
+#elif defined(__PSP__)
+#else
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
+        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
+    }
+#endif
+
     float targetY = 0.0f;
     float lerpSpeed = 0.1f;
 
@@ -128,12 +170,12 @@ void ProjectMenu::render() {
 
             if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
                 // Unpacked sb3
-                Unzip::filePath = projectControl->selectedObject->text->getText();
+                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
                 MenuManager::loadProject();
                 return;
             } else {
                 // normal sb3
-                Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
+                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
                 MenuManager::loadProject();
                 return;
             }

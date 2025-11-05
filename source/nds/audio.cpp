@@ -149,13 +149,13 @@ mm_stream_formats NDS_Audio::getMMStreamType(uint16_t numChannels, uint16_t bits
 }
 #endif
 
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
 #ifdef ENABLE_AUDIO
 
-    if (projectType != UNZIPPED)
+    if (projectType != UNZIPPED && zip != nullptr)
         loadSoundFromSB3(sprite, zip, soundId, true);
     else
-        loadSoundFromFile(sprite, "project/" + soundId, true);
+        loadSoundFromFile(sprite, (fromProject ? "project/" : "") + soundId, true);
 #endif
 }
 
@@ -302,6 +302,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     mmStreamOpen(&stream);
     audio.isPlaying = true;
     std::string baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
+    baseName = baseName.substr(OS::getRomFSLocation().length());
     NDS_Sounds[baseName] = std::move(audio);
     NDS_Sounds[baseName].id = baseName;
     return true;
@@ -340,6 +341,19 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
 float SoundPlayer::getSoundVolume(const std::string &soundId) {
 
     return 0.0f;
+}
+
+double SoundPlayer::getMusicPosition(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+
+#endif
+    return 0.0;
+}
+
+void SoundPlayer::setMusicPosition(double position, const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+
+#endif
 }
 
 void SoundPlayer::stopSound(const std::string &soundId) {

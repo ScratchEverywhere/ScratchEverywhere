@@ -10,7 +10,9 @@
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml/badge.svg" alt="GameCube Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml/badge.svg" alt="Switch Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml/badge.svg" alt="Vita Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml/badge.svg" alt="PSP Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml/badge.svg" alt="PS4 Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml/badge.svg" alt="PC Nightly Build"></a>
 <a href="https://discord.gg/Y2gf5vZHpJ"><img alt="Discord" src="https://img.shields.io/discord/1408875318248345612?style=flat&logo=discord&label=Discord%20Server&link=https%3A%2F%2Fdiscord.gg%2FY2gf5vZHpJ"></a>
 </p>
 
@@ -101,7 +103,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   Extensions (e.g. pen and music extensions) are not yet supported.
 -   Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 -   Performance is poor when using many (~50+) clones (memory management issue).
--   **[Wii, Switch, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
+-   **[Wii, Switch, PSP, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
 -   **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the only one that will work.
 -   **[Wii]** If you're using a PAL Wii, you must use 50Hz.
 -   **[GameCube]** Cloud Variables will not be supported.
@@ -109,6 +111,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   **[NDS]** Dual screen mode will not be supported.
 -   **[3DS]** Performace is poor when lots of blocks are running at once.
 -   **[3DS]** If you have a bunch of large images, some may not load.
+-   **[PSP]** Images cannot be over 512x512.
 -   **[Vita]** Back touch will not be supported.
 -   **[PS4]** The software keyboard isn't currently supported.
 
@@ -253,6 +256,14 @@ Put your Scratch Projects in `ux0:data/scratch-vita/` (you will need to create t
 
 Then it should be as simple as opening and starting the app from your Vita's LiveArea homescreen!
 
+### Get up and running for PSP
+
+Download the `scratch-psp.zip` file from the releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-psp/main/Scratch%20Everywhere!%20PSP%20Nightly.zip), and put it in your PSP's memory card in `PSP/GAME`.
+
+Put your Scratch Projects in `PSP/GAME/scratch-psp/scratch-everywhere/` (you will need to create the folder yourself).
+
+Then it should be as simple as opening the app on your PSP!
+
 ### Get up and running for PS4
 
 > [!NOTE]
@@ -274,10 +285,14 @@ If you would like to change the name of the app or any other information you can
 -   **For the Wii U**, you need to edit `Makefile_wiiu` and change `APP_NAME`, `APP_SHORT_DESCRIPTION`, `APP_LONG_DESCRIPTION` and `APP_AUTHOR` to whatever you please.
 -   **For the Wii**, you need to edit `Makefile_wii` and change anything under `Application Info` to whatever you please.
 -   **For the Vita**, you need to edit the properties under `# METADATA/CONFIG` to whatever you please. Do note however, if you're going to use custom LiveArea images, you must run them through `pngquant` (install with your package manager) with `--posterize` set to 4 first before packaging.
+-   **For the PS4**, you need to edit `Makefile_ps4` and change anything under `Package metadata` to whatever you please.
 
 #### Docker
 
-The recommended way to compile Scratch Everywhere! is with Docker. To compile with Docker all you need installed is Docker and Buildx.
+The recommended way to compile Scratch Everywhere! is with Docker. 
+
+We have written a step-by-step guide with pictures (for Windows) that explains the build process very simply, you can find it here: https://ScratchEverywhere.github.io/docker
+To compile with Docker all you need installed is Docker and Buildx.
 
 -   To compile for the **3DS**, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
 
@@ -291,12 +306,17 @@ The recommended way to compile Scratch Everywhere! is with Docker. To compile wi
 
 -   To compile for the **Vita**, run `docker build -f docker/Dockerfile.vita --target exporter -o . .`.
 
+-   To compile for the **PSP**, run `docker build -f docker/Dockerfile.psp --target exporter -o . .`.
+
 -   To compile for the **PS4**, run `docker build -f docker/Dockerfile.ps4 --target exporter -o . .`.
 
 #### Manual
 
+> [!WARNING]
+> We are currently migrating our build system from standalone Makefiles to a centralized `CMakeLists.txt` so documentation in this section might be outdated.
+
 > [!NOTE]
-> We do not provide manual instructuons for PS4 because of how absolutely messy the environment is, please just use Docker.
+> We recommend using Docker for PS4 because of how absolutely messy the environment is.
 
 If you are compiling with cloud variables, you will need to have DevkitPro's SDKs, [Mist++](https://github.com/ScratchEverywhere/mistpp), and a modified version of libcurl (instructions in mistpp-packages repo) installed.
 
@@ -307,6 +327,8 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 -   **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 -   **For the Switch**, you need the DevkitA64 toolchain, libnx, and all SDL2-switch libraries.
 -   **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
+-   **For the PSP**, all you need is the [PSPSDK](https://pspdev.github.io) toolchain. It includes every SDL2 thing you might need.
+-   **For the PS4**, you will need the [OpenOrbis](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain) toolchain, [PacBrew](https://github.com/PacBrew/ps4-openorbis-portlibs) portlibs which include SDL2, and our [fixed packages](https://github.com/gradylink/pacbrew-packages).
 
 > [!NOTE]
 > DevkitPro's install instructions are available at: https://devkitpro.org/wiki/Getting_Started
@@ -326,8 +348,13 @@ Then you need to compile the projects into proper Homebrew packages.
 -   **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
 -   **For the Switch**, you need to run `make PLATFORM=switch`, then find the `.nro` file at `build/switch/scratch-nx.nro`.
 -   **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
+-   **For the PSP**, run `psp-cmake -B build/psp -S . -DSE_SYSTEM=ON -DSE_CLOUDVARS=OFF && make -C build/psp`, then unzip the `scratch-psp.zip` file at `build/psp` and transfer the `scratch-psp` folder over to your PSP.
+-   **For the PS4**, you will need to run `make PLATFORM=ps4`, then find the `.pkg` file at `build/ps4/scratch-ps4.pkg`.
 
 #### Compilation Flags
+
+> [!WARNING]
+> We are currently migrating our build system from standalone Makefiles to a centralized `CMakeLists.txt` so documentation in this section might be outdated.
 
 Compilation flags are used to select which features will be enabled in the compiled version of Scratch Everywhere!. To use a compilation flag simply add it to the end of the make command (e.g. `make ENABLE_LOADSCREEN=0`).
 
