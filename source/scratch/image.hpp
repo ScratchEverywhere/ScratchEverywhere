@@ -1,6 +1,6 @@
 #pragma once
 #include "interpret.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include <string>
 
 class Image {

@@ -14,8 +14,8 @@ PKGCONF := $(DEVKITPRO)/portlibs/switch/bin/aarch64-none-elf-pkg-config
 TARGET		:=	scratch-nx
 BUILD		:=	build/switch
 SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann
-APP_VERSION	:=	0.27
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl include/nlohmann include/miniz
+APP_VERSION	:=	0.28
 ICON		:=	gfx/wiiu/switch-icon.jpg
 APP_TITLE	:=	Scratch Everywhere!
 APP_AUTHOR	:=	NateXS and Grady Link
@@ -123,8 +123,8 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
-	@cp -r $(GRAPHICS)/* $@/
-
+	@cp -r $(GRAPHICS)/menu $@/
+#	@cp -r $(GRAPHICS)/ingame $@/
 clean:
 	@echo clean ...
 	@rm -fr $(BUILD) $(BUILD)/$(TARGET).pfs0 $(BUILD)/$(TARGET).nso $(BUILD)/$(TARGET).nro $(BUILD)/$(TARGET).nacp $(BUILD)/$(TARGET).elf $(GFXBUILD)

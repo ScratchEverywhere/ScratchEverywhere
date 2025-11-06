@@ -1,8 +1,10 @@
 #include "math.hpp"
 #include <algorithm>
 #include <ctime>
+#include <limits>
 #include <math.h>
 #include <random>
+#include <stdexcept>
 #include <string>
 #ifdef __3DS__
 #include <citro2d.h>
@@ -30,9 +32,14 @@ int Math::color(int r, int g, int b, int a) {
 #elif defined(__3DS__)
     return C2D_Color32(r, g, b, a);
 #endif
+    return 0;
 }
 
 double Math::parseNumber(const std::string &str) {
+    if (str == "Infinity") return std::numeric_limits<double>::infinity();
+    if (str == "NaN") return std::numeric_limits<double>::quiet_NaN();
+    if (str == "-NaN") return -std::numeric_limits<double>::quiet_NaN();
+
     if (str[0] == '0') {
         uint8_t base = 0;
 
@@ -52,6 +59,7 @@ double Math::parseNumber(const std::string &str) {
             return std::stoi(str.substr(2, str.length() - 2), 0, base);
     }
 
+    if (str[0] == 'I' || str[0] == 'i') throw std::invalid_argument("");
     return std::stod(str);
 }
 

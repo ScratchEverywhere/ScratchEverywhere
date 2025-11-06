@@ -1,7 +1,7 @@
 #pragma once
 
 #include "interpret.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "os.hpp"
 #include <filesystem>
 #include <fstream>
@@ -35,9 +35,9 @@ class Unzip {
     static void openScratchProject(void *arg) {
         loadingState = "Opening Scratch project";
         Unzip::UnpackedInSD = false;
-        std::ifstream file;
+        std::istream *file = nullptr;
 
-        int isFileOpen = openFile(&file);
+        int isFileOpen = openFile(file);
         if (isFileOpen == 0) {
             Log::logError("Failed to open Scratch project.");
             Unzip::projectOpened = -1;
@@ -50,17 +50,19 @@ class Unzip {
             return;
         }
         loadingState = "Unzipping Scratch project";
-        nlohmann::json project_json = unzipProject(&file);
+        nlohmann::json project_json = unzipProject(file);
         if (project_json.empty()) {
             Log::logError("Project.json is empty.");
             Unzip::projectOpened = -2;
             Unzip::threadFinished = true;
+            delete file;
             return;
         }
         loadingState = "Loading Sprites";
         loadSprites(project_json);
         Unzip::projectOpened = 1;
         Unzip::threadFinished = true;
+        delete file;
         return;
     }
 
@@ -184,7 +186,7 @@ class Unzip {
         return splash;
     }
 
-    static nlohmann::json unzipProject(std::ifstream *file) {
+    static nlohmann::json unzipProject(std::istream *file) {
         nlohmann::json project_json;
 
         if (projectType != UNZIPPED) {
@@ -262,7 +264,7 @@ class Unzip {
         return project_json;
     }
 
-    static int openFile(std::ifstream *file);
+    static int openFile(std::istream *&file);
 
     static bool load();
 
@@ -319,7 +321,7 @@ class Unzip {
     }
 
     static nlohmann::json getSetting(const std::string &settingName) {
-        std::string folderPath = OS::getScratchFolderLocation() + filePath + ".json";
+        std::string folderPath = filePath + ".json";
 
         std::ifstream file(folderPath);
         if (!file.good()) {

@@ -1,6 +1,6 @@
 #include "image.hpp"
 #include "../scratch/image.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "os.hpp"
 #include "render.hpp"
 #include "unzip.hpp"
@@ -13,6 +13,12 @@
 
 std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;
+
+#ifdef __PC__
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
+#endif
 
 Image::Image(std::string filePath) {
     if (!loadImageFromFile(filePath, nullptr, false)) return;
@@ -360,7 +366,12 @@ void Image::FlushImages() {
 SDL_Image::SDL_Image() {}
 
 SDL_Image::SDL_Image(std::string filePath) {
+#ifdef __PC__
+    const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+    spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+#else
     spriteSurface = IMG_Load(filePath.c_str());
+#endif
     if (spriteSurface == NULL) {
         Log::logWarning(std::string("Error loading image: ") + IMG_GetError());
         return;

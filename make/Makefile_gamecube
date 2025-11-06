@@ -20,7 +20,7 @@ TARGET		:=	scratch-gamecube
 BUILD		:=	build/gamecube
 SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
 DATA		:=	data
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann include/miniz
 ROMFS		:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -119,7 +119,8 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
-	@cp -r $(GRAPHICS)/* $@/
+	@cp -r $(GRAPHICS)/menu $@/
+#	@cp -r $(GRAPHICS)/ingame $@/
 
 ifneq ($(DEPSDIR),$(BUILD))
 $(DEPSDIR):

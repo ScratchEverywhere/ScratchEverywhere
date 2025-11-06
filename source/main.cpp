@@ -86,7 +86,15 @@ int main(int argc, char **argv) {
     srand(time(NULL));
 
 #ifdef __EMSCRIPTEN__
-    emscripten_sleep(1500); // Ummm, this makes it so it has time to load the project from the url, not hacky at all, trust me bro.
+    if (argc > 1) {
+        while (!std::filesystem::exists("/romfs/project.sb3")) {
+            if (!Render::appShouldRun()) {
+                exitApp();
+                exit(0);
+            }
+            emscripten_sleep(0);
+        }
+    }
 #endif
 
     if (!Unzip::load()) {
@@ -99,7 +107,7 @@ int main(int argc, char **argv) {
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();
-                Unzip::filePath = filename;
+                Unzip::filePath = OS::getScratchFolderLocation() + filename;
                 Unzip::load(); // TODO: Error handling
             },
                                             &uploadComplete);
