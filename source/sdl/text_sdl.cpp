@@ -22,7 +22,7 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // get font
     if (fontPath.empty()) {
-        fontPath = "gfx/menu/Arialn";
+        fontPath = "gfx/menu/LibSansN";
     }
     fontPath = OS::getRomFSLocation() + fontPath;
     fontPath = fontPath + ".ttf";
