@@ -1,4 +1,5 @@
 #include "interpret.hpp"
+#include "scratch/input.hpp"
 #include "scratch/menus/menuManager.hpp"
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
@@ -35,6 +36,8 @@ bool activateMainMenu() {
     menuManager.changeMenu(MenuID::MainMenu);
 
     while (Render::appShouldRun(&menuManager)) {
+        Input::getInput();
+
         menuManager.render();
         if (Unzip::projectOpened >= 0) break;
 

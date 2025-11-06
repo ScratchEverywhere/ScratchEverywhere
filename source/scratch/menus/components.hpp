@@ -57,6 +57,8 @@ class Sidebar {
     std::string unSelectedTab = "";
 
     std::map<std::string, std::unique_ptr<Image>> images;
+    std::unique_ptr<Image> nextTabImage;
+    std::unique_ptr<Image> previousTabImage;
 
     void renderItem(const std::string tab);
 
@@ -75,4 +77,6 @@ struct ProjectHoverData {
 extern std::vector<ProjectHoverData> projectHoverData;
 
 void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager);
+
+std::unique_ptr<Image> getControllerImage(const std::string button);
 } // namespace components

@@ -34,6 +34,7 @@ int userId;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 
+std::vector<std::string> Input::inputKeys;
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
 int Input::keyHeldFrames = 0;
@@ -70,6 +71,7 @@ std::vector<int> Input::getTouchPosition() {
 }
 
 void Input::getInput() {
+    inputKeys.clear();
     inputButtons.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
@@ -104,7 +106,7 @@ void Input::getInput() {
                 else if (keyName == "right") keyName = "right arrow";
                 else if (keyName == "return") keyName = "enter";
 
-                inputButtons.push_back(keyName);
+                inputKeys.push_back(keyName);
                 anyKeyPressed = true;
             }
         }
@@ -215,7 +217,6 @@ void Input::getInput() {
     }
     if (joyLeftY < -CONTROLLER_DEADZONE_Y) {
         Input::buttonPress("LeftStickUp");
-        inputButtons.push_back("up arrow");
         anyKeyPressed = true;
     }
     float joyRightX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX);
@@ -247,7 +248,7 @@ void Input::getInput() {
 
     if (anyKeyPressed) {
         keyHeldFrames++;
-        inputButtons.push_back("any");
+        inputKeys.push_back("any");
         if (keyHeldFrames == 1 || keyHeldFrames > 13)
             BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
     } else keyHeldFrames = 0;
