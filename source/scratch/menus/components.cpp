@@ -8,12 +8,12 @@
 #ifdef SDL_BUILD
 #include "../../sdl/render.hpp"
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <SDL_image.h>
 #endif
 
 namespace components {
 #ifdef SDL_BUILD
-SDL2_Font fonts[2] = {};
+Other_SDL2_Font fonts[2] = {};
 #elif defined(__3DS__)
 std::map<unsigned int, C2D_Font> fonts;
 #endif

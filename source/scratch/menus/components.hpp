@@ -10,18 +10,9 @@
 #include <citro2d.h>
 #endif
 
-#if defined(SDL_BUILD) && !defined(HAS_SDL2_FONT)
-
+#if defined(SDL_BUILD)
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
-
-typedef struct
-{
-    uint32_t fontId;
-    TTF_Font *font;
-} SDL2_Font;
-
-#define HAS_SDL2_FONT
+#include <SDL_ttf.h>
 #endif
 
 class MenuManager;
@@ -30,7 +21,12 @@ namespace components {
 #define DEFAULT_TEXT_CONFIG CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16})
 
 #ifdef SDL_BUILD
-extern SDL2_Font fonts[2];
+struct Other_SDL2_Font {
+    uint32_t fontId;
+    TTF_Font *font;
+};
+
+extern Other_SDL2_Font fonts[2];
 #elif defined(__3DS__)
 extern std::map<unsigned int, C2D_Font> fonts;
 #endif

@@ -2,8 +2,12 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 0.28 LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
 option(SE_AUDIO "Enables audio in SE!" ON)
@@ -67,6 +71,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(miniz)
 
 if(NOT SE_HEADLESS)
+	CPMAddPackage(
+		NAME clay
+		GITHUB_REPOSITORY nicbarker/clay
+		VERSION 0.14
+		DOWNLOAD_ONLY TRUE
+		GIT_TAG main # I used a newer version of the lib when I originally started working on the PR and don't really feel like downgrading...
+		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clay_renderer_SDL2.patch"
+	)
+
 	if(SE_SYSTEM)
 		find_package(PkgConfig REQUIRED)
 
@@ -196,6 +209,8 @@ if(NOT BUILD_SHARED_LIBS AND WIN32)
 endif()
 
 if (NOT SE_HEADLESS)
+	target_include_directories(scratch-everywhere PRIVATE "${clay_SOURCE_DIR}" "${clay_SOURCE_DIR}/renderers/SDL2")
+
 	set(SDL_LINK_LIBS)
 
 	if(SE_SYSTEM)

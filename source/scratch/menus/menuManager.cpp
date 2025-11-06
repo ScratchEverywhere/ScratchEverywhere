@@ -150,7 +150,7 @@ void MenuManager::render() {
 	}
     // clang-format on
 #ifdef SDL_BUILD
-    Clay_SDL2_Render(renderer, Clay_EndLayout(), components::fonts);
+    Clay_SDL2_Render(renderer, Clay_EndLayout(), reinterpret_cast<SDL2_Font *>(components::fonts));
     SDL_RenderPresent(renderer);
 #elif defined(__3DS__)
     Clay3DS_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
