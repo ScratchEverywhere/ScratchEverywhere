@@ -62,9 +62,7 @@ bool Render::Init() {
     gfxSet3D(true);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-#ifdef ENABLE_CLOUDVARS
     DownloadManager::init();
-#endif
 
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);

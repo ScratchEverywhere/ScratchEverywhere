@@ -1,4 +1,4 @@
-#ifdef ENABLE_CLOUDVARS
+#ifdef ENABLE_DOWNLOAD
 #include "downloader.hpp"
 #include "os.hpp"
 #include <3ds.h>
@@ -6,6 +6,7 @@
 #include <cstring>
 #include <curl/curl.h>
 #include <fstream>
+#include <filesystem>
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -117,6 +118,13 @@ void DownloadManager::processQueueThreaded() {
 }
 
 void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
+    /*if (!std::filesystem::exists("romfs:/gfx/certs.pem")) {
+        Log::log("DownloadManager: certs.pem not found, download cannot proceed.");
+        item->finished = true;
+        item->success = false;
+        item->error = "certs.pem not found";
+        return;
+    }*/
 
     CURL *curl = curl_easy_init();
     if (!curl) {
@@ -155,10 +163,11 @@ void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
     curl_easy_setopt(curl, CURLOPT_URL, item->url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &writeData);
-    curl_easy_setopt(curl, CURLOPT_CAINFO, "romfs:/gfx/certs.pem");
+    //curl_easy_setopt(curl, CURLOPT_CAINFO, "romfs:/gfx/certs.pem");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 2L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "3DS-Downloader/1.0");
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);

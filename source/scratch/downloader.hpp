@@ -48,7 +48,7 @@ static inline std::string urlEncode(const std::string &value) {
     return escaped.str();
 }
 
-#if !defined(ENABLE_CLOUDVARS) || (!defined(__WIIU__) && !defined(__3DS__) && !defined(_WIN32) && !defined(__linux__) && !defined(__APPLE__))
+#if !defined(ENABLE_DOWNLOAD)
     class DownloadManager {
     public:
     static void init() {return;};

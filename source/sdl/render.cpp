@@ -203,9 +203,7 @@ postAccount:
     windowHeight = 720;
 #endif
 
-#ifdef ENABLE_CLOUDVARS
     DownloadManager::init();
-#endif
 
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);

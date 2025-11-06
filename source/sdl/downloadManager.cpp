@@ -1,4 +1,4 @@
-#if (defined(__WIIU__) || defined(_WIN32) || defined(__linux__) || defined(__APPLE__)) && defined(ENABLE_CLOUDVARS)
+#ifdef ENABLE_DOWNLOAD
 #include "downloader.hpp"
 #include "os.hpp"
 #include <curl/curl.h>

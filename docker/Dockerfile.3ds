@@ -65,8 +65,13 @@ WORKDIR /app
 COPY --from=bannertool_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
 COPY . .
 
+#RUN apt-get update && apt-get install -y openssl && \
+#    mkdir -p gfx && \
+#    echo | openssl s_client -showcerts -connect synthesis-service.scratch.mit.edu:443 2>/dev/null | \
+#    sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > gfx/certs.pem
+
 # Build .3dsx and .cia for default TARGET (Scratch)
-RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1
+RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1 ENABLE_DOWNLOAD=1
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/3ds/scratch-3ds.3dsx /

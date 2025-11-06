@@ -13,7 +13,7 @@
 #include <string>
 
 BlockResult SpeechBlocks::speakAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-#if defined(ENABLE_AUDIO) && defined(ENABLE_CLOUDVARS) && (defined(__WIIU__) || defined(_WIN32) || defined(__linux__) || defined(__APPLE__) || defined(__3DS__))
+#if ENABLE_DOWNLOAD && ENABLE_AUDIO
     Value inputValue = Scratch::getInputValue(block, "WORDS", sprite);
     std::string inputString = inputValue.asString();
 
