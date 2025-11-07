@@ -26,7 +26,7 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
                 bool isRepeating = false;
 
                 // Run the block and store ran block IDs
-                for (auto &ranBlock : executor.runBlock(*subBlock, sprite)) {
+                for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
                     block.substackBlocksRan.push_back(ranBlock->id);
                     if (ranBlock->isRepeating) {
                         isRepeating = true;
@@ -73,7 +73,7 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
             bool isRepeating = false;
 
             // Run the block and store ran block IDs
-            for (auto &ranBlock : executor.runBlock(*subBlock, sprite)) {
+            for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
                 block.substackBlocksRan.push_back(ranBlock->id);
                 if (ranBlock->isRepeating) {
                     isRepeating = true;
@@ -136,7 +136,7 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
                 for (auto &[id, block] : currentSprite->blocks) {
                     if (block.opcode == "control_start_as_clone") {
                         // std::cout << "Running clone block " << block.id << std::endl;
-                        executor.runBlock(block, currentSprite);
+                        executor.runBlock(block, currentSprite, withoutScreenRefresh, fromRepeat);
                     }
                 }
             }
@@ -278,7 +278,7 @@ BlockResult ControlBlocks::repeat(Block &block, Sprite *sprite, bool *withoutScr
         if (it != block.parsedInputs->end()) {
             Block *subBlock = &sprite->blocks[it->second.blockId];
             if (subBlock) {
-                executor.runBlock(*subBlock, sprite);
+                executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
             }
         }
 
@@ -323,7 +323,7 @@ BlockResult ControlBlocks::While(Block &block, Sprite *sprite, bool *withoutScre
         auto blockIt = sprite->blocks.find(blockId);
         if (blockIt != sprite->blocks.end()) {
             Block *subBlock = &blockIt->second;
-            executor.runBlock(*subBlock, sprite);
+            executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
         } else {
             std::cerr << "Invalid blockId: " << blockId << std::endl;
         }
@@ -362,7 +362,7 @@ BlockResult ControlBlocks::repeatUntil(Block &block, Sprite *sprite, bool *witho
         auto blockIt = sprite->blocks.find(blockId);
         if (blockIt != sprite->blocks.end()) {
             Block *subBlock = &blockIt->second;
-            executor.runBlock(*subBlock, sprite);
+            executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
         } else {
             std::cerr << "Invalid blockId: " << blockId << std::endl;
         }
@@ -387,7 +387,7 @@ BlockResult ControlBlocks::forever(Block &block, Sprite *sprite, bool *withoutSc
     if (it != block.parsedInputs->end()) {
         Block *subBlock = &sprite->blocks[it->second.blockId];
         if (subBlock) {
-            executor.runBlock(*subBlock, sprite);
+            executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
         }
     }
     return BlockResult::RETURN;
@@ -421,7 +421,7 @@ BlockResult ControlBlocks::forEach(Block &block, Sprite *sprite, bool *withoutSc
         auto it = block.parsedInputs->find("SUBSTACK");
         if (it != block.parsedInputs->end()) {
             Block *subBlock = &sprite->blocks[it->second.blockId];
-            if (subBlock) executor.runBlock(*subBlock, sprite);
+            if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
         }
 
         block.repeatTimes -= 1;
