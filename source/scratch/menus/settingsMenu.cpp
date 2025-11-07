@@ -64,16 +64,16 @@ void SettingsMenu::init() {
         // Credits->buttonDown = EnableUsername;
         // Credits->buttonUp = ChangeUsername;
         EnableUsername->buttonDown = ChangeUsername;
-        EnableUsername->buttonUp = Credits;
+        EnableUsername->buttonUp = ChangeUsername;
         ChangeUsername->buttonUp = EnableUsername;
-        ChangeUsername->buttonDown = Credits;
+        ChangeUsername->buttonDown = EnableUsername;
         ChangeUsername->canBeClicked = true;
     } else {
         EnableUsername->text->setText("Username: Disabled");
         // Credits->buttonDown = EnableUsername;
         // Credits->buttonUp = EnableUsername;
-        EnableUsername->buttonDown = Credits;
-        EnableUsername->buttonUp = Credits;
+        EnableUsername->buttonDown = EnableUsername;
+        EnableUsername->buttonUp = EnableUsername;
         ChangeUsername->canBeClicked = false;
     }
 
@@ -109,8 +109,8 @@ void SettingsMenu::render() {
             if (settingsControl->selectedObject == ChangeUsername) settingsControl->selectedObject = EnableUsername;
             // Credits->buttonDown = EnableUsername;
             // Credits->buttonUp = EnableUsername;
-            // EnableUsername->buttonDown = Credits;
-            // EnableUsername->buttonUp = Credits;
+            EnableUsername->buttonDown = EnableUsername;
+            EnableUsername->buttonUp = EnableUsername;
         } else {
             UseCostumeUsername = true;
             EnableUsername->text->setText("Username: Enabled");
