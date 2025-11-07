@@ -23,7 +23,7 @@ ProjectsMenu::ProjectsMenu() {
     missingIcon = std::make_unique<Image>("gfx/menu/noicon.svg");
 
     for (const auto &entry : std::filesystem::directory_iterator(OS::getScratchFolderLocation())) {
-        if (entry.is_directory() || entry.path().extension() != ".sb3") continue;
+        if (entry.path().extension() != ".sb3" && !(entry.is_directory() && std::filesystem::is_regular_file(entry.path() / "project.json"))) continue;
         projects.push_back({.name = entry.path().stem().string(), .path = entry.path().string()});
     }
 
