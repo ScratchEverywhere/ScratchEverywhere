@@ -124,7 +124,7 @@ $(BUILD):
 $(GFXBUILD):
 	@mkdir -p $@
 	@cp -r $(GRAPHICS)/menu $@/
-#	@cp -r $(GRAPHICS)/ingame $@/
+	@cp -r $(GRAPHICS)/ingame $@/
 clean:
 	@echo clean ...
 	@rm -fr $(BUILD) $(BUILD)/$(TARGET).pfs0 $(BUILD)/$(TARGET).nso $(BUILD)/$(TARGET).nro $(BUILD)/$(TARGET).nacp $(BUILD)/$(TARGET).elf $(GFXBUILD)

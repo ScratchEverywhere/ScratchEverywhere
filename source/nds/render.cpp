@@ -2,6 +2,7 @@
 #include "../scratch/audio.hpp"
 #include "../scratch/input.hpp"
 #include "image.hpp"
+#include "speech_manager_nds.hpp"
 #include <fat.h>
 #include <filesystem.h>
 #include <gl2d.h>
@@ -57,10 +58,18 @@ bool Render::Init() {
         vramSetBankF(VRAM_F_TEX_PALETTE);
         debugMode = true;
     }
+
+    speechManager = new SpeechManagerNDS();
+
     return true;
 }
 
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
     Image::cleanupImages();
     TextObject::cleanupText();
 }
@@ -177,6 +186,11 @@ void Render::renderSprites() {
     }
 
     renderVisibleVariables();
+
+    if (speechManager) {
+        speechManager->render();
+    }
+
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
     Image::FlushImages();

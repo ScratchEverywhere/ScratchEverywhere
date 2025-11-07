@@ -50,6 +50,16 @@ ProjectType projectType;
 
 BlockExecutor executor;
 
+#ifdef __3DS__
+SpeechManager3DS *speechManager = nullptr;
+#elif defined(SDL_BUILD)
+SpeechManagerSDL *speechManager = nullptr;
+#elif defined(__NDS__)
+SpeechManagerNDS *speechManager = nullptr;
+#else
+SpeechManager *speechManager = nullptr;
+#endif
+
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
@@ -169,6 +179,12 @@ bool Scratch::startScratchProject() {
         if (!forceRedraw || checkFPS) {
             forceRedraw = false;
             Input::getInput();
+
+            if (speechManager) {
+                double deltaTime = BlockExecutor::timer.getTimeMs() / 1000.0;
+                speechManager->update(deltaTime);
+            }
+
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
             if (checkFPS) Render::renderSprites();

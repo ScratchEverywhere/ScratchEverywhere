@@ -6,18 +6,20 @@
 
 std::map<std::string, FontData> TextObjectNDS::fonts;
 
-TextObjectNDS::TextObjectNDS(std::string txt, double posX, double posY, std::string fontPath)
-    : TextObject(txt, posX, posY, fontPath) {
+TextObjectNDS::TextObjectNDS(std::string txt, double posX, double posY, std::string fontPath, int fontSize)
+    : TextObject(txt, posX, posY, fontPath), fontSize(fontSize) {
 
     // Load font file
     if (fontPath == "") fontPath = "gfx/menu/Ubuntu-Bold";
     fontPath = OS::getRomFSLocation() + fontPath + ".ttf";
-    loadFont(fontPath);
+    loadFont(fontPath, fontSize);
 }
 
-bool TextObjectNDS::loadFont(std::string fontPath) {
+bool TextObjectNDS::loadFont(std::string fontPath, int fontSize) {
+    std::string fontKey = fontPath + "_" + std::to_string(fontSize);
+
     // see if font is already loaded first
-    auto fontFind = fonts.find(fontPath);
+    auto fontFind = fonts.find(fontKey);
     if (fontFind != fonts.end()) {
         font = &fontFind->second;
         font->usageCount++;
@@ -40,10 +42,10 @@ bool TextObjectNDS::loadFont(std::string fontPath) {
     fclose(fontFile);
 
     FontData data;
-    data.fontName = fontPath;
+    data.fontName = fontKey;
     data.atlasWidth = 128;
     data.atlasHeight = 128;
-    data.fontPixels = 16;
+    data.fontSize = fontSize;
     data.firstChar = 32; // Space character
     data.numChars = 96;  // Printable ASCII (32-127)
     data.usageCount = 1;
@@ -54,7 +56,7 @@ bool TextObjectNDS::loadFont(std::string fontPath) {
     int result = stbtt_BakeFontBitmap(
         fontBuffer,
         0,
-        (float)data.fontPixels,
+        (float)data.fontSize,
         atlas,
         data.atlasWidth, data.atlasHeight,
         data.firstChar,
@@ -129,8 +131,8 @@ bool TextObjectNDS::loadFont(std::string fontPath) {
 
     data.image = std::move(image);
 
-    fonts[data.fontName] = std::move(data);
-    font = &fonts[data.fontName];
+    fonts[fontKey] = std::move(data);
+    font = &fonts[fontKey];
     setDimensions();
     return true;
 }
