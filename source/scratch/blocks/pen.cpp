@@ -13,9 +13,9 @@ C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget;
 Tex3DS_SubTexture penSubtex;
 C3D_Tex *penTex;
-#elif defined(SDL_BUILD)
-#include "../../sdl/image.hpp"
-#include "../../sdl/render.hpp"
+#elif defined(RENDERER_SDL2)
+#include "../../sdl2/image.hpp"
+#include "../../sdl2/render.hpp"
 #include <SDL2_gfxPrimitives.h>
 
 SDL_Texture *penTexture;
@@ -30,7 +30,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     if (!Render::initPen()) return BlockResult::CONTINUE;
     sprite->penData.down = true;
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
     int penWidth;
     int penHeight;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
@@ -178,7 +178,7 @@ BlockResult PenBlocks::ChangePenSizeBy(Block &block, Sprite *sprite, bool *witho
     return BlockResult::CONTINUE;
 }
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     SDL_SetRenderTarget(renderer, penTexture);

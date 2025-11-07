@@ -3,7 +3,6 @@
 #include <SDL3_mixer/SDL_mixer.h>
 #endif
 #include "../../scratch/audio.hpp"
-#include "miniz/miniz.h"
 #include "sprite.hpp"
 #include <string>
 #include <unordered_map>

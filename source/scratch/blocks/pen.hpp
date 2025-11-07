@@ -12,7 +12,7 @@ extern C3D_Tex *penTex;
 
 #define TEXTURE_OFFSET 16
 
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL2)
 #include <SDL2/SDL.h>
 
 extern SDL_Texture *penTexture;
