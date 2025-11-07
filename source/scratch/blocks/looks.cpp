@@ -16,6 +16,7 @@ BlockResult LooksBlocks::show(Block &block, Sprite *sprite, bool *withoutScreenR
     } else {
         Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 BlockResult LooksBlocks::hide(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -59,6 +60,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     }
 
     Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -72,6 +74,7 @@ BlockResult LooksBlocks::nextCostume(Block &block, Sprite *sprite, bool *without
     } else {
         Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -130,6 +133,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         }
     }
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -162,6 +166,7 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
         }
     }
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -200,6 +205,7 @@ BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, b
         sprite->layer = targetLayer;
     }
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -228,6 +234,7 @@ BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *witho
 
         sprite->layer = minLayer - 1;
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -250,6 +257,7 @@ BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, bool *withoutSc
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -271,6 +279,7 @@ BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withou
 
         sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -299,6 +308,7 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *without
     } else {
     }
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -326,6 +336,7 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *with
         sprite->ghostEffect = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
     } else {
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -334,6 +345,7 @@ BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool 
     sprite->colorEffect = -99999;
     sprite->brightnessEffect = 0.0f;
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
