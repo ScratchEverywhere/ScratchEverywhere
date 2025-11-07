@@ -4,6 +4,7 @@
 #include "interpret.hpp"
 #include "miniz.h"
 #include "sprite.hpp"
+#include "unzip.hpp"
 #include <string>
 #include <unordered_map>
 #ifdef __3DS__
@@ -77,7 +78,10 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     if (projectType != UNZIPPED && fromProject)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        loadSoundFromFile(params.sprite, (fromProject ? "project/" : "") + params.soundId, params.streamed);
+        loadSoundFromFile(params.sprite, (Unzip::UnpackedInSD ? Unzip::filePath : fromProject ? "project/"
+                                                                                              : "") +
+                                             params.soundId,
+                          params.streamed);
 
 #endif
 }
@@ -250,22 +254,24 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     if (!streamed) {
 #ifdef __PC__
-        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-        chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
-#else
-        chunk = Mix_LoadWAV(fileName.c_str());
+        if (cmrc::romfs::get_filesystem().exists(fileName)) {
+            const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+            chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        }
 #endif
+        if (chunk == nullptr) chunk = Mix_LoadWAV(fileName.c_str());
         if (!chunk) {
             Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
         }
     } else {
 #ifdef __PC__
-        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-        music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
-#else
-        music = Mix_LoadMUS(fileName.c_str());
+        if (cmrc::romfs::get_filesystem().exists(fileName)) {
+            const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+            music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        }
 #endif
+        if (music == nullptr) music = Mix_LoadMUS(fileName.c_str());
         if (!music) {
             Log::logWarning("Failed to load streamed audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
