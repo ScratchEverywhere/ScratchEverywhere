@@ -74,6 +74,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     C2D_DrawCircleSolid(xSscaled, yScaled + TEXTURE_OFFSET, 0, radius, color);
 #endif
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -186,6 +187,7 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -255,6 +257,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     SDL_SetRenderTarget(renderer, NULL);
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 #elif defined(__3DS__)
@@ -262,6 +265,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
+
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -317,15 +322,19 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
         &tinty,
         sprite->renderInfo.renderScaleX,
         sprite->renderInfo.renderScaleY);
+
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 #else
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
