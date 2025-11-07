@@ -187,8 +187,8 @@ list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 add_executable(scratch-everywhere ${SOURCE_FILES})
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
-	add_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-	link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
+	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
 
 if(NOT BUILD_SHARED_LIBS AND WIN32)
