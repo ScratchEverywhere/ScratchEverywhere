@@ -85,16 +85,11 @@ bool Render::Init() {
 
 static touchPosition touch;
 
-bool Render::appShouldRun(MenuManager *menuManager) {
+bool Render::appShouldRun() {
     if (toExit) return false;
     if (!aptMainLoop()) {
         toExit = true;
         return false;
-    }
-    if (menuManager) {
-        hidScanInput();
-        hidTouchRead(&touch);
-        menuManager->handleInput(0, 0, touch.px, touch.py, touch.px != 0 || touch.py != 0);
     }
     return true;
 }

@@ -162,8 +162,15 @@ void Sidebar::render() {
 
 std::vector<ProjectHoverData> projectHoverData;
 
-void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager) {
+void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected) {
     const uint16_t padding = 10 * menuManager->scale;
+    selected = selected || Clay_PointerOver(CLAY_IDI("project-list-item", i));
+    Clay_Color bgColor = {225, 225, 235, 255};
+    Clay_Color borderColor = {90, 60, 90, 255};
+    if (selected) {
+        bgColor = {255, 215, 255, 255};
+        borderColor = {190, 125, 190, 255};
+    }
 
     // clang-format off
     CLAY(CLAY_IDI("project-list-item", i), (Clay_ElementDeclaration){
@@ -174,9 +181,9 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 			.childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
 			.layoutDirection = CLAY_LEFT_TO_RIGHT
 		},
-		.backgroundColor = {225, 225, 235, 255},
+		.backgroundColor = bgColor,
 		.cornerRadius = {10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale},
-		.border = { .color = {90, 60, 90, 255}, .width = {static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale)} }
+		.border = { .color = borderColor, .width = {static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale)} }
 	}) {
 		if (i <= projectHoverData.size()) projectHoverData.push_back({ menuManager, &projectInfo });
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
@@ -355,8 +362,8 @@ std::unique_ptr<Image> getControllerImage(const std::string button) {
             {"B", "button_b_outline"},
             {"X", "button_x_outline"},
             {"Y", "button_y_outline"},
-            {"shoulderR", "trigger_rb_outline"},
-            {"shoulderL", "trigger_lb_outline"},
+            {"shoulderR", "rb_outline"},
+            {"shoulderL", "lb_outline"},
             {"start", "button_start_outline"},
             {"select", "button_back_outline"},
             {"LeftStickRight", "stick_l_right"},

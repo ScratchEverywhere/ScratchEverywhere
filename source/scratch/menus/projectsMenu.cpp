@@ -1,10 +1,19 @@
 #include "projectsMenu.hpp"
+#include "../input.hpp"
 #include "menuManager.hpp"
 #include "menus/components.hpp"
 #include "os.hpp"
 #include <cmath>
 #include <filesystem>
 #include <memory>
+#include <string>
+
+#ifdef SDL_BUILD
+#include "sdl/render.hpp"
+#else
+constexpr unsigned int windowWidth = 320;
+constexpr unsigned int windowHeight = 240;
+#endif
 
 ProjectsMenu::ProjectsMenu() {
     components::projectHoverData.clear();
@@ -18,10 +27,69 @@ ProjectsMenu::ProjectsMenu() {
 }
 
 void ProjectsMenu::render() {
+    static Timer frameTimer;
+
     constexpr unsigned int maxColumns = 6;
     const float itemWidth = 150 * menuManager->scale;
     const unsigned int gap = 10 * menuManager->scale;
     const uint16_t padding = 15 * menuManager->scale;
+
+    unsigned int columns = (Clay_GetElementData(CLAY_ID("main")).boundingBox.width + gap - 2 * padding) / (itemWidth + gap);
+    if (columns > maxColumns) columns = maxColumns;
+    const unsigned int rows = std::ceil(projects.size() / static_cast<float>(columns));
+
+    bool selectedMoved = false;
+    if (Input::isButtonJustPressed("dpadRight") || Input::isButtonJustPressed("LeftStickRight")) {
+        if (selectedProject == -1) selectedProject = 0;
+        else if (selectedProject != projects.size() - 1) selectedProject++;
+        selectedMoved = true;
+    } else if (Input::isButtonJustPressed("dpadLeft") || Input::isButtonJustPressed("LeftStickLeft")) {
+        if (selectedProject == -1) selectedProject = 0;
+        else if (selectedProject != 0) selectedProject--;
+        selectedMoved = true;
+    } else if (Input::isButtonJustPressed("dpadDown") || Input::isButtonJustPressed("LeftStickDown")) {
+        if (selectedProject == -1) selectedProject = 0;
+        else {
+            selectedProject += columns;
+            if (selectedProject > projects.size() - 1) selectedProject = projects.size() - 1;
+        }
+        selectedMoved = true;
+    } else if (Input::isButtonJustPressed("dpadUp") || Input::isButtonJustPressed("LeftStickUp")) {
+        if (selectedProject == -1) selectedProject = 0;
+        else if (selectedProject >= columns) selectedProject -= columns;
+        selectedMoved = true;
+    } else if (Input::isButtonJustPressed("A")) menuManager->launchProject(projects[selectedProject].path);
+
+    float maxScrollPosition = (60 * menuManager->scale * rows) + (10 * menuManager->scale * (rows - 1)) + (24 * menuManager->scale + 10 * menuManager->scale) + (padding * 2) - windowHeight;
+    if (maxScrollPosition < 0) maxScrollPosition = 0;
+
+    scrollOffset += Input::scrollDelta[1] * frameTimer.getTimeMs();
+    if (dragging) {
+        if (Input::mousePointer.isPressed) {
+            scrollOffset -= Input::mousePointer.y - lastDragPosition[1];
+            lastDragPosition = {static_cast<float>(Input::mousePointer.x), static_cast<float>(Input::mousePointer.y)};
+        } else {
+            dragging = false;
+        }
+    } else if (Input::mousePointer.isPressed) {
+        dragging = true;
+        lastDragPosition = {static_cast<float>(Input::mousePointer.x), static_cast<float>(Input::mousePointer.y)};
+    }
+
+    const Clay_BoundingBox selectedBoundingBox = Clay_GetElementData(CLAY_IDI("project-list-item", selectedProject)).boundingBox;
+    const unsigned int selectedRow = std::floor(selectedProject / columns);
+    if (selectedMoved) {
+        if (selectedBoundingBox.y < 0) {
+            if (selectedRow <= 1) scrollOffset = 0;
+            else scrollOffset = -((padding * 2) + (60 * menuManager->scale * selectedRow) + (10 * menuManager->scale * (selectedRow - 2)) + (24 * menuManager->scale + 10 * menuManager->scale));
+        } else if (selectedBoundingBox.y + selectedBoundingBox.height > windowHeight) {
+            if (selectedRow == rows - 1) scrollOffset = -maxScrollPosition;
+            else scrollOffset = -((padding * 2) + (60 * menuManager->scale * (selectedRow + 1)) + (10 * menuManager->scale * selectedRow - 1) + (24 * menuManager->scale + 10 * menuManager->scale)) + windowHeight;
+        }
+    }
+
+    if (scrollOffset > 0) scrollOffset = 0;
+    if (scrollOffset < -maxScrollPosition) scrollOffset = -maxScrollPosition;
 
     // clang-format off
 	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){
@@ -34,13 +102,9 @@ void ProjectsMenu::render() {
 		},
 		.backgroundColor = {115, 75, 115, 255},
 		.cornerRadius = {15 * menuManager->scale, 0, 15 * menuManager->scale, 0},
-		.clip = { .horizontal = true, .vertical = true, .childOffset = Clay_GetScrollOffset() },
+		.clip = { .horizontal = true, .vertical = true, .childOffset = { .y = scrollOffset} },
 	}) {
 		CLAY_TEXT(CLAY_STRING("Projects"), CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale)}));
-
-		unsigned int columns = (Clay_GetElementData(CLAY_ID("main")).boundingBox.width + gap - 2 * padding) / (itemWidth + gap);
-		if (columns > maxColumns) columns = maxColumns;
-		const unsigned int rows = std::ceil(projects.size() / static_cast<float>(columns));
 
 		for (unsigned int i = 0; i < rows; i++) {
 			CLAY(CLAY_IDI("projects-row", i), (Clay_ElementDeclaration){
@@ -52,10 +116,12 @@ void ProjectsMenu::render() {
 			}) {
 				for (unsigned int j = 0; j < columns; j++) {
 					if (i * columns + j >= projects.size()) continue;
-					components::renderProjectListItem(projects[i * columns + j], MenuManager::getImageData(missingIcon.get()), i * columns + j, CLAY_SIZING_FIXED(itemWidth), 0, menuManager); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
+					components::renderProjectListItem(projects[i * columns + j], MenuManager::getImageData(missingIcon.get()), i * columns + j, CLAY_SIZING_FIXED(itemWidth), 0, menuManager, selectedProject == i * columns + j); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
 				}
 			}
 		}
 	}
     // clang-format on
+
+    frameTimer.start();
 }

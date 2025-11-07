@@ -35,8 +35,8 @@ bool activateMainMenu() {
 
     menuManager.changeMenu(MenuID::MainMenu);
 
-    while (Render::appShouldRun(&menuManager)) {
-        Input::getInput();
+    while (Render::appShouldRun()) {
+        Input::getInput(&menuManager);
 
         menuManager.render();
         if (Unzip::projectOpened >= 0) break;

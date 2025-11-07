@@ -1,6 +1,8 @@
 #include "input.hpp"
+#include "3ds/services/hid.h"
 #include "blockExecutor.hpp"
 #include "input.hpp"
+#include "menuManager.hpp"
 #include "render.hpp"
 #include <3ds.h>
 
@@ -10,6 +12,7 @@
 std::vector<std::string> Input::inputKeys;
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
+std::array<float, 2> Input::scrollDelta;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 int Input::keyHeldFrames = 0;
@@ -39,7 +42,7 @@ std::vector<int> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
     inputKeys.clear();
     inputButtons.clear();
     mousePointer.isPressed = false;
@@ -162,6 +165,8 @@ void Input::getInput() {
     oldTouchPy = touchPos[1];
 
     doSpriteClicking();
+
+    if (menuManager) menuManager->handleInput(touchPos[0], touchPos[1], Input::mousePointer.isPressed);
 }
 
 /**

@@ -1,5 +1,6 @@
 #pragma once
 #include "interpret.hpp"
+#include "menus/menuManager.hpp"
 #include "os.hpp"
 #include <algorithm>
 #include <fstream>
@@ -23,6 +24,7 @@ class Input {
     static std::vector<std::string> inputKeys;
     static std::vector<std::string> inputButtons;
     static std::map<std::string, std::string> inputControls;
+    static std::array<float, 2> scrollDelta;
 
     static bool isAbsolutePath(const std::string &path) {
         return path.size() > 0 && path[0] == '/';
@@ -135,7 +137,7 @@ class Input {
     }
 
     static std::vector<int> getTouchPosition();
-    static void getInput();
+    static void getInput(MenuManager *menuManager);
     static std::string getUsername();
     static int keyHeldFrames;
 };

@@ -76,7 +76,7 @@ struct ProjectHoverData {
 
 extern std::vector<ProjectHoverData> projectHoverData;
 
-void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager);
+void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected);
 
 std::unique_ptr<Image> getControllerImage(const std::string button);
 } // namespace components

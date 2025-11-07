@@ -44,7 +44,7 @@ class MenuManager {
     void render();
     void back();
 
-    void handleInput(float scrollX, float scrollY, float mouseX, float mouseY, bool mouseDown);
+    void handleInput(float mouseX, float mouseY, bool mouseDown);
 
     static inline void *getImageData(Image *image) {
 #ifdef SDL_BUILD

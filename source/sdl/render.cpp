@@ -3,6 +3,7 @@
 #include "audio.hpp"
 #include "blocks/pen.hpp"
 #include "image.hpp"
+#include "input.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
 #include "menus/menuManager.hpp"
@@ -543,11 +544,12 @@ void Render::renderPenLayer() {
     SDL_RenderCopy(renderer, penTexture, NULL, &renderRect);
 }
 
-bool Render::appShouldRun(MenuManager *menuManager) {
+bool Render::appShouldRun() {
     if (toExit) return false;
+
+    Input::scrollDelta = {0, 0};
+
     SDL_Event event;
-    float scrollX = 0;
-    float scrollY = 0;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
@@ -571,8 +573,8 @@ bool Render::appShouldRun(MenuManager *menuManager) {
             touchActive = false;
             break;
         case SDL_MOUSEWHEEL:
-            scrollX = event.wheel.x;
-            scrollY = event.wheel.y;
+            Input::scrollDelta[0] = event.wheel.x;
+            Input::scrollDelta[1] = event.wheel.y;
             break;
         case SDL_WINDOWEVENT:
             switch (event.window.event) {
@@ -602,13 +604,6 @@ bool Render::appShouldRun(MenuManager *menuManager) {
             break;
         }
     }
-    if (!menuManager) return true;
-    if (SDL_GetNumTouchDevices() > 0) {
-        menuManager->handleInput(scrollX, scrollY, touchPosition.x, touchPosition.y, touchActive);
-        return true;
-    }
-    int mouseX;
-    int mouseY;
-    menuManager->handleInput(scrollX, scrollY, mouseX, mouseY, SDL_GetMouseState(&mouseX, &mouseY) & SDL_BUTTON(SDL_BUTTON_LEFT));
+
     return true;
 }

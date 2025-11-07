@@ -1,6 +1,7 @@
 #include "menuManager.hpp"
 #include "../unzip.hpp"
 #include "components.hpp"
+#include "input.hpp"
 #include "mainMenu.hpp"
 #include "menu.hpp"
 #include "os.hpp"
@@ -158,11 +159,11 @@ void MenuManager::render() {
 #endif
 }
 
-void MenuManager::handleInput(float scrollX, float scrollY, float mouseX, float mouseY, bool mouseDown) {
+void MenuManager::handleInput(float mouseX, float mouseY, bool mouseDown) {
     static Timer frameTimer;
 
     Clay_SetPointerState({mouseX, mouseY}, mouseDown);
-    Clay_UpdateScrollContainers(true, {scrollX, scrollY}, frameTimer.getTimeMs() / 1000.0f);
+    Clay_UpdateScrollContainers(true, {Input::scrollDelta[0], Input::scrollDelta[1]}, frameTimer.getTimeMs() / 1000.0f);
 
     frameTimer.start(); // Restart and start are the same so we just use start
 }
