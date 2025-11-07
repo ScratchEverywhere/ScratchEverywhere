@@ -214,6 +214,20 @@ bool Value::operator>(const Value &other) const {
     return asString() > other.asString();
 }
 
+bool Value::isScratchInt() {
+  if (isDouble()) {
+    if (std::isnan(asDouble())) return true;
+    try {
+      return std::stoi(asString()) == asDouble();
+    } catch (...) {
+      return false;
+    }
+  }
+  if (isBoolean()) return true;
+  if (isString()) return asString().find('.') == std::string::npos;
+  return false;
+}
+
 Value Value::fromJson(const nlohmann::json &jsonVal) {
     if (jsonVal.is_number_integer()) return Value(jsonVal.get<int>());
     if (jsonVal.is_number_float()) return Value(jsonVal.get<double>());
