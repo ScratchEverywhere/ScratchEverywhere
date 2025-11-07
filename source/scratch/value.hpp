@@ -51,5 +51,8 @@ class Value {
 
     bool operator>(const Value &other) const;
 
+    // Used exclusively by the random block
+    bool isScratchInt();
+
     static Value fromJson(const nlohmann::json &jsonVal);
 };
