@@ -17,7 +17,10 @@ class ProjectsMenu : public Menu {
     bool dragging = false;
     std::array<float, 2> lastDragPosition;
 
+    Clay_String noProjectsPath;
+
   public:
     ProjectsMenu();
+    ~ProjectsMenu();
     void render() override;
 };

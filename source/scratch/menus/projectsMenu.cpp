@@ -4,6 +4,8 @@
 #include "menus/components.hpp"
 #include "os.hpp"
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -24,6 +26,20 @@ ProjectsMenu::ProjectsMenu() {
         if (entry.is_directory() || entry.path().extension() != ".sb3") continue;
         projects.push_back({.name = entry.path().stem().string(), .path = entry.path().string()});
     }
+
+    const std::string noProjectsPathString = "You can put projects in: " + OS::getScratchFolderLocation();
+    void *mem = malloc(noProjectsPathString.length());
+    if (mem == nullptr) {
+        Log::logError("Failed to allocate memory for no projects string.");
+        noProjectsPath = {false, 0, nullptr};
+        return;
+    }
+    memcpy(mem, noProjectsPathString.c_str(), noProjectsPathString.length());
+    noProjectsPath = {false, static_cast<int32_t>(noProjectsPathString.length()), static_cast<const char *>(mem)};
+}
+
+ProjectsMenu::~ProjectsMenu() {
+    if (noProjectsPath.chars != nullptr) free(const_cast<char *>(noProjectsPath.chars));
 }
 
 void ProjectsMenu::render() {
@@ -58,38 +74,41 @@ void ProjectsMenu::render() {
         if (selectedProject == -1) selectedProject = 0;
         else if (selectedProject >= columns) selectedProject -= columns;
         selectedMoved = true;
-    } else if (Input::isButtonJustPressed("A")) menuManager->launchProject(projects[selectedProject].path);
+    } else if (Input::isButtonJustPressed("A") && selectedProject >= 0) menuManager->launchProject(projects[selectedProject].path);
+    if (selectedProject == 0 && projects.empty()) selectedProject = -1;
 
-    float maxScrollPosition = (60 * menuManager->scale * rows) + (10 * menuManager->scale * (rows - 1)) + (24 * menuManager->scale + 10 * menuManager->scale) + (padding * 2) - windowHeight;
-    if (maxScrollPosition < 0) maxScrollPosition = 0;
+    if (!projects.empty()) {
+        float maxScrollPosition = (60 * menuManager->scale * rows) + (10 * menuManager->scale * (rows - 1)) + (24 * menuManager->scale + 10 * menuManager->scale) + (padding * 2) - windowHeight;
+        if (maxScrollPosition < 0) maxScrollPosition = 0;
 
-    scrollOffset += Input::scrollDelta[1] * frameTimer.getTimeMs();
-    if (dragging) {
-        if (Input::mousePointer.isPressed) {
-            scrollOffset -= Input::mousePointer.y - lastDragPosition[1];
+        scrollOffset += Input::scrollDelta[1] * frameTimer.getTimeMs();
+        if (dragging) {
+            if (Input::mousePointer.isPressed) {
+                scrollOffset -= Input::mousePointer.y - lastDragPosition[1];
+                lastDragPosition = {static_cast<float>(Input::mousePointer.x), static_cast<float>(Input::mousePointer.y)};
+            } else {
+                dragging = false;
+            }
+        } else if (Input::mousePointer.isPressed) {
+            dragging = true;
             lastDragPosition = {static_cast<float>(Input::mousePointer.x), static_cast<float>(Input::mousePointer.y)};
-        } else {
-            dragging = false;
         }
-    } else if (Input::mousePointer.isPressed) {
-        dragging = true;
-        lastDragPosition = {static_cast<float>(Input::mousePointer.x), static_cast<float>(Input::mousePointer.y)};
-    }
 
-    const Clay_BoundingBox selectedBoundingBox = Clay_GetElementData(CLAY_IDI("project-list-item", selectedProject)).boundingBox;
-    const unsigned int selectedRow = std::floor(selectedProject / columns);
-    if (selectedMoved) {
-        if (selectedBoundingBox.y < 0) {
-            if (selectedRow <= 1) scrollOffset = 0;
-            else scrollOffset = -((padding * 2) + (60 * menuManager->scale * selectedRow) + (10 * menuManager->scale * (selectedRow - 2)) + (24 * menuManager->scale + 10 * menuManager->scale));
-        } else if (selectedBoundingBox.y + selectedBoundingBox.height > windowHeight) {
-            if (selectedRow == rows - 1) scrollOffset = -maxScrollPosition;
-            else scrollOffset = -((padding * 2) + (60 * menuManager->scale * (selectedRow + 1)) + (10 * menuManager->scale * selectedRow - 1) + (24 * menuManager->scale + 10 * menuManager->scale)) + windowHeight;
+        const Clay_BoundingBox selectedBoundingBox = Clay_GetElementData(CLAY_IDI("project-list-item", selectedProject)).boundingBox;
+        const unsigned int selectedRow = std::floor(selectedProject / columns);
+        if (selectedMoved) {
+            if (selectedBoundingBox.y < 0) {
+                if (selectedRow <= 1) scrollOffset = 0;
+                else scrollOffset = -((padding * 2) + (60 * menuManager->scale * selectedRow) + (10 * menuManager->scale * (selectedRow - 2)) + (24 * menuManager->scale + 10 * menuManager->scale));
+            } else if (selectedBoundingBox.y + selectedBoundingBox.height > windowHeight) {
+                if (selectedRow == rows - 1) scrollOffset = -maxScrollPosition;
+                else scrollOffset = -((padding * 2) + (60 * menuManager->scale * (selectedRow + 1)) + (10 * menuManager->scale * selectedRow - 1) + (24 * menuManager->scale + 10 * menuManager->scale)) + windowHeight;
+            }
         }
-    }
 
-    if (scrollOffset > 0) scrollOffset = 0;
-    if (scrollOffset < -maxScrollPosition) scrollOffset = -maxScrollPosition;
+        if (scrollOffset > 0) scrollOffset = 0;
+        if (scrollOffset < -maxScrollPosition) scrollOffset = -maxScrollPosition;
+    }
 
     // clang-format off
 	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){
@@ -104,6 +123,20 @@ void ProjectsMenu::render() {
 		.cornerRadius = {15 * menuManager->scale, 0, 15 * menuManager->scale, 0},
 		.clip = { .horizontal = true, .vertical = true, .childOffset = { .y = scrollOffset} },
 	}) {
+		if (projects.empty()) {
+			CLAY(CLAY_ID("no-projects-wrapper"), (Clay_ElementDeclaration){
+				.layout = {
+					.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) },
+					.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+					.layoutDirection = CLAY_TOP_TO_BOTTOM
+				}
+			}) {
+				CLAY_TEXT(CLAY_STRING("You don't seem to have any projects."), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+				CLAY_TEXT(noProjectsPath, CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+			}
+			continue; // The CLAY macro actually just makes a for loop so this just prevents the project row containers from rendering.
+		}
+
 		CLAY_TEXT(CLAY_STRING("Projects"), CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale)}));
 
 		for (unsigned int i = 0; i < rows; i++) {
