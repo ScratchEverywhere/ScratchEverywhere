@@ -220,22 +220,8 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
 
         // Move to next block
         if (!currentBlock->next.empty()) {
-
-            std::string waitingIfBlock = currentBlock->waitingIfBlock;
-            currentBlock->waitingIfBlock = "";
-
             currentBlock = &sprite->blocks[currentBlock->next];
-
-            currentBlock->waitingIfBlock = waitingIfBlock;
-
         } else {
-            // first check if the block is inside a waiting 'if' block
-            if (currentBlock->waitingIfBlock != "") {
-                std::string nextBlockId = sprite->blocks[currentBlock->waitingIfBlock].next;
-                currentBlock = &sprite->blocks[nextBlockId];
-                currentBlock->waitingIfBlock = "";
-                continue;
-            }
             break;
         }
     }
@@ -333,7 +319,6 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             // std::cout << "RWSR = " << localWithoutRefresh << std::endl;
 
             // Execute the custom block definition
-            customBlockDefinition->waitingIfBlock = callerBlock->waitingIfBlock;
             executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh);
 
             if (localWithoutRefresh) {

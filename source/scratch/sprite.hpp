@@ -63,7 +63,6 @@ struct Block {
     std::string topLevelParentBlock;
 
     /* variables that some blocks need*/
-    bool shouldStop = false; // literally only for the 'stop' block and 'if' blocks
     int repeatTimes = -1;
     bool isRepeating = false;
     double waitDuration;
@@ -73,8 +72,6 @@ struct Block {
     bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
-    std::vector<std::string> substackBlocksRan;
-    std::string waitingIfBlock = "";
 
     Block() {
         parsedFields = std::make_shared<std::map<std::string, ParsedField>>();
