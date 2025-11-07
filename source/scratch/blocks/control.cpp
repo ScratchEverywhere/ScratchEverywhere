@@ -201,7 +201,6 @@ BlockResult ControlBlocks::wait(Block &block, Sprite *sprite, bool *withoutScree
     if (block.waitTimer.hasElapsed(block.waitDuration) && block.repeatTimes <= -4) {
         block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
-        Scratch::forceRedraw = true;
         return BlockResult::CONTINUE;
     }
 
