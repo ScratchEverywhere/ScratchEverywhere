@@ -16,88 +16,71 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
         condition = conditionValue.asDouble() != 0.0;
     } else condition = !conditionValue.asString().empty();
 
-    bool shouldStop = false;
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
+
+    if (block.repeatTimes == -1) {
+        block.repeatTimes = -4;
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+    } else {
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+        return BlockResult::CONTINUE;
+    }
 
     if (condition) {
         auto it = block.parsedInputs->find("SUBSTACK");
         if (it != block.parsedInputs->end()) {
             Block *subBlock = &sprite->blocks[it->second.blockId];
             if (subBlock) {
-                bool isRepeating = false;
-
-                // Run the block and store ran block IDs
                 for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
-                    block.substackBlocksRan.push_back(ranBlock->id);
                     if (ranBlock->isRepeating) {
-                        isRepeating = true;
+                        return BlockResult::RETURN;
                     }
-                    if (ranBlock->shouldStop) {
-                        shouldStop = true;
-                    }
-                }
-                // If repeating, update waitingIfBlock and pause this block
-                if (isRepeating) {
-                    for (auto &stackBlock : block.substackBlocksRan) {
-                        sprite->blocks[stackBlock].waitingIfBlock = block.id;
-                    }
-                    block.substackBlocksRan.clear();
-                    return BlockResult::RETURN;
                 }
             }
         }
     }
-    block.substackBlocksRan.clear();
 
-    if (shouldStop)
-        return BlockResult::RETURN;
-
+    BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
 
 BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     bool condition = false;
-    bool shouldStop = false;
     if (conditionValue.isNumeric()) {
         condition = conditionValue.asDouble() != 0.0;
     } else {
         condition = !conditionValue.asString().empty();
     }
 
-    // Select correct substack key
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
+
+    if (block.repeatTimes == -1) {
+        block.repeatTimes = -4;
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+    } else {
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+        return BlockResult::CONTINUE;
+    }
+
     std::string key = condition ? "SUBSTACK" : "SUBSTACK2";
     auto it = block.parsedInputs->find(key);
     if (it != block.parsedInputs->end()) {
         Block *subBlock = &sprite->blocks[it->second.blockId];
         if (subBlock) {
-            bool isRepeating = false;
-
-            // Run the block and store ran block IDs
             for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
-                block.substackBlocksRan.push_back(ranBlock->id);
                 if (ranBlock->isRepeating) {
-                    isRepeating = true;
+                    return BlockResult::RETURN;
                 }
-                if (ranBlock->shouldStop) {
-                    shouldStop = true;
-                }
-            }
-
-            // If repeating, update waitingIfBlock and pause this block
-            if (isRepeating) {
-                for (auto &stackBlock : block.substackBlocksRan) {
-                    sprite->blocks[stackBlock].waitingIfBlock = block.id;
-                }
-                block.substackBlocksRan.clear();
-                return BlockResult::RETURN;
             }
         }
     }
-    block.substackBlocksRan.clear();
 
-    if (shouldStop)
-        return BlockResult::RETURN;
-
+    BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
 
@@ -153,7 +136,6 @@ BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *w
 }
 
 BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    block.shouldStop = false;
     std::string stopType = Scratch::getFieldValue(block, "STOP_OPTION");
     ;
     if (stopType == "all") {
@@ -168,12 +150,7 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
             }
         }
 
-        for (auto &chainBlock : sprite->blockChains[block.blockChainID].blockChain) {
-            chainBlock->waitingIfBlock = "";
-        }
-
         sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
-        block.shouldStop = true;
         return BlockResult::RETURN;
     }
 
@@ -185,9 +162,6 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
                 if (repeatBlock) {
                     repeatBlock->repeatTimes = -1;
                 }
-            }
-            for (auto &chainBlock : chain.blockChain) {
-                chainBlock->waitingIfBlock = "";
             }
             chain.blocksToRepeat.clear();
         }
