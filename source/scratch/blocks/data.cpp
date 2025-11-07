@@ -291,15 +291,15 @@ Value DataBlocks::itemOfList(Block &block, Sprite *sprite) {
 
     if (items.empty()) return Value();
 
-    if (indexStr.asString() == "last") return Value(Math::removeQuotations(items.back().asString()));
+    if (indexStr.asString() == "last") return Value(items.back().asString());
 
     if (indexStr.asString() == "random" && !items.empty()) {
         int idx = rand() % items.size();
-        return Value(Math::removeQuotations(items[idx].asString()));
+        return Value(items[idx].asString());
     }
 
     if (index >= 0 && index < static_cast<int>(items.size())) {
-        return Value(Math::removeQuotations(items[index].asString()));
+        return Value(items[index].asString());
     }
 
     return Value();
@@ -328,7 +328,7 @@ Value DataBlocks::itemNumOfList(Block &block, Sprite *sprite) {
         auto &list = targetSprite->lists[listName];
         int index = 1;
         for (auto &item : list.items) {
-            if (Math::removeQuotations(item.asString()) == itemToFind.asString()) {
+            if (item.asString() == itemToFind.asString()) {
                 return Value(index);
             }
             index++;
