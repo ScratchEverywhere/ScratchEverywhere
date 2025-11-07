@@ -58,6 +58,7 @@ bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
+bool Scratch::forceRedraw = true;
 
 double Scratch::counter = 0;
 
@@ -164,11 +165,13 @@ bool Scratch::startScratchProject() {
     BlockExecutor::timer.start();
 
     while (Render::appShouldRun()) {
-        if (Render::checkFramerate()) {
+        const bool checkFPS = Render::checkFramerate();
+        if (!forceRedraw || checkFPS) {
+            forceRedraw = false;
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
-            Render::renderSprites();
+            if (checkFPS) Render::renderSprites();
 
             if (shouldStop) {
 #if defined(HEADLESS_BUILD)

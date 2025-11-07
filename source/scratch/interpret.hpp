@@ -44,6 +44,7 @@ class Scratch {
     static bool hqpen;
     static bool miscellaneousLimits;
     static bool shouldStop;
+    static bool forceRedraw;
 
     static double counter;
 
