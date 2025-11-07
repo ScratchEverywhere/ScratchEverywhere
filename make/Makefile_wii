@@ -39,7 +39,6 @@ GFXBUILD	:=	$(ROMFS)/gfx
 ENABLE_CLOUDVARS	?=	0
 ENABLE_LOADSCREEN		?=	1
 ENABLE_AUDIO	?=	1
-ENABLE_DOWNLOAD	?=	1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -63,10 +62,6 @@ ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
-ifeq ($(ENABLE_DOWNLOAD),1)
-CFLAGS	+=	-DENABLE_DOWNLOAD
-LIBS +=	`$(PKGCONF_WII) --libs curl
-endif
 
 CXXFLAGS	:=	$(CFLAGS) -fno-rtti -std=c++17 -fexceptions
 
