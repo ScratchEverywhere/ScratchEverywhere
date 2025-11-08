@@ -124,7 +124,7 @@ Color Value::asColor() const {
     if (isColor()) return std::get<Color>(value);
     if (isString()) {
         const std::string &stringValue = std::get<std::string>(value);
-        if (!std::regex_match(stringValue, std::regex("^#[\\dabcdef]{6}$"))) return {0, 0, 0};
+        if (!std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{6}$"))) return {0, 0, 0};
         const int intValue = std::stoi(stringValue.substr(1), 0, 16);
         return RGB2HSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
     }
