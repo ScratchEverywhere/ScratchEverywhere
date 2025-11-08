@@ -149,9 +149,7 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
 }
 
 Value OperatorBlocks::equals(Block &block, Sprite *sprite) {
-    Value value1 = Scratch::getInputValue(block, "OPERAND1", sprite);
-    Value value2 = Scratch::getInputValue(block, "OPERAND2", sprite);
-    return Value(value1 == value2);
+    return Value(Scratch::getInputValue(block, "OPERAND1", sprite) == Scratch::getInputValue(block, "OPERAND2", sprite));
 }
 
 Value OperatorBlocks::greaterThan(Block &block, Sprite *sprite) {
