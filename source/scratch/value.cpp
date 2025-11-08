@@ -42,17 +42,20 @@ bool Value::isColor() const {
     return std::holds_alternative<Color>(value);
 }
 
+bool Value::isNaN() const {
+    return std::holds_alternative<double>(value) && std::isnan(std::get<double>(value));
+}
+
 double Value::asDouble() const {
     if (isDouble()) {
+        if (isNaN()) return 0.0;
         return std::get<double>(value);
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
-
-        if (strValue == "Infinity") return std::numeric_limits<double>::infinity();
-        if (strValue == "-Infinity") return -std::numeric_limits<double>::infinity();
-
-        if (Math::isNumber(strValue)) {
+        try {
             return Math::parseNumber(strValue);
+        } catch (...) {
+            return 0.0;
         }
     } else if (isColor() || isInteger() || isBoolean()) {
         return static_cast<double>(asInt());
@@ -190,28 +193,39 @@ Value Value::operator/(const Value &other) const {
 }
 
 bool Value::operator==(const Value &other) const {
-    if (value.index() == other.value.index()) {
-        return value == other.value;
+    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
+        return asDouble() == other.asDouble();
     }
 
-    // Different types - compare as strings (Scratch behavior)
-    return asString() == other.asString();
+    std::string string1 = asString();
+    std::string string2 = other.asString();
+    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+    return string1 == string2;
 }
 
 bool Value::operator<(const Value &other) const {
-    if (isNumeric() && other.isNumeric()) {
-        if (std::isnan(other.asDouble()) && std::isinf(asDouble())) return true;
+    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
         return asDouble() < other.asDouble();
     }
-    return asString() < other.asString();
+
+    std::string string1 = asString();
+    std::string string2 = other.asString();
+    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+    return string1 < string2;
 }
 
 bool Value::operator>(const Value &other) const {
-    if (isNumeric() && other.isNumeric()) {
-        if (std::isnan(asDouble()) && std::isinf(other.asDouble())) return true;
+    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
         return asDouble() > other.asDouble();
     }
-    return asString() > other.asString();
+
+    std::string string1 = asString();
+    std::string string2 = other.asString();
+    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+    return string1 > string2;
 }
 
 bool Value::isScratchInt() {

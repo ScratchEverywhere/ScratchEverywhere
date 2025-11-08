@@ -21,7 +21,7 @@ BlockResult DataBlocks::changeVariable(Block &block, Sprite *sprite, bool *witho
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
     Value oldVariable = BlockExecutor::getVariableValue(varId, sprite);
 
-    BlockExecutor::setVariableValue(varId, Value(val.asDouble() + oldVariable.asDouble()), sprite);
+    BlockExecutor::setVariableValue(varId, Value(val + oldVariable), sprite);
     return BlockResult::CONTINUE;
 }
 
@@ -328,7 +328,7 @@ Value DataBlocks::itemNumOfList(Block &block, Sprite *sprite) {
         auto &list = targetSprite->lists[listName];
         int index = 1;
         for (auto &item : list.items) {
-            if (item.asString() == itemToFind.asString()) {
+            if (item == itemToFind) {
                 return Value(index);
             }
             index++;

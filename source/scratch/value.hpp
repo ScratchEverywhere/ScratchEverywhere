@@ -26,6 +26,7 @@ class Value {
     bool isBoolean() const;
     bool isNumeric() const;
     bool isColor() const;
+    bool isNaN() const;
 
     double asDouble() const;
 
