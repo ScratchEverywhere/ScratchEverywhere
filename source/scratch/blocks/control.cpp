@@ -11,10 +11,7 @@
 
 BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    bool condition = false;
-    if (conditionValue.isNumeric()) {
-        condition = conditionValue.asDouble() != 0.0;
-    } else condition = !conditionValue.asString().empty();
+    bool condition = conditionValue.asBoolean();
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -48,12 +45,7 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
 
 BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    bool condition = false;
-    if (conditionValue.isNumeric()) {
-        condition = conditionValue.asDouble() != 0.0;
-    } else {
-        condition = !conditionValue.asString().empty();
-    }
+    bool condition = conditionValue.asBoolean();
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -221,12 +213,7 @@ BlockResult ControlBlocks::waitUntil(Block &block, Sprite *sprite, bool *without
 
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
 
-    bool conditionMet = false;
-    if (conditionValue.isNumeric()) {
-        conditionMet = conditionValue.asDouble() != 0.0;
-    } else {
-        conditionMet = !conditionValue.asString().empty();
-    }
+    bool conditionMet = conditionValue.asBoolean();
 
     if (conditionMet) {
         block.repeatTimes = -1;
@@ -279,12 +266,7 @@ BlockResult ControlBlocks::While(Block &block, Sprite *sprite, bool *withoutScre
     }
 
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    bool condition = false;
-    if (conditionValue.isNumeric()) {
-        condition = conditionValue.asDouble() != 0.0;
-    } else {
-        condition = !conditionValue.asString().empty();
-    }
+    bool condition = conditionValue.asBoolean();
 
     if (!condition) {
         block.repeatTimes = -1;
@@ -319,11 +301,8 @@ BlockResult ControlBlocks::repeatUntil(Block &block, Sprite *sprite, bool *witho
     }
 
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    bool condition = false;
-    if (conditionValue.isNumeric()) {
-        condition = conditionValue.asDouble() != 0.0;
-    } else condition = !conditionValue.asString().empty();
-
+    bool condition = conditionValue.asBoolean();
+    
     if (condition) {
         block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);

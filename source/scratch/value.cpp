@@ -92,6 +92,26 @@ std::string Value::asString() const {
     return "";
 }
 
+bool Value::asBoolean() const {
+    if (isBoolean()) {
+        return std::get<bool>(value);
+    }
+    if (isInteger()) {
+        return std::get<int>(value) != 0;
+    }
+    if (isDouble()) {
+        return std::get<double>(value) != 0.0 && !isNaN();
+    }
+    if (isString()) {
+        return std::get<std::string>(value) != "" && std::get<std::string>(value) != "0" && std::get<std::string>(value) != "false";
+    }
+    if (isColor()) {
+        const ColorRGB rgb = HSB2RGB(std::get<Color>(value));
+        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0;
+    }
+    return false;
+}
+
 Color Value::asColor() const {
     if (isInteger()) {
         const int &intValue = std::get<int>(value);
