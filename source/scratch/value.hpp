@@ -1,5 +1,6 @@
 #pragma once
 #include "color.hpp"
+#include "math.hpp"
 #include <nlohmann/json.hpp>
 #include <string>
 
@@ -27,6 +28,34 @@ class Value {
     bool isNumeric() const;
     bool isColor() const;
     bool isNaN() const;
+    inline bool isInteger() const {
+        return std::holds_alternative<int>(value);
+    }
+    inline bool isDouble() const {
+        return std::holds_alternative<double>(value);
+    }
+    inline bool isString() const {
+        return std::holds_alternative<std::string>(value);
+    }
+    inline bool isBoolean() const {
+        return std::holds_alternative<bool>(value);
+    }
+    inline bool isColor() const {
+        return std::holds_alternative<Color>(value);
+    }
+    inline bool isNumeric() const {
+        if (isInteger() || isDouble() || isBoolean()) {
+            return true;
+        } else if (isString()) {
+            auto &strValue = std::get<std::string>(value);
+            return Math::isNumber(strValue);
+        }
+
+        return false;
+    }
+    inline bool isNaN() const {
+      return std::holds_alternative<double>(value) && std::isnan(std::get<double>(value));
+    }
 
     double asDouble() const;
 

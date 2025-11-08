@@ -11,41 +11,6 @@ Value::Value(std::string val) : value(std::move(val)) {}
 
 Value::Value(bool val) : value(val) {}
 
-bool Value::isInteger() const {
-    return std::holds_alternative<int>(value);
-}
-
-bool Value::isDouble() const {
-    return std::holds_alternative<double>(value);
-}
-
-bool Value::isString() const {
-    return std::holds_alternative<std::string>(value);
-}
-
-bool Value::isBoolean() const {
-    return std::holds_alternative<bool>(value);
-}
-
-bool Value::isNumeric() const {
-    if (isInteger() || isDouble() || isBoolean()) {
-        return true;
-    } else if (isString()) {
-        auto &strValue = std::get<std::string>(value);
-        return Math::isNumber(strValue);
-    }
-
-    return false;
-}
-
-bool Value::isColor() const {
-    return std::holds_alternative<Color>(value);
-}
-
-bool Value::isNaN() const {
-    return isDouble() && std::isnan(asDouble());
-}
-
 double Value::asDouble() const {
     if (isDouble()) {
         if (isNaN()) return 0.0;
@@ -229,17 +194,17 @@ bool Value::operator>(const Value &other) const {
 }
 
 bool Value::isScratchInt() {
-  if (isDouble()) {
-    if (std::isnan(asDouble())) return true;
-    try {
-      return std::stoi(asString()) == asDouble();
-    } catch (...) {
-      return false;
+    if (isDouble()) {
+        if (std::isnan(asDouble())) return true;
+        try {
+            return std::stoi(asString()) == asDouble();
+        } catch (...) {
+            return false;
+        }
     }
-  }
-  if (isBoolean()) return true;
-  if (isString()) return asString().find('.') == std::string::npos;
-  return false;
+    if (isBoolean()) return true;
+    if (isString()) return asString().find('.') == std::string::npos;
+    return false;
 }
 
 Value Value::fromJson(const nlohmann::json &jsonVal) {
