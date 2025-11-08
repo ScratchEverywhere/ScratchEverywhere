@@ -46,6 +46,9 @@ class Value {
 
         return false;
     }
+    inline bool isNaN() const {
+        return isDouble() && std::isnan(std::get<double>(value));
+    }
 
     double asDouble() const;
 

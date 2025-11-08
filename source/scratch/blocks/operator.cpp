@@ -13,7 +13,6 @@ Value OperatorBlocks::add(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 + value2;
-    return Value(0);
 }
 
 Value OperatorBlocks::subtract(Block &block, Sprite *sprite) {
@@ -26,14 +25,12 @@ Value OperatorBlocks::multiply(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 * value2;
-    return Value(0);
 }
 
 Value OperatorBlocks::divide(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 / value2;
-    return Value(0);
 }
 
 Value OperatorBlocks::random(Block &block, Sprite *sprite) {
@@ -47,7 +44,6 @@ Value OperatorBlocks::random(Block &block, Sprite *sprite) {
 
     double from = std::min(a, b);
     double to = std::max(a, b);
-
 
     if (value1.isScratchInt() && value2.isScratchInt()) {
         return Value(from + (rand() % static_cast<int>(to + 1 - from)));
@@ -153,27 +149,7 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
 }
 
 Value OperatorBlocks::equals(Block &block, Sprite *sprite) {
-    Value value1;
-    Value value2;
-    try {
-        value1 = Scratch::getInputValue(block, "OPERAND1", sprite);
-        value2 = Scratch::getInputValue(block, "OPERAND2", sprite);
-    } catch (...) {
-        return Value(false);
-    }
-
-    if (value1.isNumeric() && value2.isNumeric()) {
-        const double double1 = value1.asDouble();
-        const double double2 = value2.asDouble();
-
-        if (std::isnan(double1) && std::isnan(double2)) return Value(true);
-        return Value(double1 == double2);
-    }
-    std::string string1 = value1.asString();
-    std::string string2 = value2.asString();
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-    return Value(string1 == string2);
+    return Value(Scratch::getInputValue(block, "OPERAND1", sprite) == Scratch::getInputValue(block, "OPERAND2", sprite));
 }
 
 Value OperatorBlocks::greaterThan(Block &block, Sprite *sprite) {
