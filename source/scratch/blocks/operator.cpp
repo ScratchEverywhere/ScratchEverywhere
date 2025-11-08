@@ -202,7 +202,7 @@ Value OperatorBlocks::not_(Block &block, Sprite *sprite) {
         return Value(true);
     }
     Value value = executor.getBlockValue(*findBlock(oper->second.blockId), sprite);
-    return Value(value.asBoolean());
+    return Value(!value.asBoolean());
 }
 
 Value OperatorBlocks::contains(Block &block, Sprite *sprite) {
