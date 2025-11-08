@@ -21,13 +21,6 @@ class Value {
     explicit Value(Color val);
 
     // type checks
-    bool isInteger() const;
-    bool isDouble() const;
-    bool isString() const;
-    bool isBoolean() const;
-    bool isNumeric() const;
-    bool isColor() const;
-    bool isNaN() const;
     inline bool isInteger() const {
         return std::holds_alternative<int>(value);
     }
@@ -54,7 +47,7 @@ class Value {
         return false;
     }
     inline bool isNaN() const {
-      return std::holds_alternative<double>(value) && std::isnan(std::get<double>(value));
+      return isDouble() && std::isnan(std::get<double>(value));
     }
 
     double asDouble() const;
