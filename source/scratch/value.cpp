@@ -43,7 +43,7 @@ bool Value::isColor() const {
 }
 
 bool Value::isNaN() const {
-    return std::holds_alternative<double>(value) && std::isnan(std::get<double>(value));
+    return isDouble() && std::isnan(asDouble());
 }
 
 double Value::asDouble() const {
