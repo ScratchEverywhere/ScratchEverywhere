@@ -45,7 +45,6 @@ Value OperatorBlocks::random(Block &block, Sprite *sprite) {
     double from = std::min(a, b);
     double to = std::max(a, b);
 
-
     if (value1.isScratchInt() && value2.isScratchInt()) {
         return Value(from + (rand() % static_cast<int>(to + 1 - from)));
     } else {
