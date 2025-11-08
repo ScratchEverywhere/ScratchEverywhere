@@ -174,26 +174,26 @@ Value OperatorBlocks::and_(Block &block, Sprite *sprite) {
 
     Value value1 = executor.getBlockValue(*findBlock(oper1->second.blockId), sprite);
     Value value2 = executor.getBlockValue(*findBlock(oper2->second.blockId), sprite);
-    return Value(value1.asInt() == 1 && value2.asInt() == 1);
+    return Value(value1.asBoolean() && value2.asBoolean());
 }
 
 Value OperatorBlocks::or_(Block &block, Sprite *sprite) {
-    int result1 = 0;
-    int result2 = 0;
+    bool result1 = false;
+    bool result2 = false;
 
     auto oper1 = block.parsedInputs->find("OPERAND1");
     if (oper1 != block.parsedInputs->end()) {
         Value value1 = executor.getBlockValue(*findBlock(oper1->second.blockId), sprite);
-        result1 = value1.asInt();
+        result1 = value1.asBoolean();
     }
 
     auto oper2 = block.parsedInputs->find("OPERAND2");
     if (oper2 != block.parsedInputs->end()) {
         Value value2 = executor.getBlockValue(*findBlock(oper2->second.blockId), sprite);
-        result2 = value2.asInt();
+        result2 = value2.asBoolean();
     }
 
-    return Value(result1 == 1 || result2 == 1);
+    return Value(result1 || result2);
 }
 
 Value OperatorBlocks::not_(Block &block, Sprite *sprite) {
@@ -202,7 +202,7 @@ Value OperatorBlocks::not_(Block &block, Sprite *sprite) {
         return Value(true);
     }
     Value value = executor.getBlockValue(*findBlock(oper->second.blockId), sprite);
-    return Value(value.asInt() != 1);
+    return Value(value.asBoolean());
 }
 
 Value OperatorBlocks::contains(Block &block, Sprite *sprite) {

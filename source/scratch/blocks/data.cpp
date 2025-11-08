@@ -291,15 +291,15 @@ Value DataBlocks::itemOfList(Block &block, Sprite *sprite) {
 
     if (items.empty()) return Value();
 
-    if (indexStr.asString() == "last") return Value(items.back().asString());
+    if (indexStr.asString() == "last") return items.back();
 
     if (indexStr.asString() == "random" && !items.empty()) {
         int idx = rand() % items.size();
-        return Value(items[idx].asString());
+        return items[idx];
     }
 
     if (index >= 0 && index < static_cast<int>(items.size())) {
-        return Value(items[index].asString());
+        return items[index];
     }
 
     return Value();

@@ -56,6 +56,8 @@ class Value {
 
     std::string asString() const;
 
+    bool asBoolean() const;
+
     Color asColor() const;
 
     // Arithmetic operations
