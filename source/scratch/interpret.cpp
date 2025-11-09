@@ -627,9 +627,14 @@ void loadSprites(const nlohmann::json &json) {
                                 parsedInput.blockId = inputValue.get<std::string>();
                         }
                     } else if (type == 2) {
-                        parsedInput.inputType = ParsedInput::BLOCK;
-                        if (!inputValue.is_null())
-                            parsedInput.blockId = inputValue.get<std::string>();
+                        if (inputValue.is_array()) {
+                            parsedInput.inputType = ParsedInput::VARIABLE;
+                            parsedInput.variableId = inputValue[2].get<std::string>();
+                        } else {
+                            parsedInput.inputType = ParsedInput::BLOCK;
+                            if (!inputValue.is_null())
+                                parsedInput.blockId = inputValue.get<std::string>();
+                        }
                     }
                     (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
