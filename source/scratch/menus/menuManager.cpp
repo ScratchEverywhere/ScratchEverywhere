@@ -6,6 +6,7 @@
 #include "menu.hpp"
 #include "os.hpp"
 #include "projectsMenu.hpp"
+#include "settingsMenu.hpp"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -37,6 +38,8 @@ std::unique_ptr<Menu> MenuManager::createMenu(MenuID id) {
         return std::make_unique<MainMenu>();
     case MenuID::ProjectsMenu:
         return std::make_unique<ProjectsMenu>();
+    case MenuID::SettingsMenu:
+        return std::make_unique<SettingsMenu>();
     default:
         return nullptr;
     }

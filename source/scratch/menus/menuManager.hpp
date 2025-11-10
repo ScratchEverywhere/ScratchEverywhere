@@ -15,6 +15,7 @@
 enum class MenuID {
     MainMenu,
     ProjectsMenu,
+    SettingsMenu,
     None
 };
 

@@ -36,6 +36,7 @@ Sidebar::Sidebar() {
 static MenuID tabToMenuID(const std::string tab) {
     if (tab == "home") return MenuID::MainMenu;
     if (tab == "projects") return MenuID::ProjectsMenu;
+    if (tab == "settings") return MenuID::SettingsMenu;
     return MenuID::None;
 }
 
@@ -57,7 +58,7 @@ void Sidebar::renderItem(const std::string tab) {
         selected = tab;
     }
 
-    float t = std::min(animationTimer.getTimeMs(), static_cast<int>(animationDuration)) / static_cast<float>(animationDuration);
+    const float t = std::min(animationTimer.getTimeMs(), static_cast<int>(animationDuration)) / static_cast<float>(animationDuration);
 
     Clay_Color bgColor = unfocusedTabColor;
     if (selected == tab) {
