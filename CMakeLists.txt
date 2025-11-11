@@ -319,7 +319,7 @@ elseif(VITA)
 		list(APPEND VITA_GFXFILES FILE "${file}" "${DEST_PATH}")
 	endforeach()
 
-	vita_create_self(scratch-vita.self scratch-vita)
+	vita_create_self(scratch-vita.self scratch-everywhere)
 	vita_create_vpk(scratch-vita.vpk "NTXS00053" scratch-vita.self
 		VERSION "01.00"
 		NAME "Scratch Everywhere!"
