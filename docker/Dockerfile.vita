@@ -3,8 +3,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=vita ENABLE_AUDIO=1
+RUN cmake -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake -B build-vita && cmake --build build-vita -j $(nproc)
 
 FROM scratch AS exporter
 
-COPY --from=main_builder /app/build/vita/scratch-vita.vpk /
+COPY --from=main_builder /app/build-vita/scratch-vita.vpk /
