@@ -9,12 +9,13 @@ option(SE_AUDIO "Enables audio in SE!" ON)
 option(SE_HEADLESS "Makes SE! use a headless renderer instead of SDL2. This will override the SE_AUDIO setting." OFF)
 option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
-# Cloud variables might actually be possible on Switch with a newer version of libcurl but I don't really feel like dealing with that rn
-if(NOT NINTENDO_SWITCH AND NOT PSP)
+# [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
+# [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
-if(NINTENDO_SWITCH OR PSP)
+if(NINTENDO_SWITCH OR PSP OR VITA)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -187,9 +188,12 @@ if(PSP)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-psp)
 elseif(NINTENDO_SWITCH)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-nx)
+elseif(VITA)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-vita)
+	target_compile_definitions(scratch-everywhere PRIVATE VITA)
 endif()
 
-if(NOT PSP AND NOT NINTENDO_SWITCH)
+if(NOT PSP AND NOT NINTENDO_SWITCH AND NOT VITA)
 	include(FetchContent)
 	FetchContent_Declare(
 	  cmrc
@@ -259,7 +263,7 @@ if (NOT SE_HEADLESS)
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -299,4 +303,31 @@ if(PSP)
 elseif(NINTENDO_SWITCH)
 	nx_generate_nacp(OUTPUT scratch-nx.nacp NAME "Scratch Everywhere!" AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
 	nx_create_nro(scratch-everywhere OUTPUT scratch-nx.nro ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/icon.png" NACP scratch-nx.nacp)
+elseif(VITA)
+	include("${VITASDK}/share/vita.cmake" REQUIRED)
+
+	if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
+		set(PROJ_FILE FILE ${CMAKE_SOURCE_DIR}/romfs/project.sb3 project.sb3)
+	else()
+		set(PROJ_FILE "")
+	endif()
+
+	set(VITA_GFXFILES)
+	foreach(file IN LISTS GFXFILES)
+		file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+		set(DEST_PATH "gfx/${REL_PATH}")
+		list(APPEND VITA_GFXFILES FILE "${file}" "${DEST_PATH}")
+	endforeach()
+
+	vita_create_self(scratch-vita.self scratch-vita)
+	vita_create_vpk(scratch-vita.vpk "NTXS00053" scratch-vita.self
+		VERSION "01.00"
+		NAME "Scratch Everywhere!"
+		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png
+		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
+		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
+		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/startup.png sce_sys/livearea/contents/startup.png
+		${VITA_GFXFILES}
+		${PROJ_FILE}
+	)
 endif()
