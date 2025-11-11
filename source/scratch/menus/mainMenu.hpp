@@ -11,6 +11,6 @@ class MainMenu : public Menu {
     std::unique_ptr<Image> logo;
 
   public:
-    MainMenu();
+    MainMenu(void *userdata);
     void render() override;
 };

@@ -5,7 +5,7 @@
 
 std::string MainMenu::splash = "";
 
-MainMenu::MainMenu() {
+MainMenu::MainMenu(void *userdata) {
     logo = std::make_unique<Image>("gfx/menu/logo.svg");
 
     if (splash == "") splash = Unzip::getSplashText();

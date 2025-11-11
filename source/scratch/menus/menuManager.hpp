@@ -15,7 +15,7 @@
 enum class MenuID {
     MainMenu,
     ProjectsMenu,
-    SettingsMenu,
+    GlobalSettingsMenu,
     None
 };
 
@@ -26,7 +26,7 @@ class MenuManager {
 
     static Clay_Arena clayMemory;
 
-    std::unique_ptr<Menu> createMenu(MenuID id);
+    std::unique_ptr<Menu> createMenu(MenuID id, void *userdata = nullptr);
 
   public:
     float scale;
@@ -40,7 +40,7 @@ class MenuManager {
 
     MenuManager();
 
-    void changeMenu(MenuID id);
+    void changeMenu(MenuID id, void *userdata = nullptr);
     bool launchProject(const std::string path);
     void render();
     void back();

@@ -32,24 +32,24 @@ extern C3D_RenderTarget *topScreen;
 
 Clay_Arena MenuManager::clayMemory;
 
-std::unique_ptr<Menu> MenuManager::createMenu(MenuID id) {
+std::unique_ptr<Menu> MenuManager::createMenu(MenuID id, void *userdata) {
     switch (id) {
     case MenuID::MainMenu:
-        return std::make_unique<MainMenu>();
+        return std::make_unique<MainMenu>(userdata);
     case MenuID::ProjectsMenu:
-        return std::make_unique<ProjectsMenu>();
-    case MenuID::SettingsMenu:
-        return std::make_unique<SettingsMenu>();
+        return std::make_unique<ProjectsMenu>(userdata);
+    case MenuID::GlobalSettingsMenu:
+        return std::make_unique<GlobalSettingsMenu>(userdata);
     default:
         return nullptr;
     }
 }
 
-void MenuManager::changeMenu(MenuID id) {
+void MenuManager::changeMenu(MenuID id, void *userdata) {
     if (id == MenuID::None) return;
     if (currentMenuID != MenuID::None) history.push(currentMenuID);
     currentMenuID = id;
-    currentMenu = std::move(createMenu(id));
+    currentMenu = std::move(createMenu(id, userdata));
     currentMenu->menuManager = this;
 }
 

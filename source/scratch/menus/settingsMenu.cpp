@@ -8,19 +8,10 @@
 #include <fstream>
 #include <regex>
 
-SettingsMenu::SettingsMenu() {
-    Scratch::migrate();
-
-    std::ifstream in(OS::getScratchFolderLocation() + "settings.json");
-    in >> settings;
-    in.close();
-
-    if (!settings.contains("useCustomUsername")) settings["useCustomUsername"] = false;
-    if (!settings.contains("customUsername")) settings["customUsername"] = "";
-
+void SettingsMenu::init(const std::string &title) {
     for (const auto &[setting, _] : settings.items()) {
         clayIds[setting] = {false, static_cast<int32_t>(("setting-" + setting).length()), nullptr};
-        void *chars = static_cast<char *>(malloc(clayIds[setting].length));
+        void *chars = malloc(clayIds[setting].length);
         memcpy(chars, ("setting-" + setting).c_str(), clayIds[setting].length);
         clayIds[setting].chars = static_cast<char *>(chars);
 
@@ -28,12 +19,15 @@ SettingsMenu::SettingsMenu() {
     }
 
     indicator = std::make_unique<Image>("gfx/menu/indicator.svg");
+
+    this->title = {false, static_cast<int32_t>(title.length()), nullptr};
+    void *chars = malloc(title.length());
+    memcpy(chars, title.c_str(), title.length());
+    this->title.chars = static_cast<char *>(chars);
 }
 
 SettingsMenu::~SettingsMenu() {
-    std::ofstream out(OS::getScratchFolderLocation() + "settings.json");
-    out << settings.dump(4);
-    out.close();
+    free(const_cast<char *>(title.chars));
 
     for (const auto &[setting, _] : settings.items()) {
         free(const_cast<char *>(clayIds[setting].chars));
@@ -126,6 +120,8 @@ void SettingsMenu::renderInputButton(const std::string &setting) {
     // clang-format on
 }
 
+void SettingsMenu::renderSettings() {}
+
 // TODO: Steal scrolling from projects menu
 void SettingsMenu::render() {
     const uint16_t padding = 15 * menuManager->scale;
@@ -164,14 +160,13 @@ void SettingsMenu::render() {
 				.childAlignment = { .x = CLAY_ALIGN_X_CENTER }
 			}
 		}) {
-			CLAY_TEXT(CLAY_STRING("Settings"), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale) }));
+			CLAY_TEXT(title, CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale) }));
 		}
 
 		renderOrder.clear();
-		renderToggle("useCustomUsername");
-		if (settings["useCustomUsername"]) renderInputButton("customUsername");
+		renderSettings();
 
-		if (selected > renderOrder.size() - 1) selected = renderOrder.size() - 1;
+		if (selected > static_cast<int>(renderOrder.size()) - 1) selected = renderOrder.size() - 1;
 
 		if (selected != -1) {
 			CLAY(CLAY_ID_LOCAL("indicator"), (Clay_ElementDeclaration){
@@ -190,4 +185,28 @@ void SettingsMenu::render() {
 		}
 	}
     // clang-format on
+}
+
+GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
+    Scratch::migrate();
+
+    std::ifstream in(OS::getScratchFolderLocation() + "settings.json");
+    in >> settings;
+    in.close();
+
+    if (!settings.contains("useCustomUsername")) settings["useCustomUsername"] = false;
+    if (!settings.contains("customUsername")) settings["customUsername"] = "";
+
+    SettingsMenu::init();
+}
+
+GlobalSettingsMenu::~GlobalSettingsMenu() {
+    std::ofstream out(OS::getScratchFolderLocation() + "settings.json");
+    out << settings.dump(4);
+    out.close();
+}
+
+void GlobalSettingsMenu::renderSettings() {
+    renderToggle("useCustomUsername");
+    if (settings["useCustomUsername"]) renderInputButton("customUsername");
 }

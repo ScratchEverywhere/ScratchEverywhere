@@ -16,7 +16,8 @@ struct Settings_HoverData {
 
 class SettingsMenu : public Menu {
   private:
-    nlohmann::json settings;
+    Clay_String title;
+
     std::map<std::string, Clay_String> clayIds;
     std::map<std::string, Settings_HoverData> hoverData;
     const std::map<std::string, std::string> names = {{"useCustomUsername", "Custom Username"}, {"customUsername", "Set Custom Username"}};
@@ -30,11 +31,23 @@ class SettingsMenu : public Menu {
     std::vector<std::string> renderOrder;
     int selected = -1;
 
+  protected:
+    nlohmann::json settings;
+
     void renderToggle(const std::string &setting);
     void renderInputButton(const std::string &setting);
 
   public:
-    SettingsMenu();
+    void init(const std::string &title = "Projects");
     ~SettingsMenu();
     void render() override;
+
+    virtual void renderSettings();
+};
+
+class GlobalSettingsMenu : public SettingsMenu {
+  public:
+    GlobalSettingsMenu(void *userdata);
+    ~GlobalSettingsMenu();
+    void renderSettings() override;
 };

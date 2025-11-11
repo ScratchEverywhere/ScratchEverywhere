@@ -20,7 +20,7 @@ class ProjectsMenu : public Menu {
     Clay_String noProjectsPath;
 
   public:
-    ProjectsMenu();
+    ProjectsMenu(void *userdata);
     ~ProjectsMenu();
     void render() override;
 };

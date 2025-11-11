@@ -3,6 +3,7 @@
 #include "menuManager.hpp"
 #include "menus/components.hpp"
 #include "os.hpp"
+#include "settingsMenu.hpp"
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -17,7 +18,7 @@ constexpr unsigned int windowWidth = 320;
 constexpr unsigned int windowHeight = 240;
 #endif
 
-ProjectsMenu::ProjectsMenu() {
+ProjectsMenu::ProjectsMenu(void *userdata) {
     components::projectHoverData.clear();
 
     missingIcon = std::make_unique<Image>("gfx/menu/noicon.svg");

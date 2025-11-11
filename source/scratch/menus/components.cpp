@@ -36,7 +36,7 @@ Sidebar::Sidebar() {
 static MenuID tabToMenuID(const std::string tab) {
     if (tab == "home") return MenuID::MainMenu;
     if (tab == "projects") return MenuID::ProjectsMenu;
-    if (tab == "settings") return MenuID::SettingsMenu;
+    if (tab == "settings") return MenuID::GlobalSettingsMenu;
     return MenuID::None;
 }
 
