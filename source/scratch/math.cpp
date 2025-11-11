@@ -50,7 +50,7 @@ double Math::parseNumber(std::string str) {
         return -std::numeric_limits<double>::infinity();
     }
 
-    uint8_t base;
+    uint8_t base = 0;
     std::string validcharacters = "0123456789-eE.";
     if (str[0] == '0') {
         base = 0;

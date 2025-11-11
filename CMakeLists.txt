@@ -9,11 +9,20 @@ set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
 option(SE_AUDIO "Enables audio in SE!" ON)
-option(SE_CLOUDVARS "Enable cloud variables." ON)
 option(SE_HEADLESS "Makes SE! use a headless renderer instead of SDL2. This will override the SE_AUDIO setting." OFF)
 option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+
+# Cloud variables might actually be possible on Switch with a newer version of libcurl but I don't really feel like dealing with that rn
+if(NOT NINTENDO_SWITCH AND NOT PSP)
+	option(SE_CLOUDVARS "Enable cloud variables." ON)
+endif()
+
+if(NINTENDO_SWITCH OR PSP)
+	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
+else()
+	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
+endif()
 
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 	message(STATUS "Downloading CPM.cmake...")
@@ -27,15 +36,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC
-include(FetchContent)
-FetchContent_Declare(
-  cmrc
-  URL https://github.com/vector-of-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(cmrc)
-include(${cmrc_SOURCE_DIR}/CMakeRC.cmake)   
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC  
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
@@ -52,9 +53,6 @@ foreach(file IN LISTS GFXFILES)
 
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
-
-file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
-cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
 
 # They're single header so I just use CPM no matter what
 CPMAddPackage(
@@ -198,10 +196,30 @@ endforeach()
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 
 add_executable(scratch-everywhere ${SOURCE_FILES})
+if(PSP)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-psp)
+elseif(NINTENDO_SWITCH)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-nx)
+endif()
+
+if(NOT PSP AND NOT NINTENDO_SWITCH)
+	include(FetchContent)
+	FetchContent_Declare(
+	  cmrc
+	  URL https://github.com/vector-of-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
+	  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+	)
+	FetchContent_MakeAvailable(cmrc)
+	include(${cmrc_SOURCE_DIR}/CMakeRC.cmake)
+
+	file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
+	cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
+	target_link_libraries(scratch-everywhere PRIVATE romfs::rc)
+endif()
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
-	add_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-	link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
+	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
 
 if(NOT BUILD_SHARED_LIBS AND WIN32)
@@ -256,7 +274,9 @@ if (NOT SE_HEADLESS)
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 endif()
 
-target_compile_definitions(scratch-everywhere PRIVATE __PC__)
+if(NOT NINTENDO_SWITCH AND NOT PSP)
+	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
+endif()
 
 if(NOT SE_HEADLESS)
 	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
@@ -273,7 +293,7 @@ if(SE_CLOUDVARS)
 	target_link_libraries(scratch-everywhere PRIVATE mist++)
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json romfs::rc)
+target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
 if(PSP)
@@ -287,8 +307,11 @@ if(PSP)
     )
 	# package the EBOOT.pbp
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/scratch-psp"
-    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:scratch-everywhere>" "${CMAKE_BINARY_DIR}/scratch-psp/EBOOT.PBP"
-    COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/scratch-psp.zip" --format=zip -- "${CMAKE_BINARY_DIR}/scratch-psp"
-)
+	    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/scratch-psp-bundle"
+	    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:scratch-everywhere>" "${CMAKE_BINARY_DIR}/scratch-psp-bundle/EBOOT.PBP"
+		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/scratch-psp.zip" --format=zip -- "${CMAKE_BINARY_DIR}/scratch-psp-bundle"
+	)
+elseif(NINTENDO_SWITCH)
+	nx_generate_nacp(OUTPUT scratch-nx.nacp NAME "Scratch Everywhere!" AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
+	nx_create_nro(scratch-everywhere OUTPUT scratch-nx.nro ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/icon.png" NACP scratch-nx.nacp)
 endif()
