@@ -25,6 +25,8 @@ std::map<unsigned int, C2D_Font> fonts;
 uint16_t FONT_ID_BODY_16 = 0;
 uint16_t FONT_ID_BODY_BOLD_48 = 1;
 
+const std::array<std::string, 3> Sidebar::tabs = {"home", "projects", "settings"};
+
 Sidebar::Sidebar() {
     nextTabImage = getControllerImage("shoulderR");
     previousTabImage = getControllerImage("shoulderL");

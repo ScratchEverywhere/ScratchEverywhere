@@ -76,7 +76,7 @@ if(NOT SE_HEADLESS)
 		VERSION 0.14
 		DOWNLOAD_ONLY TRUE
 		GIT_TAG main # I used a newer version of the lib when I originally started working on the PR and don't really feel like downgrading...
-		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clay_renderer_SDL2.patch"
+		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clay.patch"
 	)
 
 	if(SE_SYSTEM)
