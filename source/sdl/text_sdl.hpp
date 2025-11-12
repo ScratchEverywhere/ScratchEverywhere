@@ -1,7 +1,7 @@
 #pragma once
 #include "../scratch/text.hpp"
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
+#include <SDL_ttf.h>
 #include <unordered_map>
 
 class TextObjectSDL : public TextObject {

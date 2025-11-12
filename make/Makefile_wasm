@@ -1,50 +1,43 @@
 .PHONY: all clean debug release
 
-TARGET     := Scratch-pc
-BUILD      := build/pc
-SOURCES    := source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES   := include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann
+TARGET		:=	scratch-wasm
+BUILD		:=	build/wasm
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann include/miniz
 
-CXX        := g++
-CC         := gcc
+CXX	:=	em++
+CC	:=	emcc
+
+GRAPHICS	:=	gfx
+GFXBUILD	:=	romfs/gfx
 
 # Config Options
-ENABLE_CLOUDVARS	?=	0
-ENABLE_AUDIO	?=	1
+ENABLE_AUDIO		?=	1
 ENABLE_LOADSCREEN	?=	1
 
-# Base compiler flags
-CFLAGS_BASE   := -D__PC__ -DSDL_BUILD
+EMFLAGS	:=	-sUSE_SDL=2 -sUSE_SDL_IMAGE=2 -sUSE_SDL_TTF=2 -sUSE_SDL_GFX=2 -sSDL2_IMAGE_FORMATS='["png","jpg","svg"]' -sNO_DISABLE_EXCEPTION_CATCHING
+LDFLAGS	:=	$(EMFLAGS) --preload-file romfs --use-preload-plugins -sALLOW_MEMORY_GROWTH=1 -sASYNCIFY -sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS] -sEXPORTED_FUNCTIONS=[_main,_malloc,_free] --shell-file $(GRAPHICS)/wasm/shell.html
 
-LDFLAGS    := -lSDL2 -lSDL2_image -lSDL2_ttf
+CFLAGS_BASE	:= -DSDL_BUILD $(EMFLAGS)
 
 ifeq ($(ENABLE_AUDIO),1)
-LDFLAGS	+=	-lSDL2_mixer
-CFLAGS_BASE	+=	-DENABLE_AUDIO
+EMFLAGS		+=	-sUSE_SDL_MIXER=2 -sSDL2_MIXER_FORMATS='["ogg","mp3"]'
+CFLAGS_BASE	+=	-DENABLE_AUDIO -sUSE_SDL_MIXER=2 -sSDL2_MIXER_FORMATS='["ogg","mp3"]'
+LDFLAGS		+=	-sUSE_SDL_MIXER=2 -sSDL2_MIXER_FORMATS='["ogg","mp3"]'
 endif
 
 ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS_BASE	+=	-DENABLE_LOADSCREEN
 endif
 
-ifeq ($(ENABLE_CLOUDVARS),1)
-CFLAGS_BASE		+=	-DENABLE_CLOUDVARS
-LDFLAGS				+=	-lmist++ -lcurl
-
-# Mist++ Version Check
-ifeq ($(shell pkg-config --atleast-version=0.1.4 mist++ >/dev/null 2>&1; echo $$?),1)
-$(error "[ERROR] Mist++ must be v0.1.4 or newer.")
-endif
-endif
-
-CXXFLAGS_BASE := $(CFLAGS_BASE) -std=c++17 -Wall -fexceptions
+CXXFLAGS_BASE	:=	$(CFLAGS_BASE) -std=c++17 -Wall
 
 # Debug and Release flags
-CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -fsanitize=address -g -O0 -DDEBUG
-CXXFLAGS_RELEASE := $(CXXFLAGS_BASE) -O2 -DNDEBUG
+CXXFLAGS_DEBUG   := $(CXXFLAGS_BASE) -g -O0 -DDEBUG
+CXXFLAGS_RELEASE := $(CXXFLAGS_BASE) -O2 -DNDEBUG -flto
 
-CFLAGS_DEBUG   := $(CFLAGS_BASE) -fsanitize=address -g -O0 -DDEBUG
-CFLAGS_RELEASE := $(CFLAGS_BASE) -O2 -DNDEBUG
+CFLAGS_DEBUG   := $(CFLAGS_BASE) -g -O0 -DDEBUG
+CFLAGS_RELEASE := $(CFLAGS_BASE) -O2 -DNDEBUG -flto
 
 # Find all .cpp and .c files recursively
 SRC_CPP    := $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
@@ -63,27 +56,31 @@ all: debug
 # Debug build
 debug: CXXFLAGS := $(CXXFLAGS_DEBUG)
 debug: CFLAGS   := $(CFLAGS_DEBUG)
-debug: LDFLAGS	+= -fsanitize=address
-debug: $(BUILD)/debug/$(TARGET)
+debug: LDFLAGS  += -sSAFE_HEAP -sSTACK_OVERFLOW_CHECK=2
+debug: $(GFXBUILD) $(BUILD)/debug/$(TARGET).html
 
 # Release build
 release: CXXFLAGS := $(CXXFLAGS_RELEASE)
 release: CFLAGS   := $(CFLAGS_RELEASE)
-release: $(BUILD)/release/$(TARGET)
+release: LDFLAGS  += --closure 1
+release: $(GFXBUILD) $(BUILD)/release/$(TARGET).html
+
+# Graphics
+$(GFXBUILD):
+	@mkdir -p $@
+	@cp -r $(GRAPHICS)/* $@/
 
 # Link debug executable
-$(BUILD)/debug/$(TARGET): $(patsubst $(BUILD)/%,$(BUILD)/debug/%,$(OBJS))
+$(BUILD)/debug/$(TARGET).html: $(patsubst $(BUILD)/%,$(BUILD)/debug/%,$(OBJS))
 	@mkdir -p $(dir $@)
 	@echo "Linking debug build..."
 	@$(CXX) $^ -o $@ $(LDFLAGS)
-	@echo "Built debug $(TARGET)"
 
 # Link release executable
-$(BUILD)/release/$(TARGET): $(patsubst $(BUILD)/%,$(BUILD)/release/%,$(OBJS))
+$(BUILD)/release/$(TARGET).html: $(patsubst $(BUILD)/%,$(BUILD)/release/%,$(OBJS))
 	@mkdir -p $(dir $@)
 	@echo "Linking release build..."
 	@$(CXX) $^ -o $@ $(LDFLAGS)
-	@echo "Built release $(TARGET)"
 
 # Compile C++ debug objects
 $(BUILD)/debug/%.o: %.cpp

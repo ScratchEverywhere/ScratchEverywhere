@@ -2,16 +2,22 @@
 #include "../scratch/os.hpp"
 #include "audio.hpp"
 #include "interpret.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "sprite.hpp"
 #include <string>
 #include <unordered_map>
 #ifdef __3DS__
 #include <3ds.h>
 #endif
+#ifdef __PC__
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
+#endif
 
 std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;
 std::string currentStreamedSound = "";
+static bool isInit = false;
 
 #ifdef ENABLE_AUDIO
 SDL_Audio::SDL_Audio() : audioChunk(nullptr) {}
@@ -27,38 +33,33 @@ SDL_Audio::~SDL_Audio() {
         Mix_FreeMusic(music);
         music = nullptr;
     }
+    if (file_data != nullptr) {
+        mz_free(file_data);
+        file_data = nullptr;
+    }
 #endif
 }
 
-// code down here kinda messy,,, TODO fix that
-
-int soundLoaderThread(void *data) {
-    SDL_Audio::SoundLoadParams *params = static_cast<SDL_Audio::SoundLoadParams *>(data);
-    bool success = false;
-    if (projectType != UNZIPPED)
-        success = params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
-    else
-        success = params->player->loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
-
-    delete params;
-
-    return success ? 0 : 1;
-}
-
-void NDS_soundLoaderThread(void *data) {
-    SDL_Audio::SoundLoadParams *params = static_cast<SDL_Audio::SoundLoadParams *>(data);
-    if (projectType != UNZIPPED)
-        params->player->loadSoundFromSB3(params->sprite, params->zip, params->soundId, params->streamed);
-    else
-        params->player->loadSoundFromFile(params->sprite, "project/" + params->soundId, params->streamed);
-
-    delete params;
-
-    return;
-}
-
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId) {
+bool SoundPlayer::init() {
+    if (isInit) return true;
 #ifdef ENABLE_AUDIO
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        Log::logWarning(std::string("SDL_Mixer could not initialize! ") + Mix_GetError());
+        return false;
+    }
+    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
+    if (Mix_Init(flags) != flags) {
+        Log::logWarning(std::string("SDL_Mixer could not initialize MP3/OGG Support! ") + Mix_GetError());
+    }
+    isInit = true;
+    return true;
+#endif
+    return false;
+}
+
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
+#ifdef ENABLE_AUDIO
+    if (!init()) return;
 
     if (SDL_Sounds.find(soundId) != SDL_Sounds.end()) {
         return;
@@ -67,38 +68,20 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
     SDL_Sounds[soundId] = std::move(audio);
 
-    SDL_Audio::SoundLoadParams *params = new SDL_Audio::SoundLoadParams{
+    SDL_Audio::SoundLoadParams params = {
         .sprite = sprite,
         .zip = zip,
         .soundId = soundId,
-        .streamed = sprite->isStage}; // stage sprites get streamed audio
+        .streamed = streamed || (sprite != nullptr && sprite->isStage)}; // stage sprites get streamed audio
 
-#if defined(__OGC__) || defined(VITA)
-    params->streamed = false; // streamed sounds crash on wii. vita does not like them either.
+#if defined(__OGC__)
+    params.streamed = false; // streamed sounds crash on wii.
 #endif
 
-// do 3DS threads so it can actually run in the background
-#ifdef __3DS__
-    s32 mainPrio = 0;
-    svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
-
-    threadCreate(
-        NDS_soundLoaderThread,
-        params,
-        0x10000,
-        mainPrio + 1,
-        1,
-        true);
-#else
-
-    SDL_Thread *thread = SDL_CreateThread(soundLoaderThread, "SoundLoader", params);
-
-    if (!thread) {
-        Log::logWarning("Failed to create SDL thread: " + std::string(SDL_GetError()));
-    } else {
-        SDL_DetachThread(thread);
-    }
-#endif
+    if (projectType != UNZIPPED && fromProject)
+        loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
+    else
+        loadSoundFromFile(params.sprite, (fromProject ? "project/" : "") + params.soundId, params.streamed);
 
 #endif
 }
@@ -131,7 +114,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             std::string ext4 = zipFileName.substr(zipFileName.size() - 4);
             std::transform(ext4.begin(), ext4.end(), ext4.begin(), ::tolower);
 
-            if (ext4 == ".mp3" || ext4 == ".wav" || ext4 == ".ogg") {
+            if (ext4 == ".mp3" || ext4 == ".mpga" || ext4 == ".wav" || ext4 == ".ogg" || ext4 == ".oga") {
                 isAudio = true;
                 extension = ext4;
             }
@@ -161,44 +144,49 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                     return false;
                 }
                 // Log::log("Converting sound into SDL sound...");
-                chunk = Mix_LoadWAV_RW(rw, 1);
-                mz_free(file_data);
+                chunk = Mix_LoadWAV_RW(rw, 0);
 
                 if (!chunk) {
                     Log::logWarning("Failed to load audio from memory: " + zipFileName + " - SDL_mixer Error: " + Mix_GetError());
+                    mz_free(file_data);
                     return false;
                 }
             } else {
-                // need to write to a temp file because this is a zip file
-                std::string tempDir = OS::getScratchFolderLocation() + "/cache";
-                std::string tempFile = tempDir + "/temp_" + soundId;
+                SDL_RWops *rw = SDL_RWFromMem(file_data, (int)file_size);
+                if (!rw) {
+                    Log::logWarning("Cannot create RWops for streamed music, falling back to extract method.");
+                    std::string tempDir = OS::getScratchFolderLocation() + "/cache";
+                    std::string tempFile = tempDir + "/temp_" + soundId;
 
-                // make cache directory
-                try {
-                    std::filesystem::create_directories(tempDir);
-                } catch (const std::exception &e) {
-                    Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
+                    // make cache directory
+                    try {
+                        std::filesystem::create_directories(tempDir);
+                    } catch (const std::exception &e) {
+                        Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
+                        mz_free(file_data);
+                        return false;
+                    }
+
+                    FILE *fp = fopen(tempFile.c_str(), "wb");
+                    if (!fp) {
+                        Log::logWarning("Failed to create temp file for streaming");
+                        mz_free(file_data);
+                        return false;
+                    }
+
+                    fwrite(file_data, 1, file_size, fp);
+                    fclose(fp);
                     mz_free(file_data);
-                    return false;
+
+                    music = Mix_LoadMUS(tempFile.c_str());
+
+                    // Clean up temp file
+                    remove(tempFile.c_str());
+
+                } else {
+                    music = Mix_LoadMUS_RW(rw, 0);
+                    SDL_RWclose(rw);
                 }
-
-                FILE *fp = fopen(tempFile.c_str(), "wb");
-                if (!fp) {
-                    Log::logWarning("Failed to create temp file for streaming");
-                    mz_free(file_data);
-                    return false;
-                }
-
-                fwrite(file_data, 1, file_size, fp);
-                fclose(fp);
-                mz_free(file_data);
-
-                // Log::log("Converting sound into SDL streamed music...");
-                music = Mix_LoadMUS(tempFile.c_str());
-
-                // Clean up temp file
-                remove(tempFile.c_str());
-
                 if (!music) {
                     Log::logWarning("Failed to load music from memory: " + zipFileName + " - SDL_mixer Error: " + Mix_GetError());
                     return false;
@@ -227,6 +215,8 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             // Log::log("memory usage: " + std::to_string(MemoryTracker::getCurrentUsage() / 1024) + " KB");
             SDL_Sounds[soundId]->isLoaded = true;
             SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
+            SDL_Sounds[soundId]->file_size = file_size;
+            SDL_Sounds[soundId]->file_data = file_data;
             playSound(soundId);
             setSoundVolume(soundId, sprite->volume);
             return true;
@@ -239,7 +229,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
 bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
 #ifdef ENABLE_AUDIO
-    // Log::log("Loading audio from file: " + fileName);
+    Log::log("Loading audio from file: " + fileName);
 
     // Check if file has supported extension
     std::string lowerFileName = fileName;
@@ -250,7 +240,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     bool isSupported = false;
     if (lowerFileName.size() >= 4) {
         std::string ext = lowerFileName.substr(lowerFileName.size() - 4);
-        if (ext == ".mp3" || ext == ".wav" || ext == ".ogg") {
+        if (ext == ".mp3" || ext == ".mpga" || ext == ".wav" || ext == ".ogg" || ext == ".oga") {
             isSupported = true;
         }
     }
@@ -265,13 +255,23 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     size_t audioMemorySize = 0;
 
     if (!streamed) {
+#ifdef __PC__
+        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+        chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+#else
         chunk = Mix_LoadWAV(fileName.c_str());
+#endif
         if (!chunk) {
             Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
         }
     } else {
+#ifdef __PC__
+        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+        music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+#else
         music = Mix_LoadMUS(fileName.c_str());
+#endif
         if (!music) {
             Log::logWarning("Failed to load streamed audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
@@ -286,16 +286,21 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         audio->music = music;
         audio->isStreaming = true;
     }
+
+    // remove romfs from filename for soundId
+    fileName = fileName.substr(OS::getRomFSLocation().length());
+
     audio->audioId = fileName;
     audio->memorySize = audioMemorySize;
 
     SDL_Sounds[fileName] = std::move(audio);
 
-    Log::log("Successfully loaded audio!");
+    Log::log("Successfully loaded audio! " + fileName);
     SDL_Sounds[fileName]->isLoaded = true;
     SDL_Sounds[fileName]->channelId = SDL_Sounds.size();
     playSound(fileName);
-    setSoundVolume(fileName, sprite->volume);
+    const int volume = sprite != nullptr ? sprite->volume : 100;
+    setSoundVolume(fileName, volume);
     return true;
 #endif
     return false;
@@ -382,18 +387,43 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     return -1.0f;
 }
 
+double SoundPlayer::getMusicPosition(const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        // ill get to it i think
+    }
+
+#endif
+    return 0.0;
+}
+
+void SoundPlayer::setMusicPosition(double position, const std::string &soundId) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        // ...
+    }
+#endif
+}
+
 void SoundPlayer::stopSound(const std::string &soundId) {
 #ifdef ENABLE_AUDIO
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
-        int channel = soundFind->second->channelId;
-        if (channel >= 0 && channel < Mix_AllocateChannels(-1)) {
-            Mix_HaltChannel(channel);
+
+        if (!soundFind->second->isStreaming) {
+            int channel = soundFind->second->channelId;
+            if (channel >= 0 && channel < Mix_AllocateChannels(-1)) {
+                Mix_HaltChannel(channel);
+                soundFind->second->isPlaying = false;
+            } else {
+                Log::logWarning("Invalid channel for sound: " + soundId);
+            }
         } else {
-            Log::logWarning("Invalid channel for sound: " + soundId);
+            stopStreamedSound();
+            soundFind->second->isPlaying = false;
         }
-    } else {
-        Log::logWarning("No active channel found for sound: " + soundId);
     }
 #endif
 }
@@ -484,6 +514,7 @@ void SoundPlayer::cleanupAudio() {
 
 void SoundPlayer::deinit() {
 #ifdef ENABLE_AUDIO
+    if (!isInit) return;
     Mix_HaltMusic();
     Mix_HaltChannel(-1);
     cleanupAudio();

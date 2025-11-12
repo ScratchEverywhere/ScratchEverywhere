@@ -7,6 +7,19 @@
 
 class Sprite;
 
+struct RenderInfo {
+    float renderX;
+    float renderY;
+    float renderScaleX;
+    float renderScaleY;
+    float renderRotation;
+
+    float oldX, oldY;
+    float oldSize, oldRotation;
+    int oldCostumeID = -1;
+    bool forceUpdate = false;
+};
+
 struct Variable {
     std::string id;
     std::string name;
@@ -36,7 +49,6 @@ struct ParsedInput {
 };
 
 struct Block {
-
     std::string id;
     std::string customBlockId;
     std::string opcode;
@@ -51,7 +63,6 @@ struct Block {
     std::string topLevelParentBlock;
 
     /* variables that some blocks need*/
-    bool shouldStop = false; // literally only for the 'stop' block and 'if' blocks
     int repeatTimes = -1;
     bool isRepeating = false;
     double waitDuration;
@@ -61,8 +72,6 @@ struct Block {
     bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
-    std::vector<std::string> substackBlocksRan;
-    std::string waitingIfBlock = "";
 
     Block() {
         parsedFields = std::make_shared<std::map<std::string, ParsedField>>();
@@ -156,15 +165,15 @@ class Sprite {
     bool isDeleted = false;
     bool shouldDoSpriteClick = false;
     int currentCostume;
-    std::string lastCostumeId = "";
     float volume;
-    double xPosition;
-    double yPosition;
+    float xPosition;
+    float yPosition;
     int rotationCenterX;
     int rotationCenterY;
-    double size;
-    double rotation;
+    float size;
+    float rotation;
     int layer;
+    RenderInfo renderInfo;
 
     float ghostEffect;
     float brightnessEffect;
@@ -180,6 +189,13 @@ class Sprite {
     std::vector<std::pair<double, double>> collisionPoints;
     int spriteWidth;
     int spriteHeight;
+
+    struct {
+        bool down;
+        double size;
+        Color color;
+        double transparency;
+    } penData;
 
     std::unordered_map<std::string, Variable> variables;
     std::unordered_map<std::string, Block> blocks;

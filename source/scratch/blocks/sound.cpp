@@ -2,6 +2,7 @@
 #include "audio.hpp"
 #include "blockExecutor.hpp"
 #include "interpret.hpp"
+#include "math.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
@@ -127,8 +128,10 @@ BlockResult SoundBlocks::playSound(Block &block, Sprite *sprite, bool *withoutSc
 }
 
 BlockResult SoundBlocks::stopAllSounds(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    for (auto &[id, sound] : sprite->sounds) {
-        SoundPlayer::stopSound(sound.fullName);
+    for (auto &currentSprite : sprites) {
+        for (auto &[id, sound] : currentSprite->sounds) {
+            SoundPlayer::stopSound(sound.fullName);
+        }
     }
     return BlockResult::CONTINUE;
 }

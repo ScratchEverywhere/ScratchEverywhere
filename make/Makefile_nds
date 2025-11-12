@@ -1,0 +1,196 @@
+#---------------------------------------------------------------------------------
+.SUFFIXES:
+#---------------------------------------------------------------------------------
+
+
+export WONDERFUL_TOOLCHAIN	?= /opt/wonderful
+export BLOCKSDS			?= (WONDERFUL_TOOLCHAIN)/thirdparty/blocksds/core
+ARM_NONE_EABI_PATH	?= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/
+
+#---------------------------------------------------------------------------------
+# Tools
+#---------------------------------------------------------------------------------
+PREFIX		:= $(ARM_NONE_EABI_PATH)arm-none-eabi-
+CC		:= $(PREFIX)gcc
+CXX		:= $(PREFIX)g++
+AR		:= $(PREFIX)ar
+OBJCOPY		:= $(PREFIX)objcopy
+STRIP		:= $(PREFIX)strip
+NM		:= $(PREFIX)nm
+RANLIB		:= $(PREFIX)ranlib
+
+#---------------------------------------------------------------------------------
+# TARGET is the name of the output
+# BUILD is the directory where object files & intermediate files will be placed
+# SOURCES is a list of directories containing source code
+# INCLUDES is a list of directories containing extra header files
+# DATA is a list of directories containing binary files
+#---------------------------------------------------------------------------------
+TARGET		:=	scratch-ds
+BUILD		:=	build
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/nds include/miniz
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/nds include/nlohmann include/miniz
+DATA		:=
+NITRODATA	:=	romfs
+GRAPHICS	:=	gfx
+GFXBUILD	:=	$(NITRODATA)/gfx
+
+#---------------------------------------------------------------------------------
+# Game info
+#---------------------------------------------------------------------------------
+GAME_TITLE		:=	Scratch Everywhere!
+GAME_SUBTITLE1	:=	Scratch 3 Games on your DS!
+GAME_SUBTITLE2	:=	NateXS
+GAME_ICON		:=	$(CURDIR)/../gfx/nds/icon.bmp
+
+
+
+#---------------------------------------------------------------------------------
+# options for code generation
+#---------------------------------------------------------------------------------
+ARCH	:=	-mthumb -mcpu=arm946e-s+nofp
+
+CFLAGS	:=	-g -Wall -O2 \
+			-fomit-frame-pointer \
+			-ffast-math \
+			-ffunction-sections -fdata-sections \
+			$(ARCH)
+
+CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DENABLE_AUDIO
+
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
+
+ASFLAGS	:=	-g $(ARCH)
+LDFLAGS	=	-specs=$(BLOCKSDS)/sys/crts/ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
+
+#---------------------------------------------------------------------------------
+# any extra libraries we wish to link with the project (order matters!)
+#---------------------------------------------------------------------------------
+LIBS	:= -lstdc++ -lc -lnds9 -lmm9
+
+#---------------------------------------------------------------------------------
+# list of directories containing libraries
+#---------------------------------------------------------------------------------
+LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
+
+
+ifeq ($(ENABLE_AUDIO),1)
+LIBS	+=	-lmm9
+LIBDIRS	+=	$(BLOCKSDS)/libs/maxmod
+endif
+
+#---------------------------------------------------------------------------------
+# no real need to edit anything past this point unless you need to add additional
+# rules for different file extensions
+#---------------------------------------------------------------------------------
+ifneq ($(BUILD),$(notdir $(CURDIR)))
+#---------------------------------------------------------------------------------
+
+export OUTPUT	:=	$(CURDIR)/$(TARGET)
+
+export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
+					$(foreach dir,$(DATA),$(CURDIR)/$(dir))
+
+export DEPSDIR	:=	$(CURDIR)/$(BUILD)
+
+ifneq ($(strip $(NITRODATA)),)
+	export NITRO_FILES	:=	$(CURDIR)/$(NITRODATA)
+	export _ADDFILES	:=	-d $(NITRO_FILES)
+endif
+
+# Find all source files recursively
+CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
+CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
+SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+
+#---------------------------------------------------------------------------------
+# use CXX for linking C++ projects, CC for standard C
+#---------------------------------------------------------------------------------
+ifeq ($(strip $(CPPFILES)),)
+	export LD	:=	$(CC)
+else
+	export LD	:=	$(CXX)
+endif
+
+#---------------------------------------------------------------------------------
+export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
+					$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
+
+export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
+					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+					-I$(CURDIR)/$(BUILD)
+
+export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
+
+# Store the path to this makefile for the second phase
+export MAKEFILE_PATH := $(CURDIR)/make/Makefile_nds
+
+.PHONY: $(BUILD) clean all
+
+#---------------------------------------------------------------------------------
+all: $(GFXBUILD) $(BUILD)
+
+#---------------------------------------------------------------------------------
+$(BUILD):
+	@[ -d $@ ] || mkdir -p $@
+	@$(MAKE) --no-print-directory -C $(BUILD) -f $(MAKEFILE_PATH)
+
+$(GFXBUILD):
+	@mkdir -p $@
+	@cp -r $(GRAPHICS)/menu $@/
+#	@cp -r $(GRAPHICS)/ingame $@/
+
+#---------------------------------------------------------------------------------
+clean:
+	@echo clean ...
+	@rm -fr $(BUILD) $(TARGET).elf $(TARGET).nds $(GFXBUILD)
+
+#---------------------------------------------------------------------------------
+else
+
+DEPENDS	:=	$(OFILES:.o=.d)
+
+#---------------------------------------------------------------------------------
+# main targets
+#---------------------------------------------------------------------------------
+$(OUTPUT).nds	: 	$(OUTPUT).elf
+$(OUTPUT).elf	:	$(OFILES)
+
+#---------------------------------------------------------------------------------
+%.nds: %.elf
+	@echo built ... $(notdir $@)
+	@$(BLOCKSDS)/tools/ndstool/ndstool -c $@ -9 $< -b $(GAME_ICON) "$(GAME_TITLE);$(GAME_SUBTITLE1);$(GAME_SUBTITLE2)" $(_ADDFILES)
+
+#---------------------------------------------------------------------------------
+%.elf:
+	@echo linking $(notdir $@)
+	@$(LD) $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+
+#---------------------------------------------------------------------------------
+# Compilation rules
+#---------------------------------------------------------------------------------
+%.o: %.cpp
+	@echo $(notdir $<)
+	@$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) -c $< -o $@
+
+%.o: %.c
+	@echo $(notdir $<)
+	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) -c $< -o $@
+
+%.o: %.s
+	@echo $(notdir $<)
+	@$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d -x assembler-with-cpp $(ASFLAGS) -c $< -o $@
+
+#---------------------------------------------------------------------------------
+%.bin.o	:	%.bin
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(BLOCKSDS)/tools/bin2c/bin2c $< $(CURDIR)/$(BUILD)
+	@$(CC) $(CFLAGS) -c -o $@ $(CURDIR)/$(BUILD)/$(notdir $<).c
+
+-include $(DEPENDS)
+
+#---------------------------------------------------------------------------------------
+endif
+#---------------------------------------------------------------------------------------

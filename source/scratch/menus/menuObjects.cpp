@@ -51,9 +51,7 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
 
 bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
     for (const auto &button : pressButton) {
-        if ((isSelected || !needsToBeSelected) && Input::isKeyJustPressed(button)) {
-            return true;
-        }
+        if ((isSelected || !needsToBeSelected) && Input::isKeyJustPressed(button)) return true;
     }
 
     if (!canBeClicked) return false;
@@ -108,26 +106,26 @@ bool ButtonObject::isTouchingMouse() {
     bool withinX = touchX >= (scaledPos[0] - (scaledWidth / 2)) && touchX <= (scaledPos[0] + (scaledWidth / 2));
     bool withinY = touchY >= (scaledPos[1] - (scaledHeight / 2)) && touchY <= (scaledPos[1] + (scaledHeight / 2));
 
-    if ((withinX && withinY)) {
-        return true;
-    }
+    if ((withinX && withinY)) return true;
 
     return false;
 }
 
 void ButtonObject::render(double xPos, double yPos) {
-
     if (xPos == 0) xPos = x;
     if (yPos == 0) yPos = y;
 
     std::vector<double> scaledPos = getScaledPosition(xPos, yPos);
+    float renderScale = scale * getScaleFactor();
 
     buttonTexture->x = xPos;
     buttonTexture->y = yPos;
     buttonTexture->scale = scale * getScaleFactor();
-    buttonTexture->render();
+    buttonTexture->image->renderNineslice(scaledPos[0], scaledPos[1],
+                                          std::max(text->getSize()[0] * renderScale, (float)buttonTexture->image->getWidth() * renderScale),
+                                          std::max(text->getSize()[1] * renderScale, (float)buttonTexture->image->getHeight() * renderScale), 8, true);
 
-    text->setScale((scale * getScaleFactor()) * textScale);
+    text->setScale(renderScale * textScale);
     text->render(scaledPos[0], scaledPos[1]);
 }
 
@@ -148,13 +146,17 @@ void MenuImage::render(double xPos, double yPos) {
     if (yPos == 0) yPos = y;
 
     image->scale = scale * getScaleFactor();
-    double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
-    double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
+    const double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
+    const double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
 
     renderX = proportionX * Render::getWidth();
     renderY = proportionY * Render::getHeight();
 
-    image->render(renderX, renderY, true);
+    if (width <= 0 && height <= 0) {
+        image->renderNineslice(renderX, renderY, image->getWidth() * scale, image->getHeight() * scale, 8 /* TODO: make this customizable */, true);
+        return;
+    }
+    image->renderNineslice(renderX, renderY, width * scale, height * scale, 8 /* TODO: make this customizable */, true);
 }
 
 MenuImage::~MenuImage() {
@@ -195,8 +197,10 @@ void ControlObject::render(double xPos, double yPos) {
         std::vector<double> buttonCenter = getScaledPosition(selectedObject->x + xPos, selectedObject->y - yPos);
 
         // Calculate the scaled dimensions of the button
-        double scaledWidth = selectedObject->buttonTexture->image->getWidth() * selectedObject->scale * getScaleFactor();
-        double scaledHeight = selectedObject->buttonTexture->image->getHeight() * selectedObject->scale * getScaleFactor();
+        float renderScale = selectedObject->scale * getScaleFactor();
+
+        double scaledWidth = std::max(selectedObject->text->getSize()[0] * renderScale, (float)selectedObject->buttonTexture->image->getWidth() * renderScale);
+        double scaledHeight = std::max(selectedObject->text->getSize()[1] * renderScale, (float)selectedObject->buttonTexture->image->getHeight() * renderScale);
 
         // animation effect
         double time = animationTimer.getTimeMs() / 1000.0;

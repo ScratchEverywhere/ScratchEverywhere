@@ -3,7 +3,7 @@ name: Switch Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_switch
+      - CMakeLists.txt
       - source/scratch/**
       - source/sdl/**
       - gfx/menu/**
@@ -38,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Switch Nightly
-          path: build/switch/scratch-nx.nro
+          path: scratch-nx.nro

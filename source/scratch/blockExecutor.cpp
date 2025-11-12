@@ -5,6 +5,7 @@
 #include "blocks/looks.hpp"
 #include "blocks/motion.hpp"
 #include "blocks/operator.hpp"
+#include "blocks/pen.hpp"
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
@@ -175,6 +176,17 @@ void BlockExecutor::registerHandlers() {
     valueHandlers["argument_reporter_string_number"] = ProcedureBlocks::stringNumber;
     valueHandlers["argument_reporter_boolean"] = ProcedureBlocks::booleanArgument;
 
+    // pen extension
+    handlers["pen_penDown"] = PenBlocks::PenDown;
+    handlers["pen_penUp"] = PenBlocks::PenUp;
+    handlers["pen_clear"] = PenBlocks::EraseAll;
+    handlers["pen_setPenColorParamTo"] = PenBlocks::SetPenOptionTo;
+    handlers["pen_changePenColorParamBy"] = PenBlocks::ChangePenOptionBy;
+    handlers["pen_stamp"] = PenBlocks::Stamp;
+    handlers["pen_setPenColorToColor"] = PenBlocks::SetPenColorTo;
+    handlers["pen_setPenSizeTo"] = PenBlocks::SetPenSizeTo;
+    handlers["pen_changePenSizeBy"] = PenBlocks::ChangePenSizeBy;
+
     // Other (Don't know where else to put these)
     valueHandlers["matrix"] = [](Block &block, Sprite *sprite) {
         return Value(Scratch::getFieldValue(block, "MATRIX"));
@@ -208,22 +220,8 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
 
         // Move to next block
         if (!currentBlock->next.empty()) {
-
-            std::string waitingIfBlock = currentBlock->waitingIfBlock;
-            currentBlock->waitingIfBlock = "";
-
             currentBlock = &sprite->blocks[currentBlock->next];
-
-            currentBlock->waitingIfBlock = waitingIfBlock;
-
         } else {
-            // first check if the block is inside a waiting 'if' block
-            if (currentBlock->waitingIfBlock != "") {
-                std::string nextBlockId = sprite->blocks[currentBlock->waitingIfBlock].next;
-                currentBlock = &sprite->blocks[nextBlockId];
-                currentBlock->waitingIfBlock = "";
-                continue;
-            }
             break;
         }
     }
@@ -301,9 +299,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         if (id == block.customBlockId) {
             // Set up argument values
             for (std::string arg : data.argumentIds) {
-                if (block.parsedInputs->find(arg) != block.parsedInputs->end()) {
-                    data.argumentValues[arg] = Scratch::getInputValue(block, arg, sprite);
-                }
+                data.argumentValues[arg] = block.parsedInputs->find(arg) == block.parsedInputs->end() ? Value(0) : Scratch::getInputValue(block, arg, sprite);
             }
 
             // std::cout << "running custom block " << data.blockId << std::endl;
@@ -323,7 +319,6 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             // std::cout << "RWSR = " << localWithoutRefresh << std::endl;
 
             // Execute the custom block definition
-            customBlockDefinition->waitingIfBlock = callerBlock->waitingIfBlock;
             executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh);
 
             if (localWithoutRefresh) {
@@ -340,7 +335,20 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3") {
         Log::log("Open next Project with Block");
         Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
+        if (Unzip::filePath.rfind("sd:", 0) == 0) {
+            std::string drivePrefix = OS::getFilesystemRootPrefix();
+            Unzip::filePath.replace(0, 3, drivePrefix);
+        } else {
+            Unzip::filePath = Unzip::filePath;
+        }
+
+        if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
+            Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
+        }
+        if (!std::filesystem::exists(Unzip::filePath + "/project.json"))
+            Unzip::filePath = Unzip::filePath + ".sb3";
+
         Scratch::dataNextProject = Value();
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
@@ -348,7 +356,20 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") {
         Log::log("Open next Project with Block and data");
         Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
+        // if filepath contains sd:/ at the beginning and only at the beginning, replace it with sdmc:/
+        if (Unzip::filePath.rfind("sd:", 0) == 0) {
+            std::string drivePrefix = OS::getFilesystemRootPrefix();
+            Unzip::filePath.replace(0, 3, drivePrefix);
+        } else {
+            Unzip::filePath = Unzip::filePath;
+        }
+        if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
+            Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
+        }
+        if (!std::filesystem::exists(Unzip::filePath + "/project.json"))
+            Unzip::filePath = Unzip::filePath + ".sb3";
+
         Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
@@ -504,6 +525,15 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
                     var.value = val;
                 }
             }
+        }
+    } else {
+        try {
+            Block newBlock;
+            newBlock.opcode = var.opcode;
+            monitorName = var.opcode;
+            var.value = executor.getBlockValue(newBlock, sprite);
+        } catch (...) {
+            var.value = Value("Unknown...");
         }
     }
 

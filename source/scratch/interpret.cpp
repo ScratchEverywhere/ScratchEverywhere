@@ -54,9 +54,11 @@ int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
 bool Scratch::turbo = false;
+bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
+bool Scratch::forceRedraw = true;
 
 double Scratch::counter = 0;
 
@@ -116,7 +118,7 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) // These platforms require Mist++ 0.2.0 or later.
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
 #else // These platforms require Mist++ 0.1.4 or later.
     cloudConnection->connect();
@@ -156,18 +158,23 @@ bool Scratch::startScratchProject() {
 #endif
     Scratch::nextProject = false;
 
+    // Render first before running any blocks, otherwise 3DS rendering may get weird
+    Render::renderSprites();
+
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
     BlockExecutor::timer.start();
 
     while (Render::appShouldRun()) {
-        if (Render::checkFramerate()) {
+        const bool checkFPS = Render::checkFramerate();
+        if (!forceRedraw || checkFPS) {
+            forceRedraw = false;
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
-            Render::renderSprites();
+            if (checkFPS) Render::renderSprites();
 
             if (shouldStop) {
-#ifdef __WIIU__ // wii u freezes for some reason.. TODO fix that but for now just exit app
+#if defined(HEADLESS_BUILD)
                 toExit = true;
                 return false;
 #endif
@@ -221,6 +228,7 @@ void Scratch::cleanupScratchProject() {
     // reset default settings
     Scratch::FPS = 30;
     Scratch::turbo = false;
+    Scratch::hqpen = false;
     Scratch::projectWidth = 480;
     Scratch::projectHeight = 360;
     Scratch::fencing = true;
@@ -270,9 +278,14 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     std::vector<std::pair<double, double>> collisionPoints;
 
     double divisionAmount = 2.0;
+    const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
-    if (currentSprite->costumes[currentSprite->currentCostume].isSVG)
+    if (isSVG)
         divisionAmount = 1.0;
+
+#ifdef __NDS__
+    divisionAmount *= 2;
+#endif
 
     // Get sprite dimensions, scaled by size
     const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
@@ -288,10 +301,10 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         else
             rotation = -90;
     }
-
-    double rotationRadians = (rotation - 90) * M_PI / 180.0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) * 0.75);
-    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight) * 0.75);
+    double rotationRadians = -(rotation - 90) * M_PI / 180.0;
+    const int shiftAmount = !isSVG ? 1 : 0;
+    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) >> shiftAmount);
+    double rotationCenterY = -((currentSprite->rotationCenterY - currentSprite->spriteHeight) >> shiftAmount);
 
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
@@ -356,12 +369,12 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
         bool collision = true;
 
         for (int i = 0; i < 4; i++) {
-            auto edge1 = std::make_pair(
+            auto edge1 = std::pair{
                 currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
-                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second);
-            auto edge2 = std::make_pair(
+                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
+            auto edge2 = std::pair{
                 mousePoints[(i + 1) % 4].first - mousePoints[i].first,
-                mousePoints[(i + 1) % 4].second - mousePoints[i].second);
+                mousePoints[(i + 1) % 4].second - mousePoints[i].second};
 
             double axis1X = -edge1.second, axis1Y = edge1.first;
             double axis2X = -edge2.second, axis2Y = edge2.first;
@@ -614,8 +627,14 @@ void loadSprites(const nlohmann::json &json) {
                                 parsedInput.blockId = inputValue.get<std::string>();
                         }
                     } else if (type == 2) {
-                        parsedInput.inputType = ParsedInput::BOOLEAN;
-                        parsedInput.blockId = inputValue.get<std::string>();
+                        if (inputValue.is_array()) {
+                            parsedInput.inputType = ParsedInput::VARIABLE;
+                            parsedInput.variableId = inputValue[2].get<std::string>();
+                        } else {
+                            parsedInput.inputType = ParsedInput::BLOCK;
+                            if (!inputValue.is_null())
+                                parsedInput.blockId = inputValue.get<std::string>();
+                        }
                     }
                     (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
@@ -680,13 +699,13 @@ void loadSprites(const nlohmann::json &json) {
 
         // set Lists
         for (const auto &[id, data] : target["lists"].items()) {
-            List newList;
+            auto result = newSprite->lists.try_emplace(id).first;
+            List &newList = result->second;
             newList.id = id;
             newList.name = data[0];
-            for (const auto &listItem : data[1]) {
+            newList.items.reserve(data[1].size());
+            for (const auto &listItem : data[1])
                 newList.items.push_back(Value::fromJson(listItem));
-            }
-            newSprite->lists[newList.id] = newList; // add list
         }
 
         // set Sounds
@@ -898,6 +917,14 @@ void loadSprites(const nlohmann::json &json) {
 #endif
     }
     try {
+        Scratch::hqpen = config["hq"].get<bool>();
+        Log::log("Set hqpen mode to: " + std::to_string(Scratch::hqpen));
+    } catch (...) {
+#ifdef DEBUG
+        Log::logWarning("no hqpen property.");
+#endif
+    }
+    try {
         Scratch::projectWidth = config["width"].get<int>();
         Log::log("Set width to:" + std::to_string(Scratch::projectWidth));
     } catch (...) {
@@ -936,7 +963,7 @@ void loadSprites(const nlohmann::json &json) {
         Log::logWarning("No Max clones property.");
 #endif
     }
-
+#ifdef __3DS__
     if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
     else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
@@ -948,6 +975,9 @@ void loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
+#else
+    Render::renderMode = Render::TOP_SCREEN_ONLY;
+#endif
 
     // if infinite clones are enabled, set a (potentially) higher max clone count
     if (!infClones) initializeSpritePool(300);
@@ -989,9 +1019,10 @@ void loadSprites(const nlohmann::json &json) {
         }
     }
 
-    Unzip::loadingState = "Running Flag block";
+    Unzip::loadingState = "Finishing up!";
 
-    Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
+    Input::applyControls(Unzip::filePath + ".json");
+    Render::setRenderScale();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }
 

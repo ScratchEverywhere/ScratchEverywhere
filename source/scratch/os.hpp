@@ -1,13 +1,13 @@
+#pragma once
 #include <chrono>
 #include <iostream>
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#ifdef __OGC__
+#ifdef WII
 #include <ogc/lwp_watchdog.h>
 #include <ogc/system.h>
 #endif
-#pragma once
 
 class MemoryTracker {
   private:
@@ -24,6 +24,7 @@ class MemoryTracker {
     const static size_t gamecube_maxRamUsage = 23068672; // 22 MB
     const static size_t pc_maxRamUsage = 1073741824;     // 1 GB
     const static size_t vita_maxRamUsage = 335544320;    // 320 MB
+    const static size_t ps4_maxRamUsage = 1073741824;    // 1 GB
 
     // ---- Max VRAM values (just an estimate based on how many images i can load before i cant anymore) ----
     const static size_t old3ds_maxVRAMUsage = 30000000;   // ~30 MB
@@ -33,6 +34,7 @@ class MemoryTracker {
     const static size_t gamecube_maxVRAMUsage = 11010048; // ~10 MB
     const static size_t pc_maxVRAMUsage = 134217728;      // 128 MB
     const static size_t vita_maxVRAMUsage = 100663296;    // 96 MB
+    const static size_t ps4_maxVRAMUsage = 134217728;     // 128 MB
 
   public:
     static size_t getMaxRamUsage() {
@@ -55,6 +57,9 @@ class MemoryTracker {
 #endif
 #ifdef VITA
         return vita_maxRamUsage;
+#endif
+#ifdef __PS4__
+        return ps4_maxRamUsage;
 #endif
         return pc_maxRamUsage;
     }
@@ -79,6 +84,9 @@ class MemoryTracker {
 #endif
 #ifdef VITA
         return vita_maxVRAMUsage;
+#endif
+#ifdef __PS4__
+        return ps4_maxVRAMUsage;
 #endif
         return pc_maxVRAMUsage;
     }
@@ -164,8 +172,8 @@ void writeToFile(std::string message);
 
 class Timer {
   private:
-#ifdef __OGC__
-    u64 startTime;
+#if defined(__NDS__) || defined(WII) || defined(__PS4__)
+    uint64_t startTime;
 #else
     std::chrono::high_resolution_clock::time_point startTime;
 #endif
@@ -196,6 +204,12 @@ class Timer {
 class OS {
   public:
     /**
+     * Gets the drive prefix for the current platform.
+     * @return The string of the current platform's drive prefix. (e.g. "sdmc:" on 3DS)
+     **/
+    static std::string getFilesystemRootPrefix();
+
+    /**
      * Gets the location of the current device's Scratch data folder.
      * This is where the user should put their .sb3 Scratch projects.
      * This is also where all the extra data of the app lies (custom controls data, etc).
@@ -219,4 +233,10 @@ class OS {
      * @return `true` on New 3DS, `false` everywhere else.
      */
     static bool isNew3DS();
+
+    /**
+     * Function to detect whether the platform is a DSi.
+     * @return `true` on DSi, `false` everywhere else.
+     */
+    static bool isDSi();
 };
