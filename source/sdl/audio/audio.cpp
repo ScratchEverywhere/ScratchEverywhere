@@ -9,7 +9,7 @@
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -255,7 +255,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     size_t audioMemorySize = 0;
 
     if (!streamed) {
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
         const auto &file = cmrc::romfs::get_filesystem().open(fileName);
         chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
 #else
@@ -266,7 +266,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
             return false;
         }
     } else {
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
         const auto &file = cmrc::romfs::get_filesystem().open(fileName);
         music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
 #else

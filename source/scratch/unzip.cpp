@@ -8,7 +8,7 @@
 #include "SDL2/SDL.h"
 #endif
 
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
 #include <cmrc/cmrc.hpp>
 #include <sstream>
 
@@ -38,12 +38,12 @@ int Unzip::openFile(std::istream *&file) {
     embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
     unzippedPath = OS::getRomFSLocation() + unzippedPath;
 
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
     const auto &fs = cmrc::romfs::get_filesystem();
 #endif
 
     // Unzipped Project in romfs:/
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
     if (fs.exists(unzippedPath)) {
         const auto &romfsFile = fs.open(unzippedPath);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
@@ -57,7 +57,7 @@ int Unzip::openFile(std::istream *&file) {
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
     projectType = EMBEDDED;
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
     if (fs.exists(embeddedFilename)) {
         const auto &romfsFile = fs.open(embeddedFilename);
         const std::string_view content(romfsFile.begin(), romfsFile.size());

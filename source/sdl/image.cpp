@@ -14,7 +14,7 @@
 std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;
 
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -366,7 +366,7 @@ void Image::FlushImages() {
 SDL_Image::SDL_Image() {}
 
 SDL_Image::SDL_Image(std::string filePath) {
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
     const auto &file = cmrc::romfs::get_filesystem().open(filePath);
     spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
 #else
