@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
 #include <math.h>
 #include <string>
 #include <unordered_map>
@@ -126,32 +127,57 @@ void initMist() {
 }
 #endif
 
+// This function should continously be updated as migrations are needed.
+void Scratch::migrate() {
+    // Global Settings
+    std::ifstream migrationIn(OS::getScratchFolderLocation() + "Settings.json");
+    if (migrationIn.good()) {
+        nlohmann::json i;
+        nlohmann::json o;
+
+        migrationIn >> i;
+        migrationIn.close();
+
+        if (i.contains("EnableUsername") && i["EnableUsername"].is_boolean()) o["useCustomUsername"] = i["EnableUsername"];
+        if (i.contains("Username") && i["Username"].is_string()) o["customUsername"] = i["Username"];
+
+        std::ofstream migrationOut(OS::getScratchFolderLocation() + "settings.json");
+        migrationOut << o.dump(4);
+        migrationOut.close();
+        std::filesystem::remove(OS::getScratchFolderLocation() + "Settings.json");
+    }
+}
+
 bool Scratch::startScratchProject() {
-    customUsername = "Player";
+    customUsername = "";
     useCustomUsername = false;
 
-    std::ifstream inFile(OS::getScratchFolderLocation() + "Settings.json");
+    Scratch::migrate();
+
+    std::ifstream inFile(OS::getScratchFolderLocation() + "settings.json");
     if (inFile.good()) {
         nlohmann::json j;
         inFile >> j;
         inFile.close();
 
-        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
-            useCustomUsername = j["EnableUsername"].get<bool>();
+        if (j.contains("useCustomUsername") && j["useCustomUsername"].is_boolean()) {
+            useCustomUsername = j["useCustomUsername"].get<bool>();
         }
 
-        if (j.contains("Username") && j["Username"].is_string()) {
+        if (j.contains("customUsername") && j["customUsername"].is_string()) {
             bool hasNonSpace = false;
-            for (char c : j["Username"].get<std::string>()) {
+            for (char c : j["customUsername"].get<std::string>()) {
                 if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
                     hasNonSpace = true;
                 } else if (!std::isspace(static_cast<unsigned char>(c))) {
                     break;
                 }
             }
-            if (hasNonSpace) customUsername = j["Username"].get<std::string>();
-            else customUsername = "Player";
+            if (hasNonSpace) customUsername = j["customUsername"].get<std::string>();
+            else customUsername = "";
         }
+
+        if (customUsername == "") useCustomUsername = false;
     }
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject && !projectJSON.empty()) initMist();
@@ -168,7 +194,7 @@ bool Scratch::startScratchProject() {
         const bool checkFPS = Render::checkFramerate();
         if (!forceRedraw || checkFPS) {
             forceRedraw = false;
-            Input::getInput();
+            Input::getInput(nullptr);
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
             if (checkFPS) Render::renderSprites();

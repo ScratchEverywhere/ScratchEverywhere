@@ -1,5 +1,6 @@
 #include "input.hpp"
 #include "blockExecutor.hpp"
+#include "menuManager.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
 #include <algorithm>
@@ -34,17 +35,15 @@ int userId;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 
+std::vector<std::string> Input::inputKeys;
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
+std::array<float, 2> Input::scrollDelta;
 int Input::keyHeldFrames = 0;
 
 extern SDL_GameController *controller;
 extern bool touchActive;
 extern SDL_Point touchPosition;
-
-#define CONTROLLER_DEADZONE_X 10000
-#define CONTROLLER_DEADZONE_Y 18000
-#define CONTROLLER_DEADZONE_TRIGGER 1000
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
@@ -69,7 +68,8 @@ std::vector<int> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
+    inputKeys.clear();
     inputButtons.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
@@ -104,7 +104,7 @@ void Input::getInput() {
                 else if (keyName == "right") keyName = "right arrow";
                 else if (keyName == "return") keyName = "enter";
 
-                inputButtons.push_back(keyName);
+                inputKeys.push_back(keyName);
                 anyKeyPressed = true;
             }
         }
@@ -215,7 +215,6 @@ void Input::getInput() {
     }
     if (joyLeftY < -CONTROLLER_DEADZONE_Y) {
         Input::buttonPress("LeftStickUp");
-        inputButtons.push_back("up arrow");
         anyKeyPressed = true;
     }
     float joyRightX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX);
@@ -247,7 +246,7 @@ void Input::getInput() {
 
     if (anyKeyPressed) {
         keyHeldFrames++;
-        inputButtons.push_back("any");
+        inputKeys.push_back("any");
         if (keyHeldFrames == 1 || keyHeldFrames > 13)
             BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
     } else keyHeldFrames = 0;
@@ -259,6 +258,8 @@ void Input::getInput() {
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
+
+        if (menuManager != nullptr) menuManager->handleInput(touchPosition.x, touchPosition.y, touchActive);
         return;
     }
 
@@ -275,6 +276,10 @@ void Input::getInput() {
     }
 
     doSpriteClicking();
+
+    if (menuManager == nullptr) return;
+    if (controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
+    menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
 }
 
 std::string Input::getUsername() {

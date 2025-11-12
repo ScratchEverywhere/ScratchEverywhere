@@ -1,236 +1,42 @@
 #include "mainMenu.hpp"
-#include "audio.hpp"
-#include "image.hpp"
-#include "interpret.hpp"
-#include "keyboard.hpp"
-#include "projectMenu.hpp"
-#include "settingsMenu.hpp"
-#include <cctype>
-#include <cmath>
+#include "components.hpp"
+#include "menuManager.hpp"
+#include "unzip.hpp"
 
-Menu::~Menu() = default;
+std::string MainMenu::splash = "";
 
-Menu *MenuManager::currentMenu = nullptr;
-Menu *MenuManager::previousMenu = nullptr;
-int MenuManager::isProjectLoaded = 0;
+MainMenu::MainMenu(void *userdata) {
+    logo = std::make_unique<Image>("gfx/menu/logo.svg");
 
-void MenuManager::changeMenu(Menu *menu) {
-    if (currentMenu != nullptr)
-        currentMenu->cleanup();
-
-    if (previousMenu != nullptr && previousMenu != menu) {
-        delete previousMenu;
-        previousMenu = nullptr;
-    }
-
-    if (menu != nullptr) {
-        previousMenu = currentMenu;
-        currentMenu = menu;
-        if (!currentMenu->isInitialized)
-            currentMenu->init();
-    } else {
-        currentMenu = nullptr;
-    }
-}
-
-void MenuManager::render() {
-    if (currentMenu && currentMenu != nullptr) {
-        currentMenu->render();
-    }
-}
-
-bool MenuManager::loadProject() {
-    if (currentMenu != nullptr) {
-        currentMenu->cleanup();
-        delete currentMenu;
-        currentMenu = nullptr;
-    }
-    if (previousMenu != nullptr) {
-        delete previousMenu;
-        previousMenu = nullptr;
-    }
-
-    Image::cleanupImages();
-    SoundPlayer::cleanupAudio();
-
-    if (!Unzip::load()) {
-        Log::logWarning("Could not load project. closing app.");
-        isProjectLoaded = -1;
-        return false;
-    }
-    isProjectLoaded = 1;
-    return true;
-}
-
-MainMenu::MainMenu() {
-    init();
-}
-MainMenu::~MainMenu() {
-    cleanup();
-}
-
-void MainMenu::init() {
-
-// let the user type what project they want to open if headless
-#ifdef HEADLESS_BUILD
-
-    Keyboard kbd;
-    std::string answer = kbd.openKeyboard("Please type what project you want to open.");
-
-    const std::string ext = ".sb3";
-    if (answer.size() >= ext.size() &&
-        answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
-        answer = answer.substr(0, answer.size() - ext.size());
-    }
-
-    Unzip::filePath = answer + ".sb3";
-
-    MenuManager::loadProject();
-
-#endif
-
-#ifdef __NDS__
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
-    }
-#elif defined(__3DS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-    }
-    SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    if (SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_full.ogg"), "gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-    }
-#elif defined(__PSP__)
-#else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
-    }
-    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 0.0f);
-    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 100.0f);
-#endif
-
-    Input::applyControls();
-    Render::renderMode = Render::BOTH_SCREENS;
-
-    logo = new MenuImage("gfx/menu/logo.png");
-    logo->x = 200;
-    logoStartTime.start();
-
-    versionNumber = createTextObject("Beta Build 28", 0, 0, "gfx/menu/Ubuntu-Bold");
-    versionNumber->setCenterAligned(false);
-    versionNumber->setScale(0.75);
-
-    splashText = createTextObject(Unzip::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
-    splashText->setCenterAligned(true);
-    splashText->setColor(Math::color(243, 154, 37, 255));
-    if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
-        splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
-        splashText->scale = splashTextOriginalScale;
-    } else {
-        splashTextOriginalScale = splashText->scale;
-    }
-
-    loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
-    loadButton->isSelected = true;
-    settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
-
-    mainMenuControl = new ControlObject();
-    mainMenuControl->selectedObject = loadButton;
-    loadButton->buttonRight = settingsButton;
-    settingsButton->buttonLeft = loadButton;
-    mainMenuControl->buttonObjects.push_back(loadButton);
-    mainMenuControl->buttonObjects.push_back(settingsButton);
-    isInitialized = true;
+    if (splash == "") splash = Unzip::getSplashText();
 }
 
 void MainMenu::render() {
-
-    Input::getInput();
-    mainMenuControl->input();
-
-#ifdef __NDS__
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
-        SoundPlayer::playSound("gfx/menu/mm_full.wav");
-    }
-#elif defined(__3DS__)
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    }
-#elif defined(__PSP__)
-#else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
-    }
-#endif
-
-    if (loadButton->isPressed()) {
-        ProjectMenu *projectMenu = new ProjectMenu();
-        MenuManager::changeMenu(projectMenu);
-        return;
-    }
-
-    // begin frame
-    Render::beginFrame(0, 117, 77, 117);
-
-    // move and render logo
-    const float elapsed = logoStartTime.getTimeMs();
-    // fmod to prevent precision issues with large elapsed times
-    float bobbingOffset = std::sin(std::fmod(elapsed * 0.0025f, 2.0f * M_PI)) * 5.0f;
-    float splashZoom = std::sin(std::fmod(elapsed * 0.0085f, 2.0f * M_PI)) * 0.05f;
-    splashText->scale = splashTextOriginalScale + splashZoom;
-    logo->y = 75 + bobbingOffset;
-    logo->render();
-    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
-    splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7) * logo->image->scale);
-
-    // begin 3DS bottom screen frame
-    Render::beginFrame(1, 117, 77, 117);
-
-    if (settingsButton->isPressed()) {
-        SettingsMenu *settingsMenu = new SettingsMenu();
-        MenuManager::changeMenu(settingsMenu);
-        return;
-    }
-
-    loadButton->render();
-    settingsButton->render();
-    mainMenuControl->render();
-
-    Render::endFrame();
-}
-void MainMenu::cleanup() {
-
-    if (logo) {
-        delete logo;
-        logo = nullptr;
-    }
-    if (loadButton) {
-        delete loadButton;
-        loadButton = nullptr;
-    }
-    if (settingsButton) {
-        delete settingsButton;
-        settingsButton = nullptr;
-    }
-    if (mainMenuControl) {
-        delete mainMenuControl;
-        mainMenuControl = nullptr;
-    }
-    if (versionNumber) {
-        delete versionNumber;
-        versionNumber = nullptr;
-    }
-    if (splashText) {
-        delete splashText;
-        splashText = nullptr;
-    }
-    isInitialized = false;
+    // clang-format off
+	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = {.width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0)},
+			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+		},
+		.backgroundColor = {115, 75, 115, 255},
+		.cornerRadius = {15 * menuManager->scale, 0, 15 * menuManager->scale, 0}
+	}) {
+		if (logo) {
+			CLAY(CLAY_ID("logo"), (Clay_ElementDeclaration){
+				.layout = {
+					.sizing = { .width = CLAY_SIZING_PERCENT(0.5) },
+					.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_BOTTOM }
+				},
+				.aspectRatio = { logo->getWidth() / static_cast<float>(logo->getHeight()) },
+				.image = { MenuManager::getImageData(logo.get()) }
+			});
+			const Clay_String claySplash = {true, static_cast<int32_t>(splash.length()), splash.c_str()};
+			constexpr uint16_t minFontSize = 18;
+			uint16_t fontSize = Clay_GetElementData(CLAY_ID("logo")).boundingBox.width / 12.5;
+			if (fontSize < minFontSize) fontSize = minFontSize;
+			CLAY_TEXT(claySplash, CLAY_TEXT_CONFIG({.textColor = {255, 150, 35, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = fontSize }));
+		}
+	}
+    // clang-format on
 }

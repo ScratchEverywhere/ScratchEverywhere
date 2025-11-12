@@ -1,5 +1,6 @@
 #pragma once
 #include "interpret.hpp"
+#include "menus/menuManager.hpp"
 #include "os.hpp"
 #include <algorithm>
 #include <fstream>
@@ -20,8 +21,10 @@ class Input {
     static Mouse mousePointer;
     static Sprite *draggingSprite;
 
+    static std::vector<std::string> inputKeys;
     static std::vector<std::string> inputButtons;
     static std::map<std::string, std::string> inputControls;
+    static std::array<float, 2> scrollDelta;
 
     static bool isAbsolutePath(const std::string &path) {
         return path.size() > 0 && path[0] == '/';
@@ -80,14 +83,18 @@ class Input {
     }
 
     static void buttonPress(std::string button) {
+        inputButtons.push_back(button);
         if (inputControls.find(button) != inputControls.end()) {
-            inputButtons.push_back(inputControls[button]);
+            inputKeys.push_back(inputControls[button]);
         }
     }
 
     static bool isKeyJustPressed(std::string scratchKey) {
-        return (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), scratchKey) != Input::inputButtons.end()) &&
-               Input::keyHeldFrames < 2;
+        return (std::find(inputKeys.begin(), inputKeys.end(), scratchKey) != inputKeys.end()) && keyHeldFrames < 2;
+    }
+
+    static bool isButtonJustPressed(std::string button) {
+        return (std::find(inputButtons.begin(), inputButtons.end(), button) != inputButtons.end()) && keyHeldFrames < 2;
     }
 
     static void doSpriteClicking() {
@@ -130,7 +137,7 @@ class Input {
     }
 
     static std::vector<int> getTouchPosition();
-    static void getInput();
+    static void getInput(MenuManager *menuManager);
     static std::string getUsername();
     static int keyHeldFrames;
 };

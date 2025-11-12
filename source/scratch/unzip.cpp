@@ -1,6 +1,5 @@
 #include "unzip.hpp"
 #include "image.hpp"
-#include "menus/loading.hpp"
 #include <fstream>
 #ifdef __3DS__
 #include <3ds.h>
@@ -13,6 +12,10 @@
 #include <sstream>
 
 CMRC_DECLARE(romfs);
+#endif
+
+#ifdef ENABLE_LOADSCREEN
+#include "menus/loading.hpp"
 #endif
 
 volatile int Unzip::projectOpened = 0;
