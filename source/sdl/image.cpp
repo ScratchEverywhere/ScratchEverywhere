@@ -367,11 +367,12 @@ SDL_Image::SDL_Image() {}
 
 SDL_Image::SDL_Image(std::string filePath) {
 #ifdef __PC__
-    const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-    spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
-#else
-    spriteSurface = IMG_Load(filePath.c_str());
+    if (cmrc::romfs::get_filesystem().exists(filePath)) {
+        const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+        spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+    }
 #endif
+    if (spriteSurface == nullptr) spriteSurface = IMG_Load(filePath.c_str());
     if (spriteSurface == NULL) {
         Log::logWarning(std::string("Error loading image: ") + IMG_GetError());
         return;

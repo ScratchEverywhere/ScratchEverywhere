@@ -3,8 +3,10 @@
 #include "audio.hpp"
 #include "blocks/pen.hpp"
 #include "image.hpp"
+#include "input.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
+#include "menus/menuManager.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
 #include "text.hpp"
@@ -544,6 +546,9 @@ void Render::renderPenLayer() {
 
 bool Render::appShouldRun() {
     if (toExit) return false;
+
+    Input::scrollDelta = {0, 0};
+
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -566,6 +571,10 @@ bool Render::appShouldRun() {
             break;
         case SDL_FINGERUP:
             touchActive = false;
+            break;
+        case SDL_MOUSEWHEEL:
+            Input::scrollDelta[0] = event.wheel.x;
+            Input::scrollDelta[1] = event.wheel.y;
             break;
         case SDL_WINDOWEVENT:
             switch (event.window.event) {
@@ -595,5 +604,6 @@ bool Render::appShouldRun() {
             break;
         }
     }
+
     return true;
 }
