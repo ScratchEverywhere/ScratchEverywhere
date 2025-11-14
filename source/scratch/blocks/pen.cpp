@@ -24,7 +24,7 @@ SDL_Texture *penTexture;
 #endif
 
 const unsigned int minPenSize = 1;
-const unsigned int maxPenSize = 1000;
+const unsigned int maxPenSize = 1200;
 
 BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
