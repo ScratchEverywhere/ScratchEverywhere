@@ -504,6 +504,15 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     }
 }
 
+void Scratch::sortSprites() {
+    std::sort(sprites.begin(), sprites.end(),
+              [](const Sprite *a, const Sprite *b) {
+                  if (a->isStage && !b->isStage) return false;
+                  if (!a->isStage && b->isStage) return true;
+                  return a->layer > b->layer;
+              });
+}
+
 void loadSprites(const nlohmann::json &json) {
     Log::log("beginning to load sprites...");
     sprites.reserve(400);
@@ -776,6 +785,8 @@ void loadSprites(const nlohmann::json &json) {
 
         sprites.push_back(newSprite);
     }
+
+    Scratch::sortSprites();
 
     for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
         Monitor newMonitor;

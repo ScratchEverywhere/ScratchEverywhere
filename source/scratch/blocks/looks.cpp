@@ -206,6 +206,7 @@ BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, b
     }
 
     Scratch::forceRedraw = true;
+    Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
 
@@ -235,6 +236,7 @@ BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *witho
         sprite->layer = minLayer - 1;
     }
     Scratch::forceRedraw = true;
+    Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
 

@@ -35,6 +35,7 @@ class Scratch {
     static std::string getFieldId(Block &block, const std::string &fieldName);
 
     static void fenceSpriteWithinBounds(Sprite *sprite);
+    static void sortSprites();
 
     static int projectWidth;
     static int projectHeight;
