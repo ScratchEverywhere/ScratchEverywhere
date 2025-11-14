@@ -154,7 +154,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const float heightMultiplier = 0.5f;
     const int transparency = 255 * (1 - sprite->penData.transparency / 100);
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
-    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * renderScale), 1, 1000);
+    const float thickness = sprite->penData.size * renderScale;
 
     const float x1_scaled = (x1 * renderScale) + (width / 2);
     const float y1_scaled = (y1 * -1 * renderScale) + (height * heightMultiplier) + TEXTURE_OFFSET;
