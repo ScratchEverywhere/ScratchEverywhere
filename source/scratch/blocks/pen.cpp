@@ -93,7 +93,7 @@ BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withou
         const std::string option = Scratch::getFieldValue(*optionBlock, "colorParam");
 
         if (option == "color") {
-            sprite->penData.color.hue = Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
+            sprite->penData.color.hue = static_cast<int>(Scratch::getInputValue(block, "VALUE", sprite).asDouble() * 360 / 100) % 360;
             return BlockResult::CONTINUE;
         }
         if (option == "saturation") {
@@ -130,7 +130,7 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
         const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
 
         if (option == "color") {
-            sprite->penData.color.hue += Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
+            sprite->penData.color.hue += static_cast<int>(Scratch::getInputValue(block, "VALUE", sprite).asDouble() * 360 / 100) % 360;
             return BlockResult::CONTINUE;
         }
         if (option == "saturation") {
