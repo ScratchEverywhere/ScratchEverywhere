@@ -269,7 +269,7 @@ bool Render::initPen() {
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
 
 #if defined(__PC__) || defined(__WIIU__) // Only these platforms seem to support custom blend modes.
     SDL_BlendMode blendMode = SDL_ComposeCustomBlendMode(

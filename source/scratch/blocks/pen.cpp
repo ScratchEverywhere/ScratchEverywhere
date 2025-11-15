@@ -44,7 +44,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
     filledCircleRGBA(renderer, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
@@ -52,7 +52,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_DestroyTexture(tempTexture);
 #elif defined(__3DS__)
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
     const int transparency = 255 * (1 - sprite->penData.transparency / 100);
     if (!Render::hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -93,7 +93,8 @@ BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withou
         const std::string option = Scratch::getFieldValue(*optionBlock, "colorParam");
 
         if (option == "color") {
-            sprite->penData.color.hue = static_cast<int>(Scratch::getInputValue(block, "VALUE", sprite).asDouble() * 360 / 100) % 360;
+            double unwrappedColor = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
             return BlockResult::CONTINUE;
         }
         if (option == "saturation") {
@@ -127,10 +128,11 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
 
     if (optionBlock != nullptr) {
 
-        const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
+        const std::string option = Scratch::getFieldValue(*optionBlock, "colorParam");
 
         if (option == "color") {
-            sprite->penData.color.hue += static_cast<int>(Scratch::getInputValue(block, "VALUE", sprite).asDouble() * 360 / 100) % 360;
+            double unwrappedColor = sprite->penData.color.hue + Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
             return BlockResult::CONTINUE;
         }
         if (option == "saturation") {
