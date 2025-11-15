@@ -173,7 +173,6 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
 BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "NUM", sprite);
     std::string forwardBackward = Scratch::getFieldValue(block, "FORWARD_BACKWARD");
-    ;
     if (!value.isNumeric()) return BlockResult::CONTINUE;
 
     int shift = value.asInt();
@@ -212,7 +211,6 @@ BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, b
 
 BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string value = Scratch::getFieldValue(block, "FRONT_BACK");
-    ;
     if (value == "front") {
 
         double maxLayer = 0.0;
