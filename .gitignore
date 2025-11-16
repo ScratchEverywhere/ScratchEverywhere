@@ -2,6 +2,8 @@
 .vs/
 .vscode/
 build/
+build-*/
+cmake/
 romfs/project/
 romfs/gfx
 scratch-everywhere/

@@ -224,22 +224,8 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
 
         // Move to next block
         if (!currentBlock->next.empty()) {
-
-            std::string waitingIfBlock = currentBlock->waitingIfBlock;
-            currentBlock->waitingIfBlock = "";
-
             currentBlock = &sprite->blocks[currentBlock->next];
-
-            currentBlock->waitingIfBlock = waitingIfBlock;
-
         } else {
-            // first check if the block is inside a waiting 'if' block
-            if (currentBlock->waitingIfBlock != "") {
-                std::string nextBlockId = sprite->blocks[currentBlock->waitingIfBlock].next;
-                currentBlock = &sprite->blocks[nextBlockId];
-                currentBlock->waitingIfBlock = "";
-                continue;
-            }
             break;
         }
     }
@@ -267,7 +253,8 @@ void BlockExecutor::runRepeatBlocks() {
     bool withoutRefresh = false;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
-    for (auto &sprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (auto &sprite : sprToRun) {
         for (auto &[id, blockChain] : sprite->blockChains) {
             auto &repeatList = blockChain.blocksToRepeat;
             if (!repeatList.empty()) {
@@ -337,7 +324,6 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             // std::cout << "RWSR = " << localWithoutRefresh << std::endl;
 
             // Execute the custom block definition
-            customBlockDefinition->waitingIfBlock = callerBlock->waitingIfBlock;
             executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh);
 
             if (localWithoutRefresh) {
@@ -354,7 +340,20 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3") {
         Log::log("Open next Project with Block");
         Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
+        if (Unzip::filePath.rfind("sd:", 0) == 0) {
+            std::string drivePrefix = OS::getFilesystemRootPrefix();
+            Unzip::filePath.replace(0, 3, drivePrefix);
+        } else {
+            Unzip::filePath = Unzip::filePath;
+        }
+
+        if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
+            Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
+        }
+        if (!std::filesystem::exists(Unzip::filePath + "/project.json"))
+            Unzip::filePath = Unzip::filePath + ".sb3";
+
         Scratch::dataNextProject = Value();
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
@@ -362,7 +361,20 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") {
         Log::log("Open next Project with Block and data");
         Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString() + ".sb3";
+        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
+        // if filepath contains sd:/ at the beginning and only at the beginning, replace it with sdmc:/
+        if (Unzip::filePath.rfind("sd:", 0) == 0) {
+            std::string drivePrefix = OS::getFilesystemRootPrefix();
+            Unzip::filePath.replace(0, 3, drivePrefix);
+        } else {
+            Unzip::filePath = Unzip::filePath;
+        }
+        if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
+            Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
+        }
+        if (!std::filesystem::exists(Unzip::filePath + "/project.json"))
+            Unzip::filePath = Unzip::filePath + ".sb3";
+
         Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
@@ -374,7 +386,8 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     // find all matching "when I receive" blocks
-    for (auto *currentSprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (auto *currentSprite : sprToRun) {
         for (auto &[id, block] : currentSprite->blocks) {
             if (block.opcode == "event_whenbroadcastreceived" &&
                 Scratch::getFieldValue(block, "BROADCAST_OPTION") == broadcastToRun) {
@@ -415,7 +428,8 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
 std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Block *> blocksRun;
-    for (Sprite *currentSprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (Sprite *currentSprite : sprToRun) {
         for (auto &[id, data] : currentSprite->blocks) {
             if (data.opcode == opcodeToFind) {
                 // runBlock(data,currentSprite);

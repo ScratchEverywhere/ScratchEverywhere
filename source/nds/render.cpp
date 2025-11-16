@@ -116,17 +116,8 @@ void Render::renderSprites() {
     glBegin2D();
     glClearColor(31, 31, 31, 31);
 
-    std::vector<Sprite *> spritesByLayer = sprites;
-    std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-              [](const Sprite *a, const Sprite *b) {
-                  // Stage sprite always comes first
-                  if (a->isStage && !b->isStage) return true;
-                  if (!a->isStage && b->isStage) return false;
-                  // Otherwise sort by layer
-                  return a->layer < b->layer;
-              });
-
-    for (auto &sprite : spritesByLayer) {
+    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+        Sprite *sprite = *it;
         if (!sprite->visible) continue;
 
         auto imgFind = images.find(sprite->costumes[sprite->currentCostume].id);

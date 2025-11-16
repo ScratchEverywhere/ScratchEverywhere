@@ -35,32 +35,79 @@ int Math::color(int r, int g, int b, int a) {
     return 0;
 }
 
-double Math::parseNumber(const std::string &str) {
-    if (str == "Infinity") return std::numeric_limits<double>::infinity();
-    if (str == "NaN") return std::numeric_limits<double>::quiet_NaN();
-    if (str == "-NaN") return -std::numeric_limits<double>::quiet_NaN();
+double Math::parseNumber(std::string str) {
+    // Scratch has whitespace trimming
+    while (std::isspace(str[0]) && !str.empty()) {
+        str.erase(0, 1);
+    }
+    while (std::isspace(str[str.length() - 1]) && !str.empty()) {
+        str.erase(str.length() - 1);
+    }
 
+    if (str == "Infinity") {
+        return std::numeric_limits<double>::infinity();
+    } else if (str == "-Infinity") {
+        return -std::numeric_limits<double>::infinity();
+    }
+
+    uint8_t base = 0;
+    std::string validcharacters = "0123456789-eE.";
     if (str[0] == '0') {
-        uint8_t base = 0;
+        base = 0;
 
         switch (str[1]) {
         case 'x':
             base = 16;
+            validcharacters = "0123456789ABCDEF";
             break;
         case 'b':
             base = 2;
+            validcharacters = "01";
             break;
         case 'o':
             base = 8;
+            validcharacters = "01234567";
             break;
         }
-
-        if (base != 0)
-            return std::stoi(str.substr(2, str.length() - 2), 0, base);
+        if (base != 0) {
+            str = str.substr(2, str.length() - 2);
+        }
     }
 
-    if (str[0] == 'I' || str[0] == 'i') throw std::invalid_argument("");
-    return std::stod(str);
+    for (int i = 0; i < str.length(); i++) {
+        if (validcharacters.find(str[i]) == std::string::npos) {
+            throw std::invalid_argument("");
+        }
+        if (str[i] == 'e' && i == str.length() - 1) {
+            // implementation differece, "1e" doesn't work in Scratch but works
+            // with std::stod()
+            throw std::invalid_argument("");
+        }
+        if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) {
+            // implementation differece, decimal point after e doesn't work in
+            // Scratch but works with std::stod()
+            throw std::invalid_argument("");
+        }
+    }
+
+    double conversion;
+    std::size_t pos;
+    try {
+        if (base == 0) {
+            conversion = std::stod(str, &pos);
+        } else {
+            conversion = std::stoi(str, &pos, base);
+        }
+    } catch (const std::out_of_range &e) {
+        if (str[0] == '-') {
+            return -std::numeric_limits<double>::infinity();
+        } else {
+            return std::numeric_limits<double>::infinity();
+        }
+    } catch (const std::invalid_argument &e) {
+        return 0;
+    }
+    return conversion;
 }
 
 bool Math::isNumber(const std::string &str) {

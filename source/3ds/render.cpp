@@ -142,7 +142,7 @@ bool Render::initPen() {
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
     if (!Render::hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
@@ -156,7 +156,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const float heightMultiplier = 0.5f;
     const int transparency = 255 * (1 - sprite->penData.transparency / 100);
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
-    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * renderScale), 1, 1000);
+    const float thickness = sprite->penData.size * renderScale;
 
     const float x1_scaled = (x1 * renderScale) + (width / 2);
     const float y1_scaled = (y1 * -1 * renderScale) + (height * heightMultiplier) + TEXTURE_OFFSET;
@@ -290,23 +290,14 @@ void Render::renderSprites() {
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / sprites.size();
 
-    // Sort sprites by layer with stage always being first
-    std::vector<Sprite *> spritesByLayer = sprites;
-    std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-              [](const Sprite *a, const Sprite *b) {
-                  // Stage sprite always comes first
-                  if (a->isStage && !b->isStage) return true;
-                  if (!a->isStage && b->isStage) return false;
-                  // Otherwise sort by layer
-                  return a->layer < b->layer;
-              });
-
     // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
         C2D_TargetClear(topScreen, clrWhite);
         currentScreen = 0;
 
-        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+        size_t i = 0;
+        for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+            Sprite *currentSprite = *it;
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
@@ -321,7 +312,6 @@ void Render::renderSprites() {
                                 1.0f);
             }
 
-            Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
             int costumeIndex = 0;
@@ -330,7 +320,7 @@ void Render::renderSprites() {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
 
-                    size_t totalSprites = spritesByLayer.size();
+                    size_t totalSprites = sprites.size();
                     float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
                     renderImage(&images[costume.id].image,
@@ -343,6 +333,7 @@ void Render::renderSprites() {
                 }
                 costumeIndex++;
             }
+            i++;
         }
         renderVisibleVariables();
         
@@ -368,7 +359,9 @@ void Render::renderSprites() {
         C2D_TargetClear(topScreenRightEye, clrWhite);
         currentScreen = 0;
 
-        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+        size_t i = 0;
+        for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+            Sprite *currentSprite = *it;
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
@@ -383,7 +376,6 @@ void Render::renderSprites() {
                                 1.0f);
             }
 
-            Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
             int costumeIndex = 0;
@@ -392,7 +384,7 @@ void Render::renderSprites() {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
 
-                    size_t totalSprites = spritesByLayer.size();
+                    size_t totalSprites = sprites.size();
                     float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
                     renderImage(&images[costume.id].image,
@@ -405,6 +397,7 @@ void Render::renderSprites() {
                 }
                 costumeIndex++;
             }
+            i++;
         }
         renderVisibleVariables();
         
@@ -424,7 +417,9 @@ void Render::renderSprites() {
         if (Render::renderMode != Render::BOTH_SCREENS)
             currentScreen = 1;
 
-        for (size_t i = 0; i < spritesByLayer.size(); i++) {
+        size_t i = 0;
+        for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+            Sprite *currentSprite = *it;
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
@@ -440,7 +435,6 @@ void Render::renderSprites() {
                                 1.0f);
             }
 
-            Sprite *currentSprite = spritesByLayer[i];
             if (!currentSprite->visible) continue;
 
             int costumeIndex = 0;

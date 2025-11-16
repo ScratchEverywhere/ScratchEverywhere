@@ -1,4 +1,4 @@
-name: Vita Nightly Build
+name: PSP Nightly Build
 
 on:
   push:
@@ -6,11 +6,11 @@ on:
       - CMakeLists.txt
       - source/scratch/**
       - source/sdl/**
-      - gfx/vita/**
+      - gfx/psp/**
       - gfx/menu/**
       - include/**
-      - .github/workflows/nightly-vita.yml
-      - docker/Dockerfile.vita
+      - .github/workflows/nightly-psp.yml
+      - docker/Dockerfile.psp
       - source/main.cpp
     branches:
       - main
@@ -30,11 +30,11 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: docker/Dockerfile.vita
+          file: docker/Dockerfile.psp
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch Everywhere! Vita Nightly
-          path: scratch-vita.vpk
+          name: Scratch Everywhere! PSP Nightly
+          path: scratch-psp.zip

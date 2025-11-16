@@ -160,9 +160,34 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
     return false;
 }
 
-std::string OS::getScratchFolderLocation() {
+std::string OS::getFilesystemRootPrefix() {
 #ifdef __WIIU__
-    return std::string(WHBGetSdCardMountPath()) + "/wiiu/scratch-wiiu/";
+    return std::string(WHBGetSdCardMountPath());
+#elif defined(__SWITCH__)
+    return "";
+#elif defined(WII)
+    return "";
+#elif defined(GAMECUBE)
+    return "";
+#elif defined(VITA)
+    return "ux0:";
+#elif defined(__PS4__)
+    return "";
+#elif defined(__3DS__)
+    return "sdmc:";
+#elif defined(__EMSCRIPTEN__)
+    return "";
+#elif defined(__NDS__)
+    return isDSi() ? "sd:" : "fat:";
+#else
+    return "";
+#endif
+}
+
+std::string OS::getScratchFolderLocation() {
+    const std::string prefix = getFilesystemRootPrefix();
+#ifdef __WIIU__
+    return prefix + "/wiiu/scratch-wiiu/";
 #elif defined(__SWITCH__)
     return "/switch/scratch-nx/";
 #elif defined(WII)
@@ -170,17 +195,15 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(GAMECUBE)
     return "/scratch-gamecube/";
 #elif defined(VITA)
-    return "ux0:data/scratch-vita/";
+    return prefix + "data/scratch-vita/";
 #elif defined(__PS4__)
     return "/data/scratch-ps4/";
 #elif defined(__3DS__)
-    return "sdmc:/3ds/scratch-everywhere/";
+    return prefix + "/3ds/scratch-everywhere/";
 #elif defined(__EMSCRIPTEN__)
     return "/scratch-everywhere/";
 #elif defined(__NDS__)
-    if (OS::isDSi())
-        return "sd:/scratch-ds/";
-    else return "fat:/scratch-ds/";
+    return prefix + "/scratch-ds/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -219,6 +242,8 @@ std::string OS::getPlatform() {
     return "WASM";
 #elif defined(__PS4__)
     return "PS4";
+#elif defined(__PSP__)
+    return "PSP";
 #else
     return "Unknown";
 #endif

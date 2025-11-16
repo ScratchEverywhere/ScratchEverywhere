@@ -40,7 +40,7 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
     }
 
     Value value = BlockExecutor::getCustomBlockValue(name, sprite, block);
-    return Value(value.asInt() == 1);
+    return Value(value.asBoolean());
 }
 
 BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
