@@ -9,6 +9,7 @@
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
+#include "blocks/text2speech.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
 #include "os.hpp"
@@ -186,6 +187,11 @@ void BlockExecutor::registerHandlers() {
     handlers["pen_setPenColorToColor"] = PenBlocks::SetPenColorTo;
     handlers["pen_setPenSizeTo"] = PenBlocks::SetPenSizeTo;
     handlers["pen_changePenSizeBy"] = PenBlocks::ChangePenSizeBy;
+    
+    // text2speech extension
+    handlers["text2speech_speakAndWait"] = SpeechBlocks::speakAndWait;
+    handlers["text2speech_setVoice"] = SpeechBlocks::setVoiceTo;
+    handlers["text2speech_setLanguage"] = SpeechBlocks::setLanguageTo;
 
     // Other (Don't know where else to put these)
     valueHandlers["matrix"] = [](Block &block, Sprite *sprite) {
@@ -358,7 +364,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         Log::log("Open next Project with Block and data");
         Scratch::nextProject = true;
         Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
-        // if filepath contains sd:/ at the beginning and only at the beginning, replace it with sdmc:/
+
         if (Unzip::filePath.rfind("sd:", 0) == 0) {
             std::string drivePrefix = OS::getFilesystemRootPrefix();
             Unzip::filePath.replace(0, 3, drivePrefix);

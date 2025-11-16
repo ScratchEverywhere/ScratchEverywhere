@@ -16,9 +16,10 @@ class SoundPlayer {
      * @param soundId the path of the sound file.
      * @param streamed if the sound should load and play as a "streamed" sound.
      * @param fromProject if the sound comes from a scratch project, or elsewhere, like say, the main menu.
+     * @param fromCache if the sound comes from a cache, like downloaded T2S audio.
      */
-    static void startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed = false, const bool &fromProject = true);
-    static bool loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed = false);
+    static void startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed = false, const bool &fromProject = true, const bool &fromCache = false);
+    static bool loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed = false, const bool &fromCache = false);
     static int playSound(const std::string &soundId);
     static void setSoundVolume(const std::string &soundId, float volume);
     static float getSoundVolume(const std::string &soundId);
