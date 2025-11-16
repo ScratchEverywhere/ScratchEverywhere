@@ -291,5 +291,9 @@ void ProjectMenu::cleanup() {
         delete noProjectInfo;
         noProjectInfo = nullptr;
     }
+    if (snow.image) {
+        delete snow.image;
+        snow.image = nullptr;
+    }
     isInitialized = false;
 }
