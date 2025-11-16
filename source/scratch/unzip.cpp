@@ -169,7 +169,7 @@ bool Unzip::load() {
 
 #elif defined(SDL_BUILD) // create SDL2 thread for loading screen
 
-    SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x4000, nullptr);
+    SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x15000, nullptr);
 
     if (thread != NULL && thread != nullptr) {
 
