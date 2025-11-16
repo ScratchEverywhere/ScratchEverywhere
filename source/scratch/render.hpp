@@ -226,10 +226,11 @@ class Render {
                 float renderX = var.x * scale + barOffsetX;
                 float renderY = var.y * scale + barOffsetY;
                 const std::vector<float> renderSize = monitorTexts[var.id]->getSize();
-                ColorRGB backgroundColor = {
+                ColorRGBA backgroundColor = {
                     .r = 228,
                     .g = 240,
-                    .b = 255};
+                    .b = 255,
+                    .a = 255};
 
                 monitorTexts[var.id]->setCenterAligned(false);
                 if (var.mode != "large") {
@@ -241,8 +242,8 @@ class Render {
                     backgroundColor = {
                         .r = 255,
                         .g = 141,
-                        .b = 41
-
+                        .b = 41,
+                        .a = 255
                     };
                 }
 

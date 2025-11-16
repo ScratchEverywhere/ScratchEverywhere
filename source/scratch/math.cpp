@@ -96,7 +96,7 @@ double Math::parseNumber(std::string str) {
         if (base == 0) {
             conversion = std::stod(str, &pos);
         } else {
-            conversion = std::stoi(str, &pos, base);
+            conversion = std::stoul(str, &pos, base);
         }
     } catch (const std::out_of_range &e) {
         if (str[0] == '-') {

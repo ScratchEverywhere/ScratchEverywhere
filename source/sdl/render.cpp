@@ -269,7 +269,7 @@ bool Render::initPen() {
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
+    const ColorRGBA rgbColor = CSBO2RGBA(sprite->penData.color);
 
 #if defined(__PC__) || defined(__WIIU__) // Only these platforms seem to support custom blend modes.
     SDL_BlendMode blendMode = SDL_ComposeCustomBlendMode(
@@ -290,7 +290,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
 
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
     SDL_SetTextureBlendMode(tempTexture, blendMode);
-    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.transparency) / 100.0f * 255);
+    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
