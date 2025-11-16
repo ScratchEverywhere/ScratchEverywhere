@@ -39,7 +39,10 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
-file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
+file(GLOB_RECURSE GFXFILES
+    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
+    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
+)
 foreach(file IN LISTS GFXFILES)
 	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
