@@ -682,6 +682,7 @@ void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
 }
 
 bool BlockExecutor::hasActiveRepeats(Sprite *sprite, std::string blockChainID) {
+    if (sprite->toDelete) return false;
     if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
         if (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
     }
