@@ -1,5 +1,14 @@
+FROM devkitpro/devkita64:latest AS libnx_builder
+WORKDIR /libnx
+
+RUN dkp-pacman -Rdd --noconfirm libnx
+RUN git clone --branch v4.10.0 --single-branch https://github.com/switchbrew/libnx.git .
+RUN make && make install
+
 FROM devkitpro/devkita64:latest AS main_builder
 WORKDIR /app
+
+COPY --from=libnx_builder /opt/devkitpro/ /opt/devkitpro/
 
 COPY . .
 
