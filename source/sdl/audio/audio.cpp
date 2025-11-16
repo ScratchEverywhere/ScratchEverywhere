@@ -33,10 +33,6 @@ SDL_Audio::~SDL_Audio() {
         Mix_FreeMusic(music);
         music = nullptr;
     }
-    if (file_data != nullptr) {
-        mz_free(file_data);
-        file_data = nullptr;
-    }
 #endif
 }
 
@@ -209,7 +205,6 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             SDL_Sounds[soundId]->isLoaded = true;
             SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
             SDL_Sounds[soundId]->file_size = file_size;
-            SDL_Sounds[soundId]->file_data = file_data;
             playSound(soundId);
             setSoundVolume(soundId, sprite->volume);
             return true;

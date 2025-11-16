@@ -25,7 +25,6 @@ class SDL_Audio {
     size_t freeTimer = 640;
 
     size_t file_size;
-    void *file_data = nullptr;
 
     SDL_Audio();
     ~SDL_Audio();
