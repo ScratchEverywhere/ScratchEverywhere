@@ -74,7 +74,7 @@ double Math::parseNumber(std::string str) {
         }
     }
 
-    for (int i = 0; i < str.length(); i++) {
+    for (size_t i = 0; i < str.length(); i++) {
         if (validcharacters.find(str[i]) == std::string::npos) {
             throw std::invalid_argument("");
         }

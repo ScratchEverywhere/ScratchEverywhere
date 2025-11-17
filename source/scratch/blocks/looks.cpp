@@ -39,18 +39,20 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     }
 
     bool imageFound = false;
-    for (size_t i = 0; i < sprite->costumes.size(); i++) {
-        if (sprite->costumes[i].name == inputString) {
-            sprite->currentCostume = i;
-            imageFound = true;
-            break;
-        }
-    }
+
     if (((Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && !imageFound) || inputValue.isNumeric()) && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
         int costumeIndex = inputValue.asInt() - 1;
         if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < sprite->costumes.size()) {
             sprite->currentCostume = costumeIndex;
             imageFound = true;
+        }
+    }
+
+    for (size_t i = 0; i < sprite->costumes.size(); i++) {
+        if (sprite->costumes[i].name == inputString) {
+            sprite->currentCostume = i;
+            imageFound = true;
+            break;
         }
     }
 
@@ -98,18 +100,20 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         }
 
         bool imageFound = false;
-        for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
-            if (currentSprite->costumes[i].name == inputString) {
-                currentSprite->currentCostume = i;
-                imageFound = true;
-                break;
-            }
-        }
+
         if (((Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && !imageFound) || inputValue.isNumeric()) && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
                 imageFound = true;
                 currentSprite->currentCostume = costumeIndex;
+            }
+        }
+
+        for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
+            if (currentSprite->costumes[i].name == inputString) {
+                currentSprite->currentCostume = i;
+                imageFound = true;
+                break;
             }
         }
 
