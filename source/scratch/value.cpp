@@ -178,12 +178,16 @@ Value Value::operator/(const Value &other) const {
 }
 
 bool Value::operator==(const Value &other) const {
-    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
-        return asDouble() == other.asDouble();
-    }
-
     std::string string1 = asString();
     std::string string2 = other.asString();
+
+    if (!std::all_of(string1.begin(), string1.end(), [](unsigned char c) {return std::isspace(c); }) &&
+        !std::all_of(string2.begin(), string2.end(), [](unsigned char c) {return std::isspace(c); })) {
+        if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
+            return asDouble() == other.asDouble();
+        }
+    }
+
     std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
     std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
     return string1 == string2;
