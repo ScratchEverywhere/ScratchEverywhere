@@ -276,7 +276,7 @@ bool Render::initPen() {
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
 
 #if defined(__PC__) || defined(__WIIU__) // Only these platforms seem to support custom blend modes.
     SDL_BlendMode blendMode = SDL_ComposeCustomBlendMode(
@@ -431,18 +431,8 @@ void Render::renderSprites() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
-    // Sort sprites by layer with stage always being first
-    std::vector<Sprite *> spritesByLayer = sprites;
-    std::sort(spritesByLayer.begin(), spritesByLayer.end(),
-              [](const Sprite *a, const Sprite *b) {
-                  // Stage sprite always comes first
-                  if (a->isStage && !b->isStage) return true;
-                  if (!a->isStage && b->isStage) return false;
-                  // Otherwise sort by layer
-                  return a->layer < b->layer;
-              });
-
-    for (Sprite *currentSprite : spritesByLayer) {
+    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+        Sprite *currentSprite = *it;
         if (!currentSprite->visible) continue;
 
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);

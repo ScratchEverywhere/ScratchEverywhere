@@ -16,6 +16,7 @@ BlockResult LooksBlocks::show(Block &block, Sprite *sprite, bool *withoutScreenR
     } else {
         Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 BlockResult LooksBlocks::hide(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -38,18 +39,20 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     }
 
     bool imageFound = false;
-    for (size_t i = 0; i < sprite->costumes.size(); i++) {
-        if (sprite->costumes[i].name == inputString) {
-            sprite->currentCostume = i;
-            imageFound = true;
-            break;
-        }
-    }
+
     if (((Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && !imageFound) || inputValue.isNumeric()) && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
         int costumeIndex = inputValue.asInt() - 1;
         if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < sprite->costumes.size()) {
             sprite->currentCostume = costumeIndex;
             imageFound = true;
+        }
+    }
+
+    for (size_t i = 0; i < sprite->costumes.size(); i++) {
+        if (sprite->costumes[i].name == inputString) {
+            sprite->currentCostume = i;
+            imageFound = true;
+            break;
         }
     }
 
@@ -59,6 +62,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     }
 
     Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -72,6 +76,7 @@ BlockResult LooksBlocks::nextCostume(Block &block, Sprite *sprite, bool *without
     } else {
         Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -95,18 +100,20 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         }
 
         bool imageFound = false;
-        for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
-            if (currentSprite->costumes[i].name == inputString) {
-                currentSprite->currentCostume = i;
-                imageFound = true;
-                break;
-            }
-        }
+
         if (((Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && !imageFound) || inputValue.isNumeric()) && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
             int costumeIndex = inputValue.asInt() - 1;
             if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
                 imageFound = true;
                 currentSprite->currentCostume = costumeIndex;
+            }
+        }
+
+        for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
+            if (currentSprite->costumes[i].name == inputString) {
+                currentSprite->currentCostume = i;
+                imageFound = true;
+                break;
             }
         }
 
@@ -130,6 +137,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         }
     }
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -162,13 +170,13 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
         }
     }
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "NUM", sprite);
     std::string forwardBackward = Scratch::getFieldValue(block, "FORWARD_BACKWARD");
-    ;
     if (!value.isNumeric()) return BlockResult::CONTINUE;
 
     int shift = value.asInt();
@@ -200,12 +208,13 @@ BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, b
         sprite->layer = targetLayer;
     }
 
+    Scratch::forceRedraw = true;
+    Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
 
 BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string value = Scratch::getFieldValue(block, "FRONT_BACK");
-    ;
     if (value == "front") {
 
         double maxLayer = 0.0;
@@ -228,6 +237,8 @@ BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *witho
 
         sprite->layer = minLayer - 1;
     }
+    Scratch::forceRedraw = true;
+    Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
 
@@ -250,6 +261,7 @@ BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, bool *withoutSc
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -271,6 +283,7 @@ BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withou
 
         sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -299,6 +312,7 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *without
     } else {
     }
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -326,6 +340,7 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *with
         sprite->ghostEffect = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
     } else {
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -334,6 +349,7 @@ BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool 
     sprite->colorEffect = -99999;
     sprite->brightnessEffect = 0.0f;
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 

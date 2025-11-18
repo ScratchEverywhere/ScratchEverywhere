@@ -24,7 +24,7 @@ SDL_Texture *penTexture;
 #endif
 
 const unsigned int minPenSize = 1;
-const unsigned int maxPenSize = 1000;
+const unsigned int maxPenSize = 1200;
 
 BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
@@ -44,7 +44,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
     filledCircleRGBA(renderer, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
@@ -52,7 +52,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_DestroyTexture(tempTexture);
 #elif defined(__3DS__)
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
     const int transparency = 255 * (1 - sprite->penData.transparency / 100);
     if (!Render::hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -74,6 +74,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     C2D_DrawCircleSolid(xSscaled, yScaled + TEXTURE_OFFSET, 0, radius, color);
 #endif
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -92,7 +93,8 @@ BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withou
         const std::string option = Scratch::getFieldValue(*optionBlock, "colorParam");
 
         if (option == "color") {
-            sprite->penData.color.hue = Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
+            double unwrappedColor = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
             return BlockResult::CONTINUE;
         }
         if (option == "saturation") {
@@ -126,10 +128,11 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
 
     if (optionBlock != nullptr) {
 
-        const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
+        const std::string option = Scratch::getFieldValue(*optionBlock, "colorParam");
 
         if (option == "color") {
-            sprite->penData.color.hue += Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
+            double unwrappedColor = sprite->penData.color.hue + Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
             return BlockResult::CONTINUE;
         }
         if (option == "saturation") {
@@ -186,6 +189,7 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -255,6 +259,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
     SDL_SetRenderTarget(renderer, NULL);
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 #elif defined(__3DS__)
@@ -262,6 +267,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
+
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -317,15 +324,19 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
         &tinty,
         sprite->renderInfo.renderScaleX,
         sprite->renderInfo.renderScaleY);
+
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 #else
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 

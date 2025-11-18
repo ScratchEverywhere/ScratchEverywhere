@@ -58,6 +58,7 @@ bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
+bool Scratch::forceRedraw = true;
 
 double Scratch::counter = 0;
 
@@ -164,11 +165,13 @@ bool Scratch::startScratchProject() {
     BlockExecutor::timer.start();
 
     while (Render::appShouldRun()) {
-        if (Render::checkFramerate()) {
+        const bool checkFPS = Render::checkFramerate();
+        if (!forceRedraw || checkFPS) {
+            forceRedraw = false;
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
-            Render::renderSprites();
+            if (checkFPS) Render::renderSprites();
 
             if (shouldStop) {
 #if defined(HEADLESS_BUILD)
@@ -207,11 +210,6 @@ void Scratch::cleanupScratchProject() {
     if (projectType != UNZIPPED) {
 
         mz_zip_reader_end(&Unzip::zipArchive);
-        if (Unzip::trackedBufferPtr) {
-            MemoryTracker::deallocate(Unzip::trackedBufferPtr, Unzip::trackedBufferSize);
-            Unzip::trackedBufferPtr = nullptr;
-            Unzip::trackedBufferSize = 0;
-        }
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
         memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
@@ -501,12 +499,20 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     }
 }
 
+void Scratch::sortSprites() {
+    std::sort(sprites.begin(), sprites.end(),
+              [](const Sprite *a, const Sprite *b) {
+                  if (a->isStage && !b->isStage) return false;
+                  if (!a->isStage && b->isStage) return true;
+                  return a->layer > b->layer;
+              });
+}
+
 void loadSprites(const nlohmann::json &json) {
     Log::log("beginning to load sprites...");
     sprites.reserve(400);
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
-        // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
         Sprite *newSprite = new Sprite();
         // new (newSprite) Sprite();
         if (target.contains("name")) {
@@ -624,9 +630,14 @@ void loadSprites(const nlohmann::json &json) {
                                 parsedInput.blockId = inputValue.get<std::string>();
                         }
                     } else if (type == 2) {
-                        parsedInput.inputType = ParsedInput::BLOCK;
-                        if (!inputValue.is_null())
-                            parsedInput.blockId = inputValue.get<std::string>();
+                        if (inputValue.is_array()) {
+                            parsedInput.inputType = ParsedInput::VARIABLE;
+                            parsedInput.variableId = inputValue[2].get<std::string>();
+                        } else {
+                            parsedInput.inputType = ParsedInput::BLOCK;
+                            if (!inputValue.is_null())
+                                parsedInput.blockId = inputValue.get<std::string>();
+                        }
                     }
                     (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
@@ -768,6 +779,8 @@ void loadSprites(const nlohmann::json &json) {
 
         sprites.push_back(newSprite);
     }
+
+    Scratch::sortSprites();
 
     for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
         Monitor newMonitor;

@@ -27,10 +27,6 @@ class Unzip {
     static bool UnpackedInSD;
     static mz_zip_archive zipArchive;
     static std::vector<char> zipBuffer;
-    static void *trackedBufferPtr;
-    static size_t trackedBufferSize;
-    static void *trackedJsonPtr;
-    static size_t trackedJsonSize;
 
     static void openScratchProject(void *arg) {
         loadingState = "Opening Scratch project";
@@ -199,10 +195,6 @@ class Unzip {
                 return project_json;
             }
 
-            // Use RAW allocation function and store both pointer and size
-            trackedBufferSize = zipBuffer.size();
-            trackedBufferPtr = MemoryTracker::allocate(trackedBufferSize);
-
             // open ZIP file
             Log::log("Opening SB3 file...");
             memset(&zipArchive, 0, sizeof(zipArchive));
@@ -226,19 +218,9 @@ class Unzip {
 
             // Parse JSON file
             Log::log("Parsing project.json...");
-            // Use RAW allocation and store pointer + size
-            trackedJsonSize = json_size;
-            trackedJsonPtr = MemoryTracker::allocate(trackedJsonSize);
 
             project_json = nlohmann::json::parse(std::string(json_data, json_size));
             mz_free((void *)json_data);
-
-            // FIXED: Use RAW deallocate function
-            if (trackedJsonPtr) {
-                MemoryTracker::deallocate(trackedJsonPtr, trackedJsonSize);
-                trackedJsonPtr = nullptr;
-                trackedJsonSize = 0;
-            }
 
         } else {
             file->clear();

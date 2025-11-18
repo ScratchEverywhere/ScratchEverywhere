@@ -255,7 +255,8 @@ void BlockExecutor::runRepeatBlocks() {
     bool withoutRefresh = false;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
-    for (auto &sprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (auto &sprite : sprToRun) {
         for (auto &[id, blockChain] : sprite->blockChains) {
             auto &repeatList = blockChain.blocksToRepeat;
             if (!repeatList.empty()) {
@@ -387,7 +388,8 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     // find all matching "when I receive" blocks
-    for (auto *currentSprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (auto *currentSprite : sprToRun) {
         for (auto &[id, block] : currentSprite->blocks) {
             if (block.opcode == "event_whenbroadcastreceived" &&
                 Scratch::getFieldValue(block, "BROADCAST_OPTION") == broadcastToRun) {
@@ -428,7 +430,8 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
 std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Block *> blocksRun;
-    for (Sprite *currentSprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (Sprite *currentSprite : sprToRun) {
         for (auto &[id, data] : currentSprite->blocks) {
             if (data.opcode == opcodeToFind) {
                 // runBlock(data,currentSprite);
@@ -685,6 +688,7 @@ void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
 }
 
 bool BlockExecutor::hasActiveRepeats(Sprite *sprite, std::string blockChainID) {
+    if (sprite->toDelete) return false;
     if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
         if (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
     }

@@ -74,9 +74,6 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         return;
     }
 
-    std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
-    SDL_Sounds[soundId] = std::move(audio);
-
     SDL_Audio::SoundLoadParams params = {
         .sprite = sprite,
         .zip = zip,
@@ -134,8 +131,6 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             return false;
         }
 
-        Log::log("about to load audio into memoery.");
-
         MIX_Audio *sound = MIX_LoadAudio_IO(mixer, rw, !streamed, true);
         mz_free(file_data);
 
@@ -150,7 +145,6 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
         audio->isLoaded = true;
 
         SDL_Sounds[soundId] = std::move(audio);
-        Log::log(soundId + " has been loaded!");
 
         playSound(soundId);
         const int volume = sprite != nullptr ? sprite->volume : 100;
@@ -164,7 +158,6 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
 bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
-    // Log::log("Loading audio from file: " + fileName);
 
     // Check if file has supported extension
     std::string lowerFileName = fileName;
@@ -195,6 +188,11 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     // remove romfs from filename for soundId
     if(!fromCache)
         fileName = fileName.substr(OS::getRomFSLocation().length());
+        const std::string prefix = "project/";
+        if (fileName.rfind(prefix, 0) == 0) {
+            fileName = fileName.substr(prefix.length());
+        }
+
 
     // Create SDL_Audio object
     std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
@@ -236,7 +234,6 @@ int SoundPlayer::playSound(const std::string &soundId) {
             Log::logWarning("Failed to play track: " + soundId + " " + std::string(SDL_GetError()));
             return -1;
         }
-        Log::log(soundId + " is playing!");
         return 0;
     }
 #endif
@@ -261,8 +258,6 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
             Log::logWarning("Failed to set track volume: " + std::string(SDL_GetError()));
             return;
         }
-
-        Log::log("Volume has been set to " + std::to_string(getSoundVolume(soundId)));
     }
 #endif
 }
@@ -363,7 +358,6 @@ void SoundPlayer::freeAudio(const std::string &soundId) {
 #ifdef ENABLE_AUDIO
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
-        Log::log("A sound has been freed!");
         SDL_Sounds.erase(it);
     } else Log::logWarning("Could not find sound to free: " + soundId);
 #endif

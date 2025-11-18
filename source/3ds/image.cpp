@@ -18,7 +18,6 @@ using u8 = uint8_t;
 
 std::unordered_map<std::string, ImageData> images;
 static std::vector<std::string> toDelete;
-#define MAX_IMAGE_VRAM 30000000
 
 const u32 clamp(u32 n, u32 lower, u32 upper) {
     if (n < lower)
@@ -279,7 +278,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
         if (!rgba_data) {
             Log::logWarning("Failed to decode SVG: " + costumeId);
             mz_free(file_data);
-            Image::cleanupImages();
+            cleanupImagesLite();
             return;
         }
     } else {
@@ -292,7 +291,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
         if (!rgba_data) {
             Log::logWarning("Failed to decode image: " + costumeId);
             mz_free(file_data);
-            Image::cleanupImages();
+            cleanupImagesLite();
             return;
         }
     }
@@ -427,11 +426,7 @@ bool get_C2D_Image(imageRGBA &rgba) {
 
     u32 *rgba_raw = reinterpret_cast<u32 *>(rgba.data);
 
-    // Image data
-    C2D_Image image;
-
     C3D_Tex *tex = new C3D_Tex();
-    image.tex = tex;
 
     // Texture dimensions must be square powers of two between 64x64 and 1024x1024
     tex->width = rgba.textureWidth;
@@ -442,7 +437,6 @@ bool get_C2D_Image(imageRGBA &rgba) {
     // Subtexture
     Tex3DS_SubTexture *subtex = new Tex3DS_SubTexture();
 
-    image.subtex = subtex;
     subtex->width = rgba.width;
     subtex->height = rgba.height;
 
@@ -464,7 +458,6 @@ bool get_C2D_Image(imageRGBA &rgba) {
     if (!tex->data) {
         Log::logWarning("Texture data is null!");
         C3D_TexDelete(tex);
-        delete tex;
         delete subtex;
         cleanupImagesLite();
         return false;
@@ -485,7 +478,9 @@ bool get_C2D_Image(imageRGBA &rgba) {
         }
     }
 
-    MemoryTracker::allocateVRAM(rgba.textureMemSize);
+    C2D_Image image;
+    image.tex = tex;
+    image.subtex = subtex;
 
     images[rgba.name] = {image};
     images[rgba.name].width = rgba.width;
@@ -528,7 +523,7 @@ void cleanupImagesLite() {
     keysToDelete.reserve(images.size());
 
     for (const auto &[id, data] : images) {
-        if (data.freeTimer < data.maxFreeTimer * 0.8)
+        if (data.freeTimer < data.maxFreeTimer)
             keysToDelete.push_back(id);
     }
 

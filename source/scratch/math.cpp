@@ -50,11 +50,9 @@ double Math::parseNumber(std::string str) {
         return -std::numeric_limits<double>::infinity();
     }
 
-    uint8_t base;
+    uint8_t base = 0;
     std::string validcharacters = "0123456789-eE.";
     if (str[0] == '0') {
-        base = 0;
-
         switch (str[1]) {
         case 'x':
             base = 16;
@@ -74,7 +72,7 @@ double Math::parseNumber(std::string str) {
         }
     }
 
-    for (int i = 0; i < str.length(); i++) {
+    for (size_t i = 0; i < str.length(); i++) {
         if (validcharacters.find(str[i]) == std::string::npos) {
             throw std::invalid_argument("");
         }
