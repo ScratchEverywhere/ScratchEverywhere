@@ -20,11 +20,6 @@
 #include <orbis/libkernel.h>
 #endif
 
-size_t MemoryTracker::totalAllocated = 0;
-size_t MemoryTracker::peakUsage = 0;
-size_t MemoryTracker::allocationCount = 0;
-size_t MemoryTracker::totalVRAMAllocated = 0;
-
 // PS4 implementation of logging
 #ifdef __PS4__
 char logBuffer[1024];

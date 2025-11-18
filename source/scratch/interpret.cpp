@@ -210,11 +210,6 @@ void Scratch::cleanupScratchProject() {
     if (projectType != UNZIPPED) {
 
         mz_zip_reader_end(&Unzip::zipArchive);
-        if (Unzip::trackedBufferPtr) {
-            MemoryTracker::deallocate(Unzip::trackedBufferPtr, Unzip::trackedBufferSize);
-            Unzip::trackedBufferPtr = nullptr;
-            Unzip::trackedBufferSize = 0;
-        }
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
         memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
@@ -518,7 +513,6 @@ void loadSprites(const nlohmann::json &json) {
     sprites.reserve(400);
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
-        // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
         Sprite *newSprite = new Sprite();
         // new (newSprite) Sprite();
         if (target.contains("name")) {

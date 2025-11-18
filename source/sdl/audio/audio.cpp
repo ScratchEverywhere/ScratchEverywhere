@@ -141,10 +141,11 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                 }
                 // Log::log("Converting sound into SDL sound...");
                 chunk = Mix_LoadWAV_RW(rw, 0);
+                SDL_RWclose(rw);
+                mz_free(file_data);
 
                 if (!chunk) {
                     Log::logWarning("Failed to load audio from memory: " + zipFileName + " - SDL_mixer Error: " + Mix_GetError());
-                    mz_free(file_data);
                     return false;
                 }
             } else {
@@ -201,7 +202,6 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             SDL_Sounds[soundId]->audioId = soundId;
 
             Log::log("Successfully loaded audio!");
-            // Log::log("memory usage: " + std::to_string(MemoryTracker::getCurrentUsage() / 1024) + " KB");
             SDL_Sounds[soundId]->isLoaded = true;
             SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
             SDL_Sounds[soundId]->file_size = file_size;
