@@ -282,8 +282,6 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     audio->memorySize = audioMemorySize;
 
     SDL_Sounds[fileName] = std::move(audio);
-
-    Log::log("Successfully loaded audio! " + fileName);
     SDL_Sounds[fileName]->isLoaded = true;
     SDL_Sounds[fileName]->channelId = SDL_Sounds.size();
     playSound(fileName);
@@ -412,6 +410,8 @@ void SoundPlayer::stopSound(const std::string &soundId) {
             stopStreamedSound();
             soundFind->second->isPlaying = false;
         }
+    } else {
+        Log::logWarning("Could not find sound to stop: " + soundId);
     }
 #endif
 }
@@ -469,7 +469,6 @@ void SoundPlayer::freeAudio(const std::string &soundId) {
 #ifdef ENABLE_AUDIO
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
-        Log::log("A sound has been freed!");
         SDL_Sounds.erase(it);
     } else Log::logWarning("Could not find sound to free: " + soundId);
 #endif
