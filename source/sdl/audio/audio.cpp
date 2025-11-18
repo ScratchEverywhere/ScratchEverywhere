@@ -33,6 +33,9 @@ SDL_Audio::~SDL_Audio() {
         Mix_FreeMusic(music);
         music = nullptr;
     }
+    if (file_data && file_data != nullptr && isStreaming) {
+        mz_free(file_data);
+    }
 #endif
 }
 
@@ -66,10 +69,6 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .zip = zip,
         .soundId = soundId,
         .streamed = streamed || (sprite != nullptr && sprite->isStage)}; // stage sprites get streamed audio
-
-#if defined(__OGC__)
-    params.streamed = false; // streamed sounds crash on wii.
-#endif
 
     if (projectType != UNZIPPED && fromProject)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
@@ -129,16 +128,15 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             Mix_Music *music = nullptr;
             Mix_Chunk *chunk = nullptr;
 
+            SDL_RWops *rw = SDL_RWFromMem(file_data, (int)file_size);
+            if (!rw) {
+                Log::logWarning("Failed to create RWops for: " + zipFileName);
+                mz_free(file_data);
+                return false;
+            }
+
             if (!streamed) {
-                SDL_RWops *rw = SDL_RWFromMem(file_data, (int)file_size);
-                if (!rw) {
-                    Log::logWarning("Failed to create RWops for: " + zipFileName);
-                    mz_free(file_data);
-                    return false;
-                }
-                // Log::log("Converting sound into SDL sound...");
-                chunk = Mix_LoadWAV_RW(rw, 0);
-                SDL_RWclose(rw);
+                chunk = Mix_LoadWAV_RW(rw, 1);
                 mz_free(file_data);
 
                 if (!chunk) {
@@ -146,41 +144,13 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
                     return false;
                 }
             } else {
-                std::string tempDir = OS::getScratchFolderLocation() + "/cache";
-                std::string tempFile = tempDir + "/temp_" + soundId;
-
-                // make cache directory
-                try {
-                    std::filesystem::create_directories(tempDir);
-                } catch (const std::exception &e) {
-                    Log::logWarning(std::string("Failed to create temp directory: ") + e.what());
-                    mz_free(file_data);
-                    return false;
-                }
-
-                FILE *fp = fopen(tempFile.c_str(), "wb");
-                if (!fp) {
-                    Log::logWarning("Failed to create temp file for streaming");
-                    mz_free(file_data);
-                    return false;
-                }
-
-                fwrite(file_data, 1, file_size, fp);
-                fclose(fp);
-                mz_free(file_data);
-
-                music = Mix_LoadMUS(tempFile.c_str());
-
-                // Clean up temp file
-                remove(tempFile.c_str());
-
+                music = Mix_LoadMUS_RW(rw, 1);
                 if (!music) {
-                    Log::logWarning("Failed to load music from memory: " + zipFileName + " - SDL_mixer Error: " + Mix_GetError());
+                    Log::logWarning("Failed to load audio from memory: " + zipFileName + " - SDL_mixer Error: " + Mix_GetError());
+                    mz_free(file_data);
                     return false;
                 }
             }
-
-            // Log::log("Creating SDL sound object...");
 
             // Create SDL_Audio object
             auto it = SDL_Sounds.find(soundId);
@@ -200,6 +170,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
 
             Log::log("Successfully loaded audio!");
             SDL_Sounds[soundId]->isLoaded = true;
+            SDL_Sounds[soundId]->file_data = file_data;
             SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
             SDL_Sounds[soundId]->file_size = file_size;
             playSound(soundId);
@@ -411,8 +382,6 @@ void SoundPlayer::stopSound(const std::string &soundId) {
             stopStreamedSound();
             soundFind->second->isPlaying = false;
         }
-    } else {
-        Log::logWarning("Could not find sound to stop: " + soundId);
     }
 #endif
 }
