@@ -61,9 +61,6 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         return;
     }
 
-    std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
-    SDL_Sounds[soundId] = std::move(audio);
-
     SDL_Audio::SoundLoadParams params = {
         .sprite = sprite,
         .zip = zip,
@@ -275,8 +272,12 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         audio->isStreaming = true;
     }
 
-    // remove romfs from filename for soundId
+    // remove romfs and `project/` from filename for soundId
     fileName = fileName.substr(OS::getRomFSLocation().length());
+    const std::string prefix = "project/";
+    if (fileName.rfind(prefix, 0) == 0) {
+        fileName = fileName.substr(prefix.length());
+    }
 
     audio->audioId = fileName;
     audio->memorySize = audioMemorySize;
