@@ -234,7 +234,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void renderImage(C2D_Image *image, Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
+void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
     if (!currentSprite || currentSprite == nullptr) return;
 
     bool isSVG = false;
@@ -321,12 +321,12 @@ void Render::renderSprites() {
                     size_t totalSprites = sprites.size();
                     float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
-                    renderImage(&images[costume.id].image,
-                                currentSprite,
-                                costume.id,
-                                false,
-                                eyeOffset,
-                                renderMode == BOTH_SCREENS ? 120 : 0);
+                    renderImage(
+                        currentSprite,
+                        costume.id,
+                        false,
+                        eyeOffset,
+                        renderMode == BOTH_SCREENS ? 120 : 0);
                     break;
                 }
                 costumeIndex++;
@@ -380,12 +380,12 @@ void Render::renderSprites() {
                     size_t totalSprites = sprites.size();
                     float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
-                    renderImage(&images[costume.id].image,
-                                currentSprite,
-                                costume.id,
-                                false,
-                                eyeOffset,
-                                renderMode == BOTH_SCREENS ? 120 : 0);
+                    renderImage(
+                        currentSprite,
+                        costume.id,
+                        false,
+                        eyeOffset,
+                        renderMode == BOTH_SCREENS ? 120 : 0);
                     break;
                 }
                 costumeIndex++;
@@ -432,12 +432,12 @@ void Render::renderSprites() {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
 
-                    renderImage(&images[costume.id].image,
-                                currentSprite,
-                                costume.id,
-                                true,
-                                renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0,
-                                renderMode == BOTH_SCREENS ? -120 : 0);
+                    renderImage(
+                        currentSprite,
+                        costume.id,
+                        true,
+                        renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0,
+                        renderMode == BOTH_SCREENS ? -120 : 0);
                     break;
                 }
                 costumeIndex++;
