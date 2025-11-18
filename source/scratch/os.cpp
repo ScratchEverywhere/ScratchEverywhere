@@ -129,6 +129,21 @@ int Timer::getTimeMs() {
     return static_cast<int>((currentTime - startTime) / sceKernelGetTscFrequency());
 }
 
+#elif defined(__PS3__)
+
+Timer::Timer() {
+    start();
+}
+
+void Timer::start() {
+    startTime = sysGetSystemTime() * 1000;
+}
+
+int Timer::getTimeMs() {
+    uint64_t currentTime = sysGetSystemTime() * 1000;
+    return static_cast<int>((currentTime - startTime));
+}
+
 // everyone else...
 #else
 Timer::Timer() {
@@ -179,6 +194,8 @@ std::string OS::getFilesystemRootPrefix() {
     return "";
 #elif defined(__NDS__)
     return isDSi() ? "sd:" : "fat:";
+#elif defined(__PS3__)
+    return "";
 #else
     return "";
 #endif
@@ -198,6 +215,8 @@ std::string OS::getScratchFolderLocation() {
     return prefix + "data/scratch-vita/";
 #elif defined(__PS4__)
     return "/data/scratch-ps4/";
+#elif defined(__PS3__) // This is the PS3 app0 equivalent, not sure if this is where this should point?
+    return "/dev_hdd0/game/NTXS00053/USRDIR/";
 #elif defined(__3DS__)
     return prefix + "/3ds/scratch-everywhere/";
 #elif defined(__EMSCRIPTEN__)
@@ -214,6 +233,8 @@ std::string OS::getRomFSLocation() {
     return "romfs:/";
 #elif defined(__EMSCRIPTEN__)
     return "/romfs/";
+#elif defined(__PS3__)
+    return "/dev_hdd0/game/NTXS00053/USRDIR/";
 #elif defined(__PS4__)
     return "/app0/";
 #else
@@ -244,6 +265,8 @@ std::string OS::getPlatform() {
     return "PS4";
 #elif defined(__PSP__)
     return "PSP";
+#elif defined(__PS3__)
+    return "PS3";
 #else
     return "Unknown";
 #endif

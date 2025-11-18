@@ -11,7 +11,8 @@ option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+# [PS3]    Same as switch
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT PS3)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
@@ -87,13 +88,23 @@ if(NOT SE_HEADLESS)
 		else()
 			set(SDL2_OPTIONS "")
 		endif()
-		CPMAddPackage(
-			NAME SDL2
-			VERSION 2.32.10
-			GITHUB_REPOSITORY libsdl-org/SDL
-			GIT_TAG release-2.32.10
-			OPTIONS ${SDL2_OPTIONS}
-		)
+
+		# [PS3] Why not just set SE_SYSTEM?
+		# Last time I tried to do this kind of thing
+		# CPM worked great for Sublibs of SDL2
+		# While compiling them manually caused pain and suffering 
+		# This is kind of hacky though
+		if(PS3)
+			pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
+		else()
+			CPMAddPackage(
+				NAME SDL2
+				VERSION 2.32.10
+				GITHUB_REPOSITORY libsdl-org/SDL
+				GIT_TAG release-2.32.10
+				OPTIONS ${SDL2_OPTIONS}
+			)
+		endif()
 		CPMAddPackage(
 			NAME SDL2_image
 			VERSION 2.8.8
@@ -194,13 +205,16 @@ elseif(NINTENDO_SWITCH)
 elseif(VITA)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-vita)
 	target_compile_definitions(scratch-everywhere PRIVATE VITA)
+elseif(PS3)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-ps3)
+	target_compile_definitions(scratch-everywhere PRIVATE PS3)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT PS3)
 	include(FetchContent)
 	FetchContent_Declare(
 	  cmrc
-	  URL https://github.com/vector-of-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
+	  URL https://github.com/vector-onf-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
 	  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 	)
 	FetchContent_MakeAvailable(cmrc)
@@ -266,7 +280,7 @@ if (NOT SE_HEADLESS)
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT PS3)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -288,6 +302,7 @@ endif()
 target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
+# [PS3] TODO!
 if(PSP)
     create_pbp_file(
         TARGET scratch-everywhere
