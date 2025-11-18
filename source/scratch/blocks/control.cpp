@@ -117,6 +117,7 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
             }
         }
     }
+    Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
 BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -302,7 +303,7 @@ BlockResult ControlBlocks::repeatUntil(Block &block, Sprite *sprite, bool *witho
 
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     bool condition = conditionValue.asBoolean();
-    
+
     if (condition) {
         block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
