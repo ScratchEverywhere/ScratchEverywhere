@@ -58,6 +58,7 @@ int Unzip::openFile(std::istream *&file) {
         const auto &romfsFile = fs.open(embeddedFilename);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
         file = new std::istringstream(std::string(content));
+        file->seekg(0, std::ios::end);
     }
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
