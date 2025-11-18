@@ -53,8 +53,6 @@ double Math::parseNumber(std::string str) {
     uint8_t base = 0;
     std::string validcharacters = "0123456789-eE.";
     if (str[0] == '0') {
-        base = 0;
-
         switch (str[1]) {
         case 'x':
             base = 16;
