@@ -55,7 +55,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
     const int transparency = 255 * (1 - sprite->penData.transparency / 100);
     if (!Render::hasFrameBegan) {
-        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
     }
     C2D_SceneBegin(penRenderTarget);
@@ -290,7 +290,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     imgFind->second.freeTimer = data.maxFreeTimer;
     C2D_Image *costumeTexture = &data.image;
     if (!Render::hasFrameBegan) {
-        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
     }
     C2D_SceneBegin(penRenderTarget);

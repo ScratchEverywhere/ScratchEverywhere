@@ -142,7 +142,7 @@ bool Render::initPen() {
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
     if (!Render::hasFrameBegan) {
-        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
     }
     C2D_SceneBegin(penRenderTarget);
@@ -279,8 +279,9 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
 
 void Render::renderSprites() {
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
-    if (!Render::hasFrameBegan)
-        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+    if (!Render::hasFrameBegan) {
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+    }
 
     // Always start rendering top screen, otherwise bottom screen only rendering gets weird fsr
     C2D_SceneBegin(topScreen);
