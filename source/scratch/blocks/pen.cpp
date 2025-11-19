@@ -246,8 +246,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     const double offsetX = rotationCenterX * (sprite->size * 0.01) * scale;
     const double offsetY = rotationCenterY * (sprite->size * 0.01) * scale;
 
-    image->renderRect.w = sprite->spriteWidth * scale;
-    image->renderRect.h = sprite->spriteHeight * scale;
+    image->renderRect.w = sprite->spriteWidth * scale * sprite->size * 0.01;
+    image->renderRect.h = sprite->spriteHeight * scale * sprite->size * 0.01;
     image->renderRect.x = (sprite->xPosition * scale + penWidth / 2.0f - (image->renderRect.w / 1.325f)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
     image->renderRect.y = (-sprite->yPosition * scale + penHeight / 2.0f - (image->renderRect.h / 1.325f)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
     const SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
