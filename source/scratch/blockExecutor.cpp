@@ -494,7 +494,7 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
             std::string result;
             std::string seperator = "";
             for (const auto &item : listIt->second.items) {
-                if (item.asString().size() > 1) {
+                if (item.asString().size() > 1 || !item.isString()) {
                     seperator = "\n";
                     break;
                 }
@@ -515,7 +515,7 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
                     std::string result;
                     std::string seperator = "";
                     for (const auto &item : globalIt->second.items) {
-                        if (item.asString().size() > 1) {
+                        if (item.asString().size() > 1 || !item.isString()) {
                             seperator = "\n";
                             break;
                         }
@@ -564,7 +564,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
         std::string result;
         std::string seperator = "";
         for (const auto &item : listIt->second.items) {
-            if (item.asString().size() > 1) {
+            if (item.asString().size() > 1 || !item.isString()) {
                 seperator = " ";
                 break;
             }
@@ -595,7 +595,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
                 std::string result;
                 std::string seperator = "";
                 for (const auto &item : globalIt->second.items) {
-                    if (item.asString().size() > 1) {
+                    if (item.asString().size() > 1 || !item.isString()) {
                         seperator = " ";
                         break;
                     }
