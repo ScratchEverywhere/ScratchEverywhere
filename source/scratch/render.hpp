@@ -119,8 +119,11 @@ class Render {
             if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
                 sprite->spriteHeight - sprite->rotationCenterY != 0) {
                 const int shiftAmount = !isSVG ? 1 : 0;
-                const int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> shiftAmount;
+                int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> shiftAmount;
                 const int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> shiftAmount;
+
+                if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0)
+                    offsetX *= -1;
 
                 // Offset based on size
                 if (sprite->size != 100.0f) {
@@ -145,13 +148,12 @@ class Render {
                 }
             }
 
+#ifndef __NDS__
             if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-#ifdef __NDS__
-                spriteX += sprite->spriteWidth * (isSVG ? 2 : 1);
-#else
+
                 spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
-#endif
             }
+#endif
 
             if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
