@@ -24,18 +24,7 @@ void ProjectMenu::init() {
         SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_splash.ogg"), "gfx/menu/mm_full.ogg");
         SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
     }
-#elif defined(__PSP__)
 #else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
-    }
-    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 100.0f);
-    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 0.0f);
 #endif
 
     snow.image = new Image("gfx/menu/snow.svg");
@@ -158,9 +147,8 @@ void ProjectMenu::render() {
     }
 #elif defined(__PSP__)
 #else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
 #endif
 

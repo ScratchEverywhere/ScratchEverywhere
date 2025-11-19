@@ -102,18 +102,11 @@ void MainMenu::init() {
         SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_full.ogg"), "gfx/menu/mm_splash.ogg");
         SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
     }
-#elif defined(__PSP__)
 #else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
         SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
-    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 0.0f);
-    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 100.0f);
 #endif
 
     Input::applyControls();
@@ -161,15 +154,9 @@ void MainMenu::render() {
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
         SoundPlayer::playSound("gfx/menu/mm_full.wav");
     }
-#elif defined(__3DS__)
+#else
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    }
-#elif defined(__PSP__)
-#else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
 #endif
 
