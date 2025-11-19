@@ -194,7 +194,7 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    if (!sprite->visible || !Render::initPen()) return BlockResult::CONTINUE;
+    if (!Render::initPen()) return BlockResult::CONTINUE;
 
     if (projectType == UNZIPPED) {
         Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
