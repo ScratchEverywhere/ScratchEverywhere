@@ -57,13 +57,21 @@ void Log::log(std::string message, bool printToScreen) {
 
 void Log::logWarning(std::string message, bool printToScreen) {
     if (printToScreen)
+#ifdef __PC__
         std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
+#else
+        std::cout << "Warning: " << message << std::endl;
+#endif
     writeToFile("Warning: " + message);
 }
 
 void Log::logError(std::string message, bool printToScreen) {
     if (printToScreen)
+#ifdef __PC__
         std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
+#else
+        std::cerr << "Error: " << message << std::endl;
+#endif
 
     writeToFile("Error: " + message);
 }
@@ -215,14 +223,14 @@ std::string OS::getScratchFolderLocation() {
     return prefix + "data/scratch-vita/";
 #elif defined(__PS4__)
     return "/data/scratch-ps4/";
-#elif defined(__PS3__) // This is the PS3 app0 equivalent, not sure if this is where this should point?
-    return "/dev_hdd0/game/NTXS00053/USRDIR/";
 #elif defined(__3DS__)
     return prefix + "/3ds/scratch-everywhere/";
 #elif defined(__EMSCRIPTEN__)
     return "/scratch-everywhere/";
 #elif defined(__NDS__)
     return prefix + "/scratch-ds/";
+#elif defined(__PS3__)
+    return "/dev_hdd0/data/scratch-ps3/";
 #else
     return "scratch-everywhere/";
 #endif

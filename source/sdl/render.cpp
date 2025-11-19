@@ -203,7 +203,7 @@ postAccount:
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
     window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-#ifdef __PS3__
+#if defined(__PS3__)
     // PS3 Can be running at 480i/480p, 576i, 720p or 1080p
     // So we do this to use the real screen res 
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);

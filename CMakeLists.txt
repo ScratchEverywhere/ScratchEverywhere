@@ -95,7 +95,6 @@ if(NOT SE_HEADLESS)
 		# While compiling them manually caused pain and suffering 
 		# This is kind of hacky though
 		if(PS3)
-			pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
 		else()
 			CPMAddPackage(
 				NAME SDL2
@@ -110,6 +109,7 @@ if(NOT SE_HEADLESS)
 			VERSION 2.8.8
 			GITHUB_REPOSITORY libsdl-org/SDL_image
 			GIT_TAG release-2.8.8
+			OPTIONS "SDL2IMAGE_BACKEND_STB ON" # It was trying to use AVIF from /usr/lib
 		)
 		CPMAddPackage(
 			NAME SDL2_ttf
@@ -136,9 +136,15 @@ if(NOT SE_HEADLESS)
 		target_include_directories(SDL2_gfx PUBLIC
 			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 		)
+		if(PS3)
+		target_link_libraries(SDL2_gfx PUBLIC 
+			SDL2
+		)
+		else()
 		target_link_libraries(SDL2_gfx PUBLIC 
 			SDL2::SDL2
 		)
+		endif()
 		if(SE_AUDIO)
 			CPMAddPackage(
 				NAME SDL2_mixer
@@ -241,7 +247,11 @@ if (NOT SE_HEADLESS)
 		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
 	else()
-		list(APPEND SDL_LINK_LIBS SDL2_gfx SDL2::SDL2)
+		if(PS3)
+			list(APPEND SDL_LINK_LIBS SDL2_gfx SDL2)
+		else()
+			list(APPEND SDL_LINK_LIBS SDL2_gfx SDL2::SDL2)
+		endif()
 	endif()
 
 	if(SE_SYSTEM)

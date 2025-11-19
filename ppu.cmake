@@ -24,6 +24,15 @@ else()
     message(FATAL_ERROR "The environment variable PSL1GHT needs to be defined.")
 endif()
 
+set(CMAKE_PREFIX_PATH
+    "$ENV{PS3DEV}/ppu"
+    "$ENV{PS3DEV}/ppu/lib/cmake"
+    "$ENV{PS3DEV}/portlibs/ppu"
+    "$ENV{PS3DEV}/portlibs/ppu/lib/cmake"
+    ${CMAKE_PREFIX_PATH}
+)
+
+
 SET(CMAKE_SYSTEM_NAME Generic)
 SET(CMAKE_SYSTEM_VERSION 1)
 SET(CMAKE_SYSTEM_PROCESSOR powerpc64)
@@ -31,7 +40,7 @@ SET(CMAKE_SYSTEM_PROCESSOR powerpc64)
 SET(CMAKE_C_COMPILER ppu-gcc)
 SET(CMAKE_CXX_COMPILER ppu-g++)
 
-SET(PPU_CFLAGS "-mhard-float -fmodulo-sched -ffunction-sections -fdata-sections -I$ENV{PSL1GHT}/ppu/include -I$ENV{PSL1GHT}/ppu/include/simdmath -D__PS3__")
+SET(PPU_CFLAGS "-mhard-float -fmodulo-sched -ffunction-sections -fdata-sections -I$ENV{PSL1GHT}/ppu/include -I$ENV{PSL1GHT}/portlibs/ppu/include -I$ENV{PSL1GHT}/portlibs/ppu/include/SDL2 -I$ENV{PSL1GHT}/ppu/include/simdmath -D__PS3__")
 SET(PPU_CXXFLAGS "-D_GLIBCXX11_USE_C99_STDIO ${PPU_CFLAGS}")
 SET(PPU_LDFLAGS "-mhard-float -fmodulo-sched -Wl,--gc-sections -L$ENV{PSL1GHT}/ppu/lib -L/usr/local/ps3dev/portlibs/ppu/lib -lm -lgcm_sys -lrsx -lsysutil -lio -laudio -lrt -llv2 -lio -laudio")
 
@@ -41,6 +50,7 @@ SET(CMAKE_FIND_ROOT_PATH $ENV{PS3DEV} $ENV{PS3DEV}/ppu $ENV{PS3DEV}/portlibs/ppu
 SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 SET_PROPERTY(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
 

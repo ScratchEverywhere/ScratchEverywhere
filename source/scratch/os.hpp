@@ -7,9 +7,9 @@
 #ifdef WII
 #include <ogc/lwp_watchdog.h>
 #include <ogc/system.h>
-#ifdef __PS3__
-#include <sys/systime.h>
 #endif
+#ifdef __PS3__
+#include <lv2/systime.h>
 #endif
 
 class MemoryTracker {
@@ -68,7 +68,7 @@ class MemoryTracker {
         return ps4_maxRamUsage;
 #endif
 #ifdef __PS3__
-        return ps3_maxRamUsage
+        return ps3_maxRamUsage;
 #endif
         return pc_maxRamUsage;
     }
@@ -98,7 +98,7 @@ class MemoryTracker {
         return ps4_maxVRAMUsage;
 #endif
 #ifdef __PS3__
-        return ps3_maxVRAMUsage
+        return ps3_maxVRAMUsage;
 #endif
         return pc_maxVRAMUsage;
     }
