@@ -163,8 +163,7 @@ void Timer::start() {
 
 int Timer::getTimeMs() {
     uint64_t currentTime = gettick();
-
-    return ((currentTime - startTime) * 1000/sysGetTimebaseFrequency());
+    return static_cast<int>((currentTime - startTime) * 1000 / sysGetTimebaseFrequency());
 }
 
 // everyone else...
