@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <random>
-#ifdef __NDS__
+#if defined(__NDS__) || defined(__PS3__)
 #include <cstring>
 #include <dirent.h>
 #include <errno.h>
@@ -66,7 +66,7 @@ class Unzip {
         return;
     }
 
-#ifdef __NDS__ // This technically could be used for all platforms, but I'm too lazy to test it everywhere so
+#if defined(__NDS__) || defined(__PS3__) // This technically could be used for all platforms, but I'm too lazy to test it everywhere so
     static std::vector<std::string> getProjectFiles(const std::string &directory) {
         std::vector<std::string> projectFiles;
         struct stat dirStat;
