@@ -139,30 +139,16 @@ int Timer::getTimeMs() {
 
 // I don't trust the PS3 C++ std
 #elif defined(__PS3__)
-
-uint32_t gettick(void)
-{
-
-    uint32_t tbl, tbu0, tbu1;
-    do {
-        __asm__ __volatile__ ("mftbu %0" : "=r"(tbu0));
-        __asm__ __volatile__ ("mftb  %0" : "=r"(tbl));
-        __asm__ __volatile__ ("mftbu %0" : "=r"(tbu1));
-    } while (tbu0 != tbu1);
-
-	return (uint64_t)tbu0 << 32 | tbl;
-}
-
 Timer::Timer() {
     start();
 }
 
 void Timer::start() {
-    startTime = gettick();
+    startTime = __builtin_ppc_get_timebase();
 }
 
 int Timer::getTimeMs() {
-    uint64_t currentTime = gettick();
+    uint64_t currentTime = __builtin_ppc_get_timebase();
     return static_cast<int>((currentTime - startTime) * 1000 / sysGetTimebaseFrequency());
 }
 
