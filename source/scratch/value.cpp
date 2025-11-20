@@ -52,7 +52,7 @@ int Value::asInt() const {
     } else if (isBoolean()) {
         return std::get<bool>(value) ? 1 : 0;
     } else if (isColor()) {
-        const ColorRGBA rgb = CSBO2RGBA(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
     }
 
@@ -74,7 +74,7 @@ std::string Value::asString() const {
     } else if (isBoolean()) {
         return std::get<bool>(value) ? "true" : "false";
     } else if (isColor()) {
-        const ColorRGBA rgb = CSBO2RGBA(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         const char hex_chars[] = "0123456789abcdef";
         const unsigned char r = static_cast<unsigned char>(rgb.r);
         const unsigned char g = static_cast<unsigned char>(rgb.g);
@@ -106,7 +106,7 @@ bool Value::asBoolean() const {
         return std::get<std::string>(value) != "" && std::get<std::string>(value) != "0" && std::get<std::string>(value) != "false";
     }
     if (isColor()) {
-        const ColorRGBA rgb = CSBO2RGBA(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         return rgb.r != 0 || rgb.g != 0 || rgb.b != 0 || rgb.a != 0;
     }
     return false;

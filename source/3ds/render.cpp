@@ -140,7 +140,7 @@ bool Render::initPen() {
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGBA rgbColor = CSBO2RGBA(sprite->penData.color);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     if (!Render::hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;

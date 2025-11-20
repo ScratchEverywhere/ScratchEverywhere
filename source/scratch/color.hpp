@@ -18,7 +18,7 @@ struct ColorRGBA {
     float a;
 };
 
-inline ColorRGBA CSBO2RGBA(const Color &color) {
+inline ColorRGBA CSBT2RGBA(const Color &color) {
     const float C = (color.saturation / 100) * (color.brightness / 100);
     const float X = C * (1 - fabs(fmod(color.hue * 0.06, 2) - 1));
     const float m = color.brightness / 100 - C;

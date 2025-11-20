@@ -44,7 +44,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const ColorRGBA rgbColor = CSBO2RGBA(sprite->penData.color);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     filledCircleRGBA(renderer, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
@@ -52,7 +52,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_DestroyTexture(tempTexture);
 #elif defined(__3DS__)
-    const ColorRGBA rgbColor = CSBO2RGBA(sprite->penData.color);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     if (!Render::hasFrameBegan) {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
