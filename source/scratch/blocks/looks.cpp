@@ -94,8 +94,8 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         }
     }
 
-    for (Sprite *currentSprite : sprites) {
-        if (!currentSprite->isStage) {
+    for (Sprite *stage : sprites) {
+        if (!stage->isStage) {
             continue;
         }
 
@@ -103,36 +103,33 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
 
         if (((Math::isNumber(inputString) && inputFind != block.parsedInputs->end() && !imageFound) || inputValue.isNumeric()) && (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
             int costumeIndex = inputValue.asInt() - 1;
-            if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < currentSprite->costumes.size()) {
+            if (costumeIndex >= 0 && static_cast<size_t>(costumeIndex) < stage->costumes.size()) {
                 imageFound = true;
-                currentSprite->currentCostume = costumeIndex;
+                stage->currentCostume = costumeIndex;
             }
         }
 
-        for (size_t i = 0; i < currentSprite->costumes.size(); i++) {
-            if (currentSprite->costumes[i].name == inputString) {
-                currentSprite->currentCostume = i;
+        for (size_t i = 0; i < stage->costumes.size(); i++) {
+            if (stage->costumes[i].name == inputString) {
+                stage->currentCostume = i;
                 imageFound = true;
                 break;
             }
         }
 
         if (projectType == UNZIPPED) {
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, sprite);
+            Image::loadImageFromFile(stage->costumes[stage->currentCostume].fullName, sprite);
         } else {
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, sprite);
+            Image::loadImageFromSB3(&Unzip::zipArchive, stage->costumes[stage->currentCostume].fullName, sprite);
         }
-    }
 
-    for (auto &currentSprite : sprites) {
-        for (auto &[id, spriteBlock] : currentSprite->blocks) {
-            if (spriteBlock.opcode != "event_whenbackdropswitchesto") continue;
-            try {
-                if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == sprite->costumes[sprite->currentCostume].name) {
-                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+        for (auto &currentSprite : sprites) {
+            for (auto &[id, spriteBlock] : currentSprite->blocks) {
+                if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
+                    if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stage->costumes[stage->currentCostume].name) {
+                        executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                    }
                 }
-            } catch (...) {
-                continue;
             }
         }
     }
@@ -142,30 +139,27 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
 }
 
 BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    for (Sprite *currentSprite : sprites) {
-        if (!currentSprite->isStage) {
+    for (Sprite *stage : sprites) {
+        if (!stage->isStage) {
             continue;
         }
-        currentSprite->currentCostume++;
-        if (currentSprite->currentCostume >= static_cast<int>(currentSprite->costumes.size())) {
-            currentSprite->currentCostume = 0;
+        stage->currentCostume++;
+        if (stage->currentCostume >= static_cast<int>(stage->costumes.size())) {
+            stage->currentCostume = 0;
         }
         if (projectType == UNZIPPED) {
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, sprite);
+            Image::loadImageFromFile(stage->costumes[stage->currentCostume].fullName, sprite);
         } else {
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, sprite);
+            Image::loadImageFromSB3(&Unzip::zipArchive, stage->costumes[stage->currentCostume].fullName, sprite);
         }
-    }
 
-    for (auto &currentSprite : sprites) {
-        for (auto &[id, spriteBlock] : currentSprite->blocks) {
-            if (spriteBlock.opcode != "event_whenbackdropswitchesto") continue;
-            try {
-                if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == sprite->costumes[sprite->currentCostume].name) {
-                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+        for (auto &currentSprite : sprites) {
+            for (auto &[id, spriteBlock] : currentSprite->blocks) {
+                if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
+                    if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stage->costumes[stage->currentCostume].name) {
+                        executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                    }
                 }
-            } catch (...) {
-                continue;
             }
         }
     }
