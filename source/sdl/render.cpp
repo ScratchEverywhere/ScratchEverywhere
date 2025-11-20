@@ -208,8 +208,17 @@ postAccount:
     // So we do this to use the real screen res 
     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     SDL_GetWindowSize(window, &windowWidth, &windowHeight);
-#endif
+
+    // Use Software Renderer since HW Renderer has issues
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE | SDL_RENDERER_PRESENTVSYNC);
+
+    // Make sure gamepad is found 
+    // since it isn't available right away 
+    // on PS3 for some reason
+    while (SDL_NumJoysticks() == 0) { SDL_PumpEvents(); }
+#else
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+#endif
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
