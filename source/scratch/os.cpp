@@ -137,19 +137,34 @@ int Timer::getTimeMs() {
     return static_cast<int>((currentTime - startTime) / sceKernelGetTscFrequency());
 }
 
+// I don't trust the PS3 C++ std
 #elif defined(__PS3__)
+
+uint32_t gettick(void)
+{
+
+    uint32_t tbl, tbu0, tbu1;
+    do {
+        __asm__ __volatile__ ("mftbu %0" : "=r"(tbu0));
+        __asm__ __volatile__ ("mftb  %0" : "=r"(tbl));
+        __asm__ __volatile__ ("mftbu %0" : "=r"(tbu1));
+    } while (tbu0 != tbu1);
+
+	return (uint64_t)tbu0 << 32 | tbl;
+}
 
 Timer::Timer() {
     start();
 }
 
 void Timer::start() {
-    startTime = sysGetSystemTime() * 1000;
+    startTime = gettick();
 }
 
 int Timer::getTimeMs() {
-    uint64_t currentTime = sysGetSystemTime() * 1000;
-    return static_cast<int>((currentTime - startTime));
+    uint64_t currentTime = gettick();
+
+    return ((currentTime - startTime) * 1000/sysGetTimebaseFrequency());
 }
 
 // everyone else...

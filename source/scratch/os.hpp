@@ -9,7 +9,7 @@
 #include <ogc/system.h>
 #endif
 #ifdef __PS3__
-#include <lv2/systime.h>
+#include <sys/systime.h>
 #endif
 
 class MemoryTracker {
