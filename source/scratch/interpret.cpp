@@ -499,6 +499,19 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     }
 }
 
+void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
+
+    sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(std::round(costumeIndex) / sprite->costumes.size()) * sprite->costumes.size()) : 0;
+
+    if (projectType == UNZIPPED) {
+        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
+    } else {
+        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
+    }
+
+    Scratch::forceRedraw = true;
+}
+
 void Scratch::sortSprites() {
     std::sort(sprites.begin(), sprites.end(),
               [](const Sprite *a, const Sprite *b) {
