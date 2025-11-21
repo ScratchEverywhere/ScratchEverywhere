@@ -217,46 +217,85 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
     SDL_Image *image = imgFind->second;
     image->freeTimer = image->maxFreeTime;
+    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+    sprite->spriteWidth = image->textureRect.w >> 1;
+    sprite->spriteHeight = image->textureRect.h >> 1;
     SDL_RendererFlip flip = SDL_FLIP_NONE;
+    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
+    Render::calculateRenderPosition(sprite, isSVG);
+    image->renderRect.x = sprite->renderInfo.renderX;
+    image->renderRect.y = sprite->renderInfo.renderY;
 
-    sprite->spriteWidth = image->textureRect.w / 2;
-    sprite->spriteHeight = image->textureRect.h / 2;
-    if (sprite->costumes[sprite->currentCostume].isSVG) {
-        sprite->spriteWidth *= 2;
-        sprite->spriteHeight *= 2;
+    image->setScale(sprite->renderInfo.renderScaleY);
+    if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
+        flip = SDL_FLIP_HORIZONTAL;
+        image->renderRect.x += (sprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
     }
-    const double rotation = Math::degreesToRadians(sprite->rotation - 90.0f);
-    double renderRotation = rotation;
 
-    if (sprite->rotationStyle == sprite->LEFT_RIGHT) {
-        if (std::cos(rotation) < 0) flip = SDL_FLIP_HORIZONTAL;
-        renderRotation = 0;
+    // Pen mapping stuff
+    SDL_Rect originalRenderRect = image->renderRect;
+    const auto &cords = screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
+    image->renderRect.x = cords.first + Scratch::projectWidth / 2;
+    image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
+
+    if (Scratch::hqpen) {
+        int penWidth;
+        int penHeight;
+        SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+        const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+
+        image->renderRect.x *= scale;
+        image->renderRect.y *= scale;
+    } else {
+        const float scale = std::min(static_cast<float>(windowHeight) / Scratch::projectWidth,
+                                     static_cast<float>(windowHeight) / Scratch::projectHeight) *
+                            1.25;
+
+        image->renderRect.w /= scale;
+        image->renderRect.h /= scale;
     }
-    if (sprite->rotationStyle == sprite->NONE) renderRotation = 0;
 
-    const double rotationCenterX = (((sprite->rotationCenterX - sprite->spriteWidth)) / 2);
-    const double rotationCenterY = (((sprite->rotationCenterY - sprite->spriteHeight)) / 2);
+    // set ghost effect
+    float ghost = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
+    Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
+    SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
 
-    int penWidth;
-    int penHeight;
-    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    // set brightness effect
+    if (sprite->brightnessEffect != 0) {
+        float brightness = sprite->brightnessEffect * 0.01f;
+        if (brightness > 0.0f) {
+            // render the normal image first
+            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
+                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
 
-    const double offsetX = rotationCenterX * (sprite->size * 0.01) * scale;
-    const double offsetY = rotationCenterY * (sprite->size * 0.01) * scale;
+            // render another, blended image on top
+            SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
+            SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
+            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
+                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
 
-    image->renderRect.w = sprite->spriteWidth * scale * sprite->size * 0.01;
-    image->renderRect.h = sprite->spriteHeight * scale * sprite->size * 0.01;
-    image->renderRect.x = (sprite->xPosition * scale + penWidth / 2.0f - (image->renderRect.w / 1.325f)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
-    image->renderRect.y = (-sprite->yPosition * scale + penHeight / 2.0f - (image->renderRect.h / 1.325f)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
-    const SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
+            // reset for next frame
+            SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
+        } else {
+            Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
+            SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
 
-    // ghost effect
-    SDL_SetTextureAlphaMod(image->spriteTexture, static_cast<Uint8>(255 * (1.0f - std::clamp(sprite->ghostEffect, 0.0f, 100.0f) / 100.0f)));
-
-    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, Math::radiansToDegrees(renderRotation), &center, flip);
+            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
+                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
+            // reset for next frame
+            SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
+        }
+    } else {
+        // if no brightness just render normal image
+        SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
+        SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
+                         Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
+    }
 
     SDL_SetRenderTarget(renderer, NULL);
+
+    image->renderRect = originalRenderRect;
 
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
