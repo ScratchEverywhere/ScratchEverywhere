@@ -102,28 +102,23 @@ void MainMenu::init() {
         SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_full.ogg"), "gfx/menu/mm_splash.ogg");
         SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
     }
-#elif defined(__PSP__)
 #else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
         SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
-    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 0.0f);
-    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 100.0f);
 #endif
 
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
+    snow.image = new Image("gfx/menu/snow.svg");
+
     logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 28", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 30 Nightly", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -159,15 +154,9 @@ void MainMenu::render() {
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
         SoundPlayer::playSound("gfx/menu/mm_full.wav");
     }
-#elif defined(__3DS__)
+#else
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    }
-#elif defined(__PSP__)
-#else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
 #endif
 
@@ -178,7 +167,9 @@ void MainMenu::render() {
     }
 
     // begin frame
-    Render::beginFrame(0, 117, 77, 117);
+    Render::beginFrame(0, 87, 60, 88);
+
+    snow.render();
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
@@ -192,7 +183,7 @@ void MainMenu::render() {
     splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7) * logo->image->scale);
 
     // begin 3DS bottom screen frame
-    Render::beginFrame(1, 117, 77, 117);
+    Render::beginFrame(1, 87, 60, 88);
 
     if (settingsButton->isPressed()) {
         SettingsMenu *settingsMenu = new SettingsMenu();
@@ -231,6 +222,10 @@ void MainMenu::cleanup() {
     if (splashText) {
         delete splashText;
         splashText = nullptr;
+    }
+    if (snow.image) {
+        delete snow.image;
+        snow.image = nullptr;
     }
     isInitialized = false;
 }

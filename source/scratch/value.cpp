@@ -11,48 +11,16 @@ Value::Value(std::string val) : value(std::move(val)) {}
 
 Value::Value(bool val) : value(val) {}
 
-bool Value::isInteger() const {
-    return std::holds_alternative<int>(value);
-}
-
-bool Value::isDouble() const {
-    return std::holds_alternative<double>(value);
-}
-
-bool Value::isString() const {
-    return std::holds_alternative<std::string>(value);
-}
-
-bool Value::isBoolean() const {
-    return std::holds_alternative<bool>(value);
-}
-
-bool Value::isNumeric() const {
-    if (isInteger() || isDouble() || isBoolean()) {
-        return true;
-    } else if (isString()) {
-        auto &strValue = std::get<std::string>(value);
-        return Math::isNumber(strValue);
-    }
-
-    return false;
-}
-
-bool Value::isColor() const {
-    return std::holds_alternative<Color>(value);
-}
-
 double Value::asDouble() const {
     if (isDouble()) {
+        if (isNaN()) return 0.0;
         return std::get<double>(value);
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
-
-        if (strValue == "Infinity") return std::numeric_limits<double>::infinity();
-        if (strValue == "-Infinity") return -std::numeric_limits<double>::infinity();
-
-        if (Math::isNumber(strValue)) {
+        try {
             return Math::parseNumber(strValue);
+        } catch (...) {
+            return 0.0;
         }
     } else if (isColor() || isInteger() || isBoolean()) {
         return static_cast<double>(asInt());
@@ -84,7 +52,7 @@ int Value::asInt() const {
     } else if (isBoolean()) {
         return std::get<bool>(value) ? 1 : 0;
     } else if (isColor()) {
-        const ColorRGB rgb = HSB2RGB(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
     }
 
@@ -106,7 +74,7 @@ std::string Value::asString() const {
     } else if (isBoolean()) {
         return std::get<bool>(value) ? "true" : "false";
     } else if (isColor()) {
-        const ColorRGB rgb = HSB2RGB(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         const char hex_chars[] = "0123456789abcdef";
         const unsigned char r = static_cast<unsigned char>(rgb.r);
         const unsigned char g = static_cast<unsigned char>(rgb.g);
@@ -124,24 +92,44 @@ std::string Value::asString() const {
     return "";
 }
 
-Color Value::asColor() const {
+bool Value::asBoolean() const {
+    if (isBoolean()) {
+        return std::get<bool>(value);
+    }
     if (isInteger()) {
-        const int &intValue = std::get<int>(value);
-        return RGB2HSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
+        return std::get<int>(value) != 0;
     }
     if (isDouble()) {
-        const double &doubleValue = std::get<double>(value);
-        return RGB2HSB({static_cast<float>(doubleValue / 0x10000), static_cast<float>(static_cast<int>(doubleValue / 0x100) % 0x100), static_cast<float>(static_cast<int>(doubleValue) % 0x100)});
+        return std::get<double>(value) != 0.0 && !isNaN();
     }
-    if (isColor()) return std::get<Color>(value);
     if (isString()) {
-        const std::string &stringValue = std::get<std::string>(value);
-        if (!std::regex_match(stringValue, std::regex("^#[\\dabcdef]{6}$"))) return {0, 0, 0};
-        const int intValue = std::stoi(stringValue.substr(1), 0, 16);
-        return RGB2HSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
+        return std::get<std::string>(value) != "" && std::get<std::string>(value) != "0" && std::get<std::string>(value) != "false";
     }
+    if (isColor()) {
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
+        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0 || rgb.a != 0;
+    }
+    return false;
+}
 
-    return {0, 0, 0};
+Color Value::asColor() const {
+    if (isString()) {
+        std::string stringValue = asString();
+        if (stringValue[0] == '#') {
+            std::string r, g, b;
+            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{3}$"))) {
+                stringValue = "#" + std::string(2, stringValue[1]) + std::string(2, stringValue[2]) + std::string(2, stringValue[3]);
+            }
+            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{6}$"))) {
+                r = stringValue.substr(1, 2);
+                g = stringValue.substr(3, 2);
+                b = stringValue.substr(5, 2);
+                return RGBA2CSBO({static_cast<float>(std::stoi(r, 0, 16)), static_cast<float>(std::stoi(g, 0, 16)), static_cast<float>(std::stoi(b, 0, 16)), 255});
+            } else return {0, 0, 0, 0};
+        }
+    }
+    const double RGBA = asDouble();
+    return RGBA2CSBO({static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)});
 }
 
 Value Value::operator+(const Value &other) const {
@@ -190,28 +178,57 @@ Value Value::operator/(const Value &other) const {
 }
 
 bool Value::operator==(const Value &other) const {
-    if (value.index() == other.value.index()) {
-        return value == other.value;
+    std::string string1 = asString();
+    std::string string2 = other.asString();
+
+    if (!std::all_of(string1.begin(), string1.end(), [](unsigned char c) {return std::isspace(c); }) &&
+        !std::all_of(string2.begin(), string2.end(), [](unsigned char c) {return std::isspace(c); })) {
+        if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
+            return asDouble() == other.asDouble();
+        }
     }
 
-    // Different types - compare as strings (Scratch behavior)
-    return asString() == other.asString();
+    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+    return string1 == string2;
 }
 
 bool Value::operator<(const Value &other) const {
-    if (isNumeric() && other.isNumeric()) {
-        if (std::isnan(other.asDouble()) && std::isinf(asDouble())) return true;
+    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
         return asDouble() < other.asDouble();
     }
-    return asString() < other.asString();
+
+    std::string string1 = asString();
+    std::string string2 = other.asString();
+    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+    return string1 < string2;
 }
 
 bool Value::operator>(const Value &other) const {
-    if (isNumeric() && other.isNumeric()) {
-        if (std::isnan(asDouble()) && std::isinf(other.asDouble())) return true;
+    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
         return asDouble() > other.asDouble();
     }
-    return asString() > other.asString();
+
+    std::string string1 = asString();
+    std::string string2 = other.asString();
+    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+    return string1 > string2;
+}
+
+bool Value::isScratchInt() {
+    if (isDouble()) {
+        if (std::isnan(asDouble())) return true;
+        try {
+            return std::stoi(asString()) == asDouble();
+        } catch (...) {
+            return false;
+        }
+    }
+    if (isBoolean()) return true;
+    if (isString()) return asString().find('.') == std::string::npos;
+    return false;
 }
 
 Value Value::fromJson(const nlohmann::json &jsonVal) {

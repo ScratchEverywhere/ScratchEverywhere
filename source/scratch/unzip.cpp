@@ -8,7 +8,7 @@
 #include "SDL2/SDL.h"
 #endif
 
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
 #include <cmrc/cmrc.hpp>
 #include <sstream>
 
@@ -22,10 +22,6 @@ std::string Unzip::filePath = "";
 mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
 bool Unzip::UnpackedInSD = false;
-void *Unzip::trackedBufferPtr = nullptr;
-size_t Unzip::trackedBufferSize = 0;
-void *Unzip::trackedJsonPtr = nullptr;
-size_t Unzip::trackedJsonSize = 0;
 
 int Unzip::openFile(std::istream *&file) {
     Log::log("Unzipping Scratch project...");
@@ -38,12 +34,12 @@ int Unzip::openFile(std::istream *&file) {
     embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
     unzippedPath = OS::getRomFSLocation() + unzippedPath;
 
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
     const auto &fs = cmrc::romfs::get_filesystem();
 #endif
 
     // Unzipped Project in romfs:/
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
     if (fs.exists(unzippedPath)) {
         const auto &romfsFile = fs.open(unzippedPath);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
@@ -57,11 +53,12 @@ int Unzip::openFile(std::istream *&file) {
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
     projectType = EMBEDDED;
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
     if (fs.exists(embeddedFilename)) {
         const auto &romfsFile = fs.open(embeddedFilename);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
         file = new std::istringstream(std::string(content));
+        file->seekg(0, std::ios::end);
     }
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
@@ -169,7 +166,7 @@ bool Unzip::load() {
 
 #elif defined(SDL_BUILD) // create SDL2 thread for loading screen
 
-    SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, "LoadingScreen", nullptr);
+    SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x15000, nullptr);
 
     if (thread != NULL && thread != nullptr) {
 

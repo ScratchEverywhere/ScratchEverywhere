@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -22,14 +22,14 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // get font
     if (fontPath.empty()) {
-        fontPath = "gfx/menu/Arialn";
+        fontPath = "gfx/menu/LibSansN";
     }
     fontPath = OS::getRomFSLocation() + fontPath;
     fontPath = fontPath + ".ttf";
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
-#ifdef __PC__
+#if defined(__PC__) || defined(__PSP__)
         const auto &file = cmrc::romfs::get_filesystem().open(fontPath);
         TTF_Font *loadedFont = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 30);
 #else
@@ -56,7 +56,6 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
 TextObjectSDL::~TextObjectSDL() {
     if (texture) {
-        MemoryTracker::deallocateVRAM(memorySize);
         SDL_DestroyTexture(texture);
         texture = nullptr;
     }
@@ -168,10 +167,8 @@ void TextObjectSDL::updateTexture() {
     }
 
     // Create texture from composite surface
-    MemoryTracker::deallocateVRAM(memorySize);
     texture = SDL_CreateTextureFromSurface(renderer, compositeSurface);
     memorySize = compositeSurface->w * compositeSurface->h * 4;
-    MemoryTracker::allocateVRAM(memorySize);
 
     if (!texture) {
         std::cerr << "Failed to create text texture: " << SDL_GetError() << std::endl;

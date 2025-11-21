@@ -24,19 +24,10 @@ void ProjectMenu::init() {
         SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_splash.ogg"), "gfx/menu/mm_full.ogg");
         SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
     }
-#elif defined(__PSP__)
 #else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
-    }
-    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 100.0f);
-    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 0.0f);
 #endif
+
+    snow.image = new Image("gfx/menu/snow.svg");
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -156,9 +147,8 @@ void ProjectMenu::render() {
     }
 #elif defined(__PSP__)
 #else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
 #endif
 
@@ -208,8 +198,10 @@ void ProjectMenu::render() {
     cameraX = 200;
     const double cameraYOffset = 110;
 
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
+    Render::beginFrame(0, 77, 58, 77);
+    Render::beginFrame(1, 77, 58, 77);
+
+    snow.render(0, -(cameraY * 0.4));
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;
@@ -286,6 +278,10 @@ void ProjectMenu::cleanup() {
     if (noProjectInfo != nullptr) {
         delete noProjectInfo;
         noProjectInfo = nullptr;
+    }
+    if (snow.image) {
+        delete snow.image;
+        snow.image = nullptr;
     }
     isInitialized = false;
 }

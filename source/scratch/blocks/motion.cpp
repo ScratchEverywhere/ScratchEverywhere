@@ -27,6 +27,7 @@ BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutS
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::CONTINUE;
 }
@@ -62,6 +63,7 @@ BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, bool *withoutScreen
 
 end:
     if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -76,6 +78,7 @@ BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, bool *withoutScre
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::CONTINUE;
 }
@@ -87,6 +90,7 @@ BlockResult MotionBlocks::turnLeft(Block &block, Sprite *sprite, bool *withoutSc
         return BlockResult::CONTINUE;
     }
     sprite->rotation -= direction - floor((direction + 179) / 360) * 360;
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -97,6 +101,7 @@ BlockResult MotionBlocks::turnRight(Block &block, Sprite *sprite, bool *withoutS
         return BlockResult::CONTINUE;
     }
     sprite->rotation += direction - floor((direction + 179) / 360) * 360;
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -107,6 +112,7 @@ BlockResult MotionBlocks::pointInDirection(Block &block, Sprite *sprite, bool *w
         return BlockResult::CONTINUE;
     }
     sprite->rotation = direction - floor((direction + 179) / 360) * 360;
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -120,6 +126,7 @@ BlockResult MotionBlocks::changeXBy(Block &block, Sprite *sprite, bool *withoutS
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && oldX != sprite->xPosition) Render::penMove(oldX, sprite->yPosition, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::CONTINUE;
 }
@@ -133,6 +140,7 @@ BlockResult MotionBlocks::changeYBy(Block &block, Sprite *sprite, bool *withoutS
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && oldY != sprite->yPosition) Render::penMove(sprite->xPosition, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::CONTINUE;
 }
@@ -146,6 +154,7 @@ BlockResult MotionBlocks::setX(Block &block, Sprite *sprite, bool *withoutScreen
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && oldX != sprite->xPosition) Render::penMove(oldX, sprite->yPosition, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::CONTINUE;
 }
@@ -159,6 +168,7 @@ BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreen
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && oldY != sprite->yPosition) Render::penMove(sprite->xPosition, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::CONTINUE;
 }
@@ -197,6 +207,7 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
         sprite->xPosition = block.glideEndX;
         sprite->yPosition = block.glideEndY;
         if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
+        Scratch::forceRedraw = true;
 
         block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
@@ -214,6 +225,7 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::RETURN;
 }
@@ -275,6 +287,7 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
         sprite->xPosition = block.glideEndX;
         sprite->yPosition = block.glideEndY;
         if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
+        Scratch::forceRedraw = true;
 
         block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
@@ -292,6 +305,7 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
     if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::RETURN;
 }
@@ -326,7 +340,7 @@ BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withou
     const double dy = targetY - sprite->yPosition;
     double angle = 90 - (atan2(dy, dx) * 180.0 / M_PI);
     sprite->rotation = angle;
-    // std::cout << "Pointing towards " << sprite->rotation << std::endl;
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -431,6 +445,7 @@ BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, bool *wit
     sprite->yPosition += dyCorrection;
 
     if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 
     return BlockResult::CONTINUE;
 }
