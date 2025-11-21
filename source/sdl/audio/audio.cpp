@@ -39,7 +39,11 @@ SDL_Audio::~SDL_Audio() {
 bool SoundPlayer::init() {
     if (isInit) return true;
 #ifdef ENABLE_AUDIO
+#ifndef __PS3__
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+#else
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 256) < 0) {
+#endif
         Log::logWarning(std::string("SDL_Mixer could not initialize! ") + Mix_GetError());
         return false;
     }
@@ -120,6 +124,14 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             if (zipFileName != soundId) {
                 continue;
             }
+
+            // minimp3 is crashing, this is a stopgap for that
+            #ifdef __PS3__
+            if(zipFileName.find(".mp3")) {
+                Log::logWarning("Prevented loading of MP3: " + zipFileName);
+                return false;
+            }
+            #endif
 
             size_t file_size;
             // Log::log("Extracting sound from sb3...");
