@@ -37,14 +37,14 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
 
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
     SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.transparency) / 100.0f * 255);
+    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     filledCircleRGBA(renderer, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
@@ -52,8 +52,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_DestroyTexture(tempTexture);
 #elif defined(__3DS__)
-    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
-    const int transparency = 255 * (1 - sprite->penData.transparency / 100);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
@@ -64,7 +63,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     const int SCREEN_WIDTH = Render::getWidth();
     const int SCREEN_HEIGHT = Render::getHeight();
 
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * Render::renderScale), 1, 1000);
 
     const float xSscaled = (sprite->xPosition * Render::renderScale) + (SCREEN_WIDTH / 2);
@@ -110,9 +109,9 @@ BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withou
             return BlockResult::CONTINUE;
         }
         if (option == "transparency") {
-            sprite->penData.transparency = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-            if (sprite->penData.transparency < 0) sprite->penData.transparency = 0;
-            else if (sprite->penData.transparency > 100) sprite->penData.transparency = 100;
+            sprite->penData.color.transparency = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+            else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
             return BlockResult::CONTINUE;
         }
     }
@@ -148,9 +147,9 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
             return BlockResult::CONTINUE;
         }
         if (option == "transparency") {
-            sprite->penData.transparency += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-            if (sprite->penData.transparency < 0) sprite->penData.transparency = 0;
-            else if (sprite->penData.transparency > 100) sprite->penData.transparency = 100;
+            sprite->penData.color.transparency += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+            else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
             return BlockResult::CONTINUE;
         }
     }

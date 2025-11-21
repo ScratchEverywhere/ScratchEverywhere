@@ -140,7 +140,7 @@ bool Render::initPen() {
 }
 
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGB rgbColor = CSB2RGB(sprite->penData.color);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
@@ -152,8 +152,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const int height = getHeight();
 
     const float heightMultiplier = 0.5f;
-    const int transparency = 255 * (1 - sprite->penData.transparency / 100);
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
     const float thickness = sprite->penData.size * renderScale;
 
     const float x1_scaled = (x1 * renderScale) + (width / 2);
