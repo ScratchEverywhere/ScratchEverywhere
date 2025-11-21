@@ -227,7 +227,6 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     image->renderRect.x = sprite->renderInfo.renderX;
     image->renderRect.y = sprite->renderInfo.renderY;
 
-    image->setScale(sprite->renderInfo.renderScaleY);
     if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
         flip = SDL_FLIP_HORIZONTAL;
         image->renderRect.x += (sprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
@@ -239,7 +238,11 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     image->renderRect.x = cords.first + Scratch::projectWidth / 2;
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
+    const float originalScale = image->scale;
+    image->setScale(1);
     if (Scratch::hqpen) {
+        image->setScale(sprite->renderInfo.renderScaleY);
+
         int penWidth;
         int penHeight;
         SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
@@ -247,11 +250,6 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
         image->renderRect.x *= scale;
         image->renderRect.y *= scale;
-    } else {
-        const float scale = std::min(static_cast<float>(windowHeight) / Scratch::projectWidth, static_cast<float>(windowHeight) / Scratch::projectHeight) * 1.25;
-
-        image->renderRect.w /= scale;
-        image->renderRect.h /= scale;
     }
 
     // set ghost effect
@@ -294,6 +292,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     SDL_SetRenderTarget(renderer, NULL);
 
     image->renderRect = originalRenderRect;
+    image->setScale(originalScale);
 
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
