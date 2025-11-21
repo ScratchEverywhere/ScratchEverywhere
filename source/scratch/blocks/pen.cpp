@@ -248,9 +248,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
         image->renderRect.x *= scale;
         image->renderRect.y *= scale;
     } else {
-        const float scale = std::min(static_cast<float>(windowHeight) / Scratch::projectWidth,
-                                     static_cast<float>(windowHeight) / Scratch::projectHeight) *
-                            1.25;
+        const float scale = std::min(static_cast<float>(windowHeight) / Scratch::projectWidth, static_cast<float>(windowHeight) / Scratch::projectHeight) * 1.25;
 
         image->renderRect.w /= scale;
         image->renderRect.h /= scale;
