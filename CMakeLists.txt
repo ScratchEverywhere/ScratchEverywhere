@@ -11,7 +11,7 @@ option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
@@ -33,7 +33,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC  
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
@@ -75,7 +75,32 @@ if(NOT SE_HEADLESS)
 		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
 		pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
 		pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
-		pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
+
+		if(NOT WEBOS)
+			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
+		else()
+			CPMAddPackage(
+				NAME SDL2_gfx
+				VERSION 1.0.4
+				GITHUB_REPOSITORY giroletm/SDL2_gfx
+				GIT_TAG release-1.0.4
+				DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
+			)
+			file(GLOB SDL2_GFX_SOURCES
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
+			)
+			add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
+			target_include_directories(SDL2_gfx PUBLIC
+				$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
+			)
+			target_link_libraries(SDL2_gfx PUBLIC
+				SDL2::SDL2
+			)
+		endif()
 
 		if (SE_AUDIO)
 			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
@@ -125,7 +150,7 @@ if(NOT SE_HEADLESS)
 		target_include_directories(SDL2_gfx PUBLIC
 			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 		)
-		target_link_libraries(SDL2_gfx PUBLIC 
+		target_link_libraries(SDL2_gfx PUBLIC
 			SDL2::SDL2
 		)
 		if(SE_AUDIO)
@@ -194,9 +219,12 @@ elseif(NINTENDO_SWITCH)
 elseif(VITA)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-vita)
 	target_compile_definitions(scratch-everywhere PRIVATE VITA)
+elseif(WEBOS)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos) # TODO: webos
+	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS) # TODO: webos
 	include(FetchContent)
 	FetchContent_Declare(
 	  cmrc
@@ -242,7 +270,7 @@ if (NOT SE_HEADLESS)
 		list(APPEND SDL_LINK_LIBS SDL2_image::SDL2_image)
 		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)
 
-		if(SE_AUDIO)	
+		if(SE_AUDIO)
 			list(APPEND SDL_LINK_LIBS SDL2_mixer::SDL2_mixer)
 		endif()
 	else()
@@ -266,7 +294,7 @@ if (NOT SE_HEADLESS)
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -333,4 +361,26 @@ elseif(VITA)
 		${VITA_GFXFILES}
 		${PROJ_FILE}
 	)
+elseif(WEBOS) # TODO: webos
+	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
+
+	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
+    install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png DESTINATION .)
+
+    if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
+        install(FILES "${CMAKE_SOURCE_DIR}/romfs/project.sb3" DESTINATION .)
+    endif()
+
+    foreach(file IN LISTS GFXFILES)
+        file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+        get_filename_component(DEST_DIR "${REL_PATH}" DIRECTORY)
+        install(FILES "${file}" DESTINATION "gfx/${DEST_DIR}")
+    endforeach()
+
+    set(CPACK_GENERATOR "External")
+    set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/AresPackage.cmake")
+    set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
+    set(CPACK_MONOLITHIC_INSTALL TRUE)
+
+    include(CPack)
 endif()

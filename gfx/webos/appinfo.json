@@ -1,0 +1,8 @@
+{
+  "id": "io.github.scratcheverywhere",
+  "type": "native",
+  "main": "scratch-webos",
+  "icon": "icon.png",
+  "title": "Scratch Everywhere!",
+  "version": "0.0.1"
+}
