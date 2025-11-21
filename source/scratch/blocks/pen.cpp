@@ -239,7 +239,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
     const float originalScale = image->scale;
-    image->setScale(1);
+    image->setScale(isSVG ? 1 : 2);
     if (Scratch::hqpen) {
         image->setScale(sprite->renderInfo.renderScaleY);
 
