@@ -233,13 +233,10 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     }
 
     // Pen mapping stuff
-    SDL_Rect originalRenderRect = image->renderRect;
     const auto &cords = screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
     image->renderRect.x = cords.first + Scratch::projectWidth / 2;
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
-    const float originalScale = image->scale;
-    image->setScale(isSVG ? 1 : 2);
     if (Scratch::hqpen) {
         image->setScale(sprite->renderInfo.renderScaleY);
 
@@ -250,6 +247,8 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 
         image->renderRect.x *= scale;
         image->renderRect.y *= scale;
+    } else {
+        image->setScale(isSVG ? 1 : 2);
     }
 
     // set ghost effect
@@ -290,9 +289,6 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     }
 
     SDL_SetRenderTarget(renderer, NULL);
-
-    image->renderRect = originalRenderRect;
-    image->setScale(originalScale);
 
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
