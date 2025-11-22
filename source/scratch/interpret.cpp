@@ -499,6 +499,15 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     }
 }
 
+void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
+
+    sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(std::round(costumeIndex) / sprite->costumes.size()) * sprite->costumes.size()) : 0;
+
+    Image::loadImageFromProject(sprite);
+
+    Scratch::forceRedraw = true;
+}
+
 void Scratch::sortSprites() {
     std::sort(sprites.begin(), sprites.end(),
               [](const Sprite *a, const Sprite *b) {
@@ -762,8 +771,8 @@ void loadSprites(const nlohmann::json &json) {
             newComment.width = data["width"];
             newComment.height = data["height"];
             newComment.minimized = data["minimized"];
-            newComment.x = data["x"];
-            newComment.y = data["y"];
+            newComment.x = data["x"].is_null() ? 0 : data["x"].get<int>();
+            newComment.y = data["y"].is_null() ? 0 : data["y"].get<int>();
             newComment.text = data["text"];
             newSprite->comments[newComment.id] = newComment;
         }

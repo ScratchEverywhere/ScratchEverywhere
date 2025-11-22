@@ -222,7 +222,7 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
         const std::string error = std::string(IMG_GetError());
         Log::logWarning("Failed to load image from memory: " + costumeId);
         Log::logWarning("IMG Error: " + error);
-        if (error.find("Out of memory") != std::string::npos) cleanupImagesLite();
+        if (error.find("Out of memory") != std::string::npos) Image::cleanupImagesLite();
         return;
     }
 
@@ -271,12 +271,12 @@ void Image::cleanupImages() {
     toDelete.clear();
 }
 
-void cleanupImagesLite() {
+void Image::cleanupImagesLite() {
     std::vector<std::string> keysToDelete;
     keysToDelete.reserve(images.size());
 
     for (const auto &[id, data] : images) {
-        if (data->freeTimer < data->maxFreeTime)
+        if (data->freeTimer < data->maxFreeTime - 2)
             keysToDelete.push_back(id);
     }
 
@@ -331,7 +331,7 @@ SDL_Image::SDL_Image(std::string filePath) {
     if (spriteSurface == NULL) {
         const std::string error = std::string(IMG_GetError());
         Log::logWarning("Error loading image '" + filePath + "': " + error);
-        if (error.find("Out of memory") != std::string::npos) cleanupImagesLite();
+        if (error.find("Out of memory") != std::string::npos) Image::cleanupImagesLite();
         return;
     }
 

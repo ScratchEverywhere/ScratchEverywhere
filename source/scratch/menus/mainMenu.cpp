@@ -93,15 +93,6 @@ void MainMenu::init() {
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
     }
-#elif defined(__3DS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-    }
-    SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    if (SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_full.ogg"), "gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-    }
 #else
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
