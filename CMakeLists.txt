@@ -35,6 +35,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
 	endif()
 endif()
+set(CPM_SOURCE_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC  
