@@ -450,7 +450,7 @@ bool get_C2D_Image(imageRGBA &rgba) {
         Log::logWarning("Texture initializing failed!");
         delete tex;
         delete subtex;
-        cleanupImagesLite();
+        Image::cleanupImagesLite();
         return false;
     }
     C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
@@ -459,7 +459,7 @@ bool get_C2D_Image(imageRGBA &rgba) {
         Log::logWarning("Texture data is null!");
         C3D_TexDelete(tex);
         delete subtex;
-        cleanupImagesLite();
+        Image::cleanupImagesLite();
         return false;
     }
 
