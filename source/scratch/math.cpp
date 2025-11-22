@@ -40,8 +40,8 @@ double Math::parseNumber(std::string str) {
     while (std::isspace(str[0]) && !str.empty()) {
         str.erase(0, 1);
     }
-    while (std::isspace(str[str.length() - 1]) && !str.empty()) {
-        str.erase(str.length() - 1);
+    while (!str.empty() && std::isspace(str.back())) {
+        str.pop_back();
     }
 
     if (str == "Infinity") {
