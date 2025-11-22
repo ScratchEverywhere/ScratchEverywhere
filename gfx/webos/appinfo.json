@@ -3,6 +3,12 @@
   "type": "native",
   "main": "scratch-webos",
   "icon": "icon.png",
+  "splashBackground": "splash.png",
   "title": "Scratch Everywhere!",
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "appDescription": "Emulation frontend",
+  "iconColor": "#754675",
+  "cloudgame_active": true,
+  "useAllMouseButtons": true,
+  "useAllKeyboardKeys": true
 }
