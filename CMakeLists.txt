@@ -15,7 +15,7 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
-if(NINTENDO_SWITCH OR PSP OR VITA)
+if(NINTENDO_SWITCH OR PSP OR VITA OR WEBOS)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -78,28 +78,6 @@ if(NOT SE_HEADLESS)
 
 		if(NOT WEBOS)
 			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
-		else()
-			CPMAddPackage(
-				NAME SDL2_gfx
-				VERSION 1.0.4
-				GITHUB_REPOSITORY giroletm/SDL2_gfx
-				GIT_TAG release-1.0.4
-				DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
-			)
-			file(GLOB SDL2_GFX_SOURCES
-				"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
-				"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
-				"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
-				"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
-				"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
-			)
-			add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
-			target_include_directories(SDL2_gfx PUBLIC
-				$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
-			)
-			target_link_libraries(SDL2_gfx PUBLIC
-				SDL2::SDL2
-			)
 		endif()
 
 		if (SE_AUDIO)
@@ -132,6 +110,19 @@ if(NOT SE_HEADLESS)
 			GIT_TAG release-2.24.0
 			OPTIONS "SDL2TTF_VENDORED ON"
 		)
+
+		if(SE_AUDIO)
+			CPMAddPackage(
+				NAME SDL2_mixer
+				VERSION 2.8.1
+				GITHUB_REPOSITORY libsdl-org/SDL_mixer
+				GIT_TAG release-2.8.1
+				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+			)
+		endif()
+	endif()
+
+	if(NOT SE_SYSTEM OR WEBOS)
 		CPMAddPackage(
 			NAME SDL2_gfx
 			VERSION 1.0.4
@@ -150,16 +141,12 @@ if(NOT SE_HEADLESS)
 		target_include_directories(SDL2_gfx PUBLIC
 			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 		)
-		target_link_libraries(SDL2_gfx PUBLIC
-			SDL2::SDL2
-		)
-		if(SE_AUDIO)
-			CPMAddPackage(
-				NAME SDL2_mixer
-				VERSION 2.8.1
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG release-2.8.1
-				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+		if(WEBOS)
+			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
+			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
+		else()
+			target_link_libraries(SDL2_gfx PUBLIC
+				SDL2::SDL2
 			)
 		endif()
 	endif()
@@ -251,11 +238,15 @@ endif()
 if (NOT SE_HEADLESS)
 	set(SDL_LINK_LIBS)
 
-	if(SE_SYSTEM)
+	if(SE_SYSTEM AND NOT WEBOS)
 		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
 	else()
-		list(APPEND SDL_LINK_LIBS SDL2_gfx SDL2::SDL2)
+		list(APPEND SDL_LINK_LIBS SDL2_gfx)
+	endif()
+
+	if (NOT SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS SDL2::SDL2)
 	endif()
 
 	if(SE_SYSTEM)
@@ -363,9 +354,10 @@ elseif(VITA)
 	)
 elseif(WEBOS) # TODO: webos
 	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
+	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++" "-static-libgcc")
 
 	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
-    install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png DESTINATION .)
+    install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
 
     if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
         install(FILES "${CMAKE_SOURCE_DIR}/romfs/project.sb3" DESTINATION .)
