@@ -3,7 +3,8 @@
 .vscode/
 build/
 build-*/
-cmake/
+cmake/*
+!cmake/clay.patch
 romfs/project/
 romfs/gfx
 scratch-everywhere/
