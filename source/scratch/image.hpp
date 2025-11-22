@@ -50,7 +50,11 @@ class Image {
      */
     static void freeImage(const std::string &costumeId);
 
+    /* Cleans up every single image currently in memory.*/
     static void cleanupImages();
+
+    /* Cleans up every image that is currently not being used.*/
+    static void cleanupImagesLite();
 
     /**
      * `3DS`: Queues a `C2D_Image` to be freed using `costumeId` to find it.

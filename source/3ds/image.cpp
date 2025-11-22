@@ -518,12 +518,12 @@ void Image::freeImage(const std::string &costumeId) {
     }
 }
 
-void cleanupImagesLite() {
+void Image::cleanupImagesLite() {
     std::vector<std::string> keysToDelete;
     keysToDelete.reserve(images.size());
 
     for (const auto &[id, data] : images) {
-        if (data.freeTimer < data.maxFreeTimer)
+        if (data.freeTimer < data.maxFreeTimer - 2)
             keysToDelete.push_back(id);
     }
 

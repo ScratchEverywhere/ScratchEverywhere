@@ -271,12 +271,12 @@ void Image::cleanupImages() {
     toDelete.clear();
 }
 
-void cleanupImagesLite() {
+void Image::cleanupImagesLite() {
     std::vector<std::string> keysToDelete;
     keysToDelete.reserve(images.size());
 
     for (const auto &[id, data] : images) {
-        if (data->freeTimer < data->maxFreeTime)
+        if (data->freeTimer < data->maxFreeTime - 2)
             keysToDelete.push_back(id);
     }
 

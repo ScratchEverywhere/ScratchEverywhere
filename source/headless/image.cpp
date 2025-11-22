@@ -26,6 +26,9 @@ void Image::freeImage(const std::string &costumeId) {
 void Image::cleanupImages() {
 }
 
+void Image::cleanupImagesLite() {
+}
+
 void Image::queueFreeImage(const std::string &costumeId) {
 }
 
