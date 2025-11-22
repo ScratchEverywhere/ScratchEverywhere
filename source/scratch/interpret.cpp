@@ -771,8 +771,8 @@ void loadSprites(const nlohmann::json &json) {
             newComment.width = data["width"];
             newComment.height = data["height"];
             newComment.minimized = data["minimized"];
-            newComment.x = data["x"];
-            newComment.y = data["y"];
+            newComment.x = data["x"].is_null() ? 0 : data["x"].get<int>();
+            newComment.y = data["y"].is_null() ? 0 : data["y"].get<int>();
             newComment.text = data["text"];
             newSprite->comments[newComment.id] = newComment;
         }
