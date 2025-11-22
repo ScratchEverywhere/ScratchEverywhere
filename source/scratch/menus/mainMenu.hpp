@@ -37,6 +37,8 @@ class MainMenu : public Menu {
   public:
     bool shouldExit = false;
 
+    JollySnow snow;
+
     Timer logoStartTime;
 
     MenuImage *logo = nullptr;

@@ -2,10 +2,16 @@
 .vs/
 .vscode/
 build/
+build-*/
 cmake/
 romfs/project/
 romfs/gfx
 scratch-everywhere/
+
+# legacy makefiles
+make/Makefile_vita
+make/Makefile_switch
+make/Makefile_pc
 
 main.code-workspace
 

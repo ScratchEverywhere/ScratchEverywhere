@@ -16,12 +16,7 @@ class SDL_Image {
     int width;
     int height;
     float rotation = 0.0f;
-#ifdef GAMECUBE
-    int maxFreeTime = 2;
-#else
     int maxFreeTime = 480;
-#endif
-
     int freeTimer = maxFreeTime;
 
     /**

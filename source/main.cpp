@@ -34,11 +34,10 @@ bool activateMainMenu() {
 
         if (MenuManager::isProjectLoaded != 0) {
             if (MenuManager::isProjectLoaded == -1) {
-                exitApp();
                 return false;
             } else {
                 MenuManager::isProjectLoaded = 0;
-                break;
+                return true;
             }
         }
 
@@ -46,7 +45,7 @@ bool activateMainMenu() {
         emscripten_sleep(0);
 #endif
     }
-    return true;
+    return false;
 }
 
 void mainLoop() {
@@ -115,7 +114,10 @@ int main(int argc, char **argv) {
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
 #else
-            if (!activateMainMenu()) return 0;
+            if (!activateMainMenu()) {
+                exitApp();
+                return 0;
+            }
 #endif
         } else {
             exitApp();

@@ -57,7 +57,6 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 -   A sound may take time to load if playing it for the first time.
 -   **[Non-3DS Platforms]** If you play any sound from the `Stage`, the sound will play as a `Streamed Sound` and will not need to load.
     -   Only one `Streamed Sound` can be playing at a time, so this is good for things like background music.
-    -   **[Wii, GameCube]** `Streamed Sound` is not supported. Any sounds in the `Stage` will load and play like a normal sound.
 -   **[Wii, GameCube]** Sounds may fail to load if the length of the sound is too long, or if there's too many sounds loaded at once.
 - 	Audio on the **NDS** is currently experimental, and is not recommended to use at this time;
 	- Only .wav is supported.
@@ -100,7 +99,8 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 **List of Known Limitations:**
 
 -   Text and embedded bitmap images will not show up on vector images containing it.
--   Extensions (e.g. pen and music extensions) are not yet supported.
+-   Most Extensions (e.g. music extension) are not yet supported.
+   - Only the `Pen` extension is supported.
 -   Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 -   Performance is poor when using many (~50+) clones (memory management issue).
 -   **[Wii, Switch, PSP, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
@@ -131,7 +131,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 -   Bug fixing and Scratch parity
 -   Get all blocks working
--   Pen support ([#294](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/294))
 -   Support most TurboWarp extensions ([#210](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/210))
 
 ### Wii U

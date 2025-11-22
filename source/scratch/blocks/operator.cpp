@@ -13,7 +13,6 @@ Value OperatorBlocks::add(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 + value2;
-    return Value(0);
 }
 
 Value OperatorBlocks::subtract(Block &block, Sprite *sprite) {
@@ -26,37 +25,31 @@ Value OperatorBlocks::multiply(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 * value2;
-    return Value(0);
 }
 
 Value OperatorBlocks::divide(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 / value2;
-    return Value(0);
 }
 
 Value OperatorBlocks::random(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "FROM", sprite);
     Value value2 = Scratch::getInputValue(block, "TO", sprite);
 
-    if (value1.isNumeric() && value2.isNumeric()) {
-        if (value1.isInteger() && value2.isInteger()) {
-            int a = value1.asInt();
-            int b = value2.asInt();
-            int from = std::min(a, b);
-            int to = std::max(a, b);
-            return Value(rand() % (to - from + 1) + from);
-        } else {
-            double a = value1.asDouble();
-            double b = value2.asDouble();
-            double from = std::min(a, b);
-            double to = std::max(a, b);
-            return Value(from + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX / (to - from))));
-        }
-    }
+    double a = value1.asDouble();
+    double b = value2.asDouble();
 
-    return Value(0);
+    if (a == b) return Value(a);
+
+    double from = std::min(a, b);
+    double to = std::max(a, b);
+
+    if (value1.isScratchInt() && value2.isScratchInt()) {
+        return Value(from + (rand() % static_cast<int>(to + 1 - from)));
+    } else {
+        return Value(from + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX) / (to - from)));
+    }
 }
 
 Value OperatorBlocks::join(Block &block, Sprite *sprite) {
@@ -96,10 +89,7 @@ Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
 
 Value OperatorBlocks::round(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM", sprite);
-    if (value1.isNumeric()) {
-        return Value(static_cast<int>(std::round(value1.asDouble())));
-    }
-    return Value(0);
+    return Value(std::round(value1.asDouble()));
 }
 
 Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
@@ -156,27 +146,7 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
 }
 
 Value OperatorBlocks::equals(Block &block, Sprite *sprite) {
-    Value value1;
-    Value value2;
-    try {
-        value1 = Scratch::getInputValue(block, "OPERAND1", sprite);
-        value2 = Scratch::getInputValue(block, "OPERAND2", sprite);
-    } catch (...) {
-        return Value(false);
-    }
-
-    if (value1.isNumeric() && value2.isNumeric()) {
-        const double double1 = value1.asDouble();
-        const double double2 = value2.asDouble();
-
-        if (std::isnan(double1) && std::isnan(double2)) return Value(true);
-        return Value(double1 == double2);
-    }
-    std::string string1 = value1.asString();
-    std::string string2 = value2.asString();
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-    return Value(string1 == string2);
+    return Value(Scratch::getInputValue(block, "OPERAND1", sprite) == Scratch::getInputValue(block, "OPERAND2", sprite));
 }
 
 Value OperatorBlocks::greaterThan(Block &block, Sprite *sprite) {
@@ -201,26 +171,26 @@ Value OperatorBlocks::and_(Block &block, Sprite *sprite) {
 
     Value value1 = executor.getBlockValue(*findBlock(oper1->second.blockId), sprite);
     Value value2 = executor.getBlockValue(*findBlock(oper2->second.blockId), sprite);
-    return Value(value1.asInt() == 1 && value2.asInt() == 1);
+    return Value(value1.asBoolean() && value2.asBoolean());
 }
 
 Value OperatorBlocks::or_(Block &block, Sprite *sprite) {
-    int result1 = 0;
-    int result2 = 0;
+    bool result1 = false;
+    bool result2 = false;
 
     auto oper1 = block.parsedInputs->find("OPERAND1");
     if (oper1 != block.parsedInputs->end()) {
         Value value1 = executor.getBlockValue(*findBlock(oper1->second.blockId), sprite);
-        result1 = value1.asInt();
+        result1 = value1.asBoolean();
     }
 
     auto oper2 = block.parsedInputs->find("OPERAND2");
     if (oper2 != block.parsedInputs->end()) {
         Value value2 = executor.getBlockValue(*findBlock(oper2->second.blockId), sprite);
-        result2 = value2.asInt();
+        result2 = value2.asBoolean();
     }
 
-    return Value(result1 == 1 || result2 == 1);
+    return Value(result1 || result2);
 }
 
 Value OperatorBlocks::not_(Block &block, Sprite *sprite) {
@@ -229,7 +199,7 @@ Value OperatorBlocks::not_(Block &block, Sprite *sprite) {
         return Value(true);
     }
     Value value = executor.getBlockValue(*findBlock(oper->second.blockId), sprite);
-    return Value(value.asInt() != 1);
+    return Value(!value.asBoolean());
 }
 
 Value OperatorBlocks::contains(Block &block, Sprite *sprite) {

@@ -24,7 +24,7 @@ SDL_Texture *penTexture;
 #endif
 
 const unsigned int minPenSize = 1;
-const unsigned int maxPenSize = 1000;
+const unsigned int maxPenSize = 1200;
 
 BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
@@ -37,14 +37,14 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
 
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
     SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.transparency) / 100.0f * 255);
+    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     filledCircleRGBA(renderer, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
@@ -52,10 +52,9 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     SDL_SetRenderTarget(renderer, nullptr);
     SDL_DestroyTexture(tempTexture);
 #elif defined(__3DS__)
-    const ColorRGB rgbColor = HSB2RGB(sprite->penData.color);
-    const int transparency = 255 * (1 - sprite->penData.transparency / 100);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     if (!Render::hasFrameBegan) {
-        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
     }
     C2D_SceneBegin(penRenderTarget);
@@ -64,7 +63,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     const int SCREEN_WIDTH = Render::getWidth();
     const int SCREEN_HEIGHT = Render::getHeight();
 
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, transparency);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * Render::renderScale), 1, 1000);
 
     const float xSscaled = (sprite->xPosition * Render::renderScale) + (SCREEN_WIDTH / 2);
@@ -74,6 +73,7 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     C2D_DrawCircleSolid(xSscaled, yScaled + TEXTURE_OFFSET, 0, radius, color);
 #endif
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -92,7 +92,8 @@ BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withou
         const std::string option = Scratch::getFieldValue(*optionBlock, "colorParam");
 
         if (option == "color") {
-            sprite->penData.color.hue = Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
+            double unwrappedColor = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
             return BlockResult::CONTINUE;
         }
         if (option == "saturation") {
@@ -108,9 +109,9 @@ BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withou
             return BlockResult::CONTINUE;
         }
         if (option == "transparency") {
-            sprite->penData.transparency = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-            if (sprite->penData.transparency < 0) sprite->penData.transparency = 0;
-            else if (sprite->penData.transparency > 100) sprite->penData.transparency = 100;
+            sprite->penData.color.transparency = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+            else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
             return BlockResult::CONTINUE;
         }
     }
@@ -126,10 +127,11 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
 
     if (optionBlock != nullptr) {
 
-        const std::string option = Scratch::getFieldValue(block, "COLOR_PARAM");
+        const std::string option = Scratch::getFieldValue(*optionBlock, "colorParam");
 
         if (option == "color") {
-            sprite->penData.color.hue += Scratch::getInputValue(block, "VALUE", sprite).asInt() % 100;
+            double unwrappedColor = sprite->penData.color.hue + Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
             return BlockResult::CONTINUE;
         }
         if (option == "saturation") {
@@ -145,9 +147,9 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
             return BlockResult::CONTINUE;
         }
         if (option == "transparency") {
-            sprite->penData.transparency += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-            if (sprite->penData.transparency < 0) sprite->penData.transparency = 0;
-            else if (sprite->penData.transparency > 100) sprite->penData.transparency = 100;
+            sprite->penData.color.transparency += Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+            if (sprite->penData.color.transparency < 0) sprite->penData.color.transparency = 0;
+            else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
             return BlockResult::CONTINUE;
         }
     }
@@ -186,17 +188,14 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    if (!sprite->visible || !Render::initPen()) return BlockResult::CONTINUE;
+    if (!Render::initPen()) return BlockResult::CONTINUE;
 
-    if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
-    } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
-    }
+    Image::loadImageFromProject(sprite);
 
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {
@@ -214,47 +213,80 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
     SDL_Image *image = imgFind->second;
     image->freeTimer = image->maxFreeTime;
+    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+    sprite->spriteWidth = image->textureRect.w >> 1;
+    sprite->spriteHeight = image->textureRect.h >> 1;
     SDL_RendererFlip flip = SDL_FLIP_NONE;
+    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
+    Render::calculateRenderPosition(sprite, isSVG);
+    image->renderRect.x = sprite->renderInfo.renderX;
+    image->renderRect.y = sprite->renderInfo.renderY;
 
-    sprite->spriteWidth = image->textureRect.w / 2;
-    sprite->spriteHeight = image->textureRect.h / 2;
-    if (sprite->costumes[sprite->currentCostume].isSVG) {
-        sprite->spriteWidth *= 2;
-        sprite->spriteHeight *= 2;
+    if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
+        flip = SDL_FLIP_HORIZONTAL;
+        image->renderRect.x += (sprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
     }
-    const double rotation = Math::degreesToRadians(sprite->rotation - 90.0f);
-    double renderRotation = rotation;
 
-    if (sprite->rotationStyle == sprite->LEFT_RIGHT) {
-        if (std::cos(rotation) < 0) flip = SDL_FLIP_HORIZONTAL;
-        renderRotation = 0;
+    // Pen mapping stuff
+    const auto &cords = screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
+    image->renderRect.x = cords.first + Scratch::projectWidth / 2;
+    image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
+
+    if (Scratch::hqpen) {
+        image->setScale(sprite->renderInfo.renderScaleY);
+
+        int penWidth;
+        int penHeight;
+        SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+        const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+
+        image->renderRect.x *= scale;
+        image->renderRect.y *= scale;
+    } else {
+        image->setScale(sprite->size / (isSVG ? 100.0f : 200.0f));
     }
-    if (sprite->rotationStyle == sprite->NONE) renderRotation = 0;
 
-    const double rotationCenterX = (((sprite->rotationCenterX - sprite->spriteWidth)) / 2);
-    const double rotationCenterY = (((sprite->rotationCenterY - sprite->spriteHeight)) / 2);
+    // set ghost effect
+    float ghost = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
+    Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
+    SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
 
-    int penWidth;
-    int penHeight;
-    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    // set brightness effect
+    if (sprite->brightnessEffect != 0) {
+        float brightness = sprite->brightnessEffect * 0.01f;
+        if (brightness > 0.0f) {
+            // render the normal image first
+            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
+                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
 
-    const double offsetX = rotationCenterX * (sprite->size * 0.01) * scale;
-    const double offsetY = rotationCenterY * (sprite->size * 0.01) * scale;
+            // render another, blended image on top
+            SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
+            SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
+            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
+                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
 
-    image->renderRect.w = sprite->spriteWidth * scale;
-    image->renderRect.h = sprite->spriteHeight * scale;
-    image->renderRect.x = (sprite->xPosition * scale + penWidth / 2.0f - (image->renderRect.w / 1.325f)) - offsetX * std::cos(rotation) + offsetY * std::sin(renderRotation);
-    image->renderRect.y = (-sprite->yPosition * scale + penHeight / 2.0f - (image->renderRect.h / 1.325f)) - offsetX * std::sin(rotation) - offsetY * std::cos(renderRotation);
-    const SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
+            // reset for next frame
+            SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
+        } else {
+            Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
+            SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
 
-    // ghost effect
-    SDL_SetTextureAlphaMod(image->spriteTexture, static_cast<Uint8>(255 * (1.0f - std::clamp(sprite->ghostEffect, 0.0f, 100.0f) / 100.0f)));
-
-    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, Math::radiansToDegrees(renderRotation), &center, flip);
+            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
+                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
+            // reset for next frame
+            SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
+        }
+    } else {
+        // if no brightness just render normal image
+        SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
+        SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
+                         Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
+    }
 
     SDL_SetRenderTarget(renderer, NULL);
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 #elif defined(__3DS__)
@@ -262,17 +294,15 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
+
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
 
-    if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
-    } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
-    }
+    Image::loadImageFromProject(sprite);
 
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {
@@ -283,7 +313,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     imgFind->second.freeTimer = data.maxFreeTimer;
     C2D_Image *costumeTexture = &data.image;
     if (!Render::hasFrameBegan) {
-        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
     }
     C2D_SceneBegin(penRenderTarget);
@@ -317,15 +347,19 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
         &tinty,
         sprite->renderInfo.renderScaleX,
         sprite->renderInfo.renderScaleY);
+
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 #else
 BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
