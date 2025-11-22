@@ -195,11 +195,7 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
 
-    if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
-    } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
-    }
+    Image::loadImageFromProject(sprite);
 
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {
@@ -306,11 +302,7 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
 BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
 
-    if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
-    } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
-    }
+    Image::loadImageFromProject(sprite);
 
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {

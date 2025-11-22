@@ -503,11 +503,7 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
 
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(std::round(costumeIndex) / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
-    if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
-    } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
-    }
+    Image::loadImageFromProject(sprite);
 
     Scratch::forceRedraw = true;
 }

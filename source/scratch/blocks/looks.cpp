@@ -11,11 +11,7 @@
 
 BlockResult LooksBlocks::show(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->visible = true;
-    if (projectType == UNZIPPED) {
-        Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
-    } else {
-        Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
-    }
+    Image::loadImageFromProject(sprite);
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
@@ -57,7 +53,7 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
         Scratch::switchCostume(sprite, --sprite->currentCostume);
         return BlockResult::CONTINUE;
     }
-    
+
     if (inputValue.isNumeric()) {
         Scratch::switchCostume(sprite, inputValue.asDouble() - 1);
         return BlockResult::CONTINUE;
@@ -115,7 +111,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
             Scratch::switchCostume(stage, randomIndex);
             return BlockResult::CONTINUE;
         }
-        
+
         if (inputValue.isNumeric()) {
             Scratch::switchCostume(stage, inputValue.asDouble() - 1);
             return BlockResult::CONTINUE;
