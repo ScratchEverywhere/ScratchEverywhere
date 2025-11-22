@@ -244,7 +244,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
         image->renderRect.x *= scale;
         image->renderRect.y *= scale;
     } else {
-        image->setScale(isSVG ? 1 : 2);
+        image->setScale(sprite->size / (isSVG ? 100.0f : 200.0f));
     }
 
     // set ghost effect
