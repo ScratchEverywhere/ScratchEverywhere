@@ -15,16 +15,15 @@ endif()
 
 option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
+list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl3")
+endif()
+
 set(
     SE_RENDERER
     "headless"
-    CACHE STRING "Select the desired renderer backend. Options: 'headless', 'sdl2', 'sdl3'."
-)
-list(
-    APPEND SE_RENDERER_VALID_OPTIONS
-    "headless"
-    "sdl2"
-    "sdl3"
+    CACHE STRING "Select the desired renderer backend."
 )
 if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
     message(
