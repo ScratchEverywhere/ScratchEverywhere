@@ -1,5 +1,5 @@
-#include "procedure.hpp"
 #include "interpret.hpp"
+#include "procedure.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
@@ -10,7 +10,7 @@
 extern SDL_GameController *controller;
 #endif
 
-namespace blocks::procedure {
+namespace blocks::procedures {
 Value stringNumber(Block &block, Sprite *sprite) {
     const std::string name = Scratch::getFieldValue(block, "VALUE");
     if (name == "Scratch Everywhere! platform") {
@@ -86,4 +86,4 @@ BlockResult call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool 
 BlockResult definition(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
-} // namespace blocks::procedure
+} // namespace blocks::procedures

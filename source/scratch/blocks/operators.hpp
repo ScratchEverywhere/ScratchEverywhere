@@ -1,7 +1,7 @@
 #pragma once
 #include "blockUtils.hpp"
 
-namespace blocks::operator_ {
+namespace blocks::operators {
 Value add(Block &block, Sprite *sprite);
 Value subtract(Block &block, Sprite *sprite);
 Value multiply(Block &block, Sprite *sprite);
@@ -21,4 +21,4 @@ Value and_(Block &block, Sprite *sprite);
 Value or_(Block &block, Sprite *sprite);
 Value not_(Block &block, Sprite *sprite);
 Value contains(Block &block, Sprite *sprite);
-} // namespace blocks::operator_
+} // namespace blocks::operators

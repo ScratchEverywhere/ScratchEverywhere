@@ -1,5 +1,5 @@
-#include "operator.hpp"
 #include "interpret.hpp"
+#include "operator.hpp"
 #include "sprite.hpp"
 #include "value.hpp"
 #include <algorithm>
@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <math.h>
 
-namespace blocks::operator_ {
+namespace blocks::operators {
 Value add(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
@@ -206,4 +206,4 @@ Value contains(Block &block, Sprite *sprite) {
     Value value2 = Scratch::getInputValue(block, "STRING2", sprite);
     return Value(value1.asString().find(value2.asString()) != std::string::npos);
 }
-} // namespace blocks::operator_
+} // namespace blocks::operators

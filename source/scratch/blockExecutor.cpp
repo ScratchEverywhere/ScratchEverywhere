@@ -1,12 +1,12 @@
 #include "blockExecutor.hpp"
 #include "blocks/control.hpp"
 #include "blocks/data.hpp"
-#include "blocks/event.hpp"
+#include "blocks/events.hpp"
 #include "blocks/looks.hpp"
 #include "blocks/motion.hpp"
-#include "blocks/operator.hpp"
+#include "blocks/operators.hpp"
 #include "blocks/pen.hpp"
-#include "blocks/procedure.hpp"
+#include "blocks/procedures.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
 #include "interpret.hpp"
@@ -89,11 +89,11 @@ void BlockExecutor::registerHandlers() {
     valueHandlers["sound_volume"] = blocks::sound::volume;
 
     // events
-    handlers["event_whenflagclicked"] = blocks::event::flagClicked;
-    handlers["event_broadcast"] = blocks::event::broadcast;
-    handlers["event_broadcastandwait"] = blocks::event::broadcastAndWait;
-    handlers["event_whenkeypressed"] = blocks::event::whenKeyPressed;
-    handlers["event_whenbackdropswitchesto"] = blocks::event::whenBackdropSwitchesTo;
+    handlers["event_whenflagclicked"] = blocks::events::flagClicked;
+    handlers["event_broadcast"] = blocks::events::broadcast;
+    handlers["event_broadcastandwait"] = blocks::events::broadcastAndWait;
+    handlers["event_whenkeypressed"] = blocks::events::whenKeyPressed;
+    handlers["event_whenbackdropswitchesto"] = blocks::events::whenBackdropSwitchesTo;
 
     // control
     handlers["control_if"] = blocks::control::if_;
@@ -114,24 +114,24 @@ void BlockExecutor::registerHandlers() {
     handlers["control_for_each"] = blocks::control::forEach;
 
     // operators
-    valueHandlers["operator_add"] = blocks::operator_::add;
-    valueHandlers["operator_subtract"] = blocks::operator_::subtract;
-    valueHandlers["operator_multiply"] = blocks::operator_::multiply;
-    valueHandlers["operator_divide"] = blocks::operator_::divide;
-    valueHandlers["operator_random"] = blocks::operator_::random;
-    valueHandlers["operator_join"] = blocks::operator_::join;
-    valueHandlers["operator_letter_of"] = blocks::operator_::letterOf;
-    valueHandlers["operator_length"] = blocks::operator_::length;
-    valueHandlers["operator_mod"] = blocks::operator_::mod;
-    valueHandlers["operator_round"] = blocks::operator_::round;
-    valueHandlers["operator_mathop"] = blocks::operator_::mathOp;
-    valueHandlers["operator_equals"] = blocks::operator_::equals;
-    valueHandlers["operator_gt"] = blocks::operator_::greaterThan;
-    valueHandlers["operator_lt"] = blocks::operator_::lessThan;
-    valueHandlers["operator_and"] = blocks::operator_::and_;
-    valueHandlers["operator_or"] = blocks::operator_::or_;
-    valueHandlers["operator_not"] = blocks::operator_::not_;
-    valueHandlers["operator_contains"] = blocks::operator_::contains;
+    valueHandlers["operator_add"] = blocks::operators::add;
+    valueHandlers["operator_subtract"] = blocks::operators::subtract;
+    valueHandlers["operator_multiply"] = blocks::operators::multiply;
+    valueHandlers["operator_divide"] = blocks::operators::divide;
+    valueHandlers["operator_random"] = blocks::operators::random;
+    valueHandlers["operator_join"] = blocks::operators::join;
+    valueHandlers["operator_letter_of"] = blocks::operators::letterOf;
+    valueHandlers["operator_length"] = blocks::operators::length;
+    valueHandlers["operator_mod"] = blocks::operators::mod;
+    valueHandlers["operator_round"] = blocks::operators::round;
+    valueHandlers["operator_mathop"] = blocks::operators::mathOp;
+    valueHandlers["operator_equals"] = blocks::operators::equals;
+    valueHandlers["operator_gt"] = blocks::operators::greaterThan;
+    valueHandlers["operator_lt"] = blocks::operators::lessThan;
+    valueHandlers["operator_and"] = blocks::operators::and_;
+    valueHandlers["operator_or"] = blocks::operators::or_;
+    valueHandlers["operator_not"] = blocks::operators::not_;
+    valueHandlers["operator_contains"] = blocks::operators::contains;
 
     // data
     handlers["data_setvariableto"] = blocks::data::setVariable;
@@ -171,10 +171,10 @@ void BlockExecutor::registerHandlers() {
     valueHandlers["sensing_username"] = blocks::sensing::username;
 
     // procedures / arguments
-    handlers["procedures_call"] = blocks::procedure::call;
-    handlers["procedures_definition"] = blocks::procedure::definition;
-    valueHandlers["argument_reporter_string_number"] = blocks::procedure::stringNumber;
-    valueHandlers["argument_reporter_boolean"] = blocks::procedure::booleanArgument;
+    handlers["procedures_call"] = blocks::procedures::call;
+    handlers["procedures_definition"] = blocks::procedures::definition;
+    valueHandlers["argument_reporter_string_number"] = blocks::procedures::stringNumber;
+    valueHandlers["argument_reporter_boolean"] = blocks::procedures::booleanArgument;
 
     // pen extension
     handlers["pen_penDown"] = blocks::pen::PenDown;

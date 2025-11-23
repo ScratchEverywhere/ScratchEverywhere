@@ -3,7 +3,7 @@
 #include "interpret.hpp"
 #include "sprite.hpp"
 
-namespace blocks::event {
+namespace blocks::events {
 BlockResult flagClicked(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
@@ -53,4 +53,4 @@ BlockResult whenKeyPressed(Block &block, Sprite *sprite, bool *withoutScreenRefr
     }
     return BlockResult::RETURN;
 }
-} // namespace blocks::event
+} // namespace blocks::events
