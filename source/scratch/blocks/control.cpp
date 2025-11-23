@@ -8,7 +8,6 @@
 #include <iostream>
 #include <ostream>
 
-namespace blocks::control {
 SCRATCH_BLOCK(control, if) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     bool condition = conditionValue.asBoolean();
@@ -386,4 +385,3 @@ SCRATCH_BLOCK(control, for_each) {
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
-} // namespace blocks::control

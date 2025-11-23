@@ -24,7 +24,6 @@ SDL_Texture *penTexture;
 #warning Unsupported Platform for pen.
 #endif
 
-namespace blocks::pen {
 constexpr unsigned int minPenSize = 1;
 constexpr unsigned int maxPenSize = 1200;
 
@@ -366,4 +365,3 @@ SCRATCH_BLOCK(pen, stamp) {
 }
 
 #endif
-} // namespace blocks::pen

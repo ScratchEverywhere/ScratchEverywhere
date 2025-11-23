@@ -9,7 +9,6 @@
 extern SDL_GameController *controller;
 #endif
 
-namespace blocks::procedures {
 SCRATCH_SHADOW_BLOCK(argument_reporter_string_number) {
     const std::string name = Scratch::getFieldValue(block, "VALUE");
     if (name == "Scratch Everywhere! platform") {
@@ -83,4 +82,3 @@ SCRATCH_BLOCK(procedures, call) {
 }
 
 SCRATCH_BLOCK_NOP(procedures, definition)
-} // namespace blocks::procedures

@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <math.h>
 
-namespace blocks::operators {
 SCRATCH_REPORTER_BLOCK(operator, add) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
@@ -206,4 +205,3 @@ SCRATCH_REPORTER_BLOCK(operator, contains) {
     Value value2 = Scratch::getInputValue(block, "STRING2", sprite);
     return Value(value1.asString().find(value2.asString()) != std::string::npos);
 }
-} // namespace blocks::operators

@@ -3,7 +3,6 @@
 #include "interpret.hpp"
 #include "sprite.hpp"
 
-namespace blocks::events {
 SCRATCH_BLOCK_NOP(event, whenflagclicked)
 
 SCRATCH_BLOCK_NOP(event, whenbackdropswitchesto)
@@ -49,4 +48,3 @@ SCRATCH_BLOCK(event, whenkeypressed) {
     }
     return BlockResult::RETURN;
 }
-} // namespace blocks::events

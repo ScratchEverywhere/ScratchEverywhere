@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cstddef>
 
-namespace blocks::looks {
 SCRATCH_BLOCK(looks, show) {
     sprite->visible = true;
     Image::loadImageFromProject(sprite);
@@ -371,4 +370,3 @@ SCRATCH_REPORTER_BLOCK(looks, backdropnumbername) {
     }
     return Value();
 }
-} // namespace blocks::looks

@@ -6,7 +6,6 @@
 #include "unzip.hpp"
 #include "value.hpp"
 
-namespace blocks::sound {
 SCRATCH_BLOCK(sound, playuntildone) {
     Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
     std::string inputString = inputValue.asString();
@@ -163,4 +162,3 @@ SCRATCH_BLOCK(sound, setvolumeto) {
 SCRATCH_REPORTER_BLOCK(sound, volume) {
     return Value(sprite->volume);
 }
-} // namespace blocks::sound

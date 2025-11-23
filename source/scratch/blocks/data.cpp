@@ -4,7 +4,6 @@
 #include "sprite.hpp"
 #include "value.hpp"
 
-namespace blocks::data {
 constexpr unsigned int MAX_LIST_ITEMS = 200000;
 
 SCRATCH_BLOCK(data, setvariableto) {
@@ -392,4 +391,3 @@ SCRATCH_REPORTER_BLOCK(data, listcontainsitem) {
 
     return Value(false);
 }
-} // namespace blocks::data

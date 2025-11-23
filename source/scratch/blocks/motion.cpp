@@ -14,7 +14,6 @@
 #include <ostream>
 #include <string>
 
-namespace blocks::motion {
 SCRATCH_BLOCK(motion, movesteps) {
     const double oldX = sprite->xPosition;
     const double oldY = sprite->yPosition;
@@ -461,4 +460,3 @@ SCRATCH_REPORTER_BLOCK(motion, yposition) {
 SCRATCH_REPORTER_BLOCK(motion, direction) {
     return Value(sprite->rotation);
 }
-} // namespace blocks::motion

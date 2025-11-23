@@ -8,7 +8,6 @@
 #include <utility>
 #include <vector>
 
-namespace blocks::sensing {
 SCRATCH_BLOCK(sensing, resettimer) {
     BlockExecutor::timer.start();
     return BlockResult::CONTINUE;
@@ -198,4 +197,3 @@ SCRATCH_REPORTER_BLOCK(sensing, mousedown) {
 SCRATCH_REPORTER_BLOCK(sensing, username) {
     return Value(Input::getUsername());
 }
-} // namespace blocks::sensing
