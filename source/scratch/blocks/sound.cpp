@@ -8,16 +8,6 @@
 
 SCRATCH_BLOCK(sound, playuntildone) {
     Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
-    std::string inputString = inputValue.asString();
-
-    // if no blocks are inside the input
-    auto inputFind = block.parsedInputs->find("SOUND_MENU");
-    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
-        Block *inputBlock = findBlock(inputValue.asString());
-        if (inputBlock != nullptr) {
-            inputString = Scratch::getFieldValue(*inputBlock, "SOUND_MENU");
-        }
-    }
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -30,15 +20,14 @@ SCRATCH_BLOCK(sound, playuntildone) {
         std::string soundFullName;
         bool soundFound = false;
 
-        auto soundFind = sprite->sounds.find(inputString);
+        auto soundFind = sprite->sounds.find(inputValue.asString());
         if (soundFind != sprite->sounds.end()) {
             soundFullName = soundFind->second.fullName;
             soundFound = true;
         }
 
         // If not found by name and input is a number, try index-based lookup
-        if (!soundFound && Math::isNumber(inputString) && inputFind != block.parsedInputs->end() &&
-            (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
+        if (!soundFound && Math::isNumber(inputValue.asString())) {
             int soundIndex = inputValue.asInt() - 1;
             if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
                 auto it = sprite->sounds.begin();
@@ -60,11 +49,10 @@ SCRATCH_BLOCK(sound, playuntildone) {
 
     // Check if sound is still playing (need to determine sound name again for check)
     std::string checkSoundName;
-    auto soundFind = sprite->sounds.find(inputString);
+    auto soundFind = sprite->sounds.find(inputValue.asString());
     if (soundFind != sprite->sounds.end()) {
         checkSoundName = soundFind->second.fullName;
-    } else if (Math::isNumber(inputString) && inputFind != block.parsedInputs->end() &&
-               (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
+    } else if (Math::isNumber(inputValue.asString())) {
         int soundIndex = inputValue.asInt() - 1;
         if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
             auto it = sprite->sounds.begin();
@@ -83,30 +71,19 @@ SCRATCH_BLOCK(sound, playuntildone) {
 
 SCRATCH_BLOCK(sound, play) {
     Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
-    std::string inputString = inputValue.asString();
-
-    // if no blocks are inside the input
-    auto inputFind = block.parsedInputs->find("SOUND_MENU");
-    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
-        Block *inputBlock = findBlock(inputValue.asString());
-        if (inputBlock != nullptr) {
-            inputString = Scratch::getFieldValue(*inputBlock, "SOUND_MENU");
-        }
-    }
 
     // Find sound by name first
     std::string soundFullName;
     bool soundFound = false;
 
-    auto soundFind = sprite->sounds.find(inputString);
+    auto soundFind = sprite->sounds.find(inputValue.asString());
     if (soundFind != sprite->sounds.end()) {
         soundFullName = soundFind->second.fullName;
         soundFound = true;
     }
 
     // If not found by name and input is a number, try index-based lookup
-    if (!soundFound && Math::isNumber(inputString) && inputFind != block.parsedInputs->end() &&
-        (inputFind->second.inputType == ParsedInput::BLOCK || inputFind->second.inputType == ParsedInput::VARIABLE)) {
+    if (!soundFound && Math::isNumber(inputValue.asString())) {
         int soundIndex = inputValue.asInt() - 1;
         if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
             auto it = sprite->sounds.begin();

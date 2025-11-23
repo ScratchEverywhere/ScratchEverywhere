@@ -20,17 +20,6 @@ SCRATCH_BLOCK(looks, hide) {
 
 SCRATCH_BLOCK(looks, switchcostumeto) {
     Value inputValue = Scratch::getInputValue(block, "COSTUME", sprite);
-    std::string inputString = inputValue.asString();
-
-    auto inputFind = block.parsedInputs->find("COSTUME");
-    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
-        Block *inputBlock = findBlock(inputString);
-        if (inputBlock != nullptr) {
-            if (Scratch::getFieldValue(*inputBlock, "COSTUME") != "")
-                inputString = Scratch::getFieldValue(*inputBlock, "COSTUME");
-            else return BlockResult::CONTINUE;
-        }
-    }
 
     if (inputValue.isDouble()) {
         Scratch::switchCostume(sprite, inputValue.isNaN() ? 0 : inputValue.asDouble() - 1);
@@ -38,16 +27,16 @@ SCRATCH_BLOCK(looks, switchcostumeto) {
     }
 
     for (size_t i = 0; i < sprite->costumes.size(); i++) {
-        if (sprite->costumes[i].name == inputString) {
+        if (sprite->costumes[i].name == inputValue.asString()) {
             Scratch::switchCostume(sprite, i);
             return BlockResult::CONTINUE;
         }
     }
 
-    if (inputString == "next costume") {
+    if (inputValue.asString() == "next costume") {
         Scratch::switchCostume(sprite, ++sprite->currentCostume);
         return BlockResult::CONTINUE;
-    } else if (inputString == "previous costume") {
+    } else if (inputValue.asString() == "previous costume") {
         Scratch::switchCostume(sprite, --sprite->currentCostume);
         return BlockResult::CONTINUE;
     }
@@ -67,17 +56,6 @@ SCRATCH_BLOCK(looks, nextcostume) {
 
 SCRATCH_BLOCK(looks, switchbackdropto) {
     Value inputValue = Scratch::getInputValue(block, "BACKDROP", sprite);
-    std::string inputString = inputValue.asString();
-
-    auto inputFind = block.parsedInputs->find("BACKDROP");
-    if (inputFind != block.parsedInputs->end() && inputFind->second.inputType == ParsedInput::LITERAL) {
-        Block *inputBlock = findBlock(inputString);
-        if (inputBlock != nullptr) {
-            if (Scratch::getFieldValue(*inputBlock, "BACKDROP") != "")
-                inputString = Scratch::getFieldValue(*inputBlock, "BACKDROP");
-            else return BlockResult::CONTINUE;
-        }
-    }
 
     for (Sprite *stage : sprites) {
         if (!stage->isStage) {
@@ -90,19 +68,19 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
         }
 
         for (size_t i = 0; i < stage->costumes.size(); i++) {
-            if (stage->costumes[i].name == inputString) {
+            if (stage->costumes[i].name == inputValue.asString()) {
                 Scratch::switchCostume(stage, i);
                 return BlockResult::CONTINUE;
             }
         }
 
-        if (inputString == "next backdrop") {
+        if (inputValue.asString() == "next backdrop") {
             Scratch::switchCostume(stage, ++stage->currentCostume);
             return BlockResult::CONTINUE;
-        } else if (inputString == "previous backdrop") {
+        } else if (inputValue.asString() == "previous backdrop") {
             Scratch::switchCostume(stage, --stage->currentCostume);
             return BlockResult::CONTINUE;
-        } else if (inputString == "random backdrop") {
+        } else if (inputValue.asString() == "random backdrop") {
             if (stage->costumes.size() == 1) break;
             int randomIndex = std::rand() % (stage->costumes.size() - 1);
             if (randomIndex >= stage->currentCostume) randomIndex++;
@@ -331,14 +309,6 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
 
 SCRATCH_REPORTER_BLOCK(looks, size) {
     return Value(sprite->size);
-}
-
-SCRATCH_REPORTER_BLOCK(looks, costume) {
-    return Value(Scratch::getFieldValue(block, "COSTUME"));
-}
-
-SCRATCH_REPORTER_BLOCK(looks, backdrop) {
-    return Value(Scratch::getFieldValue(block, "BACKDROP"));
 }
 
 SCRATCH_REPORTER_BLOCK(looks, costumenumbername) {

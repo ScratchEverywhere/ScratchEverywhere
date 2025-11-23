@@ -32,27 +32,25 @@ SCRATCH_BLOCK(motion, movesteps) {
 }
 
 SCRATCH_BLOCK(motion, goto) {
+    Value objectName = Scratch::getInputValue(block, "TO", sprite);
+
     const double oldX = sprite->xPosition;
     const double oldY = sprite->yPosition;
 
-    auto inputValue = block.parsedInputs->find("TO");
-    Block *inputBlock = findBlock(inputValue->second.literalValue.asString());
-    std::string objectName = Scratch::getFieldValue(*inputBlock, "TO");
-
-    if (objectName == "_random_") {
+    if (objectName.asString() == "_random_") {
         sprite->xPosition = rand() % Scratch::projectWidth - Scratch::projectWidth / 2;
         sprite->yPosition = rand() % Scratch::projectHeight - Scratch::projectHeight / 2;
         goto end;
     }
 
-    if (objectName == "_mouse_") {
+    if (objectName.asString() == "_mouse_") {
         sprite->xPosition = Input::mousePointer.x;
         sprite->yPosition = Input::mousePointer.y;
         goto end;
     }
 
     for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name == objectName) {
+        if (currentSprite->name == objectName.asString()) {
             sprite->xPosition = currentSprite->xPosition;
             sprite->yPosition = currentSprite->yPosition;
             break;
@@ -249,24 +247,19 @@ SCRATCH_BLOCK(motion, glideto) {
         block.glideStartX = sprite->xPosition;
         block.glideStartY = sprite->yPosition;
 
-        Block *inputBlock;
-        auto itVal = block.parsedInputs->find("TO");
-        inputBlock = findBlock(itVal->second.literalValue.asString());
-        if (!inputBlock) return BlockResult::CONTINUE;
-
-        std::string inputValue = Scratch::getFieldValue(*inputBlock, "TO");
+        Value inputValue = Scratch::getInputValue(block, "TO", sprite);
         std::string positionXStr;
         std::string positionYStr;
 
-        if (inputValue == "_random_") {
+        if (inputValue.asString() == "_random_") {
             positionXStr = std::to_string(rand() % Scratch::projectWidth - Scratch::projectWidth / 2);
             positionYStr = std::to_string(rand() % Scratch::projectHeight - Scratch::projectHeight / 2);
-        } else if (inputValue == "_mouse_") {
+        } else if (inputValue.asString() == "_mouse_") {
             positionXStr = std::to_string(Input::mousePointer.x);
             positionYStr = std::to_string(Input::mousePointer.y);
         } else {
             for (auto &currentSprite : sprites) {
-                if (currentSprite->name == inputValue) {
+                if (currentSprite->name == inputValue.asString()) {
                     positionXStr = std::to_string(currentSprite->xPosition);
                     positionYStr = std::to_string(currentSprite->yPosition);
                     break;
@@ -310,24 +303,21 @@ SCRATCH_BLOCK(motion, glideto) {
 }
 
 SCRATCH_BLOCK(motion, pointtoward) {
-    auto itVal = block.parsedInputs->find("TOWARDS");
-    Block *inputBlock = findBlock(itVal->second.literalValue.asString());
-
-    std::string objectName = Scratch::getFieldValue(*inputBlock, "TOWARDS");
+    Value objectName = Scratch::getInputValue(block, "TOWARDS", sprite);
     double targetX = 0;
     double targetY = 0;
 
-    if (objectName == "_random_") {
+    if (objectName.asString() == "_random_") {
         sprite->rotation = rand() % 360;
         return BlockResult::CONTINUE;
     }
 
-    if (objectName == "_mouse_") {
+    if (objectName.asString() == "_mouse_") {
         targetX = Input::mousePointer.x;
         targetY = Input::mousePointer.y;
     } else {
         for (Sprite *currentSprite : sprites) {
-            if (currentSprite->name == objectName) {
+            if (currentSprite->name == objectName.asString()) {
                 targetX = currentSprite->xPosition;
                 targetY = currentSprite->yPosition;
                 break;

@@ -9,7 +9,7 @@
 extern SDL_GameController *controller;
 #endif
 
-SCRATCH_SHADOW_BLOCK(argument_reporter_string_number) {
+SCRATCH_REPORTER_BLOCK_OPCODE(argument_reporter_string_number) {
     const std::string name = Scratch::getFieldValue(block, "VALUE");
     if (name == "Scratch Everywhere! platform") {
         return Value(OS::getPlatform());
@@ -27,7 +27,7 @@ SCRATCH_SHADOW_BLOCK(argument_reporter_string_number) {
     return BlockExecutor::getCustomBlockValue(name, sprite, block);
 }
 
-SCRATCH_SHADOW_BLOCK(argument_reporter_boolean) {
+SCRATCH_REPORTER_BLOCK_OPCODE(argument_reporter_boolean) {
     const std::string name = Scratch::getFieldValue(block, "VALUE");
     if (name == "is Scratch Everywhere!?") return Value(true);
     if (name == "is New 3DS?") {
