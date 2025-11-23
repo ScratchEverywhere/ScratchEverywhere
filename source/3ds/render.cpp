@@ -39,6 +39,7 @@ C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget;
 Tex3DS_SubTexture penSubtex;
 C3D_Tex *penTex;
+#define TEXTURE_OFFSET 16
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
@@ -234,7 +235,7 @@ void Render::penStamp(Sprite *sprite) {
     C2D_DrawImageAtRotated(
         *costumeTexture,
         sprite->renderInfo.renderX,
-        sprite->renderInfo.renderY + 16,
+        sprite->renderInfo.renderY + TEXTURE_OFFSET,
         1,
         sprite->renderInfo.renderRotation,
         &tinty,
