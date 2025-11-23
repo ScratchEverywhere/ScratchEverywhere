@@ -174,12 +174,12 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 		find_package(PkgConfig REQUIRED)
 
 		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
-		pkg_check_modules(SDL3_IMAGE REQUIRED SDL3_image>=3.0.0)
-		pkg_check_modules(SDL3_TTF REQUIRED SDL3_ttf>=3.0.0)
-		pkg_check_modules(SDL3_GFX REQUIRED SDL3_gfx>=1.0.0)
+		pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image>=3.0.0)
+		pkg_check_modules(SDL3_TTF REQUIRED sdl3-ttf>=3.0.0)
+		pkg_check_modules(SDL3_GFX REQUIRED sdl3-gfx>=1.0.0)
 
 		if (SE_AUDIO)
-			pkg_check_modules(SDL3_MIXER REQUIRED SDL3_mixer>=2.0.0)
+			pkg_check_modules(SDL3_MIXER REQUIRED sdl3-mixer>=2.0.0)
 		endif()
 	else()
 		CPMAddPackage(
@@ -302,9 +302,9 @@ endif()
 
 if(SE_RENDERER STREQUAL "sdl3")
 	set(SDL_LINK_LIBS)
-	list(APPEND SDL_LINK_LIBS SDL3::SDL3)
 
 	if(NOT SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS SDL3::SDL3)
 		target_include_directories(scratch-everywhere PRIVATE ${SDL3_gfx_SOURCE_DIR})
 	endif()
 
@@ -384,6 +384,10 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	endif()
 
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+endif()
+
+if(SE_SYSTEM)
+	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)

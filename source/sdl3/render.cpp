@@ -12,7 +12,6 @@
 #include "text.hpp"
 #include "unzip.hpp"
 #include <SDL3/SDL.h>
-#include <SDL3_gfxPrimitives.h>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -20,6 +19,12 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#ifdef SYSTEM_LIBS
+#include <SDL3_gfx/SDL3_gfxPrimitives.h>
+#else
+#include <SDL3_gfxPrimitives.h>
+#endif
 
 #ifdef __SWITCH__
 #include <switch.h>
