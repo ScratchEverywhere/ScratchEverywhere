@@ -221,19 +221,10 @@ postAccount:
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
     #if defined(WEBOS)
-    Log::log("windowWidth is " + std::to_string(windowWidth));
-    Log::log("windowHeight is " + std::to_string(windowHeight));
+    Log::log("[SDL] windowWidth is " + std::to_string(windowWidth));
+    Log::log("[SDL] windowHeight is " + std::to_string(windowHeight));
     window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowWidth, windowHeight, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-
-    SDL_RendererInfo info;
-    SDL_GetRendererInfo(renderer, &info);
-    Log::log(std::string("Renderer: ") + info.name);
-    Log::log(std::string("Render flags: ") + std::to_string(info.flags));
-    Log::log(std::string("Max texture: ") + std::to_string(info.max_texture_width) + "x" + std::to_string(info.max_texture_height));
-    if (!(info.flags & SDL_RENDERER_TARGETTEXTURE)) {
-        Log::log("Renderer does NOT support TARGETTEXTURE — disabling HQ pen and other target textures.");
-    }
     #else
     window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);

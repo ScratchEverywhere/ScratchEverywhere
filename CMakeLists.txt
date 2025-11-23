@@ -73,10 +73,10 @@ if(NOT SE_HEADLESS)
 		find_package(PkgConfig REQUIRED)
 
 		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
-		pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
 		pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
 
 		if(NOT WEBOS)
+			pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
 			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
 		endif()
 
@@ -96,12 +96,6 @@ if(NOT SE_HEADLESS)
 			GITHUB_REPOSITORY libsdl-org/SDL
 			GIT_TAG release-2.32.10
 			OPTIONS ${SDL2_OPTIONS}
-		)
-		CPMAddPackage(
-			NAME SDL2_image
-			VERSION 2.8.8
-			GITHUB_REPOSITORY libsdl-org/SDL_image
-			GIT_TAG release-2.8.8
 		)
 		CPMAddPackage(
 			NAME SDL2_ttf
@@ -124,6 +118,12 @@ if(NOT SE_HEADLESS)
 
 	if(NOT SE_SYSTEM OR WEBOS)
 		CPMAddPackage(
+			NAME SDL2_image
+			VERSION 2.8.8
+			GITHUB_REPOSITORY libsdl-org/SDL_image
+			GIT_TAG release-2.8.8
+		)
+		CPMAddPackage(
 			NAME SDL2_gfx
 			VERSION 1.0.4
 			GITHUB_REPOSITORY giroletm/SDL2_gfx
@@ -142,6 +142,8 @@ if(NOT SE_HEADLESS)
 			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 		)
 		if(WEBOS)
+			target_link_libraries(SDL2_image PUBLIC ${SDL2_LIBRARIES})
+			target_include_directories(SDL2_image PRIVATE ${SDL2_INCLUDE_DIRS})
 			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
 			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
 		else()
@@ -207,7 +209,7 @@ elseif(VITA)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-vita)
 	target_compile_definitions(scratch-everywhere PRIVATE VITA)
 elseif(WEBOS)
-	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos) # TODO: webos
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
 endif()
 
@@ -242,6 +244,7 @@ if (NOT SE_HEADLESS)
 		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
 	else()
+		list(APPEND SDL_LINK_LIBS SDL2_image)
 		list(APPEND SDL_LINK_LIBS SDL2_gfx)
 	endif()
 
