@@ -280,10 +280,8 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
 }
 
 void Image::cleanupImages() {
-    for (auto &[id, image] : images) {
-        // delete image;
-        image->~SDL_Image();
-    }
+    for (auto &[id, image] : images)
+        delete image;
     images.clear();
     toDelete.clear();
 }
