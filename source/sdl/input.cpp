@@ -102,7 +102,14 @@ void Input::getInput() {
                 else if (keyName == "down") keyName = "down arrow";
                 else if (keyName == "left") keyName = "left arrow";
                 else if (keyName == "right") keyName = "right arrow";
+                #if defined(WEBOS)
+                else if (keyName == "return") keyName = "a";
+                else if (keyName == "stop" || keyName == "audiostop" || keyName == "mediastop") keyName = "b";
+                else if (keyName == "audiopause" || keyName == "pause") keyName == "1";
+                else if (keyName == "audioplay" || keyName == "play") keyName == "0";
+                #else
                 else if (keyName == "return") keyName = "enter";
+                #endif
 
                 inputButtons.push_back(keyName);
                 anyKeyPressed = true;
