@@ -1,15 +1,14 @@
 #pragma once
-#include "blockExecutor.hpp"
+#include "blockUtils.hpp"
 
-class SoundBlocks {
-  public:
-    static BlockResult playSoundUntilDone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult playSound(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult stopAllSounds(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult clearSoundEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult changeVolumeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult setVolumeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static Value volume(Block &block, Sprite *sprite);
-};
+namespace blocks::sound {
+BlockResult playSoundUntilDone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult playSound(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult stopAllSounds(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult clearSoundEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult changeVolumeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult setVolumeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+Value volume(Block &block, Sprite *sprite);
+} // namespace blocks::sound

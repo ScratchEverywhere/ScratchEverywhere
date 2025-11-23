@@ -1,23 +1,23 @@
-#include "events.hpp"
-#include "blockExecutor.hpp"
+#include "event.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
 #include "sprite.hpp"
 
-BlockResult EventBlocks::flagClicked(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+namespace blocks::event {
+BlockResult flagClicked(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
 
-BlockResult EventBlocks::whenBackdropSwitchesTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult whenBackdropSwitchesTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     return BlockResult::CONTINUE;
 }
 
-BlockResult EventBlocks::broadcast(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult broadcast(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
     return BlockResult::CONTINUE;
 }
 
-BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult broadcastAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -45,7 +45,7 @@ BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *wi
     return BlockResult::CONTINUE;
 }
 
-BlockResult EventBlocks::whenKeyPressed(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult whenKeyPressed(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     for (std::string button : Input::inputButtons) {
         if (Scratch::getFieldValue(block, "KEY_OPTION") == button) {
             return BlockResult::CONTINUE;
@@ -53,3 +53,4 @@ BlockResult EventBlocks::whenKeyPressed(Block &block, Sprite *sprite, bool *with
     }
     return BlockResult::RETURN;
 }
+} // namespace blocks::event

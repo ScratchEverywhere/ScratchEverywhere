@@ -15,7 +15,8 @@
 #include <ostream>
 #include <string>
 
-BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+namespace blocks::motion {
+BlockResult moveSteps(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     const double oldX = sprite->xPosition;
     const double oldY = sprite->yPosition;
 
@@ -32,7 +33,7 @@ BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutS
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult goTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     const double oldX = sprite->xPosition;
     const double oldY = sprite->yPosition;
 
@@ -67,7 +68,7 @@ end:
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult goToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     const double oldX = sprite->xPosition;
     const double oldY = sprite->yPosition;
 
@@ -83,7 +84,7 @@ BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, bool *withoutScre
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::turnLeft(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult turnLeft(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DEGREES", sprite);
     const double direction = value.asDouble();
     if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
@@ -94,7 +95,7 @@ BlockResult MotionBlocks::turnLeft(Block &block, Sprite *sprite, bool *withoutSc
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::turnRight(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult turnRight(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DEGREES", sprite);
     const double direction = value.asDouble();
     if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
@@ -105,7 +106,7 @@ BlockResult MotionBlocks::turnRight(Block &block, Sprite *sprite, bool *withoutS
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::pointInDirection(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult pointInDirection(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "DIRECTION", sprite);
     const double direction = value.asDouble();
     if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
@@ -116,7 +117,7 @@ BlockResult MotionBlocks::pointInDirection(Block &block, Sprite *sprite, bool *w
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::changeXBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult changeXBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     const double oldX = sprite->xPosition;
 
     Value value = Scratch::getInputValue(block, "DX", sprite);
@@ -131,7 +132,7 @@ BlockResult MotionBlocks::changeXBy(Block &block, Sprite *sprite, bool *withoutS
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::changeYBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult changeYBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     const double oldY = sprite->yPosition;
 
     Value value = Scratch::getInputValue(block, "DY", sprite);
@@ -145,7 +146,7 @@ BlockResult MotionBlocks::changeYBy(Block &block, Sprite *sprite, bool *withoutS
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::setX(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult setX(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     const double oldX = sprite->xPosition;
 
     Value value = Scratch::getInputValue(block, "X", sprite);
@@ -159,7 +160,7 @@ BlockResult MotionBlocks::setX(Block &block, Sprite *sprite, bool *withoutScreen
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult setY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     const double oldY = sprite->yPosition;
 
     Value value = Scratch::getInputValue(block, "Y", sprite);
@@ -173,7 +174,7 @@ BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreen
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult glideSecsToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
     }
@@ -230,7 +231,7 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
     return BlockResult::RETURN;
 }
 
-BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult glideTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -310,7 +311,7 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
     return BlockResult::RETURN;
 }
 
-BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult pointToward(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     auto itVal = block.parsedInputs->find("TOWARDS");
     Block *inputBlock = findBlock(itVal->second.literalValue.asString());
 
@@ -344,7 +345,7 @@ BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withou
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::setRotationStyle(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult setRotationStyle(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string value;
     try {
         value = Scratch::getFieldValue(block, "STYLE");
@@ -364,7 +365,7 @@ BlockResult MotionBlocks::setRotationStyle(Block &block, Sprite *sprite, bool *w
     return BlockResult::CONTINUE;
 }
 
-BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult ifOnEdgeBounce(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     double halfWidth = Scratch::projectWidth / 2.0;
     double halfHeight = Scratch::projectHeight / 2.0;
 
@@ -450,14 +451,15 @@ BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, bool *wit
     return BlockResult::CONTINUE;
 }
 
-Value MotionBlocks::xPosition(Block &block, Sprite *sprite) {
+Value xPosition(Block &block, Sprite *sprite) {
     return Value(sprite->xPosition);
 }
 
-Value MotionBlocks::yPosition(Block &block, Sprite *sprite) {
+Value yPosition(Block &block, Sprite *sprite) {
     return Value(sprite->yPosition);
 }
 
-Value MotionBlocks::direction(Block &block, Sprite *sprite) {
+Value direction(Block &block, Sprite *sprite) {
     return Value(sprite->rotation);
 }
+} // namespace blocks::motion

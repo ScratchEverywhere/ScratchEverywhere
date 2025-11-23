@@ -23,10 +23,11 @@ SDL_Texture *penTexture;
 #warning Unsupported Platform for pen.
 #endif
 
-const unsigned int minPenSize = 1;
-const unsigned int maxPenSize = 1200;
+namespace blocks::pen {
+constexpr unsigned int minPenSize = 1;
+constexpr unsigned int maxPenSize = 1200;
 
-BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     sprite->penData.down = true;
 
@@ -77,13 +78,13 @@ BlockResult PenBlocks::PenDown(Block &block, Sprite *sprite, bool *withoutScreen
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::PenUp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult PenUp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->penData.down = false;
 
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult SetPenOptionTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     Block *optionBlock = findBlock(Scratch::getInputValue(block, "COLOR_PARAM", sprite).asString());
 
@@ -121,7 +122,7 @@ BlockResult PenBlocks::SetPenOptionTo(Block &block, Sprite *sprite, bool *withou
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult ChangePenOptionBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     Block *optionBlock = findBlock(Scratch::getInputValue(block, "COLOR_PARAM", sprite).asString());
 
@@ -158,13 +159,13 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::SetPenColorTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult SetPenColorTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->penData.color = Scratch::getInputValue(block, "COLOR", sprite).asColor();
 
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::SetPenSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult SetPenSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->penData.size = Scratch::getInputValue(block, "SIZE", sprite).asDouble();
     if (sprite->penData.size < minPenSize) sprite->penData.size = minPenSize;
     else if (sprite->penData.size > maxPenSize) sprite->penData.size = maxPenSize;
@@ -172,7 +173,7 @@ BlockResult PenBlocks::SetPenSizeTo(Block &block, Sprite *sprite, bool *withoutS
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::ChangePenSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult ChangePenSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->penData.size += Scratch::getInputValue(block, "SIZE", sprite).asDouble();
     if (sprite->penData.size < minPenSize) sprite->penData.size = minPenSize;
     else if (sprite->penData.size > maxPenSize) sprite->penData.size = maxPenSize;
@@ -181,7 +182,7 @@ BlockResult PenBlocks::ChangePenSizeBy(Block &block, Sprite *sprite, bool *witho
 }
 
 #ifdef SDL_BUILD
-BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
@@ -192,7 +193,7 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
 
     Image::loadImageFromProject(sprite);
@@ -291,7 +292,7 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 }
 #elif defined(__3DS__)
 
-BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
 
@@ -299,7 +300,7 @@ BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScree
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
 
     Image::loadImageFromProject(sprite);
@@ -353,14 +354,15 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
 }
 
 #else
-BlockResult PenBlocks::EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 #endif
+} // namespace blocks::pen

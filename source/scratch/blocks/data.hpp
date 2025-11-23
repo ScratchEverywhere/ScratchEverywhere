@@ -1,23 +1,22 @@
 #pragma once
-#include "blockExecutor.hpp"
+#include "blockUtils.hpp"
 
-class DataBlocks {
-  public:
-    static BlockResult setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult changeVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult showVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult hideVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult showList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult hideList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult addToList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult deleteFromList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult deleteAllOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult insertAtList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult replaceItemOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+namespace blocks::data {
+BlockResult setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult changeVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult showVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult hideVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult showList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult hideList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult addToList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult deleteFromList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult deleteAllOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult insertAtList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult replaceItemOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 
-    static Value itemOfList(Block &block, Sprite *sprite);
-    static Value itemNumOfList(Block &block, Sprite *sprite);
-    static Value lengthOfList(Block &block, Sprite *sprite);
+Value itemOfList(Block &block, Sprite *sprite);
+Value itemNumOfList(Block &block, Sprite *sprite);
+Value lengthOfList(Block &block, Sprite *sprite);
 
-    static Value listContainsItem(Block &block, Sprite *sprite);
-};
+Value listContainsItem(Block &block, Sprite *sprite);
+} // namespace blocks::data

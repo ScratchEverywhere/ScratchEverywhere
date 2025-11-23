@@ -1,26 +1,24 @@
 #pragma once
-#include "sprite.hpp"
-#include "value.hpp"
+#include "blockUtils.hpp"
 
-class OperatorBlocks {
-  public:
-    static Value add(Block &block, Sprite *sprite);
-    static Value subtract(Block &block, Sprite *sprite);
-    static Value multiply(Block &block, Sprite *sprite);
-    static Value divide(Block &block, Sprite *sprite);
-    static Value random(Block &block, Sprite *sprite);
-    static Value join(Block &block, Sprite *sprite);
-    static Value letterOf(Block &block, Sprite *sprite);
-    static Value length(Block &block, Sprite *sprite);
-    static Value mod(Block &block, Sprite *sprite);
-    static Value round(Block &block, Sprite *sprite);
-    static Value mathOp(Block &block, Sprite *sprite);
+namespace blocks::operator_ {
+Value add(Block &block, Sprite *sprite);
+Value subtract(Block &block, Sprite *sprite);
+Value multiply(Block &block, Sprite *sprite);
+Value divide(Block &block, Sprite *sprite);
+Value random(Block &block, Sprite *sprite);
+Value join(Block &block, Sprite *sprite);
+Value letterOf(Block &block, Sprite *sprite);
+Value length(Block &block, Sprite *sprite);
+Value mod(Block &block, Sprite *sprite);
+Value round(Block &block, Sprite *sprite);
+Value mathOp(Block &block, Sprite *sprite);
 
-    static Value equals(Block &block, Sprite *sprite);
-    static Value greaterThan(Block &block, Sprite *sprite);
-    static Value lessThan(Block &block, Sprite *sprite);
-    static Value and_(Block &block, Sprite *sprite);
-    static Value or_(Block &block, Sprite *sprite);
-    static Value not_(Block &block, Sprite *sprite);
-    static Value contains(Block &block, Sprite *sprite);
-};
+Value equals(Block &block, Sprite *sprite);
+Value greaterThan(Block &block, Sprite *sprite);
+Value lessThan(Block &block, Sprite *sprite);
+Value and_(Block &block, Sprite *sprite);
+Value or_(Block &block, Sprite *sprite);
+Value not_(Block &block, Sprite *sprite);
+Value contains(Block &block, Sprite *sprite);
+} // namespace blocks::operator_

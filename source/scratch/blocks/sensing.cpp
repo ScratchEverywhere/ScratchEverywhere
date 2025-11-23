@@ -1,5 +1,4 @@
 #include "sensing.hpp"
-#include "blockExecutor.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
 #include "keyboard.hpp"
@@ -9,12 +8,13 @@
 #include <utility>
 #include <vector>
 
-BlockResult SensingBlocks::resetTimer(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+namespace blocks::sensing {
+BlockResult resetTimer(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     BlockExecutor::timer.start();
     return BlockResult::CONTINUE;
 }
 
-BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult askAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Keyboard kbd;
     Value inputValue = Scratch::getInputValue(block, "QUESTION", sprite);
     std::string output = kbd.openKeyboard(inputValue.asString().c_str());
@@ -22,7 +22,7 @@ BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, bool *withou
     return BlockResult::CONTINUE;
 }
 
-BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult setDragMode(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     std::string mode = Scratch::getFieldValue(block, "DRAG_MODE");
     ;
@@ -36,11 +36,11 @@ BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, bool *witho
     return BlockResult::CONTINUE;
 }
 
-Value SensingBlocks::sensingTimer(Block &block, Sprite *sprite) {
+Value sensingTimer(Block &block, Sprite *sprite) {
     return Value(BlockExecutor::timer.getTimeMs() / 1000.0);
 }
 
-Value SensingBlocks::of(Block &block, Sprite *sprite) {
+Value of(Block &block, Sprite *sprite) {
     std::string value = Scratch::getFieldValue(block, "PROPERTY");
     std::string object;
     auto objectFind = block.parsedInputs->find("OBJECT");
@@ -86,15 +86,15 @@ Value SensingBlocks::of(Block &block, Sprite *sprite) {
     return Value(0);
 }
 
-Value SensingBlocks::mouseX(Block &block, Sprite *sprite) {
+Value mouseX(Block &block, Sprite *sprite) {
     return Value(Input::mousePointer.x);
 }
 
-Value SensingBlocks::mouseY(Block &block, Sprite *sprite) {
+Value mouseY(Block &block, Sprite *sprite) {
     return Value(Input::mousePointer.y);
 }
 
-Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
+Value distanceTo(Block &block, Sprite *sprite) {
     auto inputFind = block.parsedInputs->find("DISTANCETOMENU");
     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
     std::string object = Scratch::getFieldValue(*inputBlock, "DISTANCETOMENU");
@@ -114,11 +114,11 @@ Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
     return Value(10000);
 }
 
-Value SensingBlocks::daysSince2000(Block &block, Sprite *sprite) {
+Value daysSince2000(Block &block, Sprite *sprite) {
     return Value(Time::getDaysSince2000());
 }
 
-Value SensingBlocks::current(Block &block, Sprite *sprite) {
+Value current(Block &block, Sprite *sprite) {
     std::string inputValue;
     try {
         inputValue = Scratch::getFieldValue(block, "CURRENTMENU");
@@ -138,11 +138,11 @@ Value SensingBlocks::current(Block &block, Sprite *sprite) {
     return Value();
 }
 
-Value SensingBlocks::sensingAnswer(Block &block, Sprite *sprite) {
+Value sensingAnswer(Block &block, Sprite *sprite) {
     return Value(answer);
 }
 
-Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
+Value keyPressed(Block &block, Sprite *sprite) {
     auto inputFind = block.parsedInputs->find("KEY_OPTION");
     std::string buttonCheck;
 
@@ -165,7 +165,7 @@ Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
     return Value(false);
 }
 
-Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
+Value touchingObject(Block &block, Sprite *sprite) {
     auto inputFind = block.parsedInputs->find("TOUCHINGOBJECTMENU");
     Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
     std::string objectName;
@@ -191,10 +191,11 @@ Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
     return Value(false);
 }
 
-Value SensingBlocks::mouseDown(Block &block, Sprite *sprite) {
+Value mouseDown(Block &block, Sprite *sprite) {
     return Value(Input::mousePointer.isPressed);
 }
 
-Value SensingBlocks::username(Block &block, Sprite *sprite) {
+Value username(Block &block, Sprite *sprite) {
     return Value(Input::getUsername());
 }
+} // namespace blocks::sensing

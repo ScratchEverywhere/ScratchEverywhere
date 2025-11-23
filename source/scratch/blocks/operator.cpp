@@ -1,39 +1,38 @@
 #include "operator.hpp"
-#include "../math.hpp"
 #include "interpret.hpp"
 #include "sprite.hpp"
 #include "value.hpp"
 #include <algorithm>
-#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <math.h>
 
-Value OperatorBlocks::add(Block &block, Sprite *sprite) {
+namespace blocks::operator_ {
+Value add(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 + value2;
 }
 
-Value OperatorBlocks::subtract(Block &block, Sprite *sprite) {
+Value subtract(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 - value2;
 }
 
-Value OperatorBlocks::multiply(Block &block, Sprite *sprite) {
+Value multiply(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 * value2;
 }
 
-Value OperatorBlocks::divide(Block &block, Sprite *sprite) {
+Value divide(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
     return value1 / value2;
 }
 
-Value OperatorBlocks::random(Block &block, Sprite *sprite) {
+Value random(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "FROM", sprite);
     Value value2 = Scratch::getInputValue(block, "TO", sprite);
 
@@ -52,13 +51,13 @@ Value OperatorBlocks::random(Block &block, Sprite *sprite) {
     }
 }
 
-Value OperatorBlocks::join(Block &block, Sprite *sprite) {
+Value join(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "STRING1", sprite);
     Value value2 = Scratch::getInputValue(block, "STRING2", sprite);
     return Value(value1.asString() + value2.asString());
 }
 
-Value OperatorBlocks::letterOf(Block &block, Sprite *sprite) {
+Value letterOf(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "LETTER", sprite);
     Value value2 = Scratch::getInputValue(block, "STRING", sprite);
     if (value1.isNumeric() && value2.asString() != "") {
@@ -70,12 +69,12 @@ Value OperatorBlocks::letterOf(Block &block, Sprite *sprite) {
     return Value();
 }
 
-Value OperatorBlocks::length(Block &block, Sprite *sprite) {
+Value length(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "STRING", sprite);
     return Value(static_cast<int>(value1.asString().size()));
 }
 
-Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
+Value mod(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
 
@@ -87,12 +86,12 @@ Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
     return Value(res);
 }
 
-Value OperatorBlocks::round(Block &block, Sprite *sprite) {
+Value round(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM", sprite);
     return Value(std::round(value1.asDouble()));
 }
 
-Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
+Value mathOp(Block &block, Sprite *sprite) {
     Value inputValue = Scratch::getInputValue(block, "NUM", sprite);
     if (inputValue.isNumeric()) {
         std::string operation = Scratch::getFieldValue(block, "OPERATOR");
@@ -145,23 +144,23 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
     return Value(0);
 }
 
-Value OperatorBlocks::equals(Block &block, Sprite *sprite) {
+Value equals(Block &block, Sprite *sprite) {
     return Value(Scratch::getInputValue(block, "OPERAND1", sprite) == Scratch::getInputValue(block, "OPERAND2", sprite));
 }
 
-Value OperatorBlocks::greaterThan(Block &block, Sprite *sprite) {
+Value greaterThan(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "OPERAND1", sprite);
     Value value2 = Scratch::getInputValue(block, "OPERAND2", sprite);
     return Value(value1 > value2);
 }
 
-Value OperatorBlocks::lessThan(Block &block, Sprite *sprite) {
+Value lessThan(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "OPERAND1", sprite);
     Value value2 = Scratch::getInputValue(block, "OPERAND2", sprite);
     return Value(value1 < value2);
 }
 
-Value OperatorBlocks::and_(Block &block, Sprite *sprite) {
+Value and_(Block &block, Sprite *sprite) {
     auto oper1 = block.parsedInputs->find("OPERAND1");
     auto oper2 = block.parsedInputs->find("OPERAND2");
 
@@ -174,7 +173,7 @@ Value OperatorBlocks::and_(Block &block, Sprite *sprite) {
     return Value(value1.asBoolean() && value2.asBoolean());
 }
 
-Value OperatorBlocks::or_(Block &block, Sprite *sprite) {
+Value or_(Block &block, Sprite *sprite) {
     bool result1 = false;
     bool result2 = false;
 
@@ -193,7 +192,7 @@ Value OperatorBlocks::or_(Block &block, Sprite *sprite) {
     return Value(result1 || result2);
 }
 
-Value OperatorBlocks::not_(Block &block, Sprite *sprite) {
+Value not_(Block &block, Sprite *sprite) {
     auto oper = block.parsedInputs->find("OPERAND");
     if (oper == block.parsedInputs->end()) {
         return Value(true);
@@ -202,8 +201,9 @@ Value OperatorBlocks::not_(Block &block, Sprite *sprite) {
     return Value(!value.asBoolean());
 }
 
-Value OperatorBlocks::contains(Block &block, Sprite *sprite) {
+Value contains(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "STRING1", sprite);
     Value value2 = Scratch::getInputValue(block, "STRING2", sprite);
     return Value(value1.asString().find(value2.asString()) != std::string::npos);
 }
+} // namespace blocks::operator_

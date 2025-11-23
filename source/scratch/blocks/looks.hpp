@@ -1,25 +1,24 @@
 #pragma once
-#include "blockExecutor.hpp"
+#include "blockUtils.hpp"
 
-class LooksBlocks {
-  public:
-    static BlockResult show(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult hide(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult switchCostumeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult nextCostume(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult switchBackdropTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult nextBackdrop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult goForwardBackwardLayers(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult goToFrontBack(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult setSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult changeSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+namespace blocks::looks {
+BlockResult show(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult hide(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult switchCostumeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult nextCostume(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult switchBackdropTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult nextBackdrop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult goForwardBackwardLayers(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult goToFrontBack(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult setSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult changeSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 
-    static Value size(Block &block, Sprite *sprite);
-    static Value costume(Block &block, Sprite *sprite);
-    static Value backdrops(Block &block, Sprite *sprite);
-    static Value costumeNumberName(Block &block, Sprite *sprite);
-    static Value backdropNumberName(Block &block, Sprite *sprite);
-};
+Value size(Block &block, Sprite *sprite);
+Value costume(Block &block, Sprite *sprite);
+Value backdrops(Block &block, Sprite *sprite);
+Value costumeNumberName(Block &block, Sprite *sprite);
+Value backdropNumberName(Block &block, Sprite *sprite);
+} // namespace blocks::looks

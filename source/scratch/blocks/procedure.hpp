@@ -1,12 +1,11 @@
 #pragma once
-#include "blockExecutor.hpp"
+#include "blockUtils.hpp"
 
-class ProcedureBlocks {
-  public:
-    static BlockResult call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-    static BlockResult definition(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+namespace blocks::procedure {
+BlockResult call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult definition(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 
-    static Value stringNumber(Block &block, Sprite *sprite);
+Value stringNumber(Block &block, Sprite *sprite);
 
-    static Value booleanArgument(Block &block, Sprite *sprite);
-};
+Value booleanArgument(Block &block, Sprite *sprite);
+} // namespace blocks::procedure

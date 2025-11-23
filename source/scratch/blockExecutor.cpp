@@ -1,7 +1,7 @@
 #include "blockExecutor.hpp"
 #include "blocks/control.hpp"
 #include "blocks/data.hpp"
-#include "blocks/events.hpp"
+#include "blocks/event.hpp"
 #include "blocks/looks.hpp"
 #include "blocks/motion.hpp"
 #include "blocks/operator.hpp"
@@ -38,154 +38,154 @@ BlockExecutor::BlockExecutor() {
 void BlockExecutor::registerHandlers() {
 
     // motion
-    handlers["motion_movesteps"] = MotionBlocks::moveSteps;
-    handlers["motion_gotoxy"] = MotionBlocks::goToXY;
-    handlers["motion_goto"] = MotionBlocks::goTo;
-    handlers["motion_changexby"] = MotionBlocks::changeXBy;
-    handlers["motion_changeyby"] = MotionBlocks::changeYBy;
-    handlers["motion_setx"] = MotionBlocks::setX;
-    handlers["motion_sety"] = MotionBlocks::setY;
-    handlers["motion_glidesecstoxy"] = MotionBlocks::glideSecsToXY;
-    handlers["motion_glideto"] = MotionBlocks::glideTo;
-    handlers["motion_turnright"] = MotionBlocks::turnRight;
-    handlers["motion_turnleft"] = MotionBlocks::turnLeft;
-    handlers["motion_pointindirection"] = MotionBlocks::pointInDirection;
-    handlers["motion_pointtowards"] = MotionBlocks::pointToward;
-    handlers["motion_setrotationstyle"] = MotionBlocks::setRotationStyle;
-    handlers["motion_ifonedgebounce"] = MotionBlocks::ifOnEdgeBounce;
-    valueHandlers["motion_xposition"] = MotionBlocks::xPosition;
-    valueHandlers["motion_yposition"] = MotionBlocks::yPosition;
-    valueHandlers["motion_direction"] = MotionBlocks::direction;
+    handlers["motion_movesteps"] = blocks::motion::moveSteps;
+    handlers["motion_gotoxy"] = blocks::motion::goToXY;
+    handlers["motion_goto"] = blocks::motion::goTo;
+    handlers["motion_changexby"] = blocks::motion::changeXBy;
+    handlers["motion_changeyby"] = blocks::motion::changeYBy;
+    handlers["motion_setx"] = blocks::motion::setX;
+    handlers["motion_sety"] = blocks::motion::setY;
+    handlers["motion_glidesecstoxy"] = blocks::motion::glideSecsToXY;
+    handlers["motion_glideto"] = blocks::motion::glideTo;
+    handlers["motion_turnright"] = blocks::motion::turnRight;
+    handlers["motion_turnleft"] = blocks::motion::turnLeft;
+    handlers["motion_pointindirection"] = blocks::motion::pointInDirection;
+    handlers["motion_pointtowards"] = blocks::motion::pointToward;
+    handlers["motion_setrotationstyle"] = blocks::motion::setRotationStyle;
+    handlers["motion_ifonedgebounce"] = blocks::motion::ifOnEdgeBounce;
+    valueHandlers["motion_xposition"] = blocks::motion::xPosition;
+    valueHandlers["motion_yposition"] = blocks::motion::yPosition;
+    valueHandlers["motion_direction"] = blocks::motion::direction;
 
     // looks
-    handlers["looks_show"] = LooksBlocks::show;
-    handlers["looks_hide"] = LooksBlocks::hide;
-    handlers["looks_switchcostumeto"] = LooksBlocks::switchCostumeTo;
-    handlers["looks_nextcostume"] = LooksBlocks::nextCostume;
-    handlers["looks_switchbackdropto"] = LooksBlocks::switchBackdropTo;
-    handlers["looks_nextbackdrop"] = LooksBlocks::nextBackdrop;
-    handlers["looks_goforwardbackwardlayers"] = LooksBlocks::goForwardBackwardLayers;
-    handlers["looks_gotofrontback"] = LooksBlocks::goToFrontBack;
-    handlers["looks_setsizeto"] = LooksBlocks::setSizeTo;
-    handlers["looks_changesizeby"] = LooksBlocks::changeSizeBy;
-    handlers["looks_seteffectto"] = LooksBlocks::setEffectTo;
-    handlers["looks_changeeffectby"] = LooksBlocks::changeEffectBy;
-    handlers["looks_cleargraphiceffects"] = LooksBlocks::clearGraphicEffects;
-    valueHandlers["looks_size"] = LooksBlocks::size;
-    valueHandlers["looks_costume"] = LooksBlocks::costume;
-    valueHandlers["looks_backdrops"] = LooksBlocks::backdrops;
-    valueHandlers["looks_costumenumbername"] = LooksBlocks::costumeNumberName;
-    valueHandlers["looks_backdropnumbername"] = LooksBlocks::backdropNumberName;
+    handlers["looks_show"] = blocks::looks::show;
+    handlers["looks_hide"] = blocks::looks::hide;
+    handlers["looks_switchcostumeto"] = blocks::looks::switchCostumeTo;
+    handlers["looks_nextcostume"] = blocks::looks::nextCostume;
+    handlers["looks_switchbackdropto"] = blocks::looks::switchBackdropTo;
+    handlers["looks_nextbackdrop"] = blocks::looks::nextBackdrop;
+    handlers["looks_goforwardbackwardlayers"] = blocks::looks::goForwardBackwardLayers;
+    handlers["looks_gotofrontback"] = blocks::looks::goToFrontBack;
+    handlers["looks_setsizeto"] = blocks::looks::setSizeTo;
+    handlers["looks_changesizeby"] = blocks::looks::changeSizeBy;
+    handlers["looks_seteffectto"] = blocks::looks::setEffectTo;
+    handlers["looks_changeeffectby"] = blocks::looks::changeEffectBy;
+    handlers["looks_cleargraphiceffects"] = blocks::looks::clearGraphicEffects;
+    valueHandlers["looks_size"] = blocks::looks::size;
+    valueHandlers["looks_costume"] = blocks::looks::costume;
+    valueHandlers["looks_backdrops"] = blocks::looks::backdrops;
+    valueHandlers["looks_costumenumbername"] = blocks::looks::costumeNumberName;
+    valueHandlers["looks_backdropnumbername"] = blocks::looks::backdropNumberName;
 
     // sound
-    handlers["sound_play"] = SoundBlocks::playSound;
-    handlers["sound_playuntildone"] = SoundBlocks::playSoundUntilDone;
-    handlers["sound_stopallsounds"] = SoundBlocks::stopAllSounds;
-    handlers["sound_changeeffectby"] = SoundBlocks::changeEffectBy;
-    handlers["sound_seteffectto"] = SoundBlocks::setEffectTo;
-    handlers["sound_cleareffects"] = SoundBlocks::clearSoundEffects;
-    handlers["sound_changevolumeby"] = SoundBlocks::changeVolumeBy;
-    handlers["sound_setvolumeto"] = SoundBlocks::setVolumeTo;
-    valueHandlers["sound_volume"] = SoundBlocks::volume;
+    handlers["sound_play"] = blocks::sound::playSound;
+    handlers["sound_playuntildone"] = blocks::sound::playSoundUntilDone;
+    handlers["sound_stopallsounds"] = blocks::sound::stopAllSounds;
+    handlers["sound_changeeffectby"] = blocks::sound::changeEffectBy;
+    handlers["sound_seteffectto"] = blocks::sound::setEffectTo;
+    handlers["sound_cleareffects"] = blocks::sound::clearSoundEffects;
+    handlers["sound_changevolumeby"] = blocks::sound::changeVolumeBy;
+    handlers["sound_setvolumeto"] = blocks::sound::setVolumeTo;
+    valueHandlers["sound_volume"] = blocks::sound::volume;
 
     // events
-    handlers["event_whenflagclicked"] = EventBlocks::flagClicked;
-    handlers["event_broadcast"] = EventBlocks::broadcast;
-    handlers["event_broadcastandwait"] = EventBlocks::broadcastAndWait;
-    handlers["event_whenkeypressed"] = EventBlocks::whenKeyPressed;
-    handlers["event_whenbackdropswitchesto"] = EventBlocks::whenBackdropSwitchesTo;
+    handlers["event_whenflagclicked"] = blocks::event::flagClicked;
+    handlers["event_broadcast"] = blocks::event::broadcast;
+    handlers["event_broadcastandwait"] = blocks::event::broadcastAndWait;
+    handlers["event_whenkeypressed"] = blocks::event::whenKeyPressed;
+    handlers["event_whenbackdropswitchesto"] = blocks::event::whenBackdropSwitchesTo;
 
     // control
-    handlers["control_if"] = ControlBlocks::If;
-    handlers["control_if_else"] = ControlBlocks::ifElse;
-    handlers["control_create_clone_of"] = ControlBlocks::createCloneOf;
-    handlers["control_delete_this_clone"] = ControlBlocks::deleteThisClone;
-    handlers["control_stop"] = ControlBlocks::stop;
-    handlers["control_start_as_clone"] = ControlBlocks::startAsClone;
-    handlers["control_wait"] = ControlBlocks::wait;
-    handlers["control_wait_until"] = ControlBlocks::waitUntil;
-    handlers["control_repeat"] = ControlBlocks::repeat;
-    handlers["control_repeat_until"] = ControlBlocks::repeatUntil;
-    handlers["control_while"] = ControlBlocks::While;
-    handlers["control_forever"] = ControlBlocks::forever;
-    valueHandlers["control_get_counter"] = ControlBlocks::getCounter;
-    handlers["control_clear_counter"] = ControlBlocks::clearCounter;
-    handlers["control_incr_counter"] = ControlBlocks::incrementCounter;
-    handlers["control_for_each"] = ControlBlocks::forEach;
+    handlers["control_if"] = blocks::control::if_;
+    handlers["control_if_else"] = blocks::control::ifElse;
+    handlers["control_create_clone_of"] = blocks::control::createCloneOf;
+    handlers["control_delete_this_clone"] = blocks::control::deleteThisClone;
+    handlers["control_stop"] = blocks::control::stop;
+    handlers["control_start_as_clone"] = blocks::control::startAsClone;
+    handlers["control_wait"] = blocks::control::wait;
+    handlers["control_wait_until"] = blocks::control::waitUntil;
+    handlers["control_repeat"] = blocks::control::repeat;
+    handlers["control_repeat_until"] = blocks::control::repeatUntil;
+    handlers["control_while"] = blocks::control::While;
+    handlers["control_forever"] = blocks::control::forever;
+    valueHandlers["control_get_counter"] = blocks::control::getCounter;
+    handlers["control_clear_counter"] = blocks::control::clearCounter;
+    handlers["control_incr_counter"] = blocks::control::incrementCounter;
+    handlers["control_for_each"] = blocks::control::forEach;
 
     // operators
-    valueHandlers["operator_add"] = OperatorBlocks::add;
-    valueHandlers["operator_subtract"] = OperatorBlocks::subtract;
-    valueHandlers["operator_multiply"] = OperatorBlocks::multiply;
-    valueHandlers["operator_divide"] = OperatorBlocks::divide;
-    valueHandlers["operator_random"] = OperatorBlocks::random;
-    valueHandlers["operator_join"] = OperatorBlocks::join;
-    valueHandlers["operator_letter_of"] = OperatorBlocks::letterOf;
-    valueHandlers["operator_length"] = OperatorBlocks::length;
-    valueHandlers["operator_mod"] = OperatorBlocks::mod;
-    valueHandlers["operator_round"] = OperatorBlocks::round;
-    valueHandlers["operator_mathop"] = OperatorBlocks::mathOp;
-    valueHandlers["operator_equals"] = OperatorBlocks::equals;
-    valueHandlers["operator_gt"] = OperatorBlocks::greaterThan;
-    valueHandlers["operator_lt"] = OperatorBlocks::lessThan;
-    valueHandlers["operator_and"] = OperatorBlocks::and_;
-    valueHandlers["operator_or"] = OperatorBlocks::or_;
-    valueHandlers["operator_not"] = OperatorBlocks::not_;
-    valueHandlers["operator_contains"] = OperatorBlocks::contains;
+    valueHandlers["operator_add"] = blocks::operator_::add;
+    valueHandlers["operator_subtract"] = blocks::operator_::subtract;
+    valueHandlers["operator_multiply"] = blocks::operator_::multiply;
+    valueHandlers["operator_divide"] = blocks::operator_::divide;
+    valueHandlers["operator_random"] = blocks::operator_::random;
+    valueHandlers["operator_join"] = blocks::operator_::join;
+    valueHandlers["operator_letter_of"] = blocks::operator_::letterOf;
+    valueHandlers["operator_length"] = blocks::operator_::length;
+    valueHandlers["operator_mod"] = blocks::operator_::mod;
+    valueHandlers["operator_round"] = blocks::operator_::round;
+    valueHandlers["operator_mathop"] = blocks::operator_::mathOp;
+    valueHandlers["operator_equals"] = blocks::operator_::equals;
+    valueHandlers["operator_gt"] = blocks::operator_::greaterThan;
+    valueHandlers["operator_lt"] = blocks::operator_::lessThan;
+    valueHandlers["operator_and"] = blocks::operator_::and_;
+    valueHandlers["operator_or"] = blocks::operator_::or_;
+    valueHandlers["operator_not"] = blocks::operator_::not_;
+    valueHandlers["operator_contains"] = blocks::operator_::contains;
 
     // data
-    handlers["data_setvariableto"] = DataBlocks::setVariable;
-    handlers["data_changevariableby"] = DataBlocks::changeVariable;
-    handlers["data_showvariable"] = DataBlocks::showVariable;
-    handlers["data_hidevariable"] = DataBlocks::hideVariable;
-    handlers["data_showlist"] = DataBlocks::showList;
-    handlers["data_hidelist"] = DataBlocks::hideList;
-    handlers["data_addtolist"] = DataBlocks::addToList;
-    handlers["data_deleteoflist"] = DataBlocks::deleteFromList;
-    handlers["data_deletealloflist"] = DataBlocks::deleteAllOfList;
-    handlers["data_insertatlist"] = DataBlocks::insertAtList;
-    handlers["data_replaceitemoflist"] = DataBlocks::replaceItemOfList;
-    valueHandlers["data_itemoflist"] = DataBlocks::itemOfList;
-    valueHandlers["data_itemnumoflist"] = DataBlocks::itemNumOfList;
-    valueHandlers["data_lengthoflist"] = DataBlocks::lengthOfList;
-    valueHandlers["data_listcontainsitem"] = DataBlocks::listContainsItem;
+    handlers["data_setvariableto"] = blocks::data::setVariable;
+    handlers["data_changevariableby"] = blocks::data::changeVariable;
+    handlers["data_showvariable"] = blocks::data::showVariable;
+    handlers["data_hidevariable"] = blocks::data::hideVariable;
+    handlers["data_showlist"] = blocks::data::showList;
+    handlers["data_hidelist"] = blocks::data::hideList;
+    handlers["data_addtolist"] = blocks::data::addToList;
+    handlers["data_deleteoflist"] = blocks::data::deleteFromList;
+    handlers["data_deletealloflist"] = blocks::data::deleteAllOfList;
+    handlers["data_insertatlist"] = blocks::data::insertAtList;
+    handlers["data_replaceitemoflist"] = blocks::data::replaceItemOfList;
+    valueHandlers["data_itemoflist"] = blocks::data::itemOfList;
+    valueHandlers["data_itemnumoflist"] = blocks::data::itemNumOfList;
+    valueHandlers["data_lengthoflist"] = blocks::data::lengthOfList;
+    valueHandlers["data_listcontainsitem"] = blocks::data::listContainsItem;
 
     // sensing
-    handlers["sensing_resettimer"] = SensingBlocks::resetTimer;
-    handlers["sensing_askandwait"] = SensingBlocks::askAndWait;
-    handlers["sensing_setdragmode"] = SensingBlocks::setDragMode;
-    valueHandlers["sensing_timer"] = SensingBlocks::sensingTimer;
-    valueHandlers["sensing_of"] = SensingBlocks::of;
-    valueHandlers["sensing_mousex"] = SensingBlocks::mouseX;
-    valueHandlers["sensing_mousey"] = SensingBlocks::mouseY;
-    valueHandlers["sensing_distanceto"] = SensingBlocks::distanceTo;
-    valueHandlers["sensing_distancetomenu"] = SensingBlocks::distanceTo; // Menu variant
-    valueHandlers["sensing_dayssince2000"] = SensingBlocks::daysSince2000;
-    valueHandlers["sensing_current"] = SensingBlocks::current;
-    valueHandlers["sensing_answer"] = SensingBlocks::sensingAnswer;
-    valueHandlers["sensing_keypressed"] = SensingBlocks::keyPressed;
-    valueHandlers["sensing_keyoptions"] = SensingBlocks::keyPressed; // Menu variant
-    valueHandlers["sensing_touchingobject"] = SensingBlocks::touchingObject;
-    valueHandlers["sensing_touchingobjectmenu"] = SensingBlocks::touchingObject; // Menu variant
-    valueHandlers["sensing_mousedown"] = SensingBlocks::mouseDown;
-    valueHandlers["sensing_username"] = SensingBlocks::username;
+    handlers["sensing_resettimer"] = blocks::sensing::resetTimer;
+    handlers["sensing_askandwait"] = blocks::sensing::askAndWait;
+    handlers["sensing_setdragmode"] = blocks::sensing::setDragMode;
+    valueHandlers["sensing_timer"] = blocks::sensing::sensingTimer;
+    valueHandlers["sensing_of"] = blocks::sensing::of;
+    valueHandlers["sensing_mousex"] = blocks::sensing::mouseX;
+    valueHandlers["sensing_mousey"] = blocks::sensing::mouseY;
+    valueHandlers["sensing_distanceto"] = blocks::sensing::distanceTo;
+    valueHandlers["sensing_distancetomenu"] = blocks::sensing::distanceTo; // Menu variant
+    valueHandlers["sensing_dayssince2000"] = blocks::sensing::daysSince2000;
+    valueHandlers["sensing_current"] = blocks::sensing::current;
+    valueHandlers["sensing_answer"] = blocks::sensing::sensingAnswer;
+    valueHandlers["sensing_keypressed"] = blocks::sensing::keyPressed;
+    valueHandlers["sensing_keyoptions"] = blocks::sensing::keyPressed; // Menu variant
+    valueHandlers["sensing_touchingobject"] = blocks::sensing::touchingObject;
+    valueHandlers["sensing_touchingobjectmenu"] = blocks::sensing::touchingObject; // Menu variant
+    valueHandlers["sensing_mousedown"] = blocks::sensing::mouseDown;
+    valueHandlers["sensing_username"] = blocks::sensing::username;
 
     // procedures / arguments
-    handlers["procedures_call"] = ProcedureBlocks::call;
-    handlers["procedures_definition"] = ProcedureBlocks::definition;
-    valueHandlers["argument_reporter_string_number"] = ProcedureBlocks::stringNumber;
-    valueHandlers["argument_reporter_boolean"] = ProcedureBlocks::booleanArgument;
+    handlers["procedures_call"] = blocks::procedure::call;
+    handlers["procedures_definition"] = blocks::procedure::definition;
+    valueHandlers["argument_reporter_string_number"] = blocks::procedure::stringNumber;
+    valueHandlers["argument_reporter_boolean"] = blocks::procedure::booleanArgument;
 
     // pen extension
-    handlers["pen_penDown"] = PenBlocks::PenDown;
-    handlers["pen_penUp"] = PenBlocks::PenUp;
-    handlers["pen_clear"] = PenBlocks::EraseAll;
-    handlers["pen_setPenColorParamTo"] = PenBlocks::SetPenOptionTo;
-    handlers["pen_changePenColorParamBy"] = PenBlocks::ChangePenOptionBy;
-    handlers["pen_stamp"] = PenBlocks::Stamp;
-    handlers["pen_setPenColorToColor"] = PenBlocks::SetPenColorTo;
-    handlers["pen_setPenSizeTo"] = PenBlocks::SetPenSizeTo;
-    handlers["pen_changePenSizeBy"] = PenBlocks::ChangePenSizeBy;
+    handlers["pen_penDown"] = blocks::pen::PenDown;
+    handlers["pen_penUp"] = blocks::pen::PenUp;
+    handlers["pen_clear"] = blocks::pen::EraseAll;
+    handlers["pen_setPenColorParamTo"] = blocks::pen::SetPenOptionTo;
+    handlers["pen_changePenColorParamBy"] = blocks::pen::ChangePenOptionBy;
+    handlers["pen_stamp"] = blocks::pen::Stamp;
+    handlers["pen_setPenColorToColor"] = blocks::pen::SetPenColorTo;
+    handlers["pen_setPenSizeTo"] = blocks::pen::SetPenSizeTo;
+    handlers["pen_changePenSizeBy"] = blocks::pen::ChangePenSizeBy;
 
     // Other (Don't know where else to put these)
     valueHandlers["matrix"] = [](Block &block, Sprite *sprite) {

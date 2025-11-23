@@ -1,26 +1,24 @@
 #include "looks.hpp"
-#include "blockExecutor.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
-#include "math.hpp"
 #include "sprite.hpp"
-#include "unzip.hpp"
 #include "value.hpp"
 #include <algorithm>
 #include <cstddef>
 
-BlockResult LooksBlocks::show(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+namespace blocks::looks {
+BlockResult show(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->visible = true;
     Image::loadImageFromProject(sprite);
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
-BlockResult LooksBlocks::hide(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult hide(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->visible = false;
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult switchCostumeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value inputValue = Scratch::getInputValue(block, "COSTUME", sprite);
     std::string inputString = inputValue.asString();
 
@@ -62,12 +60,12 @@ BlockResult LooksBlocks::switchCostumeTo(Block &block, Sprite *sprite, bool *wit
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::nextCostume(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult nextCostume(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Scratch::switchCostume(sprite, ++sprite->currentCostume);
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult switchBackdropTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value inputValue = Scratch::getInputValue(block, "BACKDROP", sprite);
     std::string inputString = inputValue.asString();
 
@@ -130,7 +128,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult nextBackdrop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     for (Sprite *stage : sprites) {
         if (!stage->isStage) {
             continue;
@@ -150,7 +148,7 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult goForwardBackwardLayers(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "NUM", sprite);
     std::string forwardBackward = Scratch::getFieldValue(block, "FORWARD_BACKWARD");
     if (!value.isNumeric()) return BlockResult::CONTINUE;
@@ -189,7 +187,7 @@ BlockResult LooksBlocks::goForwardBackwardLayers(Block &block, Sprite *sprite, b
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult goToFrontBack(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string value = Scratch::getFieldValue(block, "FRONT_BACK");
     if (value == "front") {
 
@@ -218,7 +216,7 @@ BlockResult LooksBlocks::goToFrontBack(Block &block, Sprite *sprite, bool *witho
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult setSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "SIZE", sprite);
 
     // hasn't been rendered yet, or fencing is disabled
@@ -241,7 +239,7 @@ BlockResult LooksBlocks::setSizeTo(Block &block, Sprite *sprite, bool *withoutSc
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult changeSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value value = Scratch::getInputValue(block, "CHANGE", sprite);
 
     // hasn't been rendered yet, or fencing is disabled
@@ -263,7 +261,7 @@ BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withou
     return BlockResult::CONTINUE;
 }
 
-BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     std::string effect = Scratch::getFieldValue(block, "EFFECT");
     ;
@@ -291,7 +289,7 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *without
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
-BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string effect = Scratch::getFieldValue(block, "EFFECT");
     ;
     Value amount = Scratch::getInputValue(block, "CHANGE", sprite);
@@ -319,7 +317,7 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *with
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
-BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+BlockResult clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     sprite->ghostEffect = 0.0f;
     sprite->colorEffect = -99999;
@@ -329,19 +327,19 @@ BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool 
     return BlockResult::CONTINUE;
 }
 
-Value LooksBlocks::size(Block &block, Sprite *sprite) {
+Value size(Block &block, Sprite *sprite) {
     return Value(sprite->size);
 }
 
-Value LooksBlocks::costume(Block &block, Sprite *sprite) {
+Value costume(Block &block, Sprite *sprite) {
     return Value(Scratch::getFieldValue(block, "COSTUME"));
 }
 
-Value LooksBlocks::backdrops(Block &block, Sprite *sprite) {
+Value backdrops(Block &block, Sprite *sprite) {
     return Value(Scratch::getFieldValue(block, "BACKDROP"));
 }
 
-Value LooksBlocks::costumeNumberName(Block &block, Sprite *sprite) {
+Value costumeNumberName(Block &block, Sprite *sprite) {
     std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
     ;
     if (value == "name") {
@@ -352,7 +350,7 @@ Value LooksBlocks::costumeNumberName(Block &block, Sprite *sprite) {
     return Value();
 }
 
-Value LooksBlocks::backdropNumberName(Block &block, Sprite *sprite) {
+Value backdropNumberName(Block &block, Sprite *sprite) {
     std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
     ;
     if (value == "name") {
@@ -370,3 +368,4 @@ Value LooksBlocks::backdropNumberName(Block &block, Sprite *sprite) {
     }
     return Value();
 }
+} // namespace blocks::looks
