@@ -3,7 +3,6 @@
 #include "SDL3/SDL_gamepad.h"
 #include "SDL3/SDL_surface.h"
 #include "audio.hpp"
-#include "blocks/pen.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"

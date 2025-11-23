@@ -1,9 +1,7 @@
 #include "../image.hpp"
 #include "../interpret.hpp"
-#include "../math.hpp"
 #include "../render.hpp"
 #include "blockUtils.hpp"
-#include "unzip.hpp"
 
 constexpr unsigned int minPenSize = 1;
 constexpr unsigned int maxPenSize = 1200;
