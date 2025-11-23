@@ -20,11 +20,25 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl3")
 endif()
 
-set(
-    SE_RENDERER
-    "headless"
-    CACHE STRING "Select the desired renderer backend."
-)
+if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"sdl3"
+		CACHE STRING "Select the desired renderer backend."
+	)
+elseif("sdl2" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"sdl2"
+		CACHE STRING "Select the desired renderer backend."
+	)
+else()
+	set(
+		SE_RENDERER
+		"headless"
+		CACHE STRING "Select the desired renderer backend."
+	)
+endif()
 if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
     message(
         FATAL_ERROR
