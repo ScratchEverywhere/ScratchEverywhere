@@ -6,9 +6,10 @@
   "splashBackground": "splash.png",
   "title": "Scratch Everywhere!",
   "version": "0.0.1",
-  "appDescription": "Emulation frontend",
+  "appDescription": "Run Scratch projects on the big screen!",
   "iconColor": "#754675",
   "cloudgame_active": true,
   "useAllMouseButtons": true,
+  "disableBackHistoryAPI": true,
   "useAllKeyboardKeys": true
 }
