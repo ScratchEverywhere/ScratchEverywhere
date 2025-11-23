@@ -10,7 +10,7 @@
 #endif
 
 /**
- * Uses SDL2 text input.
+ * Uses SDL3 text input.
  */
 std::string Keyboard::openKeyboard(const char *hintText) {
     TextObject *text = createTextObject(std::string(hintText), 0, 0);

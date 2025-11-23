@@ -186,14 +186,11 @@ void Render::penDot(Sprite *sprite) {
     C2D_SceneBegin(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    const int SCREEN_WIDTH = Render::getWidth();
-    const int SCREEN_HEIGHT = Render::getHeight();
-
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * Render::renderScale), 1, 1000);
 
-    const float xSscaled = (sprite->xPosition * Render::renderScale) + (SCREEN_WIDTH / 2);
-    const float yScaled = (sprite->yPosition * -1 * Render::renderScale) + (SCREEN_HEIGHT * 0.5);
+    const float xSscaled = (sprite->xPosition * Render::renderScale) + (Render::getWidth() / 2);
+    const float yScaled = (sprite->yPosition * -1 * Render::renderScale) + (Render::getHeight() * 0.5);
     const float radius = thickness / 2.0f;
 
     C2D_DrawCircleSolid(xSscaled, yScaled + TEXTURE_OFFSET, 0, radius, color);
@@ -203,7 +200,7 @@ void Render::penStamp(Sprite *sprite) {
     const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
     if (imgFind == images.end()) {
         Log::logWarning("Invalid Image for Stamp");
-        return BlockResult::CONTINUE;
+        return;
     }
     ImageData &data = imgFind->second;
     imgFind->second.freeTimer = data.maxFreeTimer;
