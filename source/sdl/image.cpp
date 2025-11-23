@@ -330,7 +330,7 @@ SDL_Image::SDL_Image(std::string filePath) {
 #endif
     if (spriteSurface == NULL) {
         const std::string error = std::string(IMG_GetError());
-        Log::logWarning(std::string("Error loading image: ") + error);
+        Log::logWarning("Error loading image '" + filePath + "': " + error);
         if (error.find("Out of memory") != std::string::npos) Image::cleanupImagesLite();
         return;
     }
