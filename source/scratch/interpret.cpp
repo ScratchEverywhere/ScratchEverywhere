@@ -174,7 +174,7 @@ bool Scratch::startScratchProject() {
             if (checkFPS) Render::renderSprites();
 
             if (shouldStop) {
-#if defined(HEADLESS_BUILD)
+#if defined(RENDERER_HEADLESS)
                 toExit = true;
                 return false;
 #endif

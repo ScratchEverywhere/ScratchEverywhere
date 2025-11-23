@@ -70,10 +70,7 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
-
-// let the user type what project they want to open if headless
-#ifdef HEADLESS_BUILD
-
+#ifdef RENDERER_HEADLESS // let the user type what project they want to open if headless
     Keyboard kbd;
     std::string answer = kbd.openKeyboard("Please type what project you want to open.");
 
@@ -86,10 +83,7 @@ void MainMenu::init() {
     Unzip::filePath = answer + ".sb3";
 
     MenuManager::loadProject();
-
-#endif
-
-#ifdef __NDS__
+#elif defined(__NDS__)
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
     }

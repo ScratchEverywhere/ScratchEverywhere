@@ -38,7 +38,7 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/3ds/audio
+SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/sdl3/audio
 DATA		:=	data
 INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/3ds/audio include/miniz
 GRAPHICS	:=	gfx
@@ -83,7 +83,7 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer
+CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)

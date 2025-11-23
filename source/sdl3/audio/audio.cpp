@@ -2,12 +2,16 @@
 #include "../../scratch/os.hpp"
 #include "audio.hpp"
 #include "interpret.hpp"
-#include "miniz/miniz.h"
+#include "miniz.h"
 #include "sprite.hpp"
 #include <string>
 #include <unordered_map>
 #ifdef __3DS__
 #include <3ds.h>
+#elif defined(__PC__) || defined(__PSP__)
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
 #endif
 
 std::unordered_map<std::string, std::unique_ptr<SDL_Audio>> SDL_Sounds;
@@ -178,7 +182,12 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         return false;
     }
 
+#if defined(__PC__) || defined(__PSP__)
+    const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+    MIX_Audio *sound = MIX_LoadAudio_IO(mixer, SDL_IOFromConstMem(file.begin(), file.size()), !streamed, true);
+#else
     MIX_Audio *sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
+#endif
     if (!sound) {
         Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + std::string(SDL_GetError()));
         return false;
