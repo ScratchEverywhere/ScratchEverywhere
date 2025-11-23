@@ -171,7 +171,7 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 			NAME SDL3
 			VERSION 3.2.26
 			GITHUB_REPOSITORY libsdl-org/SDL
-			GIT_TAG release-3.2.26
+			GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
 		)
 		CPMAddPackage(
 			NAME SDL3_image
