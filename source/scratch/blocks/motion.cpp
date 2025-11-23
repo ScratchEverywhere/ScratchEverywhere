@@ -9,9 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <iostream>
 #include <math.h>
-#include <ostream>
 #include <string>
 
 SCRATCH_BLOCK(motion, movesteps) {
@@ -32,7 +30,7 @@ SCRATCH_BLOCK(motion, movesteps) {
 }
 
 SCRATCH_BLOCK(motion, goto) {
-    Value objectName = Scratch::getInputValue(block, "TO", sprite);
+    const Value objectName = Scratch::getInputValue(block, "TO", sprite);
 
     const double oldX = sprite->xPosition;
     const double oldY = sprite->yPosition;
@@ -68,8 +66,8 @@ SCRATCH_BLOCK(motion, gotoxy) {
     const double oldX = sprite->xPosition;
     const double oldY = sprite->yPosition;
 
-    Value xVal = Scratch::getInputValue(block, "X", sprite);
-    Value yVal = Scratch::getInputValue(block, "Y", sprite);
+    const Value xVal = Scratch::getInputValue(block, "X", sprite);
+    const Value yVal = Scratch::getInputValue(block, "Y", sprite);
     if (xVal.isNumeric()) sprite->xPosition = xVal.asDouble();
     if (yVal.isNumeric()) sprite->yPosition = yVal.asDouble();
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
@@ -81,33 +79,27 @@ SCRATCH_BLOCK(motion, gotoxy) {
 }
 
 SCRATCH_BLOCK(motion, turnleft) {
-    Value value = Scratch::getInputValue(block, "DEGREES", sprite);
+    const Value value = Scratch::getInputValue(block, "DEGREES", sprite);
     const double direction = value.asDouble();
-    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
-        return BlockResult::CONTINUE;
-    }
+    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) return BlockResult::CONTINUE;
     sprite->rotation -= direction - floor((direction + 179) / 360) * 360;
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, turnright) {
-    Value value = Scratch::getInputValue(block, "DEGREES", sprite);
+    const Value value = Scratch::getInputValue(block, "DEGREES", sprite);
     const double direction = value.asDouble();
-    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
-        return BlockResult::CONTINUE;
-    }
+    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) return BlockResult::CONTINUE;
     sprite->rotation += direction - floor((direction + 179) / 360) * 360;
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, pointindirection) {
-    Value value = Scratch::getInputValue(block, "DIRECTION", sprite);
+    const Value value = Scratch::getInputValue(block, "DIRECTION", sprite);
     const double direction = value.asDouble();
-    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
-        return BlockResult::CONTINUE;
-    }
+    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) return BlockResult::CONTINUE;
     sprite->rotation = direction - floor((direction + 179) / 360) * 360;
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -116,7 +108,7 @@ SCRATCH_BLOCK(motion, pointindirection) {
 SCRATCH_BLOCK(motion, changexby) {
     const double oldX = sprite->xPosition;
 
-    Value value = Scratch::getInputValue(block, "DX", sprite);
+    const Value value = Scratch::getInputValue(block, "DX", sprite);
     if (!value.isNumeric()) return BlockResult::CONTINUE;
 
     sprite->xPosition += value.asDouble();
@@ -131,8 +123,9 @@ SCRATCH_BLOCK(motion, changexby) {
 SCRATCH_BLOCK(motion, changeyby) {
     const double oldY = sprite->yPosition;
 
-    Value value = Scratch::getInputValue(block, "DY", sprite);
+    const Value value = Scratch::getInputValue(block, "DY", sprite);
     if (!value.isNumeric()) return BlockResult::CONTINUE;
+
     sprite->yPosition += value.asDouble();
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
@@ -145,8 +138,9 @@ SCRATCH_BLOCK(motion, changeyby) {
 SCRATCH_BLOCK(motion, setx) {
     const double oldX = sprite->xPosition;
 
-    Value value = Scratch::getInputValue(block, "X", sprite);
+    const Value value = Scratch::getInputValue(block, "X", sprite);
     if (!value.isNumeric()) return BlockResult::CONTINUE;
+
     sprite->xPosition = value.asDouble();
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
@@ -159,8 +153,9 @@ SCRATCH_BLOCK(motion, setx) {
 SCRATCH_BLOCK(motion, sety) {
     const double oldY = sprite->yPosition;
 
-    Value value = Scratch::getInputValue(block, "Y", sprite);
+    const Value value = Scratch::getInputValue(block, "Y", sprite);
     if (!value.isNumeric()) return BlockResult::CONTINUE;
+
     sprite->yPosition = value.asDouble();
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
@@ -171,34 +166,28 @@ SCRATCH_BLOCK(motion, sety) {
 }
 
 SCRATCH_BLOCK(motion, glidesecstoxy) {
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
+    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
 
     if (block.repeatTimes == -1) {
         block.repeatTimes = -6;
 
-        Value duration = Scratch::getInputValue(block, "SECS", sprite);
-        if (duration.isNumeric()) {
-            block.waitDuration = duration.asDouble() * 1000; // milliseconds
-        } else {
-            block.waitDuration = 0;
-        }
+        const Value duration = Scratch::getInputValue(block, "SECS", sprite);
+        block.waitDuration = duration.isNumeric() ? duration.asDouble() * 1000 : 0;
 
         block.waitTimer.start();
         block.glideStartX = sprite->xPosition;
         block.glideStartY = sprite->yPosition;
 
         // Get target positions
-        Value positionXStr = Scratch::getInputValue(block, "X", sprite);
-        Value positionYStr = Scratch::getInputValue(block, "Y", sprite);
+        const Value positionXStr = Scratch::getInputValue(block, "X", sprite);
+        const Value positionYStr = Scratch::getInputValue(block, "Y", sprite);
         block.glideEndX = positionXStr.isNumeric() ? positionXStr.asDouble() : block.glideStartX;
         block.glideEndY = positionYStr.isNumeric() ? positionYStr.asDouble() : block.glideStartY;
 
         BlockExecutor::addToRepeatQueue(sprite, const_cast<Block *>(&block));
     }
 
-    int elapsedTime = block.waitTimer.getTimeMs();
+    const int elapsedTime = block.waitTimer.getTimeMs();
 
     if (elapsedTime >= block.waitDuration) {
         sprite->xPosition = block.glideEndX;
@@ -228,26 +217,19 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
 }
 
 SCRATCH_BLOCK(motion, glideto) {
-
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
+    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
 
     if (block.repeatTimes == -1) {
         block.repeatTimes = -7;
 
-        Value duration = Scratch::getInputValue(block, "SECS", sprite);
-        if (duration.isNumeric()) {
-            block.waitDuration = duration.asDouble() * 1000; // Convert to milliseconds
-        } else {
-            block.waitDuration = 0;
-        }
+        const Value duration = Scratch::getInputValue(block, "SECS", sprite);
+        block.waitDuration = duration.isNumeric() ? duration.asDouble() * 1000 : 0;
 
         block.waitTimer.start();
         block.glideStartX = sprite->xPosition;
         block.glideStartY = sprite->yPosition;
 
-        Value inputValue = Scratch::getInputValue(block, "TO", sprite);
+        const Value inputValue = Scratch::getInputValue(block, "TO", sprite);
         std::string positionXStr;
         std::string positionYStr;
 
@@ -259,11 +241,10 @@ SCRATCH_BLOCK(motion, glideto) {
             positionYStr = std::to_string(Input::mousePointer.y);
         } else {
             for (auto &currentSprite : sprites) {
-                if (currentSprite->name == inputValue.asString()) {
-                    positionXStr = std::to_string(currentSprite->xPosition);
-                    positionYStr = std::to_string(currentSprite->yPosition);
-                    break;
-                }
+                if (currentSprite->name != inputValue.asString()) continue;
+                positionXStr = std::to_string(currentSprite->xPosition);
+                positionYStr = std::to_string(currentSprite->yPosition);
+                break;
             }
         }
 
@@ -273,7 +254,7 @@ SCRATCH_BLOCK(motion, glideto) {
         BlockExecutor::addToRepeatQueue(sprite, const_cast<Block *>(&block));
     }
 
-    int elapsedTime = block.waitTimer.getTimeMs();
+    const int elapsedTime = block.waitTimer.getTimeMs();
 
     if (elapsedTime >= block.waitDuration) {
         sprite->xPosition = block.glideEndX;
@@ -303,7 +284,7 @@ SCRATCH_BLOCK(motion, glideto) {
 }
 
 SCRATCH_BLOCK(motion, pointtoward) {
-    Value objectName = Scratch::getInputValue(block, "TOWARDS", sprite);
+    const Value objectName = Scratch::getInputValue(block, "TOWARDS", sprite);
     double targetX = 0;
     double targetY = 0;
 
@@ -327,8 +308,7 @@ SCRATCH_BLOCK(motion, pointtoward) {
 
     const double dx = targetX - sprite->xPosition;
     const double dy = targetY - sprite->yPosition;
-    double angle = 90 - (atan2(dy, dx) * 180.0 / M_PI);
-    sprite->rotation = angle;
+    sprite->rotation = 90 - (atan2(dy, dx) * 180.0 / M_PI);
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
@@ -337,41 +317,43 @@ SCRATCH_BLOCK(motion, setrotationstyle) {
     std::string value;
     try {
         value = Scratch::getFieldValue(block, "STYLE");
-        ;
     } catch (...) {
-        std::cerr << "unable to find rotation style." << std::endl;
+        Log::logError("Unable to find rotation style.");
         return BlockResult::CONTINUE;
     }
 
     if (value == "left-right") {
         sprite->rotationStyle = sprite->LEFT_RIGHT;
-    } else if (value == "don't rotate") {
-        sprite->rotationStyle = sprite->NONE;
-    } else {
-        sprite->rotationStyle = sprite->ALL_AROUND;
+        return BlockResult::CONTINUE;
     }
+    if (value == "don't rotate") {
+        sprite->rotationStyle = sprite->NONE;
+        return BlockResult::CONTINUE;
+    }
+    sprite->rotationStyle = sprite->ALL_AROUND;
+
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, ifonedgebounce) {
-    double halfWidth = Scratch::projectWidth / 2.0;
-    double halfHeight = Scratch::projectHeight / 2.0;
+    const double halfWidth = Scratch::projectWidth / 2.0;
+    const double halfHeight = Scratch::projectHeight / 2.0;
 
-    double scale = sprite->size / 100.0;
-    double spriteHalfWidth = (sprite->spriteWidth * scale) / 2.0;
-    double spriteHalfHeight = (sprite->spriteHeight * scale) / 2.0;
+    const double scale = sprite->size / 100.0;
+    const double spriteHalfWidth = (sprite->spriteWidth * scale) / 2.0;
+    const double spriteHalfHeight = (sprite->spriteHeight * scale) / 2.0;
 
     // Compute bounds of the sprite
-    double left = sprite->xPosition - spriteHalfWidth;
-    double right = sprite->xPosition + spriteHalfWidth;
-    double top = sprite->yPosition + spriteHalfHeight;
-    double bottom = sprite->yPosition - spriteHalfHeight;
+    const double left = sprite->xPosition - spriteHalfWidth;
+    const double right = sprite->xPosition + spriteHalfWidth;
+    const double top = sprite->yPosition + spriteHalfHeight;
+    const double bottom = sprite->yPosition - spriteHalfHeight;
 
     // Compute distances from edges (positive when far from edge, zero or negative when overlapping)
-    double distLeft = std::max(0.0, halfWidth + left);
-    double distRight = std::max(0.0, halfWidth - right);
-    double distTop = std::max(0.0, halfHeight - top);
-    double distBottom = std::max(0.0, halfHeight + bottom);
+    const double distLeft = std::max(0.0, halfWidth + left);
+    const double distRight = std::max(0.0, halfWidth - right);
+    const double distTop = std::max(0.0, halfHeight - top);
+    const double distBottom = std::max(0.0, halfHeight + bottom);
 
     // Determine the nearest edge being touched
     std::string nearestEdge = "";
@@ -400,7 +382,7 @@ SCRATCH_BLOCK(motion, ifonedgebounce) {
     }
 
     // Convert current direction to radians
-    double radians = (90.0 - sprite->rotation) * (M_PI / 180.0);
+    const double radians = (90.0 - sprite->rotation) * (M_PI / 180.0);
     double dx = std::cos(radians);
     double dy = -std::sin(radians);
 

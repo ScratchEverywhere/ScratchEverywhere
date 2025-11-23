@@ -13,10 +13,7 @@ SCRATCH_BLOCK(event, broadcast) {
 }
 
 SCRATCH_BLOCK(event, broadcastandwait) {
-
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
+    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
 
     if (block.repeatTimes == -1) {
         block.repeatTimes = -10;
@@ -42,9 +39,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
 
 SCRATCH_BLOCK(event, whenkeypressed) {
     for (std::string button : Input::inputButtons) {
-        if (Scratch::getFieldValue(block, "KEY_OPTION") == button) {
-            return BlockResult::CONTINUE;
-        }
+        if (Scratch::getFieldValue(block, "KEY_OPTION") == button) return BlockResult::CONTINUE;
     }
     return BlockResult::RETURN;
 }

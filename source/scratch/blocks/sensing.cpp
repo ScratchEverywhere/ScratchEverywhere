@@ -15,16 +15,13 @@ SCRATCH_BLOCK(sensing, resettimer) {
 
 SCRATCH_BLOCK(sensing, askandwait) {
     Keyboard kbd;
-    Value inputValue = Scratch::getInputValue(block, "QUESTION", sprite);
-    std::string output = kbd.openKeyboard(inputValue.asString().c_str());
-    answer = output;
+    const Value inputValue = Scratch::getInputValue(block, "QUESTION", sprite);
+    answer = kbd.openKeyboard(inputValue.asString().c_str());
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(sensing, setdragmode) {
-
-    std::string mode = Scratch::getFieldValue(block, "DRAG_MODE");
-    ;
+    const std::string mode = Scratch::getFieldValue(block, "DRAG_MODE");
 
     if (mode == "draggable") {
         sprite->draggable = true;
@@ -40,41 +37,29 @@ SCRATCH_REPORTER_BLOCK(sensing, timer) {
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, of) {
-    std::string value = Scratch::getFieldValue(block, "PROPERTY");
-    Value inputValue = Scratch::getInputValue(block, "OBJECT", sprite);
+    const std::string value = Scratch::getFieldValue(block, "PROPERTY");
+    const Value inputValue = Scratch::getInputValue(block, "OBJECT", sprite);
 
     Sprite *spriteObject = nullptr;
     for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
-            spriteObject = currentSprite;
-            break;
-        }
+        if (currentSprite->name != inputValue.asString() || currentSprite->isClone) continue;
+        spriteObject = currentSprite;
+        break;
     }
 
     if (!spriteObject) return Value(0);
 
-    if (value == "timer") {
-        return Value(BlockExecutor::timer.getTimeMs() / 1000);
-    } else if (value == "x position") {
-        return Value(spriteObject->xPosition);
-    } else if (value == "y position") {
-        return Value(spriteObject->yPosition);
-    } else if (value == "direction") {
-        return Value(spriteObject->rotation);
-    } else if (value == "costume #" || value == "backdrop #") {
-        return Value(spriteObject->currentCostume + 1);
-    } else if (value == "costume name" || value == "backdrop name") {
-        return Value(spriteObject->costumes[spriteObject->currentCostume].name);
-    } else if (value == "size") {
-        return Value(spriteObject->size);
-    } else if (value == "volume") {
-        return Value(spriteObject->volume);
-    }
+    if (value == "timer") return Value(BlockExecutor::timer.getTimeMs() / 1000);
+    if (value == "x position") return Value(spriteObject->xPosition);
+    if (value == "y position") return Value(spriteObject->yPosition);
+    if (value == "direction") return Value(spriteObject->rotation);
+    if (value == "costume #" || value == "backdrop #") return Value(spriteObject->currentCostume + 1);
+    if (value == "costume name" || value == "backdrop name") return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+    if (value == "size") return Value(spriteObject->size);
+    if (value == "volume") return Value(spriteObject->volume);
 
     for (const auto &[id, variable] : spriteObject->variables) {
-        if (value == variable.name) {
-            return variable.value;
-        }
+        if (value == variable.name) return variable.value;
     }
     return Value(0);
 }
@@ -88,20 +73,15 @@ SCRATCH_REPORTER_BLOCK(sensing, mousey) {
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, distanceto) {
-    Value inputValue = Scratch::getInputValue(block, "DISTANCETOMENU", sprite);
+    const Value inputValue = Scratch::getInputValue(block, "DISTANCETOMENU", sprite);
 
-    if (inputValue.asString() == "_mouse_") {
-        return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) +
-                          pow(Input::mousePointer.y - sprite->yPosition, 2)));
-    }
+    if (inputValue.asString() == "_mouse_") return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) + pow(Input::mousePointer.y - sprite->yPosition, 2)));
 
     for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
-            double distance = sqrt(pow(currentSprite->xPosition - sprite->xPosition, 2) +
-                                   pow(currentSprite->yPosition - sprite->yPosition, 2));
-            return Value(distance);
-        }
+        if (currentSprite->name != inputValue.asString() || currentSprite->isClone) continue;
+        return Value(sqrt(pow(currentSprite->xPosition - sprite->xPosition, 2) + pow(currentSprite->yPosition - sprite->yPosition, 2)));
     }
+
     return Value(10000);
 }
 
@@ -133,30 +113,25 @@ SCRATCH_REPORTER_BLOCK(sensing, answer) {
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, keypressed) {
-    Value inputValue = Scratch::getInputValue(block, "KEY_OPTION", sprite);
+    const Value inputValue = Scratch::getInputValue(block, "KEY_OPTION", sprite);
     for (std::string button : Input::inputButtons) {
-        if (inputValue.asString() == button) {
-            return Value(true);
-        }
+        if (inputValue.asString() == button) return Value(true);
     }
 
     return Value(false);
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, touchingobject) {
-    Value inputValue = Scratch::getInputValue(block, "TOUCHINGOBJECTMENU", sprite);
+    const Value inputValue = Scratch::getInputValue(block, "TOUCHINGOBJECTMENU", sprite);
 
-    if (inputValue.asString() == "_mouse_") {
-        return Value(isColliding("mouse", sprite));
-    } else if (inputValue.asString() == "_edge_") {
-        return Value(isColliding("edge", sprite));
-    } else {
-        for (size_t i = 0; i < sprites.size(); i++) {
-            Sprite *currentSprite = sprites[i];
-            if (currentSprite->name == inputValue.asString() &&
-                isColliding("sprite", sprite, currentSprite, inputValue.asString())) {
-                return Value(true);
-            }
+    if (inputValue.asString() == "_mouse_") return Value(isColliding("mouse", sprite));
+    if (inputValue.asString() == "_edge_") return Value(isColliding("edge", sprite));
+
+    for (size_t i = 0; i < sprites.size(); i++) {
+        Sprite *currentSprite = sprites[i];
+        if (currentSprite->name == inputValue.asString() &&
+            isColliding("sprite", sprite, currentSprite, inputValue.asString())) {
+            return Value(true);
         }
     }
     return Value(false);

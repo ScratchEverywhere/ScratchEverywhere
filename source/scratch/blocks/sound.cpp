@@ -7,11 +7,9 @@
 #include "value.hpp"
 
 SCRATCH_BLOCK(sound, playuntildone) {
-    Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
+    const Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
 
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
+    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
 
     if (block.repeatTimes == -1) {
         block.repeatTimes = -2;
@@ -61,16 +59,14 @@ SCRATCH_BLOCK(sound, playuntildone) {
         }
     }
 
-    if (!checkSoundName.empty() && SoundPlayer::isSoundPlaying(checkSoundName)) {
-        return BlockResult::RETURN;
-    }
+    if (!checkSoundName.empty() && SoundPlayer::isSoundPlaying(checkSoundName)) return BlockResult::RETURN;
 
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(sound, play) {
-    Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
+    const Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
 
     // Find sound by name first
     std::string soundFullName;
@@ -119,7 +115,7 @@ SCRATCH_BLOCK_NOP(sound, seteffectto)
 SCRATCH_BLOCK_NOP(sound, cleareffects)
 
 SCRATCH_BLOCK(sound, changevolumeby) {
-    Value inputValue = Scratch::getInputValue(block, "VOLUME", sprite);
+    const Value inputValue = Scratch::getInputValue(block, "VOLUME", sprite);
     for (auto &[id, sound] : sprite->sounds) {
         SoundPlayer::setSoundVolume(sound.fullName, sprite->volume + inputValue.asDouble());
         sprite->volume = SoundPlayer::getSoundVolume(sound.fullName);
@@ -128,7 +124,7 @@ SCRATCH_BLOCK(sound, changevolumeby) {
 }
 
 SCRATCH_BLOCK(sound, setvolumeto) {
-    Value inputValue = Scratch::getInputValue(block, "VOLUME", sprite);
+    const Value inputValue = Scratch::getInputValue(block, "VOLUME", sprite);
     for (auto &[id, sound] : sprite->sounds) {
         SoundPlayer::setSoundVolume(sound.fullName, inputValue.asDouble());
     }
