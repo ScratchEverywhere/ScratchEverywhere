@@ -80,7 +80,7 @@ if(NOT SE_HEADLESS)
 			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
 		endif()
 
-		if (SE_AUDIO)
+		if (SE_AUDIO AND NOT WEBOS)
 			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
 		endif()
 	else()
@@ -104,7 +104,9 @@ if(NOT SE_HEADLESS)
 			GIT_TAG release-2.24.0
 			OPTIONS "SDL2TTF_VENDORED ON"
 		)
+	endif()
 
+	if(NOT SE_SYSTEM OR WEBOS)
 		if(SE_AUDIO)
 			CPMAddPackage(
 				NAME SDL2_mixer
@@ -114,9 +116,6 @@ if(NOT SE_HEADLESS)
 				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
 			)
 		endif()
-	endif()
-
-	if(NOT SE_SYSTEM OR WEBOS)
 		CPMAddPackage(
 			NAME SDL2_image
 			VERSION 2.8.8
@@ -146,6 +145,10 @@ if(NOT SE_HEADLESS)
 			target_include_directories(SDL2_image PRIVATE ${SDL2_INCLUDE_DIRS})
 			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
 			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
+			if(SE_AUDIO)
+				target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
+				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
+			endif()
 		else()
 			target_link_libraries(SDL2_gfx PUBLIC
 				SDL2::SDL2
@@ -245,6 +248,9 @@ if (NOT SE_HEADLESS)
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
 	else()
 		list(APPEND SDL_LINK_LIBS SDL2_image)
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS SDL2_mixer)
+		endif()
 		list(APPEND SDL_LINK_LIBS SDL2_gfx)
 	endif()
 
