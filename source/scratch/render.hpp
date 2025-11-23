@@ -245,8 +245,7 @@ class Render {
                         .r = 255,
                         .g = 141,
                         .b = 41,
-                        .a = 255
-                    };
+                        .a = 255};
                 }
 
                 // draw background
@@ -285,6 +284,21 @@ class Render {
      * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
      */
     static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite);
+
+    /**
+     * Called on pen down to place a singular dot at the position of the sprite.
+     */
+    static void penDot(Sprite *sprite);
+
+    /**
+     * Called whenever the stamp block is used to place a copy of the sprite onto the pen canvas.
+     */
+    static void penStamp(Sprite *sprite);
+
+    /**
+     * Called when the pen canvas needs to be cleared.
+     */
+    static void penClear();
 
     /**
      * Returns whether or not enough time has passed to advance a frame.

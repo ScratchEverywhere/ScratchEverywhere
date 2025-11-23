@@ -176,6 +176,7 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
 		pkg_check_modules(SDL3_IMAGE REQUIRED SDL3_image>=3.0.0)
 		pkg_check_modules(SDL3_TTF REQUIRED SDL3_ttf>=3.0.0)
+		pkg_check_modules(SDL3_GFX REQUIRED SDL3_gfx>=1.0.0)
 
 		if (SE_AUDIO)
 			pkg_check_modules(SDL3_MIXER REQUIRED SDL3_mixer>=2.0.0)
@@ -186,6 +187,7 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 			VERSION 3.2.26
 			GITHUB_REPOSITORY libsdl-org/SDL
 			GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
+			OPTIONS "SDL_TEST_LIBRARY OFF"
 		)
 		CPMAddPackage(
 			NAME SDL3_image
@@ -199,6 +201,11 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 			GITHUB_REPOSITORY libsdl-org/SDL_ttf
 			GIT_TAG release-3.2.2
 			OPTIONS "SDLTTF_VENDORED ON"
+		)
+		CPMAddPackage(
+			NAME SDL3_gfx
+			VERSION 1.0.1
+			GITHUB_REPOSITORY sabdul-khabir/SDL3_gfx
 		)
 		if(SE_AUDIO)
 			CPMAddPackage(
@@ -297,9 +304,13 @@ if(SE_RENDERER STREQUAL "sdl3")
 	set(SDL_LINK_LIBS)
 	list(APPEND SDL_LINK_LIBS SDL3::SDL3)
 
+	if(NOT SE_SYSTEM)
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_gfx_SOURCE_DIR})
+	endif()
+
 	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS})
+		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
 
 		if (SE_AUDIO)
 			list(APPEND SDL_LINK_LIBS ${SDL3_MIXER_LIBRARIES})
@@ -308,6 +319,7 @@ if(SE_RENDERER STREQUAL "sdl3")
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL3_image::SDL3_image)
 		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
+		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
 
 		if(SE_AUDIO)	
 			list(APPEND SDL_LINK_LIBS SDL3_mixer::SDL3_mixer)
@@ -319,6 +331,7 @@ if(SE_RENDERER STREQUAL "sdl3")
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_ttf::SDL3_ttf-static>,
 			SDL3_ttf::SDL3_ttf-static,
 			SDL3_ttf::SDL3_ttf>)
+		list(APPEND SDL_LINK_LIBS SDL3_gfx_Static)
 		if(SE_AUDIO)
 			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,
 				SDL3_mixer::SDL3_mixer-static,
