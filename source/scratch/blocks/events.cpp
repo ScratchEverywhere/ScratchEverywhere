@@ -48,3 +48,5 @@ SCRATCH_BLOCK(event, whenkeypressed) {
     }
     return BlockResult::RETURN;
 }
+
+SCRATCH_BLOCK_NOP(event, whenbroadcastreceived)
