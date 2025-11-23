@@ -311,14 +311,6 @@ Value LooksBlocks::size(Block &block, Sprite *sprite) {
     return Value(sprite->size);
 }
 
-Value LooksBlocks::costume(Block &block, Sprite *sprite) {
-    return Value(Scratch::getFieldValue(block, "COSTUME"));
-}
-
-Value LooksBlocks::backdrops(Block &block, Sprite *sprite) {
-    return Value(Scratch::getFieldValue(block, "BACKDROP"));
-}
-
 Value LooksBlocks::costumeNumberName(Block &block, Sprite *sprite) {
     std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
     ;

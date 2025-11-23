@@ -135,8 +135,6 @@ void BlockExecutor::registerHandlers() {
         {"motion_direction", MotionBlocks::direction},
 
         {"looks_size", LooksBlocks::size},
-        {"looks_costume", LooksBlocks::costume},
-        {"looks_backdrops", LooksBlocks::backdrops},
         {"looks_costumenumbername", LooksBlocks::costumeNumberName},
         {"looks_backdropnumbername", LooksBlocks::backdropNumberName},
 
