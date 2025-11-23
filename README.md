@@ -23,7 +23,7 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 ## Controls
 
-![Controls](docs/controls.png)
+![Controls](docs/controls/all.png)
 
 ### Mouse
 
