@@ -1,4 +1,4 @@
-#include "data.hpp"
+#include "blockUtils.hpp"
 #include "interpret.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
@@ -7,7 +7,7 @@
 namespace blocks::data {
 constexpr unsigned int MAX_LIST_ITEMS = 200000;
 
-BlockResult setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, setvariableto) {
     Value val = Scratch::getInputValue(block, "VALUE", sprite);
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
 
@@ -15,7 +15,7 @@ BlockResult setVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh
     return BlockResult::CONTINUE;
 }
 
-BlockResult changeVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, changevariableby) {
     Value val = Scratch::getInputValue(block, "VALUE", sprite);
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
     Value oldVariable = BlockExecutor::getVariableValue(varId, sprite);
@@ -24,7 +24,7 @@ BlockResult changeVariable(Block &block, Sprite *sprite, bool *withoutScreenRefr
     return BlockResult::CONTINUE;
 }
 
-BlockResult showVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, showvariable) {
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
     for (Monitor &var : Render::visibleVariables) {
         if (var.id == varId) {
@@ -36,7 +36,7 @@ BlockResult showVariable(Block &block, Sprite *sprite, bool *withoutScreenRefres
     return BlockResult::CONTINUE;
 }
 
-BlockResult hideVariable(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, hidevariable) {
     std::string varId = Scratch::getFieldId(block, "VARIABLE");
     for (Monitor &var : Render::visibleVariables) {
         if (var.id == varId) {
@@ -48,7 +48,7 @@ BlockResult hideVariable(Block &block, Sprite *sprite, bool *withoutScreenRefres
     return BlockResult::CONTINUE;
 }
 
-BlockResult showList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, showlist) {
     std::string varId = Scratch::getFieldId(block, "LIST");
     for (Monitor &var : Render::visibleVariables) {
         if (var.id == varId) {
@@ -60,7 +60,7 @@ BlockResult showList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
     return BlockResult::CONTINUE;
 }
 
-BlockResult hideList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, hidelist) {
     std::string varId = Scratch::getFieldId(block, "LIST");
     for (Monitor &var : Render::visibleVariables) {
         if (var.id == varId) {
@@ -72,7 +72,7 @@ BlockResult hideList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
     return BlockResult::CONTINUE;
 }
 
-BlockResult addToList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, addtolist) {
     Value val = Scratch::getInputValue(block, "ITEM", sprite);
     std::string listId = Scratch::getFieldId(block, "LIST");
 
@@ -96,7 +96,7 @@ BlockResult addToList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, 
     return BlockResult::CONTINUE;
 }
 
-BlockResult deleteFromList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, deletefromlist) {
     Value val = Scratch::getInputValue(block, "INDEX", sprite);
     std::string listId = Scratch::getFieldId(block, "LIST");
 
@@ -146,7 +146,7 @@ BlockResult deleteFromList(Block &block, Sprite *sprite, bool *withoutScreenRefr
     return BlockResult::CONTINUE;
 }
 
-BlockResult deleteAllOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, deletealloflist) {
     std::string listId = Scratch::getFieldId(block, "LIST");
 
     Sprite *targetSprite = nullptr;
@@ -171,7 +171,7 @@ BlockResult deleteAllOfList(Block &block, Sprite *sprite, bool *withoutScreenRef
     return BlockResult::CONTINUE;
 }
 
-BlockResult insertAtList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, insertatlist) {
     Value val = Scratch::getInputValue(block, "ITEM", sprite);
     std::string listId = Scratch::getFieldId(block, "LIST");
     Value index = Scratch::getInputValue(block, "INDEX", sprite);
@@ -221,7 +221,7 @@ BlockResult insertAtList(Block &block, Sprite *sprite, bool *withoutScreenRefres
     return BlockResult::CONTINUE;
 }
 
-BlockResult replaceItemOfList(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(data, replaceitemoflist) {
     Value val = Scratch::getInputValue(block, "ITEM", sprite);
     std::string listId = Scratch::getFieldId(block, "LIST");
     Value index = Scratch::getInputValue(block, "INDEX", sprite);
@@ -264,7 +264,7 @@ BlockResult replaceItemOfList(Block &block, Sprite *sprite, bool *withoutScreenR
     return BlockResult::CONTINUE;
 }
 
-Value itemOfList(Block &block, Sprite *sprite) {
+SCRATCH_REPORTER_BLOCK(data, itemoflist) {
     Value indexStr = Scratch::getInputValue(block, "INDEX", sprite);
     int index = indexStr.asInt() - 1;
     std::string listName = Scratch::getFieldId(block, "LIST");
@@ -304,7 +304,7 @@ Value itemOfList(Block &block, Sprite *sprite) {
     return Value();
 }
 
-Value itemNumOfList(Block &block, Sprite *sprite) {
+SCRATCH_REPORTER_BLOCK(data, itemnumoflist) {
     std::string listName = Scratch::getFieldId(block, "LIST");
     Value itemToFind = Scratch::getInputValue(block, "ITEM", sprite);
 
@@ -337,7 +337,7 @@ Value itemNumOfList(Block &block, Sprite *sprite) {
     return Value();
 }
 
-Value lengthOfList(Block &block, Sprite *sprite) {
+SCRATCH_REPORTER_BLOCK(data, lengthoflist) {
     std::string listName = Scratch::getFieldId(block, "LIST");
 
     Sprite *targetSprite = nullptr;
@@ -362,7 +362,7 @@ Value lengthOfList(Block &block, Sprite *sprite) {
     return Value();
 }
 
-Value listContainsItem(Block &block, Sprite *sprite) {
+SCRATCH_REPORTER_BLOCK(data, listcontainsitem) {
     std::string listName = Scratch::getFieldId(block, "LIST");
     Value itemToFind = Scratch::getInputValue(block, "ITEM", sprite);
 

@@ -1,5 +1,5 @@
-#include "sound.hpp"
 #include "audio.hpp"
+#include "blockUtils.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
 #include "sprite.hpp"
@@ -7,7 +7,7 @@
 #include "value.hpp"
 
 namespace blocks::sound {
-BlockResult playSoundUntilDone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(sound, playuntildone) {
     Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
     std::string inputString = inputValue.asString();
 
@@ -82,7 +82,7 @@ BlockResult playSoundUntilDone(Block &block, Sprite *sprite, bool *withoutScreen
     return BlockResult::CONTINUE;
 }
 
-BlockResult playSound(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(sound, play) {
     Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
     std::string inputString = inputValue.asString();
 
@@ -127,7 +127,7 @@ BlockResult playSound(Block &block, Sprite *sprite, bool *withoutScreenRefresh, 
     return BlockResult::CONTINUE;
 }
 
-BlockResult stopAllSounds(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(sound, stopallsounds) {
     for (auto &currentSprite : sprites) {
         for (auto &[id, sound] : currentSprite->sounds) {
             SoundPlayer::stopSound(sound.fullName);
@@ -136,19 +136,13 @@ BlockResult stopAllSounds(Block &block, Sprite *sprite, bool *withoutScreenRefre
     return BlockResult::CONTINUE;
 }
 
-BlockResult changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
+SCRATCH_BLOCK_NOP(sound, changeeffectby)
 
-BlockResult setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
+SCRATCH_BLOCK_NOP(sound, seteffectto)
 
-BlockResult clearSoundEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
+SCRATCH_BLOCK_NOP(sound, cleareffects)
 
-BlockResult changeVolumeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(sound, changevolumeby) {
     Value inputValue = Scratch::getInputValue(block, "VOLUME", sprite);
     for (auto &[id, sound] : sprite->sounds) {
         SoundPlayer::setSoundVolume(sound.fullName, sprite->volume + inputValue.asDouble());
@@ -157,7 +151,7 @@ BlockResult changeVolumeBy(Block &block, Sprite *sprite, bool *withoutScreenRefr
     return BlockResult::CONTINUE;
 }
 
-BlockResult setVolumeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(sound, setvolumeto) {
     Value inputValue = Scratch::getInputValue(block, "VOLUME", sprite);
     for (auto &[id, sound] : sprite->sounds) {
         SoundPlayer::setSoundVolume(sound.fullName, inputValue.asDouble());
@@ -166,7 +160,7 @@ BlockResult setVolumeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh
     return BlockResult::CONTINUE;
 }
 
-Value volume(Block &block, Sprite *sprite) {
+SCRATCH_REPORTER_BLOCK(sound, volume) {
     return Value(sprite->volume);
 }
 } // namespace blocks::sound

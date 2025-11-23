@@ -1,23 +1,19 @@
-#include "event.hpp"
+#include "blockUtils.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
 #include "sprite.hpp"
 
 namespace blocks::events {
-BlockResult flagClicked(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
+SCRATCH_BLOCK_NOP(event, whenflagclicked)
 
-BlockResult whenBackdropSwitchesTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
+SCRATCH_BLOCK_NOP(event, whenbackdropswitchesto)
 
-BlockResult broadcast(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(event, broadcast) {
     broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
     return BlockResult::CONTINUE;
 }
 
-BlockResult broadcastAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(event, broadcastandwait) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -45,7 +41,7 @@ BlockResult broadcastAndWait(Block &block, Sprite *sprite, bool *withoutScreenRe
     return BlockResult::CONTINUE;
 }
 
-BlockResult whenKeyPressed(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(event, whenkeypressed) {
     for (std::string button : Input::inputButtons) {
         if (Scratch::getFieldValue(block, "KEY_OPTION") == button) {
             return BlockResult::CONTINUE;

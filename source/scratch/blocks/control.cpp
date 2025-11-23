@@ -1,5 +1,5 @@
-#include "control.hpp"
 #include "../audio.hpp"
+#include "blockUtils.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
 #include "os.hpp"
@@ -9,7 +9,7 @@
 #include <ostream>
 
 namespace blocks::control {
-BlockResult if_(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, if) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     bool condition = conditionValue.asBoolean();
 
@@ -43,7 +43,7 @@ BlockResult if_(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool f
     return BlockResult::CONTINUE;
 }
 
-BlockResult ifElse(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, if_else) {
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     bool condition = conditionValue.asBoolean();
 
@@ -76,7 +76,7 @@ BlockResult ifElse(Block &block, Sprite *sprite, bool *withoutScreenRefresh, boo
     return BlockResult::CONTINUE;
 }
 
-BlockResult createCloneOf(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, create_clone_of) {
     // std::cout << "Trying " << std::endl;
 
     Block *cloneOptions = nullptr;
@@ -120,7 +120,8 @@ BlockResult createCloneOf(Block &block, Sprite *sprite, bool *withoutScreenRefre
     Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
-BlockResult deleteThisClone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+
+SCRATCH_BLOCK(control, delete_this_clone) {
     if (sprite->isClone) {
         sprite->toDelete = true;
         return BlockResult::CONTINUE;
@@ -128,7 +129,7 @@ BlockResult deleteThisClone(Block &block, Sprite *sprite, bool *withoutScreenRef
     return BlockResult::CONTINUE;
 }
 
-BlockResult stop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, stop) {
     std::string stopType = Scratch::getFieldValue(block, "STOP_OPTION");
     ;
     if (stopType == "all") {
@@ -166,11 +167,9 @@ BlockResult stop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool 
     return BlockResult::RETURN;
 }
 
-BlockResult startAsClone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
+SCRATCH_BLOCK_NOP(control, start_as_clone)
 
-BlockResult wait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, wait) {
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
     }
@@ -201,7 +200,7 @@ BlockResult wait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool 
     return BlockResult::RETURN;
 }
 
-BlockResult waitUntil(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, wait_until) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -225,7 +224,7 @@ BlockResult waitUntil(Block &block, Sprite *sprite, bool *withoutScreenRefresh, 
     return BlockResult::RETURN;
 }
 
-BlockResult repeat(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, repeat) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -256,7 +255,7 @@ BlockResult repeat(Block &block, Sprite *sprite, bool *withoutScreenRefresh, boo
     return BlockResult::CONTINUE;
 }
 
-BlockResult While(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, while) {
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
     }
@@ -290,7 +289,7 @@ BlockResult While(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool
     return BlockResult::RETURN;
 }
 
-BlockResult repeatUntil(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, repeat_until) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -327,7 +326,7 @@ BlockResult repeatUntil(Block &block, Sprite *sprite, bool *withoutScreenRefresh
     return BlockResult::RETURN;
 }
 
-BlockResult forever(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, forever) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -348,21 +347,21 @@ BlockResult forever(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bo
     return BlockResult::RETURN;
 }
 
-Value getCounter(Block &block, Sprite *sprite) {
+SCRATCH_REPORTER_BLOCK(control, get_counter) {
     return Value(Scratch::counter);
 }
 
-BlockResult incrementCounter(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, incr_counter) {
     Scratch::counter++;
     return BlockResult::CONTINUE;
 }
 
-BlockResult clearCounter(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, clear_counter) {
     Scratch::counter = 0;
     return BlockResult::CONTINUE;
 }
 
-BlockResult forEach(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(control, for_each) {
     if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
 
     if (block.repeatTimes == -1) {

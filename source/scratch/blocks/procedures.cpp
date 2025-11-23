@@ -1,7 +1,6 @@
+#include "blockUtils.hpp"
 #include "interpret.hpp"
-#include "procedure.hpp"
 #include "sprite.hpp"
-#include "unzip.hpp"
 #include "value.hpp"
 
 #ifdef SDL_BUILD
@@ -11,7 +10,7 @@ extern SDL_GameController *controller;
 #endif
 
 namespace blocks::procedures {
-Value stringNumber(Block &block, Sprite *sprite) {
+SCRATCH_SHADOW_BLOCK(argument_reporter_string_number) {
     const std::string name = Scratch::getFieldValue(block, "VALUE");
     if (name == "Scratch Everywhere! platform") {
         return Value(OS::getPlatform());
@@ -29,7 +28,7 @@ Value stringNumber(Block &block, Sprite *sprite) {
     return BlockExecutor::getCustomBlockValue(name, sprite, block);
 }
 
-Value booleanArgument(Block &block, Sprite *sprite) {
+SCRATCH_SHADOW_BLOCK(argument_reporter_boolean) {
     const std::string name = Scratch::getFieldValue(block, "VALUE");
     if (name == "is Scratch Everywhere!?") return Value(true);
     if (name == "is New 3DS?") {
@@ -43,7 +42,7 @@ Value booleanArgument(Block &block, Sprite *sprite) {
     return Value(value.asBoolean());
 }
 
-BlockResult call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(procedures, call) {
 
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
@@ -83,7 +82,5 @@ BlockResult call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool 
     return BlockResult::RETURN;
 }
 
-BlockResult definition(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
-}
+SCRATCH_BLOCK_NOP(procedures, definition)
 } // namespace blocks::procedures

@@ -1,6 +1,6 @@
 #pragma once
-#include "blockUtils.hpp"
 
+// TODO: Move this out of here, or just um, merge the SDL3 PR...
 #ifdef __3DS__
 #include <citro2d.h>
 #include <citro3d.h>
@@ -19,15 +19,3 @@ extern SDL_Texture *penTexture;
 #else
 #warning Unsupported platform for pen.
 #endif
-
-namespace blocks::pen {
-BlockResult PenDown(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-BlockResult PenUp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-BlockResult EraseAll(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-BlockResult SetPenOptionTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-BlockResult ChangePenOptionBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-BlockResult Stamp(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-BlockResult SetPenColorTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-BlockResult SetPenSizeTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-BlockResult ChangePenSizeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
-} // namespace blocks::pen
