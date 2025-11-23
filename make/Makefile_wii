@@ -28,9 +28,9 @@ APP_VERSION	:= 0.30
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-wii
 BUILD		:=	build/wii
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio include/miniz include/nlohmann
 DATA		:=	data
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann include/miniz
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio include/nlohmann include/miniz
 ROMFS		:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
