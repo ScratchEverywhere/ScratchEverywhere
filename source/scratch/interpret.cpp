@@ -626,8 +626,14 @@ void loadSprites(const nlohmann::json &json) {
                     auto &inputValue = inputData[1];
 
                     if (type == 1) {
-                        parsedInput.inputType = ParsedInput::LITERAL;
-                        parsedInput.literalValue = Value::fromJson(inputValue);
+                        if (inputValue.is_array() || newBlock.opcode == "procedures_definition") {
+                            parsedInput.inputType = ParsedInput::LITERAL;
+                            parsedInput.literalValue = Value::fromJson(inputValue);
+                        } else {
+                            parsedInput.inputType = ParsedInput::BLOCK;
+                            if (!inputValue.is_null())
+                                parsedInput.blockId = inputValue.get<std::string>();
+                        }
 
                     } else if (type == 3) {
                         if (inputValue.is_array()) {
