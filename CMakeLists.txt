@@ -183,6 +183,15 @@ if(SE_RENDERER STREQUAL "sdl2")
 		else()
 			target_link_libraries(SDL2_gfx PUBLIC
 				SDL2::SDL2
+
+		)
+		if(SE_AUDIO)
+			CPMAddPackage(
+				NAME SDL2_mixer
+				VERSION 2.8.1
+				GITHUB_REPOSITORY libsdl-org/SDL_mixer
+				GIT_TAG release-2.8.1
+				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
 			)
 		endif()
 	endif()
@@ -416,10 +425,6 @@ endif()
 
 if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
-endif()
-
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
-	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
 if(SE_RENDERER STREQUAL "sdl2")
