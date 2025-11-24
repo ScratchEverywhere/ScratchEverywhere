@@ -22,7 +22,7 @@
 		01.8000
 	</value>
 	<value name="RESOLUTION" type="integer">
-		63
+		3
 	</value>
 	<value name="SOUND_FORMAT" type="integer">
 		279
