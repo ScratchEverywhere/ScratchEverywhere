@@ -85,7 +85,7 @@ void Image::renderNineslice(double xPos, double yPos, double width, double heigh
     if (images.find(imageId) == images.end()) return;
     SDL_Image *image = images[imageId];
 
-    double scale = std::min(width / image->width, height / image->height);
+    scale = std::min(width / image->width, height / image->height);
     image->setScale(scale);
     render(xPos, yPos, centered);
 #else
