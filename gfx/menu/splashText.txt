@@ -39,6 +39,7 @@ Switch port by Grady Link!
 Web port by Grady Link!
 PS Vita port by Dogo6647!
 PS4 port by PwLDev!
+SDL1 port by Leap!
 C++!
 devkitPro!
 vitasdk!
