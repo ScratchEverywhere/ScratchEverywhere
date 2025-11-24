@@ -37,7 +37,7 @@ int Math::color(int r, int g, int b, int a) {
 
 double Math::parseNumber(std::string str) {
     // Scratch has whitespace trimming
-    while (std::isspace(str[0]) && !str.empty()) {
+    while (!str.empty() && std::isspace(str[0])) {
         str.erase(0, 1);
     }
     while (!str.empty() && std::isspace(str.back())) {
@@ -67,25 +67,13 @@ double Math::parseNumber(std::string str) {
             validcharacters = "01234567";
             break;
         }
-        if (base != 0) {
-            str = str.substr(2, str.length() - 2);
-        }
+        if (base != 0) str = str.substr(2, str.length() - 2);
     }
 
     for (size_t i = 0; i < str.length(); i++) {
-        if (validcharacters.find(str[i]) == std::string::npos) {
-            throw std::invalid_argument("");
-        }
-        if (str[i] == 'e' && i == str.length() - 1) {
-            // implementation differece, "1e" doesn't work in Scratch but works
-            // with std::stod()
-            throw std::invalid_argument("");
-        }
-        if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) {
-            // implementation differece, decimal point after e doesn't work in
-            // Scratch but works with std::stod()
-            throw std::invalid_argument("");
-        }
+        if (validcharacters.find(str[i]) == std::string::npos) throw std::invalid_argument("");
+        if (str[i] == 'e' && i == str.length() - 1) throw std::invalid_argument("");                     // implementation differece, "1e" doesn't work in Scratch but works with std::stod()
+        if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) throw std::invalid_argument(""); // implementation differece, decimal point after e doesn't work in Scratch but works with std::stod()
     }
 
     double conversion;
@@ -105,6 +93,7 @@ double Math::parseNumber(std::string str) {
     } catch (const std::invalid_argument &e) {
         return 0;
     }
+
     return conversion;
 }
 
@@ -126,7 +115,7 @@ double Math::radiansToDegrees(double radians) {
 }
 
 std::string Math::generateRandomString(int length) {
-    std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-=[];',./_+{}|:<>?~`";
+    const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-=[];',./_+{}|:<>?~`";
     std::string result;
 
     static std::mt19937 generator(static_cast<unsigned int>(std::time(nullptr)));

@@ -26,51 +26,30 @@ std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> BlockEx
 
 std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::vector<Block *> ranBlocks;
-    auto start = std::chrono::high_resolution_clock::now();
     Block *currentBlock = &block;
 
     bool localWithoutRefresh = false;
-    if (!withoutScreenRefresh) {
-        withoutScreenRefresh = &localWithoutRefresh;
-    }
+    if (!withoutScreenRefresh) withoutScreenRefresh = &localWithoutRefresh;
 
-    if (!sprite || sprite->toDelete) {
-        return ranBlocks;
-    }
+    if (!sprite || sprite->toDelete) return ranBlocks;
 
     while (currentBlock && currentBlock->id != "null") {
         blocksRun += 1;
         ranBlocks.push_back(currentBlock);
         BlockResult result = executeBlock(*currentBlock, sprite, withoutScreenRefresh, fromRepeat);
 
-        if (result == BlockResult::RETURN) {
-            return ranBlocks;
-        }
+        if (result == BlockResult::RETURN) return ranBlocks;
 
-        // runBroadcasts();
-
-        // Move to next block
-        if (!currentBlock->next.empty()) {
-            currentBlock = &sprite->blocks[currentBlock->next];
-        } else {
-            break;
-        }
+        if (currentBlock->next.empty()) break;
+        currentBlock = &sprite->blocks[currentBlock->next];
     }
 
-    // Timing measurement
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> duration = end - start;
-    if (duration.count() > 0) {
-        // std::cout << " took " << duration.count() << " milliseconds!" << std::endl;
-    }
     return ranBlocks;
 }
 
 BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    auto iterator = handlers.find(block.opcode);
-    if (iterator != handlers.end()) {
-        return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
-    }
+    const auto iterator = handlers.find(block.opcode);
+    if (iterator != handlers.end()) return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
 
     Log::logWarning("Unkown block: " + block.opcode);
 
@@ -82,19 +61,16 @@ void BlockExecutor::runRepeatBlocks() {
     bool withoutRefresh = false;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
-    std::vector<Sprite *> sprToRun = sprites;
-    for (auto &sprite : sprToRun) {
+    for (auto &sprite : sprites) {
         for (auto &[id, blockChain] : sprite->blockChains) {
-            auto &repeatList = blockChain.blocksToRepeat;
-            if (!repeatList.empty()) {
-                std::string toRepeat = repeatList.back();
-                if (!toRepeat.empty()) {
-                    Block *toRun = &sprite->blocks[toRepeat];
-                    if (toRun != nullptr) {
-                        executor.runBlock(*toRun, sprite, &withoutRefresh, true);
-                    }
-                }
-            }
+            const auto &repeatList = blockChain.blocksToRepeat;
+            if (repeatList.empty()) continue;
+
+            const std::string toRepeat = repeatList.back();
+            if (toRepeat.empty()) continue;
+
+            Block *const toRun = &sprite->blocks[toRepeat];
+            if (toRun != nullptr) executor.runBlock(*toRun, sprite, &withoutRefresh, true);
         }
     }
     // delete sprites ready for deletion
@@ -104,9 +80,7 @@ void BlockExecutor::runRepeatBlocks() {
         for (auto &[id, block] : toDelete->blocks) {
             for (std::string repeatID : toDelete->blockChains[block.blockChainID].blocksToRepeat) {
                 Block *repeatBlock = findBlock(repeatID);
-                if (repeatBlock) {
-                    repeatBlock->repeatTimes = -1;
-                }
+                if (repeatBlock) repeatBlock->repeatTimes = -1;
             }
         }
         toDelete->isDeleted = true;
@@ -118,13 +92,13 @@ void BlockExecutor::runRepeatBlocks() {
 
 void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
     bool withoutRefresh = true;
-    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
-        while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
-            std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
-            Block *toRun = findBlock(toRepeat);
-            if (toRun != nullptr)
-                executor.runBlock(*toRun, sprite, &withoutRefresh, true);
-        }
+    if (sprite->blockChains.find(blockChainID) == sprite->blockChains.end()) return;
+
+    while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
+        const std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
+        Block *toRun = findBlock(toRepeat);
+        if (toRun != nullptr)
+            executor.runBlock(*toRun, sprite, &withoutRefresh, true);
     }
 }
 
@@ -136,8 +110,6 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
                 data.argumentValues[arg] = block.parsedInputs->find(arg) == block.parsedInputs->end() ? Value(0) : Scratch::getInputValue(block, arg, sprite);
             }
 
-            // std::cout << "running custom block " << data.blockId << std::endl;
-
             // Get the parent of the prototype block (the definition containing all blocks)
             Block *customBlockDefinition = &sprite->blocks[sprite->blocks[data.blockId].parent];
 
@@ -146,18 +118,14 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             bool localWithoutRefresh = data.runWithoutScreenRefresh;
 
             // If the parent chain is running without refresh, force this one to also run without refresh
-            if (!localWithoutRefresh && withoutScreenRefresh != nullptr) {
-                localWithoutRefresh = *withoutScreenRefresh;
-            }
+            if (!localWithoutRefresh && withoutScreenRefresh != nullptr) localWithoutRefresh = *withoutScreenRefresh;
 
             // std::cout << "RWSR = " << localWithoutRefresh << std::endl;
 
             // Execute the custom block definition
             executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh);
 
-            if (localWithoutRefresh) {
-                BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
-            }
+            if (localWithoutRefresh) BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
 
             break;
         }
@@ -208,6 +176,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
     }
+
     return BlockResult::CONTINUE;
 }
 
@@ -226,9 +195,8 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     }
 
     // run each matching block
-    for (auto &[blockPtr, spritePtr] : blocksToRun) {
+    for (auto &[blockPtr, spritePtr] : blocksToRun)
         executor.runBlock(*blockPtr, spritePtr);
-    }
 
     return blocksToRun;
 }
@@ -236,18 +204,16 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
 std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
-    if (broadcastQueue.empty()) {
-        return blocksToRun;
-    }
+    if (broadcastQueue.empty()) return blocksToRun;
 
-    std::string currentBroadcast = broadcastQueue.front();
+    const std::string currentBroadcast = broadcastQueue.front();
     broadcastQueue.erase(broadcastQueue.begin());
 
-    auto results = runBroadcast(currentBroadcast);
+    const auto results = runBroadcast(currentBroadcast);
     blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
 
     if (!broadcastQueue.empty()) {
-        auto moreResults = runBroadcasts();
+        const auto moreResults = runBroadcasts();
         blocksToRun.insert(blocksToRun.end(), moreResults.begin(), moreResults.end());
     }
 
@@ -257,24 +223,20 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
 std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Block *> blocksRun;
-    std::vector<Sprite *> sprToRun = sprites;
-    for (Sprite *currentSprite : sprToRun) {
+    for (Sprite *currentSprite : sprites) {
         for (auto &[id, data] : currentSprite->blocks) {
-            if (data.opcode == opcodeToFind) {
-                // runBlock(data,currentSprite);
-                blocksRun.push_back(&data);
-                executor.runBlock(data, currentSprite);
-            }
+            if (data.opcode != opcodeToFind) continue;
+
+            blocksRun.push_back(&data);
+            executor.runBlock(data, currentSprite);
         }
     }
     return blocksRun;
 }
 
 Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
-    auto iterator = valueHandlers.find(block.opcode);
-    if (iterator != valueHandlers.end()) {
-        return iterator->second(block, sprite);
-    }
+    const auto iterator = valueHandlers.find(block.opcode);
+    if (iterator != valueHandlers.end()) return iterator->second(block, sprite);
 
     Log::logWarning("Unkown block: " + block.opcode);
 
@@ -283,7 +245,7 @@ Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
 
 void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
     // Set sprite variable
-    auto it = sprite->variables.find(variableId);
+    const auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
         it->second.value = newValue;
         return;
@@ -292,14 +254,14 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
     // Set global variable
     for (auto &currentSprite : sprites) {
         if (currentSprite->isStage) {
-            auto globalIt = currentSprite->variables.find(variableId);
-            if (globalIt != currentSprite->variables.end()) {
-                globalIt->second.value = newValue;
+            const auto globalIt = currentSprite->variables.find(variableId);
+            if (globalIt == currentSprite->variables.end()) continue;
+
+            globalIt->second.value = newValue;
 #ifdef ENABLE_CLOUDVARS
-                if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
+            if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
 #endif
-                return;
-            }
+            return;
         }
     }
 }
@@ -324,7 +286,7 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
     } else if (var.opcode == "data_listcontents") {
         monitorName = Math::removeQuotations(var.parameters["LIST"]);
         // Check lists
-        auto listIt = sprite->lists.find(var.id);
+        const auto listIt = sprite->lists.find(var.id);
         if (listIt != sprite->lists.end()) {
             std::string result;
             std::string seperator = "";
@@ -338,30 +300,28 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
                 result += item.asString() + seperator;
             }
             if (!result.empty() && !seperator.empty()) result.pop_back();
-            Value val(result);
-            var.value = val;
+            var.value = Value(result);
         }
 
         // Check global lists
         for (const auto &currentSprite : sprites) {
             if (currentSprite->isStage) {
-                auto globalIt = currentSprite->lists.find(var.id);
-                if (globalIt != currentSprite->lists.end()) {
-                    std::string result;
-                    std::string seperator = "";
-                    for (const auto &item : globalIt->second.items) {
-                        if (item.asString().size() > 1 || !item.isString()) {
-                            seperator = "\n";
-                            break;
-                        }
+                const auto globalIt = currentSprite->lists.find(var.id);
+                if (globalIt == currentSprite->lists.end()) continue;
+
+                std::string result;
+                std::string seperator = "";
+                for (const auto &item : globalIt->second.items) {
+                    if (item.asString().size() > 1 || !item.isString()) {
+                        seperator = "\n";
+                        break;
                     }
-                    for (const auto &item : globalIt->second.items) {
-                        result += item.asString() + seperator;
-                    }
-                    if (!result.empty() && !seperator.empty()) result.pop_back();
-                    Value val(result);
-                    var.value = val;
                 }
+                for (const auto &item : globalIt->second.items) {
+                    result += item.asString() + seperator;
+                }
+                if (!result.empty() && !seperator.empty()) result.pop_back();
+                var.value = Value(result);
             }
         }
     } else {
@@ -388,13 +348,11 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
 
 Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     // Check sprite variables
-    auto it = sprite->variables.find(variableId);
-    if (it != sprite->variables.end()) {
-        return it->second.value;
-    }
+    const auto it = sprite->variables.find(variableId);
+    if (it != sprite->variables.end()) return it->second.value;
 
     // Check lists
-    auto listIt = sprite->lists.find(variableId);
+    const auto listIt = sprite->lists.find(variableId);
     if (listIt != sprite->lists.end()) {
         std::string result;
         std::string seperator = "";
@@ -408,17 +366,14 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
             result += item.asString() + seperator;
         }
         if (!result.empty() && !seperator.empty()) result.pop_back();
-        Value val(result);
-        return val;
+        return Value(result);
     }
 
     // Check global variables
     for (const auto &currentSprite : sprites) {
         if (currentSprite->isStage) {
-            auto globalIt = currentSprite->variables.find(variableId);
-            if (globalIt != currentSprite->variables.end()) {
-                return globalIt->second.value;
-            }
+            const auto globalIt = currentSprite->variables.find(variableId);
+            if (globalIt != currentSprite->variables.end()) return globalIt->second.value;
         }
     }
 
@@ -426,22 +381,20 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     for (const auto &currentSprite : sprites) {
         if (currentSprite->isStage) {
             auto globalIt = currentSprite->lists.find(variableId);
-            if (globalIt != currentSprite->lists.end()) {
-                std::string result;
-                std::string seperator = "";
-                for (const auto &item : globalIt->second.items) {
-                    if (item.asString().size() > 1 || !item.isString()) {
-                        seperator = " ";
-                        break;
-                    }
+            if (globalIt == currentSprite->lists.end()) continue;
+            std::string result;
+            std::string seperator = "";
+            for (const auto &item : globalIt->second.items) {
+                if (item.asString().size() > 1 || !item.isString()) {
+                    seperator = " ";
+                    break;
                 }
-                for (const auto &item : globalIt->second.items) {
-                    result += item.asString() + seperator;
-                }
-                if (!result.empty() && !seperator.empty()) result.pop_back();
-                Value val(result);
-                return val;
             }
+            for (const auto &item : globalIt->second.items) {
+                result += item.asString() + seperator;
+            }
+            if (!result.empty() && !seperator.empty()) result.pop_back();
+            return Value(result);
         }
     }
 
@@ -453,10 +406,9 @@ void BlockExecutor::handleCloudVariableChange(const std::string &name, const std
     for (const auto &currentSprite : sprites) {
         if (currentSprite->isStage) {
             for (auto it = currentSprite->variables.begin(); it != currentSprite->variables.end(); ++it) {
-                if (it->second.name == name) {
-                    it->second.value = Value(value);
-                    return;
-                }
+                if (it->second.name != name) continue;
+                it->second.value = Value(value);
+                return;
             }
         }
     }
@@ -464,34 +416,33 @@ void BlockExecutor::handleCloudVariableChange(const std::string &name, const std
 #endif
 
 Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, Block block) {
-
     // get the parent prototype block
-    Block *definitionBlock = getBlockParent(&block);
-    Block *prototypeBlock = findBlock(Scratch::getInputValue(*definitionBlock, "custom_block", sprite).asString());
+    Block *const definitionBlock = getBlockParent(&block);
+    const Block *prototypeBlock = findBlock(Scratch::getInputValue(*definitionBlock, "custom_block", sprite).asString());
 
     for (auto &[custId, custBlock] : sprite->customBlocks) {
-
         // variable must be in the same custom block
         if (prototypeBlock != nullptr && custBlock.blockId != prototypeBlock->id) continue;
 
-        auto it = std::find(custBlock.argumentNames.begin(), custBlock.argumentNames.end(), valueName);
+        const auto it = std::find(custBlock.argumentNames.begin(), custBlock.argumentNames.end(), valueName);
 
-        if (it != custBlock.argumentNames.end()) {
-            size_t index = std::distance(custBlock.argumentNames.begin(), it);
+        if (it == custBlock.argumentNames.end()) continue;
 
-            if (index < custBlock.argumentIds.size()) {
-                std::string argumentId = custBlock.argumentIds[index];
+        const size_t index = std::distance(custBlock.argumentNames.begin(), it);
 
-                auto valueIt = custBlock.argumentValues.find(argumentId);
-                if (valueIt != custBlock.argumentValues.end()) {
-                    return valueIt->second;
-                } else {
-                    Log::logWarning("Argument ID found, but no value exists for it.");
-                }
-            } else {
-                Log::logWarning("Index out of bounds for argumentIds!");
+        if (index < custBlock.argumentIds.size()) {
+            const std::string argumentId = custBlock.argumentIds[index];
+
+            const auto valueIt = custBlock.argumentValues.find(argumentId);
+            if (valueIt != custBlock.argumentValues.end()) {
+                return valueIt->second;
+                continue;
             }
+
+            Log::logWarning("Argument ID found, but no value exists for it.");
+            continue;
         }
+        Log::logWarning("Index out of bounds for argumentIds!");
     }
     return Value();
 }
@@ -506,20 +457,18 @@ void BlockExecutor::addToRepeatQueue(Sprite *sprite, Block *block) {
 
 void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
     auto it = sprite->blockChains.find(block->blockChainID);
-    if (it != sprite->blockChains.end()) {
-        auto &blocksToRepeat = it->second.blocksToRepeat;
-        if (!blocksToRepeat.empty()) {
-            block->isRepeating = false;
-            block->repeatTimes = -1;
-            blocksToRepeat.pop_back();
-        }
+    if (it == sprite->blockChains.end()) return;
+
+    auto &blocksToRepeat = it->second.blocksToRepeat;
+    if (!blocksToRepeat.empty()) {
+        block->isRepeating = false;
+        block->repeatTimes = -1;
+        blocksToRepeat.pop_back();
     }
 }
 
 bool BlockExecutor::hasActiveRepeats(Sprite *sprite, std::string blockChainID) {
     if (sprite->toDelete) return false;
-    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
-        if (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
-    }
+    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end() && !sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
     return false;
 }
