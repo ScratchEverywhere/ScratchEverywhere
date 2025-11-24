@@ -7,7 +7,7 @@ rm -Rf pkg
 mkdir -p pkg/USRDIR/gfx
 
 cp ICON0.PNG pkg
-cp PIC0.PNG pkg
+cp PIC1.PNG pkg
 cp -r ../menu pkg/USRDIR/gfx
 
 
