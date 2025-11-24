@@ -10,7 +10,6 @@ SettingsMenu::~SettingsMenu() {
 }
 
 void SettingsMenu::init() {
-
     settingsControl = new ControlObject();
 
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -58,23 +57,22 @@ void SettingsMenu::init() {
         }
     }
 
+    ChangeUsername->buttonUp = EnableUsername;
+    ChangeUsername->buttonDown = EnableUsername;
+
     if (UseCostumeUsername) {
         EnableUsername->text->setText("Username: Enabled");
         ChangeUsername->text->setText("name: " + username);
-        // Credits->buttonDown = EnableUsername;
-        // Credits->buttonUp = ChangeUsername;
+
         EnableUsername->buttonDown = ChangeUsername;
-        EnableUsername->buttonUp = Credits;
-        ChangeUsername->buttonUp = EnableUsername;
-        ChangeUsername->buttonDown = Credits;
+        EnableUsername->buttonUp = ChangeUsername;
         ChangeUsername->canBeClicked = true;
     } else {
         EnableUsername->text->setText("Username: Disabled");
-        // Credits->buttonDown = EnableUsername;
-        // Credits->buttonUp = EnableUsername;
-        EnableUsername->buttonDown = Credits;
-        EnableUsername->buttonUp = Credits;
         ChangeUsername->canBeClicked = false;
+
+        EnableUsername->buttonDown = EnableUsername;
+        EnableUsername->buttonUp = EnableUsername;
     }
 
     // settingsControl->buttonObjects.push_back(Credits);
@@ -104,24 +102,20 @@ void SettingsMenu::render() {
     if (EnableUsername->isPressed({"a"})) {
         if (UseCostumeUsername) {
             UseCostumeUsername = false;
-            EnableUsername->text->setText("Username: disabled");
+            EnableUsername->text->setText("Username: Disabled");
             ChangeUsername->canBeClicked = false;
             if (settingsControl->selectedObject == ChangeUsername) settingsControl->selectedObject = EnableUsername;
-            // Credits->buttonDown = EnableUsername;
-            // Credits->buttonUp = EnableUsername;
-            // EnableUsername->buttonDown = Credits;
-            // EnableUsername->buttonUp = Credits;
+
+            EnableUsername->buttonDown = EnableUsername;
+            EnableUsername->buttonUp = EnableUsername;
         } else {
             UseCostumeUsername = true;
             EnableUsername->text->setText("Username: Enabled");
             ChangeUsername->text->setText("name: " + username);
             ChangeUsername->canBeClicked = true;
-            // Credits->buttonDown = EnableUsername;
-            // Credits->buttonUp = ChangeUsername;
+
             EnableUsername->buttonDown = ChangeUsername;
-            // EnableUsername->buttonUp = Credits;
-            ChangeUsername->buttonUp = EnableUsername;
-            // ChangeUsername->buttonDown = Credits;
+            EnableUsername->buttonUp = ChangeUsername;
         }
     }
 
