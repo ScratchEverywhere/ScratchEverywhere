@@ -91,30 +91,42 @@ void Input::getInput() {
     //     }
     // }
 
-    for (int scancode = 0; scancode < SDL_NUM_SCANCODES; ++scancode) {
-        if (keyStates[scancode]) {
-            const char *name = SDL_GetScancodeName(static_cast<SDL_Scancode>(scancode));
-            if (name && name[0] != '\0') {
-                std::string keyName(name);
-                std::transform(keyName.begin(), keyName.end(), keyName.begin(), ::tolower);
+    for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
+        if (!keyStates[sc]) continue;
 
-                if (keyName == "up") keyName = "up arrow";
-                else if (keyName == "down") keyName = "down arrow";
-                else if (keyName == "left") keyName = "left arrow";
-                else if (keyName == "right") keyName = "right arrow";
-                #if defined(WEBOS)
-                else if (keyName == "return") keyName = "a";
-                else if (keyName == "stop" || keyName == "audiostop" || keyName == "mediastop") keyName = "b";
-                else if (keyName == "audiopause" || keyName == "pause") keyName == "1";
-                else if (keyName == "audioplay" || keyName == "play") keyName == "0";
-                #else
-                else if (keyName == "return") keyName = "enter";
-                #endif
+        SDL_Scancode scancode = static_cast<SDL_Scancode>(sc);
+        const char* rawName = SDL_GetScancodeName(scancode);
 
-                inputButtons.push_back(keyName);
-                anyKeyPressed = true;
-            }
-        }
+        std::string keyName = rawName ? rawName : "";
+        std::transform(keyName.begin(), keyName.end(), keyName.begin(), ::tolower);
+
+        Log::log(keyName);
+        if (keyName == "up") keyName = "up arrow";
+        else if (keyName == "down") keyName = "down arrow";
+        else if (keyName == "left") keyName = "left arrow";
+        else if (keyName == "right") keyName = "right arrow";
+#if defined(WEBOS)
+        else if (keyName == "return") keyName = "a";
+        else if (keyName == "stop") keyName = "b";
+        else if (keyName == "pause") keyName = "1";
+        else if (scancode == (SDL_Scancode)450) keyName = "0";
+        else if (scancode == (SDL_Scancode)486) keyName = "l";
+        else if (scancode == (SDL_Scancode)487) keyName = "x";
+        else if (scancode == (SDL_Scancode)488) keyName = "y";
+        else if (scancode == (SDL_Scancode)489) keyName = "r";
+        else if (scancode == (SDL_Scancode)452) keyName = "z";
+        else if (scancode == (SDL_Scancode)451) keyName = "f";
+        // REMOTE SCANCODES
+        // color dots: 486-489
+        // forward: 451 | backward: 452
+        // record: 453
+        // play: 450
+#else
+        else if (keyName == "return") keyName = "enter";
+#endif
+
+        inputButtons.push_back(keyName);
+        anyKeyPressed = true;
     }
 
     // TODO: Clean this up
