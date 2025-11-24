@@ -109,6 +109,10 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     int penWidth = penSurface->w;
     int penHeight = penSurface->h;
 
+    SDL_Surface *tempSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, penWidth, penHeight, 32, RMASK, GMASK, BMASK, AMASK);
+    SDL_FillRect(tempSurface, NULL, SDL_MapRGBA(tempSurface->format, 0, 0, 0, 0));
+    SDL_SetAlpha(tempSurface, SDL_SRCALPHA, (100 - sprite->penData.color.transparency) / 100.0f * 255);
+
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
     const double dx = x2 * scale - x1 * scale;
@@ -131,21 +135,31 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
         vx[3] = static_cast<int16_t>(x2 * scale + penWidth / 2.0 - ny * drawWidth);
         vy[3] = static_cast<int16_t>(-y2 * scale + penHeight / 2.0f + nx * drawWidth);
 
-        filledPolygonRGBA(penSurface, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, (100 - sprite->penData.color.transparency) / 100.0f * 255);
+        filledPolygonRGBA(tempSurface, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
     }
 
-    filledCircleRGBA(penSurface, x1 * scale + penWidth / 2.0f, -y1 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, (100 - sprite->penData.color.transparency) / 100.0f * 255);
-    filledCircleRGBA(penSurface, x2 * scale + penWidth / 2.0f, -y2 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, (100 - sprite->penData.color.transparency) / 100.0f * 255);
+    filledCircleRGBA(tempSurface, x1 * scale + penWidth / 2.0f, -y1 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(tempSurface, x2 * scale + penWidth / 2.0f, -y2 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+
+    SDL_gfxBlitRGBA(tempSurface, NULL, penSurface, NULL);
+    SDL_FreeSurface(tempSurface);
 }
 
 void Render::penDot(Sprite *sprite) {
     int penWidth = penSurface->w;
     int penHeight = penSurface->h;
 
+    SDL_Surface *tempSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, penWidth, penHeight, 32, RMASK, GMASK, BMASK, AMASK);
+    SDL_FillRect(tempSurface, NULL, SDL_MapRGBA(tempSurface->format, 0, 0, 0, 0));
+    SDL_SetAlpha(tempSurface, SDL_SRCALPHA, (100 - sprite->penData.color.transparency) / 100.0f * 255);
+
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    filledCircleRGBA(penSurface, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, (100 - sprite->penData.color.transparency) / 100.0f * 255);
+    filledCircleRGBA(tempSurface, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+
+    SDL_gfxBlitRGBA(tempSurface, NULL, penSurface, NULL);
+    SDL_FreeSurface(tempSurface);
 }
 
 void Render::penStamp(Sprite *sprite) {
@@ -385,6 +399,8 @@ void Render::renderSprites() {
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 
 void Render::renderPenLayer() {
+	if (penSurface == nullptr) return;
+
     SDL_Rect renderRect = {0, 0, 0, 0};
 
     if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
@@ -397,7 +413,9 @@ void Render::renderPenLayer() {
         renderRect.w = windowWidth;
     }
 
-    SDL_BlitSurface(penSurface, NULL, window, &renderRect);
+    SDL_Surface *zoomedSurface = zoomSurface(penSurface, renderRect.w / penSurface->w, renderRect.h / penSurface->h, SMOOTHING_OFF);
+    SDL_BlitSurface(zoomedSurface, NULL, window, NULL);
+    SDL_FreeSurface(zoomedSurface);
 }
 
 bool Render::appShouldRun() {
