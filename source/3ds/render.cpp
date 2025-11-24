@@ -35,6 +35,12 @@ bool Render::debugMode = false;
 static bool isConsoleInit = false;
 float Render::renderScale = 1.0f;
 
+C2D_Image penImage;
+C3D_RenderTarget *penRenderTarget;
+Tex3DS_SubTexture penSubtex;
+C3D_Tex *penTex;
+#define TEXTURE_OFFSET 16
+
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 static int currentScreen = 0;
@@ -170,6 +176,75 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
 
     // Circle at end point
     C2D_DrawCircleSolid(x2_scaled, y2_scaled, 0, radius, color);
+}
+
+void Render::penDot(Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    if (!Render::hasFrameBegan) {
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        Render::hasFrameBegan = true;
+    }
+    C2D_SceneBegin(penRenderTarget);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
+    const int thickness = std::clamp(static_cast<int>(sprite->penData.size * Render::renderScale), 1, 1000);
+
+    const float xSscaled = (sprite->xPosition * Render::renderScale) + (Render::getWidth() / 2);
+    const float yScaled = (sprite->yPosition * -1 * Render::renderScale) + (Render::getHeight() * 0.5);
+    const float radius = thickness / 2.0f;
+
+    C2D_DrawCircleSolid(xSscaled, yScaled + TEXTURE_OFFSET, 0, radius, color);
+}
+
+void Render::penStamp(Sprite *sprite) {
+    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
+    if (imgFind == images.end()) {
+        Log::logWarning("Invalid Image for Stamp");
+        return;
+    }
+    ImageData &data = imgFind->second;
+    imgFind->second.freeTimer = data.maxFreeTimer;
+    C2D_Image *costumeTexture = &data.image;
+    if (!Render::hasFrameBegan) {
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        Render::hasFrameBegan = true;
+    }
+    C2D_SceneBegin(penRenderTarget);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
+    const bool isSVG = data.isSVG;
+    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+    sprite->spriteWidth = data.width >> 1;
+    sprite->spriteHeight = data.height >> 1;
+    Render::calculateRenderPosition(sprite, isSVG);
+
+    C2D_ImageTint tinty;
+
+    // set ghost and brightness effect
+    if (sprite->brightnessEffect != 0.0f || sprite->ghostEffect != 0.0f) {
+        const float brightnessEffect = sprite->brightnessEffect * 0.01f;
+        const float alpha = 255.0f * (1.0f - sprite->ghostEffect / 100.0f);
+        if (brightnessEffect > 0)
+            C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
+        else
+            C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
+    } else C2D_AlphaImageTint(&tinty, 1.0f);
+
+    C2D_DrawImageAtRotated(
+        *costumeTexture,
+        sprite->renderInfo.renderX,
+        sprite->renderInfo.renderY + TEXTURE_OFFSET,
+        1,
+        sprite->renderInfo.renderRotation,
+        &tinty,
+        sprite->renderInfo.renderScaleX,
+        sprite->renderInfo.renderScaleY);
+}
+
+void Render::penClear() {
+    C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
