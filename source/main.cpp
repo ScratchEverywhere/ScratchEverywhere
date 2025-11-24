@@ -1,8 +1,8 @@
-#include "interpret.hpp"
-#include "scratch/menus/mainMenu.hpp"
-#include "scratch/render.hpp"
-#include "scratch/unzip.hpp"
 #include <cstdlib>
+#include <interpret.hpp>
+#include <menus/mainMenu.hpp>
+#include <render.hpp>
+#include <unzip.hpp>
 
 #ifdef __SWITCH__
 #include <switch.h>
