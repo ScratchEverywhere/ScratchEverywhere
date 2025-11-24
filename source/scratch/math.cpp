@@ -25,8 +25,11 @@ int Math::color(int r, int g, int b, int a) {
     int g5 = g >> 3;
     int b5 = b >> 3;
     return RGB15(r5, g5, b5);
-#elif defined(SDL_BUILD)
-    return (r << 24) | (g << 16) | (b << 8) | a;
+#elif defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+    return (r << 24) |
+           (g << 16) |
+           (b << 8) |
+           a;
 #elif defined(__3DS__)
     return C2D_Color32(r, g, b, a);
 #endif

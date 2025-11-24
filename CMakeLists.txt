@@ -6,13 +6,44 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
-option(SE_HEADLESS "Makes SE! use a headless renderer instead of SDL2. This will override the SE_AUDIO setting." OFF)
-option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
+endif()
+
+option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+
+list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl3")
+endif()
+
+if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"sdl3"
+		CACHE STRING "Select the desired renderer backend."
+	)
+elseif("sdl2" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"sdl2"
+		CACHE STRING "Select the desired renderer backend."
+	)
+else()
+	set(
+		SE_RENDERER
+		"headless"
+		CACHE STRING "Select the desired renderer backend."
+	)
+endif()
+if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
+    message(
+        FATAL_ERROR
+        "Invalid value for SE_RENDERER: '${SE_RENDERER}'. Must be one of: ${SE_RENDERER_VALID_OPTIONS}"
+    )
 endif()
 
 if(NINTENDO_SWITCH OR PSP OR VITA)
@@ -68,7 +99,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz)
 
-if(NOT SE_HEADLESS)
+if(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
 		find_package(PkgConfig REQUIRED)
 
@@ -138,6 +169,53 @@ if(NOT SE_HEADLESS)
 			)
 		endif()
 	endif()
+elseif(SE_RENDERER STREQUAL "sdl3")
+	if(SE_SYSTEM)
+		find_package(PkgConfig REQUIRED)
+
+		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
+		pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image>=3.0.0)
+		pkg_check_modules(SDL3_TTF REQUIRED sdl3-ttf>=3.0.0)
+		pkg_check_modules(SDL3_GFX REQUIRED sdl3-gfx>=1.0.0)
+
+		if (SE_AUDIO)
+			pkg_check_modules(SDL3_MIXER REQUIRED sdl3-mixer>=2.0.0)
+		endif()
+	else()
+		CPMAddPackage(
+			NAME SDL3
+			VERSION 3.2.26
+			GITHUB_REPOSITORY libsdl-org/SDL
+			GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
+			OPTIONS "SDL_TEST_LIBRARY OFF"
+		)
+		CPMAddPackage(
+			NAME SDL3_image
+			VERSION 3.2.4
+			GITHUB_REPOSITORY libsdl-org/SDL_image
+			GIT_TAG release-3.2.4
+		)
+		CPMAddPackage(
+			NAME SDL3_ttf
+			VERSION 3.2.2
+			GITHUB_REPOSITORY libsdl-org/SDL_ttf
+			GIT_TAG release-3.2.2
+			OPTIONS "SDLTTF_VENDORED ON"
+		)
+		CPMAddPackage(
+			NAME SDL3_gfx
+			VERSION 1.0.1
+			GITHUB_REPOSITORY sabdul-khabir/SDL3_gfx
+		)
+		if(SE_AUDIO)
+			CPMAddPackage(
+				NAME SDL3_mixer
+				VERSION 3
+				GITHUB_REPOSITORY libsdl-org/SDL_mixer
+				GIT_TAG main # TODO: pin version
+			)
+		endif()
+	endif()
 endif()
 
 if(SE_CLOUDVARS)
@@ -169,10 +247,12 @@ if(SE_CLOUDVARS)
 	CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
 endif()
 
-if(SE_HEADLESS)
+if(SE_RENDERER STREQUAL "headless")
 	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/headless)
+elseif(SE_RENDERER STREQUAL "sdl3")
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl3 source/sdl3/audio)
 else()
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio)
 endif()
 
 set(SOURCE_FILES)
@@ -220,7 +300,47 @@ if(NOT BUILD_SHARED_LIBS AND WIN32)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()
 
-if (NOT SE_HEADLESS)
+if(SE_RENDERER STREQUAL "sdl3")
+	set(SDL_LINK_LIBS)
+
+	if(NOT SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS SDL3::SDL3)
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_gfx_SOURCE_DIR})
+	endif()
+
+	if(SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
+
+		if (SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS ${SDL3_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL3_MIXER_INCLUDE_DIRS})
+		endif()
+	elseif(BUILD_SHARED_LIBS)
+		list(APPEND SDL_LINK_LIBS SDL3_image::SDL3_image)
+		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
+		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
+
+		if(SE_AUDIO)	
+			list(APPEND SDL_LINK_LIBS SDL3_mixer::SDL3_mixer)
+		endif()
+	else()
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_image::SDL3_image-static>,
+			SDL3_image::SDL3_image-static,
+			SDL3_image::SDL3_image>)
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_ttf::SDL3_ttf-static>,
+			SDL3_ttf::SDL3_ttf-static,
+			SDL3_ttf::SDL3_ttf>)
+		list(APPEND SDL_LINK_LIBS SDL3_gfx_Static)
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,
+				SDL3_mixer::SDL3_mixer-static,
+				SDL3_mixer::SDL3_mixer>)
+		endif()
+	endif()
+
+	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+elseif(SE_RENDERER STREQUAL "sdl2")
 	set(SDL_LINK_LIBS)
 
 	if(SE_SYSTEM)
@@ -266,12 +386,20 @@ if (NOT SE_HEADLESS)
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 endif()
 
+if(SE_SYSTEM)
+	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
+endif()
+
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
-if(NOT SE_HEADLESS)
-	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
+if(SE_RENDERER STREQUAL "sdl2")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL2)
+elseif(SE_RENDERER STREQUAL "sdl3")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL3)
+elseif(SE_RENDERER STREQUAL "headless")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
 endif()
 
 if(SE_AUDIO)

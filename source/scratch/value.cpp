@@ -42,7 +42,7 @@ int Value::asInt() const {
     } else if (isBoolean()) {
         return std::get<bool>(value) ? 1 : 0;
     } else if (isColor()) {
-        const ColorRGB rgb = CSB2RGB(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
     }
 
@@ -66,7 +66,7 @@ std::string Value::asString() const {
     } else if (isBoolean()) {
         return std::get<bool>(value) ? "true" : "false";
     } else if (isColor()) {
-        const ColorRGB rgb = CSB2RGB(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         const char hex_chars[] = "0123456789abcdef";
         const unsigned char r = static_cast<unsigned char>(rgb.r);
         const unsigned char g = static_cast<unsigned char>(rgb.g);
@@ -100,8 +100,8 @@ bool Value::asBoolean() const {
                std::get<std::string>(value) != "false";
     }
     if (isColor()) {
-        const ColorRGB rgb = CSB2RGB(std::get<Color>(value));
-        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0;
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
+        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0 || rgb.a != 0;
     }
     return false;
 }
@@ -129,9 +129,23 @@ Color Value::asColor() const {
         return RGB2CSB({static_cast<float>(intValue / 0x10000),
                         static_cast<float>((intValue / 0x100) % 0x100),
                         static_cast<float>(intValue % 0x100)});
+    if (isString()) {
+        std::string stringValue = asString();
+        if (stringValue[0] == '#') {
+            std::string r, g, b;
+            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{3}$"))) {
+                stringValue = "#" + std::string(2, stringValue[1]) + std::string(2, stringValue[2]) + std::string(2, stringValue[3]);
+            }
+            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{6}$"))) {
+                r = stringValue.substr(1, 2);
+                g = stringValue.substr(3, 2);
+                b = stringValue.substr(5, 2);
+                return RGBA2CSBO({static_cast<float>(std::stoi(r, 0, 16)), static_cast<float>(std::stoi(g, 0, 16)), static_cast<float>(std::stoi(b, 0, 16)), 255});
+            } else return {0, 0, 0, 0};
+        }
     }
-
-    return {0, 0, 0};
+    const double RGBA = asDouble();
+    return RGBA2CSBO({static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)});
 }
 
 Value Value::operator+(const Value &other) const {

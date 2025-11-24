@@ -44,5 +44,3 @@ class SDL_Image {
 };
 
 extern std::unordered_map<std::string, SDL_Image *> images;
-
-void cleanupImagesLite();

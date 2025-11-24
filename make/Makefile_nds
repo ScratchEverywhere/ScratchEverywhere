@@ -56,7 +56,7 @@ CFLAGS	:=	-g -Wall -O2 \
 			-ffunction-sections -fdata-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DENABLE_AUDIO
+CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DRENDERER_GL2D -DENABLE_AUDIO
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
 

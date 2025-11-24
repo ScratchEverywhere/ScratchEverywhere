@@ -13,31 +13,6 @@ ProjectMenu::~ProjectMenu() {
 
 void ProjectMenu::init() {
 
-#ifdef __NDS__
-
-#elif defined(__3DS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
-    }
-    SoundPlayer::playSound("gfx/menu/mm_full.ogg");
-    if (SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_splash.ogg"), "gfx/menu/mm_full.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-    }
-#elif defined(__PSP__)
-#else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
-    }
-    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 100.0f);
-    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 0.0f);
-#endif
-
     snow.image = new Image("gfx/menu/snow.svg");
 
     projectControl = new ControlObject();
@@ -152,15 +127,9 @@ void ProjectMenu::render() {
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
         SoundPlayer::playSound("gfx/menu/mm_full.wav");
     }
-#elif defined(__3DS__)
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
-    }
-#elif defined(__PSP__)
 #else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
 #endif
 

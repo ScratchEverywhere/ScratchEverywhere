@@ -42,17 +42,11 @@ Value SensingBlocks::sensingTimer(Block &block, Sprite *sprite) {
 
 Value SensingBlocks::of(Block &block, Sprite *sprite) {
     std::string value = Scratch::getFieldValue(block, "PROPERTY");
-    std::string object;
-    auto objectFind = block.parsedInputs->find("OBJECT");
-    Block *objectBlock = findBlock(objectFind->second.literalValue.asString());
-    if (!objectBlock || objectBlock == nullptr)
-        return Value();
-
-    object = Scratch::getFieldValue(*objectBlock, "OBJECT");
+    Value inputValue = Scratch::getInputValue(block, "OBJECT", sprite);
 
     Sprite *spriteObject = nullptr;
     for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name == object && !currentSprite->isClone) {
+        if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
             spriteObject = currentSprite;
             break;
         }
@@ -95,17 +89,15 @@ Value SensingBlocks::mouseY(Block &block, Sprite *sprite) {
 }
 
 Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
-    auto inputFind = block.parsedInputs->find("DISTANCETOMENU");
-    Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
-    std::string object = Scratch::getFieldValue(*inputBlock, "DISTANCETOMENU");
+    Value inputValue = Scratch::getInputValue(block, "DISTANCETOMENU", sprite);
 
-    if (object == "_mouse_") {
+    if (inputValue.asString() == "_mouse_") {
         return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) +
                           pow(Input::mousePointer.y - sprite->yPosition, 2)));
     }
 
     for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name == object && !currentSprite->isClone) {
+        if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
             double distance = sqrt(pow(currentSprite->xPosition - sprite->xPosition, 2) +
                                    pow(currentSprite->yPosition - sprite->yPosition, 2));
             return Value(distance);
@@ -122,7 +114,6 @@ Value SensingBlocks::current(Block &block, Sprite *sprite) {
     std::string inputValue;
     try {
         inputValue = Scratch::getFieldValue(block, "CURRENTMENU");
-        ;
     } catch (...) {
         return Value();
     }
@@ -143,21 +134,9 @@ Value SensingBlocks::sensingAnswer(Block &block, Sprite *sprite) {
 }
 
 Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
-    auto inputFind = block.parsedInputs->find("KEY_OPTION");
-    std::string buttonCheck;
-
-    // if no variable block is in the input
-    if (inputFind->second.inputType == ParsedInput::LITERAL) {
-        Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
-        if (inputBlock == nullptr) return Value(false);
-        if (Scratch::getFieldValue(*inputBlock, "KEY_OPTION") != "")
-            buttonCheck = Scratch::getFieldValue(*inputBlock, "KEY_OPTION");
-    } else {
-        buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
-    }
-
+    Value inputValue = Scratch::getInputValue(block, "KEY_OPTION", sprite);
     for (std::string button : Input::inputButtons) {
-        if (buttonCheck == button) {
+        if (inputValue.asString() == button) {
             return Value(true);
         }
     }
@@ -166,24 +145,17 @@ Value SensingBlocks::keyPressed(Block &block, Sprite *sprite) {
 }
 
 Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
-    auto inputFind = block.parsedInputs->find("TOUCHINGOBJECTMENU");
-    Block *inputBlock = findBlock(inputFind->second.literalValue.asString());
-    std::string objectName;
-    try {
-        objectName = Scratch::getFieldValue(*inputBlock, "TOUCHINGOBJECTMENU");
-    } catch (...) {
-        return Value(false);
-    }
+    Value inputValue = Scratch::getInputValue(block, "TOUCHINGOBJECTMENU", sprite);
 
-    if (objectName == "_mouse_") {
+    if (inputValue.asString() == "_mouse_") {
         return Value(isColliding("mouse", sprite));
-    } else if (objectName == "_edge_") {
+    } else if (inputValue.asString() == "_edge_") {
         return Value(isColliding("edge", sprite));
     } else {
         for (size_t i = 0; i < sprites.size(); i++) {
             Sprite *currentSprite = sprites[i];
-            if (currentSprite->name == objectName &&
-                isColliding("sprite", sprite, currentSprite, objectName)) {
+            if (currentSprite->name == inputValue.asString() &&
+                isColliding("sprite", sprite, currentSprite, inputValue.asString())) {
                 return Value(true);
             }
         }

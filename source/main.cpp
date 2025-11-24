@@ -8,7 +8,7 @@
 #include <switch.h>
 #endif
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include <SDL2/SDL.h>
 #endif
 

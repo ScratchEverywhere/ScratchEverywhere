@@ -5,7 +5,7 @@ on:
     paths:
       - make/Makefile_wii
       - source/scratch/**
-      - source/sdl/**
+      - source/sdl2/**
       - gfx/wii/**
       - gfx/menu/**
       - include/**

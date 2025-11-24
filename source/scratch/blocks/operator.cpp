@@ -89,10 +89,7 @@ Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
 
 Value OperatorBlocks::round(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM", sprite);
-    if (value1.isNumeric()) {
-        return Value(static_cast<int>(std::round(value1.asDouble())));
-    }
-    return Value(0);
+    return Value(std::round(value1.asDouble()));
 }
 
 Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
