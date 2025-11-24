@@ -61,7 +61,8 @@ void BlockExecutor::runRepeatBlocks() {
     bool withoutRefresh = false;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
-    for (auto &sprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (auto &sprite : sprToRun) {
         for (auto &[id, blockChain] : sprite->blockChains) {
             const auto &repeatList = blockChain.blocksToRepeat;
             if (repeatList.empty()) continue;
@@ -223,7 +224,8 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
 std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Block *> blocksRun;
-    for (Sprite *currentSprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (Sprite *currentSprite : sprToRun) {
         for (auto &[id, data] : currentSprite->blocks) {
             if (data.opcode != opcodeToFind) continue;
 
