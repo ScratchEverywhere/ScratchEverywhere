@@ -200,7 +200,6 @@ postAccount:
     windowWidth = 1280;
     windowHeight = 720;
 #elif defined(WEBOS)
-    Log::log("SDL Init webOS");
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     windowWidth = 800;
     windowHeight = 480;
@@ -213,10 +212,8 @@ postAccount:
     }
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
-    Log::log("SDL Init webOS done");
 #endif
-    #if defined(WEBOS)
-    #else
+    #ifndef WEBOS
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     #endif
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
