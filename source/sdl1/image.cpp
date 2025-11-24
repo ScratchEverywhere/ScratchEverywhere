@@ -82,6 +82,11 @@ void Image::render(double xPos, double yPos, bool centered) {
 // FIXME: SDL_BlitSurface doesn't have support for scaling. Omit 9-slice rendering for now.
 void Image::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
 #if 1
+    if (images.find(imageId) == images.end()) return;
+    SDL_Image *image = images[imageId];
+
+    double scale = std::min(width / image->width, height / image->height);
+    image->setScale(scale);
     render(xPos, yPos, centered);
 #else
     if (images.find(imageId) == images.end()) return;
