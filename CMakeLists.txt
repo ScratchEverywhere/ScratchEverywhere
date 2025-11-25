@@ -17,7 +17,7 @@ option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
-	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl3")
+	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
 if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS)
@@ -30,6 +30,12 @@ elseif("sdl2" IN_LIST SE_RENDERER_VALID_OPTIONS)
 	set(
 		SE_RENDERER
 		"sdl2"
+		CACHE STRING "Select the desired renderer backend."
+	)
+elseif("sdl1" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"sdl1"
 		CACHE STRING "Select the desired renderer backend."
 	)
 else()
@@ -46,7 +52,7 @@ if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
     )
 endif()
 
-if(NINTENDO_SWITCH OR PSP OR VITA OR WEBOS)
+if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -99,7 +105,27 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz)
 
-if(SE_RENDERER STREQUAL "sdl2")
+if(SE_RENDERER STREQUAL "sdl1")
+	if(SE_SYSTEM)
+		find_package(PkgConfig REQUIRED)
+
+		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
+		pkg_check_modules(SDL_IMAGE REQUIRED SDL_image>=1.2.0)
+		pkg_check_modules(SDL_TTF REQUIRED SDL_ttf>=1.2.0)
+		pkg_check_modules(SDL_GFX REQUIRED SDL_gfx>=1.0.0)
+
+		if (SE_AUDIO)
+			pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
+		endif()
+	else()
+		error("SDL1 is currently not supported without system libraries")
+	endif()
+	CPMAddPackage(
+		NAME nanosvg
+		GITHUB_REPOSITORY memononen/nanosvg
+		GIT_TAG 5cefd9847949af6df13f65027fd43af5a7513633
+	)
+elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
 		find_package(PkgConfig REQUIRED)
 
@@ -277,8 +303,10 @@ if(SE_RENDERER STREQUAL "headless")
 	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/headless)
 elseif(SE_RENDERER STREQUAL "sdl3")
 	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl3 source/sdl3/audio)
-else()
+elseif(SE_RENDERER STREQUAL "sdl2")
 	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio)
+else()
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl1 source/sdl1/audio)
 endif()
 
 set(SOURCE_FILES)
@@ -421,6 +449,47 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	endif()
 
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+elseif(SE_RENDERER STREQUAL "sdl1")
+	set(SDL_LINK_LIBS)
+
+	if(SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL_GFX_INCLUDE_DIRS})
+	else()
+		list(APPEND SDL_LINK_LIBS SDL_gfx SDL::SDL)
+	endif()
+
+	if(SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_IMAGE_LIBRARIES} ${SDL_TTF_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_IMAGE_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
+
+		if (SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS ${SDL_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL_MIXER_INCLUDE_DIRS})
+		endif()
+	elseif(BUILD_SHARED_LIBS)
+		list(APPEND SDL_LINK_LIBS SDL_image::SDL_image)
+		list(APPEND SDL_LINK_LIBS SDL_ttf::SDL_ttf)
+
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS SDL_mixer::SDL_mixer)
+		endif()
+	else()
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_image::SDL_image-static>,
+			SDL_image::SDL_image-static,
+			SDL_image::SDL_image>)
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_ttf::SDL_ttf-static>,
+			SDL_ttf::SDL_ttf-static,
+			SDL_ttf::SDL_ttf>)
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_mixer::SDL_mixer-static>,
+				SDL_mixer::SDL_mixer-static,
+				SDL_mixer::SDL_mixer>)
+		endif()
+	endif()
+
+	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+	target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
 endif()
 
 if(SE_SYSTEM)
@@ -431,7 +500,9 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
-if(SE_RENDERER STREQUAL "sdl2")
+if(SE_RENDERER STREQUAL "sdl1")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL1)
+elseif(SE_RENDERER STREQUAL "sdl2")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL2)
 elseif(SE_RENDERER STREQUAL "sdl3")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL3)
