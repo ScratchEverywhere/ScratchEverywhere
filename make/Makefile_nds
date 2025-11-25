@@ -2,9 +2,9 @@
 .SUFFIXES:
 #---------------------------------------------------------------------------------
 
-
+TOPDIR ?= $(CURDIR)
 export WONDERFUL_TOOLCHAIN	?= /opt/wonderful
-export BLOCKSDS			?= (WONDERFUL_TOOLCHAIN)/thirdparty/blocksds/core
+export BLOCKSDS			?= $(WONDERFUL_TOOLCHAIN)/thirdparty/blocksds/core
 ARM_NONE_EABI_PATH	?= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/
 
 #---------------------------------------------------------------------------------
@@ -27,7 +27,7 @@ RANLIB		:= $(PREFIX)ranlib
 # DATA is a list of directories containing binary files
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-ds
-BUILD		:=	build
+BUILD		:=	build/nds
 SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/nds include/miniz
 INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/nds include/nlohmann include/miniz
 DATA		:=
@@ -41,7 +41,7 @@ GFXBUILD	:=	$(NITRODATA)/gfx
 GAME_TITLE		:=	Scratch Everywhere!
 GAME_SUBTITLE1	:=	Scratch 3 Games on your DS!
 GAME_SUBTITLE2	:=	NateXS
-GAME_ICON		:=	$(CURDIR)/../gfx/nds/icon.bmp
+GAME_ICON		:=	$(CURDIR)/../../gfx/nds/icon.bmp
 
 
 
@@ -83,10 +83,10 @@ endif
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
 #---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
+ifneq ($(notdir $(BUILD)),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
+export OUTPUT	:=	$(CURDIR)/$(BUILD)/$(TARGET)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 					$(foreach dir,$(DATA),$(CURDIR)/$(dir))
