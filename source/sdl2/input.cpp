@@ -100,7 +100,6 @@ void Input::getInput() {
         std::string keyName = rawName ? rawName : "";
         std::transform(keyName.begin(), keyName.end(), keyName.begin(), ::tolower);
 
-        Log::log(keyName);
         if (keyName == "up") keyName = "up arrow";
         else if (keyName == "down") keyName = "down arrow";
         else if (keyName == "left") keyName = "left arrow";
