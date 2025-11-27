@@ -59,10 +59,10 @@ void Image::render(double xPos, double yPos, bool centered) {
     Uint8 alpha = static_cast<Uint8>(opacity * 255);
     SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
 
-    SDL_Point center = {image->renderRect.w / 2, image->renderRect.h / 2};
+    SDL_FPoint center = {image->renderRect.w / 2, image->renderRect.h / 2};
 
     image->freeTimer = image->maxFreeTime;
-    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, rotation, &center, SDL_FLIP_NONE);
+    SDL_RenderTextureRotated(renderer, image->spriteTexture, &image->textureRect, &image->renderRect, rotation, &center, SDL_FLIP_NONE);
 }
 
 // I doubt you want to mess with this...
@@ -76,55 +76,53 @@ void Image::renderNineslice(double xPos, double yPos, double width, double heigh
     uint8_t alpha = static_cast<Uint8>(opacity * 255);
     SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
 
-    const int iDestX = static_cast<int>(xPos - (centered ? width / 2 : 0));
-    const int iDestY = static_cast<int>(yPos - (centered ? height / 2 : 0));
-    const int iWidth = static_cast<int>(width);
-    const int iHeight = static_cast<int>(height);
-    const int iSrcPadding = std::max(1, static_cast<int>(std::min(std::min(padding, static_cast<double>(image->width) / 2), static_cast<double>(image->height) / 2)));
+    const float destX = xPos - (centered ? width / 2.0f : 0);
+    const float destY = yPos - (centered ? height / 2.0f : 0);
+    const float srcPadding = std::max(1.0f, std::min(std::min(static_cast<float>(padding), image->width / 2.0f), static_cast<float>(image->height)) / 2.0f);
 
-    const int srcCenterWidth = std::max(0, image->width - 2 * iSrcPadding);
-    const int srcCenterHeight = std::max(0, image->height - 2 * iSrcPadding);
+    const float srcCenterWidth = std::max(0.0f, image->width - 2 * srcPadding);
+    const float srcCenterHeight = std::max(0.0f, image->height - 2 * srcPadding);
 
-    const SDL_Rect srcTopLeft = {0, 0, iSrcPadding, iSrcPadding};
-    const SDL_Rect srcTop = {iSrcPadding, 0, srcCenterWidth, iSrcPadding};
-    const SDL_Rect srcTopRight = {image->width - iSrcPadding, 0, iSrcPadding, iSrcPadding};
-    const SDL_Rect srcLeft = {0, iSrcPadding, iSrcPadding, srcCenterHeight};
-    const SDL_Rect srcCenter = {iSrcPadding, iSrcPadding, srcCenterWidth, srcCenterHeight};
-    const SDL_Rect srcRight = {image->width - iSrcPadding, iSrcPadding, iSrcPadding, srcCenterHeight};
-    const SDL_Rect srcBottomLeft = {0, image->height - iSrcPadding, iSrcPadding, iSrcPadding};
-    const SDL_Rect srcBottom = {iSrcPadding, image->height - iSrcPadding, srcCenterWidth, iSrcPadding};
-    const SDL_Rect srcBottomRight = {image->width - iSrcPadding, image->height - iSrcPadding, iSrcPadding, iSrcPadding};
+    const SDL_FRect srcTopLeft = {0, 0, srcPadding, srcPadding};
+    const SDL_FRect srcTop = {srcPadding, 0, srcCenterWidth, srcPadding};
+    const SDL_FRect srcTopRight = {image->width - srcPadding, 0, srcPadding, srcPadding};
+    const SDL_FRect srcLeft = {0, srcPadding, srcPadding, srcCenterHeight};
+    const SDL_FRect srcCenter = {srcPadding, srcPadding, srcCenterWidth, srcCenterHeight};
+    const SDL_FRect srcRight = {image->width - srcPadding, srcPadding, srcPadding, srcCenterHeight};
+    const SDL_FRect srcBottomLeft = {0, image->height - srcPadding, srcPadding, srcPadding};
+    const SDL_FRect srcBottom = {srcPadding, image->height - srcPadding, srcCenterWidth, srcPadding};
+    const SDL_FRect srcBottomRight = {image->width - srcPadding, image->height - srcPadding, srcPadding, srcPadding};
 
-    const int dstCenterWidth = std::max(0, iWidth - 2 * iSrcPadding);
-    const int dstCenterHeight = std::max(0, iHeight - 2 * iSrcPadding);
+    const float dstCenterWidth = std::max(0.0f, static_cast<float>(width) - 2 * srcPadding);
+    const float dstCenterHeight = std::max(0.0f, static_cast<float>(height) - 2 * srcPadding);
 
-    const SDL_Rect dstTopLeft = {iDestX, iDestY, iSrcPadding, iSrcPadding};
-    const SDL_Rect dstTop = {iDestX + iSrcPadding, iDestY, dstCenterWidth, iSrcPadding};
-    const SDL_Rect dstTopRight = {iDestX + iSrcPadding + dstCenterWidth, iDestY, iSrcPadding, iSrcPadding};
+    const SDL_FRect dstTopLeft = {destX, destY, srcPadding, srcPadding};
+    const SDL_FRect dstTop = {destX + srcPadding, destY, dstCenterWidth, srcPadding};
+    const SDL_FRect dstTopRight = {destX + srcPadding + dstCenterWidth, destY, srcPadding, srcPadding};
 
-    const SDL_Rect dstLeft = {iDestX, iDestY + iSrcPadding, iSrcPadding, dstCenterHeight};
-    const SDL_Rect dstCenter = {iDestX + iSrcPadding, iDestY + iSrcPadding, dstCenterWidth, dstCenterHeight};
-    const SDL_Rect dstRight = {iDestX + iSrcPadding + dstCenterWidth, iDestY + iSrcPadding, iSrcPadding, dstCenterHeight};
-    const SDL_Rect dstBottomLeft = {iDestX, iDestY + iSrcPadding + dstCenterHeight, iSrcPadding, iSrcPadding};
-    const SDL_Rect dstBottom = {iDestX + iSrcPadding, iDestY + iSrcPadding + dstCenterHeight, dstCenterWidth, iSrcPadding};
-    const SDL_Rect dstBottomRight = {iDestX + iSrcPadding + dstCenterWidth, iDestY + iSrcPadding + dstCenterHeight, iSrcPadding, iSrcPadding};
+    const SDL_FRect dstLeft = {destX, destY + srcPadding, srcPadding, dstCenterHeight};
+    const SDL_FRect dstCenter = {destX + srcPadding, destY + srcPadding, dstCenterWidth, dstCenterHeight};
+    const SDL_FRect dstRight = {destX + srcPadding + dstCenterWidth, destY + srcPadding, srcPadding, dstCenterHeight};
+    const SDL_FRect dstBottomLeft = {destX, destY + srcPadding + dstCenterHeight, srcPadding, srcPadding};
+    const SDL_FRect dstBottom = {destX + srcPadding, destY + srcPadding + dstCenterHeight, dstCenterWidth, srcPadding};
+    const SDL_FRect dstBottomRight = {destX + srcPadding + dstCenterWidth, destY + srcPadding + dstCenterHeight, srcPadding, srcPadding};
 
     image->freeTimer = image->maxFreeTime;
 
     SDL_Texture *originalTexture = image->spriteTexture;
     SDL_ScaleMode originalScaleMode;
     SDL_GetTextureScaleMode(originalTexture, &originalScaleMode);
-    SDL_SetTextureScaleMode(originalTexture, SDL_ScaleModeNearest);
+    SDL_SetTextureScaleMode(originalTexture, SDL_SCALEMODE_NEAREST);
 
-    SDL_RenderCopy(renderer, originalTexture, &srcTopLeft, &dstTopLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcTop, &dstTop);
-    SDL_RenderCopy(renderer, originalTexture, &srcTopRight, &dstTopRight);
-    SDL_RenderCopy(renderer, originalTexture, &srcLeft, &dstLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcCenter, &dstCenter);
-    SDL_RenderCopy(renderer, originalTexture, &srcRight, &dstRight);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottomLeft, &dstBottomLeft);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottom, &dstBottom);
-    SDL_RenderCopy(renderer, originalTexture, &srcBottomRight, &dstBottomRight);
+    SDL_RenderTexture(renderer, originalTexture, &srcTopLeft, &dstTopLeft);
+    SDL_RenderTexture(renderer, originalTexture, &srcTop, &dstTop);
+    SDL_RenderTexture(renderer, originalTexture, &srcTopRight, &dstTopRight);
+    SDL_RenderTexture(renderer, originalTexture, &srcLeft, &dstLeft);
+    SDL_RenderTexture(renderer, originalTexture, &srcCenter, &dstCenter);
+    SDL_RenderTexture(renderer, originalTexture, &srcRight, &dstRight);
+    SDL_RenderTexture(renderer, originalTexture, &srcBottomLeft, &dstBottomLeft);
+    SDL_RenderTexture(renderer, originalTexture, &srcBottom, &dstBottom);
+    SDL_RenderTexture(renderer, originalTexture, &srcBottomRight, &dstBottomRight);
 
     SDL_SetTextureScaleMode(originalTexture, originalScaleMode);
 }
@@ -146,13 +144,12 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
     finalPath = finalPath + filePath;
     if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
     // SDL_Image *image = new SDL_Image(finalPath);
-    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
+    SDL_Image *image = new SDL_Image();
     new (image) SDL_Image(finalPath);
 
     // Track texture memory
     if (image->spriteTexture) {
         size_t textureMemory = image->width * image->height * 4;
-        MemoryTracker::allocateVRAM(textureMemory);
         image->memorySize = textureMemory;
     }
 
@@ -215,21 +212,21 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
         return;
     }
 
-    // Use SDL_RWops to load image from memory
-    SDL_RWops *rw = SDL_RWFromMem(file_data, file_size);
-    if (!rw) {
+    // Use SDL_IOStream to load image from memory
+    SDL_IOStream *io = SDL_IOFromMem(file_data, file_size);
+    if (!io) {
         Log::logWarning("Failed to create RWops for: " + costumeId);
         mz_free(file_data);
         return;
     }
 
-    SDL_Surface *surface = IMG_Load_RW(rw, 0);
-    SDL_RWclose(rw);
+    SDL_Surface *surface = IMG_Load_IO(io, 0);
+    SDL_CloseIO(io);
     mz_free(file_data);
 
     if (!surface) {
         Log::logWarning("Failed to load image from memory: " + costumeId);
-        Log::logWarning("IMG Error: " + std::string(IMG_GetError()));
+        Log::logWarning("IMG Error: " + std::string(SDL_GetError()));
         return;
     }
 
@@ -249,28 +246,29 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
     if (!texture) {
         Log::logWarning("Failed to create texture: " + costumeId);
-        SDL_FreeSurface(surface);
+        SDL_DestroySurface(surface);
         return;
     }
-    SDL_FreeSurface(surface);
+    SDL_DestroySurface(surface);
 
     // Build SDL_Image object
-    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
+    SDL_Image *image = new SDL_Image();
     new (image) SDL_Image();
     image->spriteTexture = texture;
-    SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
+    SDL_GetTextureSize(texture, &image->width, &image->height);
     image->renderRect = {0, 0, image->width, image->height};
     image->textureRect = {0, 0, image->width, image->height};
 
     // calculate VRAM usage
-    Uint32 format;
-    int w, h;
-    SDL_QueryTexture(texture, &format, NULL, &w, &h);
+    const SDL_PropertiesID props = SDL_GetTextureProperties(texture);
+    const SDL_PixelFormat format = static_cast<SDL_PixelFormat>(SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_FORMAT_NUMBER, 0));
+    const int w = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_WIDTH_NUMBER, 0);
+    const int h = SDL_GetNumberProperty(props, SDL_PROP_TEXTURE_HEIGHT_NUMBER, 0);
     int bpp;
     Uint32 Rmask, Gmask, Bmask, Amask;
-    SDL_PixelFormatEnumToMasks(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
-    image->memorySize = (w * h * bpp) / 8;
-    MemoryTracker::allocateVRAM(image->memorySize);
+    if (SDL_GetMasksForPixelFormat(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask) == 0) {
+        image->memorySize = w * h * bpp;
+    }
 
     if (sprite != nullptr) {
         sprite->spriteWidth = image->textureRect.w / 2;
@@ -282,14 +280,8 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
 }
 
 void Image::cleanupImages() {
-    for (auto &[id, image] : images) {
-        if (image->memorySize > 0) {
-            MemoryTracker::deallocateVRAM(image->memorySize);
-        }
-        // delete image;
-        image->~SDL_Image();
-        MemoryTracker::deallocate<SDL_Image>(image);
-    }
+    for (auto &[id, image] : images)
+        delete image;
     images.clear();
     toDelete.clear();
 }
@@ -305,8 +297,7 @@ void Image::freeImage(const std::string &costumeId) {
 
         // Log::log("Freed image " + costumeId);
         //  Call destructor and deallocate SDL_Image
-        image->~SDL_Image();
-        MemoryTracker::deallocate<SDL_Image>(image);
+        delete image;
 
         images.erase(imageIt);
     }
@@ -318,92 +309,44 @@ void Image::freeImage(const std::string &costumeId) {
  */
 void Image::FlushImages() {
 
-    // Free images if ram usage is too high
-    if (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.8) {
-
-        size_t times = 0;
-        while (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.5 && !images.empty()) {
-            SDL_Image *imgToDelete = nullptr;
-            std::string toDeleteStr = "";
-
-            for (auto &[id, img] : images) {
-                if (imgToDelete == nullptr && img->freeTimer != img->maxFreeTime) {
-                    imgToDelete = img;
-                    toDeleteStr = id;
-                    continue;
-                }
-                if (imgToDelete != nullptr && img->freeTimer < imgToDelete->freeTimer && img->freeTimer != img->maxFreeTime) {
-                    imgToDelete = img;
-                    toDeleteStr = id;
-                }
-            }
-
-            if (toDeleteStr != "") {
-                Image::freeImage(toDeleteStr);
-            } else {
-                break;
-            }
-            times++;
-            if (times > 15) break;
+    // Free images based on a timer
+    for (auto &[id, img] : images) {
+        if (img->freeTimer <= 0) {
+            toDelete.push_back(id);
+        } else {
+            img->freeTimer -= 1;
         }
-    } else {
-        // Free images based on a timer
-        for (auto &[id, img] : images) {
-            if (img->freeTimer <= 0) {
-                toDelete.push_back(id);
-            } else {
-                img->freeTimer -= 1;
-            }
-        }
-
-        for (const std::string &id : toDelete) {
-            Image::freeImage(id);
-        }
-        toDelete.clear();
     }
+
+    for (const std::string &id : toDelete) {
+        Image::freeImage(id);
+    }
+    toDelete.clear();
 }
 
 SDL_Image::SDL_Image() {}
 
 SDL_Image::SDL_Image(std::string filePath) {
 #ifdef __PC__
-    if (cmrc::romfs::get_filesystem().exists(filePath)) {
-        const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-        spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
-    }
+    const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+    spriteSurface = IMG_Load_IO(SDL_IOFromConstMem(file.begin(), file.size()), 1);
+#else
+    spriteSurface = IMG_Load(filePath.c_str());
 #endif
-    if (spriteSurface == nullptr) spriteSurface = IMG_Load(filePath.c_str());
     if (spriteSurface == NULL) {
-        Log::logWarning(std::string("Error loading image: ") + IMG_GetError());
+        Log::logWarning(std::string("Error loading image: ") + SDL_GetError());
         return;
     }
-
-// PS4 piglet expects RGBA instead of ABGR.
-#if defined(__PS4__)
-    SDL_Surface *convert = SDL_ConvertSurfaceFormat(spriteSurface, SDL_PIXELFORMAT_RGBA8888, 0);
-    if (convert == NULL) {
-        Log::logWarning(std::string("Error converting image surface: ") + SDL_GetError());
-        SDL_FreeSurface(convert);
-        return;
-    }
-
-    SDL_FreeSurface(spriteSurface);
-    spriteSurface = convert;
-#endif
 
     spriteTexture = SDL_CreateTextureFromSurface(renderer, spriteSurface);
     if (spriteTexture == NULL) {
         Log::logWarning(std::string("Error creating texture: ") + SDL_GetError());
         return;
     }
-    SDL_FreeSurface(spriteSurface);
+    SDL_DestroySurface(spriteSurface);
 
     // get width and height of image
-    int texW = 0;
-    int texH = 0;
-    SDL_QueryTexture(spriteTexture, NULL, NULL, &texW, &texH);
-    width = texW;
-    height = texH;
+    SDL_GetTextureSize(spriteTexture, &width, &height);
     renderRect.w = width;
     renderRect.h = height;
     textureRect.w = width;
@@ -412,14 +355,11 @@ SDL_Image::SDL_Image(std::string filePath) {
     textureRect.y = 0;
 
     // calculate VRAM usage
-    Uint32 format;
-    int w, h;
-    SDL_QueryTexture(spriteTexture, &format, NULL, &w, &h);
     int bpp;
     Uint32 Rmask, Gmask, Bmask, Amask;
-    SDL_PixelFormatEnumToMasks(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
-    memorySize = (w * h * bpp) / 8;
-    MemoryTracker::allocateVRAM(memorySize);
+    if (SDL_GetMasksForPixelFormat(static_cast<SDL_PixelFormat>(SDL_GetNumberProperty(SDL_GetTextureProperties(spriteTexture), SDL_PROP_TEXTURE_FORMAT_NUMBER, 0)), &bpp, &Rmask, &Gmask, &Bmask, &Amask) == 0) {
+        memorySize = (width * height * bpp) / 8;
+    }
 
     // Log::log("Image loaded!");
 }
@@ -432,7 +372,6 @@ void Image::queueFreeImage(const std::string &costumeId) {
 }
 
 SDL_Image::~SDL_Image() {
-    MemoryTracker::deallocateVRAM(memorySize);
     SDL_DestroyTexture(spriteTexture);
 }
 

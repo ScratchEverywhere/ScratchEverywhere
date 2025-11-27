@@ -5,7 +5,7 @@ on:
     paths:
       - make/Makefile_ps4
       - source/scratch/**
-      - source/sdl/**
+      - source/sdl2/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-ps4.yml

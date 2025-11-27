@@ -18,8 +18,6 @@ class LooksBlocks {
     static BlockResult clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 
     static Value size(Block &block, Sprite *sprite);
-    static Value costume(Block &block, Sprite *sprite);
-    static Value backdrops(Block &block, Sprite *sprite);
     static Value costumeNumberName(Block &block, Sprite *sprite);
     static Value backdropNumberName(Block &block, Sprite *sprite);
 };

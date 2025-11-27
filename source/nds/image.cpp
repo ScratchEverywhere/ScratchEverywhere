@@ -529,6 +529,9 @@ void Image::freeImage(const std::string &costumeId) {
     images.erase(imgFind);
 }
 
+void Image::cleanupImagesLite() {
+}
+
 void Image::cleanupImages() {
     std::vector<std::string> toDelete;
     for (auto &[id, image] : images) {

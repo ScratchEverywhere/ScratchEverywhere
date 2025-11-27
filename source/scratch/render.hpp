@@ -119,8 +119,11 @@ class Render {
             if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
                 sprite->spriteHeight - sprite->rotationCenterY != 0) {
                 const int shiftAmount = !isSVG ? 1 : 0;
-                const int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> shiftAmount;
+                int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> shiftAmount;
                 const int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> shiftAmount;
+
+                if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0)
+                    offsetX *= -1;
 
                 // Offset based on size
                 if (sprite->size != 100.0f) {
@@ -145,13 +148,12 @@ class Render {
                 }
             }
 
+#ifndef __NDS__
             if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-#ifdef __NDS__
-                spriteX += sprite->spriteWidth * (isSVG ? 2 : 1);
-#else
+
                 spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
-#endif
             }
+#endif
 
             if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
@@ -161,7 +163,7 @@ class Render {
                 renderY = static_cast<int>(-spriteY + (screenHeight >> 1));
             }
 
-#ifdef SDL_BUILD
+#if defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
             renderX -= (sprite->spriteWidth * sprite->renderInfo.renderScaleY);
             renderY -= (sprite->spriteHeight * sprite->renderInfo.renderScaleY);
 #endif
@@ -226,10 +228,11 @@ class Render {
                 float renderX = var.x * scale + barOffsetX;
                 float renderY = var.y * scale + barOffsetY;
                 const std::vector<float> renderSize = monitorTexts[var.id]->getSize();
-                ColorRGB backgroundColor = {
+                ColorRGBA backgroundColor = {
                     .r = 228,
                     .g = 240,
-                    .b = 255};
+                    .b = 255,
+                    .a = 255};
 
                 monitorTexts[var.id]->setCenterAligned(false);
                 if (var.mode != "large") {
@@ -241,9 +244,8 @@ class Render {
                     backgroundColor = {
                         .r = 255,
                         .g = 141,
-                        .b = 41
-
-                    };
+                        .b = 41,
+                        .a = 255};
                 }
 
                 // draw background
@@ -282,6 +284,21 @@ class Render {
      * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
      */
     static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite);
+
+    /**
+     * Called on pen down to place a singular dot at the position of the sprite.
+     */
+    static void penDot(Sprite *sprite);
+
+    /**
+     * Called whenever the stamp block is used to place a copy of the sprite onto the pen canvas.
+     */
+    static void penStamp(Sprite *sprite);
+
+    /**
+     * Called when the pen canvas needs to be cleared.
+     */
+    static void penClear();
 
     /**
      * Returns whether or not enough time has passed to advance a frame.

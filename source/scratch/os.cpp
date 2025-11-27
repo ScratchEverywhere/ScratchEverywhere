@@ -20,11 +20,6 @@
 #include <orbis/libkernel.h>
 #endif
 
-size_t MemoryTracker::totalAllocated = 0;
-size_t MemoryTracker::peakUsage = 0;
-size_t MemoryTracker::allocationCount = 0;
-size_t MemoryTracker::totalVRAMAllocated = 0;
-
 // PS4 implementation of logging
 #ifdef __PS4__
 char logBuffer[1024];
@@ -186,27 +181,27 @@ std::string OS::getFilesystemRootPrefix() {
 
 std::string OS::getScratchFolderLocation() {
     const std::string prefix = getFilesystemRootPrefix();
-    #ifdef __WIIU__
+#ifdef __WIIU__
     return prefix + "/wiiu/scratch-wiiu/";
-    #elif defined(__SWITCH__)
+#elif defined(__SWITCH__)
     return "/switch/scratch-nx/";
-    #elif defined(WII)
+#elif defined(WII)
     return "/apps/scratch-wii/";
-    #elif defined(GAMECUBE)
+#elif defined(GAMECUBE)
     return "/scratch-gamecube/";
-    #elif defined(VITA)
+#elif defined(VITA)
     return prefix + "data/scratch-vita/";
-    #elif defined(__PS4__)
+#elif defined(__PS4__)
     return "/data/scratch-ps4/";
-    #elif defined(__3DS__)
+#elif defined(__3DS__)
     return prefix + "/3ds/scratch-everywhere/";
-    #elif defined(__EMSCRIPTEN__)
+#elif defined(__EMSCRIPTEN__)
     return "/scratch-everywhere/";
-    #elif defined(__NDS__)
+#elif defined(__NDS__)
     return prefix + "/scratch-ds/";
-    #else
+#else
     return "scratch-everywhere/";
-    #endif
+#endif
 }
 
 std::string OS::getRomFSLocation() {
@@ -242,6 +237,8 @@ std::string OS::getPlatform() {
     return "WASM";
 #elif defined(__PS4__)
     return "PS4";
+#elif defined(__PSP__)
+    return "PSP";
 #else
     return "Unknown";
 #endif

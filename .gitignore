@@ -9,6 +9,11 @@ romfs/project/
 romfs/gfx
 scratch-everywhere/
 
+# legacy makefiles
+make/Makefile_vita
+make/Makefile_switch
+make/Makefile_pc
+
 main.code-workspace
 
 # Prerequisites
@@ -67,6 +72,7 @@ romfs/project.sb3_FILES/project.json
 Scratch-pc
 scratch-wiiu/
 scratch-wasm/
+scratch-ds/
 scratch-wii.zip
 
 # Stored Files
@@ -74,3 +80,6 @@ cloud-username.txt
 
 # macOS
 .DS_Store
+
+# fockerdile
+!docker/Dockerfile.nds

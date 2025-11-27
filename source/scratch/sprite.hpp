@@ -191,10 +191,9 @@ class Sprite {
     int spriteHeight;
 
     struct {
-        bool down;
-        double size;
-        Color color;
-        double transparency;
+        bool down = false;
+        double size = 1;
+        Color color = {66.66, 100.0, 100.0, 0.0};
     } penData;
 
     std::unordered_map<std::string, Variable> variables;

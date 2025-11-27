@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.28 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.30 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,8 +10,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
-option(SE_HEADLESS "Makes SE! use a headless renderer instead of SDL2. This will override the SE_AUDIO setting." OFF)
-option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
@@ -19,7 +17,46 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
-if(NINTENDO_SWITCH OR PSP OR VITA)
+option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+
+list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3")
+endif()
+
+if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"sdl3"
+		CACHE STRING "Select the desired renderer backend."
+	)
+elseif("sdl2" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"sdl2"
+		CACHE STRING "Select the desired renderer backend."
+	)
+elseif("sdl1" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"sdl1"
+		CACHE STRING "Select the desired renderer backend."
+	)
+else()
+	set(
+		SE_RENDERER
+		"headless"
+		CACHE STRING "Select the desired renderer backend."
+	)
+endif()
+if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
+    message(
+        FATAL_ERROR
+        "Invalid value for SE_RENDERER: '${SE_RENDERER}'. Must be one of: ${SE_RENDERER_VALID_OPTIONS}"
+    )
+endif()
+
+if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -38,13 +75,16 @@ endif()
 set(CPM_SOURCE_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC  
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
-file(GLOB_RECURSE GFXFILES "${CMAKE_SOURCE_DIR}/gfx/*")
+file(GLOB_RECURSE GFXFILES
+    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
+    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
+)
 foreach(file IN LISTS GFXFILES)
 	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
@@ -70,7 +110,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz)
 
-if(NOT SE_HEADLESS)
+if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "sdl1")
 	CPMAddPackage(
 		NAME clay
 		GITHUB_REPOSITORY nicbarker/clay
@@ -79,7 +119,29 @@ if(NOT SE_HEADLESS)
 		GIT_TAG main # I used a newer version of the lib when I originally started working on the PR and don't really feel like downgrading...
 		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clay.patch"
 	)
+endif()
 
+if(SE_RENDERER STREQUAL "sdl1")
+	if(SE_SYSTEM)
+		find_package(PkgConfig REQUIRED)
+
+		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
+		pkg_check_modules(SDL_IMAGE REQUIRED SDL_image>=1.2.0)
+		pkg_check_modules(SDL_TTF REQUIRED SDL_ttf>=1.2.0)
+		pkg_check_modules(SDL_GFX REQUIRED SDL_gfx>=1.0.0)
+
+		if (SE_AUDIO)
+			pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
+		endif()
+	else()
+		error("SDL1 is currently not supported without system libraries")
+	endif()
+	CPMAddPackage(
+		NAME nanosvg
+		GITHUB_REPOSITORY memononen/nanosvg
+		GIT_TAG 5cefd9847949af6df13f65027fd43af5a7513633
+	)
+elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
 		find_package(PkgConfig REQUIRED)
 
@@ -136,7 +198,7 @@ if(NOT SE_HEADLESS)
 		target_include_directories(SDL2_gfx PUBLIC
 			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 		)
-		target_link_libraries(SDL2_gfx PUBLIC 
+		target_link_libraries(SDL2_gfx PUBLIC
 			SDL2::SDL2
 		)
 		if(SE_AUDIO)
@@ -146,6 +208,53 @@ if(NOT SE_HEADLESS)
 				GITHUB_REPOSITORY libsdl-org/SDL_mixer
 				GIT_TAG release-2.8.1
 				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+			)
+		endif()
+	endif()
+elseif(SE_RENDERER STREQUAL "sdl3")
+	if(SE_SYSTEM)
+		find_package(PkgConfig REQUIRED)
+
+		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
+		pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image>=3.0.0)
+		pkg_check_modules(SDL3_TTF REQUIRED sdl3-ttf>=3.0.0)
+		pkg_check_modules(SDL3_GFX REQUIRED sdl3-gfx>=1.0.0)
+
+		if (SE_AUDIO)
+			pkg_check_modules(SDL3_MIXER REQUIRED sdl3-mixer>=2.0.0)
+		endif()
+	else()
+		CPMAddPackage(
+			NAME SDL3
+			VERSION 3.2.26
+			GITHUB_REPOSITORY libsdl-org/SDL
+			GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
+			OPTIONS "SDL_TEST_LIBRARY OFF"
+		)
+		CPMAddPackage(
+			NAME SDL3_image
+			VERSION 3.2.4
+			GITHUB_REPOSITORY libsdl-org/SDL_image
+			GIT_TAG release-3.2.4
+		)
+		CPMAddPackage(
+			NAME SDL3_ttf
+			VERSION 3.2.2
+			GITHUB_REPOSITORY libsdl-org/SDL_ttf
+			GIT_TAG release-3.2.2
+			OPTIONS "SDLTTF_VENDORED ON"
+		)
+		CPMAddPackage(
+			NAME SDL3_gfx
+			VERSION 1.0.1
+			GITHUB_REPOSITORY sabdul-khabir/SDL3_gfx
+		)
+		if(SE_AUDIO)
+			CPMAddPackage(
+				NAME SDL3_mixer
+				VERSION 3
+				GITHUB_REPOSITORY libsdl-org/SDL_mixer
+				GIT_TAG main # TODO: pin version
 			)
 		endif()
 	endif()
@@ -180,10 +289,14 @@ if(SE_CLOUDVARS)
 	CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
 endif()
 
-if(SE_HEADLESS)
+if(SE_RENDERER STREQUAL "headless")
 	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/headless)
+elseif(SE_RENDERER STREQUAL "sdl3")
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl3 source/sdl3/audio)
+elseif(SE_RENDERER STREQUAL "sdl2")
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio)
 else()
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl1 source/sdl1/audio)
 endif()
 
 set(SOURCE_FILES)
@@ -207,7 +320,7 @@ elseif(VITA)
 	target_compile_definitions(scratch-everywhere PRIVATE VITA)
 endif()
 
-if(NOT PSP AND NOT NINTENDO_SWITCH AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT VITA)
 	include(FetchContent)
 	FetchContent_Declare(
 	  cmrc
@@ -231,9 +344,51 @@ if(NOT BUILD_SHARED_LIBS AND WIN32)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()
 
-if (NOT SE_HEADLESS)
+if (SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "sdl1")
 	target_include_directories(scratch-everywhere PRIVATE "${clay_SOURCE_DIR}" "${clay_SOURCE_DIR}/renderers/SDL2")
+endif()
 
+if(SE_RENDERER STREQUAL "sdl3")
+	set(SDL_LINK_LIBS)
+
+	if(NOT SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS SDL3::SDL3)
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_gfx_SOURCE_DIR})
+	endif()
+
+	if(SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
+
+		if (SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS ${SDL3_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL3_MIXER_INCLUDE_DIRS})
+		endif()
+	elseif(BUILD_SHARED_LIBS)
+		list(APPEND SDL_LINK_LIBS SDL3_image::SDL3_image)
+		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
+		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
+
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS SDL3_mixer::SDL3_mixer)
+		endif()
+	else()
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_image::SDL3_image-static>,
+			SDL3_image::SDL3_image-static,
+			SDL3_image::SDL3_image>)
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_ttf::SDL3_ttf-static>,
+			SDL3_ttf::SDL3_ttf-static,
+			SDL3_ttf::SDL3_ttf>)
+		list(APPEND SDL_LINK_LIBS SDL3_gfx_Static)
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,
+				SDL3_mixer::SDL3_mixer-static,
+				SDL3_mixer::SDL3_mixer>)
+		endif()
+	endif()
+
+	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+elseif(SE_RENDERER STREQUAL "sdl2")
 	set(SDL_LINK_LIBS)
 
 	if(SE_SYSTEM)
@@ -255,7 +410,7 @@ if (NOT SE_HEADLESS)
 		list(APPEND SDL_LINK_LIBS SDL2_image::SDL2_image)
 		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)
 
-		if(SE_AUDIO)	
+		if(SE_AUDIO)
 			list(APPEND SDL_LINK_LIBS SDL2_mixer::SDL2_mixer)
 		endif()
 	else()
@@ -277,14 +432,65 @@ if (NOT SE_HEADLESS)
 	endif()
 
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+elseif(SE_RENDERER STREQUAL "sdl1")
+	set(SDL_LINK_LIBS)
+
+	if(SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL_GFX_INCLUDE_DIRS})
+	else()
+		list(APPEND SDL_LINK_LIBS SDL_gfx SDL::SDL)
+	endif()
+
+	if(SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_IMAGE_LIBRARIES} ${SDL_TTF_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_IMAGE_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
+
+		if (SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS ${SDL_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL_MIXER_INCLUDE_DIRS})
+		endif()
+	elseif(BUILD_SHARED_LIBS)
+		list(APPEND SDL_LINK_LIBS SDL_image::SDL_image)
+		list(APPEND SDL_LINK_LIBS SDL_ttf::SDL_ttf)
+
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS SDL_mixer::SDL_mixer)
+		endif()
+	else()
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_image::SDL_image-static>,
+			SDL_image::SDL_image-static,
+			SDL_image::SDL_image>)
+		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_ttf::SDL_ttf-static>,
+			SDL_ttf::SDL_ttf-static,
+			SDL_ttf::SDL_ttf>)
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_mixer::SDL_mixer-static>,
+				SDL_mixer::SDL_mixer-static,
+				SDL_mixer::SDL_mixer>)
+		endif()
+	endif()
+
+	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
+	target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
+endif()
+
+if(SE_SYSTEM)
+	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
-if(NOT SE_HEADLESS)
-	target_compile_definitions(scratch-everywhere PRIVATE SDL_BUILD)
+if(SE_RENDERER STREQUAL "sdl1")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL1)
+elseif(SE_RENDERER STREQUAL "sdl2")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL2)
+elseif(SE_RENDERER STREQUAL "sdl3")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL3)
+elseif(SE_RENDERER STREQUAL "headless")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
 endif()
 
 if(SE_AUDIO)
@@ -304,21 +510,21 @@ target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_
 if(PSP)
     create_pbp_file(
         TARGET scratch-everywhere
-        ICON_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gfx/psp/ICON0.png
+        ICON_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/ICON0.png
         BACKGROUND_PATH NULL
-        PREVIEW_PATH ${CMAKE_CURRENT_SOURCE_DIR}/gfx/psp/PIC1.png
+        PREVIEW_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
         TITLE scratch-everywhere
-        VERSION ${PROJECT_VERSION}
+        VERSION ${CMAKE_PROJECT_VERSION}
     )
 	# package the EBOOT.pbp
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
 	    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/scratch-psp-bundle"
-	    COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:scratch-everywhere>" "${CMAKE_BINARY_DIR}/scratch-psp-bundle/EBOOT.PBP"
+	    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_BINARY_DIR}/EBOOT.PBP" "${CMAKE_BINARY_DIR}/scratch-psp-bundle/EBOOT.PBP"
 		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/scratch-psp.zip" --format=zip -- "${CMAKE_BINARY_DIR}/scratch-psp-bundle"
 	)
 elseif(NINTENDO_SWITCH)
 	nx_generate_nacp(OUTPUT scratch-nx.nacp NAME "Scratch Everywhere!" AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
-	nx_create_nro(scratch-everywhere OUTPUT scratch-nx.nro ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/icon.png" NACP scratch-nx.nacp)
+	nx_create_nro(scratch-everywhere OUTPUT scratch-nx.nro ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/switch-icon.jpg" NACP scratch-nx.nacp)
 elseif(VITA)
 	include("${VITASDK}/share/vita.cmake" REQUIRED)
 

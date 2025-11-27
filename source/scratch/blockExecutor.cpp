@@ -37,159 +37,202 @@ BlockExecutor::BlockExecutor() {
 
 void BlockExecutor::registerHandlers() {
 
-    // motion
-    handlers["motion_movesteps"] = MotionBlocks::moveSteps;
-    handlers["motion_gotoxy"] = MotionBlocks::goToXY;
-    handlers["motion_goto"] = MotionBlocks::goTo;
-    handlers["motion_changexby"] = MotionBlocks::changeXBy;
-    handlers["motion_changeyby"] = MotionBlocks::changeYBy;
-    handlers["motion_setx"] = MotionBlocks::setX;
-    handlers["motion_sety"] = MotionBlocks::setY;
-    handlers["motion_glidesecstoxy"] = MotionBlocks::glideSecsToXY;
-    handlers["motion_glideto"] = MotionBlocks::glideTo;
-    handlers["motion_turnright"] = MotionBlocks::turnRight;
-    handlers["motion_turnleft"] = MotionBlocks::turnLeft;
-    handlers["motion_pointindirection"] = MotionBlocks::pointInDirection;
-    handlers["motion_pointtowards"] = MotionBlocks::pointToward;
-    handlers["motion_setrotationstyle"] = MotionBlocks::setRotationStyle;
-    handlers["motion_ifonedgebounce"] = MotionBlocks::ifOnEdgeBounce;
-    valueHandlers["motion_xposition"] = MotionBlocks::xPosition;
-    valueHandlers["motion_yposition"] = MotionBlocks::yPosition;
-    valueHandlers["motion_direction"] = MotionBlocks::direction;
+    handlers = {
+        {"motion_movesteps", MotionBlocks::moveSteps},
+        {"motion_gotoxy", MotionBlocks::goToXY},
+        {"motion_goto", MotionBlocks::goTo},
+        {"motion_changexby", MotionBlocks::changeXBy},
+        {"motion_changeyby", MotionBlocks::changeYBy},
+        {"motion_setx", MotionBlocks::setX},
+        {"motion_sety", MotionBlocks::setY},
+        {"motion_glidesecstoxy", MotionBlocks::glideSecsToXY},
+        {"motion_glideto", MotionBlocks::glideTo},
+        {"motion_turnright", MotionBlocks::turnRight},
+        {"motion_turnleft", MotionBlocks::turnLeft},
+        {"motion_pointindirection", MotionBlocks::pointInDirection},
+        {"motion_pointtowards", MotionBlocks::pointToward},
+        {"motion_setrotationstyle", MotionBlocks::setRotationStyle},
+        {"motion_ifonedgebounce", MotionBlocks::ifOnEdgeBounce},
 
-    // looks
-    handlers["looks_show"] = LooksBlocks::show;
-    handlers["looks_hide"] = LooksBlocks::hide;
-    handlers["looks_switchcostumeto"] = LooksBlocks::switchCostumeTo;
-    handlers["looks_nextcostume"] = LooksBlocks::nextCostume;
-    handlers["looks_switchbackdropto"] = LooksBlocks::switchBackdropTo;
-    handlers["looks_nextbackdrop"] = LooksBlocks::nextBackdrop;
-    handlers["looks_goforwardbackwardlayers"] = LooksBlocks::goForwardBackwardLayers;
-    handlers["looks_gotofrontback"] = LooksBlocks::goToFrontBack;
-    handlers["looks_setsizeto"] = LooksBlocks::setSizeTo;
-    handlers["looks_changesizeby"] = LooksBlocks::changeSizeBy;
-    handlers["looks_seteffectto"] = LooksBlocks::setEffectTo;
-    handlers["looks_changeeffectby"] = LooksBlocks::changeEffectBy;
-    handlers["looks_cleargraphiceffects"] = LooksBlocks::clearGraphicEffects;
-    valueHandlers["looks_size"] = LooksBlocks::size;
-    valueHandlers["looks_costume"] = LooksBlocks::costume;
-    valueHandlers["looks_backdrops"] = LooksBlocks::backdrops;
-    valueHandlers["looks_costumenumbername"] = LooksBlocks::costumeNumberName;
-    valueHandlers["looks_backdropnumbername"] = LooksBlocks::backdropNumberName;
+        {"looks_show", LooksBlocks::show},
+        {"looks_hide", LooksBlocks::hide},
+        {"looks_switchcostumeto", LooksBlocks::switchCostumeTo},
+        {"looks_nextcostume", LooksBlocks::nextCostume},
+        {"looks_switchbackdropto", LooksBlocks::switchBackdropTo},
+        {"looks_nextbackdrop", LooksBlocks::nextBackdrop},
+        {"looks_goforwardbackwardlayers", LooksBlocks::goForwardBackwardLayers},
+        {"looks_gotofrontback", LooksBlocks::goToFrontBack},
+        {"looks_setsizeto", LooksBlocks::setSizeTo},
+        {"looks_changesizeby", LooksBlocks::changeSizeBy},
+        {"looks_seteffectto", LooksBlocks::setEffectTo},
+        {"looks_changeeffectby", LooksBlocks::changeEffectBy},
+        {"looks_cleargraphiceffects", LooksBlocks::clearGraphicEffects},
 
-    // sound
-    handlers["sound_play"] = SoundBlocks::playSound;
-    handlers["sound_playuntildone"] = SoundBlocks::playSoundUntilDone;
-    handlers["sound_stopallsounds"] = SoundBlocks::stopAllSounds;
-    handlers["sound_changeeffectby"] = SoundBlocks::changeEffectBy;
-    handlers["sound_seteffectto"] = SoundBlocks::setEffectTo;
-    handlers["sound_cleareffects"] = SoundBlocks::clearSoundEffects;
-    handlers["sound_changevolumeby"] = SoundBlocks::changeVolumeBy;
-    handlers["sound_setvolumeto"] = SoundBlocks::setVolumeTo;
-    valueHandlers["sound_volume"] = SoundBlocks::volume;
+        {"sound_play", SoundBlocks::playSound},
+        {"sound_playuntildone", SoundBlocks::playSoundUntilDone},
+        {"sound_stopallsounds", SoundBlocks::stopAllSounds},
+        {"sound_changeeffectby", SoundBlocks::changeEffectBy},
+        {"sound_seteffectto", SoundBlocks::setEffectTo},
+        {"sound_cleareffects", SoundBlocks::clearSoundEffects},
+        {"sound_changevolumeby", SoundBlocks::changeVolumeBy},
+        {"sound_setvolumeto", SoundBlocks::setVolumeTo},
 
-    // events
-    handlers["event_whenflagclicked"] = EventBlocks::flagClicked;
-    handlers["event_broadcast"] = EventBlocks::broadcast;
-    handlers["event_broadcastandwait"] = EventBlocks::broadcastAndWait;
-    handlers["event_whenkeypressed"] = EventBlocks::whenKeyPressed;
-    handlers["event_whenbackdropswitchesto"] = EventBlocks::whenBackdropSwitchesTo;
+        {"event_whenflagclicked", EventBlocks::flagClicked},
+        {"event_broadcast", EventBlocks::broadcast},
+        {"event_broadcastandwait", EventBlocks::broadcastAndWait},
+        {"event_whenkeypressed", EventBlocks::whenKeyPressed},
+        {"event_whenbackdropswitchesto", EventBlocks::whenBackdropSwitchesTo},
 
-    // control
-    handlers["control_if"] = ControlBlocks::If;
-    handlers["control_if_else"] = ControlBlocks::ifElse;
-    handlers["control_create_clone_of"] = ControlBlocks::createCloneOf;
-    handlers["control_delete_this_clone"] = ControlBlocks::deleteThisClone;
-    handlers["control_stop"] = ControlBlocks::stop;
-    handlers["control_start_as_clone"] = ControlBlocks::startAsClone;
-    handlers["control_wait"] = ControlBlocks::wait;
-    handlers["control_wait_until"] = ControlBlocks::waitUntil;
-    handlers["control_repeat"] = ControlBlocks::repeat;
-    handlers["control_repeat_until"] = ControlBlocks::repeatUntil;
-    handlers["control_while"] = ControlBlocks::While;
-    handlers["control_forever"] = ControlBlocks::forever;
-    valueHandlers["control_get_counter"] = ControlBlocks::getCounter;
-    handlers["control_clear_counter"] = ControlBlocks::clearCounter;
-    handlers["control_incr_counter"] = ControlBlocks::incrementCounter;
-    handlers["control_for_each"] = ControlBlocks::forEach;
+        {"control_if", ControlBlocks::If},
+        {"control_if_else", ControlBlocks::ifElse},
+        {"control_create_clone_of", ControlBlocks::createCloneOf},
+        {"control_delete_this_clone", ControlBlocks::deleteThisClone},
+        {"control_stop", ControlBlocks::stop},
+        {"control_start_as_clone", ControlBlocks::startAsClone},
+        {"control_wait", ControlBlocks::wait},
+        {"control_wait_until", ControlBlocks::waitUntil},
+        {"control_repeat", ControlBlocks::repeat},
+        {"control_repeat_until", ControlBlocks::repeatUntil},
+        {"control_while", ControlBlocks::While},
+        {"control_forever", ControlBlocks::forever},
+        {"control_clear_counter", ControlBlocks::clearCounter},
+        {"control_incr_counter", ControlBlocks::incrementCounter},
+        {"control_for_each", ControlBlocks::forEach},
 
-    // operators
-    valueHandlers["operator_add"] = OperatorBlocks::add;
-    valueHandlers["operator_subtract"] = OperatorBlocks::subtract;
-    valueHandlers["operator_multiply"] = OperatorBlocks::multiply;
-    valueHandlers["operator_divide"] = OperatorBlocks::divide;
-    valueHandlers["operator_random"] = OperatorBlocks::random;
-    valueHandlers["operator_join"] = OperatorBlocks::join;
-    valueHandlers["operator_letter_of"] = OperatorBlocks::letterOf;
-    valueHandlers["operator_length"] = OperatorBlocks::length;
-    valueHandlers["operator_mod"] = OperatorBlocks::mod;
-    valueHandlers["operator_round"] = OperatorBlocks::round;
-    valueHandlers["operator_mathop"] = OperatorBlocks::mathOp;
-    valueHandlers["operator_equals"] = OperatorBlocks::equals;
-    valueHandlers["operator_gt"] = OperatorBlocks::greaterThan;
-    valueHandlers["operator_lt"] = OperatorBlocks::lessThan;
-    valueHandlers["operator_and"] = OperatorBlocks::and_;
-    valueHandlers["operator_or"] = OperatorBlocks::or_;
-    valueHandlers["operator_not"] = OperatorBlocks::not_;
-    valueHandlers["operator_contains"] = OperatorBlocks::contains;
+        {"sensing_askandwait", SensingBlocks::askAndWait},
+        {"sensing_resettimer", SensingBlocks::resetTimer},
+        {"sensing_setdragmode", SensingBlocks::setDragMode},
 
-    // data
-    handlers["data_setvariableto"] = DataBlocks::setVariable;
-    handlers["data_changevariableby"] = DataBlocks::changeVariable;
-    handlers["data_showvariable"] = DataBlocks::showVariable;
-    handlers["data_hidevariable"] = DataBlocks::hideVariable;
-    handlers["data_showlist"] = DataBlocks::showList;
-    handlers["data_hidelist"] = DataBlocks::hideList;
-    handlers["data_addtolist"] = DataBlocks::addToList;
-    handlers["data_deleteoflist"] = DataBlocks::deleteFromList;
-    handlers["data_deletealloflist"] = DataBlocks::deleteAllOfList;
-    handlers["data_insertatlist"] = DataBlocks::insertAtList;
-    handlers["data_replaceitemoflist"] = DataBlocks::replaceItemOfList;
-    valueHandlers["data_itemoflist"] = DataBlocks::itemOfList;
-    valueHandlers["data_itemnumoflist"] = DataBlocks::itemNumOfList;
-    valueHandlers["data_lengthoflist"] = DataBlocks::lengthOfList;
-    valueHandlers["data_listcontainsitem"] = DataBlocks::listContainsItem;
+        {"data_setvariableto", DataBlocks::setVariable},
+        {"data_changevariableby", DataBlocks::changeVariable},
+        {"data_showvariable", DataBlocks::showVariable},
+        {"data_hidevariable", DataBlocks::hideVariable},
+        {"data_addtolist", DataBlocks::addToList},
+        {"data_deleteoflist", DataBlocks::deleteFromList},
+        {"data_deletealloflist", DataBlocks::deleteAllOfList},
+        {"data_insertatlist", DataBlocks::insertAtList},
+        {"data_replaceitemoflist", DataBlocks::replaceItemOfList},
+        {"data_showlist", DataBlocks::showList},
+        {"data_hidelist", DataBlocks::hideList},
 
-    // sensing
-    handlers["sensing_resettimer"] = SensingBlocks::resetTimer;
-    handlers["sensing_askandwait"] = SensingBlocks::askAndWait;
-    handlers["sensing_setdragmode"] = SensingBlocks::setDragMode;
-    valueHandlers["sensing_timer"] = SensingBlocks::sensingTimer;
-    valueHandlers["sensing_of"] = SensingBlocks::of;
-    valueHandlers["sensing_mousex"] = SensingBlocks::mouseX;
-    valueHandlers["sensing_mousey"] = SensingBlocks::mouseY;
-    valueHandlers["sensing_distanceto"] = SensingBlocks::distanceTo;
-    valueHandlers["sensing_distancetomenu"] = SensingBlocks::distanceTo; // Menu variant
-    valueHandlers["sensing_dayssince2000"] = SensingBlocks::daysSince2000;
-    valueHandlers["sensing_current"] = SensingBlocks::current;
-    valueHandlers["sensing_answer"] = SensingBlocks::sensingAnswer;
-    valueHandlers["sensing_keypressed"] = SensingBlocks::keyPressed;
-    valueHandlers["sensing_keyoptions"] = SensingBlocks::keyPressed; // Menu variant
-    valueHandlers["sensing_touchingobject"] = SensingBlocks::touchingObject;
-    valueHandlers["sensing_touchingobjectmenu"] = SensingBlocks::touchingObject; // Menu variant
-    valueHandlers["sensing_mousedown"] = SensingBlocks::mouseDown;
-    valueHandlers["sensing_username"] = SensingBlocks::username;
+        {"procedures_call", ProcedureBlocks::call},
+        {"procedures_definition", ProcedureBlocks::definition},
 
-    // procedures / arguments
-    handlers["procedures_call"] = ProcedureBlocks::call;
-    handlers["procedures_definition"] = ProcedureBlocks::definition;
-    valueHandlers["argument_reporter_string_number"] = ProcedureBlocks::stringNumber;
-    valueHandlers["argument_reporter_boolean"] = ProcedureBlocks::booleanArgument;
+        {"pen_clear", PenBlocks::EraseAll},
+        {"pen_stamp", PenBlocks::Stamp},
+        {"pen_penUp", PenBlocks::PenUp},
+        {"pen_penDown", PenBlocks::PenDown},
+        {"pen_setPenSizeTo", PenBlocks::SetPenSizeTo},
+        {"pen_changePenSizeBy", PenBlocks::ChangePenSizeBy},
+        {"pen_setPenColorToColor", PenBlocks::SetPenColorTo},
+        {"pen_setPenColorParamTo", PenBlocks::SetPenOptionTo},
+        {"pen_changePenColorParamBy", PenBlocks::ChangePenOptionBy},
+    };
 
-    // pen extension
-    handlers["pen_penDown"] = PenBlocks::PenDown;
-    handlers["pen_penUp"] = PenBlocks::PenUp;
-    handlers["pen_clear"] = PenBlocks::EraseAll;
-    handlers["pen_setPenColorParamTo"] = PenBlocks::SetPenOptionTo;
-    handlers["pen_changePenColorParamBy"] = PenBlocks::ChangePenOptionBy;
-    handlers["pen_stamp"] = PenBlocks::Stamp;
-    handlers["pen_setPenColorToColor"] = PenBlocks::SetPenColorTo;
-    handlers["pen_setPenSizeTo"] = PenBlocks::SetPenSizeTo;
-    handlers["pen_changePenSizeBy"] = PenBlocks::ChangePenSizeBy;
+    valueHandlers = {
+        {"motion_xposition", MotionBlocks::xPosition},
+        {"motion_yposition", MotionBlocks::yPosition},
+        {"motion_direction", MotionBlocks::direction},
 
-    // Other (Don't know where else to put these)
-    valueHandlers["matrix"] = [](Block &block, Sprite *sprite) {
-        return Value(Scratch::getFieldValue(block, "MATRIX"));
+        {"looks_size", LooksBlocks::size},
+        {"looks_costumenumbername", LooksBlocks::costumeNumberName},
+        {"looks_backdropnumbername", LooksBlocks::backdropNumberName},
+
+        {"sound_volume", SoundBlocks::volume},
+
+        {"control_get_counter", ControlBlocks::getCounter},
+
+        {"sensing_timer", SensingBlocks::sensingTimer},
+        {"sensing_of", SensingBlocks::of},
+        {"sensing_mousex", SensingBlocks::mouseX},
+        {"sensing_mousey", SensingBlocks::mouseY},
+        {"sensing_distanceto", SensingBlocks::distanceTo},
+        {"sensing_dayssince2000", SensingBlocks::daysSince2000},
+        {"sensing_current", SensingBlocks::current},
+        {"sensing_answer", SensingBlocks::sensingAnswer},
+        {"sensing_keypressed", SensingBlocks::keyPressed},
+        {"sensing_touchingobject", SensingBlocks::touchingObject},
+        {"sensing_mousedown", SensingBlocks::mouseDown},
+        {"sensing_username", SensingBlocks::username},
+
+        {"data_itemoflist", DataBlocks::itemOfList},
+        {"data_itemnumoflist", DataBlocks::itemNumOfList},
+        {"data_lengthoflist", DataBlocks::lengthOfList},
+        {"data_listcontainsitem", DataBlocks::listContainsItem},
+
+        {"operator_add", OperatorBlocks::add},
+        {"operator_subtract", OperatorBlocks::subtract},
+        {"operator_multiply", OperatorBlocks::multiply},
+        {"operator_divide", OperatorBlocks::divide},
+        {"operator_random", OperatorBlocks::random},
+        {"operator_join", OperatorBlocks::join},
+        {"operator_letter_of", OperatorBlocks::letterOf},
+        {"operator_length", OperatorBlocks::length},
+        {"operator_mod", OperatorBlocks::mod},
+        {"operator_round", OperatorBlocks::round},
+        {"operator_mathop", OperatorBlocks::mathOp},
+        {"operator_equals", OperatorBlocks::equals},
+        {"operator_gt", OperatorBlocks::greaterThan},
+        {"operator_lt", OperatorBlocks::lessThan},
+        {"operator_and", OperatorBlocks::and_},
+        {"operator_or", OperatorBlocks::or_},
+        {"operator_not", OperatorBlocks::not_},
+        {"operator_contains", OperatorBlocks::contains},
+
+        {"argument_reporter_string_number", ProcedureBlocks::stringNumber},
+        {"argument_reporter_boolean", ProcedureBlocks::booleanArgument},
+
+        {"motion_goto_menu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TO"));}},
+        {"motion_glideto_menu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TO"));}},
+        {"motion_pointtowards_menu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TOWARDS"));}},
+        {"looks_costume", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "COSTUME"));}},
+        {"looks_backdrops", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "BACKDROP"));}},
+        {"sound_sounds_menu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "SOUND_MENU"));}},
+        {"control_create_clone_of_menu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "CLONE_OPTION"));}},
+        {"sensing_touchingobjectmenu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TOUCHINGOBJECTMENU"));}},
+        {"sensing_distancetomenu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "DISTANCETOMENU"));}},
+        {"sensing_keyoptions", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "KEY_OPTION"));}},
+        {"sensing_of_object_menu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "OBJECT"));}},
+        {"music_menu_DRUM", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "DRUM"));}},
+        {"music_menu_INSTRUMENT", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "INSTRUMENT"));}},
+        {"pen_menu_colorParam", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "colorParam"));}},
+        {"videoSensing_menu_ATTRIBUTE", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "ATTRIBUTE"));}},
+        {"videoSensing_menu_SUBJECT", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "SUBJECT"));}},
+        {"videoSensing_menu_VIDEO_STATE", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "VIDEO_STATE"));}},
+        {"text2speech_menu_voices", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "voices"));}},
+        {"text2speech_menu_languages", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "languages"));}},
+        {"translate_menu_languages", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "languages"));}},
+        {"makeymakey_menu_KEY", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "KEY"));}},
+        {"makeymakey_menu_SEQUENCE", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "SEQUENCE"));}},
+        {"microbit_menu_buttons", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "buttons"));}},
+        {"microbit_menu_gestures", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "gestures"));}},
+        {"microbit_menu_tiltDirectionAny", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "tiltDirectionAny"));}},
+        {"microbit_menu_tiltDirection", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "tiltDirection"));}},
+        {"microbit_menu_touchPins", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "touchPins"));}},
+        {"ev3_menu_motorPorts", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "motorPorts"));}},
+        {"ev3_menu_sensorPorts", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "sensorPorts"));}},
+        {"boost_menu_MOTOR_ID", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "MOTOR_ID"));}},
+        {"boost_menu_MOTOR_DIRECTION", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "MOTOR_DIRECTION"));}},
+        {"boost_menu_MOTOR_REPORTER_ID", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "MOTOR_REPORTER_ID"));}},
+        {"boost_menu_COLOR", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "COLOR"));}},
+        {"boost_menu_TILT_DIRECTION_ANY", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TILT_DIRECTION_ANY"));}},
+        {"boost_menu_TILT_DIRECTION", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TILT_DIRECTION"));}},
+        {"wedo2_menu_MOTOR_ID", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "MOTOR_ID"));}},
+        {"wedo2_menu_MOTOR_DIRECTION", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "MOTOR_DIRECTION"));}},
+        {"wedo2_menu_OP", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "OP"));}},
+        {"wedo2_menu_TILT_DIRECTION_ANY", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TILT_DIRECTION_ANY"));}},
+        {"wedo2_menu_TILT_DIRECTION", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TILT_DIRECTION"));}},
+        {"gdxfor_menu_gestureOptions", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "gestureOptions"));}},
+        {"gdxfor_menu_pushPullOptions", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "pushPullOptions"));}},
+        {"gdxfor_menu_tiltAnyOptions", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "tiltAnyOptions"));}},
+        {"gdxfor_menu_tiltOptions", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "tiltOptions"));}},
+        {"gdxfor_menu_axisOptions", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "axisOptions"));}},
+
+        {"even_touchingobjectmenu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TOUCHINGOBJECTMENU"));}},
+        {"microbit_menu_pinState", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "pinState"));}},
+
+        {"note", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "NOTE"));}},
+        {"matrix", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "MATRIX"));}},
     };
 }
 
@@ -249,7 +292,8 @@ void BlockExecutor::runRepeatBlocks() {
     bool withoutRefresh = false;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
-    for (auto &sprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (auto &sprite : sprToRun) {
         for (auto &[id, blockChain] : sprite->blockChains) {
             auto &repeatList = blockChain.blocksToRepeat;
             if (!repeatList.empty()) {
@@ -381,7 +425,8 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     // find all matching "when I receive" blocks
-    for (auto *currentSprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (auto *currentSprite : sprToRun) {
         for (auto &[id, block] : currentSprite->blocks) {
             if (block.opcode == "event_whenbroadcastreceived" &&
                 Scratch::getFieldValue(block, "BROADCAST_OPTION") == broadcastToRun) {
@@ -422,7 +467,8 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
 std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Block *> blocksRun;
-    for (Sprite *currentSprite : sprites) {
+    std::vector<Sprite *> sprToRun = sprites;
+    for (Sprite *currentSprite : sprToRun) {
         for (auto &[id, data] : currentSprite->blocks) {
             if (data.opcode == opcodeToFind) {
                 // runBlock(data,currentSprite);
@@ -491,7 +537,7 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
             std::string result;
             std::string seperator = "";
             for (const auto &item : listIt->second.items) {
-                if (item.asString().size() > 1) {
+                if (item.asString().size() > 1 || !item.isString()) {
                     seperator = "\n";
                     break;
                 }
@@ -512,7 +558,7 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
                     std::string result;
                     std::string seperator = "";
                     for (const auto &item : globalIt->second.items) {
-                        if (item.asString().size() > 1) {
+                        if (item.asString().size() > 1 || !item.isString()) {
                             seperator = "\n";
                             break;
                         }
@@ -561,7 +607,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
         std::string result;
         std::string seperator = "";
         for (const auto &item : listIt->second.items) {
-            if (item.asString().size() > 1) {
+            if (item.asString().size() > 1 || !item.isString()) {
                 seperator = " ";
                 break;
             }
@@ -592,7 +638,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
                 std::string result;
                 std::string seperator = "";
                 for (const auto &item : globalIt->second.items) {
-                    if (item.asString().size() > 1) {
+                    if (item.asString().size() > 1 || !item.isString()) {
                         seperator = " ";
                         break;
                     }
@@ -679,6 +725,7 @@ void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
 }
 
 bool BlockExecutor::hasActiveRepeats(Sprite *sprite, std::string blockChainID) {
+    if (sprite->toDelete) return false;
     if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
         if (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
     }

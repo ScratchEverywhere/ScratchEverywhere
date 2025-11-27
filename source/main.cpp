@@ -10,7 +10,7 @@
 #include <switch.h>
 #endif
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include <SDL2/SDL.h>
 #endif
 
@@ -45,7 +45,7 @@ bool activateMainMenu() {
         emscripten_sleep(0);
 #endif
     }
-    return true;
+    return false;
 }
 
 void mainLoop() {
@@ -117,7 +117,10 @@ int main(int argc, char **argv) {
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
 #else
-            if (!activateMainMenu()) return 0;
+            if (!activateMainMenu()) {
+                exitApp();
+                return 0;
+            }
 #endif
         } else {
             exitApp();

@@ -1,6 +1,5 @@
 FROM devkitpro/devkita64:latest AS main_builder
 WORKDIR /app
-
 COPY . .
 
 RUN cmake -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake -B build-nx && cmake --build build-nx -j $(nproc)
