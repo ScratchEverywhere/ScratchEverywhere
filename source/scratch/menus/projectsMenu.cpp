@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include "sdl/render.hpp"
 #else
 constexpr unsigned int windowWidth = 320;

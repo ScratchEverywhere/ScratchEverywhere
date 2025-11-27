@@ -14,7 +14,7 @@
 #include <string>
 #include <utility>
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include "../../sdl/render.hpp"
 #include <clay_renderer_SDL2.c>
 #elif defined(__3DS__)
@@ -81,7 +81,7 @@ void MenuManager::initClay() {
                         Log::logError(std::string("[CLAY] ") + errorData.errorText.chars);
                     }});
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
     components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
     if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError(std::string("Failed to load menu font: ") + TTF_GetError());
 
@@ -111,7 +111,7 @@ void MenuManager::initClay() {
 }
 
 void MenuManager::freeClay() {
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
     if (components::fonts[components::FONT_ID_BODY_16].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_16].font);
     if (components::fonts[components::FONT_ID_BODY_BOLD_48].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_BOLD_48].font);
 #elif defined(__3DS__)
@@ -124,14 +124,14 @@ void MenuManager::freeClay() {
 void MenuManager::render() {
     static constexpr float maxScale = 2;
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
 #endif
     Clay_SetLayoutDimensions({static_cast<float>(windowWidth), static_cast<float>(windowHeight)});
     scale = std::sqrt(windowWidth * windowWidth + windowHeight * windowHeight) / 600.0f;
     if (scale > maxScale) scale = maxScale;
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
     SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
     SDL_RenderClear(renderer);
 #elif defined(__3DS__)
@@ -153,7 +153,7 @@ void MenuManager::render() {
 		currentMenu->render();
 	}
     // clang-format on
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
     Clay_SDL2_Render(renderer, Clay_EndLayout(), reinterpret_cast<SDL2_Font *>(components::fonts));
     SDL_RenderPresent(renderer);
 #elif defined(__3DS__)

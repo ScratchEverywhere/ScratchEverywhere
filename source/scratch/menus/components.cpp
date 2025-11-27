@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include "../../sdl/render.hpp"
 #include <SDL2/SDL.h>
 #include <SDL_image.h>
@@ -16,7 +16,7 @@ extern SDL_GameController *controller;
 #endif
 
 namespace components {
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 Other_SDL2_Font fonts[2] = {};
 #elif defined(__3DS__)
 std::map<unsigned int, C2D_Font> fonts;
@@ -124,7 +124,7 @@ void Sidebar::render() {
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
 		},
 	}) {
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 		if (controller != nullptr && menuManager->scale >= 1.5) {
 #else
 		if (menuManager->scale >= 1.5) {
@@ -146,7 +146,7 @@ void Sidebar::render() {
 		}) {
 			for (const auto &tab : tabs) renderItem(tab);
 		}
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 		if (controller != nullptr && menuManager->scale >= 1.5) {
 #else
 		if (menuManager->scale >= 1.5) {
@@ -227,7 +227,7 @@ std::unique_ptr<Image> getControllerImage(const std::string button) {
     static const std::string controllerType = "wii"; // TODO: Nunchuck detection
 #elif defined(GAMECUBE)
     static const std::string controllerType = "gamecube";
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL2)
     static std::string controllerType;
     if (controller == nullptr) controllerType = "xbox"; // Default to Xbox because it's the most common.
     else switch (SDL_GameControllerGetType(controller)) {

@@ -8,9 +8,7 @@
 
 #ifdef __3DS__
 #include <citro2d.h>
-#endif
-
-#if defined(SDL_BUILD)
+#elif defined(RENDERER_SDL2)
 #include <SDL2/SDL.h>
 #include <SDL_ttf.h>
 #endif
@@ -20,7 +18,7 @@ class MenuManager;
 namespace components {
 #define DEFAULT_TEXT_CONFIG CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16})
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 struct Other_SDL2_Font {
     uint32_t fontId;
     TTF_Font *font;

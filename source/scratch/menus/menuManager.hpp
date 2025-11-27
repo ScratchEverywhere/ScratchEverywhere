@@ -6,7 +6,7 @@
 #include <memory>
 #include <stack>
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include "../../sdl/image.hpp"
 #elif defined(__3DS__)
 #include "../../3ds/image.hpp"
@@ -48,7 +48,7 @@ class MenuManager {
     void handleInput(float mouseX, float mouseY, bool mouseDown);
 
     static inline void *getImageData(Image *image) {
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
         return images[image->imageId]->spriteTexture;
 #elif defined(__3DS__)
         return &images[image->imageId].image;
