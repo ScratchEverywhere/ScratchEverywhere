@@ -5,7 +5,7 @@ on:
     paths:
       - CMakeLists.txt
       - source/scratch/**
-      - source/sdl/**
+      - source/sdl2/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-switch.yml

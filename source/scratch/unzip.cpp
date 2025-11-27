@@ -4,8 +4,12 @@
 #include <fstream>
 #ifdef __3DS__
 #include <3ds.h>
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL1)
+#include "SDL/SDL.h"
+#elif defined(RENDERER_SDL2)
 #include "SDL2/SDL.h"
+#elif defined(RENDERER_SDL3)
+#include "SDL3/SDL.h"
 #endif
 
 #if defined(__PC__) || defined(__PSP__)
@@ -164,9 +168,20 @@ bool Unzip::load() {
     loading.cleanup();
     osSetSpeedupEnable(false);
 
-#elif defined(SDL_BUILD) // create SDL2 thread for loading screen
-
+#elif defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(RENDERER_SDL3) // create SDL thread for loading screen
+#ifdef RENDERER_SDL1
+    SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, nullptr);
+#elif defined(RENDERER_SDL2)
     SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x15000, nullptr);
+#else
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER, (void *)projectLoaderThread);
+    SDL_SetStringProperty(props, SDL_PROP_THREAD_CREATE_NAME_STRING, "LoadingScreen");
+    SDL_SetNumberProperty(props, SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER, 0x15000);
+    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_USERDATA_POINTER, nullptr);
+    SDL_Thread *thread = SDL_CreateThreadWithProperties(props);
+    SDL_DestroyProperties(props);
+#endif
 
     if (thread != NULL && thread != nullptr) {
 

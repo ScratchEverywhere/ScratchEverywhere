@@ -6,4 +6,4 @@ COPY . .
 RUN make PLATFORM=nds
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/scratch-ds.nds /scratch-ds.nds
+COPY --from=main_builder /app/build/nds/scratch-ds.nds /scratch-ds.nds

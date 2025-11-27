@@ -1,6 +1,7 @@
 #pragma once
 #include "interpret.hpp"
 #include "miniz.h"
+#include "unzip.hpp"
 #include <string>
 
 class Image {
@@ -39,10 +40,20 @@ class Image {
     static bool loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject = true);
 
     /**
-     * `3DS`: Nothing yet yippie
-     * `SDL`: Loads a single `SDL_Image` from a zip file.
+     * Loads an image from an `mz_zip_archive`.
      */
     static void loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite);
+
+    /**
+     * Loads an image from a Sprite's current costume.
+     */
+    static void loadImageFromProject(Sprite *sprite) {
+        if (projectType == UNZIPPED) {
+            Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
+        } else {
+            Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
+        }
+    }
 
     /**
      * `3DS`: Frees a `C2D_Image` from memory.
@@ -50,7 +61,11 @@ class Image {
      */
     static void freeImage(const std::string &costumeId);
 
+    /* Cleans up every single image currently in memory.*/
     static void cleanupImages();
+
+    /* Cleans up every image that is currently not being used.*/
+    static void cleanupImagesLite();
 
     /**
      * `3DS`: Queues a `C2D_Image` to be freed using `costumeId` to find it.

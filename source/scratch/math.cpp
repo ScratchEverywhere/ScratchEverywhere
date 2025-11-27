@@ -24,7 +24,7 @@ int Math::color(int r, int g, int b, int a) {
     int g5 = g >> 3;
     int b5 = b >> 3;
     return RGB15(r5, g5, b5);
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
     return (r << 24) |
            (g << 16) |
            (b << 8) |
@@ -40,8 +40,8 @@ double Math::parseNumber(std::string str) {
     while (std::isspace(str[0]) && !str.empty()) {
         str.erase(0, 1);
     }
-    while (std::isspace(str[str.length() - 1]) && !str.empty()) {
-        str.erase(str.length() - 1);
+    while (!str.empty() && std::isspace(str.back())) {
+        str.pop_back();
     }
 
     if (str == "Infinity") {
