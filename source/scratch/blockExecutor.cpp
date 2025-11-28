@@ -498,17 +498,13 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
     }
 
     // Set global variable
-    for (auto &currentSprite : sprites) {
-        if (currentSprite->isStage) {
-            auto globalIt = currentSprite->variables.find(variableId);
-            if (globalIt != currentSprite->variables.end()) {
-                globalIt->second.value = newValue;
+    auto globalIt = stageSprite->variables.find(variableId);
+    if (globalIt != stageSprite->variables.end()) {
+        globalIt->second.value = newValue;
 #ifdef ENABLE_CLOUDVARS
-                if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
+        if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
 #endif
-                return;
-            }
-        }
+        return;
     }
 }
 
@@ -551,26 +547,22 @@ Value BlockExecutor::getMonitorValue(Monitor &var) {
         }
 
         // Check global lists
-        for (const auto &currentSprite : sprites) {
-            if (currentSprite->isStage) {
-                auto globalIt = currentSprite->lists.find(var.id);
-                if (globalIt != currentSprite->lists.end()) {
-                    std::string result;
-                    std::string seperator = "";
-                    for (const auto &item : globalIt->second.items) {
-                        if (item.asString().size() > 1 || !item.isString()) {
-                            seperator = "\n";
-                            break;
-                        }
-                    }
-                    for (const auto &item : globalIt->second.items) {
-                        result += item.asString() + seperator;
-                    }
-                    if (!result.empty() && !seperator.empty()) result.pop_back();
-                    Value val(result);
-                    var.value = val;
+        auto globalIt = stageSprite->lists.find(var.id);
+        if (globalIt != stageSprite->lists.end()) {
+            std::string result;
+            std::string seperator = "";
+            for (const auto &item : globalIt->second.items) {
+                if (item.asString().size() > 1 || !item.isString()) {
+                    seperator = "\n";
+                    break;
                 }
             }
+            for (const auto &item : globalIt->second.items) {
+                result += item.asString() + seperator;
+            }
+            if (!result.empty() && !seperator.empty()) result.pop_back();
+            Value val(result);
+            var.value = val;
         }
     } else {
         try {
@@ -621,35 +613,27 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     }
 
     // Check global variables
-    for (const auto &currentSprite : sprites) {
-        if (currentSprite->isStage) {
-            auto globalIt = currentSprite->variables.find(variableId);
-            if (globalIt != currentSprite->variables.end()) {
-                return globalIt->second.value;
-            }
-        }
-    }
+    auto globalIt = stageSprite->variables.find(variableId);
+    if (globalIt != stageSprite->variables.end()) return globalIt->second.value;
 
     // Check global lists
-    for (const auto &currentSprite : sprites) {
-        if (currentSprite->isStage) {
-            auto globalIt = currentSprite->lists.find(variableId);
-            if (globalIt != currentSprite->lists.end()) {
-                std::string result;
-                std::string seperator = "";
-                for (const auto &item : globalIt->second.items) {
-                    if (item.asString().size() > 1 || !item.isString()) {
-                        seperator = " ";
-                        break;
-                    }
+    {
+        auto globalIt = stageSprite->lists.find(variableId);
+        if (globalIt != stageSprite->lists.end()) {
+            std::string result;
+            std::string seperator = "";
+            for (const auto &item : globalIt->second.items) {
+                if (item.asString().size() > 1 || !item.isString()) {
+                    seperator = " ";
+                    break;
                 }
-                for (const auto &item : globalIt->second.items) {
-                    result += item.asString() + seperator;
-                }
-                if (!result.empty() && !seperator.empty()) result.pop_back();
-                Value val(result);
-                return val;
             }
+            for (const auto &item : globalIt->second.items) {
+                result += item.asString() + seperator;
+            }
+            if (!result.empty() && !seperator.empty()) result.pop_back();
+            Value val(result);
+            return val;
         }
     }
 
@@ -658,14 +642,10 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
 
 #ifdef ENABLE_CLOUDVARS
 void BlockExecutor::handleCloudVariableChange(const std::string &name, const std::string &value) {
-    for (const auto &currentSprite : sprites) {
-        if (currentSprite->isStage) {
-            for (auto it = currentSprite->variables.begin(); it != currentSprite->variables.end(); ++it) {
-                if (it->second.name == name) {
-                    it->second.value = Value(value);
-                    return;
-                }
-            }
+    for (auto it = stageSprite->variables.begin(); it != stageSprite->variables.end(); ++it) {
+        if (it->second.name == name) {
+            it->second.value = Value(value);
+            return;
         }
     }
 }
