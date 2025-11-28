@@ -6,6 +6,8 @@
 #include <renderers/sdl2/text_sdl2.hpp>
 #elif defined(RENDERER_SDL3)
 #include <renderers/sdl3/text_sdl3.hpp>
+#elif defined(RENDERER_SDL1)
+#include <renderers/sdl1/text_sdl1.hpp>
 #elif defined(__NDS__)
 #include <renderers/gl2d/text_gl2d.hpp>
 #elif defined(RENDERER_HEADLESS)
@@ -25,6 +27,8 @@ TextObject *createTextObject(std::string txt, double posX, double posY, std::str
     return new TextObjectSDL2(txt, posX, posY, fontPath);
 #elif defined(RENDERER_SDL3)
     return new TextObjectSDL3(txt, posX, posY, fontPath);
+#elif defined(RENDERER_SDL1)
+    return new TextObjectSDL1(txt, posX, posY, fontPath);
 #elif defined(__NDS__)
     return new TextObjectGL2D(txt, posX, posY, fontPath);
 #elif defined(RENDERER_HEADLESS)
@@ -41,6 +45,8 @@ void TextObject::cleanupText() {
     TextObjectSDL2::cleanupText();
 #elif defined(RENDERER_SDL3)
     TextObjectSDL3::cleanupText();
+#elif defined(RENDERER_SDL1)
+    TextObjectSDL1::cleanupText();
 #elif defined(__NDS__)
     TextObjectGL2D::cleanupText();
 #endif

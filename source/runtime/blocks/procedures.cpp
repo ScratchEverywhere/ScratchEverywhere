@@ -3,7 +3,11 @@
 #include <sprite.hpp>
 #include <value.hpp>
 
-#ifdef RENDERER_SDL2
+#ifdef RENDERER_SDL1
+#include <SDL/SDL.h>
+
+extern SDL_Joystick *controller;
+#elif defined(RENDERER_SDL2)
 #include <SDL2/SDL.h>
 
 extern SDL_GameController *controller;
@@ -20,6 +24,8 @@ SCRATCH_REPORTER_BLOCK_OPCODE(argument_reporter_string_number) {
     if (name == "Scratch Everywhere! controller") {
 #ifdef __3DS__
         return Value("3DS");
+#elif defined(RENDERER_SDL1)
+        if (controller != nullptr) return Value(std::string(SDL_JoystickName(SDL_JoystickIndex(controller))));
 #elif defined(RENDERER_SDL2)
         if (controller != nullptr) return Value(std::string(SDL_GameControllerName(controller)));
 #elif defined(RENDERER_SDL3)
