@@ -132,4 +132,4 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  */
 #define SCRATCH_SHADOW_BLOCK(opcode, fieldId)                                                                        \
     Value block_##opcode##_(Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, #fieldId)); } \
-    static uint8_t blok_##opcode##_reg_ = (BlockExecutor::valueHandlers[#opcode] = block_##opcode##_, 0);
+    static uint8_t block_##opcode##_reg_ = (BlockExecutor::valueHandlers[#opcode] = block_##opcode##_, 0);
