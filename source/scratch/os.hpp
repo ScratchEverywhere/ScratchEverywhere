@@ -85,4 +85,30 @@ class OS {
      * @return `true` on DSi, `false` everywhere else.
      */
     static bool isDSi();
+
+    /**
+     * Create a directory.
+     * @param path The path of the directory to create.
+     */
+    static void createDirectory(const std::string& path);
+
+    /**
+     * Remove a directory recursively.
+     * @param path The path of the directory to remove.
+     */
+    static void removeDirectory(const std::string& path);
+
+    /**
+     * Check if a file exists.
+     * @param path The path of the file to check.
+     * @return `true` if the file exists, `false` otherwise.
+     */
+    static bool fileExists(const std::string& path);
+
+    /**
+     * Get the parent path of a given path.
+     * @param path The path of the file or directory.
+     * @return The parent path of the given path.
+     */
+    static std::string parentPath(const std::string& path);
 };

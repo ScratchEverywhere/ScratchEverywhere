@@ -6,6 +6,10 @@
 #include <iostream>
 #include <ostream>
 #include <string>
+#include <sys/stat.h>
+#include <cerrno>
+#include <dirent.h>
+
 #ifdef __WIIU__
 #include <sstream>
 #include <whb/sdcard.h>
@@ -18,6 +22,11 @@
 #endif
 #ifdef __PS4__
 #include <orbis/libkernel.h>
+#endif
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
 #endif
 
 // PS4 implementation of logging
@@ -258,4 +267,85 @@ bool OS::isDSi() {
     return isDSiMode();
 #endif
     return false;
+}
+
+void OS::createDirectory(const std::string& path) {
+    std::string p = path;
+    std::replace(p.begin(), p.end(), '\\', '/');
+
+    size_t pos = 0;
+    while ((pos = p.find('/', pos)) != std::string::npos) {
+        std::string dir = p.substr(0, pos++);
+        if (dir.empty()) continue;
+
+        struct stat st;
+        if (stat(dir.c_str(), &st) != 0) {
+#ifdef _WIN32
+            if (_mkdir(dir.c_str()) != 0 && errno != EEXIST) {
+#else
+            if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
+#endif
+                throw std::runtime_error("Failed to create directory: " + dir);
+            }
+        }
+    }
+}
+
+void OS::removeDirectory(const std::string& path) {
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        throw std::runtime_error("Directory does not exist: " + path);
+    }
+
+    if (!S_ISDIR(st.st_mode)) {
+        throw std::runtime_error("Path is not a directory: " + path);
+    }
+
+    DIR* dir = opendir(path.c_str());
+    if (dir == nullptr) {
+        throw std::runtime_error("Failed to open directory: " + path);
+    }
+
+    struct dirent* entry;
+    bool success = true;
+    while ((entry = readdir(dir)) != nullptr) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        std::string fullPath = path + "/" + entry->d_name;
+
+        struct stat entrySt;
+        if (stat(fullPath.c_str(), &entrySt) == 0) {
+            if (S_ISDIR(entrySt.st_mode)) {
+                removeDirectory(fullPath);
+            } else {
+                if (remove(fullPath.c_str()) != 0) {
+                    throw std::runtime_error("Failed to remove file: " + fullPath);
+                }
+            }
+        }
+    }
+
+    closedir(dir);
+
+#ifdef _WIN32
+    if (_rmdir(path.c_str()) != 0) {
+#else
+    if (rmdir(path.c_str()) != 0) {
+#endif
+        throw std::runtime_error("Failed to remove directory: " + path);
+    }
+}
+
+bool OS::fileExists(const std::string& path) {
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
+
+std::string OS::parentPath(const std::string& path) {
+    size_t pos = path.find_last_of("/\\");
+    if (std::string::npos != pos)
+        return path.substr(0, pos);
+    return "";
 }

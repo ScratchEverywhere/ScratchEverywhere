@@ -390,7 +390,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
             Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
         }
-        if (!std::filesystem::exists(Unzip::filePath + "/project.json"))
+        if (!OS::fileExists(Unzip::filePath + "/project.json"))
             Unzip::filePath = Unzip::filePath + ".sb3";
 
         Scratch::dataNextProject = Value();
@@ -411,7 +411,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
             Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
         }
-        if (!std::filesystem::exists(Unzip::filePath + "/project.json"))
+        if (!OS::fileExists(Unzip::filePath + "/project.json"))
             Unzip::filePath = Unzip::filePath + ".sb3";
 
         Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
