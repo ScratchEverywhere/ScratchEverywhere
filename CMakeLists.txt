@@ -71,7 +71,7 @@ endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 if(NOT NINTENDO_SWITCH AND NOT VITA)
-	option(SE_CMAKERC "Embed romfs to executable with CMakeRC instead of pulling from the working directory" ON)
+	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
 endif()
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC
