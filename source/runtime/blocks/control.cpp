@@ -154,7 +154,7 @@ SCRATCH_BLOCK(control, wait) {
 
     block.repeatTimes -= 1;
 
-    if (!block.waitTimer.hasElapsed(block.waitDuration) || block.repeatTimes <= -4) return BlockResult::RETURN;
+    if (!block.waitTimer.hasElapsed(block.waitDuration) || block.repeatTimes > -4) return BlockResult::RETURN;
     block.repeatTimes = -1;
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     Scratch::forceRedraw = true;
