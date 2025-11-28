@@ -9,7 +9,7 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @brief Defines and registers a block
  *
  * This macro uses static variables to automatically register the defined block when the runtime is loaded. The category and the id are concatenated with an underscore separator to form the opcode.
- * When using this macro you do not need a seperate declaration or header file since the macro automatically handles the registration with BlockExecutor.
+ * When using this macro you do not need a separate declaration or header file since the macro automatically handles the registration with BlockExecutor.
  *
  * @param category The category this block is in.
  * This forms the first half of the block's opcode.
@@ -41,7 +41,7 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @brief Defines and registers a block that does nothing
  *
  * This macro uses static variables to automatically register the defined block when the runtime is loaded. The category and the id are concatenated with an underscore separator to form the opcode.
- * When using this macro you do not need a seperate declaration or header file since the macro automatically handles the registration with BlockExecutor.
+ * When using this macro you do not need a separate declaration or header file since the macro automatically handles the registration with BlockExecutor.
  * This macro does not require a semicolon after it.
  *
  * @param category The category this block is in.
@@ -61,7 +61,7 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @brief Defines and registers a reporter block
  *
  * This macro uses static variables to automatically register the defined block when the runtime is loaded. The category and the id are concatenated with an underscore separator to form the opcode.
- * When using this macro you do not need a seperate declaration or header file since the macro automatically handles the registration with BlockExecutor.
+ * When using this macro you do not need a separate declaration or header file since the macro automatically handles the registration with BlockExecutor.
  *
  * @param category The category this block is in.
  * This forms the first half of the block's opcode.
@@ -91,7 +91,7 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @brief Defines and registers a reporter block
  *
  * This macro uses static variables to automatically register the defined block when the runtime is loaded.
- * When using this macro you do not need a seperate declaration or header file since the macro automatically handles the registration with BlockExecutor.
+ * When using this macro you do not need a separate declaration or header file since the macro automatically handles the registration with BlockExecutor.
  *
  * @param opcode The block's opcode.
  *
@@ -118,7 +118,7 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @brief Defines and registers a shadow block
  *
  * This macro uses static variables to automatically register the defined block when the runtime is loaded.
- * When using this macro you do not need a seperate declaration or header file since the macro automatically handles the registration with BlockExecutor.
+ * When using this macro you do not need a separate declaration or header file since the macro automatically handles the registration with BlockExecutor.
  * This macro does not require a semicolon after it.
  *
  * @param opcode The block's opcode.
