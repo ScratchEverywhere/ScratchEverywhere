@@ -197,7 +197,7 @@ class Sprite {
     } penData;
 
     std::unordered_map<std::string, Variable> variables;
-    std::unordered_map<std::string, Block> blocks;
+    std::map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
     std::map<std::string, Sound> sounds;
     std::vector<Costume> costumes;

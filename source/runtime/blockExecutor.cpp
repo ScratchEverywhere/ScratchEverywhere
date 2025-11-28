@@ -190,7 +190,7 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
         for (auto &[id, block] : currentSprite->blocks) {
             if (block.opcode == "event_whenbroadcastreceived" &&
                 Scratch::getFieldValue(block, "BROADCAST_OPTION") == broadcastToRun) {
-                blocksToRun.push_back({&block, currentSprite});
+                blocksToRun.insert(blocksToRun.begin(), {&block, currentSprite});
             }
         }
     }
