@@ -196,6 +196,12 @@ class Sprite {
         Color color = {66.66, 100.0, 100.0, 0.0};
     } penData;
 
+    struct {
+        std::string gender = "female";
+        std::string language = "en";
+        std::string playbackRate = "1.0"; // not used yet
+    } textToSpeechData;
+
     std::unordered_map<std::string, Variable> variables;
     std::unordered_map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;

@@ -4,6 +4,7 @@
 #include "SDL3/SDL_surface.h"
 #include "audio.hpp"
 #include "blocks/pen.hpp"
+#include "downloader.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
@@ -108,6 +109,8 @@ bool Render::Init() {
     memset(nickname, 0, sizeof(nickname));
     strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
 
+    socketInitializeDefault();
+
     accountProfileClose(&profile);
     accountExit();
 postAccount:
@@ -131,6 +134,9 @@ postAccount:
     Log::log("[Vita] Running sceNetCtlInit");
     sceNetCtlInit();
 #endif
+
+    DownloadManager::init();
+
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS);
     TTF_Init();
     window = SDL_CreateWindow("Scratch Everywhere!", windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
@@ -151,6 +157,7 @@ void Render::deInit() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SoundPlayer::deinit();
+    DownloadManager::deinit();
     SDL_Quit();
 
 #if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)

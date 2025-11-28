@@ -3,6 +3,7 @@
 #include "../scratch/blocks/pen.hpp"
 #include "../scratch/interpret.hpp"
 #include "blocks/pen.hpp"
+#include "downloader.hpp"
 #include "image.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
@@ -66,6 +67,9 @@ bool Render::Init() {
     C2D_Prepare();
     gfxSet3D(true);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
+    DownloadManager::init();
+
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
@@ -549,6 +553,7 @@ void Render::deInit() {
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SoundPlayer::deinit();
+    DownloadManager::deinit();
     C2D_Fini();
     C3D_Fini();
     romfsExit();
