@@ -1,6 +1,9 @@
 #include "interpret.hpp"
+#include "os.hpp"
+#include "scratch/extensions/extensions.hpp"
 #include "scratch/menus/mainMenu.hpp"
 #include "scratch/render.hpp"
+#include <fstream>
 #include "scratch/unzip.hpp"
 #include <cstdlib>
 

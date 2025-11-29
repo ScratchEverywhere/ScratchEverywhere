@@ -1,5 +1,6 @@
 #include "interpret.hpp"
 #include "audio.hpp"
+#include "extensions/extensions.hpp"
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
@@ -11,6 +12,9 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <ios>
 #include <math.h>
 #include <string>
 #include <unordered_map>
@@ -170,9 +174,14 @@ bool Scratch::startScratchProject() {
         if (!forceRedraw || checkFPS) {
             forceRedraw = false;
             Input::getInput();
+
+            extensions::runUpdateFunctions(extensions::PRE_UPDATE);
+
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
             if (checkFPS) Render::renderSprites();
+
+            extensions::runUpdateFunctions(extensions::POST_UPDATE);
 
             if (shouldStop) {
 #if defined(RENDERER_HEADLESS)
@@ -324,8 +333,8 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
 }
 
 bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
-                 const std::vector<std::pair<double, double>> &poly2,
-                 double axisX, double axisY) {
+    const std::vector<std::pair<double, double>> &poly2,
+    double axisX, double axisY) {
     double min1 = 1e9, max1 = -1e9;
     double min2 = 1e9, max2 = -1e9;
 
@@ -511,11 +520,11 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
 
 void Scratch::sortSprites() {
     std::sort(sprites.begin(), sprites.end(),
-              [](const Sprite *a, const Sprite *b) {
-                  if (a->isStage && !b->isStage) return false;
-                  if (!a->isStage && b->isStage) return true;
-                  return a->layer > b->layer;
-              });
+        [](const Sprite *a, const Sprite *b) {
+            if (a->isStage && !b->isStage) return false;
+            if (!a->isStage && b->isStage) return true;
+            return a->layer > b->layer;
+        });
 }
 
 void loadSprites(const nlohmann::json &json) {
@@ -635,7 +644,6 @@ void loadSprites(const nlohmann::json &json) {
                             if (!inputValue.is_null())
                                 parsedInput.blockId = inputValue.get<std::string>();
                         }
-
                     } else if (type == 3) {
                         if (inputValue.is_array()) {
                             parsedInput.inputType = ParsedInput::VARIABLE;
@@ -1049,6 +1057,48 @@ void loadSprites(const nlohmann::json &json) {
     Input::applyControls(Unzip::filePath + ".json");
     Render::setRenderScale();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
+}
+
+// btw the reason this function is so complex is because it needs to handle searching for the correct extension if its filename is not the same as its id
+void loadExtensions(const nlohmann::json &json) {
+    std::ifstream in;
+    for (const auto &extension : json["extensions"]) {
+        nonstd::expected<extensions::Extension, std::string> extensionData;
+        if (std::filesystem::exists(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see")) {
+            in = std::ifstream(OS::getScratchFolderLocation() + "extensions/" + extension.get<std::string>() + ".see", std::ios::binary | std::ios::in);
+            extensionData = extensions::parseMetadata(in);
+            if (!extensionData.has_value()) {
+                Log::logError("Error loading extension '" + extension.get<std::string>() + "': " + extensionData.error());
+                continue;
+            }
+            if (extensionData.value().id == extension.get<std::string>()) goto loadLua;
+        }
+        for (const auto &entry : std::filesystem::directory_iterator(OS::getScratchFolderLocation() + "extensions/")) {
+            if (!entry.is_regular_file()) continue;
+            in = std::ifstream(entry.path(), std::ios::in | std::ios::binary);
+            extensionData = extensions::parseMetadata(in);
+            if (!extensionData.has_value()) {
+                Log::logWarning("Error loading extension '" + entry.path().string() + "' for search: " + extensionData.error());
+                continue;
+            }
+            if (extensionData.value().id == extension.get<std::string>()) break;
+            in.close();
+            in.clear();
+        }
+        if (!extensionData.has_value()) {
+            Log::logWarning("Could not find or parse extension with ID: " + extension.get<std::string>());
+            continue;
+        }
+    loadLua:
+        auto ext = std::make_unique<extensions::Extension>(std::move(extensionData.value()));
+        extensions::loadLua(*ext, in);
+        extensions::extensions.try_emplace(ext->id, std::move(ext));
+
+        in.close();
+        in.clear();
+    }
+
+    extensions::registerHandlers(&executor);
 }
 
 Block *findBlock(std::string blockId) {

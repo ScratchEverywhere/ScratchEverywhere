@@ -1,4 +1,5 @@
 #include "../scratch/render.hpp"
+#include "../scratch/extensions/extensions.hpp"
 #include "../scratch/image.hpp"
 #include "audio.hpp"
 #include "blocks/pen.hpp"
@@ -430,13 +431,13 @@ void Render::penStamp(Sprite *sprite) {
         if (brightness > 0.0f) {
             // render the normal image first
             SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
+                Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
 
             // render another, blended image on top
             SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
             SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
             SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
+                Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
 
             // reset for next frame
             SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
@@ -445,7 +446,7 @@ void Render::penStamp(Sprite *sprite) {
             SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
 
             SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
+                Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
             // reset for next frame
             SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
         }
@@ -453,7 +454,7 @@ void Render::penStamp(Sprite *sprite) {
         // if no brightness just render normal image
         SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
         SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                         Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
+            Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
     }
 
     SDL_SetRenderTarget(renderer, NULL);
@@ -559,6 +560,8 @@ void Render::renderSprites() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
+    extensions::runUpdateFunctions(extensions::PRE_RENDER);
+
     for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
         if (!currentSprite->visible) continue;
@@ -594,13 +597,13 @@ void Render::renderSprites() {
                 if (brightness > 0.0f) {
                     // render the normal image first
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
+                        Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
 
                     // render another, blended image on top
                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
                     SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
+                        Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
 
                     // reset for next frame
                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
@@ -609,7 +612,7 @@ void Render::renderSprites() {
                     SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
 
                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
+                        Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
                     // reset for next frame
                     SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 }
@@ -617,7 +620,7 @@ void Render::renderSprites() {
                 // if no brightness just render normal image
                 SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                 Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
+                    Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
             }
         }
 
@@ -643,6 +646,8 @@ void Render::renderSprites() {
 
     drawBlackBars(windowWidth, windowHeight);
     renderVisibleVariables();
+
+    extensions::runUpdateFunctions(extensions::POST_RENDER);
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();

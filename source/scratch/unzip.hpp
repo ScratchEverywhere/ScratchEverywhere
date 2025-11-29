@@ -53,6 +53,7 @@ class Unzip {
         }
         loadingState = "Loading Sprites";
         loadSprites(project_json);
+        loadExtensions(project_json);
         Unzip::projectOpened = 1;
         Unzip::threadFinished = true;
         delete file;

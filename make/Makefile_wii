@@ -28,9 +28,9 @@ APP_VERSION	:= 0.30
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-wii
 BUILD		:=	build/wii
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio include/miniz include/nlohmann
+SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio source/scratch/extensions include/miniz include/nlohmann
 DATA		:=	data
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio include/nlohmann include/miniz
+INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio source/scratch/extensions include/nlohmann include/miniz
 ROMFS		:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -43,13 +43,17 @@ ENABLE_AUDIO	?=	1
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
+<<<<<<< HEAD
+CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2 lua51` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DWII -D__OGC__ -DSDL_BUILD -DCONSOLE -DMOUSE_INPUT
+=======
 CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DWII -D__OGC__ -DRENDERER_SDL2 -DCONSOLE -DMOUSE_INPUT
+>>>>>>> main
 
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image SDL2_gfx freetype2`
+LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image SDL2_gfx freetype2 lua51`
 CFLAGS	+=	-DENABLE_AUDIO `$(PREFIX)pkg-config --cflags SDL2_mixer`
 else
-LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2`
+LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2 lua51`
 endif
 
 ASFLAGS	:=	-g $(ARCH)

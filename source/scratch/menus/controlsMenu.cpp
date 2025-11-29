@@ -125,22 +125,22 @@ void ControlsMenu::render() {
         Input::keyHeldFrames = -999;
 
         // wait till A isnt pressed
-        while (!Input::inputButtons.empty() && Render::appShouldRun()) {
+        while (!Input::inputKeys.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
 
         while (Input::keyHeldFrames < 2 && Render::appShouldRun()) {
             Input::getInput();
         }
-        if (!Input::inputButtons.empty()) {
+        if (!Input::inputKeys.empty()) {
 
             // remove "any" first
-            auto it = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "any");
-            if (it != Input::inputButtons.end()) {
-                Input::inputButtons.erase(it);
+            auto it = std::find(Input::inputKeys.begin(), Input::inputKeys.end(), "any");
+            if (it != Input::inputKeys.end()) {
+                Input::inputKeys.erase(it);
             }
 
-            std::string key = Input::inputButtons.back();
+            std::string key = Input::inputKeys.back();
             for (const auto &pair : Input::inputControls) {
                 if (pair.second == key) {
                     // Update the control value

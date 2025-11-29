@@ -1,0 +1,329 @@
+#include "extensions.hpp"
+#include "../input.hpp"
+#include "blockExecutor.hpp"
+#include "files.hpp"
+#include "interpret.hpp"
+#include "json.hpp"
+#include "os.hpp"
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <istream>
+#include <string_view>
+
+#ifdef RENDERER_SDL2
+#include <SDL2/SDL.h>
+
+extern SDL_GameController *controller;
+#endif
+
+static_assert(sizeof(bool) == 1, "Unsupported bool type detected.");
+
+namespace extensions {
+
+std::map<std::string, std::unique_ptr<Extension>> extensions;
+
+static nonstd::expected<std::string, std::string> readNullTerminatedString(std::istream &data) {
+    std::string out;
+    if (std::getline(data, out, '\0')) return out;
+    if (data.eof()) return nonstd::unexpected("End of file.");
+    return nonstd::unexpected("I/O Error.");
+}
+
+nonstd::expected<Extension, std::string> parseMetadata(std::istream &data) {
+    constexpr std::string_view magicString = "SE! EXTENSION";
+    constexpr size_t magicLength = magicString.length();
+
+    Extension out = {};
+
+    // Magic String Check
+    std::array<char, magicLength> magicBuffer;
+    if (!data.read(magicBuffer.data(), magicLength)) return nonstd::unexpected("Could not read " + std::to_string(magicLength) + "bytes for magic string. File too short or I/O error.");
+    if (!std::equal(magicBuffer.begin(), magicBuffer.end(), magicString.begin())) return nonstd::unexpected("Invalid magic string: " + std::string(magicBuffer.begin(), magicBuffer.end()));
+
+    // Version Stuff
+    char formatVersion; // unused for now but once there are multiple versions of the format this will be necessary.
+    if (!data.read(&formatVersion, 1)) return nonstd::unexpected("Could not read 1 byte for file format version. File too short or I/O error.");
+    if (!data.read(reinterpret_cast<char *>(&out.minApiVersion.major), 1)) return nonstd::unexpected("Could not read 1 byte for major API version. File too short or I/O error.");
+    if (!data.read(reinterpret_cast<char *>(&out.minApiVersion.minor), 1)) return nonstd::unexpected("Could not read 1 byte for minor API version. File too short or I/O error.");
+
+    // Core
+    if (!data.read(reinterpret_cast<char *>(&out.core), 1)) return nonstd::unexpected("Could not read 1 byte for core flag. File too short or I/O error.");
+
+    // Info (ID, Name, and Description)
+    auto id = readNullTerminatedString(data);
+    if (!id.has_value()) return nonstd::unexpected("Error parsing ID: " + id.error());
+    out.id = id.value();
+
+    auto name = readNullTerminatedString(data);
+    if (!name.has_value()) return nonstd::unexpected("Error parsing name: " + name.error());
+    out.name = name.value();
+
+    auto description = readNullTerminatedString(data);
+    if (!description.has_value()) return nonstd::unexpected("Error parsing ID: " + description.error());
+    out.description = description.value();
+
+    // Permissions
+    uint8_t permissionBytes[2];
+    if (!data.read(reinterpret_cast<char *>(permissionBytes), 2)) return nonstd::unexpected("Could not read 2 bytes for permissions. Fille too short or I/O error.");
+    for (unsigned int i = 0; i < 10; i++) // Update as more permissions are added
+        if ((((permissionBytes[0] << 8) | permissionBytes[1]) >> i) & 1) out.permissions.push_back(static_cast<ExtensionPermission>(i));
+
+    // Platforms
+    char platforms;
+    if (!data.read(&platforms, 1)) return nonstd::unexpected("Could not read 1 byte for platforms. Fille too short or I/O error.");
+    for (unsigned int i = 0; i < 7; i++) // Update as more platforms are added
+        if ((platforms >> i) & 1) out.platforms.push_back(static_cast<ExtensionPlatform>(i));
+
+    // Settings
+    char numSettings;
+    if (!data.read(&numSettings, 1)) return nonstd::unexpected("Could not read 1 byte for number of settings. File too short or I/O error.");
+    for (int i = 0; i < numSettings; i++) {
+        ExtensionSetting setting;
+        if (!data.read(reinterpret_cast<char *>(&setting.type), 1)) return nonstd::unexpected("Could not read 1 byte for setting type. File too short or I/O error.");
+        if (setting.type != SLIDER && setting.type != TEXT && setting.type != TOGGLE) return nonstd::unexpected("Unknown setting type: '" + std::to_string(setting.type) + "'");
+
+        auto id = readNullTerminatedString(data);
+        auto name = readNullTerminatedString(data);
+        if (!name.has_value() || !id.has_value()) return nonstd::unexpected("Error parsing settings: " + name.error());
+        setting.name = name.value();
+
+        switch (setting.type) {
+        case TOGGLE: {
+            char toggleDefault;
+            if (!data.read(&toggleDefault, 1)) return nonstd::unexpected("Could not read 1 byte for default value. File too short or I/O error.");
+            setting.defaultValue = toggleDefault != 0;
+            break;
+        }
+        case TEXT: {
+            auto textDefault = readNullTerminatedString(data);
+            if (!textDefault.has_value()) return nonstd::unexpected("Error parsing settings: " + textDefault.error());
+            setting.defaultValue = textDefault.value();
+
+            auto prompt = readNullTerminatedString(data);
+            if (!prompt.has_value()) return nonstd::unexpected("Error parsing settings: " + prompt.error());
+            setting.prompt = prompt.value();
+            break;
+        }
+        case SLIDER: {
+            float sliderDefault;
+            if (!data.read(reinterpret_cast<char *>(&sliderDefault), 4)) return nonstd::unexpected("Could not read 4 bytes for default value. File too short or I/O error.");
+            setting.defaultValue = sliderDefault;
+            if (!data.read(reinterpret_cast<char *>(&setting.min), 4)) return nonstd::unexpected("Could not read 4 bytes for slider minimum. File too short or I/O error.");
+            if (!data.read(reinterpret_cast<char *>(&setting.max), 4)) return nonstd::unexpected("Could not read 4 bytes for slider maximum. File too short or I/O error.");
+            if (!data.read(reinterpret_cast<char *>(&setting.snap), 4)) return nonstd::unexpected("Could not read 4 bytes for slider snap. File too short or I/O error.");
+            break;
+        }
+        }
+
+        out.settings[id.value()] = setting;
+    }
+
+    // Block Types
+    std::vector<ExtensionBlockType> blockTypes;
+    char c;
+    bool success = false;
+    while (data.get(c)) {
+        if (c == '\0') {
+            success = true;
+            break;
+        }
+        blockTypes.push_back(static_cast<ExtensionBlockType>(c));
+    }
+    if (!success) return nonstd::unexpected(data.eof() ? "Reached end of file while reading block types." : "Unknown error occurred while reading block types.");
+
+    std::vector<std::string> blockIds;
+    for (unsigned int i = 0; i < blockTypes.size(); i++) {
+        auto id = readNullTerminatedString(data);
+        if (!id.has_value()) return nonstd::unexpected("Error parsing block types: " + id.error());
+        blockIds.push_back(id.value());
+    }
+
+    std::transform(blockIds.begin(), blockIds.end(), blockTypes.begin(), std::inserter(out.blockTypes, out.blockTypes.end()), [](const std::string &id, ExtensionBlockType type) { return std::make_pair(id, type); });
+
+    return out;
+}
+
+void loadLua(Extension &extension, std::istream &data) {
+    extension.luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::io, sol::lib::bit32, sol::lib::table);
+
+    registerLuaFunctions(extension);
+
+    extension.luaState["blocks"] = extension.luaState.create_table();
+    if (std::find(extension.permissions.begin(), extension.permissions.end(), UPDATE) != extension.permissions.end()) extension.luaState["update"] = extension.luaState.create_table();
+
+    char buffer[1024];
+    struct ReadData {
+        std::istream *in;
+        char *buffer;
+    } readData = {&data, buffer};
+    sol::load_result loadResult = extension.luaState.load(
+        [](lua_State *L, void *data, size_t *size) -> const char * {
+            auto readData = reinterpret_cast<ReadData *>(data);
+            if (!readData->in || readData->in->fail() || readData->in->eof()) {
+                *size = 0;
+                return nullptr;
+            }
+
+            readData->in->read(readData->buffer, 1024);
+            *size = static_cast<size_t>(readData->in->gcount());
+            return readData->buffer;
+        },
+        &readData);
+
+    if (!loadResult.valid()) {
+        Log::logError("Failed to load lua bytecode for extension '" + extension.id + "': " + static_cast<sol::error>(loadResult).what());
+        return;
+    }
+
+    sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
+    if (!result.valid()) Log::logError("Error while running lua bytecode for extension '" + extension.id + "': " + static_cast<sol::error>(result).what());
+}
+
+void registerLuaFunctions(Extension &extension) {
+    extension.luaState["json"] = extension.luaState.create_table();
+    extension.luaState["json"]["decode"] = json::decode;
+    extension.luaState["json"]["encode"] = json::encode;
+    extension.luaState["json"]["encodePretty"] = json::encodePretty;
+
+    const bool rootfs = std::find(extension.permissions.begin(), extension.permissions.end(), ROOTFS) != extension.permissions.end();
+    if (rootfs || std::find(extension.permissions.begin(), extension.permissions.end(), LOCALFS) != extension.permissions.end()) {
+        extension.luaState["files"] = extension.luaState.create_table();
+        extension.luaState["files"]["read"] = files::read(rootfs, extension.id);
+        extension.luaState["files"]["write"] = files::write(rootfs, extension.id);
+        extension.luaState["files"]["append"] = files::append(rootfs, extension.id);
+        extension.luaState["files"]["mkdir"] = files::mkdir(rootfs, extension.id);
+        extension.luaState["files"]["ls"] = files::ls(rootfs, extension.id);
+
+        if (rootfs) extension.luaState["files"]["mainDirectory"] = files::mainDirectory;
+    }
+
+    if (std::find(extension.permissions.begin(), extension.permissions.end(), INPUT) != extension.permissions.end()) {
+        extension.luaState["input"] = extension.luaState.create_table();
+        extension.luaState["input"]["mappings"] = extension.luaState.create_table();
+        for (const auto &control : Input::inputControls)
+            extension.luaState["input"]["mappings"][control.first] = control.second;
+        extension.luaState["input"]["mouseX"] = sol::readonly_property([]() { return Input::mousePointer.x; });
+        extension.luaState["input"]["mouseY"] = sol::readonly_property([]() { return Input::mousePointer.y; });
+#ifdef __3DS__
+        extension.luaState["input"]["devices"] = sol::readonly_property([]() {
+            return sol::as_table(std::vector<std::string>{"controller", "touchscreen"});
+        });
+#elif defined(RENDERER_SDL2) && !defined(__PC__)
+        extension.luaState["input"]["devices"] = sol::readonly_property([]() {
+            std::vector<std::string> devices; // TODO: Add keyboard/mouse for platforms that support them.
+            if (SDL_GameControllerGetAttached(controller) == SDL_TRUE) devices.push_back("controller");
+            if (SDL_GetNumTouchDevices() > 0) devices.push_back("touchscreen");
+            return sol::as_table(devices);
+        });
+#elif defined(__PC__) // TODO: SDL3, SDL1, and headless support
+        extension.luaState["input"]["devices"] = sol::readonly_property([]() {
+            std::vector<std::string> devices = {"keyboard", "mouse"}; // TODO: Don't assume keyboard and mouse
+            if (SDL_GameControllerGetAttached(controller) == SDL_TRUE) devices.push_back("controller");
+            if (SDL_GetNumTouchDevices() > 0) devices.push_back("touchscreen");
+            return sol::as_table(devices);
+        });
+#endif
+
+        extension.luaState["input"]["keyDown"] = input::keyDown;
+        extension.luaState["input"]["buttonDown"] = input::buttonDown;
+        extension.luaState["input"]["mouseDown"] = input::mouseDown;
+        extension.luaState["input"]["getAxis"] = input::getAxis;
+    }
+}
+
+void registerHandlers(BlockExecutor *blockExecutor) {
+    for (auto &extension : extensions)
+        registerHandlers(*(extension.second), blockExecutor);
+}
+
+void registerHandlers(Extension &extension, BlockExecutor *blockExecutor) {
+    const auto getArgs = [](Extension *extension, Block &block, Sprite *sprite) {
+        sol::table table = extension->luaState.create_table();
+        for (const auto &parsedInput : *block.parsedInputs) {
+            Value val = Scratch::getInputValue(block, parsedInput.first, sprite);
+            if (val.isBoolean()) {
+                table[parsedInput.first] = val.asInt() == 1;
+                continue;
+            }
+            if (val.isDouble() || val.isInteger()) {
+                table[parsedInput.first] = val.asInt();
+                continue;
+            }
+            table[parsedInput.first] = val.asString();
+        }
+        for (const auto &parsedField : *block.parsedFields)
+            table[parsedField.first] = parsedField.second.value;
+        return table;
+    };
+
+    for (auto &extensionBlock : extension.blockTypes) {
+        switch (extensionBlock.second) {
+        case COMMAND:
+            blockExecutor->handlers[extension.id + "_" + extensionBlock.first] = [&](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+                sol::protected_function func = extension.luaState["blocks"][extensionBlock.first];
+                sol::protected_function_result result = func(getArgs(&extension, block, sprite));
+                if (!result.valid()) {
+                    Log::logError("Error running block '" + block.opcode + "': " + static_cast<sol::error>(result).what());
+                    return BlockResult::CONTINUE;
+                }
+                return BlockResult::CONTINUE;
+            };
+            break;
+        case REPORTER:
+        case BOOLEAN:
+            blockExecutor->valueHandlers[extension.id + "_" + extensionBlock.first] = [&](Block &block, Sprite *sprite) {
+                sol::protected_function func = extension.luaState["blocks"][extensionBlock.first];
+                sol::protected_function_result result = func(getArgs(&extension, block, sprite));
+                if (!result.valid()) {
+                    Log::logError("Error running block '" + block.opcode + "': " + static_cast<sol::error>(result).what());
+                    return Value();
+                }
+
+                sol::object ret = result.get<sol::object>();
+                if (ret.is<std::string>()) return Value(ret.as<std::string>());
+                if (ret.is<double>()) return Value(ret.as<double>());
+                if (ret.is<bool>()) return Value(ret.as<bool>());
+                if (ret.is<sol::table>()) return Value(json::encode(ret.as<sol::table>()));
+                Log::logError("Unknown return type from extension block, this should never happen.");
+                return Value();
+            };
+            break;
+        case HAT:
+        case EVENT:
+            // Hats and events are the same in SE!
+            blockExecutor->handlers[extension.id + "_" + extensionBlock.first] = [&](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+                sol::protected_function func = extension.luaState["blocks"][extensionBlock.first];
+                sol::protected_function_result result = func(getArgs(&extension, block, sprite));
+                if (!result.valid()) {
+                    Log::logError("Error running block '" + block.opcode + "': " + static_cast<sol::error>(result).what());
+                    return BlockResult::RETURN;
+                }
+
+                if (result.get<sol::object>().is<bool>()) {
+                    Log::logError("Extension block '" + block.opcode + "' returned an invalid type.");
+                    return BlockResult::RETURN;
+                }
+
+                return result.get<bool>() ? BlockResult::CONTINUE : BlockResult::RETURN;
+            };
+            break;
+        }
+    }
+}
+
+void runUpdateFunctions(ExtensionUpdateFunction type) {
+    for (auto &extension : extensions)
+        runUpdateFunction(*extension.second, type);
+}
+
+void runUpdateFunction(Extension &extension, ExtensionUpdateFunction type) {
+    if (std::find(extension.permissions.begin(), extension.permissions.end(), UPDATE) == extension.permissions.end()) return;
+
+    const sol::object updateFn = extension.luaState["update"][updateFunctionString(type)];
+    if (!updateFn.is<sol::function>()) return;
+    sol::protected_function_result result = updateFn.as<sol::protected_function>()();
+    if (!result.valid()) Log::logError("Error running update function for extension '" + extension.id + "': " + static_cast<sol::error>(result).what());
+}
+
+} // namespace extensions
