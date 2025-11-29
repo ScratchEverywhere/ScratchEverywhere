@@ -31,6 +31,7 @@ BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *wi
 
     bool shouldEnd = true;
     for (auto &[blockPtr, spritePtr] : block.broadcastsRun) {
+        if (spritePtr->toDelete) continue;
         if (!spritePtr->blockChains[blockPtr->blockChainID].blocksToRepeat.empty()) {
             shouldEnd = false;
             break;

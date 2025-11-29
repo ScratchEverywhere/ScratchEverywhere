@@ -19,6 +19,7 @@ extern BlockExecutor executor;
 extern ProjectType projectType;
 
 extern std::vector<Sprite *> sprites;
+extern Sprite *stageSprite;
 extern std::vector<Sprite> spritePool;
 extern std::vector<std::string> broadcastQueue;
 extern std::unordered_map<std::string, Block *> blockLookup;
@@ -35,14 +36,18 @@ class Scratch {
     static std::string getFieldId(Block &block, const std::string &fieldName);
 
     static void fenceSpriteWithinBounds(Sprite *sprite);
+    static void switchCostume(Sprite *sprite, double costumeIndex);
+    static void sortSprites();
 
     static int projectWidth;
     static int projectHeight;
     static int FPS;
     static bool turbo;
     static bool fencing;
+    static bool hqpen;
     static bool miscellaneousLimits;
     static bool shouldStop;
+    static bool forceRedraw;
 
     static double counter;
 

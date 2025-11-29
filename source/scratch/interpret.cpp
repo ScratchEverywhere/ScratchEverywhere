@@ -45,6 +45,7 @@ bool useCustomUsername;
 std::string customUsername;
 
 std::vector<Sprite *> sprites;
+Sprite *stageSprite;
 std::vector<Sprite> spritePool;
 std::vector<std::string> broadcastQueue;
 std::unordered_map<std::string, Block *> blockLookup;
@@ -58,9 +59,11 @@ int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::FPS = 30;
 bool Scratch::turbo = false;
+bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
+bool Scratch::forceRedraw = true;
 
 double Scratch::counter = 0;
 
@@ -120,7 +123,7 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) // These platforms require Mist++ 0.2.0 or later.
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
 #else // These platforms require Mist++ 0.1.4 or later.
     cloudConnection->connect();
@@ -167,18 +170,24 @@ bool Scratch::startScratchProject() {
     BlockExecutor::timer.start();
 
     while (Render::appShouldRun()) {
-        if (Render::checkFramerate()) {
+        const bool checkFPS = Render::checkFramerate();
+        if (!forceRedraw || checkFPS) {
+            forceRedraw = false;
             Input::getInput();
 
             extensions::runUpdateFunctions(extensions::PRE_UPDATE);
 
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
-            Render::renderSprites();
+            if (checkFPS) Render::renderSprites();
 
             extensions::runUpdateFunctions(extensions::POST_UPDATE);
 
             if (shouldStop) {
+#if defined(RENDERER_HEADLESS)
+                toExit = true;
+                return false;
+#endif
                 if (projectType != UNEMBEDDED) {
                     toExit = true;
                     return false;
@@ -211,11 +220,6 @@ void Scratch::cleanupScratchProject() {
     if (projectType != UNZIPPED) {
 
         mz_zip_reader_end(&Unzip::zipArchive);
-        if (Unzip::trackedBufferPtr) {
-            MemoryTracker::deallocate(Unzip::trackedBufferPtr, Unzip::trackedBufferSize);
-            Unzip::trackedBufferPtr = nullptr;
-            Unzip::trackedBufferSize = 0;
-        }
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
         memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
@@ -229,6 +233,7 @@ void Scratch::cleanupScratchProject() {
     // reset default settings
     Scratch::FPS = 30;
     Scratch::turbo = false;
+    Scratch::hqpen = false;
     Scratch::projectWidth = 480;
     Scratch::projectHeight = 360;
     Scratch::fencing = true;
@@ -278,9 +283,14 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     std::vector<std::pair<double, double>> collisionPoints;
 
     double divisionAmount = 2.0;
+    const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
-    if (currentSprite->costumes[currentSprite->currentCostume].isSVG)
+    if (isSVG)
         divisionAmount = 1.0;
+
+#ifdef __NDS__
+    divisionAmount *= 2;
+#endif
 
     // Get sprite dimensions, scaled by size
     const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
@@ -296,10 +306,10 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         else
             rotation = -90;
     }
-
     double rotationRadians = -(rotation - 90) * M_PI / 180.0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth));
-    double rotationCenterY = ((currentSprite->rotationCenterY - currentSprite->spriteHeight));
+    const int shiftAmount = !isSVG ? 1 : 0;
+    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) >> shiftAmount);
+    double rotationCenterY = -((currentSprite->rotationCenterY - currentSprite->spriteHeight) >> shiftAmount);
 
     // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
@@ -499,12 +509,29 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     }
 }
 
+void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
+
+    sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(std::round(costumeIndex) / sprite->costumes.size()) * sprite->costumes.size()) : 0;
+
+    Image::loadImageFromProject(sprite);
+
+    Scratch::forceRedraw = true;
+}
+
+void Scratch::sortSprites() {
+    std::sort(sprites.begin(), sprites.end(),
+        [](const Sprite *a, const Sprite *b) {
+            if (a->isStage && !b->isStage) return false;
+            if (!a->isStage && b->isStage) return true;
+            return a->layer > b->layer;
+        });
+}
+
 void loadSprites(const nlohmann::json &json) {
     Log::log("beginning to load sprites...");
     sprites.reserve(400);
     for (const auto &target : json["targets"]) { // "target" is sprite in Scratch speak, so for every sprite in sprites
 
-        // Sprite *newSprite = MemoryTracker::allocate<Sprite>();
         Sprite *newSprite = new Sprite();
         // new (newSprite) Sprite();
         if (target.contains("name")) {
@@ -609,13 +636,13 @@ void loadSprites(const nlohmann::json &json) {
                     auto &inputValue = inputData[1];
 
                     if (type == 1) {
-                        // Some Hacky Custom Extension Menu Stuff
-                        if (inputValue.is_string()) {
-                            parsedInput.inputType = ParsedInput::BLOCK;
-                            parsedInput.blockId = inputValue.get<std::string>();
-                        } else {
+                        if (inputValue.is_array() || newBlock.opcode == "procedures_definition") {
                             parsedInput.inputType = ParsedInput::LITERAL;
                             parsedInput.literalValue = Value::fromJson(inputValue);
+                        } else {
+                            parsedInput.inputType = ParsedInput::BLOCK;
+                            if (!inputValue.is_null())
+                                parsedInput.blockId = inputValue.get<std::string>();
                         }
                     } else if (type == 3) {
                         if (inputValue.is_array()) {
@@ -627,9 +654,14 @@ void loadSprites(const nlohmann::json &json) {
                                 parsedInput.blockId = inputValue.get<std::string>();
                         }
                     } else if (type == 2) {
-                        parsedInput.inputType = ParsedInput::BLOCK;
-                        if (!inputValue.is_null())
-                            parsedInput.blockId = inputValue.get<std::string>();
+                        if (inputValue.is_array()) {
+                            parsedInput.inputType = ParsedInput::VARIABLE;
+                            parsedInput.variableId = inputValue[2].get<std::string>();
+                        } else {
+                            parsedInput.inputType = ParsedInput::BLOCK;
+                            if (!inputValue.is_null())
+                                parsedInput.blockId = inputValue.get<std::string>();
+                        }
                     }
                     (*newBlock.parsedInputs)[inputName] = parsedInput;
                 }
@@ -694,13 +726,13 @@ void loadSprites(const nlohmann::json &json) {
 
         // set Lists
         for (const auto &[id, data] : target["lists"].items()) {
-            List newList;
+            auto result = newSprite->lists.try_emplace(id).first;
+            List &newList = result->second;
             newList.id = id;
             newList.name = data[0];
-            for (const auto &listItem : data[1]) {
+            newList.items.reserve(data[1].size());
+            for (const auto &listItem : data[1])
                 newList.items.push_back(Value::fromJson(listItem));
-            }
-            newSprite->lists[newList.id] = newList; // add list
         }
 
         // set Sounds
@@ -754,8 +786,8 @@ void loadSprites(const nlohmann::json &json) {
             newComment.width = data["width"];
             newComment.height = data["height"];
             newComment.minimized = data["minimized"];
-            newComment.x = data["x"];
-            newComment.y = data["y"];
+            newComment.x = data["x"].is_null() ? 0 : data["x"].get<int>();
+            newComment.y = data["y"].is_null() ? 0 : data["y"].get<int>();
             newComment.text = data["text"];
             newSprite->comments[newComment.id] = newComment;
         }
@@ -770,7 +802,10 @@ void loadSprites(const nlohmann::json &json) {
         }
 
         sprites.push_back(newSprite);
+        if (newSprite->isStage) stageSprite = newSprite;
     }
+
+    Scratch::sortSprites();
 
     for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
         Monitor newMonitor;
@@ -839,57 +874,54 @@ void loadSprites(const nlohmann::json &json) {
 
     // try to find the advanced project settings comment
     nlohmann::json config;
-    for (Sprite *currentSprite : sprites) {
-        if (!currentSprite->isStage) continue;
-        for (auto &[id, comment] : currentSprite->comments) {
-            // make sure its the turbowarp comment
-            std::size_t settingsFind = comment.text.find("Configuration for https");
-            if (settingsFind == std::string::npos) continue;
-            std::size_t json_start = comment.text.find('{');
-            if (json_start == std::string::npos) continue;
+    for (auto &[id, comment] : stageSprite->comments) {
+        // make sure its the turbowarp comment
+        std::size_t settingsFind = comment.text.find("Configuration for https");
+        if (settingsFind == std::string::npos) continue;
+        std::size_t json_start = comment.text.find('{');
+        if (json_start == std::string::npos) continue;
 
-            // Use brace counting to find the true end of the JSON
-            int braceCount = 0;
-            std::size_t json_end = json_start;
-            bool in_string = false;
+        // Use brace counting to find the true end of the JSON
+        int braceCount = 0;
+        std::size_t json_end = json_start;
+        bool in_string = false;
 
-            for (; json_end < comment.text.size(); ++json_end) {
-                char c = comment.text[json_end];
+        for (; json_end < comment.text.size(); ++json_end) {
+            char c = comment.text[json_end];
 
-                if (c == '"' && (json_end == 0 || comment.text[json_end - 1] != '\\')) {
-                    in_string = !in_string;
-                }
+            if (c == '"' && (json_end == 0 || comment.text[json_end - 1] != '\\')) {
+                in_string = !in_string;
+            }
 
-                if (!in_string) {
-                    if (c == '{') braceCount++;
-                    else if (c == '}') braceCount--;
+            if (!in_string) {
+                if (c == '{') braceCount++;
+                else if (c == '}') braceCount--;
 
-                    if (braceCount == 0) {
-                        json_end++; // Include final '}'
-                        break;
-                    }
+                if (braceCount == 0) {
+                    json_end++; // Include final '}'
+                    break;
                 }
             }
+        }
 
-            if (braceCount != 0) {
-                continue;
-            }
+        if (braceCount != 0) {
+            continue;
+        }
 
-            std::string json_str = comment.text.substr(json_start, json_end - json_start);
+        std::string json_str = comment.text.substr(json_start, json_end - json_start);
 
-            // Replace inifity with null, since the json cant handle infinity
-            std::string cleaned_json = json_str;
-            std::size_t inf_pos;
-            while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
-                cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
-            }
+        // Replace inifity with null, since the json cant handle infinity
+        std::string cleaned_json = json_str;
+        std::size_t inf_pos;
+        while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
+            cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
+        }
 
-            try {
-                config = nlohmann::json::parse(cleaned_json);
-                break;
-            } catch (nlohmann::json::parse_error &e) {
-                continue;
-            }
+        try {
+            config = nlohmann::json::parse(cleaned_json);
+            break;
+        } catch (nlohmann::json::parse_error &e) {
+            continue;
         }
     }
     // set advanced project settings properties
@@ -909,6 +941,14 @@ void loadSprites(const nlohmann::json &json) {
     } catch (...) {
 #ifdef DEBUG
         Log::logWarning("no turbo property.");
+#endif
+    }
+    try {
+        Scratch::hqpen = config["hq"].get<bool>();
+        Log::log("Set hqpen mode to: " + std::to_string(Scratch::hqpen));
+    } catch (...) {
+#ifdef DEBUG
+        Log::logWarning("no hqpen property.");
 #endif
     }
     try {
@@ -1008,7 +1048,7 @@ void loadSprites(const nlohmann::json &json) {
 
     Unzip::loadingState = "Finishing up!";
 
-    Input::applyControls(OS::getScratchFolderLocation() + Unzip::filePath + ".json");
+    Input::applyControls(Unzip::filePath + ".json");
     Render::setRenderScale();
     Log::log("Loaded " + std::to_string(sprites.size()) + " sprites.");
 }

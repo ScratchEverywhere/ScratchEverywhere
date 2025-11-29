@@ -3,9 +3,9 @@ name: Vita Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_vita
+      - CMakeLists.txt
       - source/scratch/**
-      - source/sdl/**
+      - source/sdl2/**
       - gfx/vita/**
       - gfx/menu/**
       - include/**

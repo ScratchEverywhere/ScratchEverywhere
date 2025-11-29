@@ -3,8 +3,11 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=vita
+# Temporary fix until this is merged upstream
+RUN wget -O $VITASDK/share/vita.cmake "https://raw.githubusercontent.com/gradylink/vita-toolchain/refs/heads/fix/cmake/cmake_toolchain/vita.cmake"
+
+RUN cmake -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake -B build-vita && cmake --build build-vita -j $(nproc)
 
 FROM scratch AS exporter
 
-COPY --from=main_builder /app/build/vita/scratch-vita.vpk /
+COPY --from=main_builder /app/build-vita/scratch-vita.vpk /

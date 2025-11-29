@@ -1,6 +1,9 @@
 3DS:
   - '### Device\(s\)\s*.*3DS'
 
+DS:
+  - '### Device\(s\)\s*.*DS'
+
 Wii U:
   - '### Device\(s\)\s*.*Wii U'
 
@@ -16,5 +19,11 @@ Switch:
 Vita:
   - '### Device\(s\)\s*.*Vita'
 
+PSP:
+  - '### Device\(s\)\s*.*PSP'
+
 Web:
   - '### Device\(s\)\s*.*Web'
+
+PS4:
+  - '### Device\(s\)\s*.*PS4'

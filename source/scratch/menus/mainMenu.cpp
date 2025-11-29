@@ -70,15 +70,40 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
+#ifdef RENDERER_HEADLESS // let the user type what project they want to open if headless
+    Keyboard kbd;
+    std::string answer = kbd.openKeyboard("Please type what project you want to open.");
+
+    const std::string ext = ".sb3";
+    if (answer.size() >= ext.size() &&
+        answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
+        answer = answer.substr(0, answer.size() - ext.size());
+    }
+
+    Unzip::filePath = answer + ".sb3";
+
+    MenuManager::loadProject();
+#elif defined(__NDS__)
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
+    }
+#else
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
+        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
+    }
+#endif
 
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
+
+    snow.image = new Image("gfx/menu/snow.svg");
 
     logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 27 Nightly", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 30 Nightly", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -110,6 +135,16 @@ void MainMenu::render() {
     Input::getInput();
     mainMenuControl->input();
 
+#ifdef __NDS__
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
+        SoundPlayer::playSound("gfx/menu/mm_full.wav");
+    }
+#else
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+    }
+#endif
+
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();
         MenuManager::changeMenu(projectMenu);
@@ -117,7 +152,9 @@ void MainMenu::render() {
     }
 
     // begin frame
-    Render::beginFrame(0, 117, 77, 117);
+    Render::beginFrame(0, 87, 60, 88);
+
+    snow.render();
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
@@ -131,7 +168,7 @@ void MainMenu::render() {
     splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7) * logo->image->scale);
 
     // begin 3DS bottom screen frame
-    Render::beginFrame(1, 117, 77, 117);
+    Render::beginFrame(1, 87, 60, 88);
 
     if (settingsButton->isPressed()) {
         SettingsMenu *settingsMenu = new SettingsMenu();
@@ -170,6 +207,10 @@ void MainMenu::cleanup() {
     if (splashText) {
         delete splashText;
         splashText = nullptr;
+    }
+    if (snow.image) {
+        delete snow.image;
+        snow.image = nullptr;
     }
     isInitialized = false;
 }

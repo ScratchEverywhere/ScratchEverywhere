@@ -3,9 +3,9 @@ name: Switch Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_switch
+      - CMakeLists.txt
       - source/scratch/**
-      - source/sdl/**
+      - source/sdl2/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-switch.yml

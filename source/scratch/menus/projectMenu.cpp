@@ -1,4 +1,5 @@
 #include "projectMenu.hpp"
+#include "audio.hpp"
 #include "projectSettings.hpp"
 #include "unpackMenu.hpp"
 
@@ -11,6 +12,8 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
+
+    snow.image = new Image("gfx/menu/snow.svg");
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -84,6 +87,10 @@ void ProjectMenu::init() {
         noProjectInfo->setText("Put Scratch projects in sd:/scratch-gamecube/ !");
 #elif defined(__SWITCH__)
         noProjectInfo->setText("Put Scratch projects in sd:/switch/scratch-nx !");
+#elif defined(__NDS__)
+        noProjectInfo->setText("Put Scratch projects in sd:/scratch-ds !");
+#elif defined(__PS4__)
+        noProjectInfo->setText("Put Scratch projects in /data/scratch-ps4 !");
 #else
         noProjectInfo->setText("Put Scratch projects in the scratch-everywhere folder!");
 #endif
@@ -116,6 +123,16 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
+#ifdef __NDS__
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
+        SoundPlayer::playSound("gfx/menu/mm_full.wav");
+    }
+#else
+    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+    }
+#endif
+
     float targetY = 0.0f;
     float lerpSpeed = 0.1f;
 
@@ -124,12 +141,12 @@ void ProjectMenu::render() {
 
             if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
                 // Unpacked sb3
-                Unzip::filePath = projectControl->selectedObject->text->getText();
+                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
                 MenuManager::loadProject();
                 return;
             } else {
                 // normal sb3
-                Unzip::filePath = projectControl->selectedObject->text->getText() + ".sb3";
+                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
                 MenuManager::loadProject();
                 return;
             }
@@ -162,8 +179,10 @@ void ProjectMenu::render() {
     cameraX = 200;
     const double cameraYOffset = 110;
 
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
+    Render::beginFrame(0, 77, 58, 77);
+    Render::beginFrame(1, 77, 58, 77);
+
+    snow.render(0, -(cameraY * 0.4));
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;
@@ -240,6 +259,10 @@ void ProjectMenu::cleanup() {
     if (noProjectInfo != nullptr) {
         delete noProjectInfo;
         noProjectInfo = nullptr;
+    }
+    if (snow.image) {
+        delete snow.image;
+        snow.image = nullptr;
     }
     isInitialized = false;
 }

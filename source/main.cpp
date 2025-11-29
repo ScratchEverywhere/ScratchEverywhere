@@ -11,7 +11,7 @@
 #include <switch.h>
 #endif
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include <SDL2/SDL.h>
 #endif
 
@@ -37,11 +37,10 @@ bool activateMainMenu() {
 
         if (MenuManager::isProjectLoaded != 0) {
             if (MenuManager::isProjectLoaded == -1) {
-                exitApp();
                 return false;
             } else {
                 MenuManager::isProjectLoaded = 0;
-                break;
+                return true;
             }
         }
 
@@ -49,7 +48,7 @@ bool activateMainMenu() {
         emscripten_sleep(0);
 #endif
     }
-    return true;
+    return false;
 }
 
 void mainLoop() {
@@ -89,6 +88,18 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
+#ifdef __EMSCRIPTEN__
+    if (argc > 1) {
+        while (!std::filesystem::exists("/romfs/project.sb3")) {
+            if (!Render::appShouldRun()) {
+                exitApp();
+                exit(0);
+            }
+            emscripten_sleep(0);
+        }
+    }
+#endif
+
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {
 #ifdef __EMSCRIPTEN__
@@ -99,14 +110,17 @@ int main(int argc, char **argv) {
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();
-                Unzip::filePath = filename;
+                Unzip::filePath = OS::getScratchFolderLocation() + filename;
                 Unzip::load(); // TODO: Error handling
             },
                                             &uploadComplete);
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
 #else
-            if (!activateMainMenu()) return 0;
+            if (!activateMainMenu()) {
+                exitApp();
+                return 0;
+            }
 #endif
         } else {
             exitApp();

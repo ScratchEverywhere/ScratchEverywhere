@@ -63,7 +63,6 @@ struct Block {
     std::string topLevelParentBlock;
 
     /* variables that some blocks need*/
-    bool shouldStop = false; // literally only for the 'stop' block and 'if' blocks
     int repeatTimes = -1;
     bool isRepeating = false;
     double waitDuration;
@@ -73,8 +72,6 @@ struct Block {
     bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
-    std::vector<std::string> substackBlocksRan;
-    std::string waitingIfBlock = "";
 
     Block() {
         parsedFields = std::make_shared<std::map<std::string, ParsedField>>();
@@ -194,14 +191,13 @@ class Sprite {
     int spriteHeight;
 
     struct {
-        bool down;
-        double size;
-        Color color;
-        double transparency;
+        bool down = false;
+        double size = 1;
+        Color color = {66.66, 100.0, 100.0, 0.0};
     } penData;
 
     std::unordered_map<std::string, Variable> variables;
-    std::unordered_map<std::string, Block> blocks;
+    std::map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
     std::map<std::string, Sound> sounds;
     std::vector<Costume> costumes;

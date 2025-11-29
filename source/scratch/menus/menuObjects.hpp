@@ -1,6 +1,7 @@
 #pragma once
 #include "image.hpp"
 #include "os.hpp"
+#include "render.hpp"
 #include "text.hpp"
 
 class MenuObject {
@@ -11,6 +12,52 @@ class MenuObject {
     virtual void render(double xPos = 0, double yPos = 0) = 0;
     static double getScaleFactor();
     std::vector<double> getScaledPosition(double xPos, double yPos);
+};
+
+class JollySnow {
+  private:
+    typedef struct {
+        float x, y;
+        float fallSpeed;
+    } SnowFall;
+    std::vector<SnowFall> snow;
+
+    int oldWindowWidth, oldWindowHeight;
+
+  public:
+    Image *image;
+    JollySnow() {
+        oldWindowWidth = Render::getWidth();
+        oldWindowHeight = Render::getHeight();
+
+        for (size_t i = 0; i < 30; i++) {
+            SnowFall ball = {
+                .x = (float)(rand() % Render::getWidth()),
+                .y = (float)(rand() % Render::getHeight()),
+                .fallSpeed = ((float)rand() / RAND_MAX) * 1.1f + 0.2f};
+            snow.push_back(std::move(ball));
+        }
+    }
+
+    void render(float xOffset = 0.0f, float yOffset = 0.0f) {
+        for (auto &ball : snow) {
+            image->render(ball.x + xOffset, ball.y + yOffset, true);
+            ball.y += ball.fallSpeed;
+            if (ball.y > Render::getHeight() + 20 - yOffset) {
+                ball.y = -20 - yOffset;
+                ball.x = (float)(rand() % Render::getWidth());
+            }
+        }
+
+        if (oldWindowWidth != Render::getWidth() || oldWindowHeight != Render::getHeight()) {
+            oldWindowWidth = Render::getWidth();
+            oldWindowHeight = Render::getHeight();
+            for (auto &ball : snow) {
+                ball.x = (float)(rand() % Render::getWidth());
+                ball.y = (float)(rand() % Render::getHeight());
+            }
+        }
+    }
 };
 
 class MenuImage : public MenuObject {

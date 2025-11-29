@@ -65,6 +65,29 @@
       };
 
       window.addEventListener("resize", resizeCanvas);
+
+      let projectUrl = new URLSearchParams(window.location.search).get(
+        "project_url",
+      );
+      if (projectUrl) {
+        Module.arguments = ["project_url"];
+
+        Module.preRun.push(async () => {
+          let res = await fetch(projectUrl);
+          if (!res.ok) {
+            res = await fetch("https://" + projectUrl);
+            if (!res.ok) {
+              console.error("Error getting thingy.");
+              return;
+            }
+          }
+
+          Module.FS.writeFile(
+            "/romfs/project.sb3",
+            new Uint8Array(await res.arrayBuffer()),
+          );
+        });
+      }
     </script>
     {{{ SCRIPT }}}
   </body>

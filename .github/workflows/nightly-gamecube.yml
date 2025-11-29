@@ -5,7 +5,7 @@ on:
     paths:
       - make/Makefile_gamecube
       - source/scratch/**
-      - source/sdl/**
+      - source/sdl2/**
       - include/**
       - gfx/gamecube/**
       - gfx/menu/**
