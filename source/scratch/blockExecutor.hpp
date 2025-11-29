@@ -27,6 +27,9 @@ class BlockExecutor {
      */
     BlockExecutor();
 
+    static void executeKeyHats();
+    static void doSpriteClicking();
+
     /**
      * Runs and executes the specified `block` in a `sprite`.
      * @param block Reference to a block variable

@@ -117,12 +117,12 @@ void Input::getInput() {
         }
     }
 
-    executeKeyHats();
+    BlockExecutor::executeKeyHats();
 
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
 
-    doSpriteClicking();
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::getUsername() {

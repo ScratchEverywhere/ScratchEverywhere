@@ -155,9 +155,9 @@ void Input::getInput() {
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
 
-    executeKeyHats();
+    BlockExecutor::executeKeyHats();
 
-    doSpriteClicking();
+    BlockExecutor::doSpriteClicking();
 }
 
 /**

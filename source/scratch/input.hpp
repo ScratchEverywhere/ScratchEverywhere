@@ -29,7 +29,6 @@ class Input {
 
     static void applyControls(std::string controlsFilePath = "");
     static void buttonPress(std::string button);
-    static void doSpriteClicking();
 
     static std::vector<int> getTouchPosition();
     static void getInput();
@@ -38,5 +37,4 @@ class Input {
 
     static std::string convertToKey(const Value keyName, const bool uppercaseKeys = false);
     static bool checkSequenceMatch(const std::vector<std::string> sequence);
-    static void executeKeyHats();
 };

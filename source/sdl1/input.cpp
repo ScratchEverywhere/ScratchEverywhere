@@ -146,7 +146,7 @@ void Input::getInput() {
 
     if (!inputButtons.empty()) inputButtons.push_back("any");
 
-    executeKeyHats();
+    BlockExecutor::executeKeyHats();
 
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     if (touchActive) {
@@ -170,7 +170,7 @@ void Input::getInput() {
         mousePointer.isPressed = true;
     }
 
-    doSpriteClicking();
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::getUsername() {

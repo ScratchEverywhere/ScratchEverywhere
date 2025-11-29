@@ -159,7 +159,7 @@ void Input::getInput() {
 
     if (!inputButtons.empty()) inputButtons.push_back("any");
 
-    executeKeyHats();
+    BlockExecutor::executeKeyHats();
 
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     int numDevices;
@@ -183,7 +183,7 @@ void Input::getInput() {
     const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
     mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;
 
-    doSpriteClicking();
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::getUsername() {

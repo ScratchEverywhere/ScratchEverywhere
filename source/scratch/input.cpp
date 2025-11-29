@@ -58,45 +58,6 @@ void Input::buttonPress(std::string button) {
     }
 }
 
-void Input::doSpriteClicking() {
-    if (Input::mousePointer.isPressed) {
-        Input::mousePointer.heldFrames++;
-        bool hasClicked = false;
-        for (auto &sprite : sprites) {
-            // click a sprite
-            if (sprite->shouldDoSpriteClick) {
-                if (Input::mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
-
-                    // run all "when this sprite clicked" blocks in the sprite
-                    hasClicked = true;
-                    for (auto &[id, data] : sprite->blocks) {
-                        if (data.opcode == "event_whenthisspriteclicked") {
-                            executor.runBlock(data, sprite);
-                        }
-                    }
-                }
-            }
-            // start dragging a sprite
-            if (Input::draggingSprite == nullptr && Input::mousePointer.heldFrames < 2 && sprite->draggable && isColliding("mouse", sprite)) {
-                Input::draggingSprite = sprite;
-            }
-            if (hasClicked) break;
-        }
-    } else {
-        Input::mousePointer.heldFrames = 0;
-    }
-
-    // move a dragging sprite
-    if (Input::draggingSprite != nullptr) {
-        if (Input::mousePointer.heldFrames == 0) {
-            Input::draggingSprite = nullptr;
-            return;
-        }
-        Input::draggingSprite->xPosition = Input::mousePointer.x - (Input::draggingSprite->spriteWidth / 2);
-        Input::draggingSprite->yPosition = Input::mousePointer.y + (Input::draggingSprite->spriteHeight / 2);
-    }
-}
-
 std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
     if (keyName.isDouble()) {
         if (keyName.asDouble() >= 48 && keyName.asDouble() <= 90) {
@@ -134,46 +95,6 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
     }
 
     return key;
-}
-
-void Input::executeKeyHats() {
-    for (const auto& key : keyHeldDuration) {
-        if (std::find(inputButtons.begin(), inputButtons.end(), key.first) == inputButtons.end()) {
-            keyHeldDuration[key.first] = 0;
-        } else {
-            keyHeldDuration[key.first]++;
-        }
-    }
-
-    for (std::string key : inputButtons) {
-        if (keyHeldDuration.find(key) == keyHeldDuration.end()) keyHeldDuration[key] = 1;
-    }
-
-    for (std::string key : inputButtons) {
-        if (key != "any" && keyHeldDuration[key] == 1) {
-            codePressedBlockOpcodes.clear();
-            std::string addKey = (key.find(' ') == std::string::npos) ? key : key.substr(0, key.find(' '));
-            std::transform(addKey.begin(), addKey.end(), addKey.begin(), ::tolower);
-            inputBuffer.push_back(addKey);
-            if (inputBuffer.size() == 101) inputBuffer.erase(inputBuffer.begin());
-        }
-    }
-
-    std::vector<Sprite *> sprToRun = sprites;
-    for (Sprite *currentSprite : sprToRun) {
-        for (auto &[id, data] : currentSprite->blocks) {
-            if (data.opcode == "event_whenkeypressed") {
-                std::string key = Scratch::getFieldValue(data, "KEY_OPTION");
-                if (keyHeldDuration.find(key) != keyHeldDuration.end() && (keyHeldDuration.find(key)->second == 1 || keyHeldDuration.find(key)->second > 13))
-                executor.runBlock(data, currentSprite);
-            } else if (data.opcode == "makeymakey_whenMakeyKeyPressed") {
-                std::string key = convertToKey(Scratch::getInputValue(data, "KEY", currentSprite), true);
-                if (keyHeldDuration.find(key) != keyHeldDuration.end() && keyHeldDuration.find(key)->second > 0)
-                executor.runBlock(data, currentSprite);
-            }
-        }
-    }
-    BlockExecutor::runAllBlocksByOpcode("makeymakey_whenCodePressed");
 }
 
 bool Input::checkSequenceMatch(const std::vector<std::string> sequence) {
