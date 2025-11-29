@@ -208,6 +208,8 @@ std::string OS::getScratchFolderLocation() {
     return "/scratch-everywhere/";
 #elif defined(__NDS__)
     return prefix + "/scratch-ds/";
+#elif defined(WEBOS)
+    return "projects/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -248,6 +250,8 @@ std::string OS::getPlatform() {
     return "PS4";
 #elif defined(__PSP__)
     return "PSP";
+#elif defined(WEBOS)
+    return "webOS TV";
 #else
     return "Unknown";
 #endif
