@@ -144,7 +144,7 @@ void ProjectSettings::applySettings(const nlohmann::json &settingsData) {
 
     try {
         OS::createDirectory(OS::parentPath(filePath));
-    } catch (const std::exception &e) {
+    } catch (const OS::FileSystemError &e) {
         Log::logError("Failed to create directories: " + std::string(e.what()));
         return;
     }

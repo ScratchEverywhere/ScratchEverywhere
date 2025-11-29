@@ -261,7 +261,7 @@ class Unzip {
         try {
             OS::removeDirectory(directory);
             return true;
-        } catch (const std::exception &e) {
+        } catch (const OS::FileSystemError &e) {
             Log::logError(std::string("Failed to delete folder: ") + e.what());
         }
 

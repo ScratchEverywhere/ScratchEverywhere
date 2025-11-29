@@ -285,7 +285,7 @@ void OS::createDirectory(const std::string& path) {
 #else
             if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
 #endif
-                throw std::runtime_error("Failed to create directory: " + dir);
+                throw OS::DirectoryCreationFailed(dir, errno);
             }
         }
     }
@@ -294,16 +294,16 @@ void OS::createDirectory(const std::string& path) {
 void OS::removeDirectory(const std::string& path) {
     struct stat st;
     if (stat(path.c_str(), &st) != 0) {
-        throw std::runtime_error("Directory does not exist: " + path);
+        throw OS::DirectoryNotFound(path, errno);
     }
 
     if (!S_ISDIR(st.st_mode)) {
-        throw std::runtime_error("Path is not a directory: " + path);
+        throw OS::NotADirectory(path, errno);
     }
 
     DIR* dir = opendir(path.c_str());
     if (dir == nullptr) {
-        throw std::runtime_error("Failed to open directory: " + path);
+        throw OS::DirectoryOpenFailed(path, errno);
     }
 
     struct dirent* entry;
@@ -321,7 +321,7 @@ void OS::removeDirectory(const std::string& path) {
                 removeDirectory(fullPath);
             } else {
                 if (remove(fullPath.c_str()) != 0) {
-                    throw std::runtime_error("Failed to remove file: " + fullPath);
+                    throw OS::FileRemovalFailed(fullPath, errno);
                 }
             }
         }
@@ -334,7 +334,7 @@ void OS::removeDirectory(const std::string& path) {
 #else
     if (rmdir(path.c_str()) != 0) {
 #endif
-        throw std::runtime_error("Failed to remove directory: " + path);
+        throw OS::DirectoryRemovalFailed(path, errno);
     }
 }
 
