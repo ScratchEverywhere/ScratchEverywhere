@@ -75,7 +75,7 @@ endif
 
 ifeq ($(ENABLE_DOWNLOAD),1)
 CFLAGS	+=	-DENABLE_DOWNLOAD
-LIBS +=	`$(PKGCONF_WIIU) --libs curl`
+LIBS +=	`$(PKGCONF_WIIU) --libs libcurl`
 endif
 
 
