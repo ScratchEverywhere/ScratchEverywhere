@@ -40,7 +40,7 @@ class BlockExecutor {
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.
      * @param opCodeToFind Name of the block to run
      */
-    static std::vector<Block *> runAllBlocksByOpcode(std::string opcodeToFind);
+    static void runAllBlocksByOpcode(std::string opcodeToFind);
 
     /**
      * Goes through every currently active repeat block in every `sprite` and runs it once.

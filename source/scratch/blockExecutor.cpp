@@ -3,6 +3,7 @@
 #include "blocks/data.hpp"
 #include "blocks/events.hpp"
 #include "blocks/looks.hpp"
+#include "blocks/makeymakey.hpp"
 #include "blocks/motion.hpp"
 #include "blocks/operator.hpp"
 #include "blocks/pen.hpp"
@@ -127,6 +128,9 @@ void BlockExecutor::registerHandlers() {
         {"pen_setPenColorToColor", PenBlocks::SetPenColorTo},
         {"pen_setPenColorParamTo", PenBlocks::SetPenOptionTo},
         {"pen_changePenColorParamBy", PenBlocks::ChangePenOptionBy},
+
+        {"makeymakey_whenMakeyKeyPressed", MakeyMakeyBlocks::whenMakeyKeyPressed},
+        {"makeymakey_whenCodePressed", MakeyMakeyBlocks::whenCodePressed},
     };
 
     valueHandlers = {
@@ -464,7 +468,7 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
     return blocksToRun;
 }
 
-std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
+void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Block *> blocksRun;
     std::vector<Sprite *> sprToRun = sprites;
@@ -477,7 +481,6 @@ std::vector<Block *> BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFin
             }
         }
     }
-    return blocksRun;
 }
 
 Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {

@@ -26,14 +26,29 @@ void ControlsMenu::init() {
         for (auto &[id, block] : sprite->blocks) {
             std::string buttonCheck;
             if (block.opcode == "sensing_keypressed") {
-
-                // stolen code from sensing.cpp
-
-                buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
-
+                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY_OPTION", sprite));
             } else if (block.opcode == "event_whenkeypressed") {
-                buttonCheck = Scratch::getFieldValue(block, "KEY_OPTION");
-                ;
+                buttonCheck = Input::convertToKey(Value(Scratch::getFieldValue(block, "KEY_OPTION")));
+            } else if (block.opcode == "makeymakey_whenMakeyKeyPressed") {
+                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite));
+            } else if (block.opcode == "makeymakey_whenCodePressed") {
+                std::string input = Scratch::getInputValue(block, "SEQUENCE", sprite).asString();
+                size_t start = 0;
+                size_t end = input.find(' ');
+                while (end != std::string::npos) {
+                    buttonCheck = input.substr(start, end - start);
+                    if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
+                        Log::log("Found new control: " + buttonCheck);
+                        controls.push_back(buttonCheck);
+                    }
+                    start = end + 1;
+                    end = input.find(' ', start);
+                }
+                if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
+                    Log::log("Found new control: " + buttonCheck);
+                    controls.push_back(buttonCheck);
+                }
+                continue;
             } else continue;
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                 Log::log("Found new control: " + buttonCheck);
