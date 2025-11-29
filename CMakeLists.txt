@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 0.30 LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
@@ -104,6 +104,48 @@ FetchContent_Declare(
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(miniz)
+
+# TODO: LuaJIT detection
+if(VITA)
+	set(LUA_VERSION "luajit")
+else()
+	set(LUA_VERSION "5.1")
+
+	if(SE_SYSTEM)
+		find_package(Lua51 REQUIRED)
+		if(Lua51_FOUND AND NOT TARGET Lua51::Lua51)
+			add_library(Lua51::Lua51 INTERFACE IMPORTED)
+			
+			set_target_properties(Lua51::Lua51 PROPERTIES
+				INTERFACE_INCLUDE_DIRECTORIES "${LUA_INCLUDE_DIR}"
+				INTERFACE_LINK_LIBRARIES      "${LUA_LIBRARIES}"
+			)
+		endif()
+	endif()
+endif()
+if(SE_SYSTEM)
+	set(BUILD_LUA OFF)
+else()
+	set(BUILD_LUA ON)
+endif()
+CPMAddPackage(
+    NAME sol2
+    GITHUB_REPOSITORY ThePhD/sol2
+	GIT_TAG main # TODO: remember if I can use a tag, it appears the headers in include are from the main branch?
+	OPTIONS "SOL2_BUILD_LUA ${BUILD_LUA}" "SOL2_LUA_VERSION ${LUA_VERSION}" "SOL2_SINGLE ON" "SOL2_ENABLE_INSTALL OFF"
+)
+if(NOT WIN32) # IDK if this works on Windows, I can't test it
+	execute_process(
+		COMMAND chmod +x "${sol2_SOURCE_DIR}/single/single.py"
+		OUTPUT_QUIET
+	)
+endif()
+
+CPMAddPackage(
+	NAME expected-lite
+	GITHUB_REPOSITORY nonstd-lite/expected-lite
+	VERSION 0.10.0
+)
 
 if(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
@@ -274,13 +316,13 @@ if(SE_CLOUDVARS)
 endif()
 
 if(SE_RENDERER STREQUAL "headless")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/headless)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/scratch/extensions source/headless)
 elseif(SE_RENDERER STREQUAL "sdl3")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl3 source/sdl3/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/scratch/extensions source/sdl3 source/sdl3/audio)
 elseif(SE_RENDERER STREQUAL "sdl2")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/scratch/extensions source/sdl2 source/sdl2/audio)
 else()
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl1 source/sdl1/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/scratch/extensions source/sdl1 source/sdl1/audio)
 endif()
 
 set(SOURCE_FILES)
@@ -484,8 +526,13 @@ if(SE_CLOUDVARS)
 	target_link_libraries(scratch-everywhere PRIVATE mist++)
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json sol2::sol2::single nonstd::expected-lite)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+
+if(VITA)
+else()
+	target_link_libraries(scratch-everywhere PRIVATE Lua51::Lua51)
+endif()
 
 if(PSP)
     create_pbp_file(

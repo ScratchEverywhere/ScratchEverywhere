@@ -15,6 +15,7 @@
 
 #define SOL_ALL_SAFETIES_ON 1
 #define SOL_LUA_VERSION 501
+#include <lua5.1/lua.hpp>
 #include <sol/sol.hpp>
 
 namespace extensions {

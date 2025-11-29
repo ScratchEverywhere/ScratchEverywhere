@@ -11,7 +11,7 @@
 #include <istream>
 #include <string_view>
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include <SDL2/SDL.h>
 
 extern SDL_GameController *controller;
@@ -206,23 +206,23 @@ void registerLuaFunctions(Extension &extension) {
         extension.luaState["input"]["mouseX"] = sol::readonly_property([]() { return Input::mousePointer.x; });
         extension.luaState["input"]["mouseY"] = sol::readonly_property([]() { return Input::mousePointer.y; });
 #ifdef __3DS__
-        extension.luaState["input"].get<sol::table>().set("devices", sol::property([]() {
+        extension.luaState["input"]["devices"] = sol::readonly_property([]() {
             return sol::as_table(std::vector<std::string>{"controller", "touchscreen"});
-        }));
-#elif defined(SDL_BUILD) && !defined(__PC__)
-        extension.luaState["input"].get<sol::table>().set("devices", sol::property([]() {
+        });
+#elif defined(RENDERER_SDL2) && !defined(__PC__)
+        extension.luaState["input"]["devices"] = sol::readonly_property([]() {
             std::vector<std::string> devices; // TODO: Add keyboard/mouse for platforms that support them.
             if (SDL_GameControllerGetAttached(controller) == SDL_TRUE) devices.push_back("controller");
             if (SDL_GetNumTouchDevices() > 0) devices.push_back("touchscreen");
             return sol::as_table(devices);
-        }));
-#elif defined(__PC__)
-        extension.luaState["input"].get<sol::table>().set("devices", sol::property([]() {
+        });
+#elif defined(__PC__) // TODO: SDL3, SDL1, and headless support
+        extension.luaState["input"]["devices"] = sol::readonly_property([]() {
             std::vector<std::string> devices = {"keyboard", "mouse"}; // TODO: Don't assume keyboard and mouse
             if (SDL_GameControllerGetAttached(controller) == SDL_TRUE) devices.push_back("controller");
             if (SDL_GetNumTouchDevices() > 0) devices.push_back("touchscreen");
             return sol::as_table(devices);
-        }));
+        });
 #endif
 
         extension.luaState["input"]["keyDown"] = input::keyDown;
