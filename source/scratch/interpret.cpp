@@ -994,6 +994,12 @@ void loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
+#elif defined(__NDS__)
+    auto bottomScreen = Unzip::getSetting("bottomScreen");
+    if (!bottomScreen.is_null() && bottomScreen.get<bool>())
+        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+    else
+        Render::renderMode = Render::TOP_SCREEN_ONLY;
 #else
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 #endif
