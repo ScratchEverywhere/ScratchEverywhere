@@ -301,11 +301,13 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         };
     mmStreamOpen(&stream);
     audio.isPlaying = true;
+    std::string baseName;
     if (!fromCache) {
-        std::string baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
+        baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
         baseName = baseName.substr(OS::getRomFSLocation().length());
+    }
     else
-        baseName = filename;
+        baseName = fileName;
     NDS_Sounds[baseName] = std::move(audio);
     NDS_Sounds[baseName].id = baseName;
     return true;
