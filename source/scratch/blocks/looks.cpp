@@ -59,48 +59,42 @@ BlockResult LooksBlocks::nextCostume(Block &block, Sprite *sprite, bool *without
 BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value inputValue = Scratch::getInputValue(block, "BACKDROP", sprite);
 
-    for (Sprite *stage : sprites) {
-        if (!stage->isStage) {
-            continue;
-        }
+    if (inputValue.isDouble()) {
+        Scratch::switchCostume(stageSprite, inputValue.isNaN() ? 0 : inputValue.asDouble() - 1);
+        return BlockResult::CONTINUE;
+    }
 
-        if (inputValue.isDouble()) {
-            Scratch::switchCostume(stage, inputValue.isNaN() ? 0 : inputValue.asDouble() - 1);
+    for (size_t i = 0; i < stageSprite->costumes.size(); i++) {
+        if (stageSprite->costumes[i].name == inputValue.asString()) {
+            Scratch::switchCostume(stageSprite, i);
             return BlockResult::CONTINUE;
         }
+    }
 
-        for (size_t i = 0; i < stage->costumes.size(); i++) {
-            if (stage->costumes[i].name == inputValue.asString()) {
-                Scratch::switchCostume(stage, i);
-                return BlockResult::CONTINUE;
-            }
-        }
+    if (inputValue.asString() == "next backdrop") {
+        Scratch::switchCostume(stageSprite, ++stageSprite->currentCostume);
+        return BlockResult::CONTINUE;
+    } else if (inputValue.asString() == "previous backdrop") {
+        Scratch::switchCostume(stageSprite, --stageSprite->currentCostume);
+        return BlockResult::CONTINUE;
+    } else if (inputValue.asString() == "random backdrop") {
+        if (stageSprite->costumes.size() == 1) return BlockResult::CONTINUE;
+        int randomIndex = std::rand() % (stageSprite->costumes.size() - 1);
+        if (randomIndex >= stageSprite->currentCostume) randomIndex++;
+        Scratch::switchCostume(stageSprite, randomIndex);
+        return BlockResult::CONTINUE;
+    }
 
-        if (inputValue.asString() == "next backdrop") {
-            Scratch::switchCostume(stage, ++stage->currentCostume);
-            return BlockResult::CONTINUE;
-        } else if (inputValue.asString() == "previous backdrop") {
-            Scratch::switchCostume(stage, --stage->currentCostume);
-            return BlockResult::CONTINUE;
-        } else if (inputValue.asString() == "random backdrop") {
-            if (stage->costumes.size() == 1) break;
-            int randomIndex = std::rand() % (stage->costumes.size() - 1);
-            if (randomIndex >= stage->currentCostume) randomIndex++;
-            Scratch::switchCostume(stage, randomIndex);
-            return BlockResult::CONTINUE;
-        }
+    if (inputValue.isNumeric()) {
+        Scratch::switchCostume(stageSprite, inputValue.asDouble() - 1);
+        return BlockResult::CONTINUE;
+    }
 
-        if (inputValue.isNumeric()) {
-            Scratch::switchCostume(stage, inputValue.asDouble() - 1);
-            return BlockResult::CONTINUE;
-        }
-
-        for (auto &currentSprite : sprites) {
-            for (auto &[id, spriteBlock] : currentSprite->blocks) {
-                if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
-                    if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stage->costumes[stage->currentCostume].name) {
-                        executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
-                    }
+    for (auto &currentSprite : sprites) {
+        for (auto &[id, spriteBlock] : currentSprite->blocks) {
+            if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
+                if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
+                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
                 }
             }
         }
@@ -109,18 +103,13 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
 }
 
 BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    for (Sprite *stage : sprites) {
-        if (!stage->isStage) {
-            continue;
-        }
-        Scratch::switchCostume(stage, stage->currentCostume++);
+    Scratch::switchCostume(stageSprite, stageSprite->currentCostume++);
 
-        for (auto &currentSprite : sprites) {
-            for (auto &[id, spriteBlock] : currentSprite->blocks) {
-                if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
-                    if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stage->costumes[stage->currentCostume].name) {
-                        executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
-                    }
+    for (auto &currentSprite : sprites) {
+        for (auto &[id, spriteBlock] : currentSprite->blocks) {
+            if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
+                if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
+                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
                 }
             }
         }
@@ -323,20 +312,10 @@ Value LooksBlocks::costumeNumberName(Block &block, Sprite *sprite) {
 }
 
 Value LooksBlocks::backdropNumberName(Block &block, Sprite *sprite) {
-    std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
-    ;
-    if (value == "name") {
-        for (Sprite *currentSprite : sprites) {
-            if (currentSprite->isStage) {
-                return Value(currentSprite->costumes[currentSprite->currentCostume].name);
-            }
-        }
-    } else if (value == "number") {
-        for (Sprite *currentSprite : sprites) {
-            if (currentSprite->isStage) {
-                return Value(currentSprite->currentCostume + 1);
-            }
-        }
-    }
+    const std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
+
+    if (value == "name") return Value(stageSprite->costumes[stageSprite->currentCostume].name);
+    if (value == "number") return Value(stageSprite->currentCostume + 1);
+
     return Value();
 }
