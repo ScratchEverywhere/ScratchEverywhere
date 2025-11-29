@@ -219,7 +219,7 @@ void ControlsMenu::applyControls() {
     // Make sure parent directories exist
     try {
         OS::createDirectory(OS::parentPath(filePath));
-    } catch (const OS::FileSystemError &e) {
+    } catch (const OS::FilesystemError &e) {
         Log::logError("Failed to create directories: " + std::string(e.what()));
         return;
     }

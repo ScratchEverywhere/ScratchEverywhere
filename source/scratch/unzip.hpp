@@ -3,11 +3,11 @@
 #include "interpret.hpp"
 #include "miniz.h"
 #include "os.hpp"
-#include <fstream>
-#include <random>
 #include <cstring>
 #include <dirent.h>
 #include <errno.h>
+#include <fstream>
+#include <random>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -261,7 +261,7 @@ class Unzip {
         try {
             OS::removeDirectory(directory);
             return true;
-        } catch (const OS::FileSystemError &e) {
+        } catch (const OS::FilesystemError &e) {
             Log::logError(std::string("Failed to delete folder: ") + e.what());
         }
 
