@@ -203,8 +203,8 @@ void registerLuaFunctions(Extension &extension) {
         extension.luaState["input"]["mappings"] = extension.luaState.create_table();
         for (const auto &control : Input::inputControls)
             extension.luaState["input"]["mappings"][control.first] = control.second;
-        extension.luaState["input"].get<sol::table>().set("mouseX", sol::property([]() { return Input::mousePointer.x; }));
-        extension.luaState["input"].get<sol::table>().set("mouseY", sol::property([]() { return Input::mousePointer.y; }));
+        extension.luaState["input"]["mouseX"] = sol::readonly_property([]() { return Input::mousePointer.x; });
+        extension.luaState["input"]["mouseY"] = sol::readonly_property([]() { return Input::mousePointer.y; });
 #ifdef __3DS__
         extension.luaState["input"].get<sol::table>().set("devices", sol::property([]() {
             return sol::as_table(std::vector<std::string>{"controller", "touchscreen"});
