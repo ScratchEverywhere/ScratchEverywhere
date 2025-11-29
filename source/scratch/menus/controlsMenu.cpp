@@ -137,14 +137,13 @@ void ControlsMenu::render() {
     }
 
     if (settingsControl->selectedObject->isPressed()) {
-        Input::keyHeldFrames = -999;
 
         // wait till A isnt pressed
         while (!Input::inputButtons.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
 
-        while (Input::keyHeldFrames < 2 && Render::appShouldRun()) {
+        while (Render::appShouldRun()) {
             Input::getInput();
         }
         if (!Input::inputButtons.empty()) {

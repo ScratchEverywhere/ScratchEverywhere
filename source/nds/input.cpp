@@ -10,7 +10,6 @@ std::map<std::string, std::string> Input::inputControls;
 std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<std::string> Input::codePressedBlockOpcodes;
-int Input::keyHeldFrames = 0;
 
 static uint16_t mouseHeldFrames = 0;
 static uint8_t oldTouchPx = 0;

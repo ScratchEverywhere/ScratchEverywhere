@@ -33,7 +33,6 @@ class Input {
     static std::vector<int> getTouchPosition();
     static void getInput();
     static std::string getUsername();
-    static int keyHeldFrames;
 
     static std::string convertToKey(const Value keyName, const bool uppercaseKeys = false);
     static bool checkSequenceMatch(const std::vector<std::string> sequence);

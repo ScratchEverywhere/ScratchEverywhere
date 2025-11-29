@@ -13,7 +13,6 @@ std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
-int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
 static u16 oldTouchPy = 0;
