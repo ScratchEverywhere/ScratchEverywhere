@@ -28,6 +28,7 @@ extern std::string answer;
 
 class Scratch {
   public:
+    static void migrate();
     static bool startScratchProject();
     static void cleanupScratchProject();
 
