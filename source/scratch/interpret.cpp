@@ -41,6 +41,7 @@ bool useCustomUsername;
 std::string customUsername;
 
 std::vector<Sprite *> sprites;
+Sprite *stageSprite;
 std::vector<Sprite> spritePool;
 std::vector<std::string> broadcastQueue;
 std::unordered_map<std::string, Block *> blockLookup;
@@ -793,6 +794,7 @@ void loadSprites(const nlohmann::json &json) {
         }
 
         sprites.push_back(newSprite);
+        if (newSprite->isStage) stageSprite = newSprite;
     }
 
     Scratch::sortSprites();
@@ -864,57 +866,54 @@ void loadSprites(const nlohmann::json &json) {
 
     // try to find the advanced project settings comment
     nlohmann::json config;
-    for (Sprite *currentSprite : sprites) {
-        if (!currentSprite->isStage) continue;
-        for (auto &[id, comment] : currentSprite->comments) {
-            // make sure its the turbowarp comment
-            std::size_t settingsFind = comment.text.find("Configuration for https");
-            if (settingsFind == std::string::npos) continue;
-            std::size_t json_start = comment.text.find('{');
-            if (json_start == std::string::npos) continue;
+    for (auto &[id, comment] : stageSprite->comments) {
+        // make sure its the turbowarp comment
+        std::size_t settingsFind = comment.text.find("Configuration for https");
+        if (settingsFind == std::string::npos) continue;
+        std::size_t json_start = comment.text.find('{');
+        if (json_start == std::string::npos) continue;
 
-            // Use brace counting to find the true end of the JSON
-            int braceCount = 0;
-            std::size_t json_end = json_start;
-            bool in_string = false;
+        // Use brace counting to find the true end of the JSON
+        int braceCount = 0;
+        std::size_t json_end = json_start;
+        bool in_string = false;
 
-            for (; json_end < comment.text.size(); ++json_end) {
-                char c = comment.text[json_end];
+        for (; json_end < comment.text.size(); ++json_end) {
+            char c = comment.text[json_end];
 
-                if (c == '"' && (json_end == 0 || comment.text[json_end - 1] != '\\')) {
-                    in_string = !in_string;
-                }
+            if (c == '"' && (json_end == 0 || comment.text[json_end - 1] != '\\')) {
+                in_string = !in_string;
+            }
 
-                if (!in_string) {
-                    if (c == '{') braceCount++;
-                    else if (c == '}') braceCount--;
+            if (!in_string) {
+                if (c == '{') braceCount++;
+                else if (c == '}') braceCount--;
 
-                    if (braceCount == 0) {
-                        json_end++; // Include final '}'
-                        break;
-                    }
+                if (braceCount == 0) {
+                    json_end++; // Include final '}'
+                    break;
                 }
             }
+        }
 
-            if (braceCount != 0) {
-                continue;
-            }
+        if (braceCount != 0) {
+            continue;
+        }
 
-            std::string json_str = comment.text.substr(json_start, json_end - json_start);
+        std::string json_str = comment.text.substr(json_start, json_end - json_start);
 
-            // Replace inifity with null, since the json cant handle infinity
-            std::string cleaned_json = json_str;
-            std::size_t inf_pos;
-            while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
-                cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
-            }
+        // Replace inifity with null, since the json cant handle infinity
+        std::string cleaned_json = json_str;
+        std::size_t inf_pos;
+        while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
+            cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
+        }
 
-            try {
-                config = nlohmann::json::parse(cleaned_json);
-                break;
-            } catch (nlohmann::json::parse_error &e) {
-                continue;
-            }
+        try {
+            config = nlohmann::json::parse(cleaned_json);
+            break;
+        } catch (nlohmann::json::parse_error &e) {
+            continue;
         }
     }
     // set advanced project settings properties
@@ -995,6 +994,12 @@ void loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
+#elif defined(__NDS__)
+    auto bottomScreen = Unzip::getSetting("bottomScreen");
+    if (!bottomScreen.is_null() && bottomScreen.get<bool>())
+        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+    else
+        Render::renderMode = Render::TOP_SCREEN_ONLY;
 #else
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 #endif

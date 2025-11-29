@@ -8,7 +8,7 @@
 #include <unordered_map>
 #ifdef __3DS__
 #include <3ds.h>
-#elif defined(__PC__) || defined(__PSP__)
+#elif defined(USE_CMAKERC)
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -182,7 +182,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         return false;
     }
 
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
     const auto &file = cmrc::romfs::get_filesystem().open(fileName);
     MIX_Audio *sound = MIX_LoadAudio_IO(mixer, SDL_IOFromConstMem(file.begin(), file.size()), !streamed, true);
 #else

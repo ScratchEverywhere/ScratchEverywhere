@@ -163,7 +163,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ## Installation
 
-Scratch Everywhere! is Homebrew software and requires a hacked/modded console.
+Scratch Everywhere! on consoles is Homebrew software, and requires your console to be modded.
 There are two methods to install the runtime:
 
 -   Download the release or nightly build (easy), or

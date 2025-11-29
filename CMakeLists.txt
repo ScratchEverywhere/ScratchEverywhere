@@ -70,6 +70,10 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
+if(NOT NINTENDO_SWITCH AND NOT VITA)
+	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
+endif()
+
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
@@ -333,7 +337,7 @@ elseif(WEBOS)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS)
+if(SE_CMAKERC)
 	include(FetchContent)
 	FetchContent_Declare(
 	  cmrc
@@ -346,6 +350,7 @@ if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS)
 	file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
 	cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
 	target_link_libraries(scratch-everywhere PRIVATE romfs::rc)
+	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")

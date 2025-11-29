@@ -233,7 +233,6 @@ void Input::getInput() {
     }
     if (joyLeftY < -CONTROLLER_DEADZONE_Y) {
         Input::buttonPress("LeftStickUp");
-        inputButtons.push_back("up arrow");
         anyKeyPressed = true;
     }
     float joyRightX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX);
