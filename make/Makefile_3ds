@@ -111,7 +111,7 @@ endif
 
 ifeq ($(ENABLE_DOWNLOAD),1)
 CFLAGS	+=	-DENABLE_DOWNLOAD
-LIBS	+=	`$(PKGCONF_3DS) --libs curl`
+LIBS	+=	`$(PKGCONF_3DS) --libs libcurl`
 endif
 
 ASFLAGS	:=	-g $(ARCH)

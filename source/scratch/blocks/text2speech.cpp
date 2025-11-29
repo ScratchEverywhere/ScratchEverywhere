@@ -25,7 +25,7 @@ BlockResult SpeechBlocks::speakAndWait(Block &block, Sprite *sprite, bool *witho
     std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
     std::string tempFile = tempDir + safeName;
 
-    if (!fromRepeat && block.repeatTimes >= -1) {
+    if (block.repeatTimes >= -1) {
         Log::log("T2S: resetting repeatTimes");
         block.repeatTimes = -2;
     }
