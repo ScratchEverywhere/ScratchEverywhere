@@ -183,8 +183,12 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     }
 
 #ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-    MIX_Audio *sound = MIX_LoadAudio_IO(mixer, SDL_IOFromConstMem(file.begin(), file.size()), !streamed, true);
+    if (fromCache)
+        MIX_Audio *sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
+    else {
+        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+        MIX_Audio *sound = MIX_LoadAudio_IO(mixer, SDL_IOFromConstMem(file.begin(), file.size()), !streamed, true);
+    }
 #else
     MIX_Audio *sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
 #endif

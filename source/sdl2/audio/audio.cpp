@@ -212,8 +212,12 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     if (!streamed) {
 #ifdef USE_CMAKERC
-        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-        chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        if (fromCache)
+            chunk = Mix_LoadWAV(fileName.c_str());
+        else {
+            const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+            chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        }
 #else
         chunk = Mix_LoadWAV(fileName.c_str());
 #endif
@@ -223,8 +227,12 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         }
     } else {
 #ifdef USE_CMAKERC
-        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-        music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        if (fromCache)
+            music = Mix_LoadMUS(fileName.c_str());
+        else {
+            const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+            music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        }
 #else
         music = Mix_LoadMUS(fileName.c_str());
 #endif

@@ -67,7 +67,6 @@ void DownloadManager::startThread() {
     }
     downloadThread = threadCreate(N3DS_ProcessQueueThreadedWrapper, nullptr, 8 * 1024, 0x3F, -2, true);
 #else
-    std::lock_guard<std::mutex> lock(mtx);
     if (downloadThread.joinable()) {
         if (!workerRunning.load()) {
             downloadThread.join();
@@ -272,18 +271,16 @@ void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
 
     item->finished = true;
 
-    {
 #ifdef __3DS__
-        LightLock_Lock(&mtx);
+    LightLock_Lock(&mtx);
 #else
-        std::lock_guard<std::mutex> lock(mtx);
+    std::lock_guard<std::mutex> lock(mtx);
 #endif
-        downloadedMap[item->url] = item;
-        pendingMap.erase(item->url);
+    downloadedMap[item->url] = item;
+    pendingMap.erase(item->url);
 #ifdef __3DS__
-        LightLock_Unlock(&mtx);
+    LightLock_Unlock(&mtx);
 #endif
-    }
 }
 
 size_t DownloadManager::WriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
