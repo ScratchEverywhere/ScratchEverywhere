@@ -182,15 +182,16 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         return false;
     }
 
+    MIX_Audio *sound;
 #ifdef USE_CMAKERC
     if (fromCache)
-        MIX_Audio *sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
+        sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
     else {
         const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-        MIX_Audio *sound = MIX_LoadAudio_IO(mixer, SDL_IOFromConstMem(file.begin(), file.size()), !streamed, true);
+        sound = MIX_LoadAudio_IO(mixer, SDL_IOFromConstMem(file.begin(), file.size()), !streamed, true);
     }
 #else
-    MIX_Audio *sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
+    sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
 #endif
     if (!sound) {
         Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + std::string(SDL_GetError()));
