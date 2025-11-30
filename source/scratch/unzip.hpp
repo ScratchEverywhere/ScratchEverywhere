@@ -3,16 +3,13 @@
 #include "interpret.hpp"
 #include "miniz.h"
 #include "os.hpp"
-#include <filesystem>
-#include <fstream>
-#include <random>
-#ifdef __NDS__
 #include <cstring>
 #include <dirent.h>
 #include <errno.h>
+#include <fstream>
+#include <random>
 #include <sys/stat.h>
 #include <sys/types.h>
-#endif
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string projectJSON;
@@ -62,17 +59,15 @@ class Unzip {
         return;
     }
 
-#ifdef __NDS__ // This technically could be used for all platforms, but I'm too lazy to test it everywhere so
     static std::vector<std::string> getProjectFiles(const std::string &directory) {
         std::vector<std::string> projectFiles;
         struct stat dirStat;
 
         if (stat(directory.c_str(), &dirStat) != 0) {
             Log::logWarning("Directory does not exist! " + directory);
-
-            // Try to create it
-            if (mkdir(directory.c_str(), 0777) != 0) {
-                Log::logWarning("Failed to create directory: " + directory);
+            try {
+                OS::createDirectory(directory);
+            } catch (...) {
             }
             return projectFiles;
         }
@@ -107,37 +102,6 @@ class Unzip {
         closedir(dir);
         return projectFiles;
     }
-#else
-    static std::vector<std::string> getProjectFiles(const std::string &directory) {
-        std::vector<std::string> projectFiles;
-
-        if (!std::filesystem::exists(directory)) {
-            Log::logWarning("Directory does not exist! " + directory);
-            try {
-                std::filesystem::create_directory(directory);
-            } catch (...) {
-            }
-            return projectFiles;
-        }
-
-        if (!std::filesystem::is_directory(directory)) {
-            Log::logWarning("Path is not a directory! " + directory);
-            return projectFiles;
-        }
-
-        try {
-            for (const auto &entry : std::filesystem::directory_iterator(directory)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".sb3") {
-                    projectFiles.push_back(entry.path().filename().string());
-                }
-            }
-        } catch (const std::filesystem::filesystem_error &e) {
-            Log::logWarning(std::string("Failed to open directory: ") + e.what());
-        }
-
-        return projectFiles;
-    }
-#endif
 
     static std::string getSplashText() {
         std::string textPath = "gfx/menu/splashText.txt";
@@ -269,7 +233,7 @@ class Unzip {
 
             std::string outPath = destFolder + "/" + filename;
 
-            std::filesystem::create_directories(std::filesystem::path(outPath).parent_path());
+            OS::createDirectory(OS::parentPath(outPath));
 
             if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
                 Log::logError("Failed to extract: " + outPath);
@@ -283,23 +247,25 @@ class Unzip {
     }
 
     static bool deleteProjectFolder(const std::string &directory) {
-        if (!std::filesystem::exists(directory)) {
+        struct stat st;
+        if (stat(directory.c_str(), &st) != 0) {
             Log::logWarning("Directory does not exist: " + directory);
             return false;
         }
 
-        if (!std::filesystem::is_directory(directory)) {
+        if (!S_ISDIR(st.st_mode)) {
             Log::logWarning("Path is not a directory: " + directory);
             return false;
         }
 
         try {
-            std::filesystem::remove_all(directory);
+            OS::removeDirectory(directory);
             return true;
-        } catch (const std::filesystem::filesystem_error &e) {
+        } catch (const OS::FilesystemError &e) {
             Log::logError(std::string("Failed to delete folder: ") + e.what());
-            return false;
         }
+
+        return true;
     }
 
     static nlohmann::json getSetting(const std::string &settingName) {

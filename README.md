@@ -100,7 +100,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 -   Text and embedded bitmap images will not show up on vector images containing it.
 -   Most Extensions (e.g. music extension) are not yet supported.
-   - Only the `Pen` extension is supported.
+	- Only the `Pen` and `Makey Makey` extensions are supported.
 -   Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 -   Performance is poor when using many (~50+) clones (memory management issue).
 -   **[Wii, Switch, PSP, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
@@ -163,7 +163,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ## Installation
 
-Scratch Everywhere! is Homebrew software and requires a hacked/modded console.
+Scratch Everywhere! on consoles is Homebrew software, and requires your console to be modded.
 There are two methods to install the runtime:
 
 -   Download the release or nightly build (easy), or

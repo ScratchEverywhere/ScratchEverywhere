@@ -143,8 +143,8 @@ void ProjectSettings::applySettings(const nlohmann::json &settingsData) {
     std::string filePath = folderPath + ".sb3" + ".json";
 
     try {
-        std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
-    } catch (const std::filesystem::filesystem_error &e) {
+        OS::createDirectory(OS::parentPath(filePath));
+    } catch (const OS::FilesystemError &e) {
         Log::logError("Failed to create directories: " + std::string(e.what()));
         return;
     }

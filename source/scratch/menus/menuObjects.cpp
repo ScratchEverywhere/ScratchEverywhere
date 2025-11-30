@@ -51,7 +51,7 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
 
 bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
     for (const auto &button : pressButton) {
-        if ((isSelected || !needsToBeSelected) && Input::isKeyJustPressed(button)) return true;
+        if ((isSelected || !needsToBeSelected) && Input::keyHeldDuration[button] == 1) return true;
     }
 
     if (!canBeClicked) return false;
@@ -171,10 +171,10 @@ void ControlObject::input() {
 
     ButtonObject *newSelection = nullptr;
 
-    if (Input::isKeyJustPressed("up arrow") || Input::isKeyJustPressed("u")) newSelection = selectedObject->buttonUp;
-    else if (Input::isKeyJustPressed("down arrow") || Input::isKeyJustPressed("h")) newSelection = selectedObject->buttonDown;
-    else if (Input::isKeyJustPressed("left arrow") || Input::isKeyJustPressed("g")) newSelection = selectedObject->buttonLeft;
-    else if (Input::isKeyJustPressed("right arrow") || Input::isKeyJustPressed("j")) newSelection = selectedObject->buttonRight;
+    if (Input::keyHeldDuration["up arrow"] == 1 || Input::keyHeldDuration["u"] == 1) newSelection = selectedObject->buttonUp;
+    else if (Input::keyHeldDuration["down arrow"] == 1 || Input::keyHeldDuration["h"] == 1) newSelection = selectedObject->buttonDown;
+    else if (Input::keyHeldDuration["left arrow"] == 1 || Input::keyHeldDuration["g"] == 1) newSelection = selectedObject->buttonLeft;
+    else if (Input::keyHeldDuration["right arrow"] == 1 || Input::keyHeldDuration["j"] == 1) newSelection = selectedObject->buttonRight;
 
     if (newSelection != nullptr) {
         selectedObject->isSelected = false;

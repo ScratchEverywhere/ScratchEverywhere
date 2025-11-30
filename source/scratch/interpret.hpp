@@ -19,6 +19,7 @@ extern BlockExecutor executor;
 extern ProjectType projectType;
 
 extern std::vector<Sprite *> sprites;
+extern Sprite *stageSprite;
 extern std::vector<Sprite> spritePool;
 extern std::vector<std::string> broadcastQueue;
 extern std::unordered_map<std::string, Block *> blockLookup;
