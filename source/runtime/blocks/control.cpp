@@ -262,7 +262,7 @@ SCRATCH_BLOCK(control, repeat_until) {
         Block *subBlock = &blockIt->second;
         executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
     } else {
-        std::cerr << "Invalid blockId: " << blockId << std::endl;
+        Log::logError("Invalid blockId: " + blockId);
     }
 
     return BlockResult::RETURN;

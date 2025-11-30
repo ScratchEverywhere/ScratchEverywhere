@@ -144,7 +144,7 @@ void TextObjectSDL2::updateTexture() {
         0, maxWidth, totalHeight, 32, SDL_PIXELFORMAT_RGBA8888);
 
     if (!compositeSurface) {
-        std::cerr << "Failed to create composite surface: " << SDL_GetError() << std::endl;
+        Log::logError("Failed to create composite surface: " + std::string(SDL_GetError()));
         return;
     }
 
@@ -170,9 +170,7 @@ void TextObjectSDL2::updateTexture() {
     texture = SDL_CreateTextureFromSurface(renderer, compositeSurface);
     memorySize = compositeSurface->w * compositeSurface->h * 4;
 
-    if (!texture) {
-        std::cerr << "Failed to create text texture: " << SDL_GetError() << std::endl;
-    }
+    if (!texture) Log::logError("Failed to create text texture: " + std::string(SDL_GetError()));
 
     // Store dimensions
     textWidth = compositeSurface->w;
