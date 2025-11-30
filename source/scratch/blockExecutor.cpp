@@ -133,7 +133,7 @@ void BlockExecutor::registerHandlers() {
         {"makeymakey_whenMakeyKeyPressed", MakeyMakeyBlocks::whenMakeyKeyPressed},
         {"makeymakey_whenCodePressed", MakeyMakeyBlocks::whenCodePressed},
 
-        {"coreExample_exampleWithInlineImage", [](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) { return BlockResult::CONTINUE; }};
+        {"coreExample_exampleWithInlineImage", [](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) { return BlockResult::CONTINUE; }},
 
     };
     
