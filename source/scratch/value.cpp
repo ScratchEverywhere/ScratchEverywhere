@@ -64,10 +64,16 @@ std::string Value::asString() const {
         return std::to_string(std::get<int>(value));
     } else if (isDouble()) {
         double doubleValue = std::get<double>(value);
-        int bufferSize = std::snprintf(nullptr, 0, "%g", doubleValue);
-        std::vector<char> buf(bufferSize + 1);
-        std::snprintf(buf.data(), buf.size(), "%g", doubleValue);
-        return std::string(buf.data(), buf.data() + bufferSize);
+        // NaN values MUST return "NaN", and Inf values MUST return either
+        // "-Infinity" or "Infinity" string constants
+        if (std::isnan(doubleValue)) return "NaN"; 
+        else if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
+        else {
+            int bufferSize = std::snprintf(nullptr, 0, "%g", doubleValue);
+            std::vector<char> buf(bufferSize + 1);
+            std::snprintf(buf.data(), buf.size(), "%g", doubleValue);
+            return std::string(buf.data(), buf.data() + bufferSize);
+        }
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
