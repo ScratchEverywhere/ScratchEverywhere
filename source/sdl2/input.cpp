@@ -126,7 +126,6 @@ void Input::getInput() {
 #endif
 
         inputButtons.push_back(keyName);
-        anyKeyPressed = true;
     }
 
     // TODO: Clean this up
