@@ -1,7 +1,7 @@
 #pragma once
 
-#include "blockExecutor.hpp"
-#include "interpret.hpp"
+#include <blockExecutor.hpp>
+#include <interpret.hpp>
 
 BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
 

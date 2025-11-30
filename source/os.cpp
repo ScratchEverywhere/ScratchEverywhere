@@ -5,6 +5,11 @@
 #include <ostream>
 #include <render.hpp>
 #include <string>
+
+#include <cerrno>
+#include <dirent.h>
+#include <sys/stat.h>
+
 #ifdef WII
 #include <gccore.h>
 #endif
@@ -13,6 +18,11 @@
 #endif
 #ifdef __PS4__
 #include <orbis/libkernel.h>
+#endif
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
 #endif
 
 // PS4 implementation of logging
@@ -149,3 +159,192 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
     }
     return false;
 }
+<<<<<<< HEAD:source/os.cpp
+=======
+
+std::string OS::getFilesystemRootPrefix() {
+#ifdef __WIIU__
+    return std::string(WHBGetSdCardMountPath());
+#elif defined(__SWITCH__)
+    return "";
+#elif defined(WII)
+    return "";
+#elif defined(GAMECUBE)
+    return "";
+#elif defined(VITA)
+    return "ux0:";
+#elif defined(__PS4__)
+    return "";
+#elif defined(__3DS__)
+    return "sdmc:";
+#elif defined(__EMSCRIPTEN__)
+    return "";
+#elif defined(__NDS__)
+    return isDSi() ? "sd:" : "fat:";
+#else
+    return "";
+#endif
+}
+
+std::string OS::getScratchFolderLocation() {
+    const std::string prefix = getFilesystemRootPrefix();
+#ifdef __WIIU__
+    return prefix + "/wiiu/scratch-wiiu/";
+#elif defined(__SWITCH__)
+    return "/switch/scratch-nx/";
+#elif defined(WII)
+    return "/apps/scratch-wii/";
+#elif defined(GAMECUBE)
+    return "/scratch-gamecube/";
+#elif defined(VITA)
+    return prefix + "data/scratch-vita/";
+#elif defined(__PS4__)
+    return "/data/scratch-ps4/";
+#elif defined(__3DS__)
+    return prefix + "/3ds/scratch-everywhere/";
+#elif defined(__EMSCRIPTEN__)
+    return "/scratch-everywhere/";
+#elif defined(__NDS__)
+    return prefix + "/scratch-ds/";
+#else
+    return "scratch-everywhere/";
+#endif
+}
+
+std::string OS::getRomFSLocation() {
+#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
+    return "romfs:/";
+#elif defined(__EMSCRIPTEN__)
+    return "/romfs/";
+#elif defined(__PS4__)
+    return "/app0/";
+#else
+    return "";
+#endif
+}
+
+std::string OS::getPlatform() {
+#if defined(__3DS__)
+    return "3DS";
+#elif defined(__WIIU__)
+    return "Wii U";
+#elif defined(__PC__)
+    return "PC";
+#elif defined(GAMECUBE)
+    return "GameCube";
+#elif defined(WII)
+    return "Wii";
+#elif defined(__SWITCH__)
+    return "Switch";
+#elif defined(VITA)
+    return "Vita";
+#elif defined(__NDS__)
+    return "DS";
+#elif defined(__EMSCRIPTEN__)
+    return "WASM";
+#elif defined(__PS4__)
+    return "PS4";
+#elif defined(__PSP__)
+    return "PSP";
+#else
+    return "Unknown";
+#endif
+}
+
+bool OS::isNew3DS() {
+#ifdef __3DS__
+    bool out = false;
+    APT_CheckNew3DS(&out);
+    return out;
+#endif
+    return false;
+}
+
+bool OS::isDSi() {
+#ifdef __NDS__
+    return isDSiMode();
+#endif
+    return false;
+}
+
+void OS::createDirectory(const std::string &path) {
+    std::string p = path;
+    std::replace(p.begin(), p.end(), '\\', '/');
+
+    size_t pos = 0;
+    while ((pos = p.find('/', pos)) != std::string::npos) {
+        std::string dir = p.substr(0, pos++);
+        if (dir.empty()) continue;
+
+        struct stat st;
+        if (stat(dir.c_str(), &st) != 0) {
+#ifdef _WIN32
+            if (_mkdir(dir.c_str()) != 0 && errno != EEXIST) {
+#else
+            if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
+#endif
+                throw OS::DirectoryCreationFailed(dir, errno);
+            }
+        }
+    }
+}
+
+void OS::removeDirectory(const std::string &path) {
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        throw OS::DirectoryNotFound(path, errno);
+    }
+
+    if (!S_ISDIR(st.st_mode)) {
+        throw OS::NotADirectory(path, errno);
+    }
+
+    DIR *dir = opendir(path.c_str());
+    if (dir == nullptr) {
+        throw OS::DirectoryOpenFailed(path, errno);
+    }
+
+    struct dirent *entry;
+    bool success = true;
+    while ((entry = readdir(dir)) != nullptr) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        std::string fullPath = path + "/" + entry->d_name;
+
+        struct stat entrySt;
+        if (stat(fullPath.c_str(), &entrySt) == 0) {
+            if (S_ISDIR(entrySt.st_mode)) {
+                removeDirectory(fullPath);
+            } else {
+                if (remove(fullPath.c_str()) != 0) {
+                    throw OS::FileRemovalFailed(fullPath, errno);
+                }
+            }
+        }
+    }
+
+    closedir(dir);
+
+#ifdef _WIN32
+    if (_rmdir(path.c_str()) != 0) {
+#else
+    if (rmdir(path.c_str()) != 0) {
+#endif
+        throw OS::DirectoryRemovalFailed(path, errno);
+    }
+}
+
+bool OS::fileExists(const std::string &path) {
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
+
+std::string OS::parentPath(const std::string &path) {
+    size_t pos = path.find_last_of("/\\");
+    if (std::string::npos != pos)
+        return path.substr(0, pos);
+    return "";
+}
+>>>>>>> main:source/scratch/os.cpp

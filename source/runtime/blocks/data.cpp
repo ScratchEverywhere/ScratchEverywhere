@@ -67,15 +67,8 @@ SCRATCH_BLOCK(data, addtolist) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listId) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listId) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
+    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
 
     if (targetSprite && targetSprite->lists[listId].items.size() < MAX_LIST_ITEMS) targetSprite->lists[listId].items.push_back(val);
 
@@ -88,15 +81,8 @@ SCRATCH_BLOCK(data, deletefromlist) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listId) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listId) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
+    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
 
     if (!targetSprite) return BlockResult::CONTINUE;
 
@@ -133,15 +119,8 @@ SCRATCH_BLOCK(data, deletealloflist) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listId) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listId) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
+    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
 
     if (targetSprite) targetSprite->lists[listId].items.clear();
     return BlockResult::CONTINUE;
@@ -154,15 +133,8 @@ SCRATCH_BLOCK(data, insertatlist) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listId) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listId) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
+    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
 
     if (!targetSprite || targetSprite->lists[listId].items.size() >= MAX_LIST_ITEMS) return BlockResult::CONTINUE;
 
@@ -198,15 +170,8 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listId) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listId) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
+    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
 
     if (!targetSprite) return BlockResult::CONTINUE;
 
@@ -242,15 +207,8 @@ SCRATCH_REPORTER_BLOCK(data, itemoflist) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listName) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listName) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
+    if (sprite->lists.find(listName) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listName) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
 
     if (!targetSprite) return Value();
 
@@ -278,16 +236,9 @@ SCRATCH_REPORTER_BLOCK(data, itemnumoflist) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listName) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listName) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
-
+    if (sprite->lists.find(listName) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listName) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
+                                                                                                        //
     if (!targetSprite) return Value();
 
     auto &list = targetSprite->lists[listName];
@@ -307,15 +258,8 @@ SCRATCH_REPORTER_BLOCK(data, lengthoflist) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listName) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listName) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
+    if (sprite->lists.find(listName) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listName) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
 
     if (targetSprite) return Value(static_cast<int>(targetSprite->lists[listName].items.size()));
     return Value();
@@ -327,15 +271,8 @@ SCRATCH_REPORTER_BLOCK(data, listcontainsitem) {
 
     Sprite *targetSprite = nullptr;
 
-    if (sprite->lists.find(listName) != sprite->lists.end()) {
-        targetSprite = sprite;
-    } else {
-        for (Sprite *currentSprite : sprites) {
-            if (!currentSprite->isStage || currentSprite->lists.find(listName) == currentSprite->lists.end()) continue;
-            targetSprite = currentSprite;
-            break;
-        }
-    }
+    if (sprite->lists.find(listName) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
+    else if (stageSprite->lists.find(listName) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
 
     if (!targetSprite) return Value(false);
 

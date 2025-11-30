@@ -26,14 +26,29 @@ void ControlsMenu::init() {
         for (auto &[id, block] : sprite->blocks) {
             std::string buttonCheck;
             if (block.opcode == "sensing_keypressed") {
-
-                // stolen code from sensing.cpp
-
-                buttonCheck = Scratch::getInputValue(block, "KEY_OPTION", sprite).asString();
-
+                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY_OPTION", sprite));
             } else if (block.opcode == "event_whenkeypressed") {
-                buttonCheck = Scratch::getFieldValue(block, "KEY_OPTION");
-                ;
+                buttonCheck = Input::convertToKey(Value(Scratch::getFieldValue(block, "KEY_OPTION")));
+            } else if (block.opcode == "makeymakey_whenMakeyKeyPressed") {
+                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite));
+            } else if (block.opcode == "makeymakey_whenCodePressed") {
+                std::string input = Scratch::getInputValue(block, "SEQUENCE", sprite).asString();
+                size_t start = 0;
+                size_t end = input.find(' ');
+                while (end != std::string::npos) {
+                    buttonCheck = input.substr(start, end - start);
+                    if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
+                        Log::log("Found new control: " + buttonCheck);
+                        controls.push_back(buttonCheck);
+                    }
+                    start = end + 1;
+                    end = input.find(' ', start);
+                }
+                if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
+                    Log::log("Found new control: " + buttonCheck);
+                    controls.push_back(buttonCheck);
+                }
+                continue;
             } else continue;
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                 Log::log("Found new control: " + buttonCheck);
@@ -122,14 +137,13 @@ void ControlsMenu::render() {
     }
 
     if (settingsControl->selectedObject->isPressed()) {
-        Input::keyHeldFrames = -999;
 
         // wait till A isnt pressed
         while (!Input::inputButtons.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
 
-        while (Input::keyHeldFrames < 2 && Render::appShouldRun()) {
+        while (Render::appShouldRun()) {
             Input::getInput();
         }
         if (!Input::inputButtons.empty()) {
@@ -218,8 +232,8 @@ void ControlsMenu::applyControls() {
 
     // Make sure parent directories exist
     try {
-        std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
-    } catch (const std::filesystem::filesystem_error &e) {
+        OS::createDirectory(OS::parentPath(filePath));
+    } catch (const OS::FilesystemError &e) {
         Log::logError("Failed to create directories: " + std::string(e.what()));
         return;
     }

@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <os.hpp>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 class Input {
@@ -22,115 +23,119 @@ class Input {
 
     static std::vector<std::string> inputButtons;
     static std::map<std::string, std::string> inputControls;
-
-    static bool isAbsolutePath(const std::string &path) {
-        return path.size() > 0 && path[0] == '/';
-    }
-
-    static void applyControls(std::string controlsFilePath = "") {
-        inputControls.clear();
-
-        if (controlsFilePath != "" && projectType == UNEMBEDDED) {
-            // load controls from file
-            std::ifstream file(controlsFilePath);
-            if (file.is_open()) {
-                Log::log("Loading controls from file: " + controlsFilePath);
-                nlohmann::json controlsJson;
-                file >> controlsJson;
-
-                // Access the "controls" object specifically
-                if (controlsJson.contains("controls")) {
-                    for (auto &[key, value] : controlsJson["controls"].items()) {
-                        inputControls[value.get<std::string>()] = key;
-                        Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
-                    }
-                }
-                file.close();
-                return;
-            } else {
-                Log::logWarning("Failed to open controls file: " + controlsFilePath);
-            }
-        }
-
-        // default controls
-        inputControls["dpadUp"] = "u";
-        inputControls["dpadDown"] = "h";
-        inputControls["dpadLeft"] = "g";
-        inputControls["dpadRight"] = "j";
-        inputControls["A"] = "a";
-        inputControls["B"] = "b";
-        inputControls["X"] = "x";
-        inputControls["Y"] = "y";
-        inputControls["shoulderL"] = "l";
-        inputControls["shoulderR"] = "r";
-        inputControls["start"] = "1";
-        inputControls["back"] = "0";
-        inputControls["LeftStickRight"] = "right arrow";
-        inputControls["LeftStickLeft"] = "left arrow";
-        inputControls["LeftStickDown"] = "down arrow";
-        inputControls["LeftStickUp"] = "up arrow";
-        inputControls["LeftStickPressed"] = "c";
-        inputControls["RightStickRight"] = "5";
-        inputControls["RightStickLeft"] = "4";
-        inputControls["RightStickDown"] = "3";
-        inputControls["RightStickUp"] = "2";
-        inputControls["RightStickPressed"] = "v";
-        inputControls["LT"] = "z";
-        inputControls["RT"] = "f";
-    }
-
-    static void buttonPress(std::string button) {
-        if (inputControls.find(button) != inputControls.end()) {
-            inputButtons.push_back(inputControls[button]);
-        }
-    }
-
-    static bool isKeyJustPressed(std::string scratchKey) {
-        return (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), scratchKey) != Input::inputButtons.end()) &&
-               Input::keyHeldFrames < 2;
-    }
-
-    static void doSpriteClicking() {
-        if (mousePointer.isPressed) {
-            mousePointer.heldFrames++;
-            bool hasClicked = false;
-            for (auto &sprite : sprites) {
-                // click a sprite
-                if (sprite->shouldDoSpriteClick) {
-                    if (mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
-
-                        // run all "when this sprite clicked" blocks in the sprite
-                        hasClicked = true;
-                        for (auto &[id, data] : sprite->blocks) {
-                            if (data.opcode == "event_whenthisspriteclicked") {
-                                executor.runBlock(data, sprite);
-                            }
-                        }
-                    }
-                }
-                // start dragging a sprite
-                if (draggingSprite == nullptr && mousePointer.heldFrames < 2 && sprite->draggable && isColliding("mouse", sprite)) {
-                    draggingSprite = sprite;
-                }
-                if (hasClicked) break;
-            }
-        } else {
-            mousePointer.heldFrames = 0;
-        }
-
-        // move a dragging sprite
-        if (draggingSprite != nullptr) {
-            if (mousePointer.heldFrames == 0) {
-                draggingSprite = nullptr;
-                return;
-            }
-            draggingSprite->xPosition = mousePointer.x - (draggingSprite->spriteWidth / 2);
-            draggingSprite->yPosition = mousePointer.y + (draggingSprite->spriteHeight / 2);
-        }
-    }
+    static std::vector<std::string> inputBuffer;
+    static std::unordered_map<std::string, int> keyHeldDuration;
+    static std::unordered_set<std::string> codePressedBlockOpcodes;
 
     static std::vector<int> getTouchPosition();
     static void getInput();
     static std::string getUsername();
-    static int keyHeldFrames;
+
+  static void applyControls(std::string controlsFilePath = "") {
+      Input::inputControls.clear();
+
+      if (controlsFilePath != "" && projectType == UNEMBEDDED) {
+          // load controls from file
+          std::ifstream file(controlsFilePath);
+          if (file.is_open()) {
+              Log::log("Loading controls from file: " + controlsFilePath);
+              nlohmann::json controlsJson;
+              file >> controlsJson;
+
+              // Access the "controls" object specifically
+              if (controlsJson.contains("controls")) {
+                  for (auto &[key, value] : controlsJson["controls"].items()) {
+                      Input::inputControls[value.get<std::string>()] = key;
+                      Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
+                  }
+              }
+              file.close();
+              return;
+          } else {
+              Log::logWarning("Failed to open controls file: " + controlsFilePath);
+          }
+      }
+
+      // default controls
+      Input::inputControls["dpadUp"] = "u";
+      Input::inputControls["dpadDown"] = "h";
+      Input::inputControls["dpadLeft"] = "g";
+      Input::inputControls["dpadRight"] = "j";
+      Input::inputControls["A"] = "a";
+      Input::inputControls["B"] = "b";
+      Input::inputControls["X"] = "x";
+      Input::inputControls["Y"] = "y";
+      Input::inputControls["shoulderL"] = "l";
+      Input::inputControls["shoulderR"] = "r";
+      Input::inputControls["start"] = "1";
+      Input::inputControls["back"] = "0";
+      Input::inputControls["LeftStickRight"] = "right arrow";
+      Input::inputControls["LeftStickLeft"] = "left arrow";
+      Input::inputControls["LeftStickDown"] = "down arrow";
+      Input::inputControls["LeftStickUp"] = "up arrow";
+      Input::inputControls["LeftStickPressed"] = "c";
+      Input::inputControls["RightStickRight"] = "5";
+      Input::inputControls["RightStickLeft"] = "4";
+      Input::inputControls["RightStickDown"] = "3";
+      Input::inputControls["RightStickUp"] = "2";
+      Input::inputControls["RightStickPressed"] = "v";
+      Input::inputControls["LT"] = "z";
+      Input::inputControls["RT"] = "f";
+  }
+
+  static void buttonPress(std::string button) {
+      if (Input::inputControls.find(button) != Input::inputControls.end()) {
+          Input::inputButtons.push_back(Input::inputControls[button]);
+      }
+  }
+
+  static std::string convertToKey(const Value keyName, const bool uppercaseKeys = false) {
+      if (keyName.isDouble()) {
+          if (keyName.asDouble() >= 48 && keyName.asDouble() <= 90) {
+              return std::string(1, std::tolower(static_cast<char>(static_cast<int>(keyName.asDouble()))));
+          } else if (keyName.asDouble() == 32.0) {
+              return "space";
+          } else if (keyName.asDouble() == 37.0) {
+              return "left arrow";
+          } else if (keyName.asDouble() == 38.0) {
+              return "up arrow";
+          } else if (keyName.asDouble() == 39.0) {
+              return "right arrow";
+          } else if (keyName.asDouble() == 50.0) {
+              return "down arrow";
+          }
+      }
+      
+      std::string key = keyName.asString();
+
+      if (uppercaseKeys) {
+          if (key == "SPACE") return "space";
+          if (key == "LEFT") return "left arrow";
+          if (key == "RIGHT") return "right arrow";
+          if (key == "UP") return "up arrow";
+          if (key == "DOWN") return "down arrow";
+      }
+
+      if (key == "space" || key == "left arrow" || key == "up arrow" || key == "right arrow" || key == "down arrow" || key == "enter" || key == "any") {
+          return key;
+      }
+
+      std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+      if (key.length() > 0) {
+          key = key.substr(0, 1);
+      }
+
+      return key;
+  }
+
+  static bool checkSequenceMatch(const std::vector<std::string> sequence) {
+      if (inputBuffer.size() >= sequence.size()) {
+          std::vector<std::string> slicedBuffer((Input::inputBuffer).end() - sequence.size(), Input::inputBuffer.end());
+          for (unsigned int i = 0; i < sequence.size(); i++) {
+              if (sequence[i] != slicedBuffer[i]) return false;
+          }
+          return true;
+      }
+      return false;
+  }
 };

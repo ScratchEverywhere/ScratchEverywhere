@@ -46,7 +46,6 @@ Image::Image(std::string filePath) : width(0), height(0), scale(1.0), opacity(1.
         scale = 1.0;
         rotation = 0.0;
         opacity = 1.0;
-        Log::log("loaded!");
     }
 }
 
@@ -404,7 +403,7 @@ imagePAL8 RGBAToPAL8(const imageRGBA &rgba) {
         ds.paletteData[i] = 0x0000;
 
     ds.textureMemSize = totalPixels + (256 * 2); // texture bytes + palette bytes
-    Log::log("Tex converted! Size: " + std::to_string(ds.textureMemSize / 1000) + " KB");
+    // Log::log("Tex converted! Size: " + std::to_string(ds.textureMemSize / 1000) + " KB");
     return ds;
 }
 

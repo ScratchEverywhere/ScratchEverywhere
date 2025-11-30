@@ -19,7 +19,7 @@
 std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;
 
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -393,7 +393,7 @@ SDL_Image::SDL_Image(std::string filePath) {
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg");
 
     if (isSVG) {
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
         const auto &file = cmrc::romfs::get_filesystem().open(filePath);
         const std::string_view content(file.begin(), file.size());
         const char *svg_data = content.data();
@@ -413,11 +413,11 @@ SDL_Image::SDL_Image(std::string filePath) {
         svg_data[size] = 0;
 #endif
         spriteTexture = SVGToSurface(svg_data, size);
-#if !(defined(__PC__) || defined(__PSP__))
+#ifndef USE_CMAKERC
         free(svg_data);
 #endif
     } else {
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
         const auto &file = cmrc::romfs::get_filesystem().open(filePath);
         spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
 #else

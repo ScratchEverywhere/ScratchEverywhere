@@ -20,6 +20,9 @@ class BlockExecutor {
     static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
     static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
 
+    static void executeKeyHats();
+    static void doSpriteClicking();
+
     /**
      * Runs and executes the specified `block` in a `sprite`.
      * @param block Reference to a block variable
@@ -33,7 +36,7 @@ class BlockExecutor {
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.
      * @param opCodeToFind Name of the block to run
      */
-    static std::vector<Block *> runAllBlocksByOpcode(std::string opcodeToFind);
+    static void runAllBlocksByOpcode(std::string opcodeToFind);
 
     /**
      * Goes through every currently active repeat block in every `sprite` and runs it once.

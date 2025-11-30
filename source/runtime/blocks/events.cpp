@@ -37,11 +37,6 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(event, whenkeypressed) {
-    for (std::string button : Input::inputButtons) {
-        if (Scratch::getFieldValue(block, "KEY_OPTION") == button) return BlockResult::CONTINUE;
-    }
-    return BlockResult::RETURN;
-}
+SCRATCH_BLOCK_NOP(event, whenkeypressed)
 
 SCRATCH_BLOCK_NOP(event, whenbroadcastreceived)

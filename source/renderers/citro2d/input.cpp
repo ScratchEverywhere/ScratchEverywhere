@@ -1,3 +1,4 @@
+#include "render.hpp"
 #include <3ds.h>
 #include <blockExecutor.hpp>
 #include <input.hpp>
@@ -8,9 +9,11 @@
 
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
+std::vector<std::string> Input::inputBuffer;
+std::unordered_map<std::string, int> Input::keyHeldDuration;
+std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
-int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
 static u16 oldTouchPy = 0;
@@ -58,7 +61,6 @@ void Input::getInput() {
     }
 
     if (kDown) {
-        keyHeldFrames += 1;
         inputButtons.push_back("any");
         if (kDown & KEY_A) {
             Input::buttonPress("A");
@@ -149,16 +151,13 @@ void Input::getInput() {
                 mousePointer.isMoving = true;
             }
         }
-        if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
-
-    } else {
-        keyHeldFrames = 0;
     }
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
 
-    doSpriteClicking();
+    BlockExecutor::executeKeyHats();
+
+    BlockExecutor::doSpriteClicking();
 }
 
 /**
