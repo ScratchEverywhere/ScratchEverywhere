@@ -132,7 +132,8 @@ void BlockExecutor::registerHandlers() {
 
         {"makeymakey_whenMakeyKeyPressed", MakeyMakeyBlocks::whenMakeyKeyPressed},
         {"makeymakey_whenCodePressed", MakeyMakeyBlocks::whenCodePressed},
-    };
+
+        {"coreExample_exampleWithInlineImage", [](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) { return BlockResult::CONTINUE; }};
 
     valueHandlers = {
         {"motion_xposition", MotionBlocks::xPosition},
@@ -186,6 +187,8 @@ void BlockExecutor::registerHandlers() {
 
         {"argument_reporter_string_number", ProcedureBlocks::stringNumber},
         {"argument_reporter_boolean", ProcedureBlocks::booleanArgument},
+
+        {"coreExample_exampleOpcode", [](Block &block, Sprite *sprite) { return Value("Stage"); }},
 
         {"motion_goto_menu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TO")); }},
         {"motion_glideto_menu", [](Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, "TO")); }},
