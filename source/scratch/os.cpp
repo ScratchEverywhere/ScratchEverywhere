@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <fstream>
 #include <iostream>
+#include <malloc.h>
 #include <ostream>
 #include <string>
 #include <sys/stat.h>
@@ -270,6 +271,37 @@ bool OS::isDSi() {
     return false;
 }
 
+bool OS::initWifi() {
+#ifdef __3DS__
+    u32 wifiEnabled = false;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled == AC_AP_TYPE_NONE) {
+        int ret;
+        uint32_t SOC_ALIGN = 0x1000;
+        uint32_t SOC_BUFFERSIZE = 0x100000;
+        uint32_t *SOC_buffer = NULL;
+
+        SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+        if (SOC_buffer == NULL) {
+            Log::logError("memalign: failed to allocate");
+        } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
+            std::ostringstream err;
+            err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
+            Log::logError(err.str());
+        }
+    }
+#endif
+    return true;
+}
+
+void OS::deInitWifi() {
+#ifdef __3DS__
+    u32 wifiEnabled = false;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled != AC_AP_TYPE_NONE)
+        socExit();
+#endif
+}
 void OS::createDirectory(const std::string& path) {
     std::string p = path;
     std::replace(p.begin(), p.end(), '\\', '/');

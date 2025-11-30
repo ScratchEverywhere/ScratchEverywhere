@@ -89,6 +89,16 @@ class OS {
     static bool isDSi();
 
     /**
+     * Initializes the internet.
+     */
+    static bool initWifi();
+
+    /**
+     * De-Initializes the internet.
+     */
+    static void deInitWifi();
+
+    /**
      * Create a directory.
      * @param path The path of the directory to create.
      */

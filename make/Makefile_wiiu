@@ -34,6 +34,7 @@ include $(DEVKITPRO)/wut/share/wut_rules
 # Config Options
 ENABLE_CLOUDVARS	?=	0
 ENABLE_AUDIO	?=	1
+ENABLE_DOWNLOAD	?=	1
 ENABLE_LOADSCREEN	?=	1
 
 # Flags
@@ -71,6 +72,12 @@ endif
 ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
+
+ifeq ($(ENABLE_DOWNLOAD),1)
+CFLAGS	+=	-DENABLE_DOWNLOAD
+LIBS +=	`$(PKGCONF_WIIU) --libs libcurl`
+endif
+
 
 CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
 

@@ -7,6 +7,7 @@
 #include "blocks/motion.hpp"
 #include "blocks/operator.hpp"
 #include "blocks/pen.hpp"
+#include "blocks/text2speech.hpp"
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
@@ -129,6 +130,11 @@ void BlockExecutor::registerHandlers() {
         {"pen_setPenColorToColor", PenBlocks::SetPenColorTo},
         {"pen_setPenColorParamTo", PenBlocks::SetPenOptionTo},
         {"pen_changePenColorParamBy", PenBlocks::ChangePenOptionBy},
+
+        //Text2Speech
+        {"text2speech_speakAndWait", SpeechBlocks::speakAndWait},
+        {"text2speech_setVoice", SpeechBlocks::setVoiceTo},
+        {"text2speech_setLanguage", SpeechBlocks::setLanguageTo},
 
         {"makeymakey_whenMakeyKeyPressed", MakeyMakeyBlocks::whenMakeyKeyPressed},
         {"makeymakey_whenCodePressed", MakeyMakeyBlocks::whenCodePressed},
