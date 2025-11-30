@@ -50,7 +50,7 @@ BlockResult SpeechBlocks::speakAndWait(Block &block, Sprite *sprite, bool *witho
     if (block.repeatTimes == -3) {
         if (!DownloadManager::init()) return BlockResult::CONTINUE;
         try {
-            if (std::filesystem::exists(tempFile) && !DownloadManager::isDownloading(api)) {
+            if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(api)) {
                 Log::log("T2S audio already downloaded: " + inputString);
                 SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, tempFile, false, false, true);
                 block.repeatTimes = -4;
