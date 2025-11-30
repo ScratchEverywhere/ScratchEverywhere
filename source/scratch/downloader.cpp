@@ -1,32 +1,42 @@
 #ifdef ENABLE_DOWNLOAD
 #include "downloader.hpp"
-#include "os.hpp"
+#ifdef __3DS__
 #include <3ds.h>
-#include <cstdio>
-#include <cstring>
+#endif
+#include "os.hpp"
+#include <atomic>
 #include <curl/curl.h>
-#include <filesystem>
 #include <fstream>
-#include <sys/select.h>
+#include <iostream>
+#include <mutex>
 #include <sys/stat.h>
-#include <sys/types.h>
 
+#ifdef __3DS__
 LightLock DownloadManager::mtx;
-
-static bool workerRunning = false;
 static LightLock workerLock;
+static bool workerRunning = false;
+#else
+static std::atomic<bool> workerRunning(false);
+#endif
 
-static void processQueueThreadedWrapper(void *arg) {
+static void N3DS_ProcessQueueThreadedWrapper(void *arg) {
     DownloadManager::processQueueThreaded();
 }
 
 bool DownloadManager::init() {
     if (isInitialized) return true;
     if (!OS::initWifi()) return false;
-
+#ifdef __3DS__
     LightLock_Init(&mtx);
-    if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) return false;
+#endif
+    CURLcode res = curl_global_init(CURL_GLOBAL_DEFAULT);
+    if (res != CURLE_OK) {
+        Log::log(std::string("curl_global_init failed: ") + curl_easy_strerror(res));
+        return false;
+    }
+#ifdef __3DS__
     LightLock_Init(&workerLock);
+#endif
     isInitialized = true;
     return true;
 }
@@ -40,7 +50,7 @@ void DownloadManager::deinit() {
 }
 
 void DownloadManager::startThread() {
-
+#ifdef __3DS__
     if (downloadThread) {
         bool isRunning;
         LightLock_Lock(&workerLock);
@@ -55,19 +65,55 @@ void DownloadManager::startThread() {
             return;
         }
     }
-    downloadThread = threadCreate(processQueueThreadedWrapper, nullptr, 8 * 1024, 0x3F, -2, true);
+    downloadThread = threadCreate(N3DS_ProcessQueueThreadedWrapper, nullptr, 8 * 1024, 0x3F, -2, true);
+#else
+    std::lock_guard<std::mutex> lock(mtx);
+    if (downloadThread.joinable()) {
+        if (!workerRunning.load()) {
+            downloadThread.join();
+            downloadThread = std::thread();
+        } else {
+            return;
+        }
+    }
+    downloadThread = std::thread(&DownloadManager::processQueueThreaded);
+#endif
 }
 
 void DownloadManager::join() {
+#ifdef __3DS__
     if (downloadThread) {
         threadJoin(downloadThread, U64_MAX);
         threadFree(downloadThread);
         downloadThread = nullptr;
     }
+#else
+    if (downloadThread.joinable()) {
+        downloadThread.join();
+        downloadThread = std::thread();
+    }
+#endif
 }
 
 void DownloadManager::addDownload(const std::string &url, const std::string &filepath) {
+#ifdef __3DS__
     LightLock_Lock(&mtx);
+#else
+    std::lock_guard<std::mutex> lock(mtx);
+#endif
+
+    if (pendingMap.find(url) != pendingMap.end()) {
+        return;
+    }
+
+    if (downloadedMap.find(url) != downloadedMap.end()) {
+        struct stat st;
+        if (stat(filepath.c_str(), &st) == 0) {
+            return;
+        } else {
+            downloadedMap.erase(url);
+        }
+    }
 
     auto item = std::make_shared<DownloadItem>();
     item->url = url;
@@ -77,69 +123,100 @@ void DownloadManager::addDownload(const std::string &url, const std::string &fil
     pendingDownloads.push_back(item);
     pendingMap[url] = item;
 
+#ifdef __3DS__
     LightLock_Unlock(&mtx);
+#endif
     startThread();
 }
 
 bool DownloadManager::isDownloading(const std::string &url) {
+#ifdef __3DS__
     LightLock_Lock(&mtx);
     bool result = pendingMap.find(url) != pendingMap.end();
     LightLock_Unlock(&mtx);
     return result;
+#else
+    std::lock_guard<std::mutex> lock(mtx);
+    return pendingMap.find(url) != pendingMap.end();
+#endif
 }
 
 std::shared_ptr<DownloadItem> DownloadManager::getDownloaded(const std::string &url) {
+#ifdef __3DS__
     LightLock_Lock(&mtx);
+#else
+    std::lock_guard<std::mutex> lock(mtx);
+#endif
     auto it = downloadedMap.find(url);
     auto result = (it != downloadedMap.end()) ? it->second : nullptr;
+#ifdef __3DS__
     LightLock_Unlock(&mtx);
+#endif
     return result;
 }
 
 void DownloadManager::removeFromMemory(const std::string &url) {
+#ifdef __3DS__
     LightLock_Lock(&mtx);
+#else
+    std::lock_guard<std::mutex> lock(mtx);
+#endif
     downloadedMap.erase(url);
+#ifdef __3DS__
     LightLock_Unlock(&mtx);
+#endif
 }
 
 void DownloadManager::processQueueThreaded() {
-    LightLock_Lock(&workerLock);
+#ifdef __3DS__
+    LightLock_Lock(&mtx);
     workerRunning = true;
-    LightLock_Unlock(&workerLock);
+    LightLock_Unlock(&mtx);
+#else
+    workerRunning.store(true);
+#endif
     while (true) {
         std::shared_ptr<DownloadItem> item = nullptr;
 
-        LightLock_Lock(&mtx);
-        if (pendingDownloads.empty()) {
+        {
+#ifdef __3DS__
+            LightLock_Lock(&mtx);
+#else
+            std::lock_guard<std::mutex> lock(mtx);
+#endif
+            if (pendingDownloads.empty()) {
+#ifdef __3DS__
+                LightLock_Unlock(&mtx);
+#endif
+                break;
+            }
+            item = pendingDownloads.front();
+            pendingDownloads.erase(pendingDownloads.begin());
+#ifdef __3DS__
             LightLock_Unlock(&mtx);
-            break;
+#endif
         }
-        item = pendingDownloads.front();
-        pendingDownloads.erase(pendingDownloads.begin());
-        LightLock_Unlock(&mtx);
 
         performDownload(item);
     }
-    LightLock_Lock(&workerLock);
+    // Log::log("DownloadManager: worker thread finished (queue empty)");
+#ifdef __3DS__
+    LightLock_Lock(&mtx);
     workerRunning = false;
-    LightLock_Unlock(&workerLock);
+    LightLock_Unlock(&mtx);
+#else
+    workerRunning.store(false);
+#endif
 }
 
 void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
-    /*if (!std::filesystem::exists("romfs:/gfx/certs.pem")) {
-        Log::log("DownloadManager: certs.pem not found, download cannot proceed.");
-        item->finished = true;
-        item->success = false;
-        item->error = "certs.pem not found";
-        return;
-    }*/
 
     CURL *curl = curl_easy_init();
     if (!curl) {
         item->finished = true;
         item->success = false;
-        item->error = "Failed to init curl";
-        Log::log("Download failed: CURL init error");
+        item->error = "curl init failed";
+        Log::logError("DownloadManager: curl init failed");
         return;
     }
 
@@ -160,25 +237,23 @@ void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
     if (!outFile.is_open()) {
         item->finished = true;
         item->success = false;
-        item->error = "Failed to open output file";
-        Log::log("Download failed: Could not open output file: " + item->filepath);
+        item->error = "Failed to open file for writing";
+        Log::log("DownloadManager: ERROR - cannot open output file: " + item->filepath);
         curl_easy_cleanup(curl);
         return;
     }
 
     FileWriteData writeData{&outFile, 0};
-
     curl_easy_setopt(curl, CURLOPT_URL, item->url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &writeData);
-    // curl_easy_setopt(curl, CURLOPT_CAINFO, "romfs:/gfx/certs.pem");
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
     curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 2L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "3DS-Downloader/1.0");
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "SE-Downloader/1.0");
 
     CURLcode res = curl_easy_perform(curl);
     outFile.close();
@@ -186,27 +261,37 @@ void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
     item->success = (res == CURLE_OK);
     if (!item->success) {
         item->error = curl_easy_strerror(res);
-        Log::log("Download failed: " + std::string(item->error));
+        Log::log("DownloadManager: ERROR - " + std::string(curl_easy_strerror(res)));
         remove(item->filepath.c_str());
+    } else {
+        Log::log("DownloadManager: download complete (" + item->filepath + ")");
     }
 
     curl_easy_cleanup(curl);
+    curl_easy_reset(curl);
 
     item->finished = true;
 
-    LightLock_Lock(&mtx);
-    if (item->success) {
+    {
+#ifdef __3DS__
+        LightLock_Lock(&mtx);
+#else
+        std::lock_guard<std::mutex> lock(mtx);
+#endif
         downloadedMap[item->url] = item;
+        pendingMap.erase(item->url);
+#ifdef __3DS__
+        LightLock_Unlock(&mtx);
+#endif
     }
-    pendingMap.erase(item->url);
-    LightLock_Unlock(&mtx);
 }
 
 size_t DownloadManager::WriteCallback(void *contents, size_t size, size_t nmemb, void *userp) {
     size_t totalSize = size * nmemb;
-    FileWriteData *writeData = static_cast<FileWriteData *>(userp);
-    writeData->file->write(static_cast<char *>(contents), totalSize);
-    writeData->bytesWritten += totalSize;
+    FileWriteData *data = static_cast<FileWriteData *>(userp);
+    data->file->write(static_cast<const char *>(contents), totalSize);
+    data->bytesWritten += totalSize;
     return totalSize;
 }
+
 #endif
