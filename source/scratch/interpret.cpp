@@ -1,5 +1,6 @@
 #include "interpret.hpp"
 #include "audio.hpp"
+#include "downloader.hpp"
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
@@ -71,6 +72,7 @@ bool cloudProject = false;
 
 #ifdef ENABLE_CLOUDVARS
 void initMist() {
+    OS::initWifi();
     // Username Stuff
 
 #ifdef __WIIU__
@@ -219,6 +221,7 @@ void Scratch::cleanupScratchProject() {
     projectJSON.clear();
     projectJSON.shrink_to_fit();
 #endif
+    DownloadManager::deinit();
 
     // reset default settings
     Scratch::FPS = 30;

@@ -68,7 +68,6 @@ bool Render::Init() {
     Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
 
     socketInitializeDefault();
-    DownloadManager::init();
     return true;
 }
 void Render::deInit() {
@@ -78,7 +77,6 @@ void Render::deInit() {
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SoundPlayer::deinit();
-    DownloadManager::deinit();
     IMG_Quit();
     SDL_Quit();
 }

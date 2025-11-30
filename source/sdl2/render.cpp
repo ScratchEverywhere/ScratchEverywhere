@@ -204,8 +204,6 @@ postAccount:
     windowHeight = 720;
 #endif
 
-    DownloadManager::init();
-
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
@@ -232,7 +230,6 @@ void Render::deInit() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SoundPlayer::deinit();
-    DownloadManager::deinit();
     IMG_Quit();
     SDL_Quit();
 

@@ -135,8 +135,6 @@ postAccount:
     sceNetCtlInit();
 #endif
 
-    DownloadManager::init();
-
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS);
     TTF_Init();
     window = SDL_CreateWindow("Scratch Everywhere!", windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
@@ -157,7 +155,6 @@ void Render::deInit() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SoundPlayer::deinit();
-    DownloadManager::deinit();
     SDL_Quit();
 
 #if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)

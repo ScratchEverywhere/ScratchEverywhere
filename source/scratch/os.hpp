@@ -85,4 +85,14 @@ class OS {
      * @return `true` on DSi, `false` everywhere else.
      */
     static bool isDSi();
+
+    /**
+     * Initializes the internet.
+     */
+    static bool initWifi();
+
+    /**
+     * De-Initializes the internet.
+     */
+    static void deInitWifi();
 };

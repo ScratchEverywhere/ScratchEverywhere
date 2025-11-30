@@ -1,24 +1,31 @@
 #ifdef ENABLE_DOWNLOAD
 #include "downloader.hpp"
 #include "os.hpp"
+#include <atomic>
 #include <curl/curl.h>
 #include <fstream>
 #include <iostream>
 #include <sys/stat.h>
-#include <atomic>
 
 static std::atomic<bool> workerRunning(false);
 
-void DownloadManager::init() {
+bool DownloadManager::init() {
+    if (isInitialized) return true;
     Log::log("DownloadManager: init()");
     CURLcode res = curl_global_init(CURL_GLOBAL_DEFAULT);
-    if (res != CURLE_OK)
+    if (res != CURLE_OK) {
         Log::log(std::string("curl_global_init failed: ") + curl_easy_strerror(res));
+        return false;
+    }
+    isInitialized = true;
+    return true;
 }
 
 void DownloadManager::deinit() {
+    if (!isInitialized) return;
     join();
     curl_global_cleanup();
+    isInitialized = false;
 }
 
 void DownloadManager::startThread() {

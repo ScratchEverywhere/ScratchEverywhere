@@ -50,7 +50,7 @@ static inline std::string urlEncode(const std::string &value) {
 #if !defined(ENABLE_DOWNLOAD)
 class DownloadManager {
   public:
-    static void init() { return; };
+    static bool init() { return false; };
     static void deinit() { return; };
     static void addDownload(const std::string &url, const std::string &filepath) { return; };
     static bool isDownloading(const std::string &url) { return false; };
@@ -63,7 +63,7 @@ class DownloadManager {
 #include <curl/curl.h>
 class DownloadManager {
   public:
-    static void init();
+    static bool init();
     static void deinit();
     static void addDownload(const std::string &url, const std::string &filepath);
     static bool isDownloading(const std::string &url);
@@ -80,6 +80,7 @@ class DownloadManager {
     static inline std::vector<std::shared_ptr<DownloadItem>> pendingDownloads;
     static inline std::unordered_map<std::string, std::shared_ptr<DownloadItem>> pendingMap;
     static inline std::unordered_map<std::string, std::shared_ptr<DownloadItem>> downloadedMap;
+    static inline bool isInitialized = false;
 
 #ifdef __3DS__
     static inline Thread downloadThread;

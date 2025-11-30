@@ -20,15 +20,23 @@ static void processQueueThreadedWrapper(void *arg) {
     DownloadManager::processQueueThreaded();
 }
 
-void DownloadManager::init() {
+bool DownloadManager::init() {
+    if (isInitialized) return true;
+    if (!OS::initWifi()) return false;
+
     LightLock_Init(&mtx);
-    curl_global_init(CURL_GLOBAL_DEFAULT);
+    if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) return false;
     LightLock_Init(&workerLock);
+    isInitialized = true;
+    return true;
 }
 
 void DownloadManager::deinit() {
+    if (!isInitialized) return;
     join();
     curl_global_cleanup();
+    OS::deInitWifi();
+    isInitialized = false;
 }
 
 void DownloadManager::startThread() {

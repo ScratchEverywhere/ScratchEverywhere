@@ -11,13 +11,6 @@
 #include "unzip.hpp"
 #include <chrono>
 
-#ifdef ENABLE_CLOUDVARS
-#include <malloc.h>
-
-#define SOC_ALIGN 0x1000
-#define SOC_BUFFERSIZE 0x100000
-#endif
-
 #define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -47,10 +40,6 @@ bool Render::hasFrameBegan;
 static int currentScreen = 0;
 std::vector<Monitor> Render::visibleVariables;
 
-#ifdef ENABLE_CLOUDVARS
-static uint32_t *SOC_buffer = NULL;
-#endif
-
 bool Render::Init() {
     gfxInitDefault();
     hidScanInput();
@@ -68,24 +57,9 @@ bool Render::Init() {
     gfxSet3D(true);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    DownloadManager::init();
-
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
-
-#ifdef ENABLE_CLOUDVARS
-    int ret;
-
-    SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
-    if (SOC_buffer == NULL) {
-        Log::logError("memalign: failed to allocate");
-    } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
-        std::ostringstream err;
-        err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
-        Log::logError(err.str());
-    }
-#endif
 
     romfsInit();
 
@@ -540,9 +514,6 @@ void Render::renderSprites() {
 }
 
 void Render::deInit() {
-#ifdef ENABLE_CLOUDVARS
-    socExit();
-#endif
 
     if (penRenderTarget != nullptr) {
         C3D_RenderTargetDelete(penRenderTarget);
@@ -553,7 +524,6 @@ void Render::deInit() {
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SoundPlayer::deinit();
-    DownloadManager::deinit();
     C2D_Fini();
     C3D_Fini();
     romfsExit();
