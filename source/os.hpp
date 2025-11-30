@@ -5,10 +5,11 @@
 #include <string>
 #ifdef __3DS__
 #include <3ds.h>
-#endif
-#ifdef WII
+#elif defined(WII)
 #include <ogc/lwp_watchdog.h>
 #include <ogc/system.h>
+#elif defined(__NDS__)
+#include <nds.h>
 #endif
 
 namespace Log {
