@@ -97,7 +97,8 @@ class OS {
      * De-Initializes the internet.
      */
     static void deInitWifi();
-  
+
+    /**
      * Create a directory.
      * @param path The path of the directory to create.
      */
