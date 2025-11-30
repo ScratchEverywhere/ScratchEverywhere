@@ -135,6 +135,8 @@ void BlockExecutor::registerHandlers() {
 
         {"coreExample_exampleWithInlineImage", [](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) { return BlockResult::CONTINUE; }};
 
+    };
+    
     valueHandlers = {
         {"motion_xposition", MotionBlocks::xPosition},
         {"motion_yposition", MotionBlocks::yPosition},
