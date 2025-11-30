@@ -1,41 +1,29 @@
 #include "math.hpp"
 #include <algorithm>
-#include <ctime>
+#include <cmath>
 #include <limits>
-#include <math.h>
-#include <random>
 #include <stdexcept>
-#include <string>
 #ifdef __3DS__
 #include <citro2d.h>
-#endif
-#ifdef __NDS__
+#elif defined(__NDS__)
 #include <nds.h>
 #endif
 
-int Math::color(int r, int g, int b, int a) {
-    r = std::clamp(r, 0, 255);
-    g = std::clamp(g, 0, 255);
-    b = std::clamp(b, 0, 255);
-    a = std::clamp(a, 0, 255);
-
+uint32_t Math::color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 #ifdef __NDS__
     int r5 = r >> 3;
     int g5 = g >> 3;
     int b5 = b >> 3;
     return RGB15(r5, g5, b5);
-#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    return (r << 24) |
-           (g << 16) |
-           (b << 8) |
-           a;
+#elif defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+    return (r << 24) | (g << 16) | (b << 8) | a;
 #elif defined(__3DS__)
     return C2D_Color32(r, g, b, a);
 #endif
     return 0;
 }
 
-double Math::parseNumber(std::string str) {
+double Math::parseNumber(const std::string str) {
     // Scratch has whitespace trimming
     while (std::isspace(str[0]) && !str.empty()) {
         str.erase(0, 1);
@@ -116,33 +104,22 @@ bool Math::isNumber(const std::string &str) {
 }
 
 double Math::degreesToRadians(double degrees) {
-    return degrees * (M_PI / 180.0);
+    return degrees * (PI / 180.0);
 }
 
 double Math::radiansToDegrees(double radians) {
-    return radians * (180.0 / M_PI);
+    return radians * (180.0 / PI);
 }
 
-std::string Math::generateRandomString(int length) {
-    std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-=[];',./_+{}|:<>?~`";
-    std::string result;
-
-    static std::mt19937 generator(static_cast<unsigned int>(std::time(nullptr)));
-    std::uniform_int_distribution<> distribution(0, chars.size() - 1);
-
-    for (int i = 0; i < length; i++) {
-        result += chars[distribution(generator)];
+std::string Math::removeDoubleQuotes(std::string_view str) {
+    if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+        value.remove_prefix(1);
+        value.remove_suffix(1);
     }
-
-    return result;
+    return std::string(value);
 }
 
-std::string Math::removeQuotations(std::string value) {
-    value.erase(std::remove_if(value.begin(), value.end(), [](char c) { return c == '"'; }), value.end());
-    return value;
-}
-
-const uint32_t Math::next_pow2(uint32_t n) {
+uint32_t Math::next_pow2(uint32_t n) {
     n--;
     n |= n >> 1;
     n |= n >> 2;

@@ -1,5 +1,6 @@
 #include "operator.hpp"
-#include "../math.hpp"
+#include "math.hpp"
+#include "random.hpp"
 #include "interpret.hpp"
 #include "sprite.hpp"
 #include "value.hpp"
@@ -7,7 +8,6 @@
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
-#include <math.h>
 
 Value OperatorBlocks::add(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
@@ -42,14 +42,13 @@ Value OperatorBlocks::random(Block &block, Sprite *sprite) {
 
     if (a == b) return Value(a);
 
-    double from = std::min(a, b);
-    double to = std::max(a, b);
+    auto [from, to] = std::minmax(a, b);
 
     if (value1.isScratchInt() && value2.isScratchInt()) {
-        return Value(from + (rand() % static_cast<int>(to + 1 - from)));
-    } else {
-        return Value(from + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX) / (to - from)));
+        return Value(Random::get().randomInt(static_cast<uint32_t>(from), static_cast<uint32_t>(to)));
     }
+
+    return Value(Random::get().randomDouble(from, to));
 }
 
 Value OperatorBlocks::join(Block &block, Sprite *sprite) {
@@ -100,46 +99,46 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
         double value = inputValue.asDouble();
 
         if (operation == "abs") {
-            return Value(abs(value));
+            return Value(std::abs(value));
         }
         if (operation == "floor") {
-            return Value(floor(value));
+            return Value(static_cast<int>(std::floor(value)));
         }
         if (operation == "ceiling") {
-            return Value(ceil(value));
+            return Value(static_cast<int>(std::ceil(value)));
         }
         if (operation == "sqrt") {
-            return Value(sqrt(value));
+            return Value(std::sqrt(value));
         }
         if (operation == "sin") {
-            return Value(sin(value * M_PI / 180.0));
+            return Value(std::sin(value * M_PI / 180.0));
         }
         if (operation == "cos") {
-            return Value(cos(value * M_PI / 180.0));
+            return Value(std::cos(value * M_PI / 180.0));
         }
         if (operation == "tan") {
-            return Value(tan(value * M_PI / 180.0));
+            return Value(std::tan(value * M_PI / 180.0));
         }
         if (operation == "asin") {
-            return Value(asin(value) * 180.0 / M_PI);
+            return Value(std::asin(value) * 180.0 / M_PI);
         }
         if (operation == "acos") {
-            return Value(acos(value) * 180.0 / M_PI);
+            return Value(std::acos(value) * 180.0 / M_PI);
         }
         if (operation == "atan") {
-            return Value(atan(value) * 180.0 / M_PI);
+            return Value(std::atan(value) * 180.0 / M_PI);
         }
         if (operation == "ln") {
-            return Value(log(value));
+            return Value(std::log(value));
         }
         if (operation == "log") {
-            return Value(log10(value));
+            return Value(std::log10(value));
         }
         if (operation == "e ^") {
-            return Value(exp(value));
+            return Value(std::exp(value));
         }
         if (operation == "10 ^") {
-            return Value(pow(10, value));
+            return Value(std::pow(10, value));
         }
     }
     return Value(0);

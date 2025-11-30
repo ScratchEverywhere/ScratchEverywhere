@@ -3,10 +3,10 @@
 #include "interpret.hpp"
 #include "miniz.h"
 #include "os.hpp"
+#include "random.hpp"
 #include <cstring>
 #include <errno.h>
 #include <fstream>
-#include <random>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -32,6 +32,7 @@ class Unzip {
     static std::vector<char> zipBuffer;
 
     static void openScratchProject(void *arg) {
+        (void)arg;
         loadingState = "Opening Scratch project";
         Unzip::UnpackedInSD = false;
         std::istream *file = nullptr;
@@ -161,11 +162,9 @@ class Unzip {
             return "Everywhere!"; // fallback if file is empty
         }
 
-        // Initialize random number generator with current time
-        static std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
-        std::uniform_int_distribution<size_t> dist(0, splashLines.size() - 1);
+        size_t randomIndex = Random::get().randomRange(splashLines.size());
 
-        std::string splash = splashLines[dist(rng)];
+        std::string splash = splashLines[randomIndex];
 
         // Replace {PlatformName} with OS::getPlatform()
         const std::string platformName = "{PlatformName}";
