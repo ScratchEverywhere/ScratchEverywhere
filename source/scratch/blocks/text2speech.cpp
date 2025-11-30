@@ -9,7 +9,6 @@
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
-#include <filesystem>
 #include <string>
 
 BlockResult SpeechBlocks::speakAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
