@@ -13,6 +13,11 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
+# This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
+endif()
+
 option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
@@ -265,7 +270,7 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 	endif()
 endif()
 
-if(SE_CLOUDVARS)
+if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
 	set(CURL_OPTIONS
 		"BUILD_CURL_EXE OFF"
@@ -300,7 +305,9 @@ if(SE_CLOUDVARS)
 		VERSION 8.16.0
 		OPTIONS ${CURL_OPTIONS}
 	)
-	CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
+	if(SE_CLOUDVARS)
+		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
+	endif()
 endif()
 
 if(SE_RENDERER STREQUAL "headless")
@@ -520,6 +527,12 @@ if(SE_AUDIO)
 endif()
 if(SE_LOADSCREEN)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_LOADSCREEN)
+endif()
+if(SE_DOWNLOAD)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_DOWNLOAD)
+	if(NOT SE_CLOUDVARS)
+		target_link_libraries(scratch-everywhere PRIVATE curl)
+	endif()
 endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CLOUDVARS)

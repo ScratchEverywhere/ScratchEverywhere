@@ -1,15 +1,14 @@
 #include "os.hpp"
 #include "render.hpp"
+#include <cerrno>
 #include <chrono>
 #include <cstddef>
+#include <dirent.h>
 #include <fstream>
 #include <iostream>
 #include <ostream>
 #include <string>
 #include <sys/stat.h>
-#include <cerrno>
-#include <dirent.h>
-
 #ifdef __WIIU__
 #include <sstream>
 #include <whb/sdcard.h>
@@ -24,6 +23,7 @@
 #include <orbis/libkernel.h>
 #endif
 #ifdef _WIN32
+#include <direct.h>
 #include <io.h>
 #else
 #include <unistd.h>
@@ -273,7 +273,38 @@ bool OS::isDSi() {
     return false;
 }
 
-void OS::createDirectory(const std::string& path) {
+bool OS::initWifi() {
+#ifdef __3DS__
+    u32 wifiEnabled = false;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled == AC_AP_TYPE_NONE) {
+        int ret;
+        uint32_t SOC_ALIGN = 0x1000;
+        uint32_t SOC_BUFFERSIZE = 0x100000;
+        uint32_t *SOC_buffer = NULL;
+
+        SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+        if (SOC_buffer == NULL) {
+            Log::logError("memalign: failed to allocate");
+        } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
+            std::ostringstream err;
+            err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
+            Log::logError(err.str());
+        }
+    }
+#endif
+    return true;
+}
+
+void OS::deInitWifi() {
+#ifdef __3DS__
+    u32 wifiEnabled = false;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled != AC_AP_TYPE_NONE)
+        socExit();
+#endif
+}
+void OS::createDirectory(const std::string &path) {
     std::string p = path;
     std::replace(p.begin(), p.end(), '\\', '/');
 
@@ -295,7 +326,7 @@ void OS::createDirectory(const std::string& path) {
     }
 }
 
-void OS::removeDirectory(const std::string& path) {
+void OS::removeDirectory(const std::string &path) {
     struct stat st;
     if (stat(path.c_str(), &st) != 0) {
         throw OS::DirectoryNotFound(path, errno);
@@ -305,12 +336,12 @@ void OS::removeDirectory(const std::string& path) {
         throw OS::NotADirectory(path, errno);
     }
 
-    DIR* dir = opendir(path.c_str());
+    DIR *dir = opendir(path.c_str());
     if (dir == nullptr) {
         throw OS::DirectoryOpenFailed(path, errno);
     }
 
-    struct dirent* entry;
+    struct dirent *entry;
     bool success = true;
     while ((entry = readdir(dir)) != nullptr) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
@@ -342,12 +373,12 @@ void OS::removeDirectory(const std::string& path) {
     }
 }
 
-bool OS::fileExists(const std::string& path) {
+bool OS::fileExists(const std::string &path) {
     struct stat buffer;
     return (stat(path.c_str(), &buffer) == 0);
 }
 
-std::string OS::parentPath(const std::string& path) {
+std::string OS::parentPath(const std::string &path) {
     size_t pos = path.find_last_of("/\\");
     if (std::string::npos != pos)
         return path.substr(0, pos);

@@ -5,6 +5,7 @@
 #include <string>
 #ifdef __3DS__
 #include <3ds.h>
+#include <malloc.h>
 #endif
 #ifdef WII
 #include <ogc/lwp_watchdog.h>
@@ -87,6 +88,16 @@ class OS {
      * @return `true` on DSi, `false` everywhere else.
      */
     static bool isDSi();
+
+    /**
+     * Initializes the internet.
+     */
+    static bool initWifi();
+
+    /**
+     * De-Initializes the internet.
+     */
+    static void deInitWifi();
 
     /**
      * Create a directory.

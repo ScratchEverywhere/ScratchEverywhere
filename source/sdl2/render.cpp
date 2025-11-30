@@ -2,6 +2,7 @@
 #include "../scratch/image.hpp"
 #include "audio.hpp"
 #include "blocks/pen.hpp"
+#include "downloader.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
@@ -146,6 +147,8 @@ bool Render::Init() {
 
     memset(nickname, 0, sizeof(nickname));
     strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
+
+    socketInitializeDefault();
 
     accountProfileClose(&profile);
     accountExit();

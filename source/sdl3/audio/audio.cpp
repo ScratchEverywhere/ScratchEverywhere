@@ -70,7 +70,7 @@ SDL_Audio::~SDL_Audio() {
 #endif
 }
 
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &fromCache) { // fromCache is only necessary for dowmnloaded sounds like from T2S
 #ifdef ENABLE_AUDIO
     if (!init()) return;
 
@@ -88,10 +88,10 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     params.streamed = false;
 #endif
 
-    if (projectType != UNZIPPED && fromProject)
+    if (projectType != UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        loadSoundFromFile(params.sprite, (fromProject ? "project/" : "") + params.soundId, params.streamed);
+        loadSoundFromFile(params.sprite, (fromProject && !fromCache ? "project/" : "") + params.soundId, params.streamed, fromCache);
 
 #endif
 }
@@ -160,14 +160,14 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
     return false;
 }
 
-bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
+bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
 
     // Check if file has supported extension
     std::string lowerFileName = fileName;
     std::transform(lowerFileName.begin(), lowerFileName.end(), lowerFileName.begin(), ::tolower);
-
-    fileName = OS::getRomFSLocation() + fileName;
+    if (!fromCache)
+        fileName = OS::getRomFSLocation() + fileName;
 
     bool isSupported = false;
     if (lowerFileName.size() >= 4) {
@@ -182,22 +182,29 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         return false;
     }
 
+    MIX_Audio *sound;
 #ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-    MIX_Audio *sound = MIX_LoadAudio_IO(mixer, SDL_IOFromConstMem(file.begin(), file.size()), !streamed, true);
+    if (fromCache)
+        sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
+    else {
+        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+        sound = MIX_LoadAudio_IO(mixer, SDL_IOFromConstMem(file.begin(), file.size()), !streamed, true);
+    }
 #else
-    MIX_Audio *sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
+    sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
 #endif
     if (!sound) {
         Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + std::string(SDL_GetError()));
         return false;
     }
 
-    // remove romfs and `project` from filename for soundId
-    fileName = fileName.substr(OS::getRomFSLocation().length());
-    const std::string prefix = "project/";
-    if (fileName.rfind(prefix, 0) == 0) {
-        fileName = fileName.substr(prefix.length());
+    if (!fromCache) {
+        // remove romfs and `project` from filename for soundId
+        fileName = fileName.substr(OS::getRomFSLocation().length());
+        const std::string prefix = "project/";
+        if (fileName.rfind(prefix, 0) == 0) {
+            fileName = fileName.substr(prefix.length());
+        }
     }
 
     // Create SDL_Audio object
