@@ -1,14 +1,11 @@
-#include "scratch/render.hpp"
-#include "../scratch/audio.hpp"
-#include "../scratch/blocks/pen.hpp"
-#include "../scratch/interpret.hpp"
-#include "blocks/pen.hpp"
 #include "image.hpp"
-#include "input.hpp"
-#include "interpret.hpp"
-#include "text.hpp"
-#include "unzip.hpp"
+#include <audio.hpp>
 #include <chrono>
+#include <input.hpp>
+#include <interpret.hpp>
+#include <render.hpp>
+#include <text.hpp>
+#include <unzip.hpp>
 
 #ifdef ENABLE_CLOUDVARS
 #include <malloc.h>
