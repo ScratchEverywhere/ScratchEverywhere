@@ -75,7 +75,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-if(NOT NINTENDO_SWITCH AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS)
 	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
 endif()
 
