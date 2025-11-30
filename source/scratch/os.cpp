@@ -1,16 +1,14 @@
 #include "os.hpp"
 #include "render.hpp"
+#include <cerrno>
 #include <chrono>
 #include <cstddef>
+#include <dirent.h>
 #include <fstream>
 #include <iostream>
-#include <malloc.h>
 #include <ostream>
 #include <string>
 #include <sys/stat.h>
-#include <cerrno>
-#include <dirent.h>
-
 #ifdef __WIIU__
 #include <sstream>
 #include <whb/sdcard.h>
@@ -302,7 +300,7 @@ void OS::deInitWifi() {
         socExit();
 #endif
 }
-void OS::createDirectory(const std::string& path) {
+void OS::createDirectory(const std::string &path) {
     std::string p = path;
     std::replace(p.begin(), p.end(), '\\', '/');
 
@@ -324,7 +322,7 @@ void OS::createDirectory(const std::string& path) {
     }
 }
 
-void OS::removeDirectory(const std::string& path) {
+void OS::removeDirectory(const std::string &path) {
     struct stat st;
     if (stat(path.c_str(), &st) != 0) {
         throw OS::DirectoryNotFound(path, errno);
@@ -334,12 +332,12 @@ void OS::removeDirectory(const std::string& path) {
         throw OS::NotADirectory(path, errno);
     }
 
-    DIR* dir = opendir(path.c_str());
+    DIR *dir = opendir(path.c_str());
     if (dir == nullptr) {
         throw OS::DirectoryOpenFailed(path, errno);
     }
 
-    struct dirent* entry;
+    struct dirent *entry;
     bool success = true;
     while ((entry = readdir(dir)) != nullptr) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
@@ -371,12 +369,12 @@ void OS::removeDirectory(const std::string& path) {
     }
 }
 
-bool OS::fileExists(const std::string& path) {
+bool OS::fileExists(const std::string &path) {
     struct stat buffer;
     return (stat(path.c_str(), &buffer) == 0);
 }
 
-std::string OS::parentPath(const std::string& path) {
+std::string OS::parentPath(const std::string &path) {
     size_t pos = path.find_last_of("/\\");
     if (std::string::npos != pos)
         return path.substr(0, pos);

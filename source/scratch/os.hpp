@@ -5,6 +5,7 @@
 #include <string>
 #ifdef __3DS__
 #include <3ds.h>
+#include <malloc.h>
 #endif
 #ifdef WII
 #include <ogc/lwp_watchdog.h>
