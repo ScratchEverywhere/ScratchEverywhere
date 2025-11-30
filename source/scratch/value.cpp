@@ -65,7 +65,7 @@ std::string Value::asString() const {
     } else if (isDouble()) {
         double doubleValue = std::get<double>(value);
         // NaN values MUST return "NaN", and Inf values MUST return either
-        // "-Infinity" or "Infinity" string constants
+        // "-Infinity" or "Infinity" string literals
         if (std::isnan(doubleValue)) return "NaN"; 
         else if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
         else {
