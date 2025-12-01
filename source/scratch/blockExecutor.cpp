@@ -7,14 +7,14 @@
 #include "blocks/motion.hpp"
 #include "blocks/operator.hpp"
 #include "blocks/pen.hpp"
-#include "blocks/text2speech.hpp"
 #include "blocks/procedure.hpp"
 #include "blocks/sensing.hpp"
 #include "blocks/sound.hpp"
+#include "blocks/text2speech.hpp"
+#include "input.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
 #include "os.hpp"
-#include "input.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include <algorithm>
@@ -131,7 +131,7 @@ void BlockExecutor::registerHandlers() {
         {"pen_setPenColorParamTo", PenBlocks::SetPenOptionTo},
         {"pen_changePenColorParamBy", PenBlocks::ChangePenOptionBy},
 
-        //Text2Speech
+        // Text2Speech
         {"text2speech_speakAndWait", SpeechBlocks::speakAndWait},
         {"text2speech_setVoice", SpeechBlocks::setVoiceTo},
         {"text2speech_setLanguage", SpeechBlocks::setLanguageTo},
@@ -142,7 +142,7 @@ void BlockExecutor::registerHandlers() {
         {"coreExample_exampleWithInlineImage", [](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) { return BlockResult::CONTINUE; }},
 
     };
-    
+
     valueHandlers = {
         {"motion_xposition", MotionBlocks::xPosition},
         {"motion_yposition", MotionBlocks::yPosition},
@@ -304,7 +304,7 @@ BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *with
 }
 
 void BlockExecutor::executeKeyHats() {
-    for (const auto& key : Input::keyHeldDuration) {
+    for (const auto &key : Input::keyHeldDuration) {
         if (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), key.first) == Input::inputButtons.end()) {
             Input::keyHeldDuration[key.first] = 0;
         } else {
@@ -332,11 +332,11 @@ void BlockExecutor::executeKeyHats() {
             if (data.opcode == "event_whenkeypressed") {
                 std::string key = Scratch::getFieldValue(data, "KEY_OPTION");
                 if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && (Input::keyHeldDuration.find(key)->second == 1 || Input::keyHeldDuration.find(key)->second > 13))
-                executor.runBlock(data, currentSprite);
+                    executor.runBlock(data, currentSprite);
             } else if (data.opcode == "makeymakey_whenMakeyKeyPressed") {
                 std::string key = Input::convertToKey(Scratch::getInputValue(data, "KEY", currentSprite), true);
                 if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0)
-                executor.runBlock(data, currentSprite);
+                    executor.runBlock(data, currentSprite);
             }
         }
     }
@@ -348,6 +348,8 @@ void BlockExecutor::doSpriteClicking() {
         Input::mousePointer.heldFrames++;
         bool hasClicked = false;
         for (auto &sprite : sprites) {
+            if (!sprite->visible) continue;
+
             // click a sprite
             if (sprite->shouldDoSpriteClick) {
                 if (Input::mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
