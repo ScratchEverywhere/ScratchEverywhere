@@ -100,7 +100,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 -   Text and embedded bitmap images will not show up on vector images containing it.
 -   Most Extensions (e.g. music extension) are not yet supported.
-	- Only the `Pen` and `Makey Makey` extensions are supported.
+	- Only the `Pen`, `Text to Speech` (Wii U and 3DS only), and `Makey Makey` extensions are currently supported.
 -   Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 -   Performance is poor when using many (~50+) clones (memory management issue).
 -   **[Wii, Switch, PSP, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
