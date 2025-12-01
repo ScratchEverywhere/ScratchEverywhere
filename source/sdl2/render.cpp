@@ -202,13 +202,34 @@ postAccount:
 
     windowWidth = 1280;
     windowHeight = 720;
-#endif
-
+#elif defined(WEBOS)
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+    windowWidth = 800;
+    windowHeight = 480;
+
+    SDL_DisplayMode mode;
+    SDL_GetDisplayMode(0, 0, &mode);
+    if (mode.w > 0 && mode.h > 0) {
+        windowWidth = mode.w;
+        windowHeight = mode.h;
+    }
+
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+#endif
+    #ifndef WEBOS
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+    #endif
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
+    #if defined(WEBOS)
+    Log::log("[SDL] windowWidth is " + std::to_string(windowWidth));
+    Log::log("[SDL] windowHeight is " + std::to_string(windowHeight));
+    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowWidth, windowHeight, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    #else
     window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    #endif
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
@@ -269,7 +290,6 @@ bool Render::initPen() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, nullptr);
-
     return true;
 }
 
@@ -289,8 +309,8 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
 #endif
 
-    int penWidth;
-    int penHeight;
+    int penWidth = 640;
+    int penHeight = 480;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
