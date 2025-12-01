@@ -203,8 +203,10 @@ postAccount:
     windowWidth = 1280;
     windowHeight = 720;
 #endif
+#ifndef __PS4
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+#endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
 #ifdef WEBOS
     windowWidth = 800;
