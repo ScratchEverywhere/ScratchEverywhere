@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 0.30 LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
+# error C7555: use of designated initializers requires at least '/std:c++20'
+if(MSVC)
+	set(CMAKE_CXX_STANDARD 20)
+else()
+	set(CMAKE_CXX_STANDARD 17)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
@@ -330,8 +335,11 @@ foreach(DIR IN LISTS SOURCES)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+if(WIN32)
+	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
+endif()
 
-add_executable(scratch-everywhere ${SOURCE_FILES})
+add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
 if(PSP)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-psp)
 elseif(NINTENDO_SWITCH)
@@ -360,12 +368,12 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug")
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
 
-if(NOT BUILD_SHARED_LIBS AND WIN32)
+if(NOT BUILD_SHARED_LIBS AND MINGW)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()
 

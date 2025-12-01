@@ -3,7 +3,6 @@
 #include <cerrno>
 #include <chrono>
 #include <cstddef>
-#include <dirent.h>
 #include <fstream>
 #include <iostream>
 #include <ostream>
@@ -25,7 +24,9 @@
 #ifdef _WIN32
 #include <direct.h>
 #include <io.h>
+#include <shlwapi.h>
 #else
+#include <dirent.h>
 #include <unistd.h>
 #endif
 
@@ -332,10 +333,23 @@ void OS::removeDirectory(const std::string &path) {
         throw OS::DirectoryNotFound(path, errno);
     }
 
-    if (!S_ISDIR(st.st_mode)) {
+    if (!(st.st_mode & S_IFDIR)) {
         throw OS::NotADirectory(path, errno);
     }
 
+#ifdef _WIN32
+    std::wstring wpath(path.size(), L' ');
+    wpath.resize(std::mbstowcs(&wpath[0], path.c_str(), path.size()) + 1);
+
+    SHFILEOPSTRUCTW options = {0};
+    options.wFunc = FO_DELETE;
+    options.pFrom = wpath.c_str();
+    options.fFlags = FOF_NO_UI | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT;
+
+    if (SHFileOperationW(&options) != 0) {
+        throw OS::DirectoryRemovalFailed(path, errno);
+    }
+#else
     DIR *dir = opendir(path.c_str());
     if (dir == nullptr) {
         throw OS::DirectoryOpenFailed(path, errno);
@@ -364,13 +378,10 @@ void OS::removeDirectory(const std::string &path) {
 
     closedir(dir);
 
-#ifdef _WIN32
-    if (_rmdir(path.c_str()) != 0) {
-#else
     if (rmdir(path.c_str()) != 0) {
-#endif
         throw OS::DirectoryRemovalFailed(path, errno);
     }
+#endif
 }
 
 bool OS::fileExists(const std::string &path) {
