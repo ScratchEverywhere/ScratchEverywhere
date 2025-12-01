@@ -88,7 +88,7 @@ class Unzip {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
                 continue;
 
-            std::string fullPath = directory + "/" + entry->d_name;
+            std::string fullPath = directory + entry->d_name;
 
             struct stat fileStat;
             if (stat(fullPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {

@@ -286,10 +286,12 @@ bool OS::initWifi() {
         SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
         if (SOC_buffer == NULL) {
             Log::logError("memalign: failed to allocate");
+            return false;
         } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
             std::ostringstream err;
             err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
             Log::logError(err.str());
+            return false;
         }
     }
 #endif
