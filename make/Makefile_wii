@@ -20,8 +20,8 @@ APP_TITLE	:= Scratch Everywhere!
 APP_AUTHOR	:= NateXS
 APP_SHORT_DESCRIPTION := Play Scratch games on the Wii!
 APP_LONG_DESCRIPTION	:= A custom Runtime that allows you to play any Scratch 3 project on your Wii!
-RELEASE_DATE	:= 20251027000000
-APP_VERSION	:= 0.30
+RELEASE_DATE	:= 20251201000000
+APP_VERSION	:= 0.30.1
 
 #---------------------------------------------------------------------------------
 # Build info

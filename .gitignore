@@ -1,6 +1,7 @@
 # folders
 .vs/
 .vscode/
+out/
 build/
 build-*/
 cmake/*
@@ -83,3 +84,5 @@ cloud-username.txt
 
 # fockerdile
 !docker/Dockerfile.nds
+
+CMakeSettings.json

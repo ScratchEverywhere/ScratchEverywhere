@@ -10,7 +10,7 @@
 #ifdef __3DS__
 #include <3ds.h>
 #endif
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -57,7 +57,7 @@ bool SoundPlayer::init() {
     return false;
 }
 
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &fromCache) { // fromCache is only necessary for dowmnloaded sounds like from T2S
 #ifdef ENABLE_AUDIO
     if (!init()) return;
 
@@ -71,13 +71,10 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .soundId = soundId,
         .streamed = streamed || (sprite != nullptr && sprite->isStage)}; // stage sprites get streamed audio
 
-    if (projectType != UNZIPPED && fromProject)
+    if (projectType != UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
-        loadSoundFromFile(params.sprite, (Unzip::UnpackedInSD ? Unzip::filePath : fromProject ? "project/"
-                                                                                              : "") +
-                                             params.soundId,
-                          params.streamed);
+        loadSoundFromFile(params.sprite, (fromProject && !fromCache ? "project/" : "") + params.soundId, params.streamed, fromCache);
 
 #endif
 }
@@ -187,15 +184,15 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
     return false;
 }
 
-bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
+bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
     Log::log("Loading audio from file: " + fileName);
 
     // Check if file has supported extension
     std::string lowerFileName = fileName;
     std::transform(lowerFileName.begin(), lowerFileName.end(), lowerFileName.begin(), ::tolower);
-
-    fileName = OS::getRomFSLocation() + fileName;
+    if (!fromCache)
+        fileName = OS::getRomFSLocation() + fileName;
 
     bool isSupported = false;
     if (lowerFileName.size() >= 4) {
@@ -215,9 +212,13 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     size_t audioMemorySize = 0;
 
     if (!streamed) {
-#if defined(__PC__) || defined(__PSP__)
-        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-        chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+#ifdef USE_CMAKERC
+        if (fromCache)
+            chunk = Mix_LoadWAV(fileName.c_str());
+        else {
+            const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+            chunk = Mix_LoadWAV_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        }
 #else
         chunk = Mix_LoadWAV(fileName.c_str());
 #endif
@@ -227,9 +228,13 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
             return false;
         }
     } else {
-#if defined(__PC__) || defined(__PSP__)
-        const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-        music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()));
+#ifdef USE_CMAKERC
+        if (fromCache)
+            music = Mix_LoadMUS(fileName.c_str());
+        else {
+            const auto &file = cmrc::romfs::get_filesystem().open(fileName);
+            music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        }
 #else
         music = Mix_LoadMUS(fileName.c_str());
 #endif
@@ -248,12 +253,13 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         audio->music = music;
         audio->isStreaming = true;
     }
-
-    // remove romfs and `project/` from filename for soundId
-    fileName = fileName.substr(OS::getRomFSLocation().length());
-    const std::string prefix = "project/";
-    if (fileName.rfind(prefix, 0) == 0) {
-        fileName = fileName.substr(prefix.length());
+    if (!fromCache) {
+        // remove romfs and `project/` from filename for soundId
+        fileName = fileName.substr(OS::getRomFSLocation().length());
+        const std::string prefix = "project/";
+        if (fileName.rfind(prefix, 0) == 0) {
+            fileName = fileName.substr(prefix.length());
+        }
     }
 
     audio->audioId = fileName;

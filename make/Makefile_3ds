@@ -53,6 +53,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 ENABLE_CLOUDVARS	?=	0
 ENABLE_LOADSCREEN	  ?=	1
 ENABLE_AUDIO	?=	1
+ENABLE_DOWNLOAD	?=	1
 RAM_AMOUNT		?= 72
 
 # Check for SDL3 libraries
@@ -109,6 +110,11 @@ LIBS	  += `$(PKGCONF_3DS) --libs mist++`
 ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
 $(error "[ERROR] Mist++ must be v0.2.0 or newer.")
 endif
+endif
+
+ifeq ($(ENABLE_DOWNLOAD),1)
+CFLAGS	+=	-DENABLE_DOWNLOAD
+LIBS	+=	`$(PKGCONF_3DS) --libs libcurl`
 endif
 
 ASFLAGS	:=	-g $(ARCH)

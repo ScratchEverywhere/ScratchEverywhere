@@ -14,7 +14,7 @@
 std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;
 
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -322,16 +322,18 @@ void Image::FlushImages() {
 SDL_Image::SDL_Image() {}
 
 SDL_Image::SDL_Image(std::string filePath) {
-#ifdef __PC__
+#ifdef USE_CMAKERC
     if (cmrc::romfs::get_filesystem().exists(filePath)) {
         const auto &file = cmrc::romfs::get_filesystem().open(filePath);
         spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
     }
+#else
+    spriteSurface = IMG_Load(filePath.c_str());
 #endif
     if (spriteSurface == nullptr) spriteSurface = IMG_Load(filePath.c_str());
     if (spriteSurface == NULL) {
         const std::string error = std::string(IMG_GetError());
-        Log::logWarning(std::string("Error loading image: ") + error);
+        Log::logWarning("Error loading image '" + filePath + "': " + error);
         if (error.find("Out of memory") != std::string::npos) Image::cleanupImagesLite();
         return;
     }

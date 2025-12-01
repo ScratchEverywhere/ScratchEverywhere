@@ -2,6 +2,7 @@
 #include "../scratch/image.hpp"
 #include "audio.hpp"
 #include "blocks/pen.hpp"
+#include "downloader.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
@@ -66,6 +67,7 @@ bool Render::Init() {
     SDL_VERSION(&ver);
     Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
 
+    socketInitializeDefault();
     return true;
 }
 void Render::deInit() {
@@ -399,7 +401,7 @@ void Render::renderSprites() {
 std::unordered_map<std::string, TextObject *> Render::monitorTexts;
 
 void Render::renderPenLayer() {
-	if (penSurface == nullptr) return;
+    if (penSurface == nullptr) return;
 
     SDL_Rect renderRect = {0, 0, 0, 0};
 

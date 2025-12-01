@@ -44,7 +44,7 @@ double Math::parseNumber(std::string str) {
         str.pop_back();
     }
 
-    if (str == "Infinity") {
+    if (str == "Infinity" || str == "+Infinity") {
         return std::numeric_limits<double>::infinity();
     } else if (str == "-Infinity") {
         return -std::numeric_limits<double>::infinity();

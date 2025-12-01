@@ -1,11 +1,13 @@
 #include "os.hpp"
 #include "render.hpp"
+#include <cerrno>
 #include <chrono>
 #include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <ostream>
 #include <string>
+#include <sys/stat.h>
 #ifdef __WIIU__
 #include <sstream>
 #include <whb/sdcard.h>
@@ -18,6 +20,14 @@
 #endif
 #ifdef __PS4__
 #include <orbis/libkernel.h>
+#endif
+#ifdef _WIN32
+#include <direct.h>
+#include <io.h>
+#include <shlwapi.h>
+#else
+#include <dirent.h>
+#include <unistd.h>
 #endif
 
 // PS4 implementation of logging
@@ -199,6 +209,8 @@ std::string OS::getScratchFolderLocation() {
     return "/scratch-everywhere/";
 #elif defined(__NDS__)
     return prefix + "/scratch-ds/";
+#elif defined(WEBOS)
+    return "projects/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -239,6 +251,8 @@ std::string OS::getPlatform() {
     return "PS4";
 #elif defined(__PSP__)
     return "PSP";
+#elif defined(WEBOS)
+    return "webOS TV";
 #else
     return "Unknown";
 #endif
@@ -258,4 +272,128 @@ bool OS::isDSi() {
     return isDSiMode();
 #endif
     return false;
+}
+
+bool OS::initWifi() {
+#ifdef __3DS__
+    u32 wifiEnabled = false;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled == AC_AP_TYPE_NONE) {
+        int ret;
+        uint32_t SOC_ALIGN = 0x1000;
+        uint32_t SOC_BUFFERSIZE = 0x100000;
+        uint32_t *SOC_buffer = NULL;
+
+        SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+        if (SOC_buffer == NULL) {
+            Log::logError("memalign: failed to allocate");
+            return false;
+        } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
+            std::ostringstream err;
+            err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
+            Log::logError(err.str());
+            return false;
+        }
+    }
+#endif
+    return true;
+}
+
+void OS::deInitWifi() {
+#ifdef __3DS__
+    u32 wifiEnabled = false;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled != AC_AP_TYPE_NONE)
+        socExit();
+#endif
+}
+void OS::createDirectory(const std::string &path) {
+    std::string p = path;
+    std::replace(p.begin(), p.end(), '\\', '/');
+
+    size_t pos = 0;
+    while ((pos = p.find('/', pos)) != std::string::npos) {
+        std::string dir = p.substr(0, pos++);
+        if (dir.empty()) continue;
+
+        struct stat st;
+        if (stat(dir.c_str(), &st) != 0) {
+#ifdef _WIN32
+            if (_mkdir(dir.c_str()) != 0 && errno != EEXIST) {
+#else
+            if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
+#endif
+                throw OS::DirectoryCreationFailed(dir, errno);
+            }
+        }
+    }
+}
+
+void OS::removeDirectory(const std::string &path) {
+    struct stat st;
+    if (stat(path.c_str(), &st) != 0) {
+        throw OS::DirectoryNotFound(path, errno);
+    }
+
+    if (!(st.st_mode & S_IFDIR)) {
+        throw OS::NotADirectory(path, errno);
+    }
+
+#ifdef _WIN32
+    std::wstring wpath(path.size(), L' ');
+    wpath.resize(std::mbstowcs(&wpath[0], path.c_str(), path.size()) + 1);
+
+    SHFILEOPSTRUCTW options = {0};
+    options.wFunc = FO_DELETE;
+    options.pFrom = wpath.c_str();
+    options.fFlags = FOF_NO_UI | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT;
+
+    if (SHFileOperationW(&options) != 0) {
+        throw OS::DirectoryRemovalFailed(path, errno);
+    }
+#else
+    DIR *dir = opendir(path.c_str());
+    if (dir == nullptr) {
+        throw OS::DirectoryOpenFailed(path, errno);
+    }
+
+    struct dirent *entry;
+    bool success = true;
+    while ((entry = readdir(dir)) != nullptr) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        std::string fullPath = path + "/" + entry->d_name;
+
+        struct stat entrySt;
+        if (stat(fullPath.c_str(), &entrySt) == 0) {
+            if (S_ISDIR(entrySt.st_mode)) {
+                removeDirectory(fullPath);
+            } else {
+                if (remove(fullPath.c_str()) != 0) {
+                    throw OS::FileRemovalFailed(fullPath, errno);
+                }
+            }
+        }
+    }
+
+    closedir(dir);
+
+    if (rmdir(path.c_str()) != 0) {
+        throw OS::DirectoryRemovalFailed(path, errno);
+    }
+#endif
+}
+
+bool OS::fileExists(const std::string &path) {
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
+
+std::string OS::parentPath(const std::string &path) {
+    size_t pos = path.find_last_of("/\\");
+    if (std::string::npos != pos)
+        return path.substr(0, pos);
+    return "";
 }
