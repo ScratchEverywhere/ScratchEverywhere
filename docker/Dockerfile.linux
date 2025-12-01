@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 
 COPY . .
 
-RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . -j $(nproc)
+# TODO: Fix SDL3 compatability in Dockerfile
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=sdl2 && cmake --build . -j $(nproc)
 
 FROM scratch AS exporter
 

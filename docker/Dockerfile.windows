@@ -5,8 +5,8 @@ RUN apt-get update && apt-get install -y mingw-w64 wget unzip git pkg-config zip
 
 COPY . .
 
-# TODO: Fix compiling cloud variables for Windows
-RUN mkdir build && cd build && cmake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ -DSE_CLOUDVARS=OFF -DSE_DOWNLOAD=OFF -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j $(nproc)
+# TODO: Fix Cloud Variables and SDL3 compatability
+RUN mkdir build && cd build && cmake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ -DSE_RENDERER=sdl2 -DSE_CLOUDVARS=OFF -DSE_DOWNLOAD=OFF -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j $(nproc)
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/scratch-everywhere.exe /
