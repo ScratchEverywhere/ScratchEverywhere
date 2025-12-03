@@ -147,6 +147,10 @@ void TextObjectSDL::updateTexture() {
     SDL_Surface *compositeSurface = SDL_CreateRGBSurface(
         SDL_HWSURFACE, maxWidth, totalHeight, 32, RMASK, GMASK, BMASK, AMASK);
 
+    // Make the surface transparent
+    SDL_FillRect(compositeSurface, NULL, SDL_MapRGBA(compositeSurface->format, sdlColor.r, sdlColor.g, sdlColor.b, 0));
+    SDL_SetAlpha(compositeSurface, SDL_SRCALPHA, 255);
+
     // Render each line onto the composite surface
     Sint16 currentY = 0;
     for (const auto &line : lines) {

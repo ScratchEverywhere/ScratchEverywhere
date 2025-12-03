@@ -162,6 +162,7 @@ bool Scratch::startScratchProject() {
     Scratch::nextProject = false;
 
     // Render first before running any blocks, otherwise 3DS rendering may get weird
+    BlockExecutor::updateMonitors();
     Render::renderSprites();
 
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
@@ -174,6 +175,7 @@ bool Scratch::startScratchProject() {
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
+            BlockExecutor::updateMonitors();
             if (checkFPS) Render::renderSprites();
 
             if (shouldStop) {
@@ -201,8 +203,9 @@ void Scratch::cleanupScratchProject() {
     SoundPlayer::cleanupAudio();
     blockLookup.clear();
 
-    for (auto &[id, text] : Render::monitorTexts) {
-        delete text;
+    for (auto &[id, textPair] : Render::monitorTexts) {
+        delete textPair.first;
+        delete textPair.second;
     }
     Render::monitorTexts.clear();
     TextObject::cleanupText();

@@ -231,7 +231,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
             music = Mix_LoadMUS(fileName.c_str());
         else {
             const auto &file = cmrc::romfs::get_filesystem().open(fileName);
-            music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+            music = Mix_LoadMUS_RW(SDL_RWFromConstMem(file.begin(), file.size()));
         }
 #else
         music = Mix_LoadMUS(fileName.c_str());

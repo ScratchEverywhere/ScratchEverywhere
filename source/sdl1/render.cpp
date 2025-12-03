@@ -67,7 +67,6 @@ bool Render::Init() {
     SDL_VERSION(&ver);
     Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
 
-    socketInitializeDefault();
     return true;
 }
 void Render::deInit() {
@@ -398,7 +397,7 @@ void Render::renderSprites() {
     SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
 
 void Render::renderPenLayer() {
     if (penSurface == nullptr) return;
