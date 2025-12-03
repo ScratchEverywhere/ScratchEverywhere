@@ -66,7 +66,7 @@ void Image::render(double xPos, double yPos, bool centered) {
 
     image->freeTimer = image->maxFreeTime;
 
-    SDL_Surface *rotatedSurface = rotozoomSurface(image->spriteTexture, rotation, scale, 0);
+    SDL_Surface *rotatedSurface = rotozoomSurface(image->spriteTexture, rotation, scale, SMOOTHING_OFF);
     if (rotatedSurface) {
         SDL_Rect destRect = {
             static_cast<Sint16>(xPos - (centered ? rotatedSurface->w / 2 : 0)),

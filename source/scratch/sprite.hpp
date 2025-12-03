@@ -144,7 +144,9 @@ struct Monitor {
     std::string opcode;
     std::unordered_map<std::string, std::string> parameters;
     std::string spriteName;
+    std::string displayName;
     Value value;
+    std::vector<Value> list;
     int x;
     int y;
     bool visible;

@@ -578,7 +578,7 @@ void Render::renderSprites() {
     SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
 
 void Render::renderPenLayer() {
     SDL_FRect renderRect = {0, 0, 0, 0};

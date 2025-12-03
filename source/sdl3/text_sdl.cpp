@@ -149,7 +149,7 @@ void TextObjectSDL::updateTexture() {
 
     // Make the surface transparent
     SDL_SetSurfaceBlendMode(compositeSurface, SDL_BLENDMODE_BLEND);
-    SDL_FillSurfaceRect(compositeSurface, nullptr, SDL_MapSurfaceRGBA(compositeSurface, 0, 0, 0, 0));
+    SDL_FillSurfaceRect(compositeSurface, nullptr, SDL_MapSurfaceRGBA(compositeSurface, sdlColor.r, sdlColor.g, sdlColor.b, 0)); // workaround for the black edges on white text
 
     // Render each line onto the composite surface
     int currentY = 0;

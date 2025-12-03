@@ -196,6 +196,23 @@ class Render {
     }
 
     /**
+     * Gets the color for a monitor value background based on opcode
+     */
+    static ColorRGBA getMonitorValueColor(const std::string &opcode) {
+        if (opcode.substr(0, 5) == "data_")
+            return {.r = 255, .g = 140, .b = 26, .a = 255};
+        else if (opcode.substr(0, 8) == "sensing_")
+            return {.r = 92, .g = 177, .b = 214, .a = 255};
+        else if (opcode.substr(0, 7) == "motion_")
+            return {.r = 76, .g = 151, .b = 255, .a = 255};
+        else if (opcode.substr(0, 6) == "looks_")
+            return {.r = 153, .g = 102, .b = 255, .a = 255};
+        else if (opcode.substr(0, 6) == "sound_")
+            return {.r = 207, .g = 99, .b = 207, .a = 255};
+        else return {.r = 255, .g = 140, .b = 26, .a = 255};
+    }
+
+    /**
      * Renders all visible variable and list monitors
      */
     static void renderVisibleVariables() {
@@ -219,45 +236,85 @@ class Render {
 
         for (auto &var : visibleVariables) {
             if (var.visible) {
-                std::string renderText = BlockExecutor::getMonitorValue(var).asString();
+                std::string renderText = var.value.asString();
                 if (monitorTexts.find(var.id) == monitorTexts.end()) {
-                    monitorTexts[var.id] = createTextObject(renderText, var.x, var.y);
+                    monitorTexts[var.id].first = createTextObject(var.displayName.empty() ? " " : var.displayName, var.x, var.y);
+                    monitorTexts[var.id].second = createTextObject(renderText.empty() ? " " : renderText, var.x, var.y);
                 } else {
-                    monitorTexts[var.id]->setText(renderText);
-                }
-                float renderX = var.x * scale + barOffsetX;
-                float renderY = var.y * scale + barOffsetY;
-                const std::vector<float> renderSize = monitorTexts[var.id]->getSize();
-                ColorRGBA backgroundColor = {
-                    .r = 228,
-                    .g = 240,
-                    .b = 255,
-                    .a = 255};
-
-                monitorTexts[var.id]->setCenterAligned(false);
-                if (var.mode != "large") {
-                    monitorTexts[var.id]->setColor(Math::color(0, 0, 0, 255));
-                    monitorTexts[var.id]->setScale(1.0f * (scale / 2.0f));
-                } else {
-                    monitorTexts[var.id]->setColor(Math::color(255, 255, 255, 255));
-                    monitorTexts[var.id]->setScale(1.25f * (scale / 2.0f));
-                    backgroundColor = {
-                        .r = 255,
-                        .g = 141,
-                        .b = 41,
-                        .a = 255};
+                    monitorTexts[var.id].first->setText(var.displayName);
+                    monitorTexts[var.id].second->setText(renderText);
                 }
 
-                // draw background
-                drawBox(renderSize[0] + (2 * scale), renderSize[1] + (2 * scale), renderX + renderSize[0] / 2, renderY + renderSize[1] / 2, 194, 204, 217);
-                drawBox(renderSize[0], renderSize[1], renderX + renderSize[0] / 2, renderY + renderSize[1] / 2, backgroundColor.r, backgroundColor.g, backgroundColor.b);
-#ifdef __3DS__
-                renderY += renderSize[1] / 2;
-#endif
-                monitorTexts[var.id]->render(renderX, renderY);
+                TextObject *nameObj = monitorTexts[var.id].first;
+                TextObject *valueObj = monitorTexts[var.id].second;
+
+                const std::vector<float> nameSizeBox = nameObj->getSize();
+                const std::vector<float> valueSizeBox = valueObj->getSize();
+
+                // Get color based on opcode
+                ColorRGBA valueBackgroundColor = getMonitorValueColor(var.opcode);
+
+                nameObj->setCenterAligned(false);
+                valueObj->setCenterAligned(false);
+
+                float baseRenderX = var.x * scale + barOffsetX;
+                float baseRenderY = var.y * scale + barOffsetY;
+
+                if (var.mode == "large") {
+                    valueObj->setColor(Math::color(255, 255, 255, 255));
+                    valueObj->setScale(1.25f * (scale / 2.0f));
+
+                    float valueWidth = std::max(40 * scale, valueSizeBox[0] + (4 * scale));
+
+                    // Draw value background
+                    drawBox(valueWidth + (2 * scale), valueSizeBox[1] + (2 * scale),
+                            baseRenderX + valueWidth / 2, baseRenderY + valueSizeBox[1] / 2,
+                            194, 204, 217);
+                    drawBox(valueWidth, valueSizeBox[1],
+                            baseRenderX + valueWidth / 2, baseRenderY + valueSizeBox[1] / 2,
+                            valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
+
+                    float valueCenterX = baseRenderX + (valueWidth / 2) - (valueSizeBox[0] / 2);
+                    valueObj->render(valueCenterX, baseRenderY + (3 * scale));
+                } else {
+                    nameObj->setColor(Math::color(0, 0, 0, 255));
+                    nameObj->setScale(1.0f * (scale / 2.0f));
+                    valueObj->setColor(Math::color(255, 255, 255, 255));
+                    valueObj->setScale(1.0f * (scale / 2.0f));
+
+                    float monitorWidth = 8 * scale;
+                    float valueWidth = std::max(40 * scale, valueSizeBox[0] + (8 * scale));
+
+                    // Draw name background
+                    float nameBackgroundX = baseRenderX + monitorWidth;
+                    float nameBackgroundY = baseRenderY + 4 * scale;
+                    float nameBackgroundWidth = nameSizeBox[0] + valueWidth;
+                    float nameBackgroundHeight = std::max(nameSizeBox[1], valueSizeBox[1]);
+                    drawBox(nameBackgroundWidth + (14 * scale), nameBackgroundHeight + (6 * scale),
+                            nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
+                            194, 204, 217);
+                    drawBox(nameBackgroundWidth + (12 * scale), nameBackgroundHeight + (4 * scale),
+                            nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
+                            229, 240, 255);
+
+                    monitorWidth += nameSizeBox[0] + (4 * scale);
+
+                    // Draw value background
+                    float valueBackgroundX = baseRenderX + monitorWidth;
+                    float valueBackgroundY = baseRenderY + 4 * scale;
+                    drawBox(valueWidth, valueSizeBox[1],
+                            valueBackgroundX + valueWidth / 2, valueBackgroundY + valueSizeBox[1] / 2,
+                            valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
+
+                    nameObj->render(nameBackgroundX, nameBackgroundY + (2 * scale));
+                    valueObj->render(valueBackgroundX + (valueWidth / 2) - (valueSizeBox[0] / 2), valueBackgroundY + (2 * scale));
+
+                    monitorWidth += valueWidth + (8 * scale);
+                }
             } else {
                 if (monitorTexts.find(var.id) != monitorTexts.end()) {
-                    delete monitorTexts[var.id];
+                    delete monitorTexts[var.id].first;
+                    delete monitorTexts[var.id].second;
                     monitorTexts.erase(var.id);
                 }
             }
@@ -318,7 +375,7 @@ class Render {
     };
 
     static RenderModes renderMode;
-    static std::unordered_map<std::string, TextObject *> monitorTexts;
+    static std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> monitorTexts;
 
     static std::vector<Monitor> visibleVariables;
 };
