@@ -673,38 +673,21 @@ void BlockExecutor::updateMonitors() {
                         parsedField.value = Math::removeQuotations(paramValue);
                         (*newBlock.parsedFields)[paramName] = parsedField;
                     }
-                    if (var.opcode == "motion_xposition")
-                        var.displayName = var.spriteName + ": x position";
-                    else if (var.opcode == "motion_yposition")
-                        var.displayName = var.spriteName + ": y position";
-                    else if (var.opcode == "motion_direction")
-                        var.displayName = var.spriteName + ": direction";
-                    else if (var.opcode == "sound_volume")
-                        var.displayName = var.spriteName + ": volume";
-                    else if (var.opcode == "looks_size")
-                        var.displayName = var.spriteName + ": size";
-                    else if (var.opcode == "looks_costumenumbername")
+                    if (var.opcode == "looks_costumenumbername")
                         var.displayName = var.spriteName + ": costume " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
                     else if (var.opcode == "looks_backdropnumbername")
                         var.displayName = "backdrop " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
-                    else if (var.opcode == "sensing_timer")
-                        var.displayName = "timer";
-                    else if (var.opcode == "sensing_username")
-                        var.displayName = "username";
-                    else if (var.opcode == "sensing_loudness")
-                        var.displayName = "loudness";
-                    else if (var.opcode == "sensing_answer")
-                        var.displayName = "answer";
-                    else if (var.opcode == "sensing_current") {
-                        std::string inputValue = Scratch::getFieldValue(newBlock, "CURRENTMENU");
-                        if (inputValue == "YEAR") var.displayName = "year";
-                        if (inputValue == "MONTH") var.displayName = "month";
-                        if (inputValue == "DATE") var.displayName = "date";
-                        if (inputValue == "DAYOFWEEK") var.displayName = "day of week";
-                        if (inputValue == "HOUR") var.displayName = "hour";
-                        if (inputValue == "MINUTE") var.displayName = "minute";
-                        if (inputValue == "SECOND") var.displayName = "second";
-                    } else var.displayName = var.opcode;
+                    else if (var.opcode == "sensing_current")
+                        var.displayName = std::string(MonitorDisplayNames::getCurrentMenuMonitorName(Scratch::getFieldValue(newBlock, "CURRENTMENU")));
+                    else {
+                    	auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
+                    	if (spriteName != var.opcode) {
+                    	    var.displayName = var.spriteName + ": " + std::string(spriteName);
+                    	} else {
+                    	    auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
+                    	    var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
+                    	}
+                    }
                     var.value = executor.getBlockValue(newBlock, sprite);
                 } catch (...) {
                     var.value = Value("Unknown...");
