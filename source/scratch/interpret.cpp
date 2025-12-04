@@ -6,13 +6,13 @@
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "os.hpp"
+#include "random.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include <cmath>
 #include <cstddef>
 #include <cstring>
-#include <math.h>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -244,7 +244,7 @@ void Scratch::cleanupScratchProject() {
 void initializeSpritePool(int poolSize) {
     for (int i = 0; i < poolSize; i++) {
         Sprite newSprite;
-        newSprite.id = Math::generateRandomString(15);
+        newSprite.id = Random::get().randomString(15);
         newSprite.isClone = true;
         newSprite.toDelete = true;
         newSprite.isDeleted = true;
@@ -534,7 +534,7 @@ void loadSprites(const nlohmann::json &json) {
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
         }
-        newSprite->id = Math::generateRandomString(15);
+        newSprite->id = Random::get().randomString(15);
         if (target.contains("isStage")) {
             newSprite->isStage = target["isStage"].get<bool>();
         }
