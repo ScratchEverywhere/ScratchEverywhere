@@ -242,9 +242,15 @@ void Scratch::cleanupScratchProject() {
 }
 
 std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
-
-    if (Render::renderMode == Render::BOTH_SCREENS)
-        return std::make_pair(screenX, screenY);
+#ifdef __3DS__
+    if (Render::renderMode == Render::BOTH_SCREENS) {
+        // 3DS res with both screens combined
+        windowWidth = 400;
+        windowHeight = 480;
+        return std::make_pair((screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f),
+                              (Scratch::projectHeight / 4.0f) - (screenY / windowHeight) * Scratch::projectHeight);
+    }
+#endif
 
     float screenAspect = static_cast<float>(windowWidth) / windowHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
