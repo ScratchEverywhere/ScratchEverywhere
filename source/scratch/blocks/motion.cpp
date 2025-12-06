@@ -395,10 +395,8 @@ BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, bool *wit
         nearestEdge = "bottom";
     }
 
-    // Not touching any edge
-    if (minDist > 0.0) {
+    if (!isColliding("edge", sprite))
         return BlockResult::CONTINUE;
-    }
 
     // Convert current direction to radians
     double radians = (90.0 - sprite->rotation) * (M_PI / 180.0);

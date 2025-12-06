@@ -325,7 +325,7 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     Render::calculateRenderPosition(currentSprite, isSVG);
     const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
     const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
-    const float rotation = Math::degreesToRadians(currentSprite->rotation - 90);
+    const float rotation = currentSprite->rotationStyle == currentSprite->ALL_AROUND ? Math::degreesToRadians(currentSprite->rotation - 90) : 0;
 
     const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
     const float x = cords.first;
@@ -341,7 +341,7 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     for (const auto &corner : corners) {
         collisionPoints.emplace_back(
             corner.first * cos(rotation) - corner.second * sin(rotation),
-            corner.second * sin(rotation) + corner.second * cos(rotation));
+            corner.first * sin(rotation) + corner.second * cos(rotation));
     }
 
     return collisionPoints;
@@ -422,11 +422,12 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
         double halfWidth = Scratch::projectWidth / 2.0;
         double halfHeight = Scratch::projectHeight / 2.0;
 
-        // Check if the current sprite is touching the edge of the screen
-        if (currentSprite->xPosition <= -halfWidth || currentSprite->xPosition >= halfWidth ||
-            currentSprite->yPosition <= -halfHeight || currentSprite->yPosition >= halfHeight) {
-            return true;
+        for (const auto &point : currentSpritePoints) {
+            if (point.first <= -halfWidth || point.first >= halfWidth ||
+                point.second <= -halfHeight || point.second >= halfHeight)
+                return true;
         }
+
         return false;
     } else if (collisionType == "sprite") {
         // Use targetSprite if provided, otherwise search by name
