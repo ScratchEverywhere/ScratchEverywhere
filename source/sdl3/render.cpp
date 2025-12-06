@@ -324,7 +324,7 @@ void Render::penStamp(Sprite *sprite) {
     }
 
     // Pen mapping stuff
-    const auto &cords = screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
+    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
     image->renderRect.x = cords.first + Scratch::projectWidth / 2;
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
@@ -404,43 +404,6 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
     SDL_FRect rect = {x - (w / 2.0f), y - (h / 2.0f), static_cast<float>(w), static_cast<float>(h)};
     SDL_RenderFillRect(renderer, &rect);
-}
-
-std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
-    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-
-    float scratchX, scratchY;
-
-    if (screenAspect > projectAspect) {
-        // Vertical black bars
-        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
-
-        // Remove bar offset and scale to project space
-        float adjustedX = screenX - barWidth;
-        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
-
-    } else if (screenAspect < projectAspect) {
-        // Horizontal black bars
-        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
-
-        // Remove bar offset and scale to project space
-        float adjustedY = screenY - barHeight;
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
-
-    } else {
-        // no black bars..
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
-    }
-
-    return std::make_pair(scratchX, scratchY);
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -558,11 +521,11 @@ void Render::renderSprites() {
         //     double screenX = (point.first * renderScale) + (windowWidth / 2);
         //     double screenY = (point.second * -renderScale) + (windowHeight / 2);
 
-        //     SDL_Rect debugPointRect;
+        //     SDL_FRect debugPointRect;
         //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
         //     debugPointRect.y = static_cast<int>(screenY - renderScale);
-        //     debugPointRect.w = static_cast<int>(2 * renderScale);
-        //     debugPointRect.h = static_cast<int>(2 * renderScale);
+        //     debugPointRect.w = static_cast<int>(6 * renderScale);
+        //     debugPointRect.h = static_cast<int>(6 * renderScale);
 
         //     SDL_RenderFillRect(renderer, &debugPointRect);
         // }

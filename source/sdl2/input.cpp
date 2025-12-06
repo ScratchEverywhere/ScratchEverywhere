@@ -96,7 +96,7 @@ void Input::getInput() {
         if (!keyStates[sc]) continue;
 
         SDL_Scancode scancode = static_cast<SDL_Scancode>(sc);
-        const char* rawName = SDL_GetScancodeName(scancode);
+        const char *rawName = SDL_GetScancodeName(scancode);
 
         std::string keyName = rawName ? rawName : "";
         std::transform(keyName.begin(), keyName.end(), keyName.begin(), ::tolower);
@@ -116,11 +116,11 @@ void Input::getInput() {
         else if (scancode == (SDL_Scancode)489) keyName = "r";
         else if (scancode == (SDL_Scancode)452) keyName = "z";
         else if (scancode == (SDL_Scancode)451) keyName = "f";
-        // REMOTE SCANCODES
-        // color dots: 486-489
-        // forward: 451 | backward: 452
-        // record: 453
-        // play: 450
+            // REMOTE SCANCODES
+            // color dots: 486-489
+            // forward: 451 | backward: 452
+            // record: 453
+            // play: 450
 #else
         else if (keyName == "return") keyName = "enter";
 #endif
@@ -201,7 +201,7 @@ void Input::getInput() {
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     if (SDL_GetNumTouchDevices() > 0) {
         // Transform touch coordinates to Scratch space
-        auto coords = screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
@@ -211,7 +211,7 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 

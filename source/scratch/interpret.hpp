@@ -31,6 +31,8 @@ class Scratch {
     static bool startScratchProject();
     static void cleanupScratchProject();
 
+    static std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight);
+
     static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
     static std::string getFieldValue(Block &block, const std::string &fieldName);
     static std::string getFieldId(Block &block, const std::string &fieldName);

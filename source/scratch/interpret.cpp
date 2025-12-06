@@ -241,6 +241,47 @@ void Scratch::cleanupScratchProject() {
     Log::log("Cleaned up Scratch project.");
 }
 
+std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
+
+    if (Render::renderMode == Render::BOTH_SCREENS)
+        return std::make_pair(screenX, screenY);
+
+    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    float scratchX, scratchY;
+
+    if (screenAspect > projectAspect) {
+        // Vertical black bars
+        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedX = screenX - barWidth;
+        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+
+    } else if (screenAspect < projectAspect) {
+        // Horizontal black bars
+        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedY = screenY - barHeight;
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
+
+    } else {
+        // no black bars..
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+    }
+
+    return std::make_pair(scratchX, scratchY);
+}
+
 void initializeSpritePool(int poolSize) {
     for (int i = 0; i < poolSize; i++) {
         Sprite newSprite;
@@ -279,51 +320,28 @@ void cleanupSprites() {
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
     std::vector<std::pair<double, double>> collisionPoints;
 
-    double divisionAmount = 2.0;
     const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
-    if (isSVG)
-        divisionAmount = 1.0;
+    Render::calculateRenderPosition(currentSprite, isSVG);
+    const int spriteWidth = currentSprite->spriteWidth * (isSVG ? 2 : 1);
+    const int spriteHeight = currentSprite->spriteHeight * (isSVG ? 2 : 1);
+    const float rotation = Math::degreesToRadians(currentSprite->rotation - 90);
 
-#ifdef __NDS__
-    divisionAmount *= 2;
-#endif
+    const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
+    const float x = cords.first;
+    const float y = cords.second;
 
-    // Get sprite dimensions, scaled by size
-    const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
-    const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / divisionAmount;
-
-    // Calculate rotation in radians
-    double rotation = currentSprite->rotation;
-
-    if (currentSprite->rotationStyle == currentSprite->NONE) rotation = 90;
-    if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-        if (currentSprite->rotation > 0)
-            rotation = 90;
-        else
-            rotation = -90;
-    }
-    double rotationRadians = -(rotation - 90) * M_PI / 180.0;
-    const int shiftAmount = !isSVG ? 1 : 0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) >> shiftAmount);
-    double rotationCenterY = -((currentSprite->rotationCenterY - currentSprite->spriteHeight) >> shiftAmount);
-
-    // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
-        {-halfWidth - (rotationCenterX * currentSprite->size * 0.01), -halfHeight + (rotationCenterY)}, // Top-left
-        {halfWidth - (rotationCenterX * currentSprite->size * 0.01), -halfHeight + (rotationCenterY)},  // Top-right
-        {halfWidth - (rotationCenterX * currentSprite->size * 0.01), halfHeight + (rotationCenterY)},   // Bottom-right
-        {-halfWidth - (rotationCenterX * currentSprite->size * 0.01), halfHeight + (rotationCenterY)}   // Bottom-left
+        {x, y},                              // Top-left
+        {x + spriteWidth, y},                // Top-right
+        {x + spriteWidth, y - spriteHeight}, // Bottom-right
+        {x, y - spriteHeight}                // Bottom-left
     };
 
-    // Rotate and translate each corner
     for (const auto &corner : corners) {
-        double rotatedX = corner.first * cos(rotationRadians) - corner.second * sin(rotationRadians);
-        double rotatedY = corner.first * sin(rotationRadians) + corner.second * cos(rotationRadians);
-
         collisionPoints.emplace_back(
-            currentSprite->xPosition + rotatedX,
-            currentSprite->yPosition + rotatedY);
+            corner.first * cos(rotation) - corner.second * sin(rotation),
+            corner.second * sin(rotation) + corner.second * cos(rotation));
     }
 
     return collisionPoints;
