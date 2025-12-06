@@ -323,8 +323,8 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
     Render::calculateRenderPosition(currentSprite, isSVG);
-    const int spriteWidth = currentSprite->spriteWidth * (isSVG ? 2 : 1);
-    const int spriteHeight = currentSprite->spriteHeight * (isSVG ? 2 : 1);
+    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
+    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
     const float rotation = Math::degreesToRadians(currentSprite->rotation - 90);
 
     const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
