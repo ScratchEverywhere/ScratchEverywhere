@@ -25,9 +25,11 @@ class TextObjectNDS : public TextObject {
     FontData *font;
     int width = 0;
     int height = 0;
+    float minScale = 1.0f;
 
   public:
-    static std::map<std::string, FontData> fonts;
+    static std::map<std::string, FontData>
+        fonts;
     TextObjectNDS(std::string txt, double posX, double posY, std::string fontPath = "");
     ~TextObjectNDS() override;
 

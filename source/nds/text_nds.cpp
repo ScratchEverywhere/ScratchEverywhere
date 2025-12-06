@@ -86,7 +86,7 @@ bool TextObjectNDS::loadFont(std::string fontPath) {
         unsigned char a = atlas[i];
 
         u8 colorIndex;
-        if (a < 192) {
+        if (a < 150) {
             colorIndex = 0; // Transparent
         } else {
             colorIndex = 3; // text
@@ -197,13 +197,14 @@ void TextObjectNDS::render(int xPos, int yPos) {
 
     glBindTexture(0, font->textureID);
     glPolyFmt(POLY_ALPHA(31) | POLY_CULL_NONE | POLY_ID(0));
+    scale = std::max(minScale, scale);
 
     float startX = (float)(xPos);
     float startY = (float)(yPos + getSize()[1]);
 
     if (centerAligned) {
-        startX -= width / 2.0f;
-        startY -= height / 2.0f;
+        startX -= (width * scale) / 2.0f;
+        startY -= (height * scale) / 2.0f;
     }
 
     float currentX = startX;
@@ -216,15 +217,21 @@ void TextObjectNDS::render(int xPos, int yPos) {
         }
 
         stbtt_aligned_quad q;
+        float tempX = currentX / scale;
+        float tempY = currentY / scale;
+
         stbtt_GetBakedQuad(
             font->charData,
             font->atlasWidth,
             font->atlasHeight,
             c - font->firstChar,
-            &currentX,
-            &currentY,
+            &tempX,
+            &tempY,
             &q,
             1);
+
+        currentX = tempX * scale;
+        currentY = tempY * scale;
 
         // Convert normalized UVs to texture coordinates (t16 format)
         int u0 = (int)(q.s0 * font->atlasWidth);
@@ -233,10 +240,11 @@ void TextObjectNDS::render(int xPos, int yPos) {
         int v1 = (int)(q.t1 * font->atlasHeight);
 
         // Screen positions
-        int x0 = (int)(q.x0 + 0.5f);
-        int y0 = (int)(q.y0 + 0.5f);
-        int x1 = (int)(q.x1 + 0.5f);
-        int y1 = (int)(q.y1 + 0.5f);
+        int x0 = (int)((q.x0 * scale) + 0.5f);
+        int y0 = (int)((q.y0 * scale) + 0.5f);
+        int x1 = (int)((q.x1 * scale) + 0.5f);
+        int y1 = (int)((q.y1 * scale) + 0.5f);
+
         const int depth = 100;
 
         glColor(color);
@@ -261,7 +269,7 @@ void TextObjectNDS::render(int xPos, int yPos) {
 }
 
 std::vector<float> TextObjectNDS::getSize() {
-    return {(float)width, (float)height};
+    return {(float)width * scale, (float)height * scale};
 }
 
 void TextObjectNDS::cleanupText() {
