@@ -323,11 +323,14 @@ SDL_Image::SDL_Image() {}
 
 SDL_Image::SDL_Image(std::string filePath) {
 #ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-    spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+    if (cmrc::romfs::get_filesystem().exists(filePath)) {
+        const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+        spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+    }
 #else
     spriteSurface = IMG_Load(filePath.c_str());
 #endif
+    if (spriteSurface == nullptr) spriteSurface = IMG_Load(filePath.c_str());
     if (spriteSurface == NULL) {
         const std::string error = std::string(IMG_GetError());
         Log::logWarning("Error loading image '" + filePath + "': " + error);

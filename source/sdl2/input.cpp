@@ -1,5 +1,6 @@
 #include "input.hpp"
 #include "blockExecutor.hpp"
+#include "menuManager.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
 #include <algorithm>
@@ -34,8 +35,10 @@ int userId;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 
+std::vector<std::string> Input::inputKeys;
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
+std::array<float, 2> Input::scrollDelta;
 std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<std::string> Input::codePressedBlockOpcodes;
@@ -43,10 +46,6 @@ std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 extern SDL_GameController *controller;
 extern bool touchActive;
 extern SDL_Point touchPosition;
-
-#define CONTROLLER_DEADZONE_X 10000
-#define CONTROLLER_DEADZONE_Y 18000
-#define CONTROLLER_DEADZONE_TRIGGER 1000
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
@@ -71,7 +70,8 @@ std::vector<int> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
+    inputKeys.clear();
     inputButtons.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
@@ -179,12 +179,14 @@ void Input::getInput() {
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSTICK)) Input::buttonPress("LeftStickPressed");
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSTICK)) Input::buttonPress("RightStickPressed");
+
     float joyLeftX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX);
     float joyLeftY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY);
     if (joyLeftX > CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickRight");
     if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickLeft");
     if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickDown");
     if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickUp");
+
     float joyRightX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX);
     float joyRightY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY);
     if (joyRightX > CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickRight");
@@ -205,6 +207,8 @@ void Input::getInput() {
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
+
+        if (menuManager != nullptr) menuManager->handleInput(touchPosition.x, touchPosition.y, touchActive);
         return;
     }
 
@@ -221,6 +225,10 @@ void Input::getInput() {
     }
 
     BlockExecutor::doSpriteClicking();
+
+    if (menuManager == nullptr) return;
+    if (controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
+    menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
 }
 
 std::string Input::getUsername() {

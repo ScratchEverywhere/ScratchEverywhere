@@ -5,6 +5,10 @@
 #endif
 #include <SDL_ttf.h>
 
+#define CONTROLLER_DEADZONE_X 10000
+#define CONTROLLER_DEADZONE_Y 10000
+#define CONTROLLER_DEADZONE_TRIGGER 1000
+
 extern int windowWidth;
 extern int windowHeight;
 extern SDL_Window *window;
