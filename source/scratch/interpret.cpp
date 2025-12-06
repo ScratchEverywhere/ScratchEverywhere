@@ -1,5 +1,6 @@
 #include "interpret.hpp"
 #include "audio.hpp"
+#include "downloader.hpp"
 #include "image.hpp"
 #include "input.hpp"
 #include "math.hpp"
@@ -41,6 +42,7 @@ bool useCustomUsername;
 std::string customUsername;
 
 std::vector<Sprite *> sprites;
+Sprite *stageSprite;
 std::vector<Sprite> spritePool;
 std::vector<std::string> broadcastQueue;
 std::unordered_map<std::string, Block *> blockLookup;
@@ -71,6 +73,7 @@ bool cloudProject = false;
 
 #ifdef ENABLE_CLOUDVARS
 void initMist() {
+    OS::initWifi();
     // Username Stuff
 
 #ifdef __WIIU__
@@ -118,7 +121,7 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) // These platforms require Mist++ 0.2.0 or later.
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(WEBOS) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
 #else // These platforms require Mist++ 0.1.4 or later.
     cloudConnection->connect();
@@ -159,6 +162,7 @@ bool Scratch::startScratchProject() {
     Scratch::nextProject = false;
 
     // Render first before running any blocks, otherwise 3DS rendering may get weird
+    BlockExecutor::updateMonitors();
     Render::renderSprites();
 
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
@@ -171,6 +175,7 @@ bool Scratch::startScratchProject() {
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runBroadcasts();
+            BlockExecutor::updateMonitors();
             if (checkFPS) Render::renderSprites();
 
             if (shouldStop) {
@@ -198,8 +203,9 @@ void Scratch::cleanupScratchProject() {
     SoundPlayer::cleanupAudio();
     blockLookup.clear();
 
-    for (auto &[id, text] : Render::monitorTexts) {
-        delete text;
+    for (auto &[id, textPair] : Render::monitorTexts) {
+        delete textPair.first;
+        delete textPair.second;
     }
     Render::monitorTexts.clear();
     TextObject::cleanupText();
@@ -219,6 +225,7 @@ void Scratch::cleanupScratchProject() {
     projectJSON.clear();
     projectJSON.shrink_to_fit();
 #endif
+    DownloadManager::deinit();
 
     // reset default settings
     Scratch::FPS = 30;
@@ -232,6 +239,53 @@ void Scratch::cleanupScratchProject() {
     Render::renderMode = Render::TOP_SCREEN_ONLY;
     // Unzip::filePath = "";
     Log::log("Cleaned up Scratch project.");
+}
+
+std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
+#ifdef __3DS__
+    if (Render::renderMode == Render::BOTH_SCREENS) {
+        // 3DS res with both screens combined
+        windowWidth = 400;
+        windowHeight = 480;
+        return std::make_pair((screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f),
+                              (Scratch::projectHeight / 4.0f) - (screenY / windowHeight) * Scratch::projectHeight);
+    }
+#endif
+
+    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    float scratchX, scratchY;
+
+    if (screenAspect > projectAspect) {
+        // Vertical black bars
+        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedX = screenX - barWidth;
+        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+
+    } else if (screenAspect < projectAspect) {
+        // Horizontal black bars
+        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedY = screenY - barHeight;
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
+
+    } else {
+        // no black bars..
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+    }
+
+    return std::make_pair(scratchX, scratchY);
 }
 
 void initializeSpritePool(int poolSize) {
@@ -272,51 +326,28 @@ void cleanupSprites() {
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
     std::vector<std::pair<double, double>> collisionPoints;
 
-    double divisionAmount = 2.0;
     const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
-    if (isSVG)
-        divisionAmount = 1.0;
+    Render::calculateRenderPosition(currentSprite, isSVG);
+    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
+    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
+    const float rotation = currentSprite->rotationStyle == currentSprite->ALL_AROUND ? Math::degreesToRadians(currentSprite->rotation - 90) : 0;
 
-#ifdef __NDS__
-    divisionAmount *= 2;
-#endif
+    const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
+    const float x = cords.first;
+    const float y = cords.second;
 
-    // Get sprite dimensions, scaled by size
-    const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
-    const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / divisionAmount;
-
-    // Calculate rotation in radians
-    double rotation = currentSprite->rotation;
-
-    if (currentSprite->rotationStyle == currentSprite->NONE) rotation = 90;
-    if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-        if (currentSprite->rotation > 0)
-            rotation = 90;
-        else
-            rotation = -90;
-    }
-    double rotationRadians = -(rotation - 90) * M_PI / 180.0;
-    const int shiftAmount = !isSVG ? 1 : 0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) >> shiftAmount);
-    double rotationCenterY = -((currentSprite->rotationCenterY - currentSprite->spriteHeight) >> shiftAmount);
-
-    // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
-        {-halfWidth - (rotationCenterX * currentSprite->size * 0.01), -halfHeight + (rotationCenterY)}, // Top-left
-        {halfWidth - (rotationCenterX * currentSprite->size * 0.01), -halfHeight + (rotationCenterY)},  // Top-right
-        {halfWidth - (rotationCenterX * currentSprite->size * 0.01), halfHeight + (rotationCenterY)},   // Bottom-right
-        {-halfWidth - (rotationCenterX * currentSprite->size * 0.01), halfHeight + (rotationCenterY)}   // Bottom-left
+        {x, y},                              // Top-left
+        {x + spriteWidth, y},                // Top-right
+        {x + spriteWidth, y - spriteHeight}, // Bottom-right
+        {x, y - spriteHeight}                // Bottom-left
     };
 
-    // Rotate and translate each corner
     for (const auto &corner : corners) {
-        double rotatedX = corner.first * cos(rotationRadians) - corner.second * sin(rotationRadians);
-        double rotatedY = corner.first * sin(rotationRadians) + corner.second * cos(rotationRadians);
-
         collisionPoints.emplace_back(
-            currentSprite->xPosition + rotatedX,
-            currentSprite->yPosition + rotatedY);
+            corner.first * cos(rotation) - corner.second * sin(rotation),
+            corner.first * sin(rotation) + corner.second * cos(rotation));
     }
 
     return collisionPoints;
@@ -397,11 +428,12 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
         double halfWidth = Scratch::projectWidth / 2.0;
         double halfHeight = Scratch::projectHeight / 2.0;
 
-        // Check if the current sprite is touching the edge of the screen
-        if (currentSprite->xPosition <= -halfWidth || currentSprite->xPosition >= halfWidth ||
-            currentSprite->yPosition <= -halfHeight || currentSprite->yPosition >= halfHeight) {
-            return true;
+        for (const auto &point : currentSpritePoints) {
+            if (point.first <= -halfWidth || point.first >= halfWidth ||
+                point.second <= -halfHeight || point.second >= halfHeight)
+                return true;
         }
+
         return false;
     } else if (collisionType == "sprite") {
         // Use targetSprite if provided, otherwise search by name
@@ -793,6 +825,7 @@ void loadSprites(const nlohmann::json &json) {
         }
 
         sprites.push_back(newSprite);
+        if (newSprite->isStage) stageSprite = newSprite;
     }
 
     Scratch::sortSprites();
@@ -864,57 +897,54 @@ void loadSprites(const nlohmann::json &json) {
 
     // try to find the advanced project settings comment
     nlohmann::json config;
-    for (Sprite *currentSprite : sprites) {
-        if (!currentSprite->isStage) continue;
-        for (auto &[id, comment] : currentSprite->comments) {
-            // make sure its the turbowarp comment
-            std::size_t settingsFind = comment.text.find("Configuration for https");
-            if (settingsFind == std::string::npos) continue;
-            std::size_t json_start = comment.text.find('{');
-            if (json_start == std::string::npos) continue;
+    for (auto &[id, comment] : stageSprite->comments) {
+        // make sure its the turbowarp comment
+        std::size_t settingsFind = comment.text.find("Configuration for https");
+        if (settingsFind == std::string::npos) continue;
+        std::size_t json_start = comment.text.find('{');
+        if (json_start == std::string::npos) continue;
 
-            // Use brace counting to find the true end of the JSON
-            int braceCount = 0;
-            std::size_t json_end = json_start;
-            bool in_string = false;
+        // Use brace counting to find the true end of the JSON
+        int braceCount = 0;
+        std::size_t json_end = json_start;
+        bool in_string = false;
 
-            for (; json_end < comment.text.size(); ++json_end) {
-                char c = comment.text[json_end];
+        for (; json_end < comment.text.size(); ++json_end) {
+            char c = comment.text[json_end];
 
-                if (c == '"' && (json_end == 0 || comment.text[json_end - 1] != '\\')) {
-                    in_string = !in_string;
-                }
+            if (c == '"' && (json_end == 0 || comment.text[json_end - 1] != '\\')) {
+                in_string = !in_string;
+            }
 
-                if (!in_string) {
-                    if (c == '{') braceCount++;
-                    else if (c == '}') braceCount--;
+            if (!in_string) {
+                if (c == '{') braceCount++;
+                else if (c == '}') braceCount--;
 
-                    if (braceCount == 0) {
-                        json_end++; // Include final '}'
-                        break;
-                    }
+                if (braceCount == 0) {
+                    json_end++; // Include final '}'
+                    break;
                 }
             }
+        }
 
-            if (braceCount != 0) {
-                continue;
-            }
+        if (braceCount != 0) {
+            continue;
+        }
 
-            std::string json_str = comment.text.substr(json_start, json_end - json_start);
+        std::string json_str = comment.text.substr(json_start, json_end - json_start);
 
-            // Replace inifity with null, since the json cant handle infinity
-            std::string cleaned_json = json_str;
-            std::size_t inf_pos;
-            while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
-                cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
-            }
+        // Replace inifity with null, since the json cant handle infinity
+        std::string cleaned_json = json_str;
+        std::size_t inf_pos;
+        while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
+            cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
+        }
 
-            try {
-                config = nlohmann::json::parse(cleaned_json);
-                break;
-            } catch (nlohmann::json::parse_error &e) {
-                continue;
-            }
+        try {
+            config = nlohmann::json::parse(cleaned_json);
+            break;
+        } catch (nlohmann::json::parse_error &e) {
+            continue;
         }
     }
     // set advanced project settings properties
@@ -995,6 +1025,12 @@ void loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
+#elif defined(__NDS__)
+    auto bottomScreen = Unzip::getSetting("bottomScreen");
+    if (!bottomScreen.is_null() && bottomScreen.get<bool>())
+        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+    else
+        Render::renderMode = Render::TOP_SCREEN_ONLY;
 #else
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 #endif

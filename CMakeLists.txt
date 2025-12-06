@@ -1,22 +1,32 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.30 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.30.1 LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
+# error C7555: use of designated initializers requires at least '/std:c++20'
+if(MSVC)
+	set(CMAKE_CXX_STANDARD 20)
+else()
+	set(CMAKE_CXX_STANDARD 17)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
+endif()
+
+# This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
 endif()
 
 option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
@@ -52,7 +62,7 @@ if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
     )
 endif()
 
-if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA)
+if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -69,6 +79,10 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 	endif()
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS)
+	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
+endif()
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC
 
@@ -130,11 +144,14 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 		find_package(PkgConfig REQUIRED)
 
 		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
-		pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
 		pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
-		pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
 
-		if (SE_AUDIO)
+		if(NOT WEBOS)
+			pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
+			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
+		endif()
+
+		if (SE_AUDIO AND NOT WEBOS)
 			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
 		endif()
 	else()
@@ -152,17 +169,29 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 			OPTIONS ${SDL2_OPTIONS}
 		)
 		CPMAddPackage(
-			NAME SDL2_image
-			VERSION 2.8.8
-			GITHUB_REPOSITORY libsdl-org/SDL_image
-			GIT_TAG release-2.8.8
-		)
-		CPMAddPackage(
 			NAME SDL2_ttf
 			VERSION 2.24.0
 			GITHUB_REPOSITORY libsdl-org/SDL_ttf
 			GIT_TAG release-2.24.0
 			OPTIONS "SDL2TTF_VENDORED ON"
+		)
+	endif()
+
+	if(NOT SE_SYSTEM OR WEBOS)
+		if(SE_AUDIO)
+			CPMAddPackage(
+				NAME SDL2_mixer
+				VERSION 2.8.1
+				GITHUB_REPOSITORY libsdl-org/SDL_mixer
+				GIT_TAG release-2.8.1
+				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+			)
+		endif()
+		CPMAddPackage(
+			NAME SDL2_image
+			VERSION 2.8.8
+			GITHUB_REPOSITORY libsdl-org/SDL_image
+			GIT_TAG release-2.8.8
 		)
 		CPMAddPackage(
 			NAME SDL2_gfx
@@ -182,16 +211,18 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 		target_include_directories(SDL2_gfx PUBLIC
 			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 		)
-		target_link_libraries(SDL2_gfx PUBLIC
-			SDL2::SDL2
-		)
-		if(SE_AUDIO)
-			CPMAddPackage(
-				NAME SDL2_mixer
-				VERSION 2.8.1
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG release-2.8.1
-				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+		if(WEBOS)
+			target_link_libraries(SDL2_image PUBLIC ${SDL2_LIBRARIES})
+			target_include_directories(SDL2_image PRIVATE ${SDL2_INCLUDE_DIRS})
+			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
+			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
+			if(SE_AUDIO)
+				target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
+				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
+			endif()
+		else()
+			target_link_libraries(SDL2_gfx PUBLIC
+				SDL2::SDL2
 			)
 		endif()
 	endif()
@@ -244,7 +275,7 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 	endif()
 endif()
 
-if(SE_CLOUDVARS)
+if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
 	set(CURL_OPTIONS
 		"BUILD_CURL_EXE OFF"
@@ -254,12 +285,21 @@ if(SE_CLOUDVARS)
 		"CURL_DISABLE_INSTALL ON"
 		"ENABLE_ARES OFF"
 		"USE_LIBIDN2 OFF"
+		"ENABLE_WEBSOCKETS ON"
+		"CURL_DISABLE_WEBSOCKETS OFF"
 		"CURL_DISABLE_LDAP ON"
 		"CURL_USE_LIBSSH2 OFF"
-		"CURL_USE_OPENSSL OFF"
-		"CURL_USE_MBEDTLS ON"
 	)
-	if(WIN32)
+	if(WEBOS)
+		list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+		list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+	else()
+		list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+		list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
+	endif()
+	if(WIN32 OR WEBOS)
 		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
 	endif()
 
@@ -270,7 +310,9 @@ if(SE_CLOUDVARS)
 		VERSION 8.16.0
 		OPTIONS ${CURL_OPTIONS}
 	)
-	CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
+	if(SE_CLOUDVARS)
+		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
+	endif()
 endif()
 
 if(SE_RENDERER STREQUAL "headless")
@@ -293,8 +335,11 @@ foreach(DIR IN LISTS SOURCES)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+if(WIN32)
+	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
+endif()
 
-add_executable(scratch-everywhere ${SOURCE_FILES})
+add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
 if(PSP)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-psp)
 elseif(NINTENDO_SWITCH)
@@ -302,9 +347,12 @@ elseif(NINTENDO_SWITCH)
 elseif(VITA)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-vita)
 	target_compile_definitions(scratch-everywhere PRIVATE VITA)
+elseif(WEBOS)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
+	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT VITA)
+if(SE_CMAKERC)
 	include(FetchContent)
 	FetchContent_Declare(
 	  cmrc
@@ -317,14 +365,15 @@ if(NOT NINTENDO_SWITCH AND NOT VITA)
 	file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
 	cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
 	target_link_libraries(scratch-everywhere PRIVATE romfs::rc)
+	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug")
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
 
-if(NOT BUILD_SHARED_LIBS AND WIN32)
+if(NOT BUILD_SHARED_LIBS AND MINGW)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()
 
@@ -371,11 +420,19 @@ if(SE_RENDERER STREQUAL "sdl3")
 elseif(SE_RENDERER STREQUAL "sdl2")
 	set(SDL_LINK_LIBS)
 
-	if(SE_SYSTEM)
+	if(SE_SYSTEM AND NOT WEBOS)
 		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
 	else()
-		list(APPEND SDL_LINK_LIBS SDL2_gfx SDL2::SDL2)
+		list(APPEND SDL_LINK_LIBS SDL2_image)
+		if(SE_AUDIO)
+			list(APPEND SDL_LINK_LIBS SDL2_mixer)
+		endif()
+		list(APPEND SDL_LINK_LIBS SDL2_gfx)
+	endif()
+
+	if (NOT SE_SYSTEM)
+		list(APPEND SDL_LINK_LIBS SDL2::SDL2)
 	endif()
 
 	if(SE_SYSTEM)
@@ -459,7 +516,7 @@ if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -478,6 +535,12 @@ if(SE_AUDIO)
 endif()
 if(SE_LOADSCREEN)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_LOADSCREEN)
+endif()
+if(SE_DOWNLOAD)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_DOWNLOAD)
+	if(NOT SE_CLOUDVARS)
+		target_link_libraries(scratch-everywhere PRIVATE curl)
+	endif()
 endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CLOUDVARS)
@@ -532,4 +595,27 @@ elseif(VITA)
 		${VITA_GFXFILES}
 		${PROJ_FILE}
 	)
+elseif(WEBOS)
+	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
+	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++" "-static-libgcc")
+
+	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
+    install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
+
+    if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
+        install(FILES "${CMAKE_SOURCE_DIR}/romfs/project.sb3" DESTINATION .)
+    endif()
+
+    foreach(file IN LISTS GFXFILES)
+        file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+        get_filename_component(DEST_DIR "${REL_PATH}" DIRECTORY)
+        install(FILES "${file}" DESTINATION "gfx/${DEST_DIR}")
+    endforeach()
+
+    set(CPACK_GENERATOR "External")
+    set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/AresPackage.cmake")
+    set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
+    set(CPACK_MONOLITHIC_INSTALL TRUE)
+
+    include(CPack)
 endif()

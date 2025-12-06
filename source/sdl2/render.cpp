@@ -2,6 +2,7 @@
 #include "../scratch/image.hpp"
 #include "audio.hpp"
 #include "blocks/pen.hpp"
+#include "downloader.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
@@ -147,6 +148,8 @@ bool Render::Init() {
     memset(nickname, 0, sizeof(nickname));
     strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
 
+    socketInitializeDefault();
+
     accountProfileClose(&profile);
     accountExit();
 postAccount:
@@ -200,11 +203,34 @@ postAccount:
     windowWidth = 1280;
     windowHeight = 720;
 #endif
+#ifndef __PS4__
+    SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+#endif
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
+#ifdef WEBOS
+    windowWidth = 800;
+    windowHeight = 480;
+
+    SDL_DisplayMode mode;
+    SDL_GetDisplayMode(0, 0, &mode);
+    if (mode.w > 0 && mode.h > 0) {
+        windowWidth = mode.w;
+        windowHeight = mode.h;
+    }
+#endif
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
-    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+#ifdef WEBOS
+    Log::log("[SDL] windowWidth is " + std::to_string(windowWidth));
+    Log::log("[SDL] windowHeight is " + std::to_string(windowHeight));
+    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowWidth, windowHeight, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+#else
+    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    SDL_GetRendererOutputSize(renderer, &windowWidth, &windowHeight);
+#endif
 
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
@@ -265,7 +291,6 @@ bool Render::initPen() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, nullptr);
-
     return true;
 }
 
@@ -285,8 +310,8 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
 #endif
 
-    int penWidth;
-    int penHeight;
+    int penWidth = 640;
+    int penHeight = 480;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
@@ -401,7 +426,7 @@ void Render::penStamp(Sprite *sprite) {
     }
 
     // Pen mapping stuff
-    const auto &cords = screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
+    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
     image->renderRect.x = cords.first + Scratch::projectWidth / 2;
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
@@ -485,43 +510,6 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
     SDL_Rect rect = {x - (w / 2), y - (h / 2), w, h};
     SDL_RenderFillRect(renderer, &rect);
-}
-
-std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
-    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-
-    float scratchX, scratchY;
-
-    if (screenAspect > projectAspect) {
-        // Vertical black bars
-        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
-
-        // Remove bar offset and scale to project space
-        float adjustedX = screenX - barWidth;
-        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
-
-    } else if (screenAspect < projectAspect) {
-        // Horizontal black bars
-        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
-
-        // Remove bar offset and scale to project space
-        float adjustedY = screenY - barHeight;
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
-
-    } else {
-        // no black bars..
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
-    }
-
-    return std::make_pair(scratchX, scratchY);
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -649,7 +637,7 @@ void Render::renderSprites() {
     SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
 
 void Render::renderPenLayer() {
     SDL_Rect renderRect = {0, 0, 0, 0};

@@ -15,7 +15,9 @@ Sprite *Input::draggingSprite = nullptr;
 
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
-int Input::keyHeldFrames = 0;
+std::vector<std::string> Input::inputBuffer;
+std::unordered_map<std::string, int> Input::keyHeldDuration;
+std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 
 extern SDL_Joystick *controller;
 extern bool touchActive;
@@ -55,7 +57,6 @@ void Input::getInput() {
 
     int numkeys;
     Uint8 *keyStates = SDL_GetKeyState(&numkeys);
-    bool anyKeyPressed = false;
 
     // prints what buttons are being pressed (debug)
     // for (int i = 0; i < SDL_JoystickNumButtons(controller); ++i) {
@@ -85,7 +86,6 @@ void Input::getInput() {
                 else if (keyName == "return") keyName = "enter";
 
                 inputButtons.push_back(keyName);
-                anyKeyPressed = true;
             }
         }
     }
@@ -96,125 +96,61 @@ void Input::getInput() {
         Uint8 hat = SDL_JoystickGetHat(controller, 0);
         if (hat & SDL_HAT_UP) {
             Input::buttonPress("dpadUp");
-            anyKeyPressed = true;
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.y += 3;
         }
         if (hat & SDL_HAT_DOWN) {
             Input::buttonPress("dpadDown");
-            anyKeyPressed = true;
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.y -= 3;
         }
         if (hat & SDL_HAT_LEFT) {
             Input::buttonPress("dpadLeft");
-            anyKeyPressed = true;
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.x -= 3;
         }
         if (hat & SDL_HAT_RIGHT) {
             Input::buttonPress("dpadRight");
-            anyKeyPressed = true;
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.x += 3;
         }
 
-        if (SDL_JoystickGetButton(controller, 0)) {
-            Input::buttonPress("A");
-            anyKeyPressed = true;
-        }
-        if (SDL_JoystickGetButton(controller, 1)) {
-            Input::buttonPress("B");
-            anyKeyPressed = true;
-        }
-        if (SDL_JoystickGetButton(controller, 2)) {
-            Input::buttonPress("X");
-            anyKeyPressed = true;
-        }
-        if (SDL_JoystickGetButton(controller, 3)) {
-            Input::buttonPress("Y");
-            anyKeyPressed = true;
-        }
+        if (SDL_JoystickGetButton(controller, 0)) Input::buttonPress("A");
+        if (SDL_JoystickGetButton(controller, 1)) Input::buttonPress("B");
+        if (SDL_JoystickGetButton(controller, 2)) Input::buttonPress("X");
+        if (SDL_JoystickGetButton(controller, 3)) Input::buttonPress("Y");
         if (SDL_JoystickGetButton(controller, 4)) {
             Input::buttonPress("shoulderL");
-            anyKeyPressed = true;
             mousePointer.isMoving = true;
         }
         if (SDL_JoystickGetButton(controller, 5)) {
             Input::buttonPress("shoulderR");
-            anyKeyPressed = true;
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.isPressed = true;
         }
-        if (SDL_JoystickGetButton(controller, 7)) {
-            Input::buttonPress("start");
-            anyKeyPressed = true;
-        }
-        if (SDL_JoystickGetButton(controller, 6)) {
-            Input::buttonPress("back");
-            anyKeyPressed = true;
-        }
-        if (SDL_JoystickGetButton(controller, 8)) {
-            Input::buttonPress("LeftStickPressed");
-            anyKeyPressed = true;
-        }
-        if (SDL_JoystickGetButton(controller, 9)) {
-            Input::buttonPress("RightStickPressed");
-            anyKeyPressed = true;
-        }
+        if (SDL_JoystickGetButton(controller, 7)) Input::buttonPress("start");
+        if (SDL_JoystickGetButton(controller, 6)) Input::buttonPress("back");
+        if (SDL_JoystickGetButton(controller, 8)) Input::buttonPress("LeftStickPressed");
+        if (SDL_JoystickGetButton(controller, 9)) Input::buttonPress("RightStickPressed");
         float joyLeftX = SDL_JoystickGetAxis(controller, 0);
         float joyLeftY = SDL_JoystickGetAxis(controller, 1);
-        if (joyLeftX > CONTROLLER_DEADZONE_X) {
-            Input::buttonPress("LeftStickRight");
-            anyKeyPressed = true;
-        }
-        if (joyLeftX < -CONTROLLER_DEADZONE_X) {
-            Input::buttonPress("LeftStickLeft");
-            anyKeyPressed = true;
-        }
-        if (joyLeftY > CONTROLLER_DEADZONE_Y) {
-            Input::buttonPress("LeftStickDown");
-            anyKeyPressed = true;
-        }
-        if (joyLeftY < -CONTROLLER_DEADZONE_Y) {
-            Input::buttonPress("LeftStickUp");
-            inputButtons.push_back("up arrow");
-            anyKeyPressed = true;
-        }
+        if (joyLeftX > CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickRight");
+        if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickLeft");
+        if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickDown");
+        if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickUp");
         float joyRightX = SDL_JoystickGetAxis(controller, 2);
         float joyRightY = SDL_JoystickGetAxis(controller, 3);
-        if (joyRightX > CONTROLLER_DEADZONE_X) {
-            Input::buttonPress("RightStickRight");
-            anyKeyPressed = true;
-        }
-        if (joyRightX < -CONTROLLER_DEADZONE_X) {
-            Input::buttonPress("RightStickLeft");
-            anyKeyPressed = true;
-        }
-        if (joyRightY > CONTROLLER_DEADZONE_Y) {
-            Input::buttonPress("RightStickDown");
-            anyKeyPressed = true;
-        }
-        if (joyRightY < -CONTROLLER_DEADZONE_Y) {
-            Input::buttonPress("RightStickUp");
-            anyKeyPressed = true;
-        }
-        if (SDL_JoystickGetAxis(controller, 4) > CONTROLLER_DEADZONE_TRIGGER) {
-            Input::buttonPress("LT");
-            anyKeyPressed = true;
-        }
-        if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) {
-            Input::buttonPress("RT");
-            anyKeyPressed = true;
-        }
+        if (joyRightX > CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickRight");
+        if (joyRightX < -CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickLeft");
+        if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
+        if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
+        if (SDL_JoystickGetAxis(controller, 4) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
+        if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
     }
 
-    if (anyKeyPressed) {
-        keyHeldFrames++;
-        inputButtons.push_back("any");
-        if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
-    } else keyHeldFrames = 0;
+    if (!inputButtons.empty()) inputButtons.push_back("any");
+
+    BlockExecutor::executeKeyHats();
 
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     if (touchActive) {
         // Transform touch coordinates to Scratch space
-        auto coords = screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
@@ -224,7 +160,7 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 
@@ -233,7 +169,7 @@ void Input::getInput() {
         mousePointer.isPressed = true;
     }
 
-    doSpriteClicking();
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::getUsername() {

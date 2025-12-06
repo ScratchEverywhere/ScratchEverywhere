@@ -19,6 +19,7 @@ extern BlockExecutor executor;
 extern ProjectType projectType;
 
 extern std::vector<Sprite *> sprites;
+extern Sprite *stageSprite;
 extern std::vector<Sprite> spritePool;
 extern std::vector<std::string> broadcastQueue;
 extern std::unordered_map<std::string, Block *> blockLookup;
@@ -29,6 +30,8 @@ class Scratch {
   public:
     static bool startScratchProject();
     static void cleanupScratchProject();
+
+    static std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight);
 
     static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
     static std::string getFieldValue(Block &block, const std::string &fieldName);

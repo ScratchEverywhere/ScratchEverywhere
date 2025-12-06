@@ -24,7 +24,9 @@ Sprite *Input::draggingSprite = nullptr;
 
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
-int Input::keyHeldFrames = 0;
+std::vector<std::string> Input::inputBuffer;
+std::unordered_map<std::string, int> Input::keyHeldDuration;
+std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 
 extern SDL_Gamepad *controller;
 extern bool touchActive;
@@ -65,7 +67,6 @@ void Input::getInput() {
     mousePointer.isMoving = false;
 
     const bool *keyStates = SDL_GetKeyboardState(NULL);
-    bool anyKeyPressed = false;
 
     // prints what buttons are being pressed (debug)
     // for (int i = 0; i < SDL_GAMEPAD_BUTTON_MAX; ++i) {
@@ -95,7 +96,6 @@ void Input::getInput() {
                 else if (keyName == "return") keyName = "enter";
 
                 inputButtons.push_back(keyName);
-                anyKeyPressed = true;
             }
         }
     }
@@ -103,145 +103,69 @@ void Input::getInput() {
     // TODO: Clean this up
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_UP)) {
         Input::buttonPress("dpadUp");
-        anyKeyPressed = true;
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.y += 3;
     }
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_DOWN)) {
         Input::buttonPress("dpadDown");
-        anyKeyPressed = true;
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.y -= 3;
     }
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_LEFT)) {
         Input::buttonPress("dpadLeft");
-        anyKeyPressed = true;
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.x -= 3;
     }
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) {
         Input::buttonPress("dpadRight");
-        anyKeyPressed = true;
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.x += 3;
     }
     // Swap face buttons for Switch
 #ifdef __SWITCH__
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH)) {
-        Input::buttonPress("B");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST)) {
-        Input::buttonPress("A");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST)) {
-        Input::buttonPress("Y");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH)) {
-        Input::buttonPress("X");
-        anyKeyPressed = true;
-    }
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH)) Input::buttonPress("B");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST)) Input::buttonPress("A");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST)) Input::buttonPress("Y");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH)) Input::buttonPress("X");
 #else
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH)) {
-        Input::buttonPress("A");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST)) {
-        Input::buttonPress("B");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST)) {
-        Input::buttonPress("X");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH)) {
-        Input::buttonPress("Y");
-        anyKeyPressed = true;
-    }
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_SOUTH)) Input::buttonPress("A");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_EAST)) Input::buttonPress("B");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_WEST)) Input::buttonPress("X");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_NORTH)) Input::buttonPress("Y");
 #endif
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) {
         Input::buttonPress("shoulderL");
-        anyKeyPressed = true;
         mousePointer.isMoving = true;
     }
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) {
         Input::buttonPress("shoulderR");
-        anyKeyPressed = true;
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.isPressed = true;
     }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_START)) {
-        Input::buttonPress("start");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_BACK)) {
-        Input::buttonPress("back");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_STICK)) {
-        Input::buttonPress("LeftStickPressed");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_STICK)) {
-        Input::buttonPress("RightStickPressed");
-        anyKeyPressed = true;
-    }
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_START)) Input::buttonPress("start");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_BACK)) Input::buttonPress("back");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_STICK)) Input::buttonPress("LeftStickPressed");
+    if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_STICK)) Input::buttonPress("RightStickPressed");
     float joyLeftX = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_LEFTX);
     float joyLeftY = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_LEFTY);
-    if (joyLeftX > CONTROLLER_DEADZONE_X) {
-        Input::buttonPress("LeftStickRight");
-        anyKeyPressed = true;
-    }
-    if (joyLeftX < -CONTROLLER_DEADZONE_X) {
-        Input::buttonPress("LeftStickLeft");
-        anyKeyPressed = true;
-    }
-    if (joyLeftY > CONTROLLER_DEADZONE_Y) {
-        Input::buttonPress("LeftStickDown");
-        anyKeyPressed = true;
-    }
-    if (joyLeftY < -CONTROLLER_DEADZONE_Y) {
-        Input::buttonPress("LeftStickUp");
-        inputButtons.push_back("up arrow");
-        anyKeyPressed = true;
-    }
+    if (joyLeftX > CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickRight");
+    if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickLeft");
+    if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickDown");
+    if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickUp");
     float joyRightX = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_RIGHTX);
     float joyRightY = SDL_GetGamepadAxis(controller, SDL_GamepadAxis::SDL_GAMEPAD_AXIS_RIGHTY);
-    if (joyRightX > CONTROLLER_DEADZONE_X) {
-        Input::buttonPress("RightStickRight");
-        anyKeyPressed = true;
-    }
-    if (joyRightX < -CONTROLLER_DEADZONE_X) {
-        Input::buttonPress("RightStickLeft");
-        anyKeyPressed = true;
-    }
-    if (joyRightY > CONTROLLER_DEADZONE_Y) {
-        Input::buttonPress("RightStickDown");
-        anyKeyPressed = true;
-    }
-    if (joyRightY < -CONTROLLER_DEADZONE_Y) {
-        Input::buttonPress("RightStickUp");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) {
-        Input::buttonPress("LT");
-        anyKeyPressed = true;
-    }
-    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) {
-        Input::buttonPress("RT");
-        anyKeyPressed = true;
-    }
+    if (joyRightX > CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickRight");
+    if (joyRightX < -CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickLeft");
+    if (joyRightY > CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickDown");
+    if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
+    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
+    if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
 
-    if (anyKeyPressed) {
-        keyHeldFrames++;
-        inputButtons.push_back("any");
-        if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
-    } else keyHeldFrames = 0;
+    if (!inputButtons.empty()) inputButtons.push_back("any");
+
+    BlockExecutor::executeKeyHats();
 
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     int numDevices;
     SDL_GetTouchDevices(&numDevices);
     if (numDevices > 0) {
         // Transform touch coordinates to Scratch space
-        auto coords = screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
@@ -251,14 +175,14 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 
     const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
     mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;
 
-    doSpriteClicking();
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::getUsername() {

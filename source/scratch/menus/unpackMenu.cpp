@@ -63,7 +63,7 @@ void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &
 
     j["items"].push_back(value);
 
-    std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
+    OS::createDirectory(OS::parentPath(filePath));
 
     std::ofstream outFile(filePath);
     if (!outFile) {

@@ -7,7 +7,9 @@ Input::Mouse Input::mousePointer = {0, 0, 0, false, false};
 Sprite *Input::draggingSprite = nullptr;
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
-int Input::keyHeldFrames = 0;
+std::vector<std::string> Input::inputBuffer;
+std::unordered_map<std::string, int> Input::keyHeldDuration;
+std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 
 static uint16_t mouseHeldFrames = 0;
 static uint8_t oldTouchPx = 0;
@@ -52,7 +54,6 @@ void Input::getInput() {
     }
 
     if (kDown) {
-        keyHeldFrames += 1;
         inputButtons.push_back("any");
         if (kDown & KEY_A) {
             Input::buttonPress("A");
@@ -113,16 +114,14 @@ void Input::getInput() {
                 mousePointer.isMoving = true;
             }
         }
-        if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
-
-    } else {
-        keyHeldFrames = 0;
     }
+
+    BlockExecutor::executeKeyHats();
+
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
 
-    doSpriteClicking();
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::getUsername() {

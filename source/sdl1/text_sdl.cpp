@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -33,7 +33,7 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
         const auto &file = cmrc::romfs::get_filesystem().open(fontPath);
         TTF_Font *loadedFont = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 30);
 #else
@@ -146,6 +146,10 @@ void TextObjectSDL::updateTexture() {
     // Create a surface to compose all lines
     SDL_Surface *compositeSurface = SDL_CreateRGBSurface(
         SDL_HWSURFACE, maxWidth, totalHeight, 32, RMASK, GMASK, BMASK, AMASK);
+
+    // Make the surface transparent
+    SDL_FillRect(compositeSurface, NULL, SDL_MapRGBA(compositeSurface->format, sdlColor.r, sdlColor.g, sdlColor.b, 0));
+    SDL_SetAlpha(compositeSurface, SDL_SRCALPHA, 255);
 
     // Render each line onto the composite surface
     Sint16 currentY = 0;

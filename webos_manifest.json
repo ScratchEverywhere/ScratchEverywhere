@@ -1,0 +1,14 @@
+{
+  "id": "io.github.scratcheverywhere",
+  "version": "0.0.1",
+  "type": "native",
+  "title": "Scratch Everywhere!",
+  "appDescription": "Run Scratch projects on the big screen!",
+  "iconUri": "https://raw.githubusercontent.com/ScratchEverywhere/ScratchEverywhere/refs/heads/main/gfx/webos/icon.png",
+  "sourceUrl": "https://github.com/ScratchEverywhere/ScratchEverywhere",
+  "rootRequired": false,
+  "ipkUrl": "https://github.com/ScratchEverywhere/ScratchEverywhere/releases/download/0.30.1/scratch-webos.ipk",
+  "ipkHash": {
+    "sha256": "6475222805783bafd7ae5992d9ed46fabcb1e5fd7b6661b57da3984b903cd613"
+  }
+}
