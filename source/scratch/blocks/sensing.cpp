@@ -153,6 +153,7 @@ Value SensingBlocks::touchingObject(Block &block, Sprite *sprite) {
     } else {
         for (size_t i = 0; i < sprites.size(); i++) {
             Sprite *currentSprite = sprites[i];
+            if (currentSprite == sprite) continue;
             if (currentSprite->name == inputValue.asString() &&
                 isColliding("sprite", sprite, currentSprite, inputValue.asString())) {
                 return Value(true);
