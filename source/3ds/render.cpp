@@ -327,6 +327,21 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
         currentSprite->renderInfo.renderScaleX,
         currentSprite->renderInfo.renderScaleY);
     data.freeTimer = data.maxFreeTimer;
+
+    // collisioon points (debug)
+    // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
+
+    // for (const auto &point : collisionPoints) {
+    //     double screenX = (point.first * Render::renderScale) + (Render::getWidth() / 2);
+    //     double screenY = (point.second * -Render::renderScale) + (Render::getHeight() / 2);
+    //     C2D_DrawRectSolid(
+    //         screenX + xOffset,
+    //         screenY + yOffset * 2,
+    //         1,
+    //         4,
+    //         4,
+    //         C2D_Color32(0, 0, 0, 255));
+    // }
 }
 
 void Render::renderSprites() {

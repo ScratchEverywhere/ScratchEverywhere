@@ -247,8 +247,6 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
         // 3DS res with both screens combined
         windowWidth = 400;
         windowHeight = 480;
-        return std::make_pair((screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f),
-                              (Scratch::projectHeight / 4.0f) - (screenY / windowHeight) * Scratch::projectHeight);
     }
 #endif
 
@@ -281,8 +279,8 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
 
     } else {
         // no black bars..
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+        scratchX = screenX - (windowWidth / 2);
+        scratchY = (windowHeight / 2) - screenY;
     }
 
     return std::make_pair(scratchX, scratchY);
@@ -331,11 +329,25 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     Render::calculateRenderPosition(currentSprite, isSVG);
     const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
     const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
-    const float rotation = currentSprite->rotationStyle == currentSprite->ALL_AROUND ? Math::degreesToRadians(currentSprite->rotation - 90) : 0;
 
     const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
-    const float x = cords.first;
-    const float y = cords.second;
+    float x = cords.first;
+    float y = cords.second;
+
+    // do rotation
+    float rotation;
+    if (currentSprite->rotationStyle == currentSprite->ALL_AROUND) {
+        rotation = Math::degreesToRadians(currentSprite->rotation - 90);
+    } else if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
+        rotation = Math::degreesToRadians(-180);
+        x += currentSprite->spriteWidth * (isSVG ? 2 : 1);
+    } else rotation = 0;
+
+// put position to top left of sprite (SDL platforms already do this)
+#if !defined(RENDERER_SDL1) && !defined(RENDERER_SDL2) && !defined(RENDERER_SDL3)
+    x -= (currentSprite->spriteWidth / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
+    y += (currentSprite->spriteHeight / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
+#endif
 
     std::vector<std::pair<double, double>> corners = {
         {x, y},                              // Top-left
@@ -344,10 +356,19 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         {x, y - spriteHeight}                // Bottom-left
     };
 
+    const float centerX = x + spriteWidth / 2;
+    const float centerY = y - spriteHeight / 2;
+
     for (const auto &corner : corners) {
-        collisionPoints.emplace_back(
-            corner.first * cos(rotation) - corner.second * sin(rotation),
-            corner.first * sin(rotation) + corner.second * cos(rotation));
+        // center it
+        float relX = corner.first - centerX;
+        float relY = corner.second - centerY;
+
+        // rotate it
+        float rotX = relX * cos(-rotation) - relY * sin(-rotation);
+        float rotY = relX * sin(-rotation) + relY * cos(-rotation);
+
+        collisionPoints.emplace_back(centerX + rotX, centerY + rotY);
     }
 
     return collisionPoints;
