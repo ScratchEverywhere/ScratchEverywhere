@@ -349,11 +349,11 @@ std::array<std::pair<double, double>, 4> getSpriteBoundries(Sprite *currentSprit
     y += (currentSprite->spriteHeight / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
 #endif
 
-    std::vector<std::pair<double, double>> corners = {
-        {x, y},                              // Top-left
-        {x + spriteWidth, y},                // Top-right
-        {x + spriteWidth, y - spriteHeight}, // Bottom-right
-        {x, y - spriteHeight}                // Bottom-left
+    const std::array<std::pair<double, double>, 4> corners = {
+        std::pair(x, y),                              // Top-left
+        std::pair(x + spriteWidth, y),                // Top-right
+        std::pair(x + spriteWidth, y - spriteHeight), // Bottom-right
+        std::pair(x, y - spriteHeight)                // Bottom-left
     };
 
     const float centerX = x + spriteWidth / 2;
