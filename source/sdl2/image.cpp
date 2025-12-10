@@ -1,5 +1,7 @@
 #include "image.hpp"
 #include "../scratch/image.hpp"
+#include "color.hpp"
+#include "math.hpp"
 #include "miniz.h"
 #include "os.hpp"
 #include "render.hpp"
@@ -7,6 +9,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -129,6 +132,48 @@ void Image::renderNineslice(double xPos, double yPos, double width, double heigh
     SDL_SetTextureScaleMode(originalTexture, originalScaleMode);
 }
 
+ColorRGBA Image::queryPixel(unsigned int x, unsigned int y) {
+    if (images.find(imageId) == images.end()) throw std::runtime_error("Invalid internal image state.");
+    if (x >= width || y >= height) throw std::out_of_range("Pixel coordinates outside of image.");
+
+    SDL_Image *image = images[imageId];
+    uint8_t r, g, b, a;
+    SDL_GetRGBA(reinterpret_cast<uint32_t *>(image->spriteSurface->pixels)[y * width + x], image->spriteSurface->format, &r, &g, &b, &a); // TODO: Don't assume 32-bit byte structure.
+    return {static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), static_cast<float>(a)};
+}
+
+Image Image::copyScaled(unsigned int w, unsigned int h) {
+    if (images.find(imageId) == images.end()) throw std::runtime_error("Invalid internal image state.");
+    SDL_Image *image = images[imageId];
+
+    uint32_t rmask, gmask, bmask, amask;
+    int bpp;
+    SDL_PixelFormatEnumToMasks(SDL_PIXELFORMAT_RGBA8888, &bpp, &rmask, &gmask, &bmask, &amask);
+    SDL_Surface *scaledSurface = SDL_CreateRGBSurface(0, w, h, 32, rmask, gmask, bmask, amask);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+    SDL_BlitSurface(image->spriteSurface, NULL, scaledSurface, NULL);
+
+    SDL_Image *scaledImage = new SDL_Image();
+    scaledImage->spriteSurface = scaledSurface;
+    scaledImage->spriteTexture = SDL_CreateTextureFromSurface(renderer, scaledSurface); // TODO: Error handling
+    scaledImage->renderRect = {0, 0, static_cast<int>(w), static_cast<int>(h)};
+    scaledImage->textureRect = {0, 0, static_cast<int>(w), static_cast<int>(h)};
+
+    const std::string imgId = imageId + "-" + Math::generateRandomString(8);
+    images[imgId] = scaledImage;
+
+    Image ret;
+    ret.width = w;
+    ret.height = h;
+    ret.imageId = imgId;
+    scale = 1.0;
+    rotation = 0.0;
+    opacity = 1.0;
+    images[imgId]->imageUsageCount++;
+
+    return ret;
+}
+
 /**
  * Loads a single `SDL_Image` from an unzipped filepath .
  * @param filePath
@@ -245,10 +290,10 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
         SDL_FreeSurface(surface);
         return;
     }
-    SDL_FreeSurface(surface);
 
     // Build SDL_Image object
     SDL_Image *image = new SDL_Image();
+    image->spriteSurface = surface;
     image->spriteTexture = texture;
     SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
     image->renderRect = {0, 0, image->width, image->height};
@@ -353,7 +398,6 @@ SDL_Image::SDL_Image(std::string filePath) {
         Log::logWarning(std::string("Error creating texture: ") + SDL_GetError());
         return;
     }
-    SDL_FreeSurface(spriteSurface);
 
     // get width and height of image
     int texW = 0;
@@ -380,6 +424,7 @@ void Image::queueFreeImage(const std::string &costumeId) {
 
 SDL_Image::~SDL_Image() {
     SDL_DestroyTexture(spriteTexture);
+    SDL_FreeSurface(spriteSurface);
 }
 
 void SDL_Image::setScale(float amount) {
