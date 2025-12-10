@@ -33,6 +33,9 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
                 for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
                     if (ranBlock->isRepeating) {
                         return BlockResult::RETURN;
+                    } else if (ranBlock->stopScript) {
+                        ranBlock->stopScript = false;
+                        return BlockResult::RETURN;
                     }
                 }
             }
@@ -66,6 +69,9 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
         if (subBlock) {
             for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
                 if (ranBlock->isRepeating) {
+                    return BlockResult::RETURN;
+                } else if (ranBlock->stopScript) {
+                    ranBlock->stopScript = false;
                     return BlockResult::RETURN;
                 }
             }
@@ -127,7 +133,6 @@ BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *w
 
 BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string stopType = Scratch::getFieldValue(block, "STOP_OPTION");
-    ;
     if (stopType == "all") {
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
@@ -137,10 +142,11 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
             Block *repeatBlock = &sprite->blocks[repeatID];
             if (repeatBlock) {
                 repeatBlock->repeatTimes = -1;
+                repeatBlock->isRepeating = false;
             }
         }
-
         sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
+        block.stopScript = true;
         return BlockResult::RETURN;
     }
 
