@@ -62,12 +62,12 @@ class Scratch {
  * @param sprite
  * @return Each point stored in a `std::pair`, where `[0]` is X, `[1]` is Y.
  */
-std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite);
+std::array<std::pair<double, double>, 4> getSpriteBoundries(Sprite *currentSprite);
 
 bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, std::string targetName = "");
 
-bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
-                 const std::vector<std::pair<double, double>> &poly2,
+bool isSeparated(const std::array<std::pair<double, double>, 4> &poly1,
+                 const std::array<std::pair<double, double>, 4> &poly2,
                  double axisX, double axisY);
 
 /**
