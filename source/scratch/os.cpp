@@ -315,6 +315,7 @@ void OS::createDirectory(const std::string &path) {
     while ((pos = p.find('/', pos)) != std::string::npos) {
         std::string dir = p.substr(0, pos++);
         if (dir.empty()) continue;
+        if (dir == OS::getFilesystemRootPrefix()) continue; // Fixes DS but hopefully doesn't negatively affect other platforms????
 
         struct stat st;
         if (stat(dir.c_str(), &st) != 0) {

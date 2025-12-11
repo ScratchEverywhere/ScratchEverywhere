@@ -85,9 +85,10 @@ void ProjectSettings::render() {
         UnpackMenu unpackMenu;
         unpackMenu.render();
 
-        Unzip::extractProject(OS::getScratchFolderLocation() + projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath);
+        if (Unzip::extractProject(OS::getScratchFolderLocation() + projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath)) {
+            unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+        }
 
-        unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
         unpackMenu.cleanup();
         ProjectMenu *projectMenu = new ProjectMenu();
         MenuManager::changeMenu(projectMenu);

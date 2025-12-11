@@ -92,7 +92,7 @@ class Unzip {
         WIN32_FIND_DATAW find_data;
         HANDLE hfind = FindFirstFileW(wdirectory.c_str(), &find_data);
 
-		do {
+        do {
             std::wstring wname(find_data.cFileName);
 
             if (wcscmp(wname.c_str(), L".") == 0 || wcscmp(wname.c_str(), L"..") == 0)
@@ -108,7 +108,7 @@ class Unzip {
             }
         } while (FindNextFileW(hfind, &find_data));
 
-		FindClose(hfind);
+        FindClose(hfind);
 #else
         DIR *dir = opendir(directory.c_str());
         if (!dir) {
@@ -253,6 +253,14 @@ class Unzip {
         memset(&zip, 0, sizeof(zip));
         if (!mz_zip_reader_init_file(&zip, zipPath.c_str(), 0)) {
             Log::logError("Failed to open zip: " + zipPath);
+            return false;
+        }
+
+        try {
+
+            OS::createDirectory(destFolder + "/");
+        } catch (const std::exception &e) {
+            Log::logError(e.what());
             return false;
         }
 

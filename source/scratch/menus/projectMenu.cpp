@@ -141,7 +141,7 @@ void ProjectMenu::render() {
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
 
-            if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
+            if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBoxFast") != std::string::npos) {
                 // Unpacked sb3
                 Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
                 MenuManager::loadProject();
@@ -224,7 +224,7 @@ void ProjectMenu::render() {
         projectControl->render();
     }
     backButton->render();
-    Render::endFrame();
+    Render::endFrame(false); // dont flush cus projectBoxFast might get freed otherwise
 }
 
 void ProjectMenu::cleanup() {

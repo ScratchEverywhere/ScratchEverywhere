@@ -144,8 +144,13 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
         finalPath = finalPath + "project/";
 
     finalPath = finalPath + filePath;
-    if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
-    SDL_Image *image = new SDL_Image(finalPath);
+    if (Unzip::UnpackedInSD && fromScratchProject) finalPath = Unzip::filePath + filePath;
+    SDL_Image *image = new SDL_Image(finalPath, fromScratchProject);
+
+    if (!image->spriteTexture || image->spriteTexture == NULL ||
+        !image->spriteSurface || image->spriteSurface == NULL) {
+        return false;
+    }
 
     if (sprite != nullptr) {
         sprite->spriteWidth = image->textureRect.w / 2;
@@ -321,10 +326,13 @@ void Image::FlushImages() {
 
 SDL_Image::SDL_Image() {}
 
-SDL_Image::SDL_Image(std::string filePath) {
+SDL_Image::SDL_Image(std::string filePath, bool fromScratchProject) {
 #ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-    spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+    if (!Unzip::UnpackedInSD || !fromScratchProject) {
+        const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+        spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+    } else spriteSurface = IMG_Load(filePath.c_str());
+
 #else
     spriteSurface = IMG_Load(filePath.c_str());
 #endif

@@ -92,6 +92,7 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
     std::string fullPath = filePath;
 
     if (fromScratchProject) fullPath = "project/" + fullPath;
+    if (Unzip::UnpackedInSD) fullPath = Unzip::filePath + filePath;
 
     FILE *file = fopen(fullPath.c_str(), "rb");
     if (!file) {
