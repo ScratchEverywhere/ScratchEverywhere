@@ -470,60 +470,92 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
             }
         }
 
-        if (targetSprite == nullptr || !targetSprite->visible) {
+        if (targetSprite == nullptr || !targetSprite->visible || !currentSprite->visible) {
             return false;
         }
 
-        const auto targetSpritePoints = getSpriteBoundries(targetSprite);
+        // simple AABB collision for non rotated sprites
+        if ((currentSprite->rotationStyle != currentSprite->ALL_AROUND && targetSprite->rotationStyle != targetSprite->ALL_AROUND) ||
+            (std::abs(currentSprite->rotation) == 90 && std::abs(targetSprite->rotation) == 90)) {
 
-        // Check if any point of current sprite is inside target sprite
-        for (const auto &currentPoint : currentSpritePoints) {
-            double x = currentPoint.first;
-            double y = currentPoint.second;
+            const bool currentSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
+            const bool targetSVG = targetSprite->costumes[targetSprite->currentCostume].isSVG;
 
-            // Ray casting to check if point is inside target sprite
-            int intersections = 0;
-            for (int i = 0; i < 4; i++) {
-                int j = (i + 1) % 4;
-                double x1 = targetSpritePoints[i].first, y1 = targetSpritePoints[i].second;
-                double x2 = targetSpritePoints[j].first, y2 = targetSpritePoints[j].second;
+            Render::calculateRenderPosition(currentSprite, currentSVG);
+            Render::calculateRenderPosition(targetSprite, targetSVG);
 
-                if (((y1 > y) != (y2 > y)) &&
-                    (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)) {
-                    intersections++;
-                }
+            const auto &currentCords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
+            float currentX = currentCords.first;
+            float currentY = currentCords.second;
+
+            const auto &targetCords = Scratch::screenToScratchCoords(targetSprite->renderInfo.renderX, targetSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
+            float targetX = targetCords.first;
+            float targetY = targetCords.second;
+
+            // put position to top left of sprite (SDL platforms already do this)
+#if !defined(RENDERER_SDL1) && !defined(RENDERER_SDL2) && !defined(RENDERER_SDL3)
+            currentX -= (currentSprite->spriteWidth / (currentSVG ? 1 : 2)) * currentSprite->size * 0.01;
+            currentY += (currentSprite->spriteHeight / (currentSVG ? 1 : 2)) * currentSprite->size * 0.01;
+            targetX -= (targetSprite->spriteWidth / (targetSVG ? 1 : 2)) * targetSprite->size * 0.01;
+            targetY += (targetSprite->spriteHeight / (targetSVG ? 1 : 2)) * targetSprite->size * 0.01;
+#endif
+
+            const float currentMinX = currentX;
+            const float currentMaxX = currentX + currentSprite->spriteWidth * (currentSVG ? 2 : 1);
+            const float currentMinY = currentY;
+            const float currentMaxY = currentY + currentSprite->spriteHeight * (currentSVG ? 2 : 1);
+
+            const float targetMinX = targetX;
+            const float targetMaxX = targetX + targetSprite->spriteWidth * (targetSVG ? 2 : 1);
+            const float targetMinY = targetY;
+            const float targetMaxY = targetY + targetSprite->spriteHeight * (targetSVG ? 2 : 1);
+
+            return (currentMinX <= targetMaxX && currentMaxX >= targetMinX) &&
+                   (currentMinY <= targetMaxY && currentMaxY >= targetMinY);
+        }
+
+        // SAT collision for rotated sprites
+
+        std::vector<std::pair<double, double>> targetSpritePoints = getSpriteBoundries(targetSprite);
+
+        bool collision = true;
+
+        for (int i = 0; i < 4; i++) {
+
+            auto edge1 = std::pair{
+                currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
+                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
+            auto edge2 = std::pair{
+                targetSpritePoints[(i + 1) % 4].first - targetSpritePoints[i].first,
+                targetSpritePoints[(i + 1) % 4].second - targetSpritePoints[i].second};
+
+            double axis1X = -edge1.second, axis1Y = edge1.first;
+            double axis2X = -edge2.second, axis2Y = edge2.first;
+
+            double len1 = sqrt(axis1X * axis1X + axis1Y * axis1Y);
+            if (len1 > 0) {
+                axis1X /= len1;
+                axis1Y /= len1;
+            }
+            double len2 = sqrt(axis2X * axis2X + axis2Y * axis2Y);
+            if (len2 > 0) {
+                axis2X /= len2;
+                axis2Y /= len2;
             }
 
-            if ((intersections % 2) == 1) {
-                return true;
+            if (isSeparated(currentSpritePoints, targetSpritePoints, axis1X, axis1Y) ||
+                isSeparated(currentSpritePoints, targetSpritePoints, axis2X, axis2Y)) {
+
+                collision = false;
+                break;
             }
         }
 
-        // Check if any point of target sprite is inside current sprite
-        for (const auto &targetPoint : targetSpritePoints) {
-            double x = targetPoint.first;
-            double y = targetPoint.second;
-
-            // Ray casting to check if point is inside current sprite
-            int intersections = 0;
-            for (int i = 0; i < 4; i++) {
-                int j = (i + 1) % 4;
-                double x1 = currentSpritePoints[i].first, y1 = currentSpritePoints[i].second;
-                double x2 = currentSpritePoints[j].first, y2 = currentSpritePoints[j].second;
-
-                if (((y1 > y) != (y2 > y)) &&
-                    (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)) {
-                    intersections++;
-                }
-            }
-
-            if ((intersections % 2) == 1) {
-                return true;
-            }
-        }
+        return collision;
+    } else {
+        Log::logWarning("Invalid collision type " + collisionType);
+        return false;
     }
-
-    return false;
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
