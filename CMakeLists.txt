@@ -2,13 +2,12 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 0.30.1 LANGUAGES CXX C)
 
-# error C7555: use of designated initializers requires at least '/std:c++20'
-if(MSVC)
-	set(CMAKE_CXX_STANDARD 20)
-else()
-	set(CMAKE_CXX_STANDARD 17)
-endif()
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
 
@@ -78,6 +77,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
 	endif()
 endif()
+set(CPM_SOURCE_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS)
@@ -118,6 +118,17 @@ FetchContent_Declare(
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(miniz)
+
+if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "sdl1")
+	CPMAddPackage(
+		NAME clay
+		GITHUB_REPOSITORY nicbarker/clay
+		VERSION 0.14
+		DOWNLOAD_ONLY TRUE
+		GIT_TAG main # I used a newer version of the lib when I originally started working on the PR and don't really feel like downgrading...
+		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clay.patch"
+	)
+endif()
 
 if(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
@@ -375,6 +386,10 @@ endif()
 
 if(NOT BUILD_SHARED_LIBS AND MINGW)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
+endif()
+
+if (SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "sdl1")
+	target_include_directories(scratch-everywhere PRIVATE "${clay_SOURCE_DIR}" "${clay_SOURCE_DIR}/renderers/SDL2")
 endif()
 
 if(SE_RENDERER STREQUAL "sdl3")

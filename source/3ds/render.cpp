@@ -7,6 +7,7 @@
 #include "image.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
+#include "menus/menuManager.hpp"
 #include "text.hpp"
 #include "unzip.hpp"
 #include <chrono>
@@ -45,7 +46,7 @@ bool Render::Init() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
     if (kDown & KEY_SELECT) {
-        consoleInit(GFX_BOTTOM, NULL);
+        consoleInit(GFX_TOP, NULL);
         debugMode = true;
         isConsoleInit = true;
     }
@@ -65,6 +66,8 @@ bool Render::Init() {
 
     return true;
 }
+
+static touchPosition touch;
 
 bool Render::appShouldRun() {
     if (toExit) return false;
@@ -357,8 +360,9 @@ void Render::renderSprites() {
     const float depthScale = 8.0f / sprites.size();
 
     // ---------- LEFT EYE ----------
+    C2D_TargetClear(topScreen, clrWhite);
+    C2D_SceneBegin(topScreen);
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_TargetClear(topScreen, clrWhite);
         currentScreen = 0;
 
         size_t i = 0;
@@ -415,9 +419,9 @@ void Render::renderSprites() {
         drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     // ---------- RIGHT EYE ----------
+    C2D_TargetClear(topScreenRightEye, clrWhite);
+    C2D_SceneBegin(topScreenRightEye);
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(topScreenRightEye);
-        C2D_TargetClear(topScreenRightEye, clrWhite);
         currentScreen = 0;
 
         size_t i = 0;
@@ -467,9 +471,9 @@ void Render::renderSprites() {
     }
 
     // ---------- BOTTOM SCREEN ----------
+    C2D_TargetClear(bottomScreen, clrWhite);
+    C2D_SceneBegin(bottomScreen);
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(bottomScreen);
-        C2D_TargetClear(bottomScreen, clrWhite);
 
         if (Render::renderMode != Render::BOTH_SCREENS)
             currentScreen = 1;
