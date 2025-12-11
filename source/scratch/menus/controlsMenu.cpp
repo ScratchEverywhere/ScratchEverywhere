@@ -11,7 +11,7 @@ ControlsMenu::~ControlsMenu() {
 
 void ControlsMenu::init() {
 
-    Unzip::filePath = projectPath + ".sb3";
+    Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
     if (!Unzip::load()) {
         Log::logError("Failed to load project for ControlsMenu.");
         toExit = true;

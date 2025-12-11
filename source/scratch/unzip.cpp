@@ -82,7 +82,7 @@ int Unzip::openFile(std::istream *&file) {
         Log::log("Normal .sb3 project in SD card ");
         file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
         if (!(*file)) {
-            Log::logError("Couldnt find file. jinkies.");
+            Log::logError("Couldnt find file. jinkies. " + filePath);
             Log::logWarning(filePath);
             return 0;
         }
