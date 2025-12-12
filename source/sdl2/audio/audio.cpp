@@ -4,6 +4,7 @@
 #include "interpret.hpp"
 #include "miniz.h"
 #include "sprite.hpp"
+#include <SDL_endian.h>
 #include <string>
 #include <unordered_map>
 #ifdef __3DS__
@@ -69,7 +70,7 @@ static void *decodeADPCMtoPCM(const void *adpcmData, size_t adpcmSize, size_t *o
 
     // Parse fmt chunk
     size_t pos = 12;
-    uint16_t channels = 0, bitsPerSample = 0, blockAlign = 0;
+    uint16_t channels = 0, blockAlign = 0;
     uint32_t sampleRate = 0;
     size_t dataOffset = 0, dataSize = 0;
 
@@ -84,7 +85,6 @@ static void *decodeADPCMtoPCM(const void *adpcmData, size_t adpcmSize, size_t *o
             channels = data[pos + 10] | (data[pos + 11] << 8);
             sampleRate = data[pos + 12] | (data[pos + 13] << 8) | (data[pos + 14] << 16) | (data[pos + 15] << 24);
             blockAlign = data[pos + 20] | (data[pos + 21] << 8);
-            bitsPerSample = data[pos + 22] | (data[pos + 23] << 8);
         } else if (memcmp(data + pos, "data", 4) == 0) {
             dataOffset = pos + 8;
             dataSize = chunkSize;
@@ -95,6 +95,11 @@ static void *decodeADPCMtoPCM(const void *adpcmData, size_t adpcmSize, size_t *o
     }
 
     if (dataOffset == 0 || dataSize == 0 || channels == 0 || blockAlign == 0) {
+        return nullptr;
+    }
+
+    // Only mono ADPCM supported
+    if (channels != 1) {
         return nullptr;
     }
 
@@ -165,7 +170,7 @@ static void *decodeADPCMtoPCM(const void *adpcmData, size_t adpcmSize, size_t *o
 
             // First sample is the predictor itself
             if (outPos < totalSamples) {
-                pcmOut[outPos++] = predictor[ch];
+                pcmOut[outPos++] = SDL_SwapLE16(predictor[ch]);
             }
         }
 
@@ -173,31 +178,12 @@ static void *decodeADPCMtoPCM(const void *adpcmData, size_t adpcmSize, size_t *o
         const uint8_t *adpcmBytes = blockPtr + 4 * channels;
         size_t bytesInBlock = blockAlign - 4 * channels;
 
-        if (channels == 1) {
-            // Mono: sequential nibbles
-            for (size_t i = 0; i < bytesInBlock && outPos < totalSamples; i++) {
-                uint8_t byte = adpcmBytes[i];
-                pcmOut[outPos++] = decodeADPCMNibble(byte & 0x0F, predictor[0], stepIndex[0]);
-                if (outPos < totalSamples) {
-                    pcmOut[outPos++] = decodeADPCMNibble((byte >> 4) & 0x0F, predictor[0], stepIndex[0]);
-                }
-            }
-        } else {
-            // Stereo: interleaved 4-byte chunks per channel
-            for (size_t i = 0; i < bytesInBlock && outPos < totalSamples; i += 8) {
-                // 4 bytes for left channel, then 4 bytes for right
-                for (int chunk = 0; chunk < 2 && (i + chunk * 4) < bytesInBlock; chunk++) {
-                    int ch = chunk;
-                    for (int b = 0; b < 4 && outPos < totalSamples; b++) {
-                        uint8_t byte = adpcmBytes[i + chunk * 4 + b];
-                        int16_t samp1 = decodeADPCMNibble(byte & 0x0F, predictor[ch], stepIndex[ch]);
-                        int16_t samp2 = decodeADPCMNibble((byte >> 4) & 0x0F, predictor[ch], stepIndex[ch]);
-                        // For stereo, we need to interleave properly
-                        // This simplified version may not be perfect for stereo
-                        pcmOut[outPos++] = samp1;
-                        if (outPos < totalSamples) pcmOut[outPos++] = samp2;
-                    }
-                }
+        // Mono: sequential nibbles
+        for (size_t i = 0; i < bytesInBlock && outPos < totalSamples; i++) {
+            uint8_t byte = adpcmBytes[i];
+            pcmOut[outPos++] = SDL_SwapLE16(decodeADPCMNibble(byte & 0x0F, predictor[0], stepIndex[0]));
+            if (outPos < totalSamples) {
+                pcmOut[outPos++] = SDL_SwapLE16(decodeADPCMNibble((byte >> 4) & 0x0F, predictor[0], stepIndex[0]));
             }
         }
 
