@@ -5,7 +5,6 @@ class ControlsMenu : public Menu {
   public:
     ButtonObject *backButton = nullptr;
     ButtonObject *applyButton = nullptr;
-    int cameraY;
 
     class key {
       public:

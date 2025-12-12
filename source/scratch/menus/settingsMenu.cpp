@@ -18,10 +18,10 @@ void SettingsMenu::init() {
     // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     // Credits->text->setColor(Math::color(0, 0, 0, 255));
     // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 30, "gfx/menu/Ubuntu-Bold");
     EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
     EnableUsername->text->setScale(0.5);
-    ChangeUsername = new ButtonObject("name: Player", "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
+    ChangeUsername = new ButtonObject("name: Player", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
     ChangeUsername->text->setScale(0.5);
 
@@ -67,9 +67,11 @@ void SettingsMenu::init() {
         EnableUsername->buttonDown = ChangeUsername;
         EnableUsername->buttonUp = ChangeUsername;
         ChangeUsername->canBeClicked = true;
+        ChangeUsername->hidden = false;
     } else {
         EnableUsername->text->setText("Username: Disabled");
         ChangeUsername->canBeClicked = false;
+        ChangeUsername->hidden = true;
 
         EnableUsername->buttonDown = EnableUsername;
         EnableUsername->buttonUp = EnableUsername;
@@ -91,8 +93,8 @@ void SettingsMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 147, 138, 168);
-    Render::beginFrame(1, 147, 138, 168);
+    Render::beginFrame(0, 96, 90, 105);
+    Render::beginFrame(1, 96, 90, 105);
 
     backButton->render();
     // Credits->render();
@@ -104,6 +106,7 @@ void SettingsMenu::render() {
             UseCostumeUsername = false;
             EnableUsername->text->setText("Username: Disabled");
             ChangeUsername->canBeClicked = false;
+            ChangeUsername->hidden = true;
             if (settingsControl->selectedObject == ChangeUsername) settingsControl->selectedObject = EnableUsername;
 
             EnableUsername->buttonDown = EnableUsername;
@@ -113,6 +116,7 @@ void SettingsMenu::render() {
             EnableUsername->text->setText("Username: Enabled");
             ChangeUsername->text->setText("name: " + username);
             ChangeUsername->canBeClicked = true;
+            ChangeUsername->hidden = false;
 
             EnableUsername->buttonDown = ChangeUsername;
             EnableUsername->buttonUp = ChangeUsername;
