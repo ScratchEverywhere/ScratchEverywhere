@@ -233,7 +233,7 @@ BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withou
 BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     std::string effect = Scratch::getFieldValue(block, "EFFECT");
-    ;
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
     Value amount = Scratch::getInputValue(block, "VALUE", sprite);
 
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
@@ -260,7 +260,7 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *without
 }
 BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string effect = Scratch::getFieldValue(block, "EFFECT");
-    ;
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
     Value amount = Scratch::getInputValue(block, "CHANGE", sprite);
 
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
