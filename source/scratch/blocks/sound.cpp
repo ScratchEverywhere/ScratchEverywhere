@@ -31,10 +31,13 @@ BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, bool *
         if (!soundFound && Math::isNumber(inputValue.asString())) {
             int soundIndex = inputValue.asInt() - 1;
             if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
-                auto it = sprite->sounds.begin();
-                std::advance(it, soundIndex);
-                soundFullName = it->second.fullName;
-                soundFound = true;
+                for (const auto &[name, sound] : sprite->sounds) {
+                    if (sound.insertionOrder == static_cast<size_t>(soundIndex)) {
+                        soundFullName = sound.fullName;
+                        soundFound = true;
+                        break;
+                    }
+                }
             }
         }
 
@@ -56,9 +59,12 @@ BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, bool *
     } else if (Math::isNumber(inputValue.asString())) {
         int soundIndex = inputValue.asInt() - 1;
         if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
-            auto it = sprite->sounds.begin();
-            std::advance(it, soundIndex);
-            checkSoundName = it->second.fullName;
+            for (const auto &[name, sound] : sprite->sounds) {
+                if (sound.insertionOrder == static_cast<size_t>(soundIndex)) {
+                    checkSoundName = sound.fullName;
+                    break;
+                }
+            }
         }
     }
 
@@ -87,10 +93,13 @@ BlockResult SoundBlocks::playSound(Block &block, Sprite *sprite, bool *withoutSc
     if (!soundFound && Math::isNumber(inputValue.asString())) {
         int soundIndex = inputValue.asInt() - 1;
         if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
-            auto it = sprite->sounds.begin();
-            std::advance(it, soundIndex);
-            soundFullName = it->second.fullName;
-            soundFound = true;
+            for (const auto &[name, sound] : sprite->sounds) {
+                if (sound.insertionOrder == static_cast<size_t>(soundIndex)) {
+                    soundFullName = sound.fullName;
+                    soundFound = true;
+                    break;
+                }
+            }
         }
     }
 

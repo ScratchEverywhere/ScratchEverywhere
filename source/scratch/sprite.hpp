@@ -105,6 +105,7 @@ struct Sound {
     std::string fullName;
     int sampleRate;
     int sampleCount;
+    size_t insertionOrder;
 };
 
 struct Costume {
@@ -137,6 +138,7 @@ struct Broadcast {
 struct BlockChain {
     std::vector<Block *> blockChain;
     std::vector<std::string> blocksToRepeat;
+    size_t insertionOrder;
 };
 
 struct Monitor {
