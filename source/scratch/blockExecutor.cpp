@@ -392,7 +392,10 @@ void BlockExecutor::runRepeatBlocks() {
     // repeat ONLY the block most recently added to the repeat chain,,,
     std::vector<Sprite *> sprToRun = sprites;
     for (auto &sprite : sprToRun) {
-        for (auto &[id, blockChain] : sprite->blockChains) {
+        for (const std::string &chainId : sprite->blockChainOrder) {
+            auto it = sprite->blockChains.find(chainId);
+            if (it == sprite->blockChains.end()) continue;
+            auto &blockChain = it->second;
             auto &repeatList = blockChain.blocksToRepeat;
             if (!repeatList.empty()) {
                 std::string toRepeat = repeatList.back();
@@ -680,13 +683,13 @@ void BlockExecutor::updateMonitors() {
                     else if (var.opcode == "sensing_current")
                         var.displayName = std::string(MonitorDisplayNames::getCurrentMenuMonitorName(Scratch::getFieldValue(newBlock, "CURRENTMENU")));
                     else {
-                    	auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
-                    	if (spriteName != var.opcode) {
-                    	    var.displayName = var.spriteName + ": " + std::string(spriteName);
-                    	} else {
-                    	    auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
-                    	    var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
-                    	}
+                        auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
+                        if (spriteName != var.opcode) {
+                            var.displayName = var.spriteName + ": " + std::string(spriteName);
+                        } else {
+                            auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
+                            var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
+                        }
                     }
                     var.value = executor.getBlockValue(newBlock, sprite);
                 } catch (...) {
