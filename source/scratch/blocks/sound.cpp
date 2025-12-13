@@ -30,12 +30,13 @@ BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, bool *
         // If not found by name and input is a number, try index-based lookup
         if (!soundFound && Math::isNumber(inputValue.asString())) {
             int soundIndex = inputValue.asInt() - 1;
-            if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->soundOrder.size()) {
-                const std::string &soundName = sprite->soundOrder[soundIndex];
-                auto it = sprite->sounds.find(soundName);
-                if (it != sprite->sounds.end()) {
-                    soundFullName = it->second.fullName;
-                    soundFound = true;
+            if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
+                for (const auto &[name, sound] : sprite->sounds) {
+                    if (sound.insertionOrder == static_cast<size_t>(soundIndex)) {
+                        soundFullName = sound.fullName;
+                        soundFound = true;
+                        break;
+                    }
                 }
             }
         }
@@ -57,11 +58,12 @@ BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, bool *
         checkSoundName = soundFind->second.fullName;
     } else if (Math::isNumber(inputValue.asString())) {
         int soundIndex = inputValue.asInt() - 1;
-        if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->soundOrder.size()) {
-            const std::string &soundName = sprite->soundOrder[soundIndex];
-            auto it = sprite->sounds.find(soundName);
-            if (it != sprite->sounds.end()) {
-                checkSoundName = it->second.fullName;
+        if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
+            for (const auto &[name, sound] : sprite->sounds) {
+                if (sound.insertionOrder == static_cast<size_t>(soundIndex)) {
+                    checkSoundName = sound.fullName;
+                    break;
+                }
             }
         }
     }
@@ -90,12 +92,13 @@ BlockResult SoundBlocks::playSound(Block &block, Sprite *sprite, bool *withoutSc
     // If not found by name and input is a number, try index-based lookup
     if (!soundFound && Math::isNumber(inputValue.asString())) {
         int soundIndex = inputValue.asInt() - 1;
-        if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->soundOrder.size()) {
-            const std::string &soundName = sprite->soundOrder[soundIndex];
-            auto it = sprite->sounds.find(soundName);
-            if (it != sprite->sounds.end()) {
-                soundFullName = it->second.fullName;
-                soundFound = true;
+        if (soundIndex >= 0 && static_cast<size_t>(soundIndex) < sprite->sounds.size()) {
+            for (const auto &[name, sound] : sprite->sounds) {
+                if (sound.insertionOrder == static_cast<size_t>(soundIndex)) {
+                    soundFullName = sound.fullName;
+                    soundFound = true;
+                    break;
+                }
             }
         }
     }

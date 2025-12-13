@@ -821,8 +821,8 @@ void loadSprites(const nlohmann::json &json) {
             newSound.dataFormat = data["dataFormat"];
             newSound.sampleRate = data["rate"];
             newSound.sampleCount = data["sampleCount"];
+            newSound.insertionOrder = newSprite->sounds.size();
             newSprite->sounds[newSound.name] = newSound;
-            newSprite->soundOrder.emplace_back(newSound.name);
         }
 
         // set Costumes
@@ -1118,8 +1118,8 @@ void loadSprites(const nlohmann::json &json) {
             std::string outID;
             BlockChain chain;
             chain.blockChain = getBlockChain(block.id, &outID);
+            chain.insertionOrder = currentSprite->blockChains.size();
             currentSprite->blockChains[outID] = chain;
-            currentSprite->blockChainOrder.emplace_back(outID);
             block.blockChainID = outID;
 
             for (auto &chainBlock : chain.blockChain) {

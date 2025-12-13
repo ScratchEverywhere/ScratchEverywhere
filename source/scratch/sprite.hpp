@@ -105,6 +105,7 @@ struct Sound {
     std::string fullName;
     int sampleRate;
     int sampleCount;
+    size_t insertionOrder;
 };
 
 struct Costume {
@@ -137,6 +138,7 @@ struct Broadcast {
 struct BlockChain {
     std::vector<Block *> blockChain;
     std::vector<std::string> blocksToRepeat;
+    size_t insertionOrder;
 };
 
 struct Monitor {
@@ -209,13 +211,11 @@ class Sprite {
     std::map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
     std::map<std::string, Sound> sounds;
-    std::vector<std::string> soundOrder; // Preserves project order for index-based lookup
     std::vector<Costume> costumes;
     std::unordered_map<std::string, Comment> comments;
     std::unordered_map<std::string, Broadcast> broadcasts;
     std::unordered_map<std::string, CustomBlock> customBlocks;
     std::unordered_map<std::string, BlockChain> blockChains;
-    std::vector<std::string> blockChainOrder; // Preserves project order for deterministic execution
 
     ~Sprite() {
         variables.clear();
