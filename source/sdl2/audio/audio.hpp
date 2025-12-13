@@ -18,6 +18,7 @@ class SDL_Audio {
     bool isLoaded = false;
     bool isPlaying = false;
     bool isStreaming = false;
+    bool useStdFree = false; // True if file_data was allocated with malloc (vs mz_alloc)
     bool needsToBePlayed = true;
     bool smoothTransition = false;
     double musicPosition = 0.0;
