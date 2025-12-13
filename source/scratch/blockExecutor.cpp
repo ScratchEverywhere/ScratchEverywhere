@@ -522,13 +522,19 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
 std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::string broadcastToRun) {
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
+    // Normalize broadcast name to lowercase for case-insensitive matching
+    std::transform(broadcastToRun.begin(), broadcastToRun.end(), broadcastToRun.begin(), ::tolower);
+
     // find all matching "when I receive" blocks
     std::vector<Sprite *> sprToRun = sprites;
     for (auto *currentSprite : sprToRun) {
         for (auto &[id, block] : currentSprite->blocks) {
-            if (block.opcode == "event_whenbroadcastreceived" &&
-                Scratch::getFieldValue(block, "BROADCAST_OPTION") == broadcastToRun) {
-                blocksToRun.insert(blocksToRun.begin(), {&block, currentSprite});
+            if (block.opcode == "event_whenbroadcastreceived") {
+                std::string receiverName = Scratch::getFieldValue(block, "BROADCAST_OPTION");
+                std::transform(receiverName.begin(), receiverName.end(), receiverName.begin(), ::tolower);
+                if (receiverName == broadcastToRun) {
+                    blocksToRun.insert(blocksToRun.begin(), {&block, currentSprite});
+                }
             }
         }
     }
@@ -680,13 +686,13 @@ void BlockExecutor::updateMonitors() {
                     else if (var.opcode == "sensing_current")
                         var.displayName = std::string(MonitorDisplayNames::getCurrentMenuMonitorName(Scratch::getFieldValue(newBlock, "CURRENTMENU")));
                     else {
-                    	auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
-                    	if (spriteName != var.opcode) {
-                    	    var.displayName = var.spriteName + ": " + std::string(spriteName);
-                    	} else {
-                    	    auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
-                    	    var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
-                    	}
+                        auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
+                        if (spriteName != var.opcode) {
+                            var.displayName = var.spriteName + ": " + std::string(spriteName);
+                        } else {
+                            auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
+                            var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
+                        }
                     }
                     var.value = executor.getBlockValue(newBlock, sprite);
                 } catch (...) {
