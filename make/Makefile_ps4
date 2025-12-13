@@ -11,6 +11,7 @@ CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 ENABLE_CLOUDVARS	?= 0
 ENABLE_AUDIO		?= 1
 ENABLE_LOADSCREEN	?= 1
+ENABLE_MENU		?=	1
 
 # Libraries linked into the ELF.
 LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceSysmodule -lSceAudioOut -lSceUserService \
@@ -25,8 +26,8 @@ TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 TARGET		:= scratch-ps4
 BUILD		:= build/ps4
 GRAPHICS	:= gfx
-SOURCES		:= source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio include/miniz include/nlohmann
-INCLUDES	:= include source/scratch source/scratch/blocks source/scratch/menus source/sdl2 include/nlohmann include/miniz 
+SOURCES		:= source source/scratch source/scratch/blocks source/sdl2 source/sdl2/audio include/miniz include/nlohmann
+INCLUDES	:= include source/scratch source/scratch/blocks source/sdl2 include/nlohmann include/miniz 
 FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
 			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
 			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
@@ -48,6 +49,15 @@ $(error "The OpenOrbis toolchain is required to build for PS4. Please set OO_PS4
 endif
 ifeq ($(strip $(PACBREW)),)
 $(error "Pacbrew packages are required to build for PS4. Please set PACBREW in your environment; export PACBREW=<path to>PACBREW")
+endif
+
+# Handle main menu
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+EXTRAFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
 endif
 
 # Handle cloudvars and mist++

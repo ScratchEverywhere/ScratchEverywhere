@@ -38,9 +38,9 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/sdl3/audio
+SOURCES		:=	source source/3ds source/scratch source/scratch/blocks include/miniz source/sdl3/audio
 DATA		:=	data
-INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/sdl3/audio include/miniz
+INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/sdl3/audio include/miniz
 GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
@@ -51,6 +51,7 @@ ENABLE_CLOUDVARS	?=	0
 ENABLE_LOADSCREEN	  ?=	1
 ENABLE_AUDIO	?=	1
 ENABLE_DOWNLOAD	?=	1
+ENABLE_MENU		?=	1
 RAM_AMOUNT		?= 72
 
 # Check for SDL3 libraries
@@ -88,6 +89,14 @@ CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
+endif
 
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lSDL3_mixer -lSDL3 -lmpg123
@@ -155,7 +164,11 @@ BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 ALLGFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.*)))
 
 FONTFILES := $(shell find $(GRAPHICS) -type f -iname "*.ttf" 2>/dev/null)
+ifeq ($(ENABLE_MENU),1)
 ROMFS_FONTFILES := $(patsubst $(GRAPHICS)/%,$(GFXBUILD)/%,$(FONTFILES:.ttf=.bcfnt))
+else
+ROMFS_FONTFILES :=
+endif
 
 
 #---------------------------------------------------------------------------------
@@ -241,7 +254,9 @@ $(BUILD):
 ifneq ($(GFXBUILD),$(BUILD))
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
+endif
 #	@cp -r $(GRAPHICS)/ingame $@/
 endif
 

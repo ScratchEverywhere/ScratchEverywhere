@@ -28,8 +28,8 @@ RANLIB		:= $(PREFIX)ranlib
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-ds
 BUILD		:=	build/nds
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/nds include/miniz
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/nds include/nlohmann include/miniz
+SOURCES		:=	source source/scratch source/scratch/blocks source/nds include/miniz
+INCLUDES	:=	include source/scratch source/scratch/blocks source/nds include/nlohmann include/miniz
 DATA		:=
 NITRODATA	:=	romfs
 GRAPHICS	:=	gfx
@@ -44,6 +44,11 @@ GAME_SUBTITLE2	:=	NateXS
 GAME_ICON		:=	$(CURDIR)/../../gfx/nds/icon.bmp
 
 
+#---------------------------------------------------------------------------------
+# config options
+#---------------------------------------------------------------------------------
+ENABLE_MENU		?=	1
+ENABLE_AUDIO	?=	1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -73,6 +78,11 @@ LIBS	:= -lstdc++ -lc -lnds9 -lmm9
 #---------------------------------------------------------------------------------
 LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
 
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+endif
 
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lmm9
@@ -138,7 +148,11 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
+else
+	@cp $(GRAPHICS)/menu/Ubuntu-Bold.ttf $@/
+endif
 #	@cp -r $(GRAPHICS)/ingame $@/
 
 #---------------------------------------------------------------------------------

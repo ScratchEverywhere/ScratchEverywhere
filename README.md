@@ -371,6 +371,7 @@ Compilation flags are used to select which features will be enabled in the compi
 -   `ENABLE_LOADSCREEN` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
 -   `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
 -   `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
+-   `ENABLE_MENU` (default: `1`): If set to 1, the SE! main menu is enabled. It's good to disable this when packaging a project, as the file size is lowered.
 -   **[Old 3DS]** `RAM_AMOUNT` (default: `72`): the amount of RAM, in megabytes, the old 3DS should be using. Can be set to `32`, `64`, `72`, `80`, or `96`.
 
 ## Disclaimer

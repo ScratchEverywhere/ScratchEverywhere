@@ -1,5 +1,7 @@
 #include "interpret.hpp"
+#ifdef ENABLE_MENU
 #include "scratch/menus/mainMenu.hpp"
+#endif
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
 #include <cstdlib>
@@ -26,6 +28,7 @@ static bool initApp() {
 }
 
 bool activateMainMenu() {
+#ifdef ENABLE_MENU
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
@@ -45,6 +48,7 @@ bool activateMainMenu() {
         emscripten_sleep(0);
 #endif
     }
+#endif
     return false;
 }
 
