@@ -30,20 +30,20 @@ void ControlsMenu::init() {
             } else if (block.opcode == "event_whenkeypressed") {
                 buttonCheck = Input::convertToKey(Value(Scratch::getFieldValue(block, "KEY_OPTION")));
             } else if (block.opcode == "makeymakey_whenMakeyKeyPressed") {
-                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite));
+                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite), true);
             } else if (block.opcode == "makeymakey_whenCodePressed") {
                 std::string input = Scratch::getInputValue(block, "SEQUENCE", sprite).asString();
                 size_t start = 0;
-                size_t end = input.find(' ');
-                while (end != std::string::npos) {
+                size_t end;
+                while ((end = input.find(' ', start)) != std::string::npos) {
                     buttonCheck = input.substr(start, end - start);
                     if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                         Log::log("Found new control: " + buttonCheck);
                         controls.push_back(buttonCheck);
                     }
                     start = end + 1;
-                    end = input.find(' ', start);
                 }
+                buttonCheck = input.substr(start);
                 if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                     Log::log("Found new control: " + buttonCheck);
                     controls.push_back(buttonCheck);
