@@ -103,7 +103,9 @@ bool Value::asBoolean() const {
         return std::get<double>(value) != 0.0 && !isNaN();
     }
     if (isString()) {
-        return std::get<std::string>(value) != "" && std::get<std::string>(value) != "0" && std::get<std::string>(value) != "false";
+        std::string strValue = std::get<std::string>(value);
+        std::transform(strValue.begin(), strValue.end(), strValue.begin(), ::tolower);
+        return strValue != "" && strValue != "0" && strValue != "false";
     }
     if (isColor()) {
         const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
