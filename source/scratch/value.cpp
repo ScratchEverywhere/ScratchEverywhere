@@ -223,7 +223,7 @@ bool Value::isScratchInt() {
     if (isDouble()) {
         if (std::isnan(asDouble())) return true;
         try {
-            return std::stoi(asString()) == asDouble();
+            return std::abs(asDouble()) < 1e21 && std::floor(asDouble()) == asDouble();
         } catch (...) {
             return false;
         }
