@@ -267,7 +267,7 @@ Value DataBlocks::itemNumOfList(Block &block, Sprite *sprite) {
         }
     }
 
-    return Value();
+    return Value(0);
 }
 
 Value DataBlocks::lengthOfList(Block &block, Sprite *sprite) {
