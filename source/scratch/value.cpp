@@ -2,6 +2,8 @@
 #include "math.hpp"
 #include "os.hpp"
 #include <regex>
+#include <array>
+#include <charconv>
 
 Value::Value(int val) : value(val) {}
 
@@ -64,11 +66,12 @@ std::string Value::asString() const {
         return std::to_string(std::get<int>(value));
     } else if (isDouble()) {
         double doubleValue = std::get<double>(value);
-        // handle whole numbers too, because scratch i guess
         if (std::isnan(doubleValue)) return "NaN";
         if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
-        if (std::floor(doubleValue) == doubleValue) return std::to_string(static_cast<int>(doubleValue));
-        return std::to_string(doubleValue);
+        std::array<char, 24> buffer;
+        std::to_chars_result result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), doubleValue);
+        *result.ptr = '\0';
+        return buffer.data();
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
