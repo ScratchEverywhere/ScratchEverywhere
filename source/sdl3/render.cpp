@@ -201,21 +201,8 @@ bool Render::initPen() {
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
 
-#if defined(__PC__) || defined(__WIIU__) // Only these platforms seem to support custom blend modes.
-    const SDL_BlendMode blendMode = SDL_ComposeCustomBlendMode(
-        SDL_BLENDFACTOR_ONE,
-        SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        SDL_BLENDOPERATION_ADD,
-
-        SDL_BLENDFACTOR_ONE,
-        SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        SDL_BLENDOPERATION_ADD);
-#else
-    const SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
-#endif
-
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penTexture->w, penTexture->h);
-    SDL_SetTextureBlendMode(tempTexture, blendMode);
+    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(tempTexture, SDL_SCALEMODE_NEAREST);
     SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
@@ -251,7 +238,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     filledCircleRGBA(renderer, x2 * scale + penTexture->w / 2.0f, -y2 * scale + penTexture->h / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
-    SDL_SetRenderDrawBlendMode(renderer, blendMode);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_RenderTexture(renderer, tempTexture, NULL, NULL);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderTarget(renderer, nullptr);
@@ -259,21 +246,8 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
 }
 
 void Render::penDot(Sprite *sprite) {
-#if defined(__PC__) || defined(__WIIU__) // Only these platforms seem to support custom blend modes.
-    const SDL_BlendMode blendMode = SDL_ComposeCustomBlendMode(
-        SDL_BLENDFACTOR_ONE,
-        SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        SDL_BLENDOPERATION_ADD,
-
-        SDL_BLENDFACTOR_ONE,
-        SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        SDL_BLENDOPERATION_ADD);
-#else
-    const SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
-#endif
-
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penTexture->w, penTexture->h);
-    SDL_SetTextureBlendMode(tempTexture, blendMode);
+    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(tempTexture, SDL_SCALEMODE_NEAREST);
     SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
