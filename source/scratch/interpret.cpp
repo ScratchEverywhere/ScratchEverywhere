@@ -587,7 +587,8 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
 
-    sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(std::round(costumeIndex) / sprite->costumes.size()) * sprite->costumes.size()) : 0;
+    costumeIndex = std::round(costumeIndex);
+    sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
     Image::loadImageFromProject(sprite);
 
