@@ -321,8 +321,8 @@ void cleanupSprites() {
     spritePool.clear();
 }
 
-std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
-    std::vector<std::pair<double, double>> collisionPoints;
+std::array<std::pair<double, double>, 4> getSpriteBoundries(Sprite *currentSprite) {
+    std::array<std::pair<double, double>, 4> collisionPoints;
 
     const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
@@ -349,16 +349,17 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     y += (currentSprite->spriteHeight / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
 #endif
 
-    std::vector<std::pair<double, double>> corners = {
-        {x, y},                              // Top-left
-        {x + spriteWidth, y},                // Top-right
-        {x + spriteWidth, y - spriteHeight}, // Bottom-right
-        {x, y - spriteHeight}                // Bottom-left
+    const std::array<std::pair<double, double>, 4> corners = {
+        std::pair(x, y),                              // Top-left
+        std::pair(x + spriteWidth, y),                // Top-right
+        std::pair(x + spriteWidth, y - spriteHeight), // Bottom-right
+        std::pair(x, y - spriteHeight)                // Bottom-left
     };
 
     const float centerX = x + spriteWidth / 2;
     const float centerY = y - spriteHeight / 2;
 
+    unsigned int i = 0;
     for (const auto &corner : corners) {
         // center it
         float relX = corner.first - centerX;
@@ -368,14 +369,16 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         float rotX = relX * cos(-rotation) - relY * sin(-rotation);
         float rotY = relX * sin(-rotation) + relY * cos(-rotation);
 
-        collisionPoints.emplace_back(centerX + rotX, centerY + rotY);
+        collisionPoints[i] = std::pair(centerX + rotX, centerY + rotY);
+
+        i++;
     }
 
     return collisionPoints;
 }
 
-bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
-                 const std::vector<std::pair<double, double>> &poly2,
+bool isSeparated(const std::array<std::pair<double, double>, 4> &poly1,
+                 const std::array<std::pair<double, double>, 4> &poly2,
                  double axisX, double axisY) {
     double min1 = 1e9, max1 = -1e9;
     double min2 = 1e9, max2 = -1e9;
@@ -399,18 +402,18 @@ bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
 
 bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
     // Get collision points of the current sprite
-    std::vector<std::pair<double, double>> currentSpritePoints = getCollisionPoints(currentSprite);
+    std::array<std::pair<double, double>, 4> currentSpritePoints = getSpriteBoundries(currentSprite);
 
     if (collisionType == "mouse") {
         // Define a small square centered on the mouse pointer
         double halfWidth = 0.5;
         double halfHeight = 0.5;
 
-        std::vector<std::pair<double, double>> mousePoints = {
-            {Input::mousePointer.x - halfWidth, Input::mousePointer.y - halfHeight}, // Top-left
-            {Input::mousePointer.x + halfWidth, Input::mousePointer.y - halfHeight}, // Top-right
-            {Input::mousePointer.x + halfWidth, Input::mousePointer.y + halfHeight}, // Bottom-right
-            {Input::mousePointer.x - halfWidth, Input::mousePointer.y + halfHeight}  // Bottom-left
+        std::array<std::pair<double, double>, 4> mousePoints = {
+            std::pair(Input::mousePointer.x - halfWidth, Input::mousePointer.y - halfHeight), // Top-left
+            std::pair(Input::mousePointer.x + halfWidth, Input::mousePointer.y - halfHeight), // Top-right
+            std::pair(Input::mousePointer.x + halfWidth, Input::mousePointer.y + halfHeight), // Bottom-right
+            std::pair(Input::mousePointer.x - halfWidth, Input::mousePointer.y + halfHeight)  // Bottom-left
         };
 
         bool collision = true;
@@ -513,8 +516,7 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
 
         // SAT collision for rotated sprites
 
-        std::vector<std::pair<double, double>> targetSpritePoints =
-            getCollisionPoints(targetSprite);
+        std::vector<std::pair<double, double>> targetSpritePoints = getSpriteBoundries(targetSprite);
 
         bool collision = true;
 
