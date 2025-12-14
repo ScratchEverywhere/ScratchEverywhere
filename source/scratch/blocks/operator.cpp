@@ -103,10 +103,10 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
             return Value(abs(value));
         }
         if (operation == "floor") {
-            return Value(static_cast<int>(floor(value)));
+            return Value(floor(value));
         }
         if (operation == "ceiling") {
-            return Value(static_cast<int>(ceil(value)));
+            return Value(ceil(value));
         }
         if (operation == "sqrt") {
             return Value(sqrt(value));
