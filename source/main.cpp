@@ -87,8 +87,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    srand(time(NULL));
-
 #ifdef __EMSCRIPTEN__
     if (argc > 1) {
         while (!OS::fileExists("/romfs/project.sb3")) {
