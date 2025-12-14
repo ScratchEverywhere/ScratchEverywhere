@@ -137,36 +137,21 @@ Color Value::asColor() const {
 Value Value::operator+(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() + b.asInt());
-    }
     return Value(a.asDouble() + b.asDouble());
 }
 
 Value Value::operator-(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() - b.asInt());
-    }
     return Value(a.asDouble() - b.asDouble());
 }
 
 Value Value::operator*(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() * b.asInt());
-    }
     return Value(a.asDouble() * b.asDouble());
 }
 
