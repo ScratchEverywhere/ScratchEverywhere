@@ -150,6 +150,8 @@ struct Monitor {
     std::vector<Value> list;
     int x;
     int y;
+    int width;
+    int height;
     bool visible;
     double sliderMin;
     double sliderMax;

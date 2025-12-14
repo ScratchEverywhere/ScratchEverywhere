@@ -516,6 +516,7 @@ void Render::renderSprites() {
 }
 
 std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 
 void Render::renderPenLayer() {
     SDL_FRect renderRect = {0, 0, 0, 0};

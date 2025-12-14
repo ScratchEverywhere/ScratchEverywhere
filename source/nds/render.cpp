@@ -16,6 +16,7 @@ bool Render::hasFrameBegan = false;
 float Render::renderScale = 1.0f;
 Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
 std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 std::vector<Monitor> Render::visibleVariables;
 
 #define SCREEN_WIDTH 256
