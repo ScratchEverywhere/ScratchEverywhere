@@ -72,7 +72,7 @@ Value OperatorBlocks::letterOf(Block &block, Sprite *sprite) {
 
 Value OperatorBlocks::length(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "STRING", sprite);
-    return Value(static_cast<int>(value1.asString().size()));
+    return Value(static_cast<double>(value1.asString().size()));
 }
 
 Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
