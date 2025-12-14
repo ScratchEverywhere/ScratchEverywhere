@@ -633,43 +633,13 @@ void BlockExecutor::updateMonitors() {
                 var.displayName = Math::removeQuotations(var.parameters["LIST"]);
                 // Check lists
                 auto listIt = sprite->lists.find(var.id);
-                if (listIt != sprite->lists.end()) {
-                    std::string result;
-                    std::string seperator = "";
-                    for (const auto &item : listIt->second.items) {
-                        if (item.asString().size() > 1 || !item.isString()) {
-                            seperator = "\n";
-                            break;
-                        }
-                    }
-                    for (const auto &item : listIt->second.items) {
-                        result += item.asString() + seperator;
-                    }
-                    if (!result.empty() && !seperator.empty()) result.pop_back();
-                    Value val(result);
-                    var.value = val;
+                if (listIt != sprite->lists.end())
                     var.list = listIt->second.items;
-                }
 
                 // Check global lists
                 auto globalIt = stageSprite->lists.find(var.id);
-                if (globalIt != stageSprite->lists.end()) {
-                    std::string result;
-                    std::string seperator = "";
-                    for (const auto &item : globalIt->second.items) {
-                        if (item.asString().size() > 1 || !item.isString()) {
-                            seperator = "\n";
-                            break;
-                        }
-                    }
-                    for (const auto &item : globalIt->second.items) {
-                        result += item.asString() + seperator;
-                    }
-                    if (!result.empty() && !seperator.empty()) result.pop_back();
-                    Value val(result);
-                    var.value = val;
+                if (globalIt != stageSprite->lists.end())
                     var.list = globalIt->second.items;
-                }
             } else {
                 try {
                     Block newBlock;

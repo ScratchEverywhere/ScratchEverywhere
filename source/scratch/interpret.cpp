@@ -208,6 +208,15 @@ void Scratch::cleanupScratchProject() {
         delete textPair.second;
     }
     Render::monitorTexts.clear();
+    for (auto &[id, listMon] : Render::listMonitors) {
+        delete listMon.name;
+        delete listMon.length;
+        for (auto *t : listMon.items)
+            delete t;
+        for (auto *t : listMon.indices)
+            delete t;
+    }
+    Render::listMonitors.clear();
     TextObject::cleanupText();
 
     Render::visibleVariables.clear();
@@ -917,6 +926,16 @@ void loadSprites(const nlohmann::json &json) {
 
         if (monitor.contains("y") && !monitor["y"].is_null())
             newMonitor.y = monitor.at("y").get<int>();
+
+        if (monitor.contains("width") && !(monitor["width"].is_null() || monitor.at("width").get<int>() == 0))
+            newMonitor.width = monitor.at("width").get<int>();
+        else
+        	newMonitor.width = 110;
+
+        if (monitor.contains("height") && !(monitor["height"].is_null() || monitor.at("height").get<int>() == 0))
+            newMonitor.height = monitor.at("height").get<int>();
+        else
+        	newMonitor.height = 200;
 
         if (monitor.contains("visible") && !monitor["visible"].is_null())
             newMonitor.visible = monitor.at("visible").get<bool>();
