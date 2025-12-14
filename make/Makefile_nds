@@ -61,9 +61,8 @@ CFLAGS	:=	-g -Wall -O2 \
 			-ffunction-sections -fdata-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DRENDERER_GL2D -DENABLE_AUDIO
+CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DRENDERER_GL2D
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(BLOCKSDS)/sys/crts/ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
@@ -87,7 +86,10 @@ endif
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lmm9
 LIBDIRS	+=	$(BLOCKSDS)/libs/maxmod
+CFLAGS	+=	-DENABLE_AUDIO
 endif
+
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
