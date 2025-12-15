@@ -303,6 +303,8 @@ To compile with Docker all you need installed is Docker and Buildx.
 
 -   To compile for the **3DS**, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
 
+-   To compile for the **NDS**, run `docker build -f docker/Dockerfile.nds --target exporter -o . .`.
+
 -   To compile for the **Wii U**, run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
 
 -   To compile for the **Wii**, run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
@@ -329,6 +331,7 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 
 -   **For the 3DS**, you will need the DevkitARM toolchain and libctru.
     -   If you want to compile with audio support, you will also need a 3DS compiled version of SDL3 and SDL3_mixer. See the [Nightly Build commands](https://github.com/ScratchEverywhere/ScratchEverywhere/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL3 3DS for yourself.
+- **For the DS/DSi**, you will need the [BlocksDS](https://blocksds.skylyrac.net/) SDK, with GL2D and Maxmod libraries installed (usually comes installed with the SDK).
 -   **For the Wii U**, you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
 -   **For the Wii**, you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 -   **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
@@ -352,6 +355,7 @@ Make a `romfs` folder inside the unzipped source code and put the Scratch projec
 Then you need to compile the projects into proper Homebrew packages.
 
 -   **For the 3DS**, you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
+- **For the NDS**, you need to run `make PLATFORM=nds`, then copy the `build/nds/scratch-ds.nds` file to your flashcart/SD card.
 -   **For the Wii U**, you need to run `make PLATFORM=wiiu` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
 -   **For the Wii**, you need to run `make PLATFORM=wii package`, then find the zipped file in `build/wii/scratch-wii.zip`. Unzip it and put the `apps` folder inside the root of your Wii SD card.
 -   **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
