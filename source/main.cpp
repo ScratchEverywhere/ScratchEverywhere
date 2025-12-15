@@ -1,5 +1,7 @@
 #include "interpret.hpp"
+#ifdef ENABLE_MENU
 #include "scratch/menus/mainMenu.hpp"
+#endif
 #include "scratch/render.hpp"
 #include "scratch/unzip.hpp"
 #include <cstdlib>
@@ -8,7 +10,7 @@
 #include <switch.h>
 #endif
 
-#ifdef SDL_BUILD
+#ifdef RENDERER_SDL2
 #include <SDL2/SDL.h>
 #endif
 
@@ -26,6 +28,7 @@ static bool initApp() {
 }
 
 bool activateMainMenu() {
+#ifdef ENABLE_MENU
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
@@ -45,6 +48,7 @@ bool activateMainMenu() {
         emscripten_sleep(0);
 #endif
     }
+#endif
     return false;
 }
 
@@ -87,7 +91,7 @@ int main(int argc, char **argv) {
 
 #ifdef __EMSCRIPTEN__
     if (argc > 1) {
-        while (!std::filesystem::exists("/romfs/project.sb3")) {
+        while (!OS::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
                 exit(0);
@@ -103,7 +107,7 @@ int main(int argc, char **argv) {
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
                 *(bool *)userdata = true;
-                if (!std::filesystem::exists(OS::getScratchFolderLocation())) std::filesystem::create_directory(OS::getScratchFolderLocation());
+                if (!OS::fileExists(OS::getScratchFolderLocation())) OS::createDirectory(OS::getScratchFolderLocation());
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();

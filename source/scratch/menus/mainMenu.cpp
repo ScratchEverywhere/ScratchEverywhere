@@ -70,10 +70,7 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
-
-// let the user type what project they want to open if headless
-#ifdef HEADLESS_BUILD
-
+#ifdef RENDERER_HEADLESS // let the user type what project they want to open if headless
     Keyboard kbd;
     std::string answer = kbd.openKeyboard("Please type what project you want to open.");
 
@@ -86,34 +83,15 @@ void MainMenu::init() {
     Unzip::filePath = answer + ".sb3";
 
     MenuManager::loadProject();
-
-#endif
-
-#ifdef __NDS__
+#elif defined(__NDS__)
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
     }
-#elif defined(__3DS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-    }
-    SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    if (SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::setMusicPosition(SoundPlayer::getMusicPosition("gfx/menu/mm_full.ogg"), "gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-    }
-#elif defined(__PSP__)
 #else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundLoaded("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", false, false);
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.ogg", false, false);
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
         SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::stopSound("gfx/menu/mm_full.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
-    SoundPlayer::setSoundVolume("gfx/menu/mm_full.ogg", 0.0f);
-    SoundPlayer::setSoundVolume("gfx/menu/mm_splash.ogg", 100.0f);
 #endif
 
     Input::applyControls();
@@ -125,7 +103,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 28", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 31 Nightly", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -161,15 +139,9 @@ void MainMenu::render() {
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
         SoundPlayer::playSound("gfx/menu/mm_full.wav");
     }
-#elif defined(__3DS__)
+#else
     if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    }
-#elif defined(__PSP__)
-#else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg") || !SoundPlayer::isSoundPlaying("gfx/menu/mm_full.ogg")) {
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        SoundPlayer::playSound("gfx/menu/mm_full.ogg");
     }
 #endif
 
@@ -204,8 +176,6 @@ void MainMenu::render() {
         return;
     }
 
-    loadButton->render();
-    settingsButton->render();
     mainMenuControl->render();
 
     Render::endFrame();

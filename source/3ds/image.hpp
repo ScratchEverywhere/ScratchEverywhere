@@ -36,6 +36,5 @@ struct imageRGBA {
 bool get_C2D_Image(imageRGBA &rgba);
 unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height);
 bool getImageFromT3x(const std::string &filePath);
-void cleanupImagesLite();
 
 extern std::unordered_map<std::string, ImageData> images;

@@ -33,6 +33,9 @@ BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenR
                 for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
                     if (ranBlock->isRepeating) {
                         return BlockResult::RETURN;
+                    } else if (ranBlock->stopScript) {
+                        ranBlock->stopScript = false;
+                        return BlockResult::RETURN;
                     }
                 }
             }
@@ -67,6 +70,9 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
             for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
                 if (ranBlock->isRepeating) {
                     return BlockResult::RETURN;
+                } else if (ranBlock->stopScript) {
+                    ranBlock->stopScript = false;
+                    return BlockResult::RETURN;
                 }
             }
         }
@@ -78,18 +84,15 @@ BlockResult ControlBlocks::ifElse(Block &block, Sprite *sprite, bool *withoutScr
 
 BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     // std::cout << "Trying " << std::endl;
-
-    Block *cloneOptions = nullptr;
-    auto it = block.parsedInputs->find("CLONE_OPTION");
-    cloneOptions = &sprite->blocks[it->second.literalValue.asString()];
+    Value inputValue = Scratch::getInputValue(block, "CLONE_OPTION", sprite);
 
     Sprite *spriteToClone = getAvailableSprite();
-    if (!spriteToClone) return BlockResult::CONTINUE;
-    if (Scratch::getFieldValue(*cloneOptions, "CLONE_OPTION") == "_myself_") {
+    if (!spriteToClone || spriteToClone->isStage) return BlockResult::CONTINUE;
+    if (inputValue.asString() == "_myself_") {
         *spriteToClone = *sprite;
     } else {
         for (Sprite *currentSprite : sprites) {
-            if (currentSprite->name == Math::removeQuotations(Scratch::getFieldValue(*cloneOptions, "CLONE_OPTION")) && !currentSprite->isClone) {
+            if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
                 *spriteToClone = *currentSprite;
             }
         }
@@ -117,6 +120,7 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
             }
         }
     }
+    Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
 BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -129,7 +133,6 @@ BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *w
 
 BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string stopType = Scratch::getFieldValue(block, "STOP_OPTION");
-    ;
     if (stopType == "all") {
         Scratch::shouldStop = true;
         return BlockResult::RETURN;
@@ -139,10 +142,11 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
             Block *repeatBlock = &sprite->blocks[repeatID];
             if (repeatBlock) {
                 repeatBlock->repeatTimes = -1;
+                repeatBlock->isRepeating = false;
             }
         }
-
         sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
+        block.stopScript = true;
         return BlockResult::RETURN;
     }
 
@@ -225,7 +229,6 @@ BlockResult ControlBlocks::waitUntil(Block &block, Sprite *sprite, bool *without
 }
 
 BlockResult ControlBlocks::repeat(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
     }
@@ -302,7 +305,7 @@ BlockResult ControlBlocks::repeatUntil(Block &block, Sprite *sprite, bool *witho
 
     Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     bool condition = conditionValue.asBoolean();
-    
+
     if (condition) {
         block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);

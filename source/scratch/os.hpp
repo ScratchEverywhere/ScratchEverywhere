@@ -1,167 +1,16 @@
 #pragma once
 #include <chrono>
 #include <iostream>
+#include <stdexcept>
+#include <string>
 #ifdef __3DS__
 #include <3ds.h>
+#include <malloc.h>
 #endif
 #ifdef WII
 #include <ogc/lwp_watchdog.h>
 #include <ogc/system.h>
 #endif
-
-class MemoryTracker {
-  private:
-    static size_t totalAllocated;
-    static size_t totalVRAMAllocated;
-    static size_t peakUsage;
-    static size_t allocationCount;
-
-    // ---- Max RAM values (max usable ram minus a slight safety margin) ----
-    const static size_t old3ds_maxRamUsage = 50331648;   // 48 MB
-    const static size_t new3ds_maxRamUsage = 100663296;  // 96 MB
-    const static size_t wiiu_maxRamUsage = 805306368;    // 768 MB
-    const static size_t wii_maxRamUsage = 86900736;      // 83 MB
-    const static size_t gamecube_maxRamUsage = 23068672; // 22 MB
-    const static size_t pc_maxRamUsage = 1073741824;     // 1 GB
-    const static size_t vita_maxRamUsage = 335544320;    // 320 MB
-    const static size_t ps4_maxRamUsage = 1073741824;    // 1 GB
-
-    // ---- Max VRAM values (just an estimate based on how many images i can load before i cant anymore) ----
-    const static size_t old3ds_maxVRAMUsage = 30000000;   // ~30 MB
-    const static size_t new3ds_maxVRAMUsage = 30000000;   // ~30 MB
-    const static size_t wiiu_maxVRAMUsage = 67108864;     // 64 MB
-    const static size_t wii_maxVRAMUsage = 44040192;      // 42 MB
-    const static size_t gamecube_maxVRAMUsage = 11010048; // ~10 MB
-    const static size_t pc_maxVRAMUsage = 134217728;      // 128 MB
-    const static size_t vita_maxVRAMUsage = 100663296;    // 96 MB
-    const static size_t ps4_maxVRAMUsage = 134217728;     // 128 MB
-
-  public:
-    static size_t getMaxRamUsage() {
-#ifdef __3DS__
-        bool isNew3DS = false;
-        APT_CheckNew3DS(&isNew3DS);
-        if (isNew3DS)
-            return new3ds_maxRamUsage;
-        else
-            return old3ds_maxRamUsage;
-#endif
-#ifdef __WIIU__
-        return wiiu_maxRamUsage;
-#endif
-#ifdef WII
-        return wii_maxRamUsage;
-#endif
-#ifdef GAMECUBE
-        return gamecube_maxRamUsage;
-#endif
-#ifdef VITA
-        return vita_maxRamUsage;
-#endif
-#ifdef __PS4__
-        return ps4_maxRamUsage;
-#endif
-        return pc_maxRamUsage;
-    }
-
-    static size_t getMaxVRAMUsage() {
-#ifdef __3DS__
-        bool isNew3DS = false;
-        APT_CheckNew3DS(&isNew3DS);
-        if (isNew3DS)
-            return new3ds_maxVRAMUsage;
-        else
-            return old3ds_maxVRAMUsage;
-#endif
-#ifdef __WIIU__
-        return wiiu_maxVRAMUsage;
-#endif
-#ifdef WII
-        return wii_maxVRAMUsage;
-#endif
-#ifdef GAMECUBE
-        return gamecube_maxVRAMUsage;
-#endif
-#ifdef VITA
-        return vita_maxVRAMUsage;
-#endif
-#ifdef __PS4__
-        return ps4_maxVRAMUsage;
-#endif
-        return pc_maxVRAMUsage;
-    }
-
-    // Raw allocation tracking
-    static void *allocate(size_t size) {
-        void *ptr = malloc(size);
-        if (ptr) {
-            totalAllocated += size;
-            allocationCount++;
-
-            if (totalAllocated > peakUsage) {
-                peakUsage = totalAllocated;
-            }
-        }
-        return ptr;
-    }
-
-    static void allocateVRAM(size_t size) {
-        totalVRAMAllocated += size;
-    }
-    static void deallocateVRAM(size_t size) {
-        totalVRAMAllocated -= size;
-    }
-
-    static size_t getVRAMUsage() {
-        return totalVRAMAllocated;
-    }
-
-    static void deallocate(void *ptr, size_t size) {
-        if (ptr) {
-            totalAllocated -= size;
-            allocationCount--;
-            free(ptr);
-        }
-    }
-
-    // Template versions for type safety
-    template <typename T>
-    static T *allocate(size_t count = 1) {
-        size_t size = count * sizeof(T);
-        T *ptr = static_cast<T *>(malloc(size));
-        if (ptr) {
-            totalAllocated += size;
-            allocationCount++;
-
-            if (totalAllocated > peakUsage) {
-                peakUsage = totalAllocated;
-            }
-        }
-        return ptr;
-    }
-
-    template <typename T>
-    static void deallocate(T *ptr, size_t count = 1) {
-        if (ptr) {
-            size_t size = count * sizeof(T);
-            totalAllocated -= size;
-            allocationCount--;
-            free(ptr);
-        }
-    }
-
-    static size_t getCurrentUsage() {
-        return totalAllocated;
-    }
-
-    static size_t getPeakUsage() {
-        return peakUsage;
-    }
-
-    static size_t getAllocationCount() {
-        return allocationCount;
-    }
-};
 
 namespace Log {
 void log(std::string message, bool printToScreen = true);
@@ -239,4 +88,165 @@ class OS {
      * @return `true` on DSi, `false` everywhere else.
      */
     static bool isDSi();
+
+    /**
+     * Initializes the internet.
+     */
+    static bool initWifi();
+
+    /**
+     * De-Initializes the internet.
+     */
+    static void deInitWifi();
+
+    /**
+     * Create a directory.
+     * @param path The path of the directory to create.
+     */
+    static void createDirectory(const std::string &path);
+
+    /**
+     * Remove a directory recursively.
+     * @param path The path of the directory to remove.
+     */
+    static void removeDirectory(const std::string &path);
+
+    /**
+     * Check if a file exists.
+     * @param path The path of the file to check.
+     * @return `true` if the file exists, `false` otherwise.
+     */
+    static bool fileExists(const std::string &path);
+
+    /**
+     * Get the parent path of a given path.
+     * @param path The path of the file or directory.
+     * @return The parent path of the given path.
+     */
+    static std::string parentPath(const std::string &path);
+
+    class FilesystemError : public std::runtime_error {
+      protected:
+        std::string path1;
+        std::string path2;
+        int errorCode;
+
+      public:
+        /**
+         * Construct a FilesystemError with a message and single path.
+         * @param message The error message.
+         * @param p The path involved in the error.
+         * @param ec The system error code (errno).
+         */
+        FilesystemError(const std::string &message, const std::string &p, int ec = 0)
+            : std::runtime_error(message), path1(p), path2(""), errorCode(ec) {}
+
+        /**
+         * Construct a FilesystemError with a message and two paths.
+         * @param message The error message.
+         * @param p1 The first path involved in the error.
+         * @param p2 The second path involved in the error.
+         * @param ec The system error code (errno).
+         */
+        FilesystemError(const std::string &message, const std::string &p1, const std::string &p2, int ec = 0)
+            : std::runtime_error(message), path1(p1), path2(p2), errorCode(ec) {}
+
+        /**
+         * Get the first path involved in the error.
+         * @return The first path.
+         */
+        const std::string &path() const noexcept { return path1; }
+
+        /**
+         * Get the first path involved in the error.
+         * @return The first path.
+         */
+        const std::string &getPath1() const noexcept { return path1; }
+
+        /**
+         * Get the second path involved in the error.
+         * @return The second path.
+         */
+        const std::string &getPath2() const noexcept { return path2; }
+
+        /**
+         * Get the system error code.
+         * @return The error code.
+         */
+        int getErrorCode() const noexcept { return errorCode; }
+
+        virtual ~FilesystemError() = default;
+    };
+
+    /**
+     * Exception thrown when a directory does not exist.
+     */
+    class DirectoryNotFound : public FilesystemError {
+      public:
+        DirectoryNotFound(const std::string &p, int ec = 0)
+            : FilesystemError("Directory not found: " + p, p, ec) {}
+    };
+
+    /**
+     * Exception thrown when a file does not exist.
+     */
+    class FileNotFound : public FilesystemError {
+      public:
+        FileNotFound(const std::string &p, int ec = 0)
+            : FilesystemError("File not found: " + p, p, ec) {}
+    };
+
+    /**
+     * Exception thrown when a path is not a directory.
+     */
+    class NotADirectory : public FilesystemError {
+      public:
+        NotADirectory(const std::string &p, int ec = 0)
+            : FilesystemError("Path is not a directory: " + p, p, ec) {}
+    };
+
+    /**
+     * Exception thrown when a path is not a file.
+     */
+    class NotAFile : public FilesystemError {
+      public:
+        NotAFile(const std::string &p, int ec = 0)
+            : FilesystemError("Path is not a file: " + p, p, ec) {}
+    };
+
+    /**
+     * Exception thrown when failing to create a directory.
+     */
+    class DirectoryCreationFailed : public FilesystemError {
+      public:
+        DirectoryCreationFailed(const std::string &p, int ec = 0)
+            : FilesystemError("Failed to create directory: " + p, p, ec) {}
+    };
+
+    /**
+     * Exception thrown when failing to remove a directory.
+     */
+    class DirectoryRemovalFailed : public FilesystemError {
+      public:
+        DirectoryRemovalFailed(const std::string &p, int ec = 0)
+            : FilesystemError("Failed to remove directory: " + p, p, ec) {}
+    };
+
+    /**
+     * Exception thrown when failing to remove a file.
+     */
+    class FileRemovalFailed : public FilesystemError {
+      public:
+        FileRemovalFailed(const std::string &p, int ec = 0)
+            : FilesystemError("Failed to remove file: " + p, p, ec) {}
+    };
+
+    /**
+     * Exception thrown when failing to open a directory.
+     */
+    class DirectoryOpenFailed : public FilesystemError {
+      public:
+        DirectoryOpenFailed(const std::string &p, int ec = 0)
+            : FilesystemError("Failed to open directory: " + p, p, ec) {}
+    };
 };

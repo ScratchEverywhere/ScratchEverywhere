@@ -4,11 +4,15 @@
 #include <fstream>
 #ifdef __3DS__
 #include <3ds.h>
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL1)
+#include "SDL/SDL.h"
+#elif defined(RENDERER_SDL2)
 #include "SDL2/SDL.h"
+#elif defined(RENDERER_SDL3)
+#include "SDL3/SDL.h"
 #endif
 
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 #include <sstream>
 
@@ -22,10 +26,6 @@ std::string Unzip::filePath = "";
 mz_zip_archive Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
 bool Unzip::UnpackedInSD = false;
-void *Unzip::trackedBufferPtr = nullptr;
-size_t Unzip::trackedBufferSize = 0;
-void *Unzip::trackedJsonPtr = nullptr;
-size_t Unzip::trackedJsonSize = 0;
 
 int Unzip::openFile(std::istream *&file) {
     Log::log("Unzipping Scratch project...");
@@ -38,12 +38,12 @@ int Unzip::openFile(std::istream *&file) {
     embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
     unzippedPath = OS::getRomFSLocation() + unzippedPath;
 
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
     const auto &fs = cmrc::romfs::get_filesystem();
 #endif
 
     // Unzipped Project in romfs:/
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
     if (fs.exists(unzippedPath)) {
         const auto &romfsFile = fs.open(unzippedPath);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
@@ -57,11 +57,12 @@ int Unzip::openFile(std::istream *&file) {
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
     projectType = EMBEDDED;
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
     if (fs.exists(embeddedFilename)) {
         const auto &romfsFile = fs.open(embeddedFilename);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
         file = new std::istringstream(std::string(content));
+        file->seekg(0, std::ios::end);
     }
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
@@ -81,7 +82,7 @@ int Unzip::openFile(std::istream *&file) {
         Log::log("Normal .sb3 project in SD card ");
         file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
         if (!(*file)) {
-            Log::logError("Couldnt find file. jinkies.");
+            Log::logError("Couldnt find file. jinkies. " + filePath);
             Log::logWarning(filePath);
             return 0;
         }
@@ -167,9 +168,20 @@ bool Unzip::load() {
     loading.cleanup();
     osSetSpeedupEnable(false);
 
-#elif defined(SDL_BUILD) // create SDL2 thread for loading screen
-
+#elif defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(RENDERER_SDL3) // create SDL thread for loading screen
+#ifdef RENDERER_SDL1
+    SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, nullptr);
+#elif defined(RENDERER_SDL2)
     SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x15000, nullptr);
+#else
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER, (void *)projectLoaderThread);
+    SDL_SetStringProperty(props, SDL_PROP_THREAD_CREATE_NAME_STRING, "LoadingScreen");
+    SDL_SetNumberProperty(props, SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER, 0x15000);
+    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_USERDATA_POINTER, nullptr);
+    SDL_Thread *thread = SDL_CreateThreadWithProperties(props);
+    SDL_DestroyProperties(props);
+#endif
 
     if (thread != NULL && thread != nullptr) {
 

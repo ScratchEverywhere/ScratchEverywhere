@@ -12,8 +12,8 @@ PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
 
 TARGET		:=	scratch-wiiu
 BUILD			:=	build/wiiu
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl source/sdl/audio include/nlohmann include/miniz
+SOURCES		:=	source source/scratch source/scratch/blocks source/sdl2 source/sdl2/audio include/miniz include/nlohmann
+INCLUDES	:=	include source/scratch source/scratch/blocks source/sdl2 source/sdl2/audio include/nlohmann include/miniz
 ROMFS	:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -24,7 +24,7 @@ APP_NAME							:=	Scratch Everywhere!
 APP_AUTHOR						:=	NateXS and Grady Link
 APP_SHORT_DESCRIPTION	:=	Play Scratch Games on the Wii U!
 APP_LONG_DESCRIPTION	:=	$(APP_SHORT_DESCRIPTION)
-APP_VERSION						:=	0.28
+APP_VERSION						:=	0.30.1
 APP_ICON							:=	gfx/wiiu/icon.png
 APP_TV_SPLASH					:=	gfx/wiiu/tv-splash.png
 APP_DRC_SPLASH				:=	gfx/wiiu/drc-splash.png
@@ -34,20 +34,30 @@ include $(DEVKITPRO)/wut/share/wut_rules
 # Config Options
 ENABLE_CLOUDVARS	?=	0
 ENABLE_AUDIO	?=	1
+ENABLE_DOWNLOAD	?=	1
 ENABLE_LOADSCREEN	?=	1
+ENABLE_MENU		?=	1
 
 # Flags
 
-CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP) -DSDL_BUILD
+CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP) -DRENDERER_SDL2
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
-CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DSDL_BUILD
+CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DRENDERER_SDL2
 CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
+
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
+endif
 
 ifeq ($(ENABLE_AUDIO),1)
 CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF_WIIU) --cflags SDL2_mixer`
@@ -71,6 +81,12 @@ endif
 ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
+
+ifeq ($(ENABLE_DOWNLOAD),1)
+CFLAGS	+=	-DENABLE_DOWNLOAD
+LIBS +=	`$(PKGCONF_WIIU) --libs libcurl`
+endif
+
 
 CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
 
@@ -114,8 +130,12 @@ mkdir:
 
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
 	@cp -r $(GRAPHICS)/ingame $@/
+else
+	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
+endif
 
 test:
 	cemu -g $(OUTPUT).rpx

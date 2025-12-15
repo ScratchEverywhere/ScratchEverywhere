@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SDL_image.h>
+#include <SDL3_image/SDL_image.h>
 #include <string>
 #include <unordered_map>
 
@@ -9,12 +9,12 @@ class SDL_Image {
     size_t imageUsageCount = 0;
     SDL_Surface *spriteSurface;
     SDL_Texture *spriteTexture;
-    SDL_Rect renderRect;  // this rect is for rendering to the screen
-    SDL_Rect textureRect; // this is for like texture UV's
+    SDL_FRect renderRect;  // this rect is for rendering to the screen
+    SDL_FRect textureRect; // this is for like texture UV's
     size_t memorySize;
     float scale = 1.0f;
-    int width;
-    int height;
+    float width;
+    float height;
     float rotation = 0.0f;
 #ifdef GAMECUBE
     int maxFreeTime = 2;
@@ -42,8 +42,9 @@ class SDL_Image {
     /**
      * A Simple Image object using SDL.
      * @param filePath
+     * @param filePath
      */
-    SDL_Image(std::string filePath);
+    SDL_Image(std::string filePath, bool fromScratchProject = true);
 
     ~SDL_Image();
 };

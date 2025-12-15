@@ -2,6 +2,8 @@
 #include "math.hpp"
 #include "os.hpp"
 #include <regex>
+#include <array>
+#include <charconv>
 
 Value::Value(int val) : value(val) {}
 
@@ -52,7 +54,7 @@ int Value::asInt() const {
     } else if (isBoolean()) {
         return std::get<bool>(value) ? 1 : 0;
     } else if (isColor()) {
-        const ColorRGB rgb = CSB2RGB(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
     }
 
@@ -64,17 +66,18 @@ std::string Value::asString() const {
         return std::to_string(std::get<int>(value));
     } else if (isDouble()) {
         double doubleValue = std::get<double>(value);
-        // handle whole numbers too, because scratch i guess
         if (std::isnan(doubleValue)) return "NaN";
         if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
-        if (std::floor(doubleValue) == doubleValue) return std::to_string(static_cast<int>(doubleValue));
-        return std::to_string(doubleValue);
+        std::array<char, 24> buffer;
+        std::to_chars_result result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), doubleValue);
+        *result.ptr = '\0';
+        return buffer.data();
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
         return std::get<bool>(value) ? "true" : "false";
     } else if (isColor()) {
-        const ColorRGB rgb = CSB2RGB(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         const char hex_chars[] = "0123456789abcdef";
         const unsigned char r = static_cast<unsigned char>(rgb.r);
         const unsigned char g = static_cast<unsigned char>(rgb.g);
@@ -103,68 +106,55 @@ bool Value::asBoolean() const {
         return std::get<double>(value) != 0.0 && !isNaN();
     }
     if (isString()) {
-        return std::get<std::string>(value) != "" && std::get<std::string>(value) != "0" && std::get<std::string>(value) != "false";
+        std::string strValue = std::get<std::string>(value);
+        std::transform(strValue.begin(), strValue.end(), strValue.begin(), ::tolower);
+        return strValue != "" && strValue != "0" && strValue != "false";
     }
     if (isColor()) {
-        const ColorRGB rgb = CSB2RGB(std::get<Color>(value));
-        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0;
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
+        return rgb.r != 0 || rgb.g != 0 || rgb.b != 0 || rgb.a != 0;
     }
     return false;
 }
 
 Color Value::asColor() const {
-    if (isInteger()) {
-        const int &intValue = std::get<int>(value);
-        return RGB2CSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
-    }
-    if (isDouble()) {
-        const double &doubleValue = std::get<double>(value);
-        return RGB2CSB({static_cast<float>(doubleValue / 0x10000), static_cast<float>(static_cast<int>(doubleValue / 0x100) % 0x100), static_cast<float>(static_cast<int>(doubleValue) % 0x100)});
-    }
-    if (isColor()) return std::get<Color>(value);
     if (isString()) {
-        const std::string &stringValue = std::get<std::string>(value);
-        if (!std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{6}$"))) return {0, 0, 0};
-        const int intValue = std::stoi(stringValue.substr(1), 0, 16);
-        return RGB2CSB({static_cast<float>(intValue / 0x10000), static_cast<float>((intValue / 0x100) % 0x100), static_cast<float>(intValue % 0x100)});
+        std::string stringValue = asString();
+        if (stringValue[0] == '#') {
+            std::string r, g, b;
+            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{3}$"))) {
+                stringValue = "#" + std::string(2, stringValue[1]) + std::string(2, stringValue[2]) + std::string(2, stringValue[3]);
+            }
+            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{6}$"))) {
+                r = stringValue.substr(1, 2);
+                g = stringValue.substr(3, 2);
+                b = stringValue.substr(5, 2);
+                return RGBA2CSBO({static_cast<float>(std::stoi(r, 0, 16)), static_cast<float>(std::stoi(g, 0, 16)), static_cast<float>(std::stoi(b, 0, 16)), 255});
+            } else return {0, 0, 0, 0};
+        }
     }
-
-    return {0, 0, 0};
+    const double RGBA = asDouble();
+    return RGBA2CSBO({static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)});
 }
 
 Value Value::operator+(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() + b.asInt());
-    }
     return Value(a.asDouble() + b.asDouble());
 }
 
 Value Value::operator-(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() - b.asInt());
-    }
     return Value(a.asDouble() - b.asDouble());
 }
 
 Value Value::operator*(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() * b.asInt());
-    }
     return Value(a.asDouble() * b.asDouble());
 }
 
@@ -178,12 +168,16 @@ Value Value::operator/(const Value &other) const {
 }
 
 bool Value::operator==(const Value &other) const {
-    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
-        return asDouble() == other.asDouble();
-    }
-
     std::string string1 = asString();
     std::string string2 = other.asString();
+
+    if (!std::all_of(string1.begin(), string1.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); }) &&
+        !std::all_of(string2.begin(), string2.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) {
+        if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
+            return asDouble() == other.asDouble();
+        }
+    }
+
     std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
     std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
     return string1 == string2;
@@ -217,7 +211,7 @@ bool Value::isScratchInt() {
     if (isDouble()) {
         if (std::isnan(asDouble())) return true;
         try {
-            return std::stoi(asString()) == asDouble();
+            return std::fabs(asDouble()) < 1e21 && std::floor(asDouble()) == asDouble();
         } catch (...) {
             return false;
         }

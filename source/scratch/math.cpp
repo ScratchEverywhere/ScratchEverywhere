@@ -24,7 +24,7 @@ int Math::color(int r, int g, int b, int a) {
     int g5 = g >> 3;
     int b5 = b >> 3;
     return RGB15(r5, g5, b5);
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
     return (r << 24) |
            (g << 16) |
            (b << 8) |
@@ -40,53 +40,49 @@ double Math::parseNumber(std::string str) {
     while (std::isspace(str[0]) && !str.empty()) {
         str.erase(0, 1);
     }
-    while (std::isspace(str[str.length() - 1]) && !str.empty()) {
-        str.erase(str.length() - 1);
+    while (!str.empty() && std::isspace(str.back())) {
+        str.pop_back();
     }
 
-    if (str == "Infinity") {
+    if (str == "Infinity" || str == "+Infinity") {
         return std::numeric_limits<double>::infinity();
     } else if (str == "-Infinity") {
         return -std::numeric_limits<double>::infinity();
     }
 
     uint8_t base = 0;
-    std::string validcharacters = "0123456789-eE.";
+    std::string validcharacters = "0123456789+-eE.";
     if (str[0] == '0') {
-        base = 0;
-
-        switch (str[1]) {
-        case 'x':
+        if (str[1] == 'x' || str[1] == 'X') {
             base = 16;
-            validcharacters = "0123456789ABCDEF";
-            break;
-        case 'b':
+            validcharacters = "0123456789ABCDEFabcedef";
+        } else if (str[1] == 'b' || str[1] == 'B') {
             base = 2;
             validcharacters = "01";
-            break;
-        case 'o':
+        } else if (str[1] == 'o' || str[1] == 'O') {
             base = 8;
             validcharacters = "01234567";
-            break;
         }
         if (base != 0) {
             str = str.substr(2, str.length() - 2);
         }
     }
 
-    for (int i = 0; i < str.length(); i++) {
+    for (size_t i = 0; i < str.length(); i++) {
         if (validcharacters.find(str[i]) == std::string::npos) {
             throw std::invalid_argument("");
         }
-        if (str[i] == 'e' && i == str.length() - 1) {
-            // implementation differece, "1e" doesn't work in Scratch but works
-            // with std::stod()
-            throw std::invalid_argument("");
-        }
-        if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) {
-            // implementation differece, decimal point after e doesn't work in
-            // Scratch but works with std::stod()
-            throw std::invalid_argument("");
+        if (base == 0) {
+            if (str[i] == 'e' && i == str.length() - 1) {
+                // implementation differece, "1e" doesn't work in Scratch but works
+                // with std::stod()
+                throw std::invalid_argument("");
+            }
+            if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) {
+                // implementation differece, decimal point after e doesn't work in
+                // Scratch but works with std::stod()
+                throw std::invalid_argument("");
+            }
         }
     }
 
@@ -96,7 +92,7 @@ double Math::parseNumber(std::string str) {
         if (base == 0) {
             conversion = std::stod(str, &pos);
         } else {
-            conversion = std::stoi(str, &pos, base);
+            conversion = std::stoull(str, &pos, base);
         }
     } catch (const std::out_of_range &e) {
         if (str[0] == '-') {

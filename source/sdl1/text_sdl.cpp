@@ -1,14 +1,18 @@
 #include "text_sdl.hpp"
 #include "../scratch/render.hpp"
 #include "os.hpp"
+#include "render.hpp"
 #include "text.hpp"
+#include <SDL/SDL_gfxBlitFunc.h>
+#include <SDL/SDL_rotozoom.h>
+#include <SDL/SDL_video.h>
 #include <iostream>
 #include <ostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -29,7 +33,7 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
         const auto &file = cmrc::romfs::get_filesystem().open(fontPath);
         TTF_Font *loadedFont = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 30);
 #else
@@ -51,13 +55,12 @@ TextObjectSDL::TextObjectSDL(std::string txt, double posX, double posY, std::str
 
     // Set initial text
     setText(txt);
-    setRenderer(static_cast<SDL_Renderer *>(Render::getRenderer()));
+    setRenderer(static_cast<SDL_Surface *>(Render::getRenderer()));
 }
 
 TextObjectSDL::~TextObjectSDL() {
     if (texture) {
-        MemoryTracker::deallocateVRAM(memorySize);
-        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(texture);
         texture = nullptr;
     }
 
@@ -95,7 +98,7 @@ void TextObjectSDL::updateTexture() {
 
     // Clean up old texture
     if (texture) {
-        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(texture);
         texture = nullptr;
     }
 
@@ -141,26 +144,21 @@ void TextObjectSDL::updateTexture() {
     }
 
     // Create a surface to compose all lines
-    SDL_Surface *compositeSurface = SDL_CreateRGBSurfaceWithFormat(
-        0, maxWidth, totalHeight, 32, SDL_PIXELFORMAT_RGBA8888);
-
-    if (!compositeSurface) {
-        std::cerr << "Failed to create composite surface: " << SDL_GetError() << std::endl;
-        return;
-    }
+    SDL_Surface *compositeSurface = SDL_CreateRGBSurface(
+        SDL_HWSURFACE, maxWidth, totalHeight, 32, RMASK, GMASK, BMASK, AMASK);
 
     // Make the surface transparent
-    SDL_SetSurfaceBlendMode(compositeSurface, SDL_BLENDMODE_BLEND);
-    SDL_FillRect(compositeSurface, nullptr, SDL_MapRGBA(compositeSurface->format, 0, 0, 0, 0));
+    SDL_FillRect(compositeSurface, NULL, SDL_MapRGBA(compositeSurface->format, sdlColor.r, sdlColor.g, sdlColor.b, 0));
+    SDL_SetAlpha(compositeSurface, SDL_SRCALPHA, 255);
 
     // Render each line onto the composite surface
-    int currentY = 0;
+    Sint16 currentY = 0;
     for (const auto &line : lines) {
         if (!line.empty()) {
             SDL_Surface *lineSurface = TTF_RenderUTF8_Blended(font, line.c_str(), sdlColor);
             if (lineSurface) {
-                SDL_Rect destRect = {0, currentY, lineSurface->w, lineSurface->h};
-                SDL_BlitSurface(lineSurface, nullptr, compositeSurface, &destRect);
+                SDL_Rect destRect = {0, currentY, static_cast<Uint16>(lineSurface->w), static_cast<Uint16>(lineSurface->h)};
+                SDL_gfxBlitRGBA(lineSurface, nullptr, compositeSurface, &destRect);
                 SDL_FreeSurface(lineSurface);
             }
         }
@@ -168,10 +166,8 @@ void TextObjectSDL::updateTexture() {
     }
 
     // Create texture from composite surface
-    MemoryTracker::deallocateVRAM(memorySize);
-    texture = SDL_CreateTextureFromSurface(renderer, compositeSurface);
+    texture = SDL_DisplayFormatAlpha(compositeSurface);
     memorySize = compositeSurface->w * compositeSurface->h * 4;
-    MemoryTracker::allocateVRAM(memorySize);
 
     if (!texture) {
         std::cerr << "Failed to create text texture: " << SDL_GetError() << std::endl;
@@ -183,7 +179,6 @@ void TextObjectSDL::updateTexture() {
 
     SDL_FreeSurface(compositeSurface);
 }
-
 void TextObjectSDL::setColor(int clr) {
     if (color == clr) return;
     TextObject::setColor(clr);
@@ -199,9 +194,21 @@ void TextObjectSDL::setText(std::string txt) {
 void TextObjectSDL::render(int xPos, int yPos) {
     if (!texture || !renderer) return;
 
+    SDL_Surface *surface = texture;
+    bool free = false;
+
+    if (scale != 1.0f) {
+        surface = zoomSurface(texture, scale, scale, SMOOTHING_OFF);
+        if (!surface) {
+            surface = texture;
+        } else {
+            free = true;
+        }
+    }
+
     SDL_Rect destRect;
-    destRect.w = (int)(textWidth * scale);
-    destRect.h = (int)(textHeight * scale);
+    destRect.w = surface->w;
+    destRect.h = surface->h;
 
     if (centerAligned) {
         destRect.x = xPos - (destRect.w / 2);
@@ -211,7 +218,11 @@ void TextObjectSDL::render(int xPos, int yPos) {
         destRect.y = yPos;
     }
 
-    SDL_RenderCopy(renderer, texture, nullptr, &destRect);
+    SDL_BlitSurface(surface, nullptr, renderer, &destRect);
+
+    if (free) {
+        SDL_FreeSurface(surface);
+    }
 }
 
 std::vector<float> TextObjectSDL::getSize() {
@@ -219,11 +230,11 @@ std::vector<float> TextObjectSDL::getSize() {
         return {0.0f, 0.0f};
     }
 
-    return {textWidth * scale, textHeight * scale};
+    return {(float)textWidth * scale, (float)textHeight * scale};
 }
 
 void TextObjectSDL::setRenderer(void *r) {
-    renderer = static_cast<SDL_Renderer *>(r);
+    renderer = static_cast<SDL_Surface *>(r);
     updateTexture();
 }
 

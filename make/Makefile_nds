@@ -2,9 +2,9 @@
 .SUFFIXES:
 #---------------------------------------------------------------------------------
 
-
+TOPDIR ?= $(CURDIR)
 export WONDERFUL_TOOLCHAIN	?= /opt/wonderful
-export BLOCKSDS			?= (WONDERFUL_TOOLCHAIN)/thirdparty/blocksds/core
+export BLOCKSDS			?= $(WONDERFUL_TOOLCHAIN)/thirdparty/blocksds/core
 ARM_NONE_EABI_PATH	?= $(WONDERFUL_TOOLCHAIN)/toolchain/gcc-arm-none-eabi/bin/
 
 #---------------------------------------------------------------------------------
@@ -27,9 +27,9 @@ RANLIB		:= $(PREFIX)ranlib
 # DATA is a list of directories containing binary files
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-ds
-BUILD		:=	build
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/nds include/miniz
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/nds include/nlohmann include/miniz
+BUILD		:=	build/nds
+SOURCES		:=	source source/scratch source/scratch/blocks source/nds include/miniz
+INCLUDES	:=	include source/scratch source/scratch/blocks source/nds include/nlohmann include/miniz
 DATA		:=
 NITRODATA	:=	romfs
 GRAPHICS	:=	gfx
@@ -41,9 +41,14 @@ GFXBUILD	:=	$(NITRODATA)/gfx
 GAME_TITLE		:=	Scratch Everywhere!
 GAME_SUBTITLE1	:=	Scratch 3 Games on your DS!
 GAME_SUBTITLE2	:=	NateXS
-GAME_ICON		:=	$(CURDIR)/../gfx/nds/icon.bmp
+GAME_ICON		:=	$(CURDIR)/../../gfx/nds/icon.bmp
 
 
+#---------------------------------------------------------------------------------
+# config options
+#---------------------------------------------------------------------------------
+ENABLE_MENU		?=	1
+ENABLE_AUDIO	?=	1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -56,9 +61,8 @@ CFLAGS	:=	-g -Wall -O2 \
 			-ffunction-sections -fdata-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DENABLE_AUDIO
+CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DRENDERER_GL2D
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(BLOCKSDS)/sys/crts/ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
@@ -73,20 +77,28 @@ LIBS	:= -lstdc++ -lc -lnds9 -lmm9
 #---------------------------------------------------------------------------------
 LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
 
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+endif
 
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lmm9
 LIBDIRS	+=	$(BLOCKSDS)/libs/maxmod
+CFLAGS	+=	-DENABLE_AUDIO
 endif
+
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -std=gnu++17
 
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
 #---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
+ifneq ($(notdir $(BUILD)),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
+export OUTPUT	:=	$(CURDIR)/$(BUILD)/$(TARGET)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 					$(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -138,8 +150,12 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
 	@cp -r $(GRAPHICS)/ingame $@/
+else
+	@cp $(GRAPHICS)/menu/Ubuntu-Bold.ttf $@/
+endif
 
 #---------------------------------------------------------------------------------
 clean:

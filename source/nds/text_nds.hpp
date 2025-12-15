@@ -24,13 +24,15 @@ class TextObjectNDS : public TextObject {
     void setDimensions();
     int width = 0;
     int height = 0;
+    float minScale = 1.0f;
 
   protected:
     FontData *font;
     int fontSize = 16;
 
   public:
-    static std::map<std::string, FontData> fonts;
+    static std::map<std::string, FontData>
+        fonts;
     TextObjectNDS(std::string txt, double posX, double posY, std::string fontPath = "", int fontSize = 16);
     ~TextObjectNDS() override;
 

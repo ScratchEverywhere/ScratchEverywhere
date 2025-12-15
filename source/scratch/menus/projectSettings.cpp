@@ -18,10 +18,14 @@ void ProjectSettings::init() {
 
     changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
-    UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
-    UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
-    DeleteUnpackProjectButton = new ButtonObject("Delete Unpacked Proj.", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
-    DeleteUnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
+    if (canUnpacked) {
+        UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
+    } else {
+        UnpackProjectButton = new ButtonObject("Delete Unpacked Project", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
+        UnpackProjectButton->text->setScale(0.75);
+    }
     bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
@@ -35,21 +39,14 @@ void ProjectSettings::init() {
     settingsControl->selectedObject = changeControlsButton;
     changeControlsButton->isSelected = true;
 
-    if (canUnpacked) {
-        changeControlsButton->buttonDown = UnpackProjectButton;
-        changeControlsButton->buttonUp = UnpackProjectButton;
-        UnpackProjectButton->buttonUp = changeControlsButton;
-        UnpackProjectButton->buttonDown = bottomScreenButton;
-        bottomScreenButton->buttonDown = changeControlsButton;
-        bottomScreenButton->buttonUp = UnpackProjectButton;
-    } else {
-        changeControlsButton->buttonDown = DeleteUnpackProjectButton;
-        changeControlsButton->buttonUp = DeleteUnpackProjectButton;
-        DeleteUnpackProjectButton->buttonUp = changeControlsButton;
-        DeleteUnpackProjectButton->buttonDown = bottomScreenButton;
-        bottomScreenButton->buttonDown = changeControlsButton;
-        bottomScreenButton->buttonUp = DeleteUnpackProjectButton;
-    }
+    // link buttons
+    changeControlsButton->buttonDown = UnpackProjectButton;
+    changeControlsButton->buttonUp = UnpackProjectButton;
+    UnpackProjectButton->buttonUp = changeControlsButton;
+    UnpackProjectButton->buttonDown = bottomScreenButton;
+    bottomScreenButton->buttonDown = changeControlsButton;
+    bottomScreenButton->buttonUp = UnpackProjectButton;
+
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
@@ -80,26 +77,21 @@ void ProjectSettings::render() {
         applySettings(screenSetting);
         bottomScreenButton->text->setText(bottomScreenButton->text->getText() == "Bottom Screen: ON" ? "Bottom Screen: OFF" : "Bottom Screen: ON");
     }
-    if (UnpackProjectButton->isPressed({"a"}) && canUnpacked) {
+    if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
         UnpackMenu unpackMenu;
         unpackMenu.render();
 
-        Unzip::extractProject(OS::getScratchFolderLocation() + projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath);
+        if (canUnpacked) {
+            if (Unzip::extractProject(OS::getScratchFolderLocation() + projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath)) {
+                unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+            }
+        } else {
+            if (Unzip::deleteProjectFolder(OS::getScratchFolderLocation() + projectPath)) {
+                unpackMenu.removeFromJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+            }
+        }
 
-        unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
-        unpackMenu.cleanup();
-        ProjectMenu *projectMenu = new ProjectMenu();
-        MenuManager::changeMenu(projectMenu);
-        return;
-    }
-
-    if (DeleteUnpackProjectButton->isPressed({"a"}) && !canUnpacked) {
-        cleanup();
-        UnpackMenu unpackMenu;
-        unpackMenu.render();
-        Unzip::deleteProjectFolder(OS::getScratchFolderLocation() + projectPath);
-        unpackMenu.removeFromJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
         unpackMenu.cleanup();
         ProjectMenu *projectMenu = new ProjectMenu();
         MenuManager::changeMenu(projectMenu);
@@ -112,13 +104,13 @@ void ProjectSettings::render() {
         return;
     }
 
-    Render::beginFrame(0, 147, 138, 168);
-    Render::beginFrame(1, 147, 138, 168);
+    Render::beginFrame(0, 96, 90, 105);
+    Render::beginFrame(1, 96, 90, 105);
 
-    changeControlsButton->render();
-    if (canUnpacked) UnpackProjectButton->render();
-    if (!canUnpacked) DeleteUnpackProjectButton->render();
-    bottomScreenButton->render();
+    // changeControlsButton->render();
+    // if (canUnpacked) UnpackProjectButton->render();
+    // if (!canUnpacked) DeleteUnpackProjectButton->render();
+    // bottomScreenButton->render();
     settingsControl->render();
     backButton->render();
 
@@ -143,8 +135,8 @@ void ProjectSettings::applySettings(const nlohmann::json &settingsData) {
     std::string filePath = folderPath + ".sb3" + ".json";
 
     try {
-        std::filesystem::create_directories(std::filesystem::path(filePath).parent_path());
-    } catch (const std::filesystem::filesystem_error &e) {
+        OS::createDirectory(OS::parentPath(filePath));
+    } catch (const OS::FilesystemError &e) {
         Log::logError("Failed to create directories: " + std::string(e.what()));
         return;
     }
@@ -182,10 +174,6 @@ void ProjectSettings::cleanup() {
     if (UnpackProjectButton != nullptr) {
         delete UnpackProjectButton;
         UnpackProjectButton = nullptr;
-    }
-    if (DeleteUnpackProjectButton != nullptr) {
-        delete DeleteUnpackProjectButton;
-        DeleteUnpackProjectButton = nullptr;
     }
     if (bottomScreenButton != nullptr) {
         delete bottomScreenButton;

@@ -72,7 +72,7 @@ Value OperatorBlocks::letterOf(Block &block, Sprite *sprite) {
 
 Value OperatorBlocks::length(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "STRING", sprite);
-    return Value(static_cast<int>(value1.asString().size()));
+    return Value(static_cast<double>(value1.asString().size()));
 }
 
 Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
@@ -89,10 +89,7 @@ Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
 
 Value OperatorBlocks::round(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM", sprite);
-    if (value1.isNumeric()) {
-        return Value(static_cast<int>(std::round(value1.asDouble())));
-    }
-    return Value(0);
+    return Value(std::round(value1.asDouble()));
 }
 
 Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
@@ -106,10 +103,10 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
             return Value(abs(value));
         }
         if (operation == "floor") {
-            return Value(static_cast<int>(floor(value)));
+            return Value(floor(value));
         }
         if (operation == "ceiling") {
-            return Value(static_cast<int>(ceil(value)));
+            return Value(ceil(value));
         }
         if (operation == "sqrt") {
             return Value(sqrt(value));

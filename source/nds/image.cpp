@@ -46,7 +46,6 @@ Image::Image(std::string filePath) : width(0), height(0), scale(1.0), opacity(1.
         scale = 1.0;
         rotation = 0.0;
         opacity = 1.0;
-        Log::log("loaded!");
     }
 }
 
@@ -93,6 +92,7 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
     std::string fullPath = filePath;
 
     if (fromScratchProject) fullPath = "project/" + fullPath;
+    if (Unzip::UnpackedInSD) fullPath = Unzip::filePath + filePath;
 
     FILE *file = fopen(fullPath.c_str(), "rb");
     if (!file) {
@@ -404,7 +404,7 @@ imagePAL8 RGBAToPAL8(const imageRGBA &rgba) {
         ds.paletteData[i] = 0x0000;
 
     ds.textureMemSize = totalPixels + (256 * 2); // texture bytes + palette bytes
-    Log::log("Tex converted! Size: " + std::to_string(ds.textureMemSize / 1000) + " KB");
+    // Log::log("Tex converted! Size: " + std::to_string(ds.textureMemSize / 1000) + " KB");
     return ds;
 }
 
@@ -527,6 +527,9 @@ void Image::freeImage(const std::string &costumeId) {
     glDeleteTextures(1, &image.textureID);
 
     images.erase(imgFind);
+}
+
+void Image::cleanupImagesLite() {
 }
 
 void Image::cleanupImages() {

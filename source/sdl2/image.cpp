@@ -14,7 +14,7 @@
 std::unordered_map<std::string, SDL_Image *> images;
 static std::vector<std::string> toDelete;
 
-#if defined(__PC__) || defined(__PSP__)
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -144,16 +144,12 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
         finalPath = finalPath + "project/";
 
     finalPath = finalPath + filePath;
-    if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
-    // SDL_Image *image = new SDL_Image(finalPath);
-    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
-    new (image) SDL_Image(finalPath);
+    if (Unzip::UnpackedInSD && fromScratchProject) finalPath = Unzip::filePath + filePath;
+    SDL_Image *image = new SDL_Image(finalPath, fromScratchProject);
 
-    // Track texture memory
-    if (image->spriteTexture) {
-        size_t textureMemory = image->width * image->height * 4;
-        MemoryTracker::allocateVRAM(textureMemory);
-        image->memorySize = textureMemory;
+    if (!image->spriteTexture || image->spriteTexture == NULL ||
+        !image->spriteSurface || image->spriteSurface == NULL) {
+        return false;
     }
 
     if (sprite != nullptr) {
@@ -228,8 +224,10 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
     mz_free(file_data);
 
     if (!surface) {
+        const std::string error = std::string(IMG_GetError());
         Log::logWarning("Failed to load image from memory: " + costumeId);
-        Log::logWarning("IMG Error: " + std::string(IMG_GetError()));
+        Log::logWarning("IMG Error: " + error);
+        if (error.find("Out of memory") != std::string::npos) Image::cleanupImagesLite();
         return;
     }
 
@@ -255,22 +253,11 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
     SDL_FreeSurface(surface);
 
     // Build SDL_Image object
-    SDL_Image *image = MemoryTracker::allocate<SDL_Image>();
-    new (image) SDL_Image();
+    SDL_Image *image = new SDL_Image();
     image->spriteTexture = texture;
     SDL_QueryTexture(texture, nullptr, nullptr, &image->width, &image->height);
     image->renderRect = {0, 0, image->width, image->height};
     image->textureRect = {0, 0, image->width, image->height};
-
-    // calculate VRAM usage
-    Uint32 format;
-    int w, h;
-    SDL_QueryTexture(texture, &format, NULL, &w, &h);
-    int bpp;
-    Uint32 Rmask, Gmask, Bmask, Amask;
-    SDL_PixelFormatEnumToMasks(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
-    image->memorySize = (w * h * bpp) / 8;
-    MemoryTracker::allocateVRAM(image->memorySize);
 
     if (sprite != nullptr) {
         sprite->spriteWidth = image->textureRect.w / 2;
@@ -283,15 +270,24 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
 
 void Image::cleanupImages() {
     for (auto &[id, image] : images) {
-        if (image->memorySize > 0) {
-            MemoryTracker::deallocateVRAM(image->memorySize);
-        }
-        // delete image;
-        image->~SDL_Image();
-        MemoryTracker::deallocate<SDL_Image>(image);
+        delete image;
     }
     images.clear();
     toDelete.clear();
+}
+
+void Image::cleanupImagesLite() {
+    std::vector<std::string> keysToDelete;
+    keysToDelete.reserve(images.size());
+
+    for (const auto &[id, data] : images) {
+        if (data->freeTimer < data->maxFreeTime - 2)
+            keysToDelete.push_back(id);
+    }
+
+    for (const std::string &id : keysToDelete) {
+        Image::freeImage(id);
+    }
 }
 
 /**
@@ -302,12 +298,7 @@ void Image::freeImage(const std::string &costumeId) {
     auto imageIt = images.find(costumeId);
     if (imageIt != images.end()) {
         SDL_Image *image = imageIt->second;
-
-        // Log::log("Freed image " + costumeId);
-        //  Call destructor and deallocate SDL_Image
-        image->~SDL_Image();
-        MemoryTracker::deallocate<SDL_Image>(image);
-
+        delete image;
         images.erase(imageIt);
     }
 }
@@ -318,62 +309,37 @@ void Image::freeImage(const std::string &costumeId) {
  */
 void Image::FlushImages() {
 
-    // Free images if ram usage is too high
-    if (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.8) {
-
-        size_t times = 0;
-        while (MemoryTracker::getVRAMUsage() + MemoryTracker::getCurrentUsage() > MemoryTracker::getMaxVRAMUsage() * 0.5 && !images.empty()) {
-            SDL_Image *imgToDelete = nullptr;
-            std::string toDeleteStr = "";
-
-            for (auto &[id, img] : images) {
-                if (imgToDelete == nullptr && img->freeTimer != img->maxFreeTime) {
-                    imgToDelete = img;
-                    toDeleteStr = id;
-                    continue;
-                }
-                if (imgToDelete != nullptr && img->freeTimer < imgToDelete->freeTimer && img->freeTimer != img->maxFreeTime) {
-                    imgToDelete = img;
-                    toDeleteStr = id;
-                }
-            }
-
-            if (toDeleteStr != "") {
-                Image::freeImage(toDeleteStr);
-            } else {
-                break;
-            }
-            times++;
-            if (times > 15) break;
+    // Free images based on a timer
+    for (auto &[id, img] : images) {
+        if (img->freeTimer <= 0) {
+            toDelete.push_back(id);
+        } else {
+            img->freeTimer -= 1;
         }
-    } else {
-        // Free images based on a timer
-        for (auto &[id, img] : images) {
-            if (img->freeTimer <= 0) {
-                toDelete.push_back(id);
-            } else {
-                img->freeTimer -= 1;
-            }
-        }
-
-        for (const std::string &id : toDelete) {
-            Image::freeImage(id);
-        }
-        toDelete.clear();
     }
+
+    for (const std::string &id : toDelete) {
+        Image::freeImage(id);
+    }
+    toDelete.clear();
 }
 
 SDL_Image::SDL_Image() {}
 
-SDL_Image::SDL_Image(std::string filePath) {
-#if defined(__PC__) || defined(__PSP__)
-    const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-    spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+SDL_Image::SDL_Image(std::string filePath, bool fromScratchProject) {
+#ifdef USE_CMAKERC
+    if (!Unzip::UnpackedInSD || !fromScratchProject) {
+        const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+        spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+    } else spriteSurface = IMG_Load(filePath.c_str());
+
 #else
     spriteSurface = IMG_Load(filePath.c_str());
 #endif
     if (spriteSurface == NULL) {
-        Log::logWarning(std::string("Error loading image: ") + IMG_GetError());
+        const std::string error = std::string(IMG_GetError());
+        Log::logWarning("Error loading image '" + filePath + "': " + error);
+        if (error.find("Out of memory") != std::string::npos) Image::cleanupImagesLite();
         return;
     }
 
@@ -410,16 +376,6 @@ SDL_Image::SDL_Image(std::string filePath) {
     textureRect.x = 0;
     textureRect.y = 0;
 
-    // calculate VRAM usage
-    Uint32 format;
-    int w, h;
-    SDL_QueryTexture(spriteTexture, &format, NULL, &w, &h);
-    int bpp;
-    Uint32 Rmask, Gmask, Bmask, Amask;
-    SDL_PixelFormatEnumToMasks(format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
-    memorySize = (w * h * bpp) / 8;
-    MemoryTracker::allocateVRAM(memorySize);
-
     // Log::log("Image loaded!");
 }
 
@@ -431,7 +387,6 @@ void Image::queueFreeImage(const std::string &costumeId) {
 }
 
 SDL_Image::~SDL_Image() {
-    MemoryTracker::deallocateVRAM(memorySize);
     SDL_DestroyTexture(spriteTexture);
 }
 

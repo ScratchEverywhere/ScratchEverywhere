@@ -70,6 +70,7 @@ struct Block {
     double glideEndX, glideEndY;
     Timer waitTimer;
     bool customBlockExecuted = false;
+    bool stopScript = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
 
@@ -144,9 +145,13 @@ struct Monitor {
     std::string opcode;
     std::unordered_map<std::string, std::string> parameters;
     std::string spriteName;
+    std::string displayName;
     Value value;
+    std::vector<Value> list;
     int x;
     int y;
+    int width;
+    int height;
     bool visible;
     double sliderMin;
     double sliderMax;
@@ -193,12 +198,17 @@ class Sprite {
     struct {
         bool down = false;
         double size = 1;
-        Color color = {66.66, 100.0, 100.0};
-        double transparency = 0;
+        Color color = {66.66, 100.0, 100.0, 0.0};
     } penData;
 
+    struct {
+        std::string gender = "female";
+        std::string language = "en";
+        std::string playbackRate = "1.0"; // not used yet
+    } textToSpeechData;
+
     std::unordered_map<std::string, Variable> variables;
-    std::unordered_map<std::string, Block> blocks;
+    std::map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
     std::map<std::string, Sound> sounds;
     std::vector<Costume> costumes;

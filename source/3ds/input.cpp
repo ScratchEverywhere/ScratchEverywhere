@@ -1,6 +1,5 @@
 #include "input.hpp"
 #include "blockExecutor.hpp"
-#include "input.hpp"
 #include "render.hpp"
 #include <3ds.h>
 
@@ -9,9 +8,11 @@
 
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
+std::vector<std::string> Input::inputBuffer;
+std::unordered_map<std::string, int> Input::keyHeldDuration;
+std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
-int Input::keyHeldFrames = 0;
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
 static u16 oldTouchPy = 0;
@@ -59,7 +60,6 @@ void Input::getInput() {
     }
 
     if (kDown) {
-        keyHeldFrames += 1;
         inputButtons.push_back("any");
         if (kDown & KEY_A) {
             Input::buttonPress("A");
@@ -132,11 +132,15 @@ void Input::getInput() {
             // normal touch screen if both screens or bottom screen only
             if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
                 mousePointer.isPressed = true;
-                mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
-                if (Render::renderMode == Render::BOTH_SCREENS)
-                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
-                else if (Render::renderMode == Render::BOTTOM_SCREEN_ONLY)
+
+                if (Render::renderMode == Render::BOTH_SCREENS) {
+                    mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
                     mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
+                } else {
+                    auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
+                    mousePointer.x = coords.first;
+                    mousePointer.y = (coords.second);
+                }
             }
 
             // trackpad movement if top screen only
@@ -150,16 +154,13 @@ void Input::getInput() {
                 mousePointer.isMoving = true;
             }
         }
-        if (keyHeldFrames == 1 || keyHeldFrames > 13)
-            BlockExecutor::runAllBlocksByOpcode("event_whenkeypressed");
-
-    } else {
-        keyHeldFrames = 0;
     }
     oldTouchPx = touchPos[0];
     oldTouchPy = touchPos[1];
 
-    doSpriteClicking();
+    BlockExecutor::executeKeyHats();
+
+    BlockExecutor::doSpriteClicking();
 }
 
 /**
