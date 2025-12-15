@@ -2,7 +2,7 @@
 #include "os.hpp"
 #include "text.hpp"
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
+#include <SDL_ttf.h>
 
 SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
     : TextObjectSDL(text, 0, 0), SpeechText(text, maxWidth) {
@@ -20,9 +20,9 @@ SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
         pathFont.clear();
     }
 
-    font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/Arialn.ttf").c_str(), 16);
+    font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf").c_str(), 16);
     if (!font) {
-        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/menu/Arialn.ttf") + ": " + TTF_GetError());
+        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf") + ": " + TTF_GetError());
     }
 
     platformSetText(wrapText());

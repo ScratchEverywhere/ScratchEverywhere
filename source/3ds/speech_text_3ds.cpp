@@ -3,7 +3,7 @@
 #include <3ds.h>
 
 SpeechTextObject3DS::SpeechTextObject3DS(const std::string &text, int maxWidth)
-    : TextObject3DS(text, 0, 0, "gfx/menu/Arialn"), SpeechText(text, maxWidth) {
+    : TextObject3DS(text, 0, 0, "gfx/menu/Ubuntu-Bold"), SpeechText(text, maxWidth) {
     setColor(Math::color(0, 0, 0, 255));
     setCenterAligned(false); // easier for positioning logic
     setScale(16.0f / 30.0f); // scale rasterised font from 30px to 16px

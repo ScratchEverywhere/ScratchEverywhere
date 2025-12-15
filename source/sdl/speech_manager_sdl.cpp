@@ -85,7 +85,7 @@ void SpeechManagerSDL::render() {
             int bubbleX = textX - bubblePadding;
             int bubbleY = textY - bubblePadding;
             int bubbleWidth = textWidth + (bubblePadding * 2);
-            int bubbleHeight = textHeight + (bubblePadding * 2);
+            int bubbleHeight = textHeight + (bubblePadding * 2) - (4 * scale);
 
             bubbleImage->renderNineslice(bubbleX, bubbleY, bubbleWidth, bubbleHeight, bubblePadding, false);
 
