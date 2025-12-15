@@ -87,7 +87,7 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
     Value inputValue = Scratch::getInputValue(block, "CLONE_OPTION", sprite);
 
     Sprite *spriteToClone = getAvailableSprite();
-    if (!spriteToClone) return BlockResult::CONTINUE;
+    if (!spriteToClone || spriteToClone->isStage) return BlockResult::CONTINUE;
     if (inputValue.asString() == "_myself_") {
         *spriteToClone = *sprite;
     } else {
@@ -229,7 +229,6 @@ BlockResult ControlBlocks::waitUntil(Block &block, Sprite *sprite, bool *without
 }
 
 BlockResult ControlBlocks::repeat(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
     if (block.repeatTimes != -1 && !fromRepeat) {
         block.repeatTimes = -1;
     }
