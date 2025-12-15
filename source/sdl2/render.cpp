@@ -251,7 +251,7 @@ void Render::deInit() {
         delete speechManager;
         speechManager = nullptr;
     }
-    
+
     SDL_DestroyTexture(penTexture);
 
     Image::cleanupImages();

@@ -405,7 +405,7 @@ void Render::renderSprites() {
             i++;
         }
         renderVisibleVariables();
-        
+
         if (speechManager) {
             speechManager->render();
         }
@@ -469,7 +469,7 @@ void Render::renderSprites() {
             i++;
         }
         renderVisibleVariables();
-        
+
         if (speechManager) {
             speechManager->render();
         }
