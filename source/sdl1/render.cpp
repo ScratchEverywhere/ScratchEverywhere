@@ -43,8 +43,6 @@ float Render::renderScale = 1.0f;
 
 // TODO: properly export these to input.cpp
 SDL_Joystick *controller;
-bool touchActive = false;
-SDL_Rect touchPosition;
 
 bool Render::Init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
@@ -54,7 +52,7 @@ bool Render::Init() {
     SDL_WM_SetCaption("Scratch Everywhere!", NULL);
     window = SDL_SetVideoMode(windowWidth, windowHeight, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
     if (!window) {
-        Log::logError("SDL_SetVideoMode failed: %s", SDL_GetError());
+        Log::logError("SDL_SetVideoMode failed: " + std::string(SDL_GetError()));
         return false;
     }
 
