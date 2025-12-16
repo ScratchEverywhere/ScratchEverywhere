@@ -1,9 +1,10 @@
 #include "control.hpp"
-#include "../audio.hpp"
+#include "audio.hpp"
 #include "blockExecutor.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
 #include "os.hpp"
+#include "random.hpp"
 #include "sprite.hpp"
 #include "value.hpp"
 #include <iostream>
@@ -103,7 +104,7 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
         spriteToClone->isClone = true;
         spriteToClone->isStage = false;
         spriteToClone->toDelete = false;
-        spriteToClone->id = Math::generateRandomString(15);
+        spriteToClone->id = Random::get().randomString(15);
         // Log::log("Cloned " + sprite->name);
         //  add clone to sprite list
         sprites.push_back(spriteToClone);

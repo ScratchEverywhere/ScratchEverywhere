@@ -1,6 +1,7 @@
 #pragma once
 #include "image.hpp"
 #include "os.hpp"
+#include "random.hpp"
 #include "render.hpp"
 #include "text.hpp"
 
@@ -33,9 +34,9 @@ class JollySnow {
 
         for (size_t i = 0; i < 30; i++) {
             SnowFall ball = {
-                .x = (float)(rand() % Render::getWidth()),
-                .y = (float)(rand() % Render::getHeight()),
-                .fallSpeed = ((float)rand() / RAND_MAX) * 1.1f + 0.2f};
+                .x = Random::get().randomFloat(static_cast<float>(Render::getWidth())),
+                .y = Random::get().randomFloat(static_cast<float>(Render::getHeight())),
+                .fallSpeed = Random::get().randomFloat(0.25f, 1.25f};
             snow.push_back(std::move(ball));
         }
     }
@@ -46,7 +47,7 @@ class JollySnow {
             ball.y += ball.fallSpeed;
             if (ball.y > Render::getHeight() + 20 - yOffset) {
                 ball.y = -20 - yOffset;
-                ball.x = (float)(rand() % Render::getWidth());
+                ball.x = Random::get().randomFloat(static_cast<float>(Render::getWidth()));
             }
         }
 
@@ -54,8 +55,8 @@ class JollySnow {
             oldWindowWidth = Render::getWidth();
             oldWindowHeight = Render::getHeight();
             for (auto &ball : snow) {
-                ball.x = (float)(rand() % Render::getWidth());
-                ball.y = (float)(rand() % Render::getHeight());
+                ball.x = Random::get().randomFloat(static_cast<float>(Render::getWidth()));
+                ball.y = Random::get().randomFloat(static_cast<float>(Render::getHeight()));
             }
         }
     }

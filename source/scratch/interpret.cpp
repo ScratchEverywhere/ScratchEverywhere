@@ -6,13 +6,13 @@
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "os.hpp"
+#include "random.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include <cmath>
 #include <cstddef>
 #include <cstring>
-#include <math.h>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -24,7 +24,6 @@
 
 #ifdef ENABLE_CLOUDVARS
 #include <mist/mist.hpp>
-#include <random>
 #include <sstream>
 
 const uint64_t FNV_PRIME_64 = 1099511628211ULL;
@@ -298,7 +297,7 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
 void initializeSpritePool(int poolSize) {
     for (int i = 0; i < poolSize; i++) {
         Sprite newSprite;
-        newSprite.id = Math::generateRandomString(15);
+        newSprite.id = Random::get().randomString(15);
         newSprite.isClone = true;
         newSprite.toDelete = true;
         newSprite.isDeleted = true;
@@ -623,7 +622,7 @@ void loadSprites(const nlohmann::json &json) {
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
         }
-        newSprite->id = Math::generateRandomString(15);
+        newSprite->id = Random::get().randomString(15);
         if (target.contains("isStage")) {
             newSprite->isStage = target["isStage"].get<bool>();
         }
@@ -931,12 +930,12 @@ void loadSprites(const nlohmann::json &json) {
         if (monitor.contains("width") && !(monitor["width"].is_null() || monitor.at("width").get<int>() == 0))
             newMonitor.width = monitor.at("width").get<int>();
         else
-        	newMonitor.width = 110;
+            newMonitor.width = 110;
 
         if (monitor.contains("height") && !(monitor["height"].is_null() || monitor.at("height").get<int>() == 0))
             newMonitor.height = monitor.at("height").get<int>();
         else
-        	newMonitor.height = 200;
+            newMonitor.height = 200;
 
         if (monitor.contains("visible") && !monitor["visible"].is_null())
             newMonitor.visible = monitor.at("visible").get<bool>();

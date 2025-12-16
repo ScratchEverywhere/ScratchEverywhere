@@ -1,9 +1,10 @@
 #include "motion.hpp"
-#include "../render.hpp"
+#include "render.hpp"
 #include "blockExecutor.hpp"
 #include "input.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
+#include "random.hpp"
 #include "render.hpp"
 #include "sprite.hpp"
 #include "value.hpp"
@@ -11,7 +12,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
-#include <math.h>
 #include <ostream>
 #include <string>
 
@@ -39,8 +39,8 @@ BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, bool *withoutScreen
     const double oldY = sprite->yPosition;
 
     if (objectName.asString() == "_random_") {
-        sprite->xPosition = rand() % Scratch::projectWidth - Scratch::projectWidth / 2;
-        sprite->yPosition = rand() % Scratch::projectHeight - Scratch::projectHeight / 2;
+        sprite->xPosition = Random::get().randomRange(Scratch::projectWidth) - (Scratch::projectWidth / 2);
+        sprite->yPosition = Random::get().randomRange(Scratch::projectHeight) - (Scratch::projectHeight / 2);
         goto end;
     }
 
@@ -253,8 +253,8 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
         std::string positionYStr;
 
         if (inputValue.asString() == "_random_") {
-            positionXStr = std::to_string(rand() % Scratch::projectWidth - Scratch::projectWidth / 2);
-            positionYStr = std::to_string(rand() % Scratch::projectHeight - Scratch::projectHeight / 2);
+            positionXStr = std::to_string(Random::get().randomRange(Scratch::projectWidth) - (Scratch::projectWidth / 2));
+            positionYStr = std::to_string(Random::get().randomRange(Scratch::projectHeight) - (Scratch::projectHeight / 2));
         } else if (inputValue.asString() == "_mouse_") {
             positionXStr = std::to_string(Input::mousePointer.x);
             positionYStr = std::to_string(Input::mousePointer.y);
@@ -309,7 +309,7 @@ BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withou
     double targetY = 0;
 
     if (objectName.asString() == "_random_") {
-        sprite->rotation = rand() % 360;
+        sprite->rotation = Random::get().randomRange(360);
         return BlockResult::CONTINUE;
     }
 

@@ -3,6 +3,7 @@
 #include "image.hpp"
 #include "interpret.hpp"
 #include "math.hpp"
+#include "random.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
@@ -79,7 +80,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         return BlockResult::CONTINUE;
     } else if (inputValue.asString() == "random backdrop") {
         if (stageSprite->costumes.size() == 1) return BlockResult::CONTINUE;
-        int randomIndex = std::rand() % (stageSprite->costumes.size() - 1);
+        int randomIndex = Random::get().randomRange(stageSprite->costumes.size() - 1);
         if (randomIndex >= stageSprite->currentCostume) randomIndex++;
         Scratch::switchCostume(stageSprite, randomIndex);
         return BlockResult::CONTINUE;
