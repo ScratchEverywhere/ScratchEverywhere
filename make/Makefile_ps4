@@ -10,7 +10,7 @@ CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 # Options for building Scratch Everywhere!
 ENABLE_CLOUDVARS	?= 0
 ENABLE_AUDIO		?= 1
-ENABLE_LOADSCREEN	?= 1
+ENABLE_LOADSCREEN	?= 0
 ENABLE_MENU		?=	1
 
 # Libraries linked into the ELF.
