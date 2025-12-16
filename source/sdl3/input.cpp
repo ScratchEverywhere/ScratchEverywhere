@@ -47,9 +47,10 @@ extern std::string customUsername;
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
     float rawMouseX, rawMouseY;
-    int numDevices;
-    SDL_GetTouchDevices(&numDevices);
-    if (numDevices > 0) {
+    int numDevices, numFingers;
+    SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
+    SDL_GetTouchFingers(*touchID, &numFingers); // kanye west he likes
+    if (numDevices > 0 && numFingers > 0) {
         pos.push_back(touchPosition.x);
         pos.push_back(touchPosition.y);
         return pos;
@@ -161,14 +162,17 @@ void Input::getInput() {
     BlockExecutor::executeKeyHats();
 
     // TODO: Add way to disable touch input (currently overrides mouse input.)
-    int numDevices;
-    SDL_GetTouchDevices(&numDevices);
-    if (numDevices > 0) {
+    int numDevices, numFingers;
+    SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
+    SDL_GetTouchFingers(*touchID, &numFingers);
+    if (numDevices > 0 && numFingers) {
         // Transform touch coordinates to Scratch space
         auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
+
+        BlockExecutor::doSpriteClicking();
         return;
     }
 

@@ -403,8 +403,8 @@ SDL_Image::SDL_Image(std::string filePath, bool fromScratchProject) {
 #ifdef USE_CMAKERC
         if (!Unzip::UnpackedInSD || !fromScratchProject) {
             const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-            const std::string_view content(file.begin(), file.size());
-            svg_data = content.data();
+            svg_data = (char *)(malloc(file.size() + 1));
+            std::copy(file.begin(), file.end(), svg_data);
             size = file.size();
         } else {
             FILE *fp = fopen(filePath.c_str(), "rb");
@@ -435,7 +435,7 @@ SDL_Image::SDL_Image(std::string filePath, bool fromScratchProject) {
         svg_data[size] = 0;
 #endif
         spriteTexture = SVGToSurface(svg_data, size);
-#ifndef USE_CMAKERC
+#ifdef USE_CMAKERC
         free(svg_data);
 #else
         if (Unzip::UnpackedInSD && fromScratchProject) free(svg_data);

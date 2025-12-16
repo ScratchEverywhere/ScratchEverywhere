@@ -81,9 +81,8 @@ int Unzip::openFile(std::istream *&file) {
     if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
         Log::log("Normal .sb3 project in SD card ");
         file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
-        if (!(*file)) {
-            Log::logError("Couldnt find file. jinkies. " + filePath);
-            Log::logWarning(filePath);
+        if (file == nullptr || !(*file)) {
+            Log::logError("Couldnt find Scratch project file: " + filePath + " jinkies.");
             return 0;
         }
 
@@ -94,8 +93,7 @@ int Unzip::openFile(std::istream *&file) {
     // check if Unpacked Project
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
     if (file == nullptr || !(*file)) {
-        Log::logError("Couldnt open Unpacked Scratch File");
-        Log::logWarning(filePath);
+        Log::logError("Couldnt open unpacked Scratch project: " + filePath);
         return 0;
     }
     filePath = filePath + "/";
