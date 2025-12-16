@@ -435,11 +435,7 @@ SDL_Image::SDL_Image(std::string filePath, bool fromScratchProject) {
         svg_data[size] = 0;
 #endif
         spriteTexture = SVGToSurface(svg_data, size);
-#ifdef USE_CMAKERC
         free(svg_data);
-#else
-        if (Unzip::UnpackedInSD && fromScratchProject) free(svg_data);
-#endif
     } else {
 #ifdef USE_CMAKERC
         if (!Unzip::UnpackedInSD || !fromScratchProject) {
