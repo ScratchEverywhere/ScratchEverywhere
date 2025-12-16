@@ -39,8 +39,8 @@ IDI_ICON1               ICON                    "icon.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,30,1,0
- PRODUCTVERSION 0,30,1,0
+ FILEVERSION 0,31,0,0
+ PRODUCTVERSION 0,31,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -57,12 +57,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "NateXS"
             VALUE "FileDescription", "Custom Scratch Runtime made in C++!"
-            VALUE "FileVersion", "Beta Build 30.1"
+            VALUE "FileVersion", "Beta Build 31 Nightly"
             VALUE "InternalName", "Scratch Everywhere!"
             VALUE "LegalCopyright", "Copyright (C) 2025 NateXS and Grady Link"
             VALUE "OriginalFilename", "scratch-everywhere.exe"
             VALUE "ProductName", "Scratch Everywhere!"
-            VALUE "ProductVersion", "Beta Build 30.1"
+            VALUE "ProductVersion", "Beta Build 31 Nightly"
         END
     END
     BLOCK "VarFileInfo"
