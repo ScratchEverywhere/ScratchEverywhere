@@ -234,7 +234,7 @@ BlockResult ControlBlocks::repeat(Block &block, Sprite *sprite, bool *withoutScr
     }
 
     if (block.repeatTimes == -1) {
-        block.repeatTimes = Scratch::getInputValue(block, "TIMES", sprite).asInt();
+        block.repeatTimes = std::round(Scratch::getInputValue(block, "TIMES", sprite).asDouble());
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 

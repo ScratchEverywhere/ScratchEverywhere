@@ -101,7 +101,7 @@ BlockResult DataBlocks::deleteFromList(Block &block, Sprite *sprite, bool *witho
     auto &items = targetSprite->lists[listId].items;
 
     if (val.isNumeric()) {
-        int index = val.asInt() - 1; // Convert to 0-based index
+        int index = std::floor(val.asDouble()) - 1; // Convert to 0-based index
 
         // Check if the index is within bounds
         if (index >= 0 && index < static_cast<int>(items.size())) {
@@ -155,7 +155,7 @@ BlockResult DataBlocks::insertAtList(Block &block, Sprite *sprite, bool *without
     if (!targetSprite || targetSprite->lists[listId].items.size() >= MAX_LIST_ITEMS) return BlockResult::CONTINUE;
 
     if (index.isNumeric()) {
-        int idx = index.asInt() - 1; // Convert to 0-based index
+        int idx = std::floor(index.asDouble()) - 1; // Convert to 0-based index
         auto &items = targetSprite->lists[listId].items;
 
         // Check if the index is within bounds
@@ -198,7 +198,7 @@ BlockResult DataBlocks::replaceItemOfList(Block &block, Sprite *sprite, bool *wi
     auto &items = targetSprite->lists[listId].items;
 
     if (index.isNumeric()) {
-        int idx = index.asInt() - 1;
+        int idx = std::floor(index.asDouble()) - 1;
 
         if (idx >= 0 && idx < static_cast<int>(items.size())) {
             items[idx] = val;
@@ -219,7 +219,7 @@ BlockResult DataBlocks::replaceItemOfList(Block &block, Sprite *sprite, bool *wi
 
 Value DataBlocks::itemOfList(Block &block, Sprite *sprite) {
     Value indexStr = Scratch::getInputValue(block, "INDEX", sprite);
-    int index = indexStr.asInt() - 1;
+    int index = std::floor(indexStr.asDouble()) - 1;
     std::string listName = Scratch::getFieldId(block, "LIST");
 
     Sprite *targetSprite = nullptr;

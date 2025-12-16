@@ -62,7 +62,7 @@ Value OperatorBlocks::letterOf(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "LETTER", sprite);
     Value value2 = Scratch::getInputValue(block, "STRING", sprite);
     if (value1.isNumeric() && value2.asString() != "") {
-        int index = value1.asInt() - 1;
+        int index = std::floor(value1.asDouble() - 1);
         if (index >= 0 && index < static_cast<int>(value2.asString().size())) {
             return Value(std::string(1, value2.asString()[index]));
         }
