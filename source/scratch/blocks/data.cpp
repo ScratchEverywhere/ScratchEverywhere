@@ -107,13 +107,13 @@ BlockResult DataBlocks::deleteFromList(Block &block, Sprite *sprite, bool *witho
         return BlockResult::CONTINUE;
     }
 
-    if (val.asString() == "last" && !items.empty()) {
+    if (val.asString() == "last") {
         items.pop_back();
         return BlockResult::CONTINUE;
     }
     if (val.asString() == "all") items.clear();
 
-    if ((val.asString() == "random" || val.asString() == "any") && !items.empty()) {
+    if ((val.asString() == "random" || val.asString() == "any")) {
         int idx = rand() % items.size();
         items.erase(items.begin() + idx);
     }
@@ -179,6 +179,8 @@ BlockResult DataBlocks::replaceItemOfList(Block &block, Sprite *sprite, bool *wi
 
     auto &items = targetSprite->lists[listId].items;
 
+    if (items.empty()) return BlockResult::CONTINUE;
+
     if (index.isNumeric()) {
         double idx = std::floor(index.asDouble()) - 1;
 
@@ -188,9 +190,9 @@ BlockResult DataBlocks::replaceItemOfList(Block &block, Sprite *sprite, bool *wi
 
         return BlockResult::CONTINUE;
     }
-    if (index.asString() == "last" && !items.empty()) items.back() = val;
+    if (index.asString() == "last") items.back() = val;
 
-    if ((index.asString() == "random" || index.asString() == "any") && !items.empty()) {
+    if ((index.asString() == "random" || index.asString() == "any")) {
         items[rand() % items.size()] = val;
     }
 
@@ -211,7 +213,7 @@ Value DataBlocks::itemOfList(Block &block, Sprite *sprite) {
 
     if (indexStr.asString() == "last") return items.back();
 
-    if ((indexStr.asString() == "random" || indexStr.asString() == "any") && !items.empty()) {
+    if (indexStr.asString() == "random" || indexStr.asString() == "any") {
         int idx = rand() % items.size();
         return items[idx];
     }
