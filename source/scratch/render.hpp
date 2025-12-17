@@ -148,9 +148,8 @@ class Render {
                 }
             }
 
-#ifndef __NDS__
+#ifdef RENDERER_CITRO2D
             if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-
                 spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
             }
 #endif

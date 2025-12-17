@@ -294,7 +294,6 @@ void Render::penStamp(Sprite *sprite) {
 
     if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
         flip = SDL_FLIP_HORIZONTAL;
-        image->renderRect.x += (sprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
     }
 
     // Pen mapping stuff
@@ -446,7 +445,6 @@ void Render::renderSprites() {
             image->setScale(currentSprite->renderInfo.renderScaleY);
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
                 flip = SDL_FLIP_HORIZONTAL;
-                image->renderRect.x += (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
             }
 
             // set ghost effect
