@@ -604,6 +604,12 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     Scratch::forceRedraw = true;
 }
 
+Sprite* Scratch::getListTargetSprite(std::string listId, Sprite *sprite) {
+    if (sprite->lists.find(listId) != sprite->lists.end()) return sprite;                     // First check if the current sprite has the list
+    if (stageSprite->lists.find(listId) != stageSprite->lists.end()) return stageSprite;      // If not found in current sprite, check stage (global lists)
+    return nullptr;                                                                           // List not found
+}
+
 void Scratch::sortSprites() {
     std::sort(sprites.begin(), sprites.end(),
               [](const Sprite *a, const Sprite *b) {
