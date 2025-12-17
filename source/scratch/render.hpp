@@ -60,7 +60,7 @@ class Render {
      * @param sprite the sprite to calculate.
      * @param isSVG if the sprite's current costume is a Vector image.
      */
-    static void calculateRenderPosition(Sprite *sprite, bool isSVG) {
+    static void calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
 
@@ -79,7 +79,12 @@ class Render {
             sprite->renderInfo.oldSize = sprite->size;
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
+#ifdef RENDERER_GL2D
+            sprite->renderInfo.renderScaleX = sprite->size * 0.005;
+#else
             sprite->renderInfo.renderScaleX = sprite->size * (isSVG ? 0.01 : 0.005);
+#endif
+
             if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
                 float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
                                        static_cast<float>(screenHeight) / Scratch::projectHeight);
@@ -105,10 +110,6 @@ class Render {
 
             sprite->renderInfo.oldX = sprite->xPosition;
             sprite->renderInfo.oldY = sprite->yPosition;
-
-#ifdef __NDS__
-            isSVG = true;
-#endif
 
             float renderX;
             float renderY;

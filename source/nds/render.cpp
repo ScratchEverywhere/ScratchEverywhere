@@ -136,7 +136,7 @@ void Render::renderSprites() {
             sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
             if (sprite->ghostEffect > 75) continue;
 
-            calculateRenderPosition(sprite, false);
+            calculateRenderPosition(sprite, sprite->costumes[sprite->currentCostume].isSVG);
 
             int renderScale = sprite->renderInfo.renderScaleY * (1 << 12);
             if (data.scaleX != 1 << 12 || data.scaleY != 1 << 12) {
@@ -155,12 +155,11 @@ void Render::renderSprites() {
 
             glSpriteRotateScale(sprite->renderInfo.renderX, sprite->renderInfo.renderY, renderRotation, renderScale, flip, image);
 
+            // draw collision points (debug)
             // auto collisionPoints = getCollisionPoints(sprite);
             // for (const auto &point : collisionPoints) {
-
-            //     int drawX = (int)((point.first) + SCREEN_HALF_WIDTH);
-            //     int drawY = (int)((point.second * -1) + (SCREEN_HALF_HEIGHT));
-
+            //     int drawX = (int)((point.first * Render::renderScale) + SCREEN_HALF_WIDTH);
+            //     int drawY = (int)((-point.second * Render::renderScale) + SCREEN_HALF_HEIGHT);
             //     glBoxFilled(
             //         drawX - 1, drawY - 1,
             //         drawX + 1, drawY + 1,
@@ -170,8 +169,8 @@ void Render::renderSprites() {
     }
 
     if (Input::mousePointer.isMoving) {
-        glBoxFilled((Input::mousePointer.x * renderScale) + (SCREEN_HALF_WIDTH - 3), (-Input::mousePointer.y * renderScale) + (SCREEN_HALF_HEIGHT - 3),
-                    (Input::mousePointer.x * renderScale) + (SCREEN_HALF_WIDTH + 3), (-Input::mousePointer.y * renderScale) + (SCREEN_HALF_HEIGHT + 3),
+        glBoxFilled((Input::mousePointer.x * Render::renderScale) + (SCREEN_HALF_WIDTH - 3), (-Input::mousePointer.y * Render::renderScale) + (SCREEN_HALF_HEIGHT - 3),
+                    (Input::mousePointer.x * Render::renderScale) + (SCREEN_HALF_WIDTH + 3), (-Input::mousePointer.y * Render::renderScale) + (SCREEN_HALF_HEIGHT + 3),
                     RGB15(0, 0, 15));
         Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
