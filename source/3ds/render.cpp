@@ -306,6 +306,10 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
 
     Render::calculateRenderPosition(currentSprite, isSVG);
 
+    if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
+        currentSprite->renderInfo.renderScaleX = -std::abs(currentSprite->renderInfo.renderScaleX);
+    } else currentSprite->renderInfo.renderScaleX = std::abs(currentSprite->renderInfo.renderScaleX);
+
     C2D_ImageTint tinty;
 
     // set ghost and brightness effect

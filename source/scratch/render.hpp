@@ -101,9 +101,6 @@ class Render {
             } else {
                 sprite->renderInfo.renderRotation = 0;
             }
-            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-                sprite->renderInfo.renderScaleX = -std::abs(sprite->renderInfo.renderScaleX);
-            }
         }
         if (sprite->xPosition != sprite->renderInfo.oldX ||
             sprite->yPosition != sprite->renderInfo.oldY) {
