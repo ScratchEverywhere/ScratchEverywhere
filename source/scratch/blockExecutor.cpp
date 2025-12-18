@@ -34,6 +34,8 @@ extern std::unique_ptr<MistConnection> cloudConnection;
 
 size_t blocksRun = 0;
 Timer BlockExecutor::timer;
+int BlockExecutor::dragPositionOffsetX;
+int BlockExecutor::dragPositionOffsetY;
 
 BlockExecutor::BlockExecutor() {
     registerHandlers();
@@ -367,6 +369,8 @@ void BlockExecutor::doSpriteClicking() {
             // start dragging a sprite
             if (Input::draggingSprite == nullptr && Input::mousePointer.heldFrames < 2 && sprite->draggable && isColliding("mouse", sprite)) {
                 Input::draggingSprite = sprite;
+                dragPositionOffsetX = Input::mousePointer.x - sprite->xPosition;
+                dragPositionOffsetY = Input::mousePointer.y - sprite->yPosition;
             }
             if (hasClicked) break;
         }
@@ -380,8 +384,8 @@ void BlockExecutor::doSpriteClicking() {
             Input::draggingSprite = nullptr;
             return;
         }
-        Input::draggingSprite->xPosition = Input::mousePointer.x - (Input::draggingSprite->spriteWidth / 2);
-        Input::draggingSprite->yPosition = Input::mousePointer.y + (Input::draggingSprite->spriteHeight / 2);
+        Input::draggingSprite->xPosition = Input::mousePointer.x - dragPositionOffsetX;
+        Input::draggingSprite->yPosition = Input::mousePointer.y - dragPositionOffsetY;
     }
 }
 

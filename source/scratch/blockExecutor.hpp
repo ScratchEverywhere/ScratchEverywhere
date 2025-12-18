@@ -192,6 +192,9 @@ class BlockExecutor {
     // For the `Timer` Scratch block.
     static Timer timer;
 
+    static int dragPositionOffsetX;
+    static int dragPositionOffsetY;
+
   private:
     /**
      * Registers every block function to the lookup map.
