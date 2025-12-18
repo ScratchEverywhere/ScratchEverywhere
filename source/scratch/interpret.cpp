@@ -711,10 +711,14 @@ void loadSprites(const nlohmann::json &json) {
 
                     // Fields are almost always arrays with [0] being the value
                     if (fieldData.is_array() && !fieldData.empty()) {
-                        parsedField.value = fieldData[0].get<std::string>();
+                        if (fieldData[0].is_number()) {
+                            parsedField.value = Value(fieldData[0].get<double>()).asString();
+                        } else {
+                            parsedField.value = fieldData[0].get<std::string>();
+                        }
 
                         // Store ID for variables and lists
-                        if (fieldData.size() > 1 && !fieldData[1].is_null()) {
+                        if (fieldData.size() == 2 && !fieldData[1].is_null()) {
                             parsedField.id = fieldData[1].get<std::string>();
                         }
                     }
@@ -722,6 +726,7 @@ void loadSprites(const nlohmann::json &json) {
                     (*newBlock.parsedFields)[fieldName] = parsedField;
                 }
             }
+
             if (data.contains("inputs")) {
 
                 for (const auto &[inputName, inputData] : data["inputs"].items()) {
