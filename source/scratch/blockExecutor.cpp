@@ -32,7 +32,6 @@
 extern std::unique_ptr<MistConnection> cloudConnection;
 #endif
 
-size_t blocksRun = 0;
 Timer BlockExecutor::timer;
 int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
@@ -270,15 +269,16 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
     }
 
     while (currentBlock && currentBlock->id != "null") {
-        blocksRun += 1;
         ranBlocks.push_back(currentBlock);
         BlockResult result = executeBlock(*currentBlock, sprite, withoutScreenRefresh, fromRepeat);
 
         if (result == BlockResult::RETURN) {
+            if (withoutScreenRefresh && *withoutScreenRefresh) {
+                fromRepeat = true;
+                continue;
+            }
             return ranBlocks;
         }
-
-        // runBroadcasts();
 
         // Move to next block
         if (!currentBlock->next.empty()) {
@@ -286,13 +286,6 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
         } else {
             break;
         }
-    }
-
-    // Timing measurement
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> duration = end - start;
-    if (duration.count() > 0) {
-        // std::cout << " took " << duration.count() << " milliseconds!" << std::endl;
     }
     return ranBlocks;
 }
@@ -390,7 +383,6 @@ void BlockExecutor::doSpriteClicking() {
 }
 
 void BlockExecutor::runRepeatBlocks() {
-    blocksRun = 0;
     bool withoutRefresh = false;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
@@ -428,18 +420,6 @@ void BlockExecutor::runRepeatBlocks() {
                   sprites.end());
 }
 
-void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
-    bool withoutRefresh = true;
-    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
-        while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
-            std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
-            Block *toRun = findBlock(toRepeat);
-            if (toRun != nullptr)
-                executor.runBlock(*toRun, sprite, &withoutRefresh, true);
-        }
-    }
-}
-
 BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
     for (auto &[id, data] : sprite->customBlocks) {
         if (id == block.customBlockId) {
@@ -461,15 +441,8 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             if (!localWithoutRefresh && withoutScreenRefresh != nullptr) {
                 localWithoutRefresh = *withoutScreenRefresh;
             }
-
-            // std::cout << "RWSR = " << localWithoutRefresh << std::endl;
-
             // Execute the custom block definition
             executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh);
-
-            if (localWithoutRefresh) {
-                BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
-            }
 
             break;
         }
@@ -573,14 +546,10 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
 }
 
 void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
-    // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
-    std::vector<Block *> blocksRun;
     std::vector<Sprite *> sprToRun = sprites;
     for (Sprite *currentSprite : sprToRun) {
         for (auto &[id, data] : currentSprite->blocks) {
             if (data.opcode == opcodeToFind) {
-                // runBlock(data,currentSprite);
-                blocksRun.push_back(&data);
                 executor.runBlock(data, currentSprite);
             }
         }

@@ -4,9 +4,6 @@
 #include <functional>
 #include <unordered_map>
 
-// Number of blocks run in a single frame.
-extern size_t blocksRun;
-
 namespace MonitorDisplayNames {
 constexpr std::array<std::pair<std::string_view, std::string_view>, 4> SIMPLE_MONITORS{
     std::make_pair("sensing_timer", "timer"),
@@ -97,12 +94,6 @@ class BlockExecutor {
      * Goes through every currently active repeat block in every `sprite` and runs it once.
      */
     static void runRepeatBlocks();
-    /**
-     * Goes through every currently active repeat block in every `sprite` and runs it until completion.
-     * @param sprite Pointer to the Sprite the Blocks are inside.
-     * @param blockChainId ID of the Block Chain to run. `(block->blockChainId)`
-     */
-    static void runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID);
 
     /**
      * Runs and executes a `Custom Block` (Scratch's 'My Block')
