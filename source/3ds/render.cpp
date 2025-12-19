@@ -137,7 +137,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const int height = getHeight();
 
     const float heightMultiplier = 0.5f;
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
     const float thickness = sprite->penData.size * renderScale;
 
     const float x1_scaled = (x1 * renderScale) + (width / 2);
@@ -166,7 +166,7 @@ void Render::penDot(Sprite *sprite) {
     C2D_SceneBegin(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * Render::renderScale), 1, 1000);
 
     const float xSscaled = (sprite->xPosition * Render::renderScale) + (Render::getWidth() / 2);
@@ -515,6 +515,7 @@ void Render::renderSprites() {
                 }
                 costumeIndex++;
             }
+            i++;
         }
 
         if (Render::renderMode != Render::BOTH_SCREENS) {
