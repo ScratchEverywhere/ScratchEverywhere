@@ -87,12 +87,13 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
     Value inputValue = Scratch::getInputValue(block, "CLONE_OPTION", sprite);
 
     Sprite *spriteToClone = getAvailableSprite();
-    if (!spriteToClone || spriteToClone->isStage) return BlockResult::CONTINUE;
+    if (!spriteToClone) return BlockResult::CONTINUE;
     if (inputValue.asString() == "_myself_") {
+        if (sprite->isStage) return BlockResult::CONTINUE;
         *spriteToClone = *sprite;
     } else {
         for (Sprite *currentSprite : sprites) {
-            if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
+            if (!currentSprite->isClone && !currentSprite->isStage && currentSprite->name == inputValue.asString()) {
                 *spriteToClone = *currentSprite;
             }
         }
