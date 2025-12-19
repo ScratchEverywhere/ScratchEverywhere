@@ -426,16 +426,20 @@ void Render::renderSprites() {
               });
 
     for (Sprite *currentSprite : spritesByLayer) {
-        if (!currentSprite->visible) continue;
 
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
         if (imgFind != images.end()) {
             SDL_Image *image = imgFind->second;
-            image->freeTimer = image->maxFreeTime;
+
             currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
             currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
+
+            if (!currentSprite->visible) continue;
+
+            image->freeTimer = image->maxFreeTime;
+
             SDL_FlipMode flip = SDL_FLIP_NONE;
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
