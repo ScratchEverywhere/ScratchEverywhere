@@ -94,7 +94,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
                 if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
-                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
                 }
             }
         }
@@ -109,7 +109,7 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
                 if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
-                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
                 }
             }
         }

@@ -56,7 +56,7 @@ enum class BlockResult {
     // Goes to the block below.
     CONTINUE,
 
-    // Stops execution and doesn't run any of the blocks below.
+    // Pauses execution until next frame.
     RETURN,
 };
 
@@ -94,6 +94,13 @@ class BlockExecutor {
      * Goes through every currently active repeat block in every `sprite` and runs it once.
      */
     static void runRepeatBlocks();
+
+    /**
+     * Goes through every currently active repeat block in every `sprite` and runs it until completion.
+     * @param sprite Pointer to the Sprite the Blocks are inside.
+     * @param blockChainId ID of the Block Chain to run. `(block->blockChainId)`
+     */
+    static void runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID);
 
     /**
      * Runs and executes a `Custom Block` (Scratch's 'My Block')

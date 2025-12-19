@@ -256,7 +256,6 @@ void BlockExecutor::registerHandlers() {
 
 std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::vector<Block *> ranBlocks;
-    auto start = std::chrono::high_resolution_clock::now();
     Block *currentBlock = &block;
 
     bool localWithoutRefresh = false;
@@ -273,16 +272,13 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
         BlockResult result = executeBlock(*currentBlock, sprite, withoutScreenRefresh, fromRepeat);
 
         if (result == BlockResult::RETURN) {
-            if (withoutScreenRefresh && *withoutScreenRefresh) {
-                fromRepeat = true;
-                continue;
-            }
             return ranBlocks;
         }
 
         // Move to next block
         if (!currentBlock->next.empty()) {
             currentBlock = &sprite->blocks[currentBlock->next];
+            fromRepeat = false;
         } else {
             break;
         }
@@ -420,6 +416,18 @@ void BlockExecutor::runRepeatBlocks() {
                   sprites.end());
 }
 
+void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
+    bool withoutRefresh = true;
+    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end()) {
+        while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
+            std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
+            Block *toRun = findBlock(toRepeat);
+            if (toRun != nullptr)
+                executor.runBlock(*toRun, sprite, &withoutRefresh, true);
+        }
+    }
+}
+
 BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
     for (auto &[id, data] : sprite->customBlocks) {
         if (id == block.customBlockId) {
@@ -442,7 +450,11 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
                 localWithoutRefresh = *withoutScreenRefresh;
             }
             // Execute the custom block definition
-            executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh);
+            executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh, false);
+
+            if (localWithoutRefresh) {
+                BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
+            }
 
             break;
         }

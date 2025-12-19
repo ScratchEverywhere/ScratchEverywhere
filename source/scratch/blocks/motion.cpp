@@ -172,12 +172,7 @@ BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreen
 }
 
 BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = -6;
+    if (!fromRepeat) {
 
         Value duration = Scratch::getInputValue(block, "SECS", sprite);
         if (duration.isNumeric()) {
@@ -207,7 +202,6 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
         if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
         Scratch::forceRedraw = true;
 
-        block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
@@ -229,13 +223,7 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
 }
 
 BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = -7;
+    if (!fromRepeat) {
 
         Value duration = Scratch::getInputValue(block, "SECS", sprite);
         if (duration.isNumeric()) {
@@ -282,7 +270,6 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
         if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
         Scratch::forceRedraw = true;
 
-        block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
