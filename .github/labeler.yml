@@ -2,7 +2,7 @@
   - '### Device\(s\)\s*.*3DS'
 
 DS:
-  - '### Device\(s\)\s*.*DS'
+  - '### Device\(s\)\s*[^3]*DS'
 
 Wii U:
   - '### Device\(s\)\s*.*Wii U'
