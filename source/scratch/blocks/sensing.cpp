@@ -25,7 +25,6 @@ BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, bool *withou
 BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     std::string mode = Scratch::getFieldValue(block, "DRAG_MODE");
-    ;
 
     if (mode == "draggable") {
         sprite->draggable = true;
@@ -56,17 +55,21 @@ Value SensingBlocks::of(Block &block, Sprite *sprite) {
 
     if (value == "timer") {
         return Value(BlockExecutor::timer.getTimeMs() / 1000);
-    } else if (value == "x position") {
+    } else if (value == "x position" && !spriteObject->isStage) {
         return Value(spriteObject->xPosition);
-    } else if (value == "y position") {
+    } else if (value == "y position" && !spriteObject->isStage) {
         return Value(spriteObject->yPosition);
-    } else if (value == "direction") {
+    } else if (value == "direction" && !spriteObject->isStage) {
         return Value(spriteObject->rotation);
-    } else if (value == "costume #" || value == "backdrop #") {
+    } else if (value == "costume #" && !spriteObject->isStage) {
         return Value(spriteObject->currentCostume + 1);
-    } else if (value == "costume name" || value == "backdrop name") {
+    } else if (value == "backdrop #" && spriteObject->isStage) {
+        return Value(spriteObject->currentCostume + 1);
+    } else if (value == "costume name" && !spriteObject->isStage) {
         return Value(spriteObject->costumes[spriteObject->currentCostume].name);
-    } else if (value == "size") {
+    } else if (value == "backdrop name" && spriteObject->isStage) {
+        return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+    } else if (value == "size" && !spriteObject->isStage) {
         return Value(spriteObject->size);
     } else if (value == "volume") {
         return Value(spriteObject->volume);
@@ -92,15 +95,16 @@ Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
     Value inputValue = Scratch::getInputValue(block, "DISTANCETOMENU", sprite);
 
     if (inputValue.asString() == "_mouse_") {
-        return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) +
-                          pow(Input::mousePointer.y - sprite->yPosition, 2)));
+        float dx = Input::mousePointer.x - sprite->xPosition;
+        float dy = Input::mousePointer.y - sprite->yPosition;
+        return Value(std::sqrt(dx * dx + dy * dy));
     }
 
     for (Sprite *currentSprite : sprites) {
         if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
-            double distance = sqrt(pow(currentSprite->xPosition - sprite->xPosition, 2) +
-                                   pow(currentSprite->yPosition - sprite->yPosition, 2));
-            return Value(distance);
+            double dx = currentSprite->xPosition - sprite->xPosition;
+            double dy = currentSprite->yPosition - sprite->yPosition;
+            return Value(std::sqrt(dx * dx + dy * dy));
         }
     }
     return Value(10000);
