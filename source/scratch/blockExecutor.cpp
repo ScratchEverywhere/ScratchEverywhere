@@ -618,8 +618,11 @@ void BlockExecutor::updateMonitors() {
             if (var.opcode == "data_variable") {
                 var.value = BlockExecutor::getVariableValue(var.id, sprite);
                 var.displayName = Math::removeQuotations(var.parameters["VARIABLE"]);
+                if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
             } else if (var.opcode == "data_listcontents") {
                 var.displayName = Math::removeQuotations(var.parameters["LIST"]);
+                if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
+
                 // Check lists
                 auto listIt = sprite->lists.find(var.id);
                 if (listIt != sprite->lists.end())
