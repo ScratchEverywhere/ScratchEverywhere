@@ -9,13 +9,7 @@
 
 BlockResult SoundBlocks::playSoundUntilDone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
-
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = -2;
+    if (!fromRepeat) {
 
         // Find sound by name first
         std::string soundFullName;
