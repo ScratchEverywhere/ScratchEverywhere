@@ -289,7 +289,7 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *with
 BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     sprite->ghostEffect = 0.0f;
-    sprite->colorEffect = -99999;
+    sprite->colorEffect = 0.0f;
     sprite->brightnessEffect = 0.0f;
 
     Scratch::forceRedraw = true;
@@ -302,7 +302,6 @@ Value LooksBlocks::size(Block &block, Sprite *sprite) {
 
 Value LooksBlocks::costumeNumberName(Block &block, Sprite *sprite) {
     std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
-    ;
     if (value == "name") {
         return Value(sprite->costumes[sprite->currentCostume].name);
     } else if (value == "number") {

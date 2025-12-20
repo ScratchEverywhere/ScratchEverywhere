@@ -182,7 +182,7 @@ class Sprite {
 
     float ghostEffect;
     float brightnessEffect;
-    double colorEffect = -99999;
+    float colorEffect;
 
     enum RotationStyle {
         NONE,
