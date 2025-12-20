@@ -151,7 +151,7 @@ BlockResult ControlBlocks::stop(Block &block, Sprite *sprite, bool *withoutScree
             }
             chain.blocksToRepeat.clear();
         }
-        for (auto &[id, sound] : sprite->sounds) {
+        for (Sound sound : sprite->sounds) {
             SoundPlayer::stopSound(sound.fullName);
         }
         return BlockResult::CONTINUE;

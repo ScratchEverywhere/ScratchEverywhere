@@ -211,7 +211,7 @@ class Sprite {
     std::unordered_map<std::string, Variable> variables;
     std::map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
-    std::map<std::string, Sound> sounds;
+    std::vector<Sound> sounds;
     std::vector<Costume> costumes;
     std::unordered_map<std::string, Comment> comments;
     std::unordered_map<std::string, Broadcast> broadcasts;
