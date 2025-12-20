@@ -132,6 +132,10 @@ void BlockExecutor::registerHandlers() {
         {"pen_setPenColorToColor", PenBlocks::SetPenColorTo},
         {"pen_setPenColorParamTo", PenBlocks::SetPenOptionTo},
         {"pen_changePenColorParamBy", PenBlocks::ChangePenOptionBy},
+        {"pen_setPenHueToNumber", PenBlocks::SetPenHueToNumber},
+        {"pen_changePenHueBy", PenBlocks::ChangePenHueBy},
+        {"pen_setPenShadeToNumber", PenBlocks::SetPenShadeToNumber},
+        {"pen_changePenShadeBy", PenBlocks::ChangePenShadeBy},
 
         // Text2Speech
         {"text2speech_speakAndWait", SpeechBlocks::speakAndWait},

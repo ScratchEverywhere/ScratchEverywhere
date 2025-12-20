@@ -49,10 +49,28 @@ inline Color RGBA2CSBO(const ColorRGBA &color) {
     const float s = (cmax == 0) ? 0 : (diff / cmax) * 100;
 
     if (diff == 0) goto end;
-    if (cmax == r) return {static_cast<float>(fmod(60 * ((g - b) / diff) + 360, 360)) * 100.0f / 360, s, cmax * 100, a};
+    if (cmax == r) return {static_cast<float>(fmod(60 * ((g - b) / diff), 360)) * 100.0f / 360, s, cmax * 100, a};
     if (cmax == g) return {static_cast<float>(fmod(60 * ((b - r) / diff) + 120, 360)) * 100.0f / 360, s, cmax * 100, a};
     if (cmax == b) return {static_cast<float>(fmod(60 * ((r - g) / diff) + 240, 360)) * 100.0f / 360, s, cmax * 100, a};
 
 end:
     return {0, s, cmax * 100, a};
+}
+
+static Color legacyUpdatePenColor(const Color &color, const double &shade) {
+    ColorRGBA rgba = CSBT2RGBA({color.hue, 100.0, 100.0, color.transparency});
+    const double penShade = (shade > 100) ? 200 - shade : shade;
+    if (penShade < 50) {
+        rgba.r = rgba.r * (10 + penShade) / 60;
+        rgba.g = rgba.g * (10 + penShade) / 60;
+        rgba.b = rgba.b * (10 + penShade) / 60;
+    } else {
+        rgba.r = rgba.r * (1 - (penShade - 50) / 60) + 255 * (penShade - 50) / 60;
+        rgba.g = rgba.g * (1 - (penShade - 50) / 60) + 255 * (penShade - 50) / 60;
+        rgba.b = rgba.b * (1 - (penShade - 50) / 60) + 255 * (penShade - 50) / 60;
+    }
+
+    const Color penColor = RGBA2CSBO(rgba);
+
+    return {penColor.hue, penColor.saturation, penColor.brightness, color.transparency};
 }

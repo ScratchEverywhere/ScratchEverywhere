@@ -199,6 +199,7 @@ class Sprite {
         bool down = false;
         double size = 1;
         Color color = {66.66, 100.0, 100.0, 0.0};
+        double shade = 50;
     } penData;
 
     struct {
