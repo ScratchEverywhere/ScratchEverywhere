@@ -85,11 +85,6 @@ Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
     double a = value1.asDouble();
     double b = value2.asDouble();
 
-    if (value1.isScratchInt() && value2.isScratchInt()) {
-        int res = a - b * static_cast<int>(std::floor(static_cast<double>(a) / b));
-        return Value(res);
-    }
-
     double res = std::fmod(a, b);
     if ((res < 0 && b > 0) || (res > 0 && b < 0))
         res += b;
