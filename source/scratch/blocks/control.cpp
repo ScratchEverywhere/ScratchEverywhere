@@ -319,12 +319,12 @@ BlockResult ControlBlocks::clearCounter(Block &block, Sprite *sprite, bool *with
 
 BlockResult ControlBlocks::forEach(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!fromRepeat) {
-        block.repeatTimes = Scratch::getInputValue(block, "VALUE", sprite).asInt();
+        block.repeatTimes = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
     if (block.repeatTimes > 0) {
-        BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(Scratch::getInputValue(block, "VALUE", sprite).asInt() - block.repeatTimes + 1), sprite);
+        BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(Scratch::getInputValue(block, "VALUE", sprite).asDouble() - block.repeatTimes + 1), sprite);
 
         auto it = block.parsedInputs->find("SUBSTACK");
         if (it != block.parsedInputs->end()) {

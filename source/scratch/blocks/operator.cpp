@@ -82,15 +82,14 @@ Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
     if (!value1.isNumeric() || !value2.isNumeric() || value2.asDouble() == 0.0)
         return Value(0);
 
+    double a = value1.asDouble();
+    double b = value2.asDouble();
+
     if (value1.isScratchInt() && value2.isScratchInt()) {
-        int a = value1.asInt();
-        int b = value2.asInt();
         int res = a - b * static_cast<int>(std::floor(static_cast<double>(a) / b));
         return Value(res);
     }
 
-    double a = value1.asDouble();
-    double b = value2.asDouble();
     double res = std::fmod(a, b);
     if ((res < 0 && b > 0) || (res > 0 && b < 0))
         res += b;
