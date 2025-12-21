@@ -21,7 +21,7 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 #	Application Info
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch Everywhere!
-APP_DESCRIPTION := Scratch 3 Games on the 3DS!
+APP_DESCRIPTION := Scratch 3 Games on your 3DS!
 APP_AUTHOR 	:= NateXS
 TARGET		:=	scratch-3ds
 

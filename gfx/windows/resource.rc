@@ -57,12 +57,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "NateXS"
             VALUE "FileDescription", "Custom Scratch Runtime made in C++!"
-            VALUE "FileVersion", "Beta Build 31 Nightly"
+            VALUE "FileVersion", "Beta Build 31"
             VALUE "InternalName", "Scratch Everywhere!"
             VALUE "LegalCopyright", "Copyright (C) 2025 NateXS and Grady Link"
             VALUE "OriginalFilename", "scratch-everywhere.exe"
             VALUE "ProductName", "Scratch Everywhere!"
-            VALUE "ProductVersion", "Beta Build 31 Nightly"
+            VALUE "ProductVersion", "Beta Build 31"
         END
     END
     BLOCK "VarFileInfo"
