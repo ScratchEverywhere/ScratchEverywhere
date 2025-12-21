@@ -45,7 +45,7 @@ Value SensingBlocks::of(Block &block, Sprite *sprite) {
 
     Sprite *spriteObject = nullptr;
     for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
+        if ((currentSprite->name == inputValue.asString() || (inputValue.asString() == "_stage_" && currentSprite->isStage)) && !currentSprite->isClone) {
             spriteObject = currentSprite;
             break;
         }
@@ -53,25 +53,33 @@ Value SensingBlocks::of(Block &block, Sprite *sprite) {
 
     if (!spriteObject) return Value(0);
 
-    if (value == "timer") {
-        return Value(BlockExecutor::timer.getTimeMs() / 1000);
-    } else if (value == "x position" && !spriteObject->isStage) {
-        return Value(spriteObject->xPosition);
-    } else if (value == "y position" && !spriteObject->isStage) {
-        return Value(spriteObject->yPosition);
-    } else if (value == "direction" && !spriteObject->isStage) {
-        return Value(spriteObject->rotation);
-    } else if (value == "costume #" && !spriteObject->isStage) {
-        return Value(spriteObject->currentCostume + 1);
-    } else if (value == "backdrop #" && spriteObject->isStage) {
-        return Value(spriteObject->currentCostume + 1);
-    } else if (value == "costume name" && !spriteObject->isStage) {
-        return Value(spriteObject->costumes[spriteObject->currentCostume].name);
-    } else if (value == "backdrop name" && spriteObject->isStage) {
-        return Value(spriteObject->costumes[spriteObject->currentCostume].name);
-    } else if (value == "size" && !spriteObject->isStage) {
-        return Value(spriteObject->size);
-    } else if (value == "volume") {
+    if (spriteObject->isStage) {
+        if (value == "background #") {
+            return Value(spriteObject->currentCostume + 1);
+        } else if (value == "backdrop #") {
+            return Value(spriteObject->currentCostume + 1);
+        } else if (value == "backdrop name") {
+            return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        }
+    } else {
+        if (value == "x position") {
+            return Value(spriteObject->xPosition);
+        } else if (value == "y position") {
+            return Value(spriteObject->yPosition);
+        } else if (value == "direction") {
+            return Value(spriteObject->rotation);
+        } else if (value == "costume #") {
+            return Value(spriteObject->currentCostume + 1);
+        } else if (value == "costume name") {
+            return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        } else if (value == "backdrop name") {
+            return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        } else if (value == "size") {
+            return Value(spriteObject->size);
+        }
+    }
+
+    if (value == "volume") {
         return Value(spriteObject->volume);
     }
 
