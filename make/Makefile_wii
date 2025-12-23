@@ -19,9 +19,9 @@ PKGCONF_WII	:=	$(DEVKITPRO)/portlibs/wii/bin/powerpc-eabi-pkg-config
 APP_TITLE	:= Scratch Everywhere!
 APP_AUTHOR	:= NateXS
 APP_SHORT_DESCRIPTION := Play Scratch games on the Wii!
-APP_LONG_DESCRIPTION	:= A custom Runtime that allows you to play any Scratch 3 project on your Wii!
-RELEASE_DATE	:= 20251201000000
-APP_VERSION	:= 0.30.1
+APP_LONG_DESCRIPTION	:= A custom Runtime that allows you to play most Scratch 3 projects on your Wii!
+RELEASE_DATE	:= $(shell date +%Y%m%d%H%M%S)
+APP_VERSION	:= 0.31
 
 #---------------------------------------------------------------------------------
 # Build info

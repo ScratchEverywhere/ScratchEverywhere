@@ -56,13 +56,7 @@ Value ProcedureBlocks::booleanArgument(Block &block, Sprite *sprite) {
 }
 
 BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = -8;
+    if (!fromRepeat) {
         block.customBlockExecuted = false;
 
         // Run the custom block for the first time
@@ -79,7 +73,6 @@ BlockResult ProcedureBlocks::call(Block &block, Sprite *sprite, bool *withoutScr
         // std::cout << "done with custom!" << std::endl;
 
         // Custom block execution is complete
-        block.repeatTimes = -1; // Reset for next use
         block.customBlockExecuted = false;
         block.customBlockPtr = nullptr;
 

@@ -48,7 +48,7 @@ Value OperatorBlocks::random(Block &block, Sprite *sprite) {
     if (value1.isScratchInt() && value2.isScratchInt()) {
         return Value(from + (rand() % static_cast<int>(to + 1 - from)));
     } else {
-        return Value(from + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX) / (to - from)));
+        return Value(from + rand() * (to - from) / (RAND_MAX + 1.0));
     }
 }
 
@@ -62,7 +62,7 @@ Value OperatorBlocks::letterOf(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "LETTER", sprite);
     Value value2 = Scratch::getInputValue(block, "STRING", sprite);
     if (value1.isNumeric() && value2.asString() != "") {
-        int index = value1.asInt() - 1;
+        int index = std::floor(value1.asDouble() - 1);
         if (index >= 0 && index < static_cast<int>(value2.asString().size())) {
             return Value(std::string(1, value2.asString()[index]));
         }
@@ -79,11 +79,16 @@ Value OperatorBlocks::mod(Block &block, Sprite *sprite) {
     Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
 
-    if (!value1.isNumeric() || !value2.isNumeric() || value2.asDouble() == 0.0) return Value(0);
+    if (!value1.isNumeric() || !value2.isNumeric() || value2.asDouble() == 0.0)
+        return Value(0);
 
-    double res = value1.asDouble() - value2.asDouble() * floor(value1.asDouble() / value2.asDouble());
+    double a = value1.asDouble();
+    double b = value2.asDouble();
 
-    if (floor(value1.asDouble()) == value1.asDouble() && floor(value2.asDouble()) == value2.asDouble()) return Value(static_cast<int>(res));
+    double res = std::fmod(a, b);
+    if ((res < 0 && b > 0) || (res > 0 && b < 0))
+        res += b;
+
     return Value(res);
 }
 
@@ -96,7 +101,6 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
     Value inputValue = Scratch::getInputValue(block, "NUM", sprite);
     if (inputValue.isNumeric()) {
         std::string operation = Scratch::getFieldValue(block, "OPERATOR");
-        ;
         double value = inputValue.asDouble();
 
         if (operation == "abs") {
@@ -112,28 +116,38 @@ Value OperatorBlocks::mathOp(Block &block, Sprite *sprite) {
             return Value(sqrt(value));
         }
         if (operation == "sin") {
-            return Value(sin(value * M_PI / 180.0));
+            return Value(std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10);
         }
         if (operation == "cos") {
-            return Value(cos(value * M_PI / 180.0));
+            return Value(std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10);
         }
         if (operation == "tan") {
-            return Value(tan(value * M_PI / 180.0));
+            double modAngle = std::fmod(value, 360.0);
+            if (modAngle < -180.0) modAngle += 360.0;
+            if (modAngle > 180.0) modAngle -= 360.0;
+
+            if (modAngle == 90.0 || modAngle == -270.0) {
+                return Value(std::numeric_limits<double>::infinity());
+            }
+            if (modAngle == -90.0 || modAngle == 270.0) {
+                return Value(-std::numeric_limits<double>::infinity());
+            }
+            return Value(std::round(std::tan(Math::degreesToRadians(value)) * 1e10) / 1e10);
         }
         if (operation == "asin") {
-            return Value(asin(value) * 180.0 / M_PI);
+            return Value(Math::radiansToDegrees(asin(value)));
         }
         if (operation == "acos") {
-            return Value(acos(value) * 180.0 / M_PI);
+            return Value(Math::radiansToDegrees(acos(value)));
         }
         if (operation == "atan") {
-            return Value(atan(value) * 180.0 / M_PI);
+            return Value(Math::radiansToDegrees(atan(value)));
         }
         if (operation == "ln") {
             return Value(log(value));
         }
         if (operation == "log") {
-            return Value(log10(value));
+            return Value(log(value) / log(10));
         }
         if (operation == "e ^") {
             return Value(exp(value));

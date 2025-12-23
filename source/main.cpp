@@ -89,8 +89,8 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-#ifdef __EMSCRIPTEN__
     if (argc > 1) {
+#if defined(__EMSCRIPTEN__)
         while (!OS::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
@@ -98,8 +98,11 @@ int main(int argc, char **argv) {
             }
             emscripten_sleep(0);
         }
-    }
+#elif defined(__PC__)
+		Unzip::filePath = std::string(argv[1]);
+#else
 #endif
+    }
 
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {

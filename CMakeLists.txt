@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.30.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.31 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -617,7 +617,7 @@ elseif(VITA)
 elseif(WEBOS)
 	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
 	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++" "-static-libgcc")
-
+	set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
 	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
     install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
 

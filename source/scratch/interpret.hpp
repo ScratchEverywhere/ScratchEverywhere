@@ -64,6 +64,7 @@ class Scratch {
 
     static void fenceSpriteWithinBounds(Sprite *sprite);
     static void switchCostume(Sprite *sprite, double costumeIndex);
+    static Sprite* getListTargetSprite(std::string listId, Sprite *sprite);
     static void sortSprites();
 
     static int projectWidth;

@@ -182,7 +182,7 @@ class Sprite {
 
     float ghostEffect;
     float brightnessEffect;
-    double colorEffect = -99999;
+    float colorEffect;
 
     enum RotationStyle {
         NONE,
@@ -199,6 +199,7 @@ class Sprite {
         bool down = false;
         double size = 1;
         Color color = {66.66, 100.0, 100.0, 0.0};
+        double shade = 50;
     } penData;
 
     struct {
@@ -210,7 +211,7 @@ class Sprite {
     std::unordered_map<std::string, Variable> variables;
     std::map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
-    std::map<std::string, Sound> sounds;
+    std::vector<Sound> sounds;
     std::vector<Costume> costumes;
     std::unordered_map<std::string, Comment> comments;
     std::unordered_map<std::string, Broadcast> broadcasts;

@@ -21,7 +21,8 @@ BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutS
 
     Value value = Scratch::getInputValue(block, "STEPS", sprite);
     if (!value.isNumeric()) return BlockResult::CONTINUE;
-    double angle = (sprite->rotation - 90) * M_PI / 180.0;
+
+    double angle = Math::degreesToRadians(sprite->rotation - 90);
     sprite->xPosition += std::cos(angle) * value.asDouble();
     sprite->yPosition -= std::sin(angle) * value.asDouble();
     if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
@@ -41,25 +42,20 @@ BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, bool *withoutScreen
     if (objectName.asString() == "_random_") {
         sprite->xPosition = rand() % Scratch::projectWidth - Scratch::projectWidth / 2;
         sprite->yPosition = rand() % Scratch::projectHeight - Scratch::projectHeight / 2;
-        goto end;
-    }
-
-    if (objectName.asString() == "_mouse_") {
+    } else if (objectName.asString() == "_mouse_") {
         sprite->xPosition = Input::mousePointer.x;
         sprite->yPosition = Input::mousePointer.y;
-        goto end;
-    }
-
-    for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name == objectName.asString()) {
-            sprite->xPosition = currentSprite->xPosition;
-            sprite->yPosition = currentSprite->yPosition;
-            break;
+    } else {
+        for (Sprite *currentSprite : sprites) {
+            if (currentSprite->name == objectName.asString()) {
+                sprite->xPosition = currentSprite->xPosition;
+                sprite->yPosition = currentSprite->yPosition;
+                break;
+            }
         }
     }
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
 
-end:
+    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
     if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -172,12 +168,7 @@ BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreen
 }
 
 BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = -6;
+    if (!fromRepeat) {
 
         Value duration = Scratch::getInputValue(block, "SECS", sprite);
         if (duration.isNumeric()) {
@@ -207,7 +198,6 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
         if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
         Scratch::forceRedraw = true;
 
-        block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
@@ -229,13 +219,7 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
 }
 
 BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = -7;
+    if (!fromRepeat) {
 
         Value duration = Scratch::getInputValue(block, "SECS", sprite);
         if (duration.isNumeric()) {
@@ -282,7 +266,6 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
         if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
         Scratch::forceRedraw = true;
 
-        block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
@@ -309,7 +292,7 @@ BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withou
     double targetY = 0;
 
     if (objectName.asString() == "_random_") {
-        sprite->rotation = rand() % 360;
+        sprite->rotation = (rand() % 360) - 179.0f;
         return BlockResult::CONTINUE;
     }
 

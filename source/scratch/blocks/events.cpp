@@ -18,13 +18,7 @@ BlockResult EventBlocks::broadcast(Block &block, Sprite *sprite, bool *withoutSc
 }
 
 BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
-    if (block.repeatTimes != -1 && !fromRepeat) {
-        block.repeatTimes = -1;
-    }
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = -10;
+    if (!fromRepeat) {
         BlockExecutor::addToRepeatQueue(sprite, &block);
         block.broadcastsRun = BlockExecutor::runBroadcast(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
     }
@@ -40,7 +34,6 @@ BlockResult EventBlocks::broadcastAndWait(Block &block, Sprite *sprite, bool *wi
 
     if (!shouldEnd) return BlockResult::RETURN;
 
-    block.repeatTimes = -1;
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }

@@ -90,6 +90,7 @@ BlockResult PenBlocks::ChangePenOptionBy(Block &block, Sprite *sprite, bool *wit
 
 BlockResult PenBlocks::SetPenColorTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     sprite->penData.color = Scratch::getInputValue(block, "COLOR", sprite).asColor();
+    sprite->penData.shade = sprite->penData.color.brightness / 2;
 
     return BlockResult::CONTINUE;
 }
@@ -127,5 +128,38 @@ BlockResult PenBlocks::Stamp(Block &block, Sprite *sprite, bool *withoutScreenRe
     Render::penStamp(sprite);
 
     Scratch::forceRedraw = true;
+    return BlockResult::CONTINUE;
+}
+
+BlockResult PenBlocks::SetPenHueToNumber(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    double unwrappedColor = Scratch::getInputValue(block, "HUE", sprite).asDouble() / 2;
+    sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+    sprite->penData.color.transparency = 0;
+
+    return BlockResult::CONTINUE;
+}
+
+BlockResult PenBlocks::ChangePenHueBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    double unwrappedColor = sprite->penData.color.hue + Scratch::getInputValue(block, "HUE", sprite).asDouble() / 2;
+    sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
+
+    return BlockResult::CONTINUE;
+}
+
+BlockResult PenBlocks::SetPenShadeToNumber(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+    sprite->penData.shade = std::fmod(Scratch::getInputValue(block, "SHADE", sprite).asDouble(), 200);
+    if (sprite->penData.shade < 0) sprite->penData.shade += 200;
+
+    sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);
+    return BlockResult::CONTINUE;
+}
+
+BlockResult PenBlocks::ChangePenShadeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+
+    sprite->penData.shade += Scratch::getInputValue(block, "SHADE", sprite).asDouble();
+    sprite->penData.shade = std::fmod(sprite->penData.shade, 200);
+    if (sprite->penData.shade < 0) sprite->penData.shade += 200;
+
+    sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);
     return BlockResult::CONTINUE;
 }

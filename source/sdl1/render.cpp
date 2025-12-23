@@ -43,8 +43,6 @@ float Render::renderScale = 1.0f;
 
 // TODO: properly export these to input.cpp
 SDL_Joystick *controller;
-bool touchActive = false;
-SDL_Rect touchPosition;
 
 bool Render::Init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
@@ -54,7 +52,7 @@ bool Render::Init() {
     SDL_WM_SetCaption("Scratch Everywhere!", NULL);
     window = SDL_SetVideoMode(windowWidth, windowHeight, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
     if (!window) {
-        Log::logError("SDL_SetVideoMode failed: %s", SDL_GetError());
+        Log::logError("SDL_SetVideoMode failed: " + std::string(SDL_GetError()));
         return false;
     }
 
@@ -190,7 +188,6 @@ void Render::penStamp(Sprite *sprite) {
 
     if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
         flip = true;
-        image->renderRect.x += (sprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
     }
 
     // Pen mapping stuff
@@ -287,16 +284,20 @@ void Render::renderSprites() {
 
     for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
-        if (!currentSprite->visible) continue;
 
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
         if (imgFind != images.end()) {
             SDL_Image *image = imgFind->second;
-            image->freeTimer = image->maxFreeTime;
+
             currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
             currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
             currentSprite->spriteWidth = image->textureRect.w >> 1;
             currentSprite->spriteHeight = image->textureRect.h >> 1;
+
+            if (!currentSprite->visible) continue;
+
+            image->freeTimer = image->maxFreeTime;
+
             bool flip = false;
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
@@ -306,7 +307,6 @@ void Render::renderSprites() {
             image->setScale(currentSprite->renderInfo.renderScaleY);
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
                 flip = true;
-                image->renderRect.x += (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
             }
 
             // set ghost effect

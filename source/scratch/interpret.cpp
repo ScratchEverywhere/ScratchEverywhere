@@ -304,8 +304,9 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
 
     } else {
         // no black bars..
-        scratchX = screenX - (windowWidth / 2);
-        scratchY = (windowHeight / 2) - screenY;
+        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
+        scratchX = (screenX / scale) - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / scale);
     }
 
     return std::make_pair(scratchX, scratchY);
@@ -352,8 +353,8 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
     const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
     Render::calculateRenderPosition(currentSprite, isSVG);
-    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
-    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * currentSprite->size * 0.01;
+    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
+    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
 
     const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
     float x = cords.first;
@@ -365,7 +366,9 @@ std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite)
         rotation = Math::degreesToRadians(currentSprite->rotation - 90);
     } else if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
         rotation = Math::degreesToRadians(-180);
+#ifdef RENDERER_CITRO2D
         x += currentSprite->spriteWidth * (isSVG ? 2 : 1);
+#endif
     } else rotation = 0;
 
 // put position to top left of sprite (SDL platforms already do this)
@@ -620,6 +623,12 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     Scratch::forceRedraw = true;
 }
 
+Sprite *Scratch::getListTargetSprite(std::string listId, Sprite *sprite) {
+    if (sprite->lists.find(listId) != sprite->lists.end()) return sprite;                // First check if the current sprite has the list
+    if (stageSprite->lists.find(listId) != stageSprite->lists.end()) return stageSprite; // If not found in current sprite, check stage (global lists)
+    return nullptr;                                                                      // List not found
+}
+
 void Scratch::sortSprites() {
     std::sort(sprites.begin(), sprites.end(),
               [](const Sprite *a, const Sprite *b) {
@@ -718,10 +727,14 @@ void loadSprites(const nlohmann::json &json) {
 
                     // Fields are almost always arrays with [0] being the value
                     if (fieldData.is_array() && !fieldData.empty()) {
-                        parsedField.value = fieldData[0].get<std::string>();
+                        if (fieldData[0].is_number()) {
+                            parsedField.value = Value(fieldData[0].get<double>()).asString();
+                        } else {
+                            parsedField.value = fieldData[0].get<std::string>();
+                        }
 
                         // Store ID for variables and lists
-                        if (fieldData.size() > 1 && !fieldData[1].is_null()) {
+                        if (fieldData.size() == 2 && !fieldData[1].is_null()) {
                             parsedField.id = fieldData[1].get<std::string>();
                         }
                     }
@@ -729,6 +742,7 @@ void loadSprites(const nlohmann::json &json) {
                     (*newBlock.parsedFields)[fieldName] = parsedField;
                 }
             }
+
             if (data.contains("inputs")) {
 
                 for (const auto &[inputName, inputData] : data["inputs"].items()) {
@@ -847,7 +861,7 @@ void loadSprites(const nlohmann::json &json) {
             newSound.dataFormat = data["dataFormat"];
             newSound.sampleRate = data["rate"];
             newSound.sampleCount = data["sampleCount"];
-            newSprite->sounds[newSound.name] = newSound;
+            newSprite->sounds.push_back(newSound);
         }
 
         // set Costumes
@@ -947,12 +961,12 @@ void loadSprites(const nlohmann::json &json) {
         if (monitor.contains("width") && !(monitor["width"].is_null() || monitor.at("width").get<int>() == 0))
             newMonitor.width = monitor.at("width").get<int>();
         else
-        	newMonitor.width = 110;
+            newMonitor.width = 110;
 
         if (monitor.contains("height") && !(monitor["height"].is_null() || monitor.at("height").get<int>() == 0))
             newMonitor.height = monitor.at("height").get<int>();
         else
-        	newMonitor.height = 200;
+            newMonitor.height = 200;
 
         if (monitor.contains("visible") && !monitor["visible"].is_null())
             newMonitor.visible = monitor.at("visible").get<bool>();

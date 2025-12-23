@@ -25,7 +25,6 @@ BlockResult SensingBlocks::askAndWait(Block &block, Sprite *sprite, bool *withou
 BlockResult SensingBlocks::setDragMode(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     std::string mode = Scratch::getFieldValue(block, "DRAG_MODE");
-    ;
 
     if (mode == "draggable") {
         sprite->draggable = true;
@@ -46,7 +45,7 @@ Value SensingBlocks::of(Block &block, Sprite *sprite) {
 
     Sprite *spriteObject = nullptr;
     for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
+        if ((currentSprite->name == inputValue.asString() || (inputValue.asString() == "_stage_" && currentSprite->isStage)) && !currentSprite->isClone) {
             spriteObject = currentSprite;
             break;
         }
@@ -54,21 +53,33 @@ Value SensingBlocks::of(Block &block, Sprite *sprite) {
 
     if (!spriteObject) return Value(0);
 
-    if (value == "timer") {
-        return Value(BlockExecutor::timer.getTimeMs() / 1000);
-    } else if (value == "x position") {
-        return Value(spriteObject->xPosition);
-    } else if (value == "y position") {
-        return Value(spriteObject->yPosition);
-    } else if (value == "direction") {
-        return Value(spriteObject->rotation);
-    } else if (value == "costume #" || value == "backdrop #") {
-        return Value(spriteObject->currentCostume + 1);
-    } else if (value == "costume name" || value == "backdrop name") {
-        return Value(spriteObject->costumes[spriteObject->currentCostume].name);
-    } else if (value == "size") {
-        return Value(spriteObject->size);
-    } else if (value == "volume") {
+    if (spriteObject->isStage) {
+        if (value == "background #") {
+            return Value(spriteObject->currentCostume + 1);
+        } else if (value == "backdrop #") {
+            return Value(spriteObject->currentCostume + 1);
+        } else if (value == "backdrop name") {
+            return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        }
+    } else {
+        if (value == "x position") {
+            return Value(spriteObject->xPosition);
+        } else if (value == "y position") {
+            return Value(spriteObject->yPosition);
+        } else if (value == "direction") {
+            return Value(spriteObject->rotation);
+        } else if (value == "costume #") {
+            return Value(spriteObject->currentCostume + 1);
+        } else if (value == "costume name") {
+            return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        } else if (value == "backdrop name") {
+            return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        } else if (value == "size") {
+            return Value(spriteObject->size);
+        }
+    }
+
+    if (value == "volume") {
         return Value(spriteObject->volume);
     }
 
@@ -92,15 +103,16 @@ Value SensingBlocks::distanceTo(Block &block, Sprite *sprite) {
     Value inputValue = Scratch::getInputValue(block, "DISTANCETOMENU", sprite);
 
     if (inputValue.asString() == "_mouse_") {
-        return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) +
-                          pow(Input::mousePointer.y - sprite->yPosition, 2)));
+        float dx = Input::mousePointer.x - sprite->xPosition;
+        float dy = Input::mousePointer.y - sprite->yPosition;
+        return Value(std::sqrt(dx * dx + dy * dy));
     }
 
     for (Sprite *currentSprite : sprites) {
         if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) {
-            double distance = sqrt(pow(currentSprite->xPosition - sprite->xPosition, 2) +
-                                   pow(currentSprite->yPosition - sprite->yPosition, 2));
-            return Value(distance);
+            double dx = currentSprite->xPosition - sprite->xPosition;
+            double dy = currentSprite->yPosition - sprite->yPosition;
+            return Value(std::sqrt(dx * dx + dy * dy));
         }
     }
     return Value(10000);
