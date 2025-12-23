@@ -1,6 +1,7 @@
 #include "speech_manager_3ds.hpp"
 #include "image.hpp"
 #include "interpret.hpp"
+#include "render.hpp"
 #include <3ds.h>
 
 SpeechManager3DS::SpeechManager3DS() {
@@ -31,8 +32,8 @@ void SpeechManager3DS::render() {
     ensureImagesLoaded();
 
     // Get screen dimensions and scale so speech size aligns with resolution
-    const int SCREEN_WIDTH = 400;
-    const int SCREEN_HEIGHT = 240;
+    const int SCREEN_WIDTH = Render::getWidth();
+    const int SCREEN_HEIGHT = Render::getHeight();
     double scaleX = static_cast<double>(SCREEN_WIDTH) / static_cast<double>(Scratch::projectWidth);
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
@@ -107,8 +108,7 @@ void SpeechManager3DS::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(16 * scale);
-    const int SCREEN_WIDTH = 400;
-    int screenCenter = SCREEN_WIDTH / 2;
+    int screenCenter = Render::getWidth() / 2;
 
     // Position indicator at bottom edge, on first non-corner tile closest to sprite
     int indicatorX;
