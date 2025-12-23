@@ -16,153 +16,82 @@
 #include <string>
 
 BlockResult MotionBlocks::moveSteps(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const double oldX = sprite->xPosition;
-    const double oldY = sprite->yPosition;
-
-    Value value = Scratch::getInputValue(block, "STEPS", sprite);
-    if (!value.isNumeric()) return BlockResult::CONTINUE;
-
-    double angle = Math::degreesToRadians(sprite->rotation - 90);
-    sprite->xPosition += std::cos(angle) * value.asDouble();
-    sprite->yPosition -= std::sin(angle) * value.asDouble();
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-
-    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
+    double value = Scratch::getInputValue(block, "STEPS", sprite).asDouble();
+    double angle = Math::degreesToRadians(90 - sprite->rotation);
+    Scratch::gotoXY(sprite, sprite->xPosition + std::cos(angle) * value, sprite->yPosition + std::sin(angle) * value);
 
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::goTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    Value objectName = Scratch::getInputValue(block, "TO", sprite);
+    std::string objectName = Scratch::getInputValue(block, "TO", sprite).asString();
 
-    const double oldX = sprite->xPosition;
-    const double oldY = sprite->yPosition;
-
-    if (objectName.asString() == "_random_") {
-        sprite->xPosition = rand() % Scratch::projectWidth - Scratch::projectWidth / 2;
-        sprite->yPosition = rand() % Scratch::projectHeight - Scratch::projectHeight / 2;
-    } else if (objectName.asString() == "_mouse_") {
-        sprite->xPosition = Input::mousePointer.x;
-        sprite->yPosition = Input::mousePointer.y;
+    if (objectName == "_random_") {
+        Scratch::gotoXY(sprite, rand() % Scratch::projectWidth - Scratch::projectWidth / 2, rand() % Scratch::projectHeight - Scratch::projectHeight / 2);
+    } else if (objectName == "_mouse_") {
+        Scratch::gotoXY(sprite, Input::mousePointer.x, Input::mousePointer.y);
     } else {
         for (Sprite *currentSprite : sprites) {
-            if (currentSprite->name == objectName.asString()) {
-                sprite->xPosition = currentSprite->xPosition;
-                sprite->yPosition = currentSprite->yPosition;
+            if (currentSprite->name == objectName) {
+                Scratch::gotoXY(sprite, currentSprite->xPosition, currentSprite->yPosition);
                 break;
             }
         }
     }
 
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::goToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const double oldX = sprite->xPosition;
-    const double oldY = sprite->yPosition;
-
-    Value xVal = Scratch::getInputValue(block, "X", sprite);
-    Value yVal = Scratch::getInputValue(block, "Y", sprite);
-    if (xVal.isNumeric()) sprite->xPosition = xVal.asDouble();
-    if (yVal.isNumeric()) sprite->yPosition = yVal.asDouble();
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-
-    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
+    double xVal = Scratch::getInputValue(block, "X", sprite).asDouble();
+    double yVal = Scratch::getInputValue(block, "Y", sprite).asDouble();
+    Scratch::gotoXY(sprite, xVal, yVal);
 
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::turnLeft(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    Value value = Scratch::getInputValue(block, "DEGREES", sprite);
-    const double direction = value.asDouble();
-    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
-        return BlockResult::CONTINUE;
-    }
-    sprite->rotation -= direction - floor((direction + 179) / 360) * 360;
-    Scratch::forceRedraw = true;
+    double direction = Scratch::getInputValue(block, "DEGREES", sprite).asDouble();
+    Scratch::setDirection(sprite, sprite->rotation - direction);
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::turnRight(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    Value value = Scratch::getInputValue(block, "DEGREES", sprite);
-    const double direction = value.asDouble();
-    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
-        return BlockResult::CONTINUE;
-    }
-    sprite->rotation += direction - floor((direction + 179) / 360) * 360;
-    Scratch::forceRedraw = true;
+    double direction = Scratch::getInputValue(block, "DEGREES", sprite).asDouble();
+    Scratch::setDirection(sprite, sprite->rotation + direction);
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::pointInDirection(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    Value value = Scratch::getInputValue(block, "DIRECTION", sprite);
-    const double direction = value.asDouble();
-    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity()) {
-        return BlockResult::CONTINUE;
-    }
-    sprite->rotation = direction - floor((direction + 179) / 360) * 360;
-    Scratch::forceRedraw = true;
+    double direction = Scratch::getInputValue(block, "DIRECTION", sprite).asDouble();
+    Scratch::setDirection(sprite, direction);
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::changeXBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const double oldX = sprite->xPosition;
-
-    Value value = Scratch::getInputValue(block, "DX", sprite);
-    if (!value.isNumeric()) return BlockResult::CONTINUE;
-
-    sprite->xPosition += value.asDouble();
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-
-    if (sprite->penData.down && oldX != sprite->xPosition) Render::penMove(oldX, sprite->yPosition, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
+    double dx = Scratch::getInputValue(block, "DX", sprite).asDouble();
+    Scratch::gotoXY(sprite, sprite->xPosition + dx, sprite->yPosition);
 
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::changeYBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const double oldY = sprite->yPosition;
-
-    Value value = Scratch::getInputValue(block, "DY", sprite);
-    if (!value.isNumeric()) return BlockResult::CONTINUE;
-    sprite->yPosition += value.asDouble();
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-
-    if (sprite->penData.down && oldY != sprite->yPosition) Render::penMove(sprite->xPosition, oldY, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
+    double dy = Scratch::getInputValue(block, "DY", sprite).asDouble();
+    Scratch::gotoXY(sprite, sprite->xPosition, sprite->yPosition + dy);
 
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::setX(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const double oldX = sprite->xPosition;
-
-    Value value = Scratch::getInputValue(block, "X", sprite);
-    if (!value.isNumeric()) return BlockResult::CONTINUE;
-    sprite->xPosition = value.asDouble();
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-
-    if (sprite->penData.down && oldX != sprite->xPosition) Render::penMove(oldX, sprite->yPosition, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
+    double X = Scratch::getInputValue(block, "X", sprite).asDouble();
+    Scratch::gotoXY(sprite, X, sprite->yPosition);
 
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const double oldY = sprite->yPosition;
-
-    Value value = Scratch::getInputValue(block, "Y", sprite);
-    if (!value.isNumeric()) return BlockResult::CONTINUE;
-    sprite->yPosition = value.asDouble();
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-
-    if (sprite->penData.down && oldY != sprite->yPosition) Render::penMove(sprite->xPosition, oldY, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
+    double Y = Scratch::getInputValue(block, "Y", sprite).asDouble();
+    Scratch::gotoXY(sprite, sprite->xPosition, Y);
 
     return BlockResult::CONTINUE;
 }
@@ -170,22 +99,16 @@ BlockResult MotionBlocks::setY(Block &block, Sprite *sprite, bool *withoutScreen
 BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!fromRepeat) {
 
-        Value duration = Scratch::getInputValue(block, "SECS", sprite);
-        if (duration.isNumeric()) {
-            block.waitDuration = duration.asDouble() * 1000; // milliseconds
-        } else {
-            block.waitDuration = 0;
-        }
+        double duration = Scratch::getInputValue(block, "SECS", sprite).asDouble();
+        block.waitDuration = duration * 1000; // milliseconds
 
         block.waitTimer.start();
         block.glideStartX = sprite->xPosition;
         block.glideStartY = sprite->yPosition;
 
         // Get target positions
-        Value positionXStr = Scratch::getInputValue(block, "X", sprite);
-        Value positionYStr = Scratch::getInputValue(block, "Y", sprite);
-        block.glideEndX = positionXStr.isNumeric() ? positionXStr.asDouble() : block.glideStartX;
-        block.glideEndY = positionYStr.isNumeric() ? positionYStr.asDouble() : block.glideStartY;
+        block.glideEndX = Scratch::getInputValue(block, "X", sprite).asDouble();
+        block.glideEndY = Scratch::getInputValue(block, "Y", sprite).asDouble();
 
         BlockExecutor::addToRepeatQueue(sprite, const_cast<Block *>(&block));
     }
@@ -193,67 +116,49 @@ BlockResult MotionBlocks::glideSecsToXY(Block &block, Sprite *sprite, bool *with
     int elapsedTime = block.waitTimer.getTimeMs();
 
     if (elapsedTime >= block.waitDuration) {
-        sprite->xPosition = block.glideEndX;
-        sprite->yPosition = block.glideEndY;
-        if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-        Scratch::forceRedraw = true;
+        Scratch::gotoXY(sprite, block.glideEndX, block.glideEndY);
 
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
 
     double progress = static_cast<double>(elapsedTime) / block.waitDuration;
-    if (progress > 1.0) progress = 1.0;
-
-    const double oldX = sprite->xPosition;
-    const double oldY = sprite->yPosition;
-
-    sprite->xPosition = block.glideStartX + (block.glideEndX - block.glideStartX) * progress;
-    sprite->yPosition = block.glideStartY + (block.glideEndY - block.glideStartY) * progress;
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-
-    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
+    Scratch::gotoXY(sprite, block.glideStartX + (block.glideEndX - block.glideStartX) * progress, block.glideStartY + (block.glideEndY - block.glideStartY) * progress);
 
     return BlockResult::RETURN;
 }
 
 BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!fromRepeat) {
-
-        Value duration = Scratch::getInputValue(block, "SECS", sprite);
-        if (duration.isNumeric()) {
-            block.waitDuration = duration.asDouble() * 1000; // Convert to milliseconds
-        } else {
-            block.waitDuration = 0;
-        }
+        double duration = Scratch::getInputValue(block, "SECS", sprite).asDouble();
+        block.waitDuration = duration * 1000; // Convert to milliseconds
 
         block.waitTimer.start();
         block.glideStartX = sprite->xPosition;
         block.glideStartY = sprite->yPosition;
 
-        Value inputValue = Scratch::getInputValue(block, "TO", sprite);
-        std::string positionXStr;
-        std::string positionYStr;
+        std::string inputValue = Scratch::getInputValue(block, "TO", sprite).asString();
+        double positionXStr = sprite->xPosition;
+        double positionYStr = sprite->yPosition;
 
-        if (inputValue.asString() == "_random_") {
-            positionXStr = std::to_string(rand() % Scratch::projectWidth - Scratch::projectWidth / 2);
-            positionYStr = std::to_string(rand() % Scratch::projectHeight - Scratch::projectHeight / 2);
-        } else if (inputValue.asString() == "_mouse_") {
-            positionXStr = std::to_string(Input::mousePointer.x);
-            positionYStr = std::to_string(Input::mousePointer.y);
+        if (inputValue == "_random_") {
+            positionXStr = rand() % Scratch::projectWidth - Scratch::projectWidth / 2;
+            positionYStr = rand() % Scratch::projectHeight - Scratch::projectHeight / 2;
+        } else if (inputValue == "_mouse_") {
+            positionXStr = Input::mousePointer.x;
+            positionYStr = Input::mousePointer.y;
         } else {
             for (auto &currentSprite : sprites) {
-                if (currentSprite->name == inputValue.asString()) {
-                    positionXStr = std::to_string(currentSprite->xPosition);
-                    positionYStr = std::to_string(currentSprite->yPosition);
+                if (currentSprite->name == inputValue) {
+                    positionXStr = currentSprite->xPosition;
+                    positionYStr = currentSprite->yPosition;
                     break;
                 }
             }
         }
 
-        block.glideEndX = Math::isNumber(positionXStr) ? std::stod(positionXStr) : block.glideStartX;
-        block.glideEndY = Math::isNumber(positionYStr) ? std::stod(positionYStr) : block.glideStartY;
+        block.glideEndX = positionXStr;
+        block.glideEndY = positionYStr;
 
         BlockExecutor::addToRepeatQueue(sprite, const_cast<Block *>(&block));
     }
@@ -261,47 +166,34 @@ BlockResult MotionBlocks::glideTo(Block &block, Sprite *sprite, bool *withoutScr
     int elapsedTime = block.waitTimer.getTimeMs();
 
     if (elapsedTime >= block.waitDuration) {
-        sprite->xPosition = block.glideEndX;
-        sprite->yPosition = block.glideEndY;
-        if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-        Scratch::forceRedraw = true;
+        Scratch::gotoXY(sprite, block.glideEndX, block.glideEndY);
 
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
 
     double progress = static_cast<double>(elapsedTime) / block.waitDuration;
-    if (progress > 1.0) progress = 1.0;
-
-    const double oldX = sprite->xPosition;
-    const double oldY = sprite->yPosition;
-
-    sprite->xPosition = block.glideStartX + (block.glideEndX - block.glideStartX) * progress;
-    sprite->yPosition = block.glideStartY + (block.glideEndY - block.glideStartY) * progress;
-    if (Scratch::fencing) Scratch::fenceSpriteWithinBounds(sprite);
-
-    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
+    Scratch::gotoXY(sprite, block.glideStartX + (block.glideEndX - block.glideStartX) * progress, block.glideStartY + (block.glideEndY - block.glideStartY) * progress);
 
     return BlockResult::RETURN;
 }
 
 BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    Value objectName = Scratch::getInputValue(block, "TOWARDS", sprite);
+    std::string objectName = Scratch::getInputValue(block, "TOWARDS", sprite).asString();
     double targetX = 0;
     double targetY = 0;
 
-    if (objectName.asString() == "_random_") {
+    if (objectName == "_random_") {
         sprite->rotation = (rand() % 360) - 179.0f;
         return BlockResult::CONTINUE;
     }
 
-    if (objectName.asString() == "_mouse_") {
+    if (objectName == "_mouse_") {
         targetX = Input::mousePointer.x;
         targetY = Input::mousePointer.y;
     } else {
         for (Sprite *currentSprite : sprites) {
-            if (currentSprite->name == objectName.asString()) {
+            if (currentSprite->name == objectName) {
                 targetX = currentSprite->xPosition;
                 targetY = currentSprite->yPosition;
                 break;
@@ -311,21 +203,13 @@ BlockResult MotionBlocks::pointToward(Block &block, Sprite *sprite, bool *withou
 
     const double dx = targetX - sprite->xPosition;
     const double dy = targetY - sprite->yPosition;
-    double angle = 90 - (atan2(dy, dx) * 180.0 / M_PI);
-    sprite->rotation = angle;
-    Scratch::forceRedraw = true;
+    double angle = 90 - Math::radiansToDegrees(atan2(dy, dx));
+    Scratch::setDirection(sprite, angle);
     return BlockResult::CONTINUE;
 }
 
 BlockResult MotionBlocks::setRotationStyle(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    std::string value;
-    try {
-        value = Scratch::getFieldValue(block, "STYLE");
-        ;
-    } catch (...) {
-        std::cerr << "unable to find rotation style." << std::endl;
-        return BlockResult::CONTINUE;
-    }
+    std::string value = Scratch::getFieldValue(block, "STYLE");
 
     if (value == "left-right") {
         sprite->rotationStyle = sprite->LEFT_RIGHT;
@@ -382,23 +266,23 @@ BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, bool *wit
         return BlockResult::CONTINUE;
 
     // Convert current direction to radians
-    double radians = (90.0 - sprite->rotation) * (M_PI / 180.0);
+    double radians = Math::degreesToRadians(90.0 - sprite->rotation);
     double dx = std::cos(radians);
     double dy = -std::sin(radians);
 
     // Reflect the direction based on the edge hit
     if (nearestEdge == "left") {
-        dx = std::max<double>(0.2, std::abs(dx));
+        dx = std::max(0.2, std::fabs(dx));
     } else if (nearestEdge == "right") {
-        dx = -std::max<double>(0.2, std::abs(dx));
+        dx = -std::max(0.2, std::fabs(dx));
     } else if (nearestEdge == "top") {
-        dy = std::max<double>(0.2, std::abs(dy));
+        dy = std::max(0.2, std::fabs(dy));
     } else if (nearestEdge == "bottom") {
-        dy = -std::max<double>(0.2, std::abs(dy));
+        dy = -std::max(0.2, std::fabs(dy));
     }
 
     // Calculate new direction from reflected vector
-    sprite->rotation = std::atan2(dy, dx) * (180.0 / M_PI) + 90.0;
+    sprite->rotation = Math::radiansToDegrees(atan2(dy, dx)) + 90.0;
 
     // Clamp sprite back into stage bounds
     double dxCorrection = 0;
@@ -409,24 +293,20 @@ BlockResult MotionBlocks::ifOnEdgeBounce(Block &block, Sprite *sprite, bool *wit
     if (top > halfHeight) dyCorrection += halfHeight - top;
     if (bottom < -halfHeight) dyCorrection += -halfHeight - bottom;
 
-    const double oldX = sprite->xPosition;
-    const double oldY = sprite->yPosition;
-
-    sprite->xPosition += dxCorrection;
-    sprite->yPosition += dyCorrection;
-
-    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
-    Scratch::forceRedraw = true;
-
+    Scratch::gotoXY(sprite, sprite->xPosition + dxCorrection, sprite->yPosition + dyCorrection);
     return BlockResult::CONTINUE;
 }
 
 Value MotionBlocks::xPosition(Block &block, Sprite *sprite) {
-    return Value(sprite->xPosition);
+    double rounded = std::round(sprite->xPosition);
+    double delta = std::fabs(sprite->xPosition - rounded);
+    return Value((delta < 1e-9) ? rounded : sprite->xPosition);
 }
 
 Value MotionBlocks::yPosition(Block &block, Sprite *sprite) {
-    return Value(sprite->yPosition);
+    double rounded = std::round(sprite->yPosition);
+    double delta = std::fabs(sprite->yPosition - rounded);
+    return Value((delta < 1e-9) ? rounded : sprite->yPosition);
 }
 
 Value MotionBlocks::direction(Block &block, Sprite *sprite) {

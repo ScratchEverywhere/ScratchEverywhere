@@ -37,8 +37,10 @@ class Scratch {
     static std::string getFieldValue(Block &block, const std::string &fieldName);
     static std::string getFieldId(Block &block, const std::string &fieldName);
 
+    static void gotoXY(Sprite *sprite, double x, double y);
     static void fenceSpriteWithinBounds(Sprite *sprite);
     static void switchCostume(Sprite *sprite, double costumeIndex);
+    static void setDirection(Sprite *sprite, double direction);
     static Sprite* getListTargetSprite(std::string listId, Sprite *sprite);
     static void sortSprites();
 

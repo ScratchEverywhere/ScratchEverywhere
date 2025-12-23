@@ -568,6 +568,21 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
     }
 }
 
+void Scratch::gotoXY(Sprite *sprite, double x, double y) {
+
+    if (sprite->isStage) return;
+
+    const double oldX = sprite->xPosition;
+    const double oldY = sprite->yPosition;
+    sprite->xPosition = x;
+    sprite->yPosition = y;
+
+    if (Scratch::fencing) fenceSpriteWithinBounds(sprite);
+
+    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
+}
+
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     double halfWidth = Scratch::projectWidth / 2.0;
     double halfHeight = Scratch::projectHeight / 2.0;
@@ -595,6 +610,16 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     if (sprite->yPosition + spriteHalfHeight < minTop) {
         sprite->yPosition = minTop - spriteHalfHeight;
     }
+}
+
+void Scratch::setDirection(Sprite *sprite, double direction) {
+    if (sprite->isStage) return;
+    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity() || std::isnan(direction)) {
+        return;
+    }
+
+    sprite->rotation = direction - floor((direction + 179) / 360) * 360;
+    Scratch::forceRedraw = true;
 }
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
