@@ -38,14 +38,10 @@ extern std::string customUsername;
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
     int rawMouseX, rawMouseY;
-    if (touchActive) {
-        pos.push_back(touchPosition.x);
-        pos.push_back(touchPosition.y);
-    } else {
-        SDL_GetMouseState(&rawMouseX, &rawMouseY);
-        pos.push_back(rawMouseX);
-        pos.push_back(rawMouseY);
-    }
+
+    SDL_GetMouseState(&rawMouseX, &rawMouseY);
+    pos.push_back(rawMouseX);
+    pos.push_back(rawMouseY);
 
     return pos;
 }
@@ -90,9 +86,8 @@ void Input::getInput() {
         }
     }
 
-    if (!controller) {
-        // Handle keyboard-only controls if no joystick is present
-    } else {
+    // Handle keyboard-only controls if no joystick is present
+    if (controller) {
         Uint8 hat = SDL_JoystickGetHat(controller, 0);
         if (hat & SDL_HAT_UP) {
             Input::buttonPress("dpadUp");
@@ -146,16 +141,6 @@ void Input::getInput() {
     if (!inputButtons.empty()) inputButtons.push_back("any");
 
     BlockExecutor::executeKeyHats();
-
-    // TODO: Add way to disable touch input (currently overrides mouse input.)
-    if (touchActive) {
-        // Transform touch coordinates to Scratch space
-        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
-        mousePointer.x = coords.first;
-        mousePointer.y = coords.second;
-        mousePointer.isPressed = touchActive;
-        return;
-    }
 
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();

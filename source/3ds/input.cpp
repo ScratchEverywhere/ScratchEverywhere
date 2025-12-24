@@ -132,11 +132,15 @@ void Input::getInput() {
             // normal touch screen if both screens or bottom screen only
             if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
                 mousePointer.isPressed = true;
-                mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
-                if (Render::renderMode == Render::BOTH_SCREENS)
-                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
-                else if (Render::renderMode == Render::BOTTOM_SCREEN_ONLY)
+
+                if (Render::renderMode == Render::BOTH_SCREENS) {
+                    mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
                     mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
+                } else {
+                    auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
+                    mousePointer.x = coords.first;
+                    mousePointer.y = (coords.second);
+                }
             }
 
             // trackpad movement if top screen only

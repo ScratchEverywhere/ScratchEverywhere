@@ -163,7 +163,12 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
 
     finalPath = finalPath + filePath;
     if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
-    SDL_Image *image = new SDL_Image(finalPath);
+    SDL_Image *image = new SDL_Image(finalPath, fromScratchProject);
+
+    if (!image->spriteTexture || image->spriteTexture == NULL ||
+        !image->spriteSurface || image->spriteSurface == NULL) {
+        return false;
+    }
 
     if (sprite != nullptr) {
         sprite->spriteWidth = image->textureRect.w / 2;
@@ -389,15 +394,32 @@ void Image::FlushImages() {
 
 SDL_Image::SDL_Image() {}
 
-SDL_Image::SDL_Image(std::string filePath) {
+SDL_Image::SDL_Image(std::string filePath, bool fromScratchProject) {
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg");
 
     if (isSVG) {
+        char *svg_data;
+        size_t size;
 #ifdef USE_CMAKERC
-        const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-        const std::string_view content(file.begin(), file.size());
-        const char *svg_data = content.data();
-        size_t size = file.size();
+        if (!Unzip::UnpackedInSD || !fromScratchProject) {
+            const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+            svg_data = (char *)(malloc(file.size() + 1));
+            std::copy(file.begin(), file.end(), svg_data);
+            size = file.size();
+        } else {
+            FILE *fp = fopen(filePath.c_str(), "rb");
+            if (!fp) {
+                Log::logWarning("Failed to open SVG file: " + filePath);
+                return;
+            }
+            fseek(fp, 0, SEEK_END);
+            size = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            svg_data = (char *)malloc(size + 1);
+            fread(svg_data, 1, size, fp);
+            fclose(fp);
+            svg_data[size] = 0;
+        }
 #else
         FILE *fp = fopen(filePath.c_str(), "rb");
         if (!fp) {
@@ -405,21 +427,23 @@ SDL_Image::SDL_Image(std::string filePath) {
             return;
         }
         fseek(fp, 0, SEEK_END);
-        size_t size = ftell(fp);
+        size = ftell(fp);
         fseek(fp, 0, SEEK_SET);
-        char *svg_data = (char *)malloc(size + 1);
+        svg_data = (char *)malloc(size + 1);
         fread(svg_data, 1, size, fp);
         fclose(fp);
         svg_data[size] = 0;
 #endif
         spriteTexture = SVGToSurface(svg_data, size);
-#ifndef USE_CMAKERC
         free(svg_data);
-#endif
     } else {
 #ifdef USE_CMAKERC
-        const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-        spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        if (!Unzip::UnpackedInSD || !fromScratchProject) {
+            const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+            spriteSurface = IMG_Load_RW(SDL_RWFromConstMem(file.begin(), file.size()), 1);
+        } else {
+            spriteSurface = IMG_Load(filePath.c_str());
+        }
 #else
         spriteSurface = IMG_Load(filePath.c_str());
 #endif

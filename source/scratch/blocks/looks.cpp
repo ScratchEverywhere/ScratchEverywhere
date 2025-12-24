@@ -94,7 +94,7 @@ BlockResult LooksBlocks::switchBackdropTo(Block &block, Sprite *sprite, bool *wi
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
                 if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
-                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
                 }
             }
         }
@@ -109,7 +109,7 @@ BlockResult LooksBlocks::nextBackdrop(Block &block, Sprite *sprite, bool *withou
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode == "event_whenbackdropswitchesto") {
                 if (Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
-                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                    executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
                 }
             }
         }
@@ -233,7 +233,7 @@ BlockResult LooksBlocks::changeSizeBy(Block &block, Sprite *sprite, bool *withou
 BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     std::string effect = Scratch::getFieldValue(block, "EFFECT");
-    ;
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
     Value amount = Scratch::getInputValue(block, "VALUE", sprite);
 
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
@@ -260,7 +260,7 @@ BlockResult LooksBlocks::setEffectTo(Block &block, Sprite *sprite, bool *without
 }
 BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::string effect = Scratch::getFieldValue(block, "EFFECT");
-    ;
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
     Value amount = Scratch::getInputValue(block, "CHANGE", sprite);
 
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
@@ -289,7 +289,7 @@ BlockResult LooksBlocks::changeEffectBy(Block &block, Sprite *sprite, bool *with
 BlockResult LooksBlocks::clearGraphicEffects(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
 
     sprite->ghostEffect = 0.0f;
-    sprite->colorEffect = -99999;
+    sprite->colorEffect = 0.0f;
     sprite->brightnessEffect = 0.0f;
 
     Scratch::forceRedraw = true;
@@ -302,7 +302,6 @@ Value LooksBlocks::size(Block &block, Sprite *sprite) {
 
 Value LooksBlocks::costumeNumberName(Block &block, Sprite *sprite) {
     std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
-    ;
     if (value == "name") {
         return Value(sprite->costumes[sprite->currentCostume].name);
     } else if (value == "number") {

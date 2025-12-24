@@ -51,21 +51,17 @@ double Math::parseNumber(std::string str) {
     }
 
     uint8_t base = 0;
-    std::string validcharacters = "0123456789-eE.";
+    std::string validcharacters = "0123456789+-eE.";
     if (str[0] == '0') {
-        switch (str[1]) {
-        case 'x':
+        if (str[1] == 'x' || str[1] == 'X') {
             base = 16;
-            validcharacters = "0123456789ABCDEF";
-            break;
-        case 'b':
+            validcharacters = "0123456789ABCDEFabcedef";
+        } else if (str[1] == 'b' || str[1] == 'B') {
             base = 2;
             validcharacters = "01";
-            break;
-        case 'o':
+        } else if (str[1] == 'o' || str[1] == 'O') {
             base = 8;
             validcharacters = "01234567";
-            break;
         }
         if (base != 0) {
             str = str.substr(2, str.length() - 2);
@@ -76,15 +72,17 @@ double Math::parseNumber(std::string str) {
         if (validcharacters.find(str[i]) == std::string::npos) {
             throw std::invalid_argument("");
         }
-        if (str[i] == 'e' && i == str.length() - 1) {
-            // implementation differece, "1e" doesn't work in Scratch but works
-            // with std::stod()
-            throw std::invalid_argument("");
-        }
-        if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) {
-            // implementation differece, decimal point after e doesn't work in
-            // Scratch but works with std::stod()
-            throw std::invalid_argument("");
+        if (base == 0) {
+            if (str[i] == 'e' && i == str.length() - 1) {
+                // implementation differece, "1e" doesn't work in Scratch but works
+                // with std::stod()
+                throw std::invalid_argument("");
+            }
+            if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) {
+                // implementation differece, decimal point after e doesn't work in
+                // Scratch but works with std::stod()
+                throw std::invalid_argument("");
+            }
         }
     }
 
@@ -94,7 +92,7 @@ double Math::parseNumber(std::string str) {
         if (base == 0) {
             conversion = std::stod(str, &pos);
         } else {
-            conversion = std::stoul(str, &pos, base);
+            conversion = std::stoull(str, &pos, base);
         }
     } catch (const std::out_of_range &e) {
         if (str[0] == '-') {

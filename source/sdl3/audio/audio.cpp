@@ -55,6 +55,7 @@ bool SoundPlayer::init() {
     Log::log("Successfuly init SDL3!");
     return true;
 #endif
+    return false;
 }
 
 #ifdef ENABLE_AUDIO

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.30.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.31 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -23,7 +23,11 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
 endif()
 
-option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+option(SE_MENU "Enables the SE! Main Menu." ON)
+
+if(SE_MENU)
+	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+endif()
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
@@ -90,10 +94,18 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
-file(GLOB_RECURSE GFXFILES
-    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
-    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
-)
+if(SE_MENU)
+	file(GLOB_RECURSE GFXFILES
+	    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
+	    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
+	)
+else()
+	file(GLOB_RECURSE GFXFILES
+	    "${CMAKE_SOURCE_DIR}/gfx/menu/LibSansN.ttf"
+	    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
+	)
+endif()
+
 foreach(file IN LISTS GFXFILES)
 	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
@@ -316,13 +328,17 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 endif()
 
 if(SE_RENDERER STREQUAL "headless")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/headless)
+	set(SOURCES source source/scratch source/scratch/blocks source/headless)
 elseif(SE_RENDERER STREQUAL "sdl3")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl3 source/sdl3/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/sdl3 source/sdl3/audio)
 elseif(SE_RENDERER STREQUAL "sdl2")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/sdl2 source/sdl2/audio)
 else()
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl1 source/sdl1/audio)
+	set(SOURCES source source/scratch source/scratch/blocks source/sdl1 source/sdl1/audio)
+endif()
+
+if(SE_MENU)
+	list(APPEND SOURCES source/scratch/menus)
 endif()
 
 set(SOURCE_FILES)
@@ -533,6 +549,9 @@ endif()
 if(SE_AUDIO)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
 endif()
+if(SE_MENU)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_MENU)
+endif()
 if(SE_LOADSCREEN)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_LOADSCREEN)
 endif()
@@ -598,7 +617,7 @@ elseif(VITA)
 elseif(WEBOS)
 	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
 	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++" "-static-libgcc")
-
+	set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
 	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
     install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
 

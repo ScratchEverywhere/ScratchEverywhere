@@ -4,9 +4,6 @@
 #include <functional>
 #include <unordered_map>
 
-// Number of blocks run in a single frame.
-extern size_t blocksRun;
-
 namespace MonitorDisplayNames {
 constexpr std::array<std::pair<std::string_view, std::string_view>, 4> SIMPLE_MONITORS{
     std::make_pair("sensing_timer", "timer"),
@@ -59,7 +56,7 @@ enum class BlockResult {
     // Goes to the block below.
     CONTINUE,
 
-    // Stops execution and doesn't run any of the blocks below.
+    // Pauses execution until next frame.
     RETURN,
 };
 
@@ -97,6 +94,7 @@ class BlockExecutor {
      * Goes through every currently active repeat block in every `sprite` and runs it once.
      */
     static void runRepeatBlocks();
+
     /**
      * Goes through every currently active repeat block in every `sprite` and runs it until completion.
      * @param sprite Pointer to the Sprite the Blocks are inside.
@@ -118,6 +116,12 @@ class BlockExecutor {
      * @return a Vector pair of every block that was run.
      */
     static std::vector<std::pair<Block *, Sprite *>> runBroadcasts();
+
+    /**
+     * Runs every "when I start as a clone" block
+     * Called when a "create a clone of" block is run
+     */
+    static void runCloneStarts();
 
     /**
      * Runs and executes a single broadcast
@@ -191,6 +195,9 @@ class BlockExecutor {
 
     // For the `Timer` Scratch block.
     static Timer timer;
+
+    static int dragPositionOffsetX;
+    static int dragPositionOffsetY;
 
   private:
     /**

@@ -3,8 +3,6 @@
 
 class ProjectMenu : public Menu {
   public:
-    int cameraX;
-    int cameraY;
     bool hasProjects;
     bool shouldGoBack = false;
 
@@ -17,8 +15,6 @@ class ProjectMenu : public Menu {
 
     ControlObject *projectControl = nullptr;
     ButtonObject *backButton = nullptr;
-    ButtonObject *playButton = nullptr;
-    ButtonObject *settingsButton = nullptr;
     ButtonObject *noProjectsButton = nullptr;
     TextObject *noProjectInfo = nullptr;
     TextObject *noProjectsText = nullptr;

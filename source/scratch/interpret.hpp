@@ -22,6 +22,7 @@ extern std::vector<Sprite *> sprites;
 extern Sprite *stageSprite;
 extern std::vector<Sprite> spritePool;
 extern std::vector<std::string> broadcastQueue;
+extern std::vector<Sprite *> cloneQueue;
 extern std::unordered_map<std::string, Block *> blockLookup;
 extern bool toExit;
 extern std::string answer;
@@ -37,8 +38,11 @@ class Scratch {
     static std::string getFieldValue(Block &block, const std::string &fieldName);
     static std::string getFieldId(Block &block, const std::string &fieldName);
 
+    static void gotoXY(Sprite *sprite, double x, double y);
     static void fenceSpriteWithinBounds(Sprite *sprite);
     static void switchCostume(Sprite *sprite, double costumeIndex);
+    static void setDirection(Sprite *sprite, double direction);
+    static Sprite* getListTargetSprite(std::string listId, Sprite *sprite);
     static void sortSprites();
 
     static int projectWidth;
