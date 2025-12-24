@@ -103,11 +103,9 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
     Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
+
 BlockResult ControlBlocks::deleteThisClone(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    if (sprite->isClone) {
-        sprite->toDelete = true;
-        return BlockResult::CONTINUE;
-    }
+    if (sprite->isClone) sprite->toDelete = true;
     return BlockResult::CONTINUE;
 }
 
@@ -156,11 +154,7 @@ BlockResult ControlBlocks::startAsClone(Block &block, Sprite *sprite, bool *with
 BlockResult ControlBlocks::wait(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     if (!fromRepeat) {
         Value duration = Scratch::getInputValue(block, "DURATION", sprite);
-        if (duration.isNumeric()) {
-            block.waitDuration = duration.asDouble() * 1000; // convert to milliseconds
-        } else {
-            block.waitDuration = 0;
-        }
+        block.waitDuration = duration.asDouble() * 1000; // convert to milliseconds
 
         block.waitTimer.start();
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -281,7 +275,6 @@ BlockResult ControlBlocks::forever(Block &block, Sprite *sprite, bool *withoutSc
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
-    Log::log("Running forever block");
     auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
         Block *subBlock = &sprite->blocks[it->second.blockId];
@@ -321,7 +314,7 @@ BlockResult ControlBlocks::forEach(Block &block, Sprite *sprite, bool *withoutSc
             if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
         }
 
-        block.repeatTimes -= 1;
+        block.repeatTimes--;
         return BlockResult::RETURN;
     }
     block.repeatTimes = -1;
