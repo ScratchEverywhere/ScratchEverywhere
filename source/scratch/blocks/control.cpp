@@ -10,8 +10,7 @@
 #include <ostream>
 
 BlockResult ControlBlocks::If(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    bool condition = conditionValue.asBoolean();
+    bool condition = Scratch::getInputValue(block, "CONDITION", sprite).asBoolean();
 
     if (!fromRepeat) {
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -99,16 +98,7 @@ BlockResult ControlBlocks::createCloneOf(Block &block, Sprite *sprite, bool *wit
         sprites.push_back(spriteToClone);
         Sprite *addedSprite = sprites.back();
         // Run "when I start as a clone" scripts for the clone
-        for (Sprite *currentSprite : sprites) {
-            if (currentSprite == addedSprite) {
-                for (auto &[id, block] : currentSprite->blocks) {
-                    if (block.opcode == "control_start_as_clone") {
-                        // std::cout << "Running clone block " << block.id << std::endl;
-                        executor.runBlock(block, currentSprite, withoutScreenRefresh, false);
-                    }
-                }
-            }
-        }
+        cloneQueue.push_back(addedSprite);
     }
     Scratch::sortSprites();
     return BlockResult::CONTINUE;
@@ -221,10 +211,8 @@ BlockResult ControlBlocks::repeat(Block &block, Sprite *sprite, bool *withoutScr
         }
 
         // Countdown
-        block.repeatTimes -= 1;
+        block.repeatTimes--;
         return BlockResult::RETURN;
-    } else {
-        block.repeatTimes = -1;
     }
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
@@ -293,6 +281,7 @@ BlockResult ControlBlocks::forever(Block &block, Sprite *sprite, bool *withoutSc
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
+    Log::log("Running forever block");
     auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
         Block *subBlock = &sprite->blocks[it->second.blockId];

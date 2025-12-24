@@ -118,6 +118,12 @@ class BlockExecutor {
     static std::vector<std::pair<Block *, Sprite *>> runBroadcasts();
 
     /**
+     * Runs every "when I start as a clone" block
+     * Called when a "create a clone of" block is run
+     */
+    static void runCloneStarts();
+
+    /**
      * Runs and executes a single broadcast
      * @param broadcastToRun string name of the broadcast you want to run.
      * @return a Vector pair of every block that was run.

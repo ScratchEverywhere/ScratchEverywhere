@@ -45,6 +45,7 @@ std::vector<Sprite *> sprites;
 Sprite *stageSprite;
 std::vector<Sprite> spritePool;
 std::vector<std::string> broadcastQueue;
+std::vector<Sprite *> cloneQueue;
 std::unordered_map<std::string, Block *> blockLookup;
 std::string answer;
 bool toExit = false;
@@ -60,7 +61,7 @@ bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
-bool Scratch::forceRedraw = true;
+bool Scratch::forceRedraw = false;
 
 double Scratch::counter = 0;
 
@@ -174,6 +175,7 @@ bool Scratch::startScratchProject() {
             forceRedraw = false;
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
+            BlockExecutor::runCloneStarts();
             BlockExecutor::runBroadcasts();
             BlockExecutor::updateMonitors();
             if (checkFPS) Render::renderSprites();

@@ -22,6 +22,7 @@ extern std::vector<Sprite *> sprites;
 extern Sprite *stageSprite;
 extern std::vector<Sprite> spritePool;
 extern std::vector<std::string> broadcastQueue;
+extern std::vector<Sprite *> cloneQueue;
 extern std::unordered_map<std::string, Block *> blockLookup;
 extern bool toExit;
 extern std::string answer;

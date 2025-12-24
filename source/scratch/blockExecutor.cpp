@@ -262,11 +262,6 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
     std::vector<Block *> ranBlocks;
     Block *currentBlock = &block;
 
-    bool localWithoutRefresh = false;
-    if (!withoutScreenRefresh) {
-        withoutScreenRefresh = &localWithoutRefresh;
-    }
-
     if (!sprite || sprite->toDelete) {
         return ranBlocks;
     }
@@ -512,6 +507,37 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
     return BlockResult::CONTINUE;
 }
 
+void BlockExecutor::runCloneStarts() {
+    while (!cloneQueue.empty()) {
+        Sprite* cloningSprite = cloneQueue.front();
+        cloneQueue.erase(cloneQueue.begin());
+
+        for (Sprite *sprite : sprites) {
+            if (cloningSprite == sprite) {
+                for (auto &[id, data] : cloningSprite->blocks) {
+                    if (data.opcode == "control_start_as_clone") {
+                        executor.runBlock(data, sprite);
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
+    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
+
+    while (!broadcastQueue.empty()) {
+        std::string currentBroadcast = broadcastQueue.front();
+        broadcastQueue.erase(broadcastQueue.begin());
+
+        auto results = runBroadcast(currentBroadcast);
+        blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
+    }
+
+    return blocksToRun;
+}
+
 std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::string broadcastToRun) {
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
@@ -535,27 +561,6 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     // run each matching block
     for (auto &[blockPtr, spritePtr] : blocksToRun) {
         executor.runBlock(*blockPtr, spritePtr);
-    }
-
-    return blocksToRun;
-}
-
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
-    if (broadcastQueue.empty()) {
-        return blocksToRun;
-    }
-
-    std::string currentBroadcast = broadcastQueue.front();
-    broadcastQueue.erase(broadcastQueue.begin());
-
-    auto results = runBroadcast(currentBroadcast);
-    blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
-
-    if (!broadcastQueue.empty()) {
-        auto moreResults = runBroadcasts();
-        blocksToRun.insert(blocksToRun.end(), moreResults.begin(), moreResults.end());
     }
 
     return blocksToRun;
