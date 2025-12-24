@@ -258,11 +258,11 @@ ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
 	@cp -r $(GRAPHICS)/ingame $@/
 endif
+endif
 
 ifneq ($(DEPSDIR),$(BUILD))
 $(DEPSDIR):
 	@mkdir -p $@
-endif
 endif
 
 #---------------------------------------------------------------------------------
