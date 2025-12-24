@@ -128,9 +128,9 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
+	@cp -r $(GRAPHICS)/ingame $@/
 ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
-	@cp -r $(GRAPHICS)/ingame $@/
 else
 	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
 endif

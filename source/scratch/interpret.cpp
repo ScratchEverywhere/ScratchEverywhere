@@ -54,7 +54,7 @@ BlockExecutor executor;
 
 #ifdef __3DS__
 SpeechManager3DS *speechManager = nullptr;
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
 SpeechManagerSDL *speechManager = nullptr;
 #elif defined(__NDS__)
 SpeechManagerNDS *speechManager = nullptr;

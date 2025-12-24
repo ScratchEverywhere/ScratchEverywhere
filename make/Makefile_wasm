@@ -77,12 +77,12 @@ release: $(GFXBUILD) $(BUILD)/release/$(TARGET).html
 # Graphics
 $(GFXBUILD):
 	@mkdir -p $@
+	@cp -r $(GRAPHICS)/ingame $@/
 ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
 else
 	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
 endif
-#	@cp -r $(GRAPHICS)/ingame $@/
 
 # Link debug executable
 $(BUILD)/debug/$(TARGET).html: $(patsubst $(BUILD)/%,$(BUILD)/debug/%,$(OBJS))

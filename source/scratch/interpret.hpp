@@ -3,7 +3,7 @@
 
 #ifdef __3DS__
 #include "speech_manager_3ds.hpp"
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
 #include "speech_manager_sdl.hpp"
 #elif defined(__NDS__)
 #include "speech_manager_nds.hpp"
@@ -30,7 +30,7 @@ extern BlockExecutor executor;
 #ifdef __3DS__
 class SpeechManager3DS;
 extern SpeechManager3DS *speechManager;
-#elif defined(SDL_BUILD)
+#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
 class SpeechManagerSDL;
 extern SpeechManagerSDL *speechManager;
 #elif defined(__NDS__)

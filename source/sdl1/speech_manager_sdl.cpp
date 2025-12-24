@@ -8,7 +8,7 @@
 #include <SDL/SDL_rotozoom.h>
 
 SpeechManagerSDL::SpeechManagerSDL(SDL_Surface *window) : window(window) {
-    speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech.svg");
+    speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");
 }
 
 SpeechManagerSDL::~SpeechManagerSDL() {
@@ -17,7 +17,7 @@ SpeechManagerSDL::~SpeechManagerSDL() {
 
 void SpeechManagerSDL::ensureImagesLoaded() {
     if (images.find(speechIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/speech.svg", nullptr, false);
+        Image::loadImageFromFile("gfx/ingame/speech_simple.svg", nullptr, false);
     }
 }
 
@@ -133,6 +133,14 @@ void SpeechManagerSDL::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
         indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
     }
 
+    int adjustedY = indicatorY + (sdlImage->height / 2) - (indicatorSize / 2) + static_cast<int>(4 * scale);
+
+    if (spriteCenterX < screenCenter) {
+        indicatorX -= static_cast<int>(4 * scale);
+    } else {
+        indicatorX += static_cast<int>(4 * scale);
+    }
+
     Uint8 alpha = static_cast<Uint8>(speechIndicatorImage->opacity * 255);
     SDL_SetAlpha(sdlImage->spriteTexture, SDL_SRCALPHA, alpha);
 
@@ -171,7 +179,7 @@ void SpeechManagerSDL::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
 
     SDL_SetAlpha(finalSurface, SDL_SRCALPHA, alpha);
 
-    SDL_Rect destRect = {static_cast<Sint16>(indicatorX), static_cast<Sint16>(indicatorY), 0, 0};
+    SDL_Rect destRect = {static_cast<Sint16>(indicatorX), static_cast<Sint16>(adjustedY), 0, 0};
     SDL_BlitSurface(finalSurface, NULL, window, &destRect);
     SDL_FreeSurface(finalSurface);
 }
