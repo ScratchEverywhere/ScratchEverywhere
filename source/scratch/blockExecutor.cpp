@@ -469,6 +469,9 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         if (Unzip::filePath.rfind("sd:", 0) == 0) {
             std::string drivePrefix = OS::getFilesystemRootPrefix();
             Unzip::filePath.replace(0, 3, drivePrefix);
+        } else if (Unzip::filePath.rfind("romfs:", 0) == 0) {
+            std::string drivePrefix = OS::getRomFSLocation();
+            Unzip::filePath.replace(0, 6, drivePrefix);
         } else {
             Unzip::filePath = Unzip::filePath;
         }
@@ -491,6 +494,9 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
         if (Unzip::filePath.rfind("sd:", 0) == 0) {
             std::string drivePrefix = OS::getFilesystemRootPrefix();
             Unzip::filePath.replace(0, 3, drivePrefix);
+        } else if (Unzip::filePath.rfind("romfs:", 0) == 0) {
+            std::string drivePrefix = OS::getRomFSLocation();
+            Unzip::filePath.replace(0, 6, drivePrefix);
         } else {
             Unzip::filePath = Unzip::filePath;
         }
