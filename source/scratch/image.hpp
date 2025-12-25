@@ -1,4 +1,5 @@
 #pragma once
+#include "color.hpp"
 #include "interpret.hpp"
 #include "miniz.h"
 #include "unzip.hpp"
@@ -8,6 +9,11 @@ class Image {
   private:
     int width;
     int height;
+
+    /**
+     * For use internally with copyScaled, simply creates an empty Image which can then have it's properties set.
+     */
+    Image() {}
 
   public:
     std::string imageId;
@@ -30,6 +36,13 @@ class Image {
     void render(double xPos, double yPos, bool centered = false);
 
     void renderNineslice(double xPos, double yPos, double width, double height, double padding /* IDK if that's the correct name */, bool centered = false);
+
+    ColorRGBA queryPixel(unsigned int x, unsigned int y);
+
+    Image copyScaled(unsigned int w, unsigned int h);
+    inline Image copyScaled(unsigned int scale) {
+        return copyScaled(width * scale, height * scale);
+    }
 
     /**
      * `3DS`: Turns a single image from an unzipped Scratch project into RGBA data.
