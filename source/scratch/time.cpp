@@ -3,46 +3,37 @@
 #include <ctime>
 #include <time.hpp>
 
-int Time::getHours() {
+static inline std::tm getLocalTime() {
     time_t unixTime = time(NULL);
-    struct tm *timeStruct = localtime((const time_t *)&unixTime);
-    return timeStruct->tm_hour;
+    return *localtime(&unixTime);
+}
+
+int Time::getHours() {
+    return getLocalTime().tm_hour;
 }
 
 int Time::getMinutes() {
-    time_t unixTime = time(NULL);
-    struct tm *timeStruct = localtime((const time_t *)&unixTime);
-    return timeStruct->tm_min;
+    return getLocalTime().tm_min;
 }
 
 int Time::getSeconds() {
-    time_t unixTime = time(NULL);
-    struct tm *timeStruct = localtime((const time_t *)&unixTime);
-    return timeStruct->tm_sec;
+    return getLocalTime().tm_sec;
 }
 
 int Time::getDay() {
-    time_t unixTime = time(NULL);
-    struct tm *timeStruct = localtime((const time_t *)&unixTime);
-    return timeStruct->tm_mday;
+    return getLocalTime().tm_mday;
 }
 
 int Time::getDayOfWeek() {
-    time_t unixTime = time(NULL);
-    struct tm *timeStruct = localtime((const time_t *)&unixTime);
-    return timeStruct->tm_wday + 1;
+    return getLocalTime().tm_wday + 1; // +1 to match Scratch (1-7)
 }
 
 int Time::getMonth() {
-    time_t unixTime = time(NULL);
-    struct tm *timeStruct = localtime((const time_t *)&unixTime);
-    return timeStruct->tm_mon + 1;
+    return getLocalTime().tm_mon + 1; // +1 to match Scratch (1-12)
 }
 
 int Time::getYear() {
-    time_t unixTime = time(NULL);
-    struct tm *timeStruct = localtime((const time_t *)&unixTime);
-    return timeStruct->tm_year + 1900;
+    return getLocalTime().tm_year + 1900;
 }
 
 double Time::getDaysSince2000() {

@@ -20,11 +20,8 @@ double Value::asDouble() const {
         return std::get<double>(value);
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
-        try {
-            return Math::parseNumber(strValue);
-        } catch (...) {
-            return 0.0;
-        }
+        auto result = return Math::parseNumber(strValue);
+        return result ? *result : 0.0;
     } else if (isColor() || isInteger() || isBoolean()) {
         return static_cast<double>(asInt());
     }
@@ -41,16 +38,9 @@ int Value::asInt() const {
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
 
-        if (strValue == "Infinity") {
-            return std::numeric_limits<int>::infinity();
-        }
-
-        if (strValue == "-Infinity") {
-            return -std::numeric_limits<int>::infinity();
-        }
-
         if (Math::isNumber(strValue)) {
-            return static_cast<int>(std::round(Math::parseNumber(strValue)));
+            auto result = Math::parseNumber(strValue);
+            return result ? static_cast<int>(std::round(*result)) : 0;
         }
     } else if (isBoolean()) {
         return std::get<bool>(value) ? 1 : 0;
@@ -89,12 +79,13 @@ std::string Value::asString() const {
         const unsigned char g = static_cast<unsigned char>(rgb.g);
         const unsigned char b = static_cast<unsigned char>(rgb.b);
         std::string hex_str = "#";
-        hex_str += hex_chars[r >> 4];
-        hex_str += hex_chars[r & 0x0F];
-        hex_str += hex_chars[g >> 4];
-        hex_str += hex_chars[g & 0x0F];
-        hex_str += hex_chars[b >> 4];
-        hex_str += hex_chars[b & 0x0F];
+        hex_str.resize(7);
+        hex_str[1] = hex_chars[r >> 4];
+        hex_str[2] = hex_chars[r & 0x0F];
+        hex_str[3] = hex_chars[g >> 4];
+        hex_str[4] = hex_chars[g & 0x0F];
+        hex_str[5] = hex_chars[b >> 4];
+        hex_str[6] = hex_chars[b & 0x0F];
         return hex_str;
     }
 
@@ -174,6 +165,10 @@ Value Value::operator/(const Value &other) const {
 }
 
 bool Value::operator==(const Value &other) const {
+    if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
+        return asDouble() == other.asDouble();
+    }
+
     std::string string1 = asString();
     std::string string2 = other.asString();
 
