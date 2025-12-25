@@ -289,39 +289,44 @@ endif()
 
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
-	set(CURL_OPTIONS
-		"BUILD_CURL_EXE OFF"
-		"BUILD_TESTING OFF"
-		"BUILD_EXAMPLES OFF"
-		"ENABLE_MANUAL OFF"
-		"CURL_DISABLE_INSTALL ON"
-		"ENABLE_ARES OFF"
-		"USE_LIBIDN2 OFF"
-		"ENABLE_WEBSOCKETS ON"
-		"CURL_DISABLE_WEBSOCKETS OFF"
-		"CURL_DISABLE_LDAP ON"
-		"CURL_USE_LIBSSH2 OFF"
-	)
-	if(WEBOS)
-		list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
-	else()
-		list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-		list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
-	endif()
-	if(WIN32 OR WEBOS)
-		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
-	endif()
+	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
+	if(NOT HAIKU)
+		set(CURL_OPTIONS
+			"BUILD_CURL_EXE OFF"
+			"BUILD_TESTING OFF"
+			"BUILD_EXAMPLES OFF"
+			"ENABLE_MANUAL OFF"
+			"CURL_DISABLE_INSTALL ON"
+			"ENABLE_ARES OFF"
+			"USE_LIBIDN2 OFF"
+			"ENABLE_WEBSOCKETS ON"
+			"CURL_DISABLE_WEBSOCKETS OFF"
+			"CURL_DISABLE_LDAP ON"
+			"CURL_USE_LIBSSH2 OFF"
+		)
+		if(WEBOS)
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+		else()
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
+		endif()
+		if(WIN32 OR WEBOS)
+			list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
+		endif()
 
-	CPMAddPackage(
-		NAME curl
-		GIT_REPOSITORY "https://github.com/curl/curl.git"
-		GIT_TAG "curl-8_16_0"
-		VERSION 8.16.0
-		OPTIONS ${CURL_OPTIONS}
-	)
+		CPMAddPackage(
+			NAME curl
+			GIT_REPOSITORY "https://github.com/curl/curl.git"
+			GIT_TAG "curl-8_17_0"
+			VERSION 8.17.0
+			OPTIONS ${CURL_OPTIONS}
+		)
+	else()
+		find_package(CURL REQUIRED)
+	endif()
 	if(SE_CLOUDVARS)
 		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
 	endif()
