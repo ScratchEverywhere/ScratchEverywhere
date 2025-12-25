@@ -72,6 +72,10 @@ void BlockExecutor::registerHandlers() {
         {"looks_seteffectto", LooksBlocks::setEffectTo},
         {"looks_changeeffectby", LooksBlocks::changeEffectBy},
         {"looks_cleargraphiceffects", LooksBlocks::clearGraphicEffects},
+        {"looks_say", LooksBlocks::say},
+        {"looks_sayforsecs", LooksBlocks::sayForSeconds},
+        {"looks_think", LooksBlocks::think},
+        {"looks_thinkforsecs", LooksBlocks::thinkForSeconds},
 
         {"sound_play", SoundBlocks::playSound},
         {"sound_playuntildone", SoundBlocks::playSoundUntilDone},

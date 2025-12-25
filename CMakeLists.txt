@@ -97,12 +97,12 @@ set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 if(SE_MENU)
 	file(GLOB_RECURSE GFXFILES
 	    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
-	    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
+	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
 	)
 else()
 	file(GLOB_RECURSE GFXFILES
 	    "${CMAKE_SOURCE_DIR}/gfx/menu/LibSansN.ttf"
-	    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
+	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
 	)
 endif()
 

@@ -150,12 +150,12 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
+	@cp -r $(GRAPHICS)/ingame $@/
 ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
 else
 	@cp $(GRAPHICS)/menu/Ubuntu-Bold.ttf $@/
 endif
-#	@cp -r $(GRAPHICS)/ingame $@/
 
 #---------------------------------------------------------------------------------
 clean:

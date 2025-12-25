@@ -9,6 +9,7 @@
 #include "interpret.hpp"
 #include "math.hpp"
 #include "render.hpp"
+#include "speech_manager_sdl.hpp"
 #include "sprite.hpp"
 #include "text.hpp"
 #include "unzip.hpp"
@@ -142,12 +143,19 @@ postAccount:
 
     if (SDL_GetGamepads(NULL) != NULL) controller = SDL_OpenGamepad(0);
 
+    speechManager = new SpeechManagerSDL(renderer);
+
     debugMode = true;
 
     return true;
 }
 void Render::deInit() {
     if (penTexture != nullptr) SDL_DestroyTexture(penTexture);
+
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
 
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
@@ -511,6 +519,10 @@ void Render::renderSprites() {
 
     drawBlackBars(windowWidth, windowHeight);
     renderVisibleVariables();
+
+    if (speechManager) {
+        speechManager->render();
+    }
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();

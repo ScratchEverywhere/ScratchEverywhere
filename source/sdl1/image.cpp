@@ -165,8 +165,7 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
     if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
     SDL_Image *image = new SDL_Image(finalPath, fromScratchProject);
 
-    if (!image->spriteTexture || image->spriteTexture == NULL ||
-        !image->spriteSurface || image->spriteSurface == NULL) {
+    if (!image->spriteTexture || image->spriteTexture == NULL) {
         return false;
     }
 
