@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -12,6 +13,18 @@
 #include <nds.h>
 #elif defined(__WIIU__)
 #include <whb/sdcard.h>
+#endif
+
+#if defined(_WIN32)
+#include <shlobj.h>
+#include <windows.h>
+#elif defined(__HAIKU__)
+#include <FindDirectory.h>
+#include <Path.h>
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#include <pwd.h>
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
 namespace Log {
@@ -89,35 +102,18 @@ inline std::string getFilesystemRootPrefix() {
 }
 
 /**
+ * Gets the location of the current OS's config folder.
+ * This is where all settings (both global, and project settings) are stored.
+ * @return The string of the current OS's config folder.
+ */
+std::string getConfigFolderLocation();
+
+/**
  * Gets the location of the current device's Scratch data folder.
  * This is where the user should put their .sb3 Scratch projects.
- * This is also where all the extra data of the app lies (custom controls data, etc).
  * @return The string of the current device's Scratch data folder.
  */
-inline std::string getScratchFolderLocation() {
-    const std::string prefix = getFilesystemRootPrefix();
-#ifdef __WIIU__
-    return prefix + "/wiiu/scratch-wiiu/";
-#elif defined(__SWITCH__)
-    return "/switch/scratch-nx/";
-#elif defined(WII)
-    return "/apps/scratch-wii/";
-#elif defined(GAMECUBE)
-    return "/scratch-gamecube/";
-#elif defined(VITA)
-    return prefix + "data/scratch-vita/";
-#elif defined(__PS4__)
-    return "/data/scratch-ps4/";
-#elif defined(__3DS__)
-    return prefix + "/3ds/scratch-everywhere/";
-#elif defined(__EMSCRIPTEN__)
-    return "/scratch-everywhere/";
-#elif defined(__NDS__)
-    return prefix + "/scratch-ds/";
-#else
-    return "scratch-everywhere/";
-#endif
-}
+std::string getScratchFolderLocation();
 
 /**
  * Gets the location of the `RomFS`, the embedded filesystem within the executable.
@@ -196,6 +192,13 @@ void deInitWifi();
  * @param path The path of the directory to create.
  */
 void createDirectory(const std::string &path);
+
+/**
+ * Renames/moves a file.
+ * @param originalPath The original/current path of the file.
+ * @param newPath The path to move/rename the file to.
+ */
+void renameFile(const std::string &originalPath, const std::string &newPath);
 
 /**
  * Remove a directory recursively.

@@ -65,7 +65,9 @@ class Unzip {
         return;
     }
 
-    static std::vector<std::string> getProjectFiles(const std::string &directory) {
+    static std::vector<std::string> getProjectFiles(std::string directory) {
+        if (directory.back() != '/') directory += '/';
+
         std::vector<std::string> projectFiles;
         struct stat dirStat;
 

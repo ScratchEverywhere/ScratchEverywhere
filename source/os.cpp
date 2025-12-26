@@ -1,7 +1,9 @@
 #include "os.hpp"
+#include "migrate.hpp"
 #include "render.hpp"
 #include <cerrno>
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <os.hpp>
@@ -169,6 +171,84 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
     return false;
 }
 
+bool loadedSettings = false;
+std::string *customProjectsPath = nullptr;
+
+std::string OS::getScratchFolderLocation() {
+    if (!loadedSettings) {
+        loadedSettings = true;
+
+        migrate();
+
+        std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
+        if (inFile.good()) {
+            nlohmann::json j;
+            inFile >> j;
+            inFile.close();
+
+            if (j.contains("ProjectsPath") && j["ProjectsPath"].is_string() && j.contains("UseProjectsPath") && j["UseProjectsPath"].is_boolean() && j["UseProjectsPath"] == true) customProjectsPath = new std::string(j["ProjectsPath"].get<std::string>());
+        }
+    }
+
+    if (customProjectsPath != nullptr) return *customProjectsPath;
+
+    const std::string prefix = getFilesystemRootPrefix();
+#ifdef __WIIU__
+    return prefix + "/wiiu/scratch-wiiu/";
+#elif defined(__SWITCH__)
+    return "/switch/scratch-nx/";
+#elif defined(WII)
+    return "/apps/scratch-wii/";
+#elif defined(GAMECUBE)
+    return "/scratch-gamecube/";
+#elif defined(VITA)
+    return prefix + "data/scratch-vita/";
+#elif defined(__PS4__)
+    return "/data/scratch-ps4/";
+#elif defined(__3DS__)
+    return prefix + "/3ds/scratch-everywhere/";
+#elif defined(__EMSCRIPTEN__)
+    return "/scratch-everywhere/";
+#elif defined(__NDS__)
+    return prefix + "/scratch-ds/";
+#else
+    return "scratch-everywhere/";
+#endif
+}
+
+std::string OS::getConfigFolderLocation() {
+    const std::string prefix = getFilesystemRootPrefix();
+    std::string path = getScratchFolderLocation();
+#ifdef _WIN32
+    PWSTR szPath = NULL;
+    if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &szPath) == S_OK) {
+        path = (std::filesystem::path(szPath) / "scratch-everywhere" / "").string();
+        CoTaskMemFree(szPath);
+    }
+#elif defined(__APPLE__)
+    const char *home = std::getenv("HOME");
+    if (home) path = (std::filesystem::path(home) / "Library" / "Application Support" / "scratch-everywhere" / "").string();
+#elif defined(__HAIKU__)
+    BPath bpath;
+    if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
+        path = (std::filesystem::path(bpath.Path()) / "scratch-everywhere" / "").string();
+    }
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    const char *xdgHome = std::getenv("XDG_CONFIG_HOME");
+    if (xdgHome && xdgHome[0] != '\0') {
+        path = (std::filesystem::path(xdgHome) / "scratch-everywhere" / "").string();
+    } else {
+        const char *home = std::getenv("HOME");
+        if (!home) {
+            struct passwd *pw = getpwuid(getuid());
+            if (pw) home = pw->pw_dir;
+        }
+        if (home) path = (std::filesystem::path(home) / ".config" / "scratch-everywhere" / "").string();
+    }
+#endif
+    return path;
+}
+
 bool OS::initWifi() {
 #ifdef __3DS__
     u32 wifiEnabled = false;
@@ -223,6 +303,10 @@ void OS::createDirectory(const std::string &path) {
             }
         }
     }
+}
+
+void OS::renameFile(const std::string &originalPath, const std::string &newPath) {
+    rename(originalPath.c_str(), newPath.c_str());
 }
 
 void OS::removeDirectory(const std::string &path) {

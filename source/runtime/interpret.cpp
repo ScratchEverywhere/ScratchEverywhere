@@ -1,5 +1,6 @@
 #include "interpret.hpp"
 #include "math.hpp"
+#include "migrate.hpp"
 #include "nlohmann/json.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
@@ -134,7 +135,8 @@ bool Scratch::startScratchProject() {
     customUsername = "Player";
     useCustomUsername = false;
 
-    std::ifstream inFile(OS::getScratchFolderLocation() + "Settings.json");
+    migrate();
+    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
     if (inFile.good()) {
         nlohmann::json j;
         inFile >> j;
