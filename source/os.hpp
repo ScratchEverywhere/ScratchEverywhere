@@ -172,7 +172,7 @@ inline bool isNew3DS() {
  * Function to detect whether the platform is a DSi.
  * @return `true` on DSi, `false` everywhere else.
  */
-static inline bool isDSi() {
+inline bool isDSi() {
 #ifdef __NDS__
     return isDSiMode();
 #endif
@@ -182,12 +182,12 @@ static inline bool isDSi() {
 /**
  * Initializes the internet.
  */
-static bool initWifi();
+bool initWifi();
 
 /**
  * De-Initializes the internet.
  */
-static void deInitWifi();
+void deInitWifi();
 
 /**
  * Create a directory.

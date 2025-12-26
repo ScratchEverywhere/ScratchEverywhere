@@ -129,7 +129,7 @@ SCRATCH_BLOCK(pen, stamp) {
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::SetPenHueToNumber(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(pen, setPenHueToNumber) {
     double unwrappedColor = Scratch::getInputValue(block, "HUE", sprite).asDouble() / 2;
     sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
     sprite->penData.color.transparency = 0;
@@ -137,14 +137,14 @@ BlockResult PenBlocks::SetPenHueToNumber(Block &block, Sprite *sprite, bool *wit
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::ChangePenHueBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(pen, changePenHueBy) {
     double unwrappedColor = sprite->penData.color.hue + Scratch::getInputValue(block, "HUE", sprite).asDouble() / 2;
     sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
 
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::SetPenShadeToNumber(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
+SCRATCH_BLOCK(pen, setPenShadeToNumber) {
     sprite->penData.shade = std::fmod(Scratch::getInputValue(block, "SHADE", sprite).asDouble(), 200);
     if (sprite->penData.shade < 0) sprite->penData.shade += 200;
 
@@ -152,8 +152,7 @@ BlockResult PenBlocks::SetPenShadeToNumber(Block &block, Sprite *sprite, bool *w
     return BlockResult::CONTINUE;
 }
 
-BlockResult PenBlocks::ChangePenShadeBy(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-
+SCRATCH_BLOCK(pen, changePenShadeBy) {
     sprite->penData.shade += Scratch::getInputValue(block, "SHADE", sprite).asDouble();
     sprite->penData.shade = std::fmod(sprite->penData.shade, 200);
     if (sprite->penData.shade < 0) sprite->penData.shade += 200;

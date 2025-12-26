@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
 #include <math.h>

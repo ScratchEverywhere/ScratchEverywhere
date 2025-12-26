@@ -299,7 +299,7 @@ SCRATCH_BLOCK(control, for_each) {
         return BlockResult::CONTINUE;
     }
 
-    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(Scratch::getInputValue(block, "VALUE", sprite).Double() - block.repeatTimes + 1), sprite);
+    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(Scratch::getInputValue(block, "VALUE", sprite).asDouble() - block.repeatTimes + 1), sprite);
 
     const auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {

@@ -232,8 +232,6 @@ void OS::removeDirectory(const std::string &path) {
         throw OS::NotADirectory(path, errno);
     }
 
-<<<<<<< HEAD:source/os.cpp
-=======
 #ifdef _WIN32
     std::wstring wpath(path.size(), L' ');
     wpath.resize(std::mbstowcs(&wpath[0], path.c_str(), path.size()) + 1);
@@ -247,7 +245,7 @@ void OS::removeDirectory(const std::string &path) {
         throw OS::DirectoryRemovalFailed(path, errno);
     }
 #else
-    >>>>>>> main : source / scratch / os.cpp DIR *dir = opendir(path.c_str());
+    DIR *dir = opendir(path.c_str());
     if (dir == nullptr) {
         throw OS::DirectoryOpenFailed(path, errno);
     }

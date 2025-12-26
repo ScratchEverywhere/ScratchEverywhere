@@ -230,7 +230,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
 }
 
 SCRATCH_BLOCK(looks, seteffectto) {
-    const std::string effect = Scratch::getFieldValue(block, "EFFECT");
+    std::string effect = Scratch::getFieldValue(block, "EFFECT");
     std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
     const Value amount = Scratch::getInputValue(block, "VALUE", sprite);
 
@@ -256,7 +256,7 @@ SCRATCH_BLOCK(looks, seteffectto) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK(looks, changeeffectby) {
-    const std::string effect = Scratch::getFieldValue(block, "EFFECT");
+    std::string effect = Scratch::getFieldValue(block, "EFFECT");
     std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
     const Value amount = Scratch::getInputValue(block, "CHANGE", sprite);
 

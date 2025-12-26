@@ -134,7 +134,7 @@ SCRATCH_BLOCK(data, insertatlist) {
 
     if (index.isNumeric()) {
         const double idx = std::floor(index.asDouble()) - 1; // Convert to 0-based index
-        const auto &items = targetSprite->lists[listId].items;
+        auto &items = targetSprite->lists[listId].items;
 
         // Check if the index is within bounds
         if (idx >= 0 && idx <= static_cast<double>(items.size())) {
@@ -197,7 +197,7 @@ SCRATCH_REPORTER_BLOCK(data, itemoflist) {
 
     if (!targetSprite) return Value();
 
-    const auto &items = targetSprite->lists[listName].items;
+    const auto &items = targetSprite->lists[listId].items;
 
     if (items.empty()) return Value();
 
@@ -220,7 +220,7 @@ SCRATCH_REPORTER_BLOCK(data, itemnumoflist) {
     const std::string listId = Scratch::getFieldId(block, "LIST");
     const Value itemToFind = Scratch::getInputValue(block, "ITEM", sprite);
 
-    const Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
     if (targetSprite) {
         auto &list = targetSprite->lists[listId];
@@ -260,7 +260,7 @@ SCRATCH_REPORTER_BLOCK(data, listcontainsitem) {
         }
     }
 
-    const auto &list = targetSprite->lists[listName];
+    const auto &list = targetSprite->lists[listId];
     for (const auto &item : list.items) {
         if (item == itemToFind) return Value(true);
     }

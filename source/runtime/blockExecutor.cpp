@@ -10,6 +10,7 @@
 #include <iterator>
 #include <os.hpp>
 #include <ratio>
+#include <render.hpp>
 #include <utility>
 #include <vector>
 
