@@ -25,7 +25,12 @@ static void exitApp() {
 }
 
 static bool initApp() {
-    return Render::Init();
+    if (!Render::Init()) {
+        return false;
+    }
+
+    loadUsernameFromSettings();
+    return true;
 }
 
 bool activateMainMenu() {

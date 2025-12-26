@@ -27,6 +27,8 @@ extern std::unordered_map<std::string, Block *> blockLookup;
 extern bool toExit;
 extern std::string answer;
 
+void loadUsernameFromSettings();
+
 class Scratch {
   public:
     static bool startScratchProject();

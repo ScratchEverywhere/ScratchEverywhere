@@ -28,7 +28,7 @@ uiText.titleScreen.splashText14
 FUNNY AND/OR CLEVER SPLASH TEXT
 You'll love it!
 Magic!
-Try it out!!!!
+Try it out, {UserName}!!!!
 I'm itchy everywhere, what should I- oh, right...
 Join the Discord Server!
 Contribute on GitHub!
@@ -59,7 +59,7 @@ Woah.
 Are wii gonna have a problem?
 Beta!
 Deja vu!
-Let's play!
+Let's play, {UserName}!
 Woo, TurboWarp!
 Woo, ScratchBox!
 Woo, softwaregore!
@@ -69,3 +69,6 @@ PolyMars approved!
 May contain nuts!
 What do you expect?
 (Exclamation mark required!)
+Hey, {UserName}!
+I see you, {UserName}.
+Look at {UserName} playing on their {PlatformName}!
