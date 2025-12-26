@@ -30,6 +30,9 @@
 #include <dirent.h>
 #include <unistd.h>
 #endif
+#ifdef __3DS__
+#include <malloc.h>
+#endif
 
 // PS4 implementation of logging
 #ifdef __PS4__
