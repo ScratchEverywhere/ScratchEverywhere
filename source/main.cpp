@@ -1,10 +1,11 @@
-#include "interpret.hpp"
 #ifdef ENABLE_MENU
-#include "scratch/menus/mainMenu.hpp"
+#include <menus/mainMenu.hpp>
 #endif
-#include "scratch/render.hpp"
-#include "scratch/unzip.hpp"
 #include <cstdlib>
+#include <interpret.hpp>
+#include <menus/mainMenu.hpp>
+#include <render.hpp>
+#include <unzip.hpp>
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -41,12 +42,9 @@ bool activateMainMenu() {
         MenuManager::render();
 
         if (MenuManager::isProjectLoaded != 0) {
-            if (MenuManager::isProjectLoaded == -1) {
-                return false;
-            } else {
-                MenuManager::isProjectLoaded = 0;
-                return true;
-            }
+            if (MenuManager::isProjectLoaded == -1) return false;
+            MenuManager::isProjectLoaded = 0;
+            return true;
         }
 
 #ifdef __EMSCRIPTEN__
@@ -62,27 +60,25 @@ void mainLoop() {
     if (Scratch::nextProject) {
         Log::log(Unzip::filePath);
         if (!Unzip::load()) {
-
             if (Unzip::projectOpened == -3) { // main menu
-
                 if (!activateMainMenu()) {
                     exitApp();
                     exit(0);
                 }
-
             } else {
                 exitApp();
                 exit(0);
             }
         }
-    } else {
-        Unzip::filePath = "";
-        Scratch::nextProject = false;
-        Scratch::dataNextProject = Value();
-        if (toExit || !activateMainMenu()) {
-            exitApp();
-            exit(0);
-        }
+
+        return;
+    }
+    Unzip::filePath = "";
+    Scratch::nextProject = false;
+    Scratch::dataNextProject = Value();
+    if (toExit || !activateMainMenu()) {
+        exitApp();
+        exit(0);
     }
 }
 
