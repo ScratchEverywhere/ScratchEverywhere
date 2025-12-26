@@ -14,7 +14,7 @@ SCRATCH_BLOCK(sensing, resettimer) {
 }
 
 SCRATCH_BLOCK(sensing, askandwait) {
-    Keyboard kbd;
+    SoftwareKeyboard kbd;
     const Value inputValue = Scratch::getInputValue(block, "QUESTION", sprite);
     answer = kbd.openKeyboard(inputValue.asString().c_str());
     return BlockResult::CONTINUE;

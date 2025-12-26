@@ -6,6 +6,9 @@
 #include <stdio.h>
 #endif
 
+#include <string>
+#include <unordered_map>
+
 #define DATA_ID 0x61746164
 #define FMT_ID 0x20746d66
 #define RIFF_ID 0x46464952

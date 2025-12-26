@@ -124,7 +124,7 @@ void SettingsMenu::render() {
     }
 
     if (ChangeUsername->isPressed({"a"})) {
-        Keyboard kbd;
+        SoftwareKeyboard kbd;
         std::string newUsername = kbd.openKeyboard(username.c_str());
         // You could also use regex here, Idk what would be more sensible
         // std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))

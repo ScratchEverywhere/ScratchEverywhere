@@ -11,7 +11,7 @@
 /**
  * Uses SDL2 text input.
  */
-std::string Keyboard::openKeyboard(const char *hintText) {
+std::string SoftwareKeyboard::openKeyboard(const char *hintText) {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__PS4__)
 // doesn't work on these platforms....
 #else

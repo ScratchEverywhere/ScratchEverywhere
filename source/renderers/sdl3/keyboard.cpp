@@ -12,7 +12,7 @@
 /**
  * Uses SDL3 text input.
  */
-std::string Keyboard::openKeyboard(const char *hintText) {
+std::string SoftwareKeyboard::openKeyboard(const char *hintText) {
     TextObject *text = createTextObject(std::string(hintText), 0, 0);
     text->setCenterAligned(true);
     text->setColor(Math::color(0, 0, 0, 170));

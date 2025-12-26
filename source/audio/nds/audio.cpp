@@ -1,3 +1,4 @@
+#include "audio.hpp"
 #include <audio.hpp>
 #include <interpret.hpp>
 #include <miniz/miniz.h>
@@ -304,8 +305,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     if (!fromCache) {
         baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
         baseName = baseName.substr(OS::getRomFSLocation().length());
-    }
-    else
+    } else
         baseName = fileName;
     NDS_Sounds[baseName] = std::move(audio);
     NDS_Sounds[baseName].id = baseName;

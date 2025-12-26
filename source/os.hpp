@@ -51,6 +51,17 @@ class Timer {
 };
 
 namespace OS {
+/**
+ * Function to detect whether the platform is a DSi.
+ * @return `true` on DSi, `false` everywhere else.
+ */
+inline bool isDSi() {
+#ifdef __NDS__
+    return isDSiMode();
+#endif
+    return false;
+}
+
 inline std::string getFilesystemRootPrefix() {
 #ifdef __WIIU__
     return std::string(WHBGetSdCardMountPath());
@@ -164,17 +175,6 @@ inline bool isNew3DS() {
     bool out = false;
     APT_CheckNew3DS(&out);
     return out;
-#endif
-    return false;
-}
-
-/**
- * Function to detect whether the platform is a DSi.
- * @return `true` on DSi, `false` everywhere else.
- */
-inline bool isDSi() {
-#ifdef __NDS__
-    return isDSiMode();
 #endif
     return false;
 }

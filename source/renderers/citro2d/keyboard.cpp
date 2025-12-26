@@ -8,7 +8,7 @@ static SwkbdLearningData swkbdLearning;
 static SwkbdButton button = SWKBD_BUTTON_NONE;
 static bool didit = false;
 
-std::string Keyboard::openKeyboard(const char *hintText) {
+std::string SoftwareKeyboard::openKeyboard(const char *hintText) {
 
     didit = true;
     swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);

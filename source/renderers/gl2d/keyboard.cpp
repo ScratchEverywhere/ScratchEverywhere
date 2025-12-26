@@ -1,5 +1,5 @@
 #include <keyboard.hpp>
 
-std::string Keyboard::openKeyboard(const char *hintText) {
+std::string SoftwareKeyboard::openKeyboard(const char *hintText) {
     return "";
 }
