@@ -4,8 +4,11 @@ on:
   push:
     paths:
       - make/Makefile_wiiu
-      - source/scratch/**
-      - source/sdl2/**
+      - source/runtime/**
+      - source/renderers/sdl2/**
+      - source/*
+      - source/menus/**
+      - source/audio/sdl2/**
       - gfx/wiiu/**
       - gfx/menu/**
       - include/**
