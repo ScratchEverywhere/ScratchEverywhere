@@ -1,5 +1,6 @@
 #include "unzip.hpp"
 #include "image.hpp"
+#include "input.hpp"
 #include "menus/loading.hpp"
 #include <cstring>
 #include <ctime>
@@ -360,14 +361,23 @@ std::string Unzip::getSplashText() {
 
     std::string splash = splashLines[dist(rng)];
 
-    // Replace {PlatformName} with OS::getPlatform()
-    const std::string platformName = "{PlatformName}";
+    // Replace {PlatformName} and {UserName} placeholders with actual values
+    const std::string platformPlaceholder = "{PlatformName}";
     const std::string platform = OS::getPlatform();
+    const std::string usernamePlaceholder = "{UserName}";
+    const std::string username = Input::getUsername();
 
     size_t pos = 0;
-    while ((pos = splash.find(platformName, pos)) != std::string::npos) {
-        splash.replace(pos, platformName.size(), platform);
+
+    while ((pos = splash.find(platformPlaceholder, pos)) != std::string::npos) {
+        splash.replace(pos, platformPlaceholder.size(), platform);
         pos += platform.size(); // move past replacement
+    }
+
+    pos = 0;
+    while ((pos = splash.find(usernamePlaceholder, pos)) != std::string::npos) {
+        splash.replace(pos, usernamePlaceholder.size(), username);
+        pos += username.size(); // move past replacement
     }
 
     return splash;

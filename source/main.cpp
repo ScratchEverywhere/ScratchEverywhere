@@ -24,7 +24,12 @@ static void exitApp() {
 }
 
 static bool initApp() {
-    return Render::Init();
+    if (!Render::Init()) {
+        return false;
+    }
+
+    loadUsernameFromSettings();
+    return true;
 }
 
 bool activateMainMenu() {
@@ -99,7 +104,7 @@ int main(int argc, char **argv) {
             emscripten_sleep(0);
         }
 #elif defined(__PC__)
-		Unzip::filePath = std::string(argv[1]);
+        Unzip::filePath = std::string(argv[1]);
 #else
 #endif
     }

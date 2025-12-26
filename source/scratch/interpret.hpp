@@ -27,6 +27,8 @@ extern std::unordered_map<std::string, Block *> blockLookup;
 extern bool toExit;
 extern std::string answer;
 
+void loadUsernameFromSettings();
+
 class Scratch {
   public:
     static bool startScratchProject();
@@ -42,7 +44,7 @@ class Scratch {
     static void fenceSpriteWithinBounds(Sprite *sprite);
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
-    static Sprite* getListTargetSprite(std::string listId, Sprite *sprite);
+    static Sprite *getListTargetSprite(std::string listId, Sprite *sprite);
     static void sortSprites();
 
     static int projectWidth;

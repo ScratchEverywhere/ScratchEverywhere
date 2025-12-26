@@ -130,7 +130,7 @@ void initMist() {
 }
 #endif
 
-bool Scratch::startScratchProject() {
+void loadUsernameFromSettings() {
     customUsername = "Player";
     useCustomUsername = false;
 
@@ -157,6 +157,10 @@ bool Scratch::startScratchProject() {
             else customUsername = "Player";
         }
     }
+}
+
+bool Scratch::startScratchProject() {
+    loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject && !projectJSON.empty()) initMist();
 #endif
