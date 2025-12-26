@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <downloader.hpp>
 #include <image.hpp>
 #include <interpret.hpp>
 #include <math.hpp>
@@ -104,6 +105,8 @@ bool Render::Init() {
     memset(nickname, 0, sizeof(nickname));
     strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
 
+    socketInitializeDefault();
+
     accountProfileClose(&profile);
     accountExit();
 postAccount:
@@ -127,6 +130,7 @@ postAccount:
     Log::log("[Vita] Running sceNetCtlInit");
     sceNetCtlInit();
 #endif
+
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS);
     TTF_Init();
     window = SDL_CreateWindow("Scratch Everywhere!", windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
@@ -193,21 +197,8 @@ bool Render::initPen() {
 void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
 
-#if defined(__PC__) || defined(__WIIU__) // Only these platforms seem to support custom blend modes.
-    const SDL_BlendMode blendMode = SDL_ComposeCustomBlendMode(
-        SDL_BLENDFACTOR_ONE,
-        SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        SDL_BLENDOPERATION_ADD,
-
-        SDL_BLENDFACTOR_ONE,
-        SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        SDL_BLENDOPERATION_ADD);
-#else
-    const SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
-#endif
-
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penTexture->w, penTexture->h);
-    SDL_SetTextureBlendMode(tempTexture, blendMode);
+    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(tempTexture, SDL_SCALEMODE_NEAREST);
     SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
@@ -243,7 +234,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     filledCircleRGBA(renderer, x2 * scale + penTexture->w / 2.0f, -y2 * scale + penTexture->h / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
     SDL_SetRenderTarget(renderer, penTexture);
-    SDL_SetRenderDrawBlendMode(renderer, blendMode);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_RenderTexture(renderer, tempTexture, NULL, NULL);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderTarget(renderer, nullptr);
@@ -251,21 +242,8 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
 }
 
 void Render::penDot(Sprite *sprite) {
-#if defined(__PC__) || defined(__WIIU__) // Only these platforms seem to support custom blend modes.
-    const SDL_BlendMode blendMode = SDL_ComposeCustomBlendMode(
-        SDL_BLENDFACTOR_ONE,
-        SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        SDL_BLENDOPERATION_ADD,
-
-        SDL_BLENDFACTOR_ONE,
-        SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-        SDL_BLENDOPERATION_ADD);
-#else
-    const SDL_BlendMode blendMode = SDL_BLENDMODE_BLEND;
-#endif
-
     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penTexture->w, penTexture->h);
-    SDL_SetTextureBlendMode(tempTexture, blendMode);
+    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(tempTexture, SDL_SCALEMODE_NEAREST);
     SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
     SDL_SetRenderTarget(renderer, tempTexture);
@@ -312,11 +290,10 @@ void Render::penStamp(Sprite *sprite) {
 
     if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
         flip = SDL_FLIP_HORIZONTAL;
-        image->renderRect.x += (sprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
     }
 
     // Pen mapping stuff
-    const auto &cords = screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
+    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
     image->renderRect.x = cords.first + Scratch::projectWidth / 2;
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
@@ -398,43 +375,6 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     SDL_RenderFillRect(renderer, &rect);
 }
 
-std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
-    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-
-    float scratchX, scratchY;
-
-    if (screenAspect > projectAspect) {
-        // Vertical black bars
-        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
-
-        // Remove bar offset and scale to project space
-        float adjustedX = screenX - barWidth;
-        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
-
-    } else if (screenAspect < projectAspect) {
-        // Horizontal black bars
-        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
-
-        // Remove bar offset and scale to project space
-        float adjustedY = screenY - barHeight;
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
-
-    } else {
-        // no black bars..
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
-    }
-
-    return std::make_pair(scratchX, scratchY);
-}
-
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -482,16 +422,20 @@ void Render::renderSprites() {
               });
 
     for (Sprite *currentSprite : spritesByLayer) {
-        if (!currentSprite->visible) continue;
 
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
         if (imgFind != images.end()) {
             SDL_Image *image = imgFind->second;
-            image->freeTimer = image->maxFreeTime;
+
             currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
             currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
             currentSprite->spriteWidth = image->textureRect.w / 2;
             currentSprite->spriteHeight = image->textureRect.h / 2;
+
+            if (!currentSprite->visible) continue;
+
+            image->freeTimer = image->maxFreeTime;
+
             SDL_FlipMode flip = SDL_FLIP_NONE;
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
@@ -501,7 +445,6 @@ void Render::renderSprites() {
             image->setScale(currentSprite->renderInfo.renderScaleY);
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
                 flip = SDL_FLIP_HORIZONTAL;
-                image->renderRect.x += (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
             }
 
             // set ghost effect
@@ -550,11 +493,11 @@ void Render::renderSprites() {
         //     double screenX = (point.first * renderScale) + (windowWidth / 2);
         //     double screenY = (point.second * -renderScale) + (windowHeight / 2);
 
-        //     SDL_Rect debugPointRect;
+        //     SDL_FRect debugPointRect;
         //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
         //     debugPointRect.y = static_cast<int>(screenY - renderScale);
-        //     debugPointRect.w = static_cast<int>(2 * renderScale);
-        //     debugPointRect.h = static_cast<int>(2 * renderScale);
+        //     debugPointRect.w = static_cast<int>(6 * renderScale);
+        //     debugPointRect.h = static_cast<int>(6 * renderScale);
 
         //     SDL_RenderFillRect(renderer, &debugPointRect);
         // }
@@ -570,7 +513,8 @@ void Render::renderSprites() {
     SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 
 void Render::renderPenLayer() {
     SDL_FRect renderRect = {0, 0, 0, 0};

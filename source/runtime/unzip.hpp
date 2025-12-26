@@ -2,7 +2,6 @@
 
 #include "interpret.hpp"
 #include <cstring>
-#include <dirent.h>
 #include <errno.h>
 #include <fstream>
 #include <miniz.h>
@@ -10,6 +9,13 @@
 #include <random>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#ifdef _WIN32
+#define NOMINMAX
+#include <windows.h>
+#else
+#include <dirent.h>
+#endif
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string projectJSON;
@@ -72,11 +78,38 @@ class Unzip {
             return projectFiles;
         }
 
-        if (!S_ISDIR(dirStat.st_mode)) {
+        if (!(dirStat.st_mode & S_IFDIR)) {
             Log::logWarning("Path is not a directory! " + directory);
             return projectFiles;
         }
 
+#ifdef _WIN32
+        std::wstring wdirectory(directory.size(), L' ');
+        wdirectory.resize(std::mbstowcs(&wdirectory[0], directory.c_str(), directory.size()));
+        if (wdirectory.back() != L'\\') wdirectory += L"\\";
+        wdirectory += L"*";
+
+        WIN32_FIND_DATAW find_data;
+        HANDLE hfind = FindFirstFileW(wdirectory.c_str(), &find_data);
+
+        do {
+            std::wstring wname(find_data.cFileName);
+
+            if (wcscmp(wname.c_str(), L".") == 0 || wcscmp(wname.c_str(), L"..") == 0)
+                continue;
+
+            if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                const wchar_t *ext = wcsrchr(wname.c_str(), L'.');
+                if (ext && _wcsicmp(ext, L".sb3") == 0) {
+                    std::string name(wname.size(), ' ');
+                    name.resize(std::wcstombs(&name[0], wname.c_str(), wname.size()));
+                    projectFiles.push_back(name);
+                }
+            }
+        } while (FindNextFileW(hfind, &find_data));
+
+        FindClose(hfind);
+#else
         DIR *dir = opendir(directory.c_str());
         if (!dir) {
             Log::logWarning("Failed to open directory: " + std::string(strerror(errno)));
@@ -88,7 +121,7 @@ class Unzip {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
                 continue;
 
-            std::string fullPath = directory + "/" + entry->d_name;
+            std::string fullPath = directory + entry->d_name;
 
             struct stat fileStat;
             if (stat(fullPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
@@ -100,6 +133,7 @@ class Unzip {
         }
 
         closedir(dir);
+#endif
         return projectFiles;
     }
 
@@ -222,6 +256,14 @@ class Unzip {
             return false;
         }
 
+        try {
+
+            OS::createDirectory(destFolder + "/");
+        } catch (const std::exception &e) {
+            Log::logError(e.what());
+            return false;
+        }
+
         int numFiles = (int)mz_zip_reader_get_num_files(&zip);
         for (int i = 0; i < numFiles; i++) {
             mz_zip_archive_file_stat st;
@@ -253,7 +295,7 @@ class Unzip {
             return false;
         }
 
-        if (!S_ISDIR(st.st_mode)) {
+        if (!(st.st_mode & S_IFDIR)) {
             Log::logWarning("Path is not a directory: " + directory);
             return false;
         }

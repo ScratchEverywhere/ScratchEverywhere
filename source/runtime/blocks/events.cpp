@@ -13,9 +13,7 @@ SCRATCH_BLOCK(event, broadcast) {
 }
 
 SCRATCH_BLOCK(event, broadcastandwait) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
+    if (!fromRepeat) {
         block.repeatTimes = -10;
         BlockExecutor::addToRepeatQueue(sprite, &block);
         block.broadcastsRun = BlockExecutor::runBroadcast(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
@@ -32,7 +30,6 @@ SCRATCH_BLOCK(event, broadcastandwait) {
 
     if (!shouldEnd) return BlockResult::RETURN;
 
-    block.repeatTimes = -1;
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }

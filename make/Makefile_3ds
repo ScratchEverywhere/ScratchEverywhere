@@ -21,7 +21,7 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 #	Application Info
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch Everywhere!
-APP_DESCRIPTION := Scratch 3 Games on the 3DS!
+APP_DESCRIPTION := Scratch 3 Games on your 3DS!
 APP_AUTHOR 	:= NateXS
 TARGET		:=	scratch-3ds
 
@@ -50,6 +50,8 @@ GFXBUILD	:=	$(ROMFS)/gfx
 ENABLE_CLOUDVARS	?=	0
 ENABLE_LOADSCREEN	  ?=	1
 ENABLE_AUDIO	?=	1
+ENABLE_DOWNLOAD	?=	1
+ENABLE_MENU		?=	1
 RAM_AMOUNT		?= 72
 
 # Check for SDL3 libraries
@@ -88,6 +90,14 @@ CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
+endif
+
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lSDL3_mixer -lSDL3 -lmpg123
 CFLAGS	+=	-DENABLE_AUDIO
@@ -106,6 +116,11 @@ LIBS	  += `$(PKGCONF_3DS) --libs mist++`
 ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
 $(error "[ERROR] Mist++ must be v0.2.0 or newer.")
 endif
+endif
+
+ifeq ($(ENABLE_DOWNLOAD),1)
+CFLAGS	+=	-DENABLE_DOWNLOAD
+LIBS	+=	`$(PKGCONF_3DS) --libs libcurl`
 endif
 
 ASFLAGS	:=	-g $(ARCH)
@@ -149,7 +164,11 @@ BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 ALLGFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.*)))
 
 FONTFILES := $(shell find $(GRAPHICS) -type f -iname "*.ttf" 2>/dev/null)
+ifeq ($(ENABLE_MENU),1)
 ROMFS_FONTFILES := $(patsubst $(GRAPHICS)/%,$(GFXBUILD)/%,$(FONTFILES:.ttf=.bcfnt))
+else
+ROMFS_FONTFILES :=
+endif
 
 
 #---------------------------------------------------------------------------------
@@ -235,7 +254,9 @@ $(BUILD):
 ifneq ($(GFXBUILD),$(BUILD))
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
+endif
 #	@cp -r $(GRAPHICS)/ingame $@/
 endif
 

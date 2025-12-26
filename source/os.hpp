@@ -178,6 +178,17 @@ static inline bool isDSi() {
 #endif
     return false;
 }
+
+/**
+ * Initializes the internet.
+ */
+static bool initWifi();
+
+/**
+ * De-Initializes the internet.
+ */
+static void deInitWifi();
+
 /**
  * Create a directory.
  * @param path The path of the directory to create.

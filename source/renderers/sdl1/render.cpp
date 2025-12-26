@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <downloader.hpp>
 #include <image.hpp>
 #include <interpret.hpp>
 #include <math.hpp>
@@ -42,8 +43,6 @@ float Render::renderScale = 1.0f;
 
 // TODO: properly export these to input.cpp
 SDL_Joystick *controller;
-bool touchActive = false;
-SDL_Rect touchPosition;
 
 bool Render::Init() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
@@ -53,7 +52,7 @@ bool Render::Init() {
     SDL_WM_SetCaption("Scratch Everywhere!", NULL);
     window = SDL_SetVideoMode(windowWidth, windowHeight, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
     if (!window) {
-        Log::logError("SDL_SetVideoMode failed: %s", SDL_GetError());
+        Log::logError("SDL_SetVideoMode failed: " + std::string(SDL_GetError()));
         return false;
     }
 
@@ -189,11 +188,10 @@ void Render::penStamp(Sprite *sprite) {
 
     if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
         flip = true;
-        image->renderRect.x += (sprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
     }
 
     // Pen mapping stuff
-    const auto &cords = screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
+    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
     image->renderRect.x = cords.first + Scratch::projectWidth / 2;
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
@@ -252,43 +250,6 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     SDL_FillRect(window, &rect, SDL_MapRGBA(window->format, colorR, colorG, colorB, colorA));
 }
 
-std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
-    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-
-    float scratchX, scratchY;
-
-    if (screenAspect > projectAspect) {
-        // Vertical black bars
-        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
-
-        // Remove bar offset and scale to project space
-        float adjustedX = screenX - barWidth;
-        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
-
-    } else if (screenAspect < projectAspect) {
-        // Horizontal black bars
-        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
-
-        // Remove bar offset and scale to project space
-        float adjustedY = screenY - barHeight;
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
-
-    } else {
-        // no black bars..
-        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
-        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
-    }
-
-    return std::make_pair(scratchX, scratchY);
-}
-
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -323,16 +284,20 @@ void Render::renderSprites() {
 
     for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
-        if (!currentSprite->visible) continue;
 
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
         if (imgFind != images.end()) {
             SDL_Image *image = imgFind->second;
-            image->freeTimer = image->maxFreeTime;
+
             currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
             currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
             currentSprite->spriteWidth = image->textureRect.w >> 1;
             currentSprite->spriteHeight = image->textureRect.h >> 1;
+
+            if (!currentSprite->visible) continue;
+
+            image->freeTimer = image->maxFreeTime;
+
             bool flip = false;
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
@@ -342,7 +307,6 @@ void Render::renderSprites() {
             image->setScale(currentSprite->renderInfo.renderScaleY);
             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
                 flip = true;
-                image->renderRect.x += (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * 1.125; // Don't ask why I'm multiplying by 1.125 here, I also have no idea, but it makes it work so...
             }
 
             // set ghost effect
@@ -396,7 +360,8 @@ void Render::renderSprites() {
     SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 
 void Render::renderPenLayer() {
     if (penSurface == nullptr) return;

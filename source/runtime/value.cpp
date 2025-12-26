@@ -2,6 +2,9 @@
 #include "math.hpp"
 #include <os.hpp>
 #include <regex>
+#include <array>
+#include <sstream>
+#include <charconv>
 
 Value::Value(int val) : value(val) {}
 
@@ -64,11 +67,17 @@ std::string Value::asString() const {
         return std::to_string(std::get<int>(value));
     } else if (isDouble()) {
         double doubleValue = std::get<double>(value);
-        // handle whole numbers too, because scratch i guess
         if (std::isnan(doubleValue)) return "NaN";
         if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
-        if (std::floor(doubleValue) == doubleValue) return std::to_string(static_cast<int>(doubleValue));
-        return std::to_string(doubleValue);
+        /*
+        std::array<char, 24> buffer;
+        std::to_chars_result result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), doubleValue);
+        *result.ptr = '\0';
+        return buffer.data();
+        */
+        std::ostringstream oss;
+        oss << std::setprecision(17) << doubleValue;
+        return oss.str();
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
@@ -103,7 +112,9 @@ bool Value::asBoolean() const {
         return std::get<double>(value) != 0.0 && !isNaN();
     }
     if (isString()) {
-        return std::get<std::string>(value) != "" && std::get<std::string>(value) != "0" && std::get<std::string>(value) != "false";
+        std::string strValue = std::get<std::string>(value);
+        std::transform(strValue.begin(), strValue.end(), strValue.begin(), ::tolower);
+        return strValue != "" && strValue != "0" && strValue != "false";
     }
     if (isColor()) {
         const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
@@ -135,36 +146,21 @@ Color Value::asColor() const {
 Value Value::operator+(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() + b.asInt());
-    }
     return Value(a.asDouble() + b.asDouble());
 }
 
 Value Value::operator-(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() - b.asInt());
-    }
     return Value(a.asDouble() - b.asDouble());
 }
 
 Value Value::operator*(const Value &other) const {
     Value a = *this;
     Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
 
-    if (a.isInteger() && b.isInteger()) {
-        return Value(a.asInt() * b.asInt());
-    }
     return Value(a.asDouble() * b.asDouble());
 }
 
@@ -181,8 +177,8 @@ bool Value::operator==(const Value &other) const {
     std::string string1 = asString();
     std::string string2 = other.asString();
 
-    if (!std::all_of(string1.begin(), string1.end(), [](unsigned char c) { return std::isspace(c); }) &&
-        !std::all_of(string2.begin(), string2.end(), [](unsigned char c) { return std::isspace(c); })) {
+    if (!std::all_of(string1.begin(), string1.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); }) &&
+        !std::all_of(string2.begin(), string2.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) {
         if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
             return asDouble() == other.asDouble();
         }
@@ -221,7 +217,7 @@ bool Value::isScratchInt() {
     if (isDouble()) {
         if (std::isnan(asDouble())) return true;
         try {
-            return std::stoi(asString()) == asDouble();
+            return std::fabs(asDouble()) < 1e21 && std::floor(asDouble()) == asDouble();
         } catch (...) {
             return false;
         }

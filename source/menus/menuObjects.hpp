@@ -6,9 +6,10 @@
 
 class MenuObject {
   public:
-    double x;
-    double y;
+    double x = 0;
+    double y = 0;
     double scale;
+    bool hidden = false;
     virtual void render(double xPos = 0, double yPos = 0) = 0;
     static double getScaleFactor();
     std::vector<double> getScaledPosition(double xPos, double yPos);
@@ -93,11 +94,14 @@ class ButtonObject : public MenuObject {
     bool isSelected = false;
     bool needsToBeSelected = true;
     bool canBeClicked = true;
+    bool enableNineslice = true;
     MenuImage *buttonTexture;
     ButtonObject *buttonUp = nullptr;
     ButtonObject *buttonDown = nullptr;
     ButtonObject *buttonLeft = nullptr;
     ButtonObject *buttonRight = nullptr;
+    int renderOffsetX = 0;
+    int renderOffsetY = 0;
 
     void render(double xPos = 0, double yPos = 0) override;
     bool isPressed(std::vector<std::string> pressButton = {"a", "x"});
@@ -118,12 +122,19 @@ class ButtonObject : public MenuObject {
 class ControlObject : public MenuObject {
   private:
     Timer animationTimer;
+    int cameraX = 0;
+    int cameraY = 0;
+    int minY, maxY;
+    std::vector<int> lastFrameTouchPos;
 
   public:
     std::vector<ButtonObject *> buttonObjects;
     ButtonObject *selectedObject = nullptr;
+    bool enableScrolling = false;
     void input();
     void render(double xPos = 0, double yPos = 0) override;
+    ButtonObject *getClosestObject();
+    void setScrollLimits();
     ControlObject();
     virtual ~ControlObject();
 };

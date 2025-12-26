@@ -44,7 +44,7 @@ class SDL_Image {
      * A Simple Image object using SDL.
      * @param filePath
      */
-    SDL_Image(std::string filePath);
+    SDL_Image(std::string filePath, bool fromScratchProject = true);
 
     ~SDL_Image();
 };

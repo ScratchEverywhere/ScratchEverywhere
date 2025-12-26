@@ -1,4 +1,5 @@
 #include "blockUtils.hpp"
+#include "runtime/blockExecutor.hpp"
 #include <audio.hpp>
 #include <blockExecutor.hpp>
 #include <interpret.hpp>
@@ -15,9 +16,7 @@ SCRATCH_BLOCK(control, if) {
     const auto it = block.parsedInputs->find("SUBSTACK");
     Block *const subBlock = it == block.parsedInputs->end() ? nullptr : &sprite->blocks[it->second.blockId];
 
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
+    if (!fromRepeat) {
         block.repeatTimes = -4;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     } else {
@@ -25,8 +24,12 @@ SCRATCH_BLOCK(control, if) {
     }
 
     if (!condition || subBlock == nullptr) goto end;
-    for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
+    for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false)) {
         if (ranBlock->isRepeating) return BlockResult::RETURN;
+        if (ranBlock->stopScript) {
+            ranBlock->stopScript = false;
+            return BlockResult::RETURN;
+        }
     }
 
 end:
@@ -38,9 +41,7 @@ SCRATCH_BLOCK(control, if_else) {
     const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     const bool condition = conditionValue.asBoolean();
 
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
+    if (!fromRepeat) {
         block.repeatTimes = -4;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     } else {
@@ -56,8 +57,12 @@ SCRATCH_BLOCK(control, if_else) {
     }
     Block *const subBlock = &sprite->blocks[it->second.blockId];
     if (subBlock == nullptr) goto end;
-    for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat)) {
+    for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false)) {
         if (ranBlock->isRepeating) return BlockResult::RETURN;
+        if (ranBlock->stopScript) {
+            ranBlock->stopScript = false;
+            return BlockResult::RETURN;
+        }
     }
 
 end:
@@ -74,7 +79,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
         *spriteToClone = *sprite;
     } else {
         for (Sprite *currentSprite : sprites) {
-            if (currentSprite->name == inputValue.asString() && !currentSprite->isClone) *spriteToClone = *currentSprite;
+            if (!currentSprite->isClone && !currentSprite->isStage && currentSprite->name == inputValue.asString()) *spriteToClone = *currentSprite;
         }
     }
     spriteToClone->blockChains.clear();
@@ -88,12 +93,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     sprites.push_back(spriteToClone);
     Sprite *addedSprite = sprites.back();
 
-    for (Sprite *currentSprite : sprites) {
-        if (currentSprite != addedSprite) continue;
-        for (auto &[id, block] : currentSprite->blocks) {
-            if (block.opcode == "control_start_as_clone") executor.runBlock(block, currentSprite, withoutScreenRefresh, fromRepeat);
-        }
-    }
+    cloneQueue.push_back(addedSprite);
 
     Scratch::sortSprites();
     return BlockResult::CONTINUE;
@@ -113,10 +113,14 @@ SCRATCH_BLOCK(control, stop) {
     if (stopType == "this script") {
         for (std::string repeatID : sprite->blockChains[block.blockChainID].blocksToRepeat) {
             Block *const repeatBlock = &sprite->blocks[repeatID];
-            if (repeatBlock) repeatBlock->repeatTimes = -1;
+            if (repeatBlock) {
+                repeatBlock->repeatTimes = -1;
+                repeatBlock->isRepeating = false;
+            }
         }
 
         sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
+        block.stopScript = true;
         return BlockResult::RETURN;
     }
 
@@ -129,7 +133,7 @@ SCRATCH_BLOCK(control, stop) {
             }
             chain.blocksToRepeat.clear();
         }
-        for (auto &[id, sound] : sprite->sounds)
+        for (Sound sound : sprite->sounds)
             SoundPlayer::stopSound(sound.fullName);
         return BlockResult::CONTINUE;
     }
@@ -140,9 +144,7 @@ SCRATCH_BLOCK(control, stop) {
 SCRATCH_BLOCK_NOP(control, start_as_clone)
 
 SCRATCH_BLOCK(control, wait) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
+    if (!fromRepeat) {
         block.repeatTimes = -2;
 
         const Value duration = Scratch::getInputValue(block, "DURATION", sprite);
@@ -150,11 +152,11 @@ SCRATCH_BLOCK(control, wait) {
 
         block.waitTimer.start();
         BlockExecutor::addToRepeatQueue(sprite, &block);
+
+        return BlockResult::RETURN;
     }
 
-    block.repeatTimes -= 1;
-
-    if (!block.waitTimer.hasElapsed(block.waitDuration) || block.repeatTimes > -4) return BlockResult::RETURN;
+    if (!block.waitTimer.hasElapsed(block.waitDuration)) return BlockResult::RETURN;
     block.repeatTimes = -1;
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     Scratch::forceRedraw = true;
@@ -162,9 +164,7 @@ SCRATCH_BLOCK(control, wait) {
 }
 
 SCRATCH_BLOCK(control, wait_until) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
+    if (!fromRepeat) {
         block.repeatTimes = -4;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
@@ -174,16 +174,13 @@ SCRATCH_BLOCK(control, wait_until) {
     const bool conditionMet = conditionValue.asBoolean();
 
     if (!conditionMet) return BlockResult::RETURN;
-    block.repeatTimes = -1;
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(control, repeat) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = Scratch::getInputValue(block, "TIMES", sprite).asInt();
+    if (!fromRepeat) {
+        block.repeatTimes = std::round(Scratch::getInputValue(block, "TIMES", sprite).asDouble());
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
@@ -195,18 +192,16 @@ SCRATCH_BLOCK(control, repeat) {
     const auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
         Block *const subBlock = &sprite->blocks[it->second.blockId];
-        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
+        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     }
 
     // Countdown
-    block.repeatTimes -= 1;
+    block.repeatTimes--;
     return BlockResult::RETURN;
 }
 
 SCRATCH_BLOCK(control, while) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
+    if (!fromRepeat) {
         block.repeatTimes = -2;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
@@ -215,7 +210,6 @@ SCRATCH_BLOCK(control, while) {
     const bool condition = conditionValue.asBoolean();
 
     if (!condition) {
-        block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
@@ -227,7 +221,7 @@ SCRATCH_BLOCK(control, while) {
     const auto blockIt = sprite->blocks.find(blockId);
     if (blockIt != sprite->blocks.end()) {
         Block *subBlock = &blockIt->second;
-        executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
+        executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     } else {
         Log::logError("Invalid blockId: " + blockId);
     }
@@ -236,9 +230,7 @@ SCRATCH_BLOCK(control, while) {
 }
 
 SCRATCH_BLOCK(control, repeat_until) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
+    if (!fromRepeat) {
         block.repeatTimes = -2;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
@@ -247,7 +239,6 @@ SCRATCH_BLOCK(control, repeat_until) {
     const bool condition = conditionValue.asBoolean();
 
     if (condition) {
-        block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
 
         return BlockResult::CONTINUE;
@@ -260,7 +251,7 @@ SCRATCH_BLOCK(control, repeat_until) {
     auto blockIt = sprite->blocks.find(blockId);
     if (blockIt != sprite->blocks.end()) {
         Block *subBlock = &blockIt->second;
-        executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
+        executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     } else {
         Log::logError("Invalid blockId: " + blockId);
     }
@@ -269,9 +260,7 @@ SCRATCH_BLOCK(control, repeat_until) {
 }
 
 SCRATCH_BLOCK(control, forever) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
+    if (!fromRepeat) {
         block.repeatTimes = -3;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
@@ -279,7 +268,7 @@ SCRATCH_BLOCK(control, forever) {
     const auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
         Block *const subBlock = &sprite->blocks[it->second.blockId];
-        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
+        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     }
     return BlockResult::RETURN;
 }
@@ -299,10 +288,8 @@ SCRATCH_BLOCK(control, clear_counter) {
 }
 
 SCRATCH_BLOCK(control, for_each) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = Scratch::getInputValue(block, "VALUE", sprite).asInt();
+    if (!fromRepeat) {
+        block.repeatTimes = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
@@ -312,14 +299,14 @@ SCRATCH_BLOCK(control, for_each) {
         return BlockResult::CONTINUE;
     }
 
-    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(Scratch::getInputValue(block, "VALUE", sprite).asInt() - block.repeatTimes + 1), sprite);
+    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(Scratch::getInputValue(block, "VALUE", sprite).Double() - block.repeatTimes + 1), sprite);
 
     const auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
         Block *subBlock = &sprite->blocks[it->second.blockId];
-        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, fromRepeat);
+        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     }
 
-    block.repeatTimes -= 1;
+    block.repeatTimes--;
     return BlockResult::RETURN;
 }

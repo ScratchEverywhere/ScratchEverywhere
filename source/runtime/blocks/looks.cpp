@@ -96,7 +96,7 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
     for (auto &currentSprite : sprites) {
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
-                executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
             }
         }
     }
@@ -110,7 +110,7 @@ SCRATCH_BLOCK(looks, nextbackdrop) {
     for (auto &currentSprite : sprites) {
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
-                executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, fromRepeat);
+                executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
             }
         }
     }
@@ -231,6 +231,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
 
 SCRATCH_BLOCK(looks, seteffectto) {
     const std::string effect = Scratch::getFieldValue(block, "EFFECT");
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
     const Value amount = Scratch::getInputValue(block, "VALUE", sprite);
 
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
@@ -254,9 +255,9 @@ SCRATCH_BLOCK(looks, seteffectto) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
-
 SCRATCH_BLOCK(looks, changeeffectby) {
     const std::string effect = Scratch::getFieldValue(block, "EFFECT");
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
     const Value amount = Scratch::getInputValue(block, "CHANGE", sprite);
 
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
@@ -285,7 +286,7 @@ SCRATCH_BLOCK(looks, changeeffectby) {
 
 SCRATCH_BLOCK(looks, cleargraphiceffects) {
     sprite->ghostEffect = 0.0f;
-    sprite->colorEffect = -99999;
+    sprite->colorEffect = 0.0f;
     sprite->brightnessEffect = 0.0f;
 
     Scratch::forceRedraw = true;
@@ -299,11 +300,9 @@ SCRATCH_REPORTER_BLOCK(looks, size) {
 SCRATCH_REPORTER_BLOCK(looks, costumenumbername) {
     const std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
 
-    if (value == "name") {
-        return Value(sprite->costumes[sprite->currentCostume].name);
-    } else if (value == "number") {
-        return Value(sprite->currentCostume + 1);
-    }
+    if (value == "name") return Value(sprite->costumes[sprite->currentCostume].name);
+    if (value == "number") return Value(sprite->currentCostume + 1);
+
     return Value();
 }
 

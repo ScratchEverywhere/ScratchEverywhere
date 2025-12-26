@@ -148,13 +148,13 @@ mm_stream_formats NDS_Audio::getMMStreamType(uint16_t numChannels, uint16_t bits
 }
 #endif
 
-void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject) {
+void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
 
-    if (projectType != UNZIPPED && zip != nullptr)
+    if (projectType != UNZIPPED && zip != nullptr && !fromCache)
         loadSoundFromSB3(sprite, zip, soundId, true);
     else
-        loadSoundFromFile(sprite, (fromProject ? "project/" : "") + soundId, true);
+        loadSoundFromFile(sprite, (fromProject && !fromCache ? "project/" : "") + soundId, true, fromCache);
 #endif
 }
 
@@ -243,7 +243,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
     return false;
 }
 
-bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed) {
+bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const bool &streamed, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
 
     if (fileName.size() < 4 || fileName.substr(fileName.size() - 4) != ".wav") {
@@ -252,8 +252,8 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     }
 
     cleanupAudio();
-
-    fileName = OS::getRomFSLocation() + fileName;
+    if (!fromCache)
+        fileName = OS::getRomFSLocation() + fileName;
 
     if (!streamed) return false;
 
@@ -300,8 +300,13 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         };
     mmStreamOpen(&stream);
     audio.isPlaying = true;
-    std::string baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
-    baseName = baseName.substr(OS::getRomFSLocation().length());
+    std::string baseName;
+    if (!fromCache) {
+        baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
+        baseName = baseName.substr(OS::getRomFSLocation().length());
+    }
+    else
+        baseName = fileName;
     NDS_Sounds[baseName] = std::move(audio);
     NDS_Sounds[baseName].id = baseName;
     return true;

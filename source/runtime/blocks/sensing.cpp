@@ -42,21 +42,27 @@ SCRATCH_REPORTER_BLOCK(sensing, of) {
 
     Sprite *spriteObject = nullptr;
     for (Sprite *currentSprite : sprites) {
-        if (currentSprite->name != inputValue.asString() || currentSprite->isClone) continue;
-        spriteObject = currentSprite;
-        break;
+        if ((currentSprite->name == inputValue.asString() || (inputValue.asString() == "_stage_" && currentSprite->isStage)) && !currentSprite->isClone) {
+            spriteObject = currentSprite;
+            break;
+        }
     }
 
     if (!spriteObject) return Value(0);
 
-    if (value == "timer") return Value(BlockExecutor::timer.getTimeMs() / 1000);
-    if (value == "x position") return Value(spriteObject->xPosition);
-    if (value == "y position") return Value(spriteObject->yPosition);
-    if (value == "direction") return Value(spriteObject->rotation);
-    if (value == "costume #" || value == "backdrop #") return Value(spriteObject->currentCostume + 1);
-    if (value == "costume name" || value == "backdrop name") return Value(spriteObject->costumes[spriteObject->currentCostume].name);
-    if (value == "size") return Value(spriteObject->size);
-    if (value == "volume") return Value(spriteObject->volume);
+    if (spriteObject->isStage) {
+        if (value == "background #") return Value(spriteObject->currentCostume + 1);
+        if (value == "backdrop #") return Value(spriteObject->currentCostume + 1);
+        if (value == "backdrop name") return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+    } else {
+        if (value == "x position") return Value(spriteObject->xPosition);
+        if (value == "y position") return Value(spriteObject->yPosition);
+        if (value == "direction") return Value(spriteObject->rotation);
+        if (value == "costume #") return Value(spriteObject->currentCostume + 1);
+        if (value == "costume name") return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        if (value == "backdrop name") return Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        if (value == "size") return Value(spriteObject->size);
+    }
 
     for (const auto &[id, variable] : spriteObject->variables) {
         if (value == variable.name) return variable.value;
@@ -75,11 +81,17 @@ SCRATCH_REPORTER_BLOCK(sensing, mousey) {
 SCRATCH_REPORTER_BLOCK(sensing, distanceto) {
     const Value inputValue = Scratch::getInputValue(block, "DISTANCETOMENU", sprite);
 
-    if (inputValue.asString() == "_mouse_") return Value(sqrt(pow(Input::mousePointer.x - sprite->xPosition, 2) + pow(Input::mousePointer.y - sprite->yPosition, 2)));
+    if (inputValue.asString() == "_mouse_") {
+        const double dx = Input::mousePointer.x - sprite->xPosition;
+        const double dy = Input::mousePointer.y - sprite->yPosition;
+        return Value(std::sqrt(dx * dx + dy * dy));
+    }
 
     for (Sprite *currentSprite : sprites) {
         if (currentSprite->name != inputValue.asString() || currentSprite->isClone) continue;
-        return Value(sqrt(pow(currentSprite->xPosition - sprite->xPosition, 2) + pow(currentSprite->yPosition - sprite->yPosition, 2)));
+        const double dx = currentSprite->xPosition - sprite->xPosition;
+        const double dy = currentSprite->yPosition - sprite->yPosition;
+        return Value(std::sqrt(dx * dx + dy * dy));
     }
 
     return Value(10000);
@@ -129,6 +141,7 @@ SCRATCH_REPORTER_BLOCK(sensing, touchingobject) {
 
     for (size_t i = 0; i < sprites.size(); i++) {
         Sprite *currentSprite = sprites[i];
+        if (currentSprite == sprite) continue;
         if (currentSprite->name == inputValue.asString() &&
             isColliding("sprite", sprite, currentSprite, inputValue.asString())) {
             return Value(true);

@@ -36,7 +36,7 @@ SCRATCH_REPORTER_BLOCK(operator, random) {
     const double to = std::max(a, b);
 
     if (value1.isScratchInt() && value2.isScratchInt()) return Value(from + (rand() % static_cast<int>(to + 1 - from)));
-    return Value(from + static_cast<double>(rand()) / (static_cast<double>(RAND_MAX) / (to - from)));
+    return Value(from + rand() * (to - from) / (RAND_MAX + 1.0));
 }
 
 SCRATCH_REPORTER_BLOCK(operator, join) {
@@ -49,7 +49,7 @@ SCRATCH_REPORTER_BLOCK(operator, letter_of) {
 
     if (!value1.isNumeric() || value2.asString() == "") return Value();
 
-    const int index = value1.asInt() - 1;
+    const int index = std::floor(value1.asDouble()) - 1;
     if (index >= 0 && index < static_cast<int>(value2.asString().size())) {
         return Value(std::string(1, value2.asString()[index]));
     }
@@ -58,18 +58,23 @@ SCRATCH_REPORTER_BLOCK(operator, letter_of) {
 }
 
 SCRATCH_REPORTER_BLOCK(operator, length) {
-    return Value(static_cast<int>(Scratch::getInputValue(block, "STRING", sprite).asString().size()));
+    return Value(static_cast<double>(Scratch::getInputValue(block, "STRING", sprite).asString().size()));
 }
 
 SCRATCH_REPORTER_BLOCK(operator, mod) {
     const Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
     const Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
 
-    if (!value1.isNumeric() || !value2.isNumeric() || value2.asDouble() == 0.0) return Value(0);
+    if (!value1.isNumeric() || !value2.isNumeric() || value2.asDouble() == 0.0)
+        return Value(0);
 
-    const double res = value1.asDouble() - value2.asDouble() * floor(value1.asDouble() / value2.asDouble());
+    const double a = value1.asDouble();
+    const double b = value2.asDouble();
 
-    if (floor(value1.asDouble()) == value1.asDouble() && floor(value2.asDouble()) == value2.asDouble()) return Value(static_cast<int>(res));
+    double res = std::fmod(a, b);
+    if ((res < 0 && b > 0) || (res > 0 && b < 0))
+        res += b;
+
     return Value(res);
 }
 
@@ -88,14 +93,22 @@ SCRATCH_REPORTER_BLOCK(operator, mathop) {
     if (operation == "floor") return Value(floor(value));
     if (operation == "ceiling") return Value(ceil(value));
     if (operation == "sqrt") return Value(sqrt(value));
-    if (operation == "sin") return Value(sin(value * M_PI / 180.0));
-    if (operation == "cos") return Value(cos(value * M_PI / 180.0));
-    if (operation == "tan") return Value(tan(value * M_PI / 180.0));
-    if (operation == "asin") return Value(asin(value) * 180.0 / M_PI);
-    if (operation == "acos") return Value(acos(value) * 180.0 / M_PI);
-    if (operation == "atan") return Value(atan(value) * 180.0 / M_PI);
+    if (operation == "sin") return Value(std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10);
+    if (operation == "cos") return Value(std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10);
+    if (operation == "tan") {
+        double modAngle = std::fmod(value, 360.0);
+        if (modAngle < -180.0) modAngle += 360.0;
+        if (modAngle > 180.0) modAngle -= 360.0;
+
+        if (modAngle == 90.0 || modAngle == -270.0) return Value(std::numeric_limits<double>::infinity());
+        if (modAngle == -90.0 || modAngle == 270.0) return Value(-std::numeric_limits<double>::infinity());
+        return Value(std::round(std::tan(Math::degreesToRadians(value)) * 1e10) / 1e10);
+    }
+    if (operation == "asin") return Value(Math::radiansToDegrees(asin(value)));
+    if (operation == "acos") return Value(Math::radiansToDegrees(acos(value)));
+    if (operation == "atan") return Value(Math::radiansToDegrees(atan(value)));
     if (operation == "ln") return Value(log(value));
-    if (operation == "log") return Value(log10(value));
+    if (operation == "log") return Value(log(value) / log(10));
     if (operation == "e ^") return Value(exp(value));
     if (operation == "10 ^") return Value(pow(10, value));
 

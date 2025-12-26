@@ -25,6 +25,7 @@ class TextObjectGL2D : public TextObject {
     FontData *font;
     int width = 0;
     int height = 0;
+    float minScale = 1.0f;
 
   public:
     static std::map<std::string, FontData> fonts;

@@ -3,14 +3,15 @@
 
 # Package metadata.
 TITLE       := Scratch Everywhere!
-VERSION     := 0.30
+VERSION     := 0.31
 TITLE_ID    := NTXS10053
 CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 
 # Options for building Scratch Everywhere!
 ENABLE_CLOUDVARS	?= 0
 ENABLE_AUDIO		?= 1
-ENABLE_LOADSCREEN	?= 1
+ENABLE_LOADSCREEN	?= 0
+ENABLE_MENU		?=	1
 
 # Libraries linked into the ELF.
 LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceSysmodule -lSceAudioOut -lSceUserService \
@@ -32,6 +33,15 @@ FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
 			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
 AUTHINFO    := "000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 
+# Handle main menu
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+EXTRAFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
+endif
+
 # Define objects to build
 CPP_FILES  		:= $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.cpp))
 C_FILES    		:= $(foreach dir,$(SOURCES),$(wildcard $(dir)/*.c))
@@ -49,6 +59,7 @@ endif
 ifeq ($(strip $(PACBREW)),)
 $(error "Pacbrew packages are required to build for PS4. Please set PACBREW in your environment; export PACBREW=<path to>PACBREW")
 endif
+
 
 # Handle cloudvars and mist++
 ifeq ($(ENABLE_CLOUDVARS),1)

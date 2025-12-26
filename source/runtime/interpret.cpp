@@ -44,6 +44,7 @@ std::vector<Sprite *> sprites;
 Sprite *stageSprite;
 std::vector<Sprite> spritePool;
 std::vector<std::string> broadcastQueue;
+std::vector<Sprite *> cloneQueue;
 std::unordered_map<std::string, Block *> blockLookup;
 std::string answer;
 bool toExit = false;
@@ -59,7 +60,7 @@ bool Scratch::hqpen = false;
 bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
-bool Scratch::forceRedraw = true;
+bool Scratch::forceRedraw = false;
 
 double Scratch::counter = 0;
 
@@ -72,6 +73,7 @@ bool cloudProject = false;
 
 #ifdef ENABLE_CLOUDVARS
 void initMist() {
+    OS::initWifi();
     // Username Stuff
 
 #ifdef __WIIU__
@@ -119,7 +121,7 @@ void initMist() {
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) // These platforms require Mist++ 0.2.0 or later.
+#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(WEBOS) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
 #else // These platforms require Mist++ 0.1.4 or later.
     cloudConnection->connect();
@@ -160,6 +162,7 @@ bool Scratch::startScratchProject() {
     Scratch::nextProject = false;
 
     // Render first before running any blocks, otherwise 3DS rendering may get weird
+    BlockExecutor::updateMonitors();
     Render::renderSprites();
 
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
@@ -171,7 +174,9 @@ bool Scratch::startScratchProject() {
             forceRedraw = false;
             Input::getInput();
             BlockExecutor::runRepeatBlocks();
+            BlockExecutor::runCloneStarts();
             BlockExecutor::runBroadcasts();
+            BlockExecutor::updateMonitors();
             if (checkFPS) Render::renderSprites();
 
             if (shouldStop) {
@@ -199,10 +204,20 @@ void Scratch::cleanupScratchProject() {
     SoundPlayer::cleanupAudio();
     blockLookup.clear();
 
-    for (auto &[id, text] : Render::monitorTexts) {
-        delete text;
+    for (auto &[id, textPair] : Render::monitorTexts) {
+        delete textPair.first;
+        delete textPair.second;
     }
     Render::monitorTexts.clear();
+    for (auto &[id, listMon] : Render::listMonitors) {
+        delete listMon.name;
+        delete listMon.length;
+        for (auto *t : listMon.items)
+            delete t;
+        for (auto *t : listMon.indices)
+            delete t;
+    }
+    Render::listMonitors.clear();
     TextObject::cleanupText();
 
     Render::visibleVariables.clear();
@@ -220,6 +235,7 @@ void Scratch::cleanupScratchProject() {
     projectJSON.clear();
     projectJSON.shrink_to_fit();
 #endif
+    DownloadManager::deinit();
 
     // reset default settings
     Scratch::FPS = 30;
@@ -233,6 +249,52 @@ void Scratch::cleanupScratchProject() {
     Render::renderMode = Render::TOP_SCREEN_ONLY;
     // Unzip::filePath = "";
     Log::log("Cleaned up Scratch project.");
+}
+
+std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
+#ifdef __3DS__
+    if (Render::renderMode == Render::BOTH_SCREENS) {
+        // 3DS res with both screens combined
+        windowWidth = 400;
+        windowHeight = 480;
+    }
+#endif
+
+    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    float scratchX, scratchY;
+
+    if (screenAspect > projectAspect) {
+        // Vertical black bars
+        float scale = static_cast<float>(windowHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedX = screenX - barWidth;
+        scratchX = (adjustedX / scaledProjectWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / windowHeight) * Scratch::projectHeight;
+
+    } else if (screenAspect < projectAspect) {
+        // Horizontal black bars
+        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
+
+        // Remove bar offset and scale to project space
+        float adjustedY = screenY - barHeight;
+        scratchX = (screenX / windowWidth) * Scratch::projectWidth - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (adjustedY / scaledProjectHeight) * Scratch::projectHeight;
+
+    } else {
+        // no black bars..
+        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
+        scratchX = (screenX / scale) - (Scratch::projectWidth / 2.0f);
+        scratchY = (Scratch::projectHeight / 2.0f) - (screenY / scale);
+    }
+
+    return std::make_pair(scratchX, scratchY);
 }
 
 void initializeSpritePool(int poolSize) {
@@ -273,51 +335,53 @@ void cleanupSprites() {
 std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite) {
     std::vector<std::pair<double, double>> collisionPoints;
 
-    double divisionAmount = 2.0;
     const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
-    if (isSVG)
-        divisionAmount = 1.0;
+    Render::calculateRenderPosition(currentSprite, isSVG);
+    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
+    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
 
-#ifdef __NDS__
-    divisionAmount *= 2;
+    const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
+    float x = cords.first;
+    float y = cords.second;
+
+    // do rotation
+    float rotation;
+    if (currentSprite->rotationStyle == currentSprite->ALL_AROUND) {
+        rotation = Math::degreesToRadians(currentSprite->rotation - 90);
+    } else if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
+        rotation = Math::degreesToRadians(-180);
+#ifdef RENDERER_CITRO2D
+        x += currentSprite->spriteWidth * (isSVG ? 2 : 1);
+#endif
+    } else rotation = 0;
+
+// put position to top left of sprite (SDL platforms already do this)
+#if !defined(RENDERER_SDL1) && !defined(RENDERER_SDL2) && !defined(RENDERER_SDL3)
+    x -= (currentSprite->spriteWidth / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
+    y += (currentSprite->spriteHeight / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
 #endif
 
-    // Get sprite dimensions, scaled by size
-    const double halfWidth = (currentSprite->spriteWidth * currentSprite->size / 100.0) / divisionAmount;
-    const double halfHeight = (currentSprite->spriteHeight * currentSprite->size / 100.0) / divisionAmount;
-
-    // Calculate rotation in radians
-    double rotation = currentSprite->rotation;
-
-    if (currentSprite->rotationStyle == currentSprite->NONE) rotation = 90;
-    if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT) {
-        if (currentSprite->rotation > 0)
-            rotation = 90;
-        else
-            rotation = -90;
-    }
-    double rotationRadians = -(rotation - 90) * M_PI / 180.0;
-    const int shiftAmount = !isSVG ? 1 : 0;
-    double rotationCenterX = ((currentSprite->rotationCenterX - currentSprite->spriteWidth) >> shiftAmount);
-    double rotationCenterY = -((currentSprite->rotationCenterY - currentSprite->spriteHeight) >> shiftAmount);
-
-    // Define the four corners relative to the sprite's center
     std::vector<std::pair<double, double>> corners = {
-        {-halfWidth - (rotationCenterX * currentSprite->size * 0.01), -halfHeight + (rotationCenterY)}, // Top-left
-        {halfWidth - (rotationCenterX * currentSprite->size * 0.01), -halfHeight + (rotationCenterY)},  // Top-right
-        {halfWidth - (rotationCenterX * currentSprite->size * 0.01), halfHeight + (rotationCenterY)},   // Bottom-right
-        {-halfWidth - (rotationCenterX * currentSprite->size * 0.01), halfHeight + (rotationCenterY)}   // Bottom-left
+        {x, y},                              // Top-left
+        {x + spriteWidth, y},                // Top-right
+        {x + spriteWidth, y - spriteHeight}, // Bottom-right
+        {x, y - spriteHeight}                // Bottom-left
     };
 
-    // Rotate and translate each corner
-    for (const auto &corner : corners) {
-        double rotatedX = corner.first * cos(rotationRadians) - corner.second * sin(rotationRadians);
-        double rotatedY = corner.first * sin(rotationRadians) + corner.second * cos(rotationRadians);
+    const float centerX = x + spriteWidth / 2;
+    const float centerY = y - spriteHeight / 2;
 
-        collisionPoints.emplace_back(
-            currentSprite->xPosition + rotatedX,
-            currentSprite->yPosition + rotatedY);
+    for (const auto &corner : corners) {
+        // center it
+        float relX = corner.first - centerX;
+        float relY = corner.second - centerY;
+
+        // rotate it
+        float rotX = relX * cos(-rotation) - relY * sin(-rotation);
+        float rotY = relX * sin(-rotation) + relY * cos(-rotation);
+
+        collisionPoints.emplace_back(centerX + rotX, centerY + rotY);
     }
 
     return collisionPoints;
@@ -398,11 +462,12 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
         double halfWidth = Scratch::projectWidth / 2.0;
         double halfHeight = Scratch::projectHeight / 2.0;
 
-        // Check if the current sprite is touching the edge of the screen
-        if (currentSprite->xPosition <= -halfWidth || currentSprite->xPosition >= halfWidth ||
-            currentSprite->yPosition <= -halfHeight || currentSprite->yPosition >= halfHeight) {
-            return true;
+        for (const auto &point : currentSpritePoints) {
+            if (point.first <= -halfWidth || point.first >= halfWidth ||
+                point.second <= -halfHeight || point.second >= halfHeight)
+                return true;
         }
+
         return false;
     } else if (collisionType == "sprite") {
         // Use targetSprite if provided, otherwise search by name
@@ -415,60 +480,108 @@ bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targe
             }
         }
 
-        if (targetSprite == nullptr || !targetSprite->visible) {
+        if (targetSprite == nullptr || !targetSprite->visible || !currentSprite->visible) {
             return false;
         }
 
-        std::vector<std::pair<double, double>> targetSpritePoints = getCollisionPoints(targetSprite);
+        // simple AABB collision for non rotated sprites
+        if ((currentSprite->rotationStyle != currentSprite->ALL_AROUND && targetSprite->rotationStyle != targetSprite->ALL_AROUND) ||
+            (std::abs(currentSprite->rotation) == 90 && std::abs(targetSprite->rotation) == 90)) {
 
-        // Check if any point of current sprite is inside target sprite
-        for (const auto &currentPoint : currentSpritePoints) {
-            double x = currentPoint.first;
-            double y = currentPoint.second;
+            const bool currentSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
+            const bool targetSVG = targetSprite->costumes[targetSprite->currentCostume].isSVG;
 
-            // Ray casting to check if point is inside target sprite
-            int intersections = 0;
-            for (int i = 0; i < 4; i++) {
-                int j = (i + 1) % 4;
-                double x1 = targetSpritePoints[i].first, y1 = targetSpritePoints[i].second;
-                double x2 = targetSpritePoints[j].first, y2 = targetSpritePoints[j].second;
+            Render::calculateRenderPosition(currentSprite, currentSVG);
+            Render::calculateRenderPosition(targetSprite, targetSVG);
 
-                if (((y1 > y) != (y2 > y)) &&
-                    (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)) {
-                    intersections++;
-                }
+            const auto &currentCords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
+            float currentX = currentCords.first;
+            float currentY = currentCords.second;
+
+            const auto &targetCords = Scratch::screenToScratchCoords(targetSprite->renderInfo.renderX, targetSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
+            float targetX = targetCords.first;
+            float targetY = targetCords.second;
+
+            // put position to top left of sprite (SDL platforms already do this)
+#if !defined(RENDERER_SDL1) && !defined(RENDERER_SDL2) && !defined(RENDERER_SDL3)
+            currentX -= (currentSprite->spriteWidth / (currentSVG ? 1 : 2)) * currentSprite->size * 0.01;
+            currentY += (currentSprite->spriteHeight / (currentSVG ? 1 : 2)) * currentSprite->size * 0.01;
+            targetX -= (targetSprite->spriteWidth / (targetSVG ? 1 : 2)) * targetSprite->size * 0.01;
+            targetY += (targetSprite->spriteHeight / (targetSVG ? 1 : 2)) * targetSprite->size * 0.01;
+#endif
+
+            const float currentMinX = currentX;
+            const float currentMaxX = currentX + currentSprite->spriteWidth * (currentSVG ? 2 : 1);
+            const float currentMinY = currentY;
+            const float currentMaxY = currentY + currentSprite->spriteHeight * (currentSVG ? 2 : 1);
+
+            const float targetMinX = targetX;
+            const float targetMaxX = targetX + targetSprite->spriteWidth * (targetSVG ? 2 : 1);
+            const float targetMinY = targetY;
+            const float targetMaxY = targetY + targetSprite->spriteHeight * (targetSVG ? 2 : 1);
+
+            return (currentMinX <= targetMaxX && currentMaxX >= targetMinX) &&
+                   (currentMinY <= targetMaxY && currentMaxY >= targetMinY);
+        }
+
+        // SAT collision for rotated sprites
+
+        std::vector<std::pair<double, double>> targetSpritePoints =
+            getCollisionPoints(targetSprite);
+
+        bool collision = true;
+
+        for (int i = 0; i < 4; i++) {
+
+            auto edge1 = std::pair{
+                currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
+                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
+            auto edge2 = std::pair{
+                targetSpritePoints[(i + 1) % 4].first - targetSpritePoints[i].first,
+                targetSpritePoints[(i + 1) % 4].second - targetSpritePoints[i].second};
+
+            double axis1X = -edge1.second, axis1Y = edge1.first;
+            double axis2X = -edge2.second, axis2Y = edge2.first;
+
+            double len1 = sqrt(axis1X * axis1X + axis1Y * axis1Y);
+            if (len1 > 0) {
+                axis1X /= len1;
+                axis1Y /= len1;
+            }
+            double len2 = sqrt(axis2X * axis2X + axis2Y * axis2Y);
+            if (len2 > 0) {
+                axis2X /= len2;
+                axis2Y /= len2;
             }
 
-            if ((intersections % 2) == 1) {
-                return true;
+            if (isSeparated(currentSpritePoints, targetSpritePoints, axis1X, axis1Y) ||
+                isSeparated(currentSpritePoints, targetSpritePoints, axis2X, axis2Y)) {
+
+                collision = false;
+                break;
             }
         }
 
-        // Check if any point of target sprite is inside current sprite
-        for (const auto &targetPoint : targetSpritePoints) {
-            double x = targetPoint.first;
-            double y = targetPoint.second;
-
-            // Ray casting to check if point is inside current sprite
-            int intersections = 0;
-            for (int i = 0; i < 4; i++) {
-                int j = (i + 1) % 4;
-                double x1 = currentSpritePoints[i].first, y1 = currentSpritePoints[i].second;
-                double x2 = currentSpritePoints[j].first, y2 = currentSpritePoints[j].second;
-
-                if (((y1 > y) != (y2 > y)) &&
-                    (x < (x2 - x1) * (y - y1) / (y2 - y1) + x1)) {
-                    intersections++;
-                }
-            }
-
-            if ((intersections % 2) == 1) {
-                return true;
-            }
-        }
+        return collision;
+    } else {
+        Log::logWarning("Invalid collision type " + collisionType);
+        return false;
     }
+}
 
-    return false;
+void Scratch::gotoXY(Sprite *sprite, double x, double y) {
+
+    if (sprite->isStage) return;
+
+    const double oldX = sprite->xPosition;
+    const double oldY = sprite->yPosition;
+    sprite->xPosition = x;
+    sprite->yPosition = y;
+
+    if (Scratch::fencing) fenceSpriteWithinBounds(sprite);
+
+    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    Scratch::forceRedraw = true;
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
@@ -500,13 +613,30 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     }
 }
 
+void Scratch::setDirection(Sprite *sprite, double direction) {
+    if (sprite->isStage) return;
+    if (direction == std::numeric_limits<double>::infinity() || direction == -std::numeric_limits<double>::infinity() || std::isnan(direction)) {
+        return;
+    }
+
+    sprite->rotation = direction - floor((direction + 179) / 360) * 360;
+    Scratch::forceRedraw = true;
+}
+
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
 
-    sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(std::round(costumeIndex) / sprite->costumes.size()) * sprite->costumes.size()) : 0;
+    costumeIndex = std::round(costumeIndex);
+    sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
     Image::loadImageFromProject(sprite);
 
     Scratch::forceRedraw = true;
+}
+
+Sprite *Scratch::getListTargetSprite(std::string listId, Sprite *sprite) {
+    if (sprite->lists.find(listId) != sprite->lists.end()) return sprite;                // First check if the current sprite has the list
+    if (stageSprite->lists.find(listId) != stageSprite->lists.end()) return stageSprite; // If not found in current sprite, check stage (global lists)
+    return nullptr;                                                                      // List not found
 }
 
 void Scratch::sortSprites() {
@@ -607,10 +737,14 @@ void loadSprites(const nlohmann::json &json) {
 
                     // Fields are almost always arrays with [0] being the value
                     if (fieldData.is_array() && !fieldData.empty()) {
-                        parsedField.value = fieldData[0].get<std::string>();
+                        if (fieldData[0].is_number()) {
+                            parsedField.value = Value(fieldData[0].get<double>()).asString();
+                        } else {
+                            parsedField.value = fieldData[0].get<std::string>();
+                        }
 
                         // Store ID for variables and lists
-                        if (fieldData.size() > 1 && !fieldData[1].is_null()) {
+                        if (fieldData.size() == 2 && !fieldData[1].is_null()) {
                             parsedField.id = fieldData[1].get<std::string>();
                         }
                     }
@@ -618,6 +752,7 @@ void loadSprites(const nlohmann::json &json) {
                     (*newBlock.parsedFields)[fieldName] = parsedField;
                 }
             }
+
             if (data.contains("inputs")) {
 
                 for (const auto &[inputName, inputData] : data["inputs"].items()) {
@@ -736,7 +871,7 @@ void loadSprites(const nlohmann::json &json) {
             newSound.dataFormat = data["dataFormat"];
             newSound.sampleRate = data["rate"];
             newSound.sampleCount = data["sampleCount"];
-            newSprite->sounds[newSound.name] = newSound;
+            newSprite->sounds.push_back(newSound);
         }
 
         // set Costumes
@@ -832,6 +967,16 @@ void loadSprites(const nlohmann::json &json) {
 
         if (monitor.contains("y") && !monitor["y"].is_null())
             newMonitor.y = monitor.at("y").get<int>();
+
+        if (monitor.contains("width") && !(monitor["width"].is_null() || monitor.at("width").get<int>() == 0))
+            newMonitor.width = monitor.at("width").get<int>();
+        else
+            newMonitor.width = 110;
+
+        if (monitor.contains("height") && !(monitor["height"].is_null() || monitor.at("height").get<int>() == 0))
+            newMonitor.height = monitor.at("height").get<int>();
+        else
+            newMonitor.height = 200;
 
         if (monitor.contains("visible") && !monitor["visible"].is_null())
             newMonitor.visible = monitor.at("visible").get<bool>();

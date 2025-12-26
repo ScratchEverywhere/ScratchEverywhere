@@ -1,3 +1,6 @@
+#ifdef ENABLE_MENU
+#include <menus/mainMenu.hpp>
+#endif
 #include <cstdlib>
 #include <interpret.hpp>
 #include <menus/mainMenu.hpp>
@@ -26,6 +29,7 @@ static bool initApp() {
 }
 
 bool activateMainMenu() {
+#ifdef ENABLE_MENU
     MainMenu *menu = new MainMenu();
     MenuManager::changeMenu(menu);
 
@@ -42,6 +46,7 @@ bool activateMainMenu() {
         emscripten_sleep(0);
 #endif
     }
+#endif
     return false;
 }
 
@@ -80,8 +85,8 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-#ifdef __EMSCRIPTEN__
     if (argc > 1) {
+#if defined(__EMSCRIPTEN__)
         while (!OS::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
@@ -89,8 +94,11 @@ int main(int argc, char **argv) {
             }
             emscripten_sleep(0);
         }
-    }
+#elif defined(__PC__)
+        Unzip::filePath = std::string(argv[1]);
+#else
 #endif
+    }
 
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {

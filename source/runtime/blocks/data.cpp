@@ -65,10 +65,7 @@ SCRATCH_BLOCK(data, addtolist) {
     const Value val = Scratch::getInputValue(block, "ITEM", sprite);
     const std::string listId = Scratch::getFieldId(block, "LIST");
 
-    Sprite *targetSprite = nullptr;
-
-    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
     if (targetSprite && targetSprite->lists[listId].items.size() < MAX_LIST_ITEMS) targetSprite->lists[listId].items.push_back(val);
 
@@ -79,24 +76,26 @@ SCRATCH_BLOCK(data, deletefromlist) {
     const Value val = Scratch::getInputValue(block, "INDEX", sprite);
     const std::string listId = Scratch::getFieldId(block, "LIST");
 
-    Sprite *targetSprite = nullptr;
-
-    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
     if (!targetSprite) return BlockResult::CONTINUE;
 
     auto &items = targetSprite->lists[listId].items;
 
+    if (items.empty()) return BlockResult::CONTINUE;
+
     if (val.isNumeric()) {
-        const int index = val.asInt() - 1;
-        if (index >= 0 && index < static_cast<int>(items.size())) items.erase(items.begin() + index);
+        const double index = std::floor(val.asDouble()) - 1; // Convert to 0-based index
+
+        // Check if the index is within bounds
+        if (index >= 0 && index < static_cast<double>(items.size())) {
+            items.erase(items.begin() + index); // Remove the item at the index
+        }
+
         return BlockResult::CONTINUE;
     }
 
-    if (items.empty()) return BlockResult::CONTINUE;
-
-    if (val.asString() == "last" && !items.empty()) {
+    if (val.asString() == "last") {
         items.pop_back();
         return BlockResult::CONTINUE;
     }
@@ -106,7 +105,7 @@ SCRATCH_BLOCK(data, deletefromlist) {
         return BlockResult::CONTINUE;
     }
 
-    if (val.asString() == "random" && !items.empty()) {
+    if ((val.asString() == "random" || val.asString() == "any")) {
         int idx = rand() % items.size();
         items.erase(items.begin() + idx);
     }
@@ -117,12 +116,10 @@ SCRATCH_BLOCK(data, deletefromlist) {
 SCRATCH_BLOCK(data, deletealloflist) {
     const std::string listId = Scratch::getFieldId(block, "LIST");
 
-    Sprite *targetSprite = nullptr;
-
-    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
     if (targetSprite) targetSprite->lists[listId].items.clear();
+
     return BlockResult::CONTINUE;
 }
 
@@ -131,30 +128,27 @@ SCRATCH_BLOCK(data, insertatlist) {
     const std::string listId = Scratch::getFieldId(block, "LIST");
     const Value index = Scratch::getInputValue(block, "INDEX", sprite);
 
-    Sprite *targetSprite = nullptr;
-
-    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
     if (!targetSprite || targetSprite->lists[listId].items.size() >= MAX_LIST_ITEMS) return BlockResult::CONTINUE;
 
     if (index.isNumeric()) {
-        const int idx = index.asInt() - 1;
-        auto &items = targetSprite->lists[listId].items;
+        const double idx = std::floor(index.asDouble()) - 1; // Convert to 0-based index
+        const auto &items = targetSprite->lists[listId].items;
 
-        if (idx >= 0 && idx <= static_cast<int>(items.size())) items.insert(items.begin() + idx, val);
+        // Check if the index is within bounds
+        if (idx >= 0 && idx <= static_cast<double>(items.size())) {
+            items.insert(items.begin() + idx, val); // Insert the item at the index
+        }
 
         return BlockResult::CONTINUE;
     }
-
-    if (targetSprite->lists[listId].items.empty()) return BlockResult::CONTINUE;
 
     if (index.asString() == "last") {
         targetSprite->lists[listId].items.push_back(val);
-        return BlockResult::CONTINUE;
     }
 
-    if (index.asString() == "random") {
+    if (index.asString() == "random" || index.asString() == "any") {
         auto &items = targetSprite->lists[listId].items;
         int idx = rand() % (items.size() + 1);
         items.insert(items.begin() + idx, val);
@@ -168,33 +162,28 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
     std::string listId = Scratch::getFieldId(block, "LIST");
     Value index = Scratch::getInputValue(block, "INDEX", sprite);
 
-    Sprite *targetSprite = nullptr;
-
-    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
     if (!targetSprite) return BlockResult::CONTINUE;
 
     auto &items = targetSprite->lists[listId].items;
 
-    if (index.isNumeric()) {
-        int idx = index.asInt() - 1;
+    if (items.empty()) return BlockResult::CONTINUE;
 
-        if (idx >= 0 && idx < static_cast<int>(items.size())) {
+    if (index.isNumeric()) {
+        double idx = std::floor(index.asDouble()) - 1;
+
+        if (idx >= 0 && idx < static_cast<double>(items.size())) {
             items[idx] = val;
         }
 
         return BlockResult::CONTINUE;
     }
 
-    if (index.asString() == "last" && !items.empty()) {
-        items.back() = val;
-        return BlockResult::CONTINUE;
-    }
+    if (index.asString() == "last") items.back() = val;
 
-    if (index.asString() == "random" && !items.empty()) {
-        int idx = rand() % items.size();
-        items[idx] = val;
+    if ((index.asString() == "random" || index.asString() == "any")) {
+        items[rand() % items.size()] = val;
     }
 
     return BlockResult::CONTINUE;
@@ -202,13 +191,9 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
 
 SCRATCH_REPORTER_BLOCK(data, itemoflist) {
     const Value indexStr = Scratch::getInputValue(block, "INDEX", sprite);
-    const int index = indexStr.asInt() - 1;
-    const std::string listName = Scratch::getFieldId(block, "LIST");
+    const std::string listId = Scratch::getFieldId(block, "LIST");
 
-    Sprite *targetSprite = nullptr;
-
-    if (sprite->lists.find(listName) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listName) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
     if (!targetSprite) return Value();
 
@@ -218,12 +203,13 @@ SCRATCH_REPORTER_BLOCK(data, itemoflist) {
 
     if (indexStr.asString() == "last") return items.back();
 
-    if (indexStr.asString() == "random" && !items.empty()) {
+    if (indexStr.asString() == "random" || indexStr.asString() == "any") {
         int idx = rand() % items.size();
         return items[idx];
     }
 
-    if (index >= 0 && index < static_cast<int>(items.size())) {
+    double index = std::floor(indexStr.asDouble()) - 1;
+    if (index >= 0 && index < static_cast<double>(items.size())) {
         return items[index];
     }
 
@@ -231,50 +217,48 @@ SCRATCH_REPORTER_BLOCK(data, itemoflist) {
 }
 
 SCRATCH_REPORTER_BLOCK(data, itemnumoflist) {
-    const std::string listName = Scratch::getFieldId(block, "LIST");
+    const std::string listId = Scratch::getFieldId(block, "LIST");
     const Value itemToFind = Scratch::getInputValue(block, "ITEM", sprite);
 
-    Sprite *targetSprite = nullptr;
+    const Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
-    if (sprite->lists.find(listName) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listName) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
-                                                                                                        //
-    if (!targetSprite) return Value();
-
-    auto &list = targetSprite->lists[listName];
-    int index = 1;
-    for (auto &item : list.items) {
-        if (item == itemToFind) {
-            return Value(index);
+    if (targetSprite) {
+        auto &list = targetSprite->lists[listId];
+        int index = 1;
+        for (auto &item : list.items) {
+            if (item == itemToFind) {
+                return Value(index);
+            }
+            index++;
         }
-        index++;
     }
 
-    return Value();
+    return Value(0);
 }
 
 SCRATCH_REPORTER_BLOCK(data, lengthoflist) {
-    const std::string listName = Scratch::getFieldId(block, "LIST");
+    const std::string listId = Scratch::getFieldId(block, "LIST");
 
-    Sprite *targetSprite = nullptr;
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
-    if (sprite->lists.find(listName) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listName) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
-
-    if (targetSprite) return Value(static_cast<int>(targetSprite->lists[listName].items.size()));
+    if (targetSprite) return Value(static_cast<double>(targetSprite->lists[listId].items.size()));
     return Value();
 }
 
 SCRATCH_REPORTER_BLOCK(data, listcontainsitem) {
-    const std::string listName = Scratch::getFieldId(block, "LIST");
+    const std::string listId = Scratch::getFieldId(block, "LIST");
     const Value itemToFind = Scratch::getInputValue(block, "ITEM", sprite);
 
-    Sprite *targetSprite = nullptr;
+    Sprite *targetSprite = Scratch::getListTargetSprite(listId, sprite);
 
-    if (sprite->lists.find(listName) != sprite->lists.end()) targetSprite = sprite;                     // First check if the current sprite has the list
-    else if (stageSprite->lists.find(listName) != stageSprite->lists.end()) targetSprite = stageSprite; // If not found in current sprite, check stage (global lists)
-
-    if (!targetSprite) return Value(false);
+    if (targetSprite) {
+        const auto &list = targetSprite->lists[listId];
+        for (const auto &item : list.items) {
+            if (item == itemToFind) {
+                return Value(true);
+            }
+        }
+    }
 
     const auto &list = targetSprite->lists[listName];
     for (const auto &item : list.items) {

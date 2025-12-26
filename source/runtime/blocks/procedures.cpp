@@ -45,10 +45,7 @@ SCRATCH_REPORTER_BLOCK_OPCODE(argument_reporter_boolean) {
 }
 
 SCRATCH_BLOCK(procedures, call) {
-    if (block.repeatTimes != -1 && !fromRepeat) block.repeatTimes = -1;
-
-    if (block.repeatTimes == -1) {
-        block.repeatTimes = -8;
+    if (!fromRepeat) {
         block.customBlockExecuted = false;
 
         // Run the custom block for the first time
@@ -64,7 +61,6 @@ SCRATCH_BLOCK(procedures, call) {
         // std::cout << "done with custom!" << std::endl;
 
         // Custom block execution is complete
-        block.repeatTimes = -1; // Reset for next use
         block.customBlockExecuted = false;
         block.customBlockPtr = nullptr;
 

@@ -24,7 +24,7 @@ APP_NAME							:=	Scratch Everywhere!
 APP_AUTHOR						:=	NateXS and Grady Link
 APP_SHORT_DESCRIPTION	:=	Play Scratch Games on the Wii U!
 APP_LONG_DESCRIPTION	:=	$(APP_SHORT_DESCRIPTION)
-APP_VERSION						:=	0.30
+APP_VERSION						:=	0.31
 APP_ICON							:=	gfx/wiiu/icon.png
 APP_TV_SPLASH					:=	gfx/wiiu/tv-splash.png
 APP_DRC_SPLASH				:=	gfx/wiiu/drc-splash.png
@@ -34,7 +34,9 @@ include $(DEVKITPRO)/wut/share/wut_rules
 # Config Options
 ENABLE_CLOUDVARS	?=	0
 ENABLE_AUDIO	?=	1
+ENABLE_DOWNLOAD	?=	1
 ENABLE_LOADSCREEN	?=	1
+ENABLE_MENU		?=	1
 
 # Flags
 
@@ -48,6 +50,14 @@ CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
+
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
+endif
 
 ifeq ($(ENABLE_AUDIO),1)
 CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF_WIIU) --cflags SDL2_mixer`
@@ -71,6 +81,12 @@ endif
 ifeq ($(ENABLE_LOADSCREEN),1)
 CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
+
+ifeq ($(ENABLE_DOWNLOAD),1)
+CFLAGS	+=	-DENABLE_DOWNLOAD
+LIBS +=	`$(PKGCONF_WIIU) --libs libcurl`
+endif
+
 
 CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
 
@@ -114,7 +130,11 @@ mkdir:
 
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
+else
+	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
+endif
 #	@cp -r $(GRAPHICS)/ingame $@/
 
 test:

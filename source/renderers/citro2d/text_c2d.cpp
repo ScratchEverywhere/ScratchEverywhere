@@ -17,6 +17,8 @@ TextObjectC2D::TextObjectC2D(std::string txt, double posX, double posY, std::str
         fontName = "romfs:/" + fontPath + ".bcfnt";
     }
 
+    if (fontName != "SYSTEM") textPosCorrection = true;
+
     // load font if not already loaded
     if (fonts.find(fontName) == fonts.end()) {
         C2D_Font font;
@@ -77,7 +79,9 @@ void TextObjectC2D::render(int xPos, int yPos) {
     if (centerAligned) {
         flags |= C2D_AlignCenter;
     }
-    yPos -= getSize()[1] / 2;
+    if (textPosCorrection)
+        yPos -= getSize()[1] / 2;
+
     C2D_DrawText(&textClass.c2dText, flags, xPos, yPos, 0, scale, scale, color);
 }
 

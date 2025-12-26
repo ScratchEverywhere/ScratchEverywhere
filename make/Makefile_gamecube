@@ -29,6 +29,7 @@ GFXBUILD	:=	$(ROMFS)/gfx
 ENABLE_CLOUDVARS	?=	0
 ENABLE_LOADSCREEN		?=	1
 ENABLE_AUDIO	?=	1
+ENABLE_MENU		?=	1
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -46,6 +47,14 @@ LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image SDL2_gfx
 CFLAGS	+=	-DENABLE_AUDIO `$(PREFIX)pkg-config --cflags SDL2_mixer`
 else
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2`
+endif
+
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
 endif
 
 ifeq ($(ENABLE_LOADSCREEN),1)
@@ -119,7 +128,11 @@ $(BUILD):
 
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
+else
+	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
+endif
 #	@cp -r $(GRAPHICS)/ingame $@/
 
 ifneq ($(DEPSDIR),$(BUILD))

@@ -8,7 +8,6 @@ class ProjectSettings : public Menu {
     ButtonObject *backButton = nullptr;
     ButtonObject *changeControlsButton = nullptr;
     ButtonObject *UnpackProjectButton = nullptr;
-    ButtonObject *DeleteUnpackProjectButton = nullptr;
     ButtonObject *bottomScreenButton = nullptr;
 
     bool canUnpacked = true;

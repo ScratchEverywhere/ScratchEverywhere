@@ -11,7 +11,7 @@ ControlsMenu::~ControlsMenu() {
 
 void ControlsMenu::init() {
 
-    Unzip::filePath = projectPath + ".sb3";
+    Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
     if (!Unzip::load()) {
         Log::logError("Failed to load project for ControlsMenu.");
         toExit = true;
@@ -30,20 +30,20 @@ void ControlsMenu::init() {
             } else if (block.opcode == "event_whenkeypressed") {
                 buttonCheck = Input::convertToKey(Value(Scratch::getFieldValue(block, "KEY_OPTION")));
             } else if (block.opcode == "makeymakey_whenMakeyKeyPressed") {
-                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite));
+                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite), true);
             } else if (block.opcode == "makeymakey_whenCodePressed") {
                 std::string input = Scratch::getInputValue(block, "SEQUENCE", sprite).asString();
                 size_t start = 0;
-                size_t end = input.find(' ');
-                while (end != std::string::npos) {
+                size_t end;
+                while ((end = input.find(' ', start)) != std::string::npos) {
                     buttonCheck = input.substr(start, end - start);
                     if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                         Log::log("Found new control: " + buttonCheck);
                         controls.push_back(buttonCheck);
                     }
                     start = end + 1;
-                    end = input.find(' ', start);
                 }
+                buttonCheck = input.substr(start);
                 if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                     Log::log("Found new control: " + buttonCheck);
                     controls.push_back(buttonCheck);
@@ -63,7 +63,7 @@ void ControlsMenu::init() {
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 200, 230, "gfx/menu/Ubuntu-Bold");
+    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold");
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;
@@ -78,9 +78,9 @@ void ControlsMenu::init() {
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/optionBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         controlButton->text->setColor(Math::color(255, 255, 255, 255));
-        controlButton->scale = 0.6;
+        controlButton->scale = 1.0;
         controlButton->y -= controlButton->text->getSize()[1] / 2;
         if (controlButton->text->getSize()[0] > controlButton->buttonTexture->image->getWidth() * 0.3) {
             float scale = (float)controlButton->buttonTexture->image->getWidth() / (controlButton->text->getSize()[0] * 3);
@@ -104,7 +104,10 @@ void ControlsMenu::init() {
     if (!controls.empty()) {
         settingsControl->selectedObject = controlButtons.front().button;
         settingsControl->selectedObject->isSelected = true;
-        cameraY = settingsControl->selectedObject->y;
+        settingsControl->y = settingsControl->selectedObject->y - settingsControl->selectedObject->buttonTexture->image->getHeight() * 0.7;
+        settingsControl->x = -205;
+        settingsControl->enableScrolling = true;
+        settingsControl->setScrollLimits();
     }
 
     // link buttons
@@ -143,7 +146,7 @@ void ControlsMenu::render() {
             Input::getInput();
         }
 
-        while (Render::appShouldRun()) {
+        while (Input::inputButtons.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
         if (!Input::inputButtons.empty()) {
@@ -173,14 +176,6 @@ void ControlsMenu::render() {
         }
     }
 
-    // Smooth camera movement to follow selected control
-    const float targetY = settingsControl->selectedObject->y;
-    const float lerpSpeed = 0.1f;
-
-    cameraY = cameraY + (targetY - cameraY) * lerpSpeed;
-    const int cameraX = 200;
-    const double cameraYOffset = 110;
-
     Render::beginFrame(0, 181, 165, 111);
     Render::beginFrame(1, 181, 165, 111);
 
@@ -196,29 +191,10 @@ void ControlsMenu::render() {
             controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
         else
             controlButton.button->text->setColor(Math::color(0, 0, 0, 255));
-
-        // Position with camera offset
-        const double xPos = controlButton.button->x + cameraX;
-        const double yPos = controlButton.button->y - (cameraY - cameraYOffset);
-
-        // Scale based on distance to selected
-        const double distance = abs(controlButton.button->y - targetY);
-        const int maxDistance = 500;
-        float targetScale;
-        if (distance <= maxDistance) {
-            targetScale = 1.0f - (distance / static_cast<float>(maxDistance));
-        } else {
-            targetScale = 0.0f;
-        }
-
-        // Smooth scaling
-        controlButton.button->scale = controlButton.button->scale + (targetScale - controlButton.button->scale) * lerpSpeed;
-
-        controlButton.button->render(xPos, yPos);
     }
 
     // Render UI elements
-    settingsControl->render(cameraX, cameraY - cameraYOffset);
+    settingsControl->render();
     backButton->render();
     applyButton->render();
 

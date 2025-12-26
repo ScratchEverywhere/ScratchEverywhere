@@ -13,6 +13,17 @@ ProjectMenu::~ProjectMenu() {
 
 void ProjectMenu::init() {
 
+#if defined(__NDS__)
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
+    }
+#else
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
+        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
+    }
+#endif
+
     snow.image = new Image("gfx/menu/snow.svg");
 
     projectControl = new ControlObject();
@@ -24,11 +35,10 @@ void ProjectMenu::init() {
     UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
 
     // initialize text and set positions
-    int yPosition = 120;
+    int yPosition = 30;
     for (std::string &file : projectFiles) {
         ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         project->text->setColor(Math::color(0, 0, 0, 255));
-        project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
             float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
@@ -36,12 +46,19 @@ void ProjectMenu::init() {
         }
         projects.push_back(project);
         projectControl->buttonObjects.push_back(project);
+
+        ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.svg", 140, project->y, "gfx/menu/Ubuntu-Bold");
+        projects.push_back(settingsButton);
+        projectControl->buttonObjects.push_back(settingsButton);
+
+        project->buttonRight = settingsButton;
+        settingsButton->buttonLeft = project;
+
         yPosition += 50;
     }
     for (std::string &file : UnzippedFiles) {
         ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.png", 0, yPosition, "gfx/menu/Ubuntu-Bold");
         project->text->setColor(Math::color(126, 101, 1, 255));
-        project->canBeClicked = false;
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
             float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
@@ -49,18 +66,26 @@ void ProjectMenu::init() {
         }
         projects.push_back(project);
         projectControl->buttonObjects.push_back(project);
+
+        ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.svg", 140, project->y, "gfx/menu/Ubuntu-Bold");
+        projects.push_back(settingsButton);
+        projectControl->buttonObjects.push_back(settingsButton);
+
+        project->buttonRight = settingsButton;
+        settingsButton->buttonLeft = project;
+
         yPosition += 50;
     }
 
     for (size_t i = 0; i < projects.size(); i++) {
         // Check if there's a project above
-        if (i > 0) {
-            projects[i]->buttonUp = projects[i - 1];
+        if (i > 1) {
+            projects[i]->buttonUp = projects[i - 2];
         }
 
         // Check if there's a project below
-        if (i < projects.size() - 1) {
-            projects[i]->buttonDown = projects[i + 1];
+        if (i < projects.size() - 1 && i < projects.size() - 2) {
+            projects[i]->buttonDown = projects[i + 2];
         }
     }
 
@@ -91,6 +116,8 @@ void ProjectMenu::init() {
         noProjectInfo->setText("Put Scratch projects in sd:/scratch-ds !");
 #elif defined(__PS4__)
         noProjectInfo->setText("Put Scratch projects in /data/scratch-ps4 !");
+#elif defined(WEBOS)
+        noProjectInfo->setText("Upload Scratch projects to apps/usr/palm/applications/io.github.scratcheverywhere/projects/ using webosbrew Dev Manager!");
 #else
         noProjectInfo->setText("Put Scratch projects in the scratch-everywhere folder!");
 #endif
@@ -105,16 +132,13 @@ void ProjectMenu::init() {
         }
 
     } else {
+        projectControl->enableScrolling = true;
         projectControl->selectedObject = projects.front();
         projectControl->selectedObject->isSelected = true;
-        cameraY = projectControl->selectedObject->y;
+        projectControl->y = projectControl->selectedObject->y - projectControl->selectedObject->buttonTexture->image->getHeight() * 0.7;
+        projectControl->x = -205;
+        projectControl->setScrollLimits();
         hasProjects = true;
-        playButton = new ButtonObject("Play (A)", "gfx/menu/optionBox.svg", 95, 230, "gfx/menu/Ubuntu-Bold");
-        settingsButton = new ButtonObject("Settings (L)", "gfx/menu/optionBox.svg", 315, 230, "gfx/menu/Ubuntu-Bold");
-        playButton->scale = 0.6;
-        settingsButton->scale = 0.6;
-        settingsButton->needsToBeSelected = false;
-        playButton->needsToBeSelected = false;
     }
     isInitialized = true;
 }
@@ -132,36 +156,45 @@ void ProjectMenu::render() {
         SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
     }
 #endif
-
-    float targetY = 0.0f;
-    float lerpSpeed = 0.1f;
-
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed({"a"}) || playButton->isPressed({"a"})) {
+        if (projectControl->selectedObject->isPressed({"a"})) {
 
-            if (projectControl->selectedObject->buttonTexture->image->imageId == "projectBoxFast") {
+            if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBoxFast") != std::string::npos) {
                 // Unpacked sb3
                 Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
                 MenuManager::loadProject();
                 return;
-            } else {
+            } else if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBox") != std::string::npos) {
                 // normal sb3
                 Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
                 MenuManager::loadProject();
                 return;
+            } else {
+                // Settings button
+
+                auto it = std::find(projects.begin(), projects.end(), projectControl->selectedObject);
+
+                if (it != projects.end()) {
+                    size_t index = std::distance(projects.begin(), it);
+                    std::string selectedProject = projects[index - 1]->text->getText();
+
+                    UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
+
+                    ProjectSettings *settings = new ProjectSettings(selectedProject, (std::find(UnzippedFiles.begin(), UnzippedFiles.end(), selectedProject) != UnzippedFiles.end()));
+                    MenuManager::changeMenu(settings);
+                    return;
+                }
             }
         }
-        if (settingsButton->isPressed({"l"})) {
-            std::string selectedProject = projectControl->selectedObject->text->getText();
+        // if (settingsButton->isPressed({"l"})) {
+        //     std::string selectedProject = projectControl->selectedObject->text->getText();
 
-            UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
+        //     UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
 
-            ProjectSettings *settings = new ProjectSettings(selectedProject, (std::find(UnzippedFiles.begin(), UnzippedFiles.end(), selectedProject) != UnzippedFiles.end()));
-            MenuManager::changeMenu(settings);
-            return;
-        }
-        targetY = projectControl->selectedObject->y;
-        lerpSpeed = 0.1f;
+        //     ProjectSettings *settings = new ProjectSettings(selectedProject, (std::find(UnzippedFiles.begin(), UnzippedFiles.end(), selectedProject) != UnzippedFiles.end()));
+        //     MenuManager::changeMenu(settings);
+        //     return;
+        // }
     } else {
         if (noProjectsButton->isPressed({"a"})) {
             MenuManager::changeMenu(MenuManager::previousMenu);
@@ -175,46 +208,21 @@ void ProjectMenu::render() {
         return;
     }
 
-    cameraY = cameraY + (targetY - cameraY) * lerpSpeed;
-    cameraX = 200;
-    const double cameraYOffset = 110;
-
     Render::beginFrame(0, 77, 58, 77);
     Render::beginFrame(1, 77, 58, 77);
 
-    snow.render(0, -(cameraY * 0.4));
+    snow.render(0, 0);
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;
 
         if (projectControl->selectedObject == project)
-            project->text->setColor(Math::color(32, 36, 41, 255));
-        else
             project->text->setColor(Math::color(0, 0, 0, 255));
-
-        const double xPos = project->x + cameraX;
-        const double yPos = project->y - (cameraY - cameraYOffset);
-
-        // Calculate target scale based on distance
-        const double distance = abs(project->y - targetY);
-        const int maxDistance = 500;
-        float targetScale;
-        if (distance <= maxDistance) {
-            targetScale = 1.0f - (distance / static_cast<float>(maxDistance));
-
-            // Lerp the scale towards the target scale
-            project->scale = project->scale + (targetScale - project->scale) * lerpSpeed;
-
-            project->render(xPos, yPos);
-
-        } else {
-            targetScale = 0.0f;
-        }
+        else
+            project->text->setColor(Math::color(32, 36, 41, 255));
     }
     if (hasProjects) {
-        playButton->render();
-        settingsButton->render();
-        projectControl->render(cameraX, cameraY - cameraYOffset);
+        projectControl->render();
     } else {
         noProjectsButton->render();
         noProjectsText->render(Render::getWidth() / 2, Render::getHeight() * 0.75);
@@ -222,7 +230,7 @@ void ProjectMenu::render() {
         projectControl->render();
     }
     backButton->render();
-    Render::endFrame();
+    Render::endFrame(false); // dont flush cus projectBoxFast might get freed otherwise
 }
 
 void ProjectMenu::cleanup() {
@@ -239,14 +247,6 @@ void ProjectMenu::cleanup() {
     if (backButton != nullptr) {
         delete backButton;
         backButton = nullptr;
-    }
-    if (playButton != nullptr) {
-        delete playButton;
-        playButton = nullptr;
-    }
-    if (settingsButton != nullptr) {
-        delete settingsButton;
-        settingsButton = nullptr;
     }
     if (noProjectsButton != nullptr) {
         delete noProjectsButton;

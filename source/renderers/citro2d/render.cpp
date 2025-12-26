@@ -1,18 +1,12 @@
 #include "image.hpp"
 #include <audio.hpp>
 #include <chrono>
+#include <downloader.hpp>
 #include <input.hpp>
 #include <interpret.hpp>
 #include <render.hpp>
 #include <text.hpp>
 #include <unzip.hpp>
-
-#ifdef ENABLE_CLOUDVARS
-#include <malloc.h>
-
-#define SOC_ALIGN 0x1000
-#define SOC_BUFFERSIZE 0x100000
-#endif
 
 #define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320
@@ -27,7 +21,8 @@ u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
 std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
-std::unordered_map<std::string, TextObject *> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 bool Render::debugMode = false;
 static bool isConsoleInit = false;
 float Render::renderScale = 1.0f;
@@ -36,16 +31,11 @@ C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget;
 Tex3DS_SubTexture penSubtex;
 C3D_Tex *penTex;
-#define TEXTURE_OFFSET 16
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 static int currentScreen = 0;
 std::vector<Monitor> Render::visibleVariables;
-
-#ifdef ENABLE_CLOUDVARS
-static uint32_t *SOC_buffer = NULL;
-#endif
 
 bool Render::Init() {
     gfxInitDefault();
@@ -63,22 +53,10 @@ bool Render::Init() {
     C2D_Prepare();
     gfxSet3D(true);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
     topScreen = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
-
-#ifdef ENABLE_CLOUDVARS
-    int ret;
-
-    SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
-    if (SOC_buffer == NULL) {
-        Log::logError("memalign: failed to allocate");
-    } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
-        std::ostringstream err;
-        err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
-        Log::logError(err.str());
-    }
-#endif
 
     romfsInit();
 
@@ -137,7 +115,7 @@ bool Render::initPen() {
     } else {
         penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
         C3D_TexSetFilter(penImage.tex, GPU_LINEAR, GPU_LINEAR);
-        C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
+        penClear();
     }
     return true;
 }
@@ -154,14 +132,16 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const int width = getWidth();
     const int height = getHeight();
 
+    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (SCREEN_HEIGHT * 0.5) + 32;
+
     const float heightMultiplier = 0.5f;
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
     const float thickness = sprite->penData.size * renderScale;
 
     const float x1_scaled = (x1 * renderScale) + (width / 2);
-    const float y1_scaled = (y1 * -1 * renderScale) + (height * heightMultiplier) + TEXTURE_OFFSET;
+    const float y1_scaled = (y1 * -1 * renderScale) + (height * heightMultiplier) + PEN_Y_OFFSET;
     const float x2_scaled = (x2 * renderScale) + (width / 2);
-    const float y2_scaled = (y2 * -1 * renderScale) + (height * heightMultiplier) + TEXTURE_OFFSET;
+    const float y2_scaled = (y2 * -1 * renderScale) + (height * heightMultiplier) + PEN_Y_OFFSET;
 
     C2D_DrawLine(x1_scaled, y1_scaled, color, x2_scaled, y2_scaled, color, thickness, 0);
 
@@ -184,14 +164,16 @@ void Render::penDot(Sprite *sprite) {
     C2D_SceneBegin(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, rgbColor.a);
+    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (SCREEN_HEIGHT * 0.5) + 32;
+
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * Render::renderScale), 1, 1000);
 
     const float xSscaled = (sprite->xPosition * Render::renderScale) + (Render::getWidth() / 2);
     const float yScaled = (sprite->yPosition * -1 * Render::renderScale) + (Render::getHeight() * 0.5);
     const float radius = thickness / 2.0f;
 
-    C2D_DrawCircleSolid(xSscaled, yScaled + TEXTURE_OFFSET, 0, radius, color);
+    C2D_DrawCircleSolid(xSscaled, yScaled + PEN_Y_OFFSET, 0, radius, color);
 }
 
 void Render::penStamp(Sprite *sprite) {
@@ -229,10 +211,12 @@ void Render::penStamp(Sprite *sprite) {
             C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
     } else C2D_AlphaImageTint(&tinty, 1.0f);
 
+    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (SCREEN_HEIGHT * 0.5) + 32;
+
     C2D_DrawImageAtRotated(
         *costumeTexture,
         sprite->renderInfo.renderX,
-        sprite->renderInfo.renderY + TEXTURE_OFFSET,
+        sprite->renderInfo.renderY + PEN_Y_OFFSET,
         1,
         sprite->renderInfo.renderRotation,
         &tinty,
@@ -324,6 +308,10 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
 
     Render::calculateRenderPosition(currentSprite, isSVG);
 
+    if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
+        currentSprite->renderInfo.renderScaleX = -std::abs(currentSprite->renderInfo.renderScaleX);
+    } else currentSprite->renderInfo.renderScaleX = std::abs(currentSprite->renderInfo.renderScaleX);
+
     C2D_ImageTint tinty;
 
     // set ghost and brightness effect
@@ -346,6 +334,21 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
         currentSprite->renderInfo.renderScaleX,
         currentSprite->renderInfo.renderScaleY);
     data.freeTimer = data.maxFreeTimer;
+
+    // collisioon points (debug)
+    // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
+
+    // for (const auto &point : collisionPoints) {
+    //     double screenX = (point.first * Render::renderScale) + (Render::getWidth() / 2);
+    //     double screenY = (point.second * -Render::renderScale) + (Render::getHeight() / 2);
+    //     C2D_DrawRectSolid(
+    //         screenX + xOffset,
+    //         screenY + yOffset * 2,
+    //         1,
+    //         4,
+    //         4,
+    //         C2D_Color32(0, 0, 0, 255));
+    // }
 }
 
 void Render::renderSprites() {
@@ -371,11 +374,10 @@ void Render::renderSprites() {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float yOffset = renderMode == BOTH_SCREENS ? 120.0f + TEXTURE_OFFSET : 0.0f;
 
                 C2D_DrawImageAt(penImage,
                                 0.0f,
-                                yOffset,
+                                0.0f,
                                 0,
                                 nullptr,
                                 1.0f,
@@ -430,11 +432,10 @@ void Render::renderSprites() {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float yOffset = renderMode == BOTH_SCREENS ? 120.0f + TEXTURE_OFFSET : 0.0f;
 
                 C2D_DrawImageAt(penImage,
                                 0.0f,
-                                yOffset,
+                                0.0f,
                                 0,
                                 nullptr,
                                 1.0f,
@@ -484,7 +485,7 @@ void Render::renderSprites() {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float yOffset = renderMode == BOTH_SCREENS ? -120.0f + TEXTURE_OFFSET : 0.0f;
+                const float yOffset = renderMode == BOTH_SCREENS ? -SCREEN_HEIGHT : 0.0f;
                 const float xOffset = renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0.0f;
 
                 C2D_DrawImageAt(penImage,
@@ -514,6 +515,7 @@ void Render::renderSprites() {
                 }
                 costumeIndex++;
             }
+            i++;
         }
 
         if (Render::renderMode != Render::BOTH_SCREENS) {
@@ -533,9 +535,6 @@ void Render::renderSprites() {
 }
 
 void Render::deInit() {
-#ifdef ENABLE_CLOUDVARS
-    socExit();
-#endif
 
     if (penRenderTarget != nullptr) {
         C3D_RenderTargetDelete(penRenderTarget);

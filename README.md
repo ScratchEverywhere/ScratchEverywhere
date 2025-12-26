@@ -100,7 +100,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 -   Text and embedded bitmap images will not show up on vector images containing it.
 -   Most Extensions (e.g. music extension) are not yet supported.
-	- Only the `Pen` and `Makey Makey` extensions are supported.
+	- Only the `Pen`, `Text to Speech` (Wii U and 3DS only), and `Makey Makey` extensions are currently supported.
 -   Some blocks may lead to crashing/unintended behavior (Please open an issue if you know of a block that's causing problems).
 -   Performance is poor when using many (~50+) clones (memory management issue).
 -   **[Wii, Switch, PSP, Vita, PS4]** Cloud Variables aren't currently supported, but likely will be in the future.
@@ -274,6 +274,14 @@ Place your Scratch projects in `/data/scratch-ps4`, if the folder doesn't exist,
 
 Then it should be as simple as opening the app on your PS4 from the XMB!
 
+### Get up and running for webOS
+
+Get your TV into [dev mode](https://www.webosbrew.org/devmode/) or [root it](https://www.webosbrew.org/rooting/) and download the `scratch-webos.ipk` file from the releases tab or [nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-webos/main/Scratch%20Everywhere!%20webOS%20Nightly.zip), then install it using webosbrew's [webOS Dev Manager](https://github.com/webosbrew/dev-manager-desktop/releases) (Apps > Install).
+
+Upload your Scratch projects with Dev Manager to your TV in `apps/usr/palm/applications/io.github.scratcheverywhere/projects/`, if the folder doesn't exist, create it.
+
+Then it should be as simple as opening the app on your TV from the home menu!
+
 ## Building
 
 In order to embed a Scratch project in the executable, you'll need to compile the source code.
@@ -288,12 +296,14 @@ If you would like to change the name of the app or any other information you can
 
 #### Docker
 
-The recommended way to compile Scratch Everywhere! is with Docker. 
+The recommended way to compile Scratch Everywhere! is with Docker.
 
 We have written a step-by-step guide with pictures (for Windows) that explains the build process very simply, you can find it here: https://ScratchEverywhere.github.io/docker
 To compile with Docker all you need installed is Docker and Buildx.
 
 -   To compile for the **3DS**, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
+
+-   To compile for the **NDS**, run `docker build -f docker/Dockerfile.nds --target exporter -o . .`.
 
 -   To compile for the **Wii U**, run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
 
@@ -321,6 +331,7 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 
 -   **For the 3DS**, you will need the DevkitARM toolchain and libctru.
     -   If you want to compile with audio support, you will also need a 3DS compiled version of SDL3 and SDL3_mixer. See the [Nightly Build commands](https://github.com/ScratchEverywhere/ScratchEverywhere/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL3 3DS for yourself.
+- **For the DS/DSi**, you will need the [BlocksDS](https://blocksds.skylyrac.net/) SDK, with GL2D and Maxmod libraries installed (usually comes installed with the SDK).
 -   **For the Wii U**, you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
 -   **For the Wii**, you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 -   **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
@@ -328,6 +339,8 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 -   **For the Vita**, all you need is the [vitasdk](https://vitasdk.org) toolchain. It includes every SDL2 thing you might need.
 -   **For the PSP**, all you need is the [PSPSDK](https://pspdev.github.io) toolchain. It includes every SDL2 thing you might need.
 -   **For the PS4**, you will need the [OpenOrbis](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain) toolchain, [PacBrew](https://github.com/PacBrew/ps4-openorbis-portlibs) portlibs which include SDL2, and our [fixed packages](https://github.com/gradylink/pacbrew-packages).
+-   **For webOS**, all you need is the [webosbrew Native SDK](https://github.com/webosbrew/native-toolchain/) installed to your home directory and [ares-cli](https://webostv.developer.lge.com/develop/tools/cli-installation).
+
 
 > [!NOTE]
 > DevkitPro's install instructions are available at: https://devkitpro.org/wiki/Getting_Started
@@ -342,6 +355,7 @@ Make a `romfs` folder inside the unzipped source code and put the Scratch projec
 Then you need to compile the projects into proper Homebrew packages.
 
 -   **For the 3DS**, you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
+- **For the NDS**, you need to run `make PLATFORM=nds`, then copy the `build/nds/scratch-ds.nds` file to your flashcart/SD card.
 -   **For the Wii U**, you need to run `make PLATFORM=wiiu` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
 -   **For the Wii**, you need to run `make PLATFORM=wii package`, then find the zipped file in `build/wii/scratch-wii.zip`. Unzip it and put the `apps` folder inside the root of your Wii SD card.
 -   **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
@@ -349,6 +363,7 @@ Then you need to compile the projects into proper Homebrew packages.
 -   **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at `build/vita/scratch-vita.vpk` over to your Vita.
 -   **For the PSP**, run `psp-cmake -B build/psp -S . -DSE_SYSTEM=ON -DSE_CLOUDVARS=OFF && make -C build/psp`, then unzip the `scratch-psp.zip` file at `build/psp` and transfer the `scratch-psp` folder over to your PSP.
 -   **For the PS4**, you will need to run `make PLATFORM=ps4`, then find the `.pkg` file at `build/ps4/scratch-ps4.pkg`.
+-   **For webOS**, you will need to run `cmake -B build/webos -S . -DCMAKE_TOOLCHAIN_FILE="~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake" -DSE_CLOUDVARS=OFF -DWEBOS=ON -DSE_RENDERER=sdl2 && make -C build/webos all package`, then find the `.ipk` file at `build/webos/io.github.scratcheverywhere_0.0.1_arm.ipk`.
 
 #### Compilation Flags
 
@@ -360,6 +375,7 @@ Compilation flags are used to select which features will be enabled in the compi
 -   `ENABLE_LOADSCREEN` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
 -   `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
 -   `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
+-   `ENABLE_MENU` (default: `1`): If set to 1, the SE! main menu is enabled. It's good to disable this when packaging a project, as the file size is lowered.
 -   **[Old 3DS]** `RAM_AMOUNT` (default: `72`): the amount of RAM, in megabytes, the old 3DS should be using. Can be set to `32`, `64`, `72`, `80`, or `96`.
 
 ## Disclaimer

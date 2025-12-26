@@ -1,3 +1,6 @@
+#include "os.hpp"
+#include "render.hpp"
+#include <cerrno>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -20,8 +23,11 @@
 #include <orbis/libkernel.h>
 #endif
 #ifdef _WIN32
+#include <direct.h>
 #include <io.h>
+#include <shlwapi.h>
 #else
+#include <dirent.h>
 #include <unistd.h>
 #endif
 
@@ -160,6 +166,39 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
     return false;
 }
 
+bool OS::initWifi() {
+#ifdef __3DS__
+    u32 wifiEnabled = false;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled == AC_AP_TYPE_NONE) {
+        int ret;
+        uint32_t SOC_ALIGN = 0x1000;
+        uint32_t SOC_BUFFERSIZE = 0x100000;
+        uint32_t *SOC_buffer = NULL;
+
+        SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+        if (SOC_buffer == NULL) {
+            Log::logError("memalign: failed to allocate");
+            return false;
+        } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
+            std::ostringstream err;
+            err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
+            Log::logError(err.str());
+            return false;
+        }
+    }
+#endif
+    return true;
+}
+
+void OS::deInitWifi() {
+#ifdef __3DS__
+    u32 wifiEnabled = false;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled != AC_AP_TYPE_NONE)
+        socExit();
+#endif
+}
 void OS::createDirectory(const std::string &path) {
     std::string p = path;
     std::replace(p.begin(), p.end(), '\\', '/');
@@ -168,6 +207,7 @@ void OS::createDirectory(const std::string &path) {
     while ((pos = p.find('/', pos)) != std::string::npos) {
         std::string dir = p.substr(0, pos++);
         if (dir.empty()) continue;
+        if (dir == OS::getFilesystemRootPrefix()) continue; // Fixes DS but hopefully doesn't negatively affect other platforms????
 
         struct stat st;
         if (stat(dir.c_str(), &st) != 0) {
@@ -188,11 +228,26 @@ void OS::removeDirectory(const std::string &path) {
         throw OS::DirectoryNotFound(path, errno);
     }
 
-    if (!S_ISDIR(st.st_mode)) {
+    if (!(st.st_mode & S_IFDIR)) {
         throw OS::NotADirectory(path, errno);
     }
 
-    DIR *dir = opendir(path.c_str());
+<<<<<<< HEAD:source/os.cpp
+=======
+#ifdef _WIN32
+    std::wstring wpath(path.size(), L' ');
+    wpath.resize(std::mbstowcs(&wpath[0], path.c_str(), path.size()) + 1);
+
+    SHFILEOPSTRUCTW options = {0};
+    options.wFunc = FO_DELETE;
+    options.pFrom = wpath.c_str();
+    options.fFlags = FOF_NO_UI | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT;
+
+    if (SHFileOperationW(&options) != 0) {
+        throw OS::DirectoryRemovalFailed(path, errno);
+    }
+#else
+    >>>>>>> main : source / scratch / os.cpp DIR *dir = opendir(path.c_str());
     if (dir == nullptr) {
         throw OS::DirectoryOpenFailed(path, errno);
     }
@@ -220,13 +275,10 @@ void OS::removeDirectory(const std::string &path) {
 
     closedir(dir);
 
-#ifdef _WIN32
-    if (_rmdir(path.c_str()) != 0) {
-#else
     if (rmdir(path.c_str()) != 0) {
-#endif
         throw OS::DirectoryRemovalFailed(path, errno);
     }
+#endif
 }
 
 bool OS::fileExists(const std::string &path) {

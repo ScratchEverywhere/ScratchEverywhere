@@ -15,31 +15,41 @@ On your {PlatformName}!
 Oooh, nice {PlatformName} you got here! Can I have it?
 {PlatformName} on Scratch! ... Wait that's not right.
 ...even on your {PlatformName}!
+{PlatformName} Edition!
 Coming soon to a console near you!
 Run it all, everything!
 Scratch is the new Doom!
 "It's dot com!"
 ;
 This splash text was eaten by an evil kumquat.
+& Knuckles!
 0.1 + 0.2 = 0.30000000000000004!
+uiText.titleScreen.splashText14
+FUNNY AND/OR CLEVER SPLASH TEXT
 You'll love it!
 Magic!
 Try it out!!!!
+I'm itchy everywhere, what should I- oh, right...
 Join the Discord Server!
 Contribute on GitHub!
+Open source!
 Formerly Scratch-3DS!
 Runtime by NateXS!
 3DS port by NateXS!
 DS port by NateXS!
 Wii port by NateXS!
+PSP port by NateXS!
 GameCube port by NateXS!
-By NateXS and Grady Link!
+By a lot of people!
 Wii U port by Grady Link!
 Switch port by Grady Link!
 Web port by Grady Link!
 PS Vita port by Dogo6647!
+webOS port by Dogo6647!
 PS4 port by PwLDev!
 SDL1 port by Leap!
+Menu music by Dogo6647!
+Since 2025!
 C++!
 devkitPro!
 vitasdk!

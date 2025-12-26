@@ -145,7 +145,12 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
     if (Unzip::UnpackedInSD) finalPath = Unzip::filePath + filePath;
     // SDL_Image *image = new SDL_Image(finalPath);
     SDL_Image *image = new SDL_Image();
-    new (image) SDL_Image(finalPath);
+    new (image) SDL_Image(finalPath, fromScratchProject);
+
+    if (!image->spriteTexture || image->spriteTexture == NULL ||
+        !image->spriteSurface || image->spriteSurface == NULL) {
+        return false;
+    }
 
     // Track texture memory
     if (image->spriteTexture) {
@@ -326,10 +331,14 @@ void Image::FlushImages() {
 
 SDL_Image::SDL_Image() {}
 
-SDL_Image::SDL_Image(std::string filePath) {
+SDL_Image::SDL_Image(std::string filePath, bool fromScratchProject) {
 #ifdef __PC__
-    const auto &file = cmrc::romfs::get_filesystem().open(filePath);
-    spriteSurface = IMG_Load_IO(SDL_IOFromConstMem(file.begin(), file.size()), 1);
+    if (!Unzip::UnpackedInSD || !fromScratchProject) {
+        const auto &file = cmrc::romfs::get_filesystem().open(filePath);
+        spriteSurface = IMG_Load_IO(SDL_IOFromConstMem(file.begin(), file.size()), 1);
+    } else {
+        spriteSurface = IMG_Load(filePath.c_str());
+    }
 #else
     spriteSurface = IMG_Load(filePath.c_str());
 #endif
