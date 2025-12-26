@@ -10,6 +10,8 @@
 #include <ogc/system.h>
 #elif defined(__NDS__)
 #include <nds.h>
+#elif defined(__WIIU__)
+#include <whb/sdcard.h>
 #endif
 
 namespace Log {
