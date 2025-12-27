@@ -1,12 +1,12 @@
 #include "window.hpp"
-#include <input.hpp>
-#include <math.hpp>
-#include <render.hpp>
-#include <text.hpp>
 #include "../render.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <input.hpp>
 #include <iostream>
+#include <math.hpp>
+#include <render.hpp>
+#include <text.hpp>
 
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     globalWindow->resize(width, height);

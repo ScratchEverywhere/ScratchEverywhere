@@ -1,9 +1,9 @@
-#include <keyboard.hpp>
-#include <interpret.hpp>
-#include <render.hpp>
-#include <text.hpp>
 #include "window.hpp"
+#include <interpret.hpp>
+#include <keyboard.hpp>
+#include <render.hpp>
 #include <string>
+#include <text.hpp>
 #include <vector>
 
 static std::string g_inputText = "";

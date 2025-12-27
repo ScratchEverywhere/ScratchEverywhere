@@ -116,11 +116,11 @@ void Input::getInput() {
         else if (scancode == (SDL_Scancode)489) keyName = "r";
         else if (scancode == (SDL_Scancode)452) keyName = "z";
         else if (scancode == (SDL_Scancode)451) keyName = "f";
-            // REMOTE SCANCODES
-            // color dots: 486-489
-            // forward: 451 | backward: 452
-            // record: 453
-            // play: 450
+        // REMOTE SCANCODES
+        // color dots: 486-489
+        // forward: 451 | backward: 452
+        // record: 453
+        // play: 450
 #else
         else if (keyName == "return") keyName = "enter";
 #endif

@@ -1,8 +1,8 @@
 #include "window.hpp"
+#include "../render.hpp"
 #include <input.hpp>
 #include <math.hpp>
 #include <render.hpp>
-#include "../render.hpp"
 
 SDL_Gamepad *controller = nullptr;
 bool touchActive = false;
@@ -69,13 +69,11 @@ void Sdl3Window::pollEvents() {
         case SDL_EVENT_QUIT:
             shouldCloseFlag = true;
             break;
-        case SDL_EVENT_WINDOW_RESIZED:
-            {
-                int w, h;
-                SDL_GetWindowSizeInPixels(window, &w, &h);
-                resize(w, h);
-            }
-            break;
+        case SDL_EVENT_WINDOW_RESIZED: {
+            int w, h;
+            SDL_GetWindowSizeInPixels(window, &w, &h);
+            resize(w, h);
+        } break;
         case SDL_EVENT_GAMEPAD_ADDED:
             if (!controller) controller = SDL_OpenGamepad(event.gdevice.which);
             break;

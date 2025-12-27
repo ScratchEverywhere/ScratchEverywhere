@@ -1,7 +1,7 @@
 #pragma once
-#include <text.hpp>
 #include <stb_truetype.h>
 #include <string>
+#include <text.hpp>
 #include <unordered_map>
 #include <vector>
 

@@ -1,13 +1,13 @@
 #include "image.hpp"
 #include "render.hpp"
-#include <math.hpp>
-#include <os.hpp>
-#include <unzip.hpp>
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <math.hpp>
+#include <os.hpp>
 #include <string>
 #include <unordered_map>
+#include <unzip.hpp>
 #include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION

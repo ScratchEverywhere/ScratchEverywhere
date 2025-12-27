@@ -1,10 +1,10 @@
 #include "text_gl.hpp"
-#include <math.hpp>
-#include <os.hpp>
 #include "render.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <math.hpp>
+#include <os.hpp>
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"

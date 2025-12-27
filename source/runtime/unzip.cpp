@@ -1,12 +1,12 @@
 #include "unzip.hpp"
-#include <image.hpp>
 #include "input.hpp"
-#include <menus/loading.hpp>
 #include <cstring>
 #include <ctime>
 #include <errno.h>
 #include <fstream>
+#include <image.hpp>
 #include <istream>
+#include <menus/loading.hpp>
 #include <random>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -243,7 +243,7 @@ bool Unzip::load() {
 
     if (Unzip::projectOpened != 1)
         return false;
-#else // create pthread for loading screen
+#else                 // create pthread for loading screen
     pthread_t thread;
     if (pthread_create(&thread, NULL, projectLoaderThread, NULL) == 0) {
         Loading loading;

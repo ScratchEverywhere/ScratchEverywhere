@@ -10,21 +10,21 @@
 #else
 #error "No OpenGL windowing system defined"
 #endif
-#include <render.hpp>
-#include <audio.hpp>
-#include <color.hpp>
-#include <image.hpp>
-#include <downloader.hpp>
-#include <interpret.hpp>
-#include <math.hpp>
-#include <sprite.hpp>
-#include <unzip.hpp>
 #include <algorithm>
+#include <audio.hpp>
 #include <chrono>
 #include <cmath>
+#include <color.hpp>
 #include <cstdlib>
+#include <downloader.hpp>
+#include <image.hpp>
+#include <interpret.hpp>
+#include <math.hpp>
+#include <render.hpp>
+#include <sprite.hpp>
 #include <string>
 #include <unordered_map>
+#include <unzip.hpp>
 #include <vector>
 
 #ifndef M_PI
@@ -57,7 +57,6 @@ bool Render::Init() {
 #else
 #error "No OpenGL windowing system defined"
 #endif
-
 
     if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
         delete globalWindow;

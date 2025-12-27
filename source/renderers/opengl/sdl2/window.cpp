@@ -1,9 +1,9 @@
 #include "window.hpp"
+#include "../render.hpp"
 #include <input.hpp>
+#include <iostream>
 #include <math.hpp>
 #include <render.hpp>
-#include "../render.hpp"
-#include <iostream>
 
 SDL_GameController *controller = nullptr;
 bool touchActive = false;
