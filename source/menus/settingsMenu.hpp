@@ -1,5 +1,6 @@
 #pragma once
 #include "mainMenu.hpp"
+#include "menuObjects.hpp"
 
 class SettingsMenu : public Menu {
   private:
@@ -13,12 +14,15 @@ class SettingsMenu : public Menu {
     ButtonObject *ChangeUsername = nullptr;
     ButtonObject *EnableCustomFolderPath = nullptr;
     ButtonObject *ChangeFolderPath = nullptr;
+    ButtonObject *EnableMenuMusic = nullptr;
 
     bool UseCostumeUsername = false;
     std::string username;
 
     bool UseProjectsPath = false;
     std::string projectsPath;
+
+    bool menuMusic = true;
 
     SettingsMenu();
     ~SettingsMenu();

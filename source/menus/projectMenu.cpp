@@ -12,7 +12,6 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
-
 #if defined(__NDS__)
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
@@ -147,15 +146,26 @@ void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
+    nlohmann::json *settings;
+    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
+    if (inFile.good()) {
+        settings = new nlohmann::json();
+        inFile >> *settings;
+        inFile.close();
+    }
+
+    if (!(settings != nullptr && settings->contains("MenuMusic") && (*settings)["MenuMusic"].is_boolean() && !(*settings)["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
-        SoundPlayer::playSound("gfx/menu/mm_full.wav");
-    }
+        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
+            SoundPlayer::playSound("gfx/menu/mm_full.wav");
+        }
 #else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    }
+        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+            SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        }
 #endif
+    }
+
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"})) {
 
