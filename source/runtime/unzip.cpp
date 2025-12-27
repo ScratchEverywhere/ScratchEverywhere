@@ -121,13 +121,18 @@ int Unzip::openFile(std::istream *&file) {
     return 1;
 }
 
+#if defined(__3DS__) || defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(OPENGL_WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(OPENGL_WINDOWING_SDL3)
 int projectLoaderThread(void *data) {
     Unzip::openScratchProject(NULL);
     return 0;
 }
-
-#if defined(__unix__) || defined(__APPLE__)
-void *projectLoaderPthread(void *arg) {
+#elif defined(_WIN32)
+DWORD WINAPI projectLoaderThread(LPVOID lpParam) {
+    Unzip::openScratchProject(NULL);
+    return 0;
+}
+#elif defined(__unix__) || defined(__APPLE__)
+void *projectLoaderThread(void *arg) {
     Unzip::openScratchProject(NULL);
     return NULL;
 }
@@ -221,9 +226,26 @@ bool Unzip::load() {
 
     if (Unzip::projectOpened != 1)
         return false;
+#elif defined(_WIN32) // create Windows thread for loading screen
+    HANDLE hThread = CreateThread(NULL, 0, projectLoaderThread, NULL, 0, NULL);
+
+    if (hThread != NULL) {
+        Loading loading;
+        loading.init();
+
+        while (!Unzip::threadFinished) {
+            loading.render();
+        }
+        WaitForSingleObject(hThread, INFINITE);
+        CloseHandle(hThread);
+        loading.cleanup();
+    } else Unzip::openScratchProject(NULL);
+
+    if (Unzip::projectOpened != 1)
+        return false;
 #elif defined(__unix__) || defined(__APPLE__) // create pthread for loading screen
     pthread_t thread;
-    if (pthread_create(&thread, NULL, projectLoaderPthread, NULL) == 0) {
+    if (pthread_create(&thread, NULL, projectLoaderThread, NULL) == 0) {
         Loading loading;
         loading.init();
 
