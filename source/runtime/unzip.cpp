@@ -19,6 +19,7 @@
 #include <dirent.h>
 #endif
 
+#ifdef ENABLE_LOADSCREEN
 #ifdef __3DS__
 #include <3ds.h>
 #elif defined(RENDERER_SDL1)
@@ -29,6 +30,7 @@
 #include "SDL3/SDL.h"
 #elif !defined(_WIN32)
 #include <pthread.h>
+#endif
 #endif
 
 #ifdef USE_CMAKERC
