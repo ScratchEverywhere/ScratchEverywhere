@@ -131,7 +131,7 @@ DWORD WINAPI projectLoaderThread(LPVOID lpParam) {
     Unzip::openScratchProject(NULL);
     return 0;
 }
-#elif defined(__unix__) || defined(__APPLE__)
+#else
 void *projectLoaderThread(void *arg) {
     Unzip::openScratchProject(NULL);
     return NULL;
@@ -243,7 +243,7 @@ bool Unzip::load() {
 
     if (Unzip::projectOpened != 1)
         return false;
-#elif defined(__unix__) || defined(__APPLE__) // create pthread for loading screen
+#else // create pthread for loading screen
     pthread_t thread;
     if (pthread_create(&thread, NULL, projectLoaderThread, NULL) == 0) {
         Loading loading;
