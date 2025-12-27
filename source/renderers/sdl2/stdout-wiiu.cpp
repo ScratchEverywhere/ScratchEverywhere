@@ -14,25 +14,31 @@
 #include <optional>
 #include <string>
 
-#include <sys/iosupport.h> // devoptab_list, devoptab_t
+#include <sys/iosupport.h>      // devoptab_list, devoptab_t
 
 #include <whb/log.h>
 #include <whb/log_cafe.h>
 #include <whb/log_module.h>
 #include <whb/log_udp.h>
 
+
 std::optional<std::mutex> whb_log_mutex; // initialized by stderr code.
+
 
 namespace {
 
-bool cafe_initialized = false;
-bool module_initialized = false;
-bool udp_initialized = false;
+    bool cafe_initialized   = false;
+    bool module_initialized = false;
+    bool udp_initialized    = false;
 
-} // namespace
+}
 
-__attribute__((__constructor__(101))) void
-init_whb_log() noexcept {
+
+__attribute__ (( __constructor__ (101) ))
+void
+init_whb_log()
+    noexcept
+{
     module_initialized = WHBLogModuleInit();
     if (!module_initialized) {
         cafe_initialized = WHBLogCafeInit();
@@ -40,8 +46,12 @@ init_whb_log() noexcept {
     }
 }
 
-__attribute__((__destructor__(101))) void
-fini_whb_log() noexcept {
+
+__attribute__ (( __destructor__ (101) ))
+void
+fini_whb_log()
+    noexcept
+{
     if (module_initialized) {
         WHBLogModuleDeinit();
         module_initialized = false;
@@ -56,11 +66,14 @@ fini_whb_log() noexcept {
     }
 }
 
+
 ssize_t
-devoptab_to_whb_log(struct _reent *,
-                    void *,
-                    const char *buf,
-                    size_t len) noexcept {
+devoptab_to_whb_log(struct _reent*,
+                    void*,
+                    const char* buf,
+                    size_t len)
+    noexcept
+{
     try {
         // Note: WHBLogWrite expects a null-terminated string.
         std::string msg(buf, len);
@@ -72,13 +85,17 @@ devoptab_to_whb_log(struct _reent *,
             WHBLogWrite(msg.data());
         }
         return len;
-    } catch (...) {
+    }
+    catch (...) {
         return -1;
     }
 }
 
-__attribute__((__constructor__(102))) void
-init_stdout() {
+
+__attribute__(( __constructor__ (102) ))
+void
+init_stdout()
+{
     static devoptab_t stdout_dev;
     stdout_dev.name = "STDOUT";
     stdout_dev.structSize = sizeof stdout_dev;

@@ -14,7 +14,7 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     Render::setRenderScale();
 }
 
-bool GlfwWindow::init(int w, int h, const std::string &title) {
+bool WindowGLFW::init(int w, int h, const std::string &title) {
     if (!glfwInit()) {
         Log::logError("Failed to initialize GLFW");
         return false;
@@ -42,36 +42,36 @@ bool GlfwWindow::init(int w, int h, const std::string &title) {
     return true;
 }
 
-void GlfwWindow::cleanup() {
+void WindowGLFW::cleanup() {
     glfwDestroyWindow(window);
     glfwTerminate();
 }
 
-bool GlfwWindow::shouldClose() {
+bool WindowGLFW::shouldClose() {
     return glfwWindowShouldClose(window);
 }
 
-void GlfwWindow::pollEvents() {
+void WindowGLFW::pollEvents() {
     glfwPollEvents();
 }
 
-void GlfwWindow::swapBuffers() {
+void WindowGLFW::swapBuffers() {
     glfwSwapBuffers(window);
 }
 
-void GlfwWindow::resize(int width, int height) {
+void WindowGLFW::resize(int width, int height) {
     this->width = width;
     this->height = height;
 }
 
-int GlfwWindow::getWidth() const {
+int WindowGLFW::getWidth() const {
     return width;
 }
 
-int GlfwWindow::getHeight() const {
+int WindowGLFW::getHeight() const {
     return height;
 }
 
-void *GlfwWindow::getHandle() {
+void *WindowGLFW::getHandle() {
     return window;
 }

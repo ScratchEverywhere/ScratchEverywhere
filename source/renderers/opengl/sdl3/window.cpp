@@ -8,7 +8,7 @@ SDL_Gamepad *controller = nullptr;
 bool touchActive = false;
 SDL_Point touchPosition;
 
-bool Sdl3Window::init(int w, int h, const std::string &title) {
+bool WindowSDL3::init(int w, int h, const std::string &title) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
         Log::logError("Failed to initialize SDL3: " + std::string(SDL_GetError()));
         return false;
@@ -51,18 +51,18 @@ bool Sdl3Window::init(int w, int h, const std::string &title) {
     return true;
 }
 
-void Sdl3Window::cleanup() {
+void WindowSDL3::cleanup() {
     if (controller) SDL_CloseGamepad(controller);
     if (context) SDL_GL_DestroyContext(context);
     if (window) SDL_DestroyWindow(window);
     SDL_Quit();
 }
 
-bool Sdl3Window::shouldClose() {
+bool WindowSDL3::shouldClose() {
     return shouldCloseFlag;
 }
 
-void Sdl3Window::pollEvents() {
+void WindowSDL3::pollEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -101,25 +101,25 @@ void Sdl3Window::pollEvents() {
     }
 }
 
-void Sdl3Window::swapBuffers() {
+void WindowSDL3::swapBuffers() {
     SDL_GL_SwapWindow(window);
 }
 
-void Sdl3Window::resize(int width, int height) {
+void WindowSDL3::resize(int width, int height) {
     this->width = width;
     this->height = height;
     glViewport(0, 0, width, height);
     Render::setRenderScale();
 }
 
-int Sdl3Window::getWidth() const {
+int WindowSDL3::getWidth() const {
     return width;
 }
 
-int Sdl3Window::getHeight() const {
+int WindowSDL3::getHeight() const {
     return height;
 }
 
-void *Sdl3Window::getHandle() {
+void *WindowSDL3::getHandle() {
     return window;
 }

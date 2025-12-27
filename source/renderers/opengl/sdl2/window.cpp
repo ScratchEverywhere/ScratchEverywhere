@@ -9,7 +9,7 @@ SDL_GameController *controller = nullptr;
 bool touchActive = false;
 SDL_Point touchPosition;
 
-bool Sdl2Window::init(int w, int h, const std::string &title) {
+bool WindowSDL2::init(int w, int h, const std::string &title) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
         Log::logError("Failed to initialize SDL2");
         return false;
@@ -52,18 +52,18 @@ bool Sdl2Window::init(int w, int h, const std::string &title) {
     return true;
 }
 
-void Sdl2Window::cleanup() {
+void WindowSDL2::cleanup() {
     if (controller) SDL_GameControllerClose(controller);
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();
 }
 
-bool Sdl2Window::shouldClose() {
+bool WindowSDL2::shouldClose() {
     return shouldCloseFlag;
 }
 
-void Sdl2Window::pollEvents() {
+void WindowSDL2::pollEvents() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -104,25 +104,25 @@ void Sdl2Window::pollEvents() {
     }
 }
 
-void Sdl2Window::swapBuffers() {
+void WindowSDL2::swapBuffers() {
     SDL_GL_SwapWindow(window);
 }
 
-void Sdl2Window::resize(int width, int height) {
+void WindowSDL2::resize(int width, int height) {
     this->width = width;
     this->height = height;
     glViewport(0, 0, width, height);
     Render::setRenderScale();
 }
 
-int Sdl2Window::getWidth() const {
+int WindowSDL2::getWidth() const {
     return width;
 }
 
-int Sdl2Window::getHeight() const {
+int WindowSDL2::getHeight() const {
     return height;
 }
 
-void *Sdl2Window::getHandle() {
+void *WindowSDL2::getHandle() {
     return window;
 }

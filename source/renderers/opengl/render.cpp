@@ -49,11 +49,11 @@ static int penHeight = 0;
 
 bool Render::Init() {
 #if defined(OPENGL_WINDOWING_GLFW)
-    globalWindow = new GlfwWindow();
+    globalWindow = new WindowGLFW();
 #elif defined(OPENGL_WINDOWING_SDL2)
-    globalWindow = new Sdl2Window();
+    globalWindow = new WindowSDL2();
 #elif defined(OPENGL_WINDOWING_SDL3)
-    globalWindow = new Sdl3Window();
+    globalWindow = new WindowSDL3();
 #else
 #error "No OpenGL windowing system defined"
 #endif

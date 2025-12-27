@@ -3,7 +3,7 @@
 #define GL_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-class GlfwWindow : public Window {
+class WindowGLFW : public Window {
   public:
     bool init(int width, int height, const std::string &title) override;
     void cleanup() override;

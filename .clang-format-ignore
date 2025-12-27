@@ -1,1 +1,1 @@
-source/sdl/stdout-wiiu.cpp
+source/renderers/sdl2/stdout-wiiu.cpp

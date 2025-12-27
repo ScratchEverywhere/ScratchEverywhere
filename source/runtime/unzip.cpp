@@ -28,8 +28,8 @@
 #include "SDL2/SDL.h"
 #elif defined(RENDERER_SDL3) || defined(OPENGL_WINDOWING_SDL3)
 #include "SDL3/SDL.h"
-#elif !defined(_WIN32)
-#include <pthread.h>
+#else
+#include <thread>
 #endif
 #endif
 
@@ -123,22 +123,10 @@ int Unzip::openFile(std::istream *&file) {
     return 1;
 }
 
-#if defined(__3DS__) || defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(OPENGL_WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(OPENGL_WINDOWING_SDL3)
 int projectLoaderThread(void *data) {
     Unzip::openScratchProject(NULL);
     return 0;
 }
-#elif defined(_WIN32)
-DWORD WINAPI projectLoaderThread(LPVOID lpParam) {
-    Unzip::openScratchProject(NULL);
-    return 0;
-}
-#else
-void *projectLoaderThread(void *arg) {
-    Unzip::openScratchProject(NULL);
-    return NULL;
-}
-#endif
 
 void loadInitialImages() {
     Unzip::loadingState = "Loading images";
@@ -228,33 +216,16 @@ bool Unzip::load() {
 
     if (Unzip::projectOpened != 1)
         return false;
-#elif defined(_WIN32) // create Windows thread for loading screen
-    HANDLE hThread = CreateThread(NULL, 0, projectLoaderThread, NULL, 0, NULL);
-
-    if (hThread != NULL) {
+#else                 // create thread for loading screen
+    std::thread thread(projectLoaderThread, nullptr);
+    if (thread.joinable()) {
         Loading loading;
         loading.init();
 
         while (!Unzip::threadFinished) {
             loading.render();
         }
-        WaitForSingleObject(hThread, INFINITE);
-        CloseHandle(hThread);
-        loading.cleanup();
-    } else Unzip::openScratchProject(NULL);
-
-    if (Unzip::projectOpened != 1)
-        return false;
-#else                 // create pthread for loading screen
-    pthread_t thread;
-    if (pthread_create(&thread, NULL, projectLoaderThread, NULL) == 0) {
-        Loading loading;
-        loading.init();
-
-        while (!Unzip::threadFinished) {
-            loading.render();
-        }
-        pthread_join(thread, NULL);
+        thread.join();
         loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 

@@ -2,7 +2,7 @@
 #include "../window.hpp"
 #include <SDL3/SDL.h>
 
-class Sdl3Window : public Window {
+class WindowSDL3 : public Window {
   public:
     bool init(int width, int height, const std::string &title) override;
     void cleanup() override;
