@@ -20,19 +20,23 @@ void SettingsMenu::init() {
     // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     // Credits->text->setColor(Math::color(0, 0, 0, 255));
     // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 30, "gfx/menu/Ubuntu-Bold");
+    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold");
     EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
     EnableUsername->text->setScale(0.5);
-    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold");
     ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
     ChangeUsername->text->setScale(0.5);
 
-    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
     EnableCustomFolderPath->text->setColor(Math::color(0, 0, 0, 255));
-    EnableUsername->text->setScale(0.5);
-    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
+    EnableCustomFolderPath->text->setScale(0.5);
+    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold");
     ChangeFolderPath->text->setColor(Math::color(0, 0, 0, 255));
     ChangeFolderPath->text->setScale(0.5);
+
+    EnableMenuMusic = new ButtonObject("Menu Music: clickToLoad", "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold");
+    EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
+    EnableMenuMusic->text->setScale(0.5);
 
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
@@ -72,11 +76,17 @@ void SettingsMenu::init() {
         if (j.contains("ProjectsPath") && j["ProjectsPath"].is_string()) {
             projectsPath = j["ProjectsPath"].get<std::string>();
         }
+        if (j.contains("MenuMusic") && j["MenuMusic"].is_boolean()) {
+            menuMusic = j["MenuMusic"].get<bool>();
+        }
     }
 
     updateButtonStates();
 
     // settingsControl->buttonObjects.push_back(Credits);
+    settingsControl->buttonObjects.push_back(EnableMenuMusic);
+    settingsControl->buttonObjects.push_back(ChangeFolderPath);
+    settingsControl->buttonObjects.push_back(EnableCustomFolderPath);
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
 
@@ -87,7 +97,9 @@ void SettingsMenu::updateButtonStates() {
     ChangeUsername->buttonUp = EnableUsername;
     ChangeUsername->buttonDown = EnableCustomFolderPath;
     ChangeFolderPath->buttonUp = EnableCustomFolderPath;
-    ChangeFolderPath->buttonDown = EnableUsername;
+    ChangeFolderPath->buttonDown = EnableMenuMusic;
+    EnableUsername->buttonUp = EnableMenuMusic;
+    EnableMenuMusic->buttonDown = EnableUsername;
 
     if (UseCostumeUsername) {
         EnableUsername->text->setText("Username: Enabled");
@@ -112,15 +124,17 @@ void SettingsMenu::updateButtonStates() {
         ChangeFolderPath->hidden = false;
 
         EnableCustomFolderPath->buttonDown = ChangeFolderPath;
-        EnableUsername->buttonUp = ChangeFolderPath;
+        EnableMenuMusic->buttonUp = ChangeFolderPath;
     } else {
         EnableCustomFolderPath->text->setText("Custom Path: Disabled");
         ChangeFolderPath->canBeClicked = false;
         ChangeFolderPath->hidden = true;
 
-        EnableCustomFolderPath->buttonDown = EnableUsername;
-        EnableUsername->buttonUp = EnableCustomFolderPath;
+        EnableCustomFolderPath->buttonDown = EnableMenuMusic;
+        EnableMenuMusic->buttonUp = EnableCustomFolderPath;
     }
+
+    EnableMenuMusic->text->setText("Menu Music: " + std::string(menuMusic ? "Enabled" : "Disabled"));
 }
 
 void SettingsMenu::render() {
@@ -139,8 +153,14 @@ void SettingsMenu::render() {
     // Credits->render();
     EnableUsername->render();
     EnableCustomFolderPath->render();
+    EnableMenuMusic->render();
     if (UseCostumeUsername) ChangeUsername->render();
     if (UseProjectsPath) ChangeFolderPath->render();
+
+    if (EnableMenuMusic->isPressed({"a"})) {
+        menuMusic = !menuMusic;
+        updateButtonStates();
+    }
 
     if (EnableUsername->isPressed({"a"})) {
         UseCostumeUsername = !UseCostumeUsername;
@@ -211,6 +231,10 @@ void SettingsMenu::cleanup() {
         delete ChangeFolderPath;
         ChangeFolderPath = nullptr;
     }
+    if (EnableMenuMusic != nullptr) {
+        delete EnableMenuMusic;
+        EnableMenuMusic = nullptr;
+    }
     if (settingsControl != nullptr) {
         delete settingsControl;
         settingsControl = nullptr;
@@ -223,6 +247,7 @@ void SettingsMenu::cleanup() {
     j["Username"] = username;
     j["UseProjectsPath"] = UseProjectsPath;
     j["ProjectsPath"] = projectsPath;
+    j["MenuMusic"] = menuMusic;
     outFile << j.dump(4);
     outFile.close();
 
