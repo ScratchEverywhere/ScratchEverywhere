@@ -1,10 +1,15 @@
+#ifdef RENDERER_OPENGL
+#include "../opengl/sdl3/window.hpp"
+#else
 #include "render.hpp"
+#endif
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
 #include <input.hpp>
 #include <map>
+#include <render.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <vector>
@@ -167,7 +172,7 @@ void Input::getInput() {
     SDL_free(SDL_GetTouchFingers(*touchID, &numFingers));
     if (numDevices > 0 && numFingers) {
         // Transform touch coordinates to Scratch space
-        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
@@ -182,7 +187,7 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 

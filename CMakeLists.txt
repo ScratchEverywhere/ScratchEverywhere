@@ -77,14 +77,12 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
-if(SE_RENDERER STREQUAL "sdl3")
+if(SE_RENDERER STREQUAL "sdl3" OR (SE_RENDERER STREQUAL "opengl" AND SE_OPENGL_WINDOWING STREQUAL "sdl3"))
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
-elseif(SE_RENDERER STREQUAL "sdl2")
+elseif(SE_RENDERER STREQUAL "sdl2" OR (SE_RENDERER STREQUAL "opengl" AND SE_OPENGL_WINDOWING STREQUAL "sdl2"))
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
 elseif(SE_RENDERER STREQUAL "sdl1")
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl1")
-elseif(SE_RENDERER STREQUAL "opengl")
-	set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
 else()
 	set(SE_AUDIO_ENGINE_DEFAULT "headless")
 endif()
@@ -480,6 +478,19 @@ foreach(DIR IN LISTS SOURCES)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+if(SE_RENDERER STREQUAL "opengl")
+	if(SE_OPENGL_WINDOWING STREQUAL "sdl2")
+		list(APPEND SOURCE_FILES
+			"${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/sdl2/input.cpp"
+			"${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/sdl2/keyboard.cpp"
+		)
+	elseif(SE_OPENGL_WINDOWING STREQUAL "sdl3")
+		list(APPEND SOURCE_FILES
+			"${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/sdl3/input.cpp"
+			"${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/sdl3/keyboard.cpp"
+		)
+	endif()
+endif()
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
