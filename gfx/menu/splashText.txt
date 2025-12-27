@@ -48,6 +48,7 @@ PS Vita port by Dogo6647!
 webOS port by Dogo6647!
 PS4 port by PwLDev!
 SDL1 port by Leap!
+OpenGL port by Leap!
 Menu music by Dogo6647!
 Since 2025!
 C++!

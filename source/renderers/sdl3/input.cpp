@@ -1,10 +1,15 @@
+#ifdef RENDERER_OPENGL
+#include "../opengl/sdl3/window.hpp"
+#else
 #include "render.hpp"
+#endif
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
 #include <input.hpp>
 #include <map>
+#include <render.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <vector>
@@ -48,13 +53,14 @@ std::vector<int> Input::getTouchPosition() {
     float rawMouseX, rawMouseY;
     int numDevices, numFingers;
     SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
-    SDL_GetTouchFingers(*touchID, &numFingers); // kanye west he likes
+    SDL_free(SDL_GetTouchFingers(*touchID, &numFingers)); // kanye west he likes
     if (numDevices > 0 && numFingers > 0) {
         pos.push_back(touchPosition.x);
         pos.push_back(touchPosition.y);
         return pos;
     }
 
+    SDL_free(touchID);
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
     pos.push_back(rawMouseX);
     pos.push_back(rawMouseY);
@@ -163,22 +169,25 @@ void Input::getInput() {
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     int numDevices, numFingers;
     SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
-    SDL_GetTouchFingers(*touchID, &numFingers);
+    SDL_free(SDL_GetTouchFingers(*touchID, &numFingers));
     if (numDevices > 0 && numFingers) {
         // Transform touch coordinates to Scratch space
-        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
 
+        SDL_free(touchID);
         BlockExecutor::doSpriteClicking();
         return;
     }
 
+    SDL_free(touchID);
+
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 

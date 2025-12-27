@@ -231,6 +231,7 @@ class Render {
             barOffsetY = (screenHeight - scaledProjectHeight) / 2.0f;
         }
 
+        // FIXME: the text is slightly lower on OpenGL
         for (auto &var : visibleVariables) {
             if (var.visible) {
                 if (var.mode == "list") {
@@ -313,6 +314,7 @@ class Render {
                         empty->setScale(1.0f * (scale / 2.0f));
                         empty->setCenterAligned(true);
                         empty->render(monitorX + (monitorW / 2), monitorY + boxHeight + (12 * scale));
+                        delete empty;
                     }
 
                     // list length background
@@ -330,11 +332,13 @@ class Render {
                     plus->setColor(Math::color(0, 0, 0, 255));
                     plus->setScale(1.0f * (scale / 2.0f));
                     plus->render(monitorX + (8 * scale), monitorY + monitorH - (6 * scale));
+                    delete plus;
 
                     TextObject *equal = createTextObject("=", 0, 0);
                     equal->setColor(Math::color(0, 0, 0, 255));
                     equal->setScale(1.0f * (scale / 2.0f));
                     equal->render(monitorX + monitorW - (8 * scale), monitorY + monitorH - (6 * scale));
+                    delete equal;
                 } else {
                     std::string renderText = var.value.asString();
                     if (monitorTexts.find(var.id) == monitorTexts.end()) {
