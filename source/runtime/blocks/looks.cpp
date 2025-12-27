@@ -105,7 +105,7 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
 }
 
 SCRATCH_BLOCK(looks, nextbackdrop) {
-    Scratch::switchCostume(stageSprite, stageSprite->currentCostume++);
+    Scratch::switchCostume(stageSprite, ++stageSprite->currentCostume);
 
     for (auto &currentSprite : sprites) {
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
