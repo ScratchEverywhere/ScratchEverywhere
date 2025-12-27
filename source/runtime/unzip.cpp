@@ -27,6 +27,8 @@
 #include "SDL2/SDL.h"
 #elif defined(RENDERER_SDL3)
 #include "SDL3/SDL.h"
+#elif defined(__unix__) || defined(__APPLE__)
+#include <pthread.h>
 #endif
 
 #ifdef USE_CMAKERC
@@ -124,6 +126,13 @@ int projectLoaderThread(void *data) {
     return 0;
 }
 
+#if defined(__unix__) || defined(__APPLE__)
+void *projectLoaderPthread(void *arg) {
+    Unzip::openScratchProject(NULL);
+    return NULL;
+}
+#endif
+
 void loadInitialImages() {
     Unzip::loadingState = "Loading images";
     int sprIndex = 1;
@@ -183,10 +192,10 @@ bool Unzip::load() {
     loading.cleanup();
     osSetSpeedupEnable(false);
 
-#elif defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(RENDERER_SDL3) // create SDL thread for loading screen
+#elif defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(OPENGL_WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(OPENGL_WINDOWING_SDL3) // create SDL thread for loading screen
 #ifdef RENDERER_SDL1
     SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, nullptr);
-#elif defined(RENDERER_SDL2)
+#elif defined(RENDERER_SDL2) || defined(OPENGL_WINDOWING_SDL2)
     SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x15000, nullptr);
 #else
     SDL_PropertiesID props = SDL_CreateProperties();
@@ -207,6 +216,21 @@ bool Unzip::load() {
             loading.render();
         }
         SDL_WaitThread(thread, nullptr);
+        loading.cleanup();
+    } else Unzip::openScratchProject(NULL);
+
+    if (Unzip::projectOpened != 1)
+        return false;
+#elif defined(__unix__) || defined(__APPLE__) // create pthread for loading screen
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, projectLoaderPthread, NULL) == 0) {
+        Loading loading;
+        loading.init();
+
+        while (!Unzip::threadFinished) {
+            loading.render();
+        }
+        pthread_join(thread, NULL);
         loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 
