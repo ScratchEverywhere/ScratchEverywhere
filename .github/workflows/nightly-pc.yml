@@ -4,8 +4,11 @@ on:
   push:
     paths:
       - CMakeLists.txt
-      - source/scratch/**
-      - source/sdl2/**
+      - source/runtime/**
+      - source/renderers/sdl2/**
+      - source/*
+      - source/menus/**
+      - source/audio/sdl2/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-pc.yml
