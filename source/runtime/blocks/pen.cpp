@@ -86,7 +86,7 @@ SCRATCH_BLOCK(pen, changePenColorParamBy) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(pen, setPenColorTo) {
+SCRATCH_BLOCK(pen, setPenColorToColor) {
     sprite->penData.color = Scratch::getInputValue(block, "COLOR", sprite).asColor();
     sprite->penData.shade = sprite->penData.color.brightness / 2;
 
