@@ -62,8 +62,8 @@ enum class BlockResult {
 
 class BlockExecutor {
   public:
-    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
-    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
+    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> &getHandlers();
+    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &getValueHandlers();
 
     static void executeKeyHats();
     static void doSpriteClicking();
