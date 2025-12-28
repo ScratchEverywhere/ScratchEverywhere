@@ -35,12 +35,19 @@ extern char nickname[0x21];
 #endif
 
 #ifdef _WIN32
+#include <Lmcons.h>
 #include <direct.h>
 #include <io.h>
 #include <shlwapi.h>
+#include <windows.h>
 #else
 #include <dirent.h>
 #include <unistd.h>
+#endif
+
+#if defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#include <pwd.h>
+#include <sys/types.h>
 #endif
 
 // PS4 implementation of logging
@@ -222,7 +229,7 @@ std::string OS::getScratchFolderLocation() {
 std::string OS::getConfigFolderLocation() {
     const std::string prefix = getFilesystemRootPrefix();
     std::string path = getScratchFolderLocation();
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64)
     PWSTR szPath = NULL;
     if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &szPath) == S_OK) {
         path = (std::filesystem::path(szPath) / "scratch-everywhere" / "").string();
@@ -335,6 +342,14 @@ std::string OS::getUsername() {
     free(usernameBuffer);
 
     return username;
+#elif defined(_WIN32) || defined(_WIN64)
+    TCHAR username[UNLEN + 1];
+    DWORD size = UNLEN + 1;
+    if (GetUserName((TCHAR *)username, &size)) return std::string(username);
+#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    uid_t uid = geteuid();
+    struct passwd *pw = getpwuid(uid);
+    if (pw) return std::string(pw->pw_name);
 #endif
     return "Player";
 }
