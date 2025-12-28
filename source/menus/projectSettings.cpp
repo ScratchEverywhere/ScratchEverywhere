@@ -74,7 +74,7 @@ void ProjectSettings::render() {
     }
     if (bottomScreenButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        settings["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
+        settings["settings"]["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
         SettingsManager::saveProjectSettings(settings, projectPath);
         bottomScreenButton->text->setText(bottomScreenButton->text->getText() == "Bottom Screen: ON" ? "Bottom Screen: OFF" : "Bottom Screen: ON");
     }
