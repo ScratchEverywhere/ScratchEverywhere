@@ -1,4 +1,5 @@
 #include "projectMenu.hpp"
+#include "migrate.hpp"
 #include "projectSettings.hpp"
 #include "unpackMenu.hpp"
 #include <audio.hpp>
@@ -140,19 +141,19 @@ void ProjectMenu::init() {
         hasProjects = true;
     }
     isInitialized = true;
-}
 
-void ProjectMenu::render() {
-    Input::getInput();
-    projectControl->input();
-
-    nlohmann::json *settings;
+    migrate();
     std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
     if (inFile.good()) {
         settings = new nlohmann::json();
         inFile >> *settings;
         inFile.close();
     }
+}
+
+void ProjectMenu::render() {
+    Input::getInput();
+    projectControl->input();
 
     if (!(settings != nullptr && settings->contains("MenuMusic") && (*settings)["MenuMusic"].is_boolean() && !(*settings)["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
@@ -244,6 +245,8 @@ void ProjectMenu::render() {
 }
 
 void ProjectMenu::cleanup() {
+    if (settings != nullptr) delete settings;
+
     projectFiles.clear();
     UnzippedFiles.clear();
     for (ButtonObject *button : projects) {

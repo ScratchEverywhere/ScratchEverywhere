@@ -51,6 +51,8 @@ class MainMenu : public Menu {
 
     int selectedTextIndex = 0;
 
+    nlohmann::json *settings = nullptr;
+
     void init() override;
     void render() override;
     void cleanup() override;
