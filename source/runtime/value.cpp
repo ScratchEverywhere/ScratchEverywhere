@@ -1,10 +1,10 @@
 #include "value.hpp"
 #include "math.hpp"
-#include <array>
-#include <charconv>
 #include <os.hpp>
 #include <regex>
+#include <array>
 #include <sstream>
+#include <charconv>
 
 Value::Value(int val) : value(val) {}
 

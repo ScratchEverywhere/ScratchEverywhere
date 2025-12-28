@@ -1,12 +1,12 @@
 #include "unzip.hpp"
+#include <image.hpp>
 #include "input.hpp"
+#include <menus/loading.hpp>
 #include <cstring>
 #include <ctime>
 #include <errno.h>
 #include <fstream>
-#include <image.hpp>
 #include <istream>
-#include <menus/loading.hpp>
 #include <random>
 #include <sys/stat.h>
 #include <sys/types.h>
