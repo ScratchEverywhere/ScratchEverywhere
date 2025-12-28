@@ -507,7 +507,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	endif()
 endif()
 
-set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/window/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_MENU)
 	list(APPEND SOURCES source/menus)

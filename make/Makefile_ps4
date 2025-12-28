@@ -26,7 +26,7 @@ TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 TARGET		:= scratch-ps4
 BUILD		:= build/ps4
 GRAPHICS	:= gfx
-SOURCES		:= source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/window/sdl2 source/audio/sdl2 include/nlohmann include/miniz
+SOURCES		:= source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/miniz
 INCLUDES	:= include $(SOURCES)
 FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
 			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
