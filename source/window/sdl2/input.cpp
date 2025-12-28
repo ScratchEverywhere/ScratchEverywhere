@@ -1,4 +1,15 @@
+<<<<<<< HEAD:source/window/sdl2/input.cpp
 #include "window.hpp"
+=======
+#ifdef RENDERER_OPENGL
+#include "../opengl/sdl2/window.hpp"
+#else
+#include "render.hpp"
+#endif
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+>>>>>>> df0e4a3 ([Runtime] put software keyboard inside of input, and fix compile erros from last commit):source/renderers/sdl2/input.cpp
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
