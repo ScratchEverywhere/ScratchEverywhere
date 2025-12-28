@@ -13,9 +13,9 @@
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
-#include <interpret.hpp>
 #include <math.hpp>
 #include <render.hpp>
+#include <runtime.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <text.hpp>
@@ -282,7 +282,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 void Render::renderSprites() {
     SDL_FillRect(window, NULL, SDL_MapRGB(window->format, 255, 255, 255));
 
-    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
 
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
@@ -333,7 +333,7 @@ void Render::renderSprites() {
         }
 
         // Draw collision points (for debugging)
-        // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
+        // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
         // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
         // for (const auto &point : collisionPoints) {
@@ -384,12 +384,12 @@ void Render::renderPenLayer() {
 }
 
 bool Render::appShouldRun() {
-    if (toExit) return false;
+    if (OS::toExit) return false;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
-            toExit = true;
+            OS::toExit = true;
             return false;
         case SDL_VIDEORESIZE:
             windowWidth = event.resize.w;

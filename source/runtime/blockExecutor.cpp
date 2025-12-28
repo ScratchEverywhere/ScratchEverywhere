@@ -1,5 +1,4 @@
 #include "blockExecutor.hpp"
-#include "interpret.hpp"
 #include "math.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
@@ -11,6 +10,7 @@
 #include <os.hpp>
 #include <ratio>
 #include <render.hpp>
+#include <runtime.hpp>
 #include <utility>
 #include <vector>
 
@@ -85,7 +85,7 @@ void BlockExecutor::executeKeyHats() {
         if (Input::inputBuffer.size() == 101) Input::inputBuffer.erase(Input::inputBuffer.begin());
     }
 
-    const std::vector<Sprite *> sprToRun = sprites;
+    const std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (Sprite *currentSprite : sprToRun) {
         for (auto &[id, data] : currentSprite->blocks) {
             // TODO: Add a way to register these with macros
@@ -107,12 +107,12 @@ void BlockExecutor::doSpriteClicking() {
     if (Input::mousePointer.isPressed) {
         Input::mousePointer.heldFrames++;
         bool hasClicked = false;
-        for (auto &sprite : sprites) {
+        for (auto &sprite : Scratch::sprites) {
             if (!sprite->visible) continue;
 
             // click a sprite
             if (sprite->shouldDoSpriteClick) {
-                if (Input::mousePointer.heldFrames < 2 && isColliding("mouse", sprite)) {
+                if (Input::mousePointer.heldFrames < 2 && Scratch::isColliding("mouse", sprite)) {
 
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;
@@ -124,7 +124,7 @@ void BlockExecutor::doSpriteClicking() {
                 }
             }
             // start dragging a sprite
-            if (Input::draggingSprite == nullptr && Input::mousePointer.heldFrames < 2 && sprite->draggable && isColliding("mouse", sprite)) {
+            if (Input::draggingSprite == nullptr && Input::mousePointer.heldFrames < 2 && sprite->draggable && Scratch::isColliding("mouse", sprite)) {
                 Input::draggingSprite = sprite;
                 dragPositionOffsetX = Input::mousePointer.x - sprite->xPosition;
                 dragPositionOffsetY = Input::mousePointer.y - sprite->yPosition;
@@ -150,7 +150,7 @@ void BlockExecutor::runRepeatBlocks() {
     bool withoutRefresh = false;
 
     // repeat ONLY the block most recently added to the repeat chain,,,
-    std::vector<Sprite *> sprToRun = sprites;
+    std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (auto &sprite : sprToRun) {
         for (auto &[id, blockChain] : sprite->blockChains) {
             const auto &repeatList = blockChain.blocksToRepeat;
@@ -165,19 +165,19 @@ void BlockExecutor::runRepeatBlocks() {
     }
     // delete sprites ready for deletion
 
-    for (auto &toDelete : sprites) {
+    for (auto &toDelete : Scratch::sprites) {
         if (!toDelete->toDelete) continue;
         for (auto &[id, block] : toDelete->blocks) {
             for (std::string repeatID : toDelete->blockChains[block.blockChainID].blocksToRepeat) {
-                Block *repeatBlock = findBlock(repeatID);
+                Block *repeatBlock = Scratch::findBlock(repeatID);
                 if (repeatBlock) repeatBlock->repeatTimes = -1;
             }
         }
         toDelete->isDeleted = true;
     }
-    sprites.erase(std::remove_if(sprites.begin(), sprites.end(),
-                                 [](Sprite *s) { return s->toDelete; }),
-                  sprites.end());
+    Scratch::sprites.erase(std::remove_if(Scratch::sprites.begin(), Scratch::sprites.end(),
+                                          [](Sprite *s) { return s->toDelete; }),
+                           Scratch::sprites.end());
 }
 
 void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
@@ -186,7 +186,7 @@ void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockCh
 
     while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
         const std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
-        Block *toRun = findBlock(toRepeat);
+        Block *toRun = Scratch::findBlock(toRepeat);
         if (toRun != nullptr)
             executor.runBlock(*toRun, sprite, &withoutRefresh, true);
     }
@@ -277,10 +277,10 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
 }
 
 void BlockExecutor::runCloneStarts() {
-    while (!cloneQueue.empty()) {
-        Sprite *cloningSprite = cloneQueue.front();
-        cloneQueue.erase(cloneQueue.begin());
-        for (Sprite *sprite : sprites) {
+    while (!Scratch::cloneQueue.empty()) {
+        Sprite *cloningSprite = Scratch::cloneQueue.front();
+        Scratch::cloneQueue.erase(Scratch::cloneQueue.begin());
+        for (Sprite *sprite : Scratch::sprites) {
             if (cloningSprite != sprite) continue;
             for (auto &[id, data] : cloningSprite->blocks) {
                 if (data.opcode == "control_start_as_clone") executor.runBlock(data, sprite);
@@ -292,9 +292,9 @@ void BlockExecutor::runCloneStarts() {
 std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
-    while (!broadcastQueue.empty()) {
-        const std::string currentBroadcast = broadcastQueue.front();
-        broadcastQueue.erase(broadcastQueue.begin());
+    while (!Scratch::broadcastQueue.empty()) {
+        const std::string currentBroadcast = Scratch::broadcastQueue.front();
+        Scratch::broadcastQueue.erase(Scratch::broadcastQueue.begin());
         const auto results = runBroadcast(currentBroadcast);
         blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
     }
@@ -306,7 +306,7 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     // find all matching "when I receive" blocks
-    std::vector<Sprite *> sprToRun = sprites;
+    std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (auto *currentSprite : sprToRun) {
         for (auto &[id, block] : currentSprite->blocks) {
             if (block.opcode == "event_whenbroadcastreceived" &&
@@ -325,7 +325,7 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
 
 void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
-    std::vector<Sprite *> sprToRun = sprites;
+    std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (Sprite *currentSprite : sprToRun) {
         for (auto &[id, data] : currentSprite->blocks) {
             if (data.opcode != opcodeToFind) continue;
@@ -353,8 +353,8 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
         return;
     }
 
-    auto globalIt = stageSprite->variables.find(variableId);
-    if (globalIt != stageSprite->variables.end()) {
+    auto globalIt = Scratch::stageSprite->variables.find(variableId);
+    if (globalIt != Scratch::stageSprite->variables.end()) {
         globalIt->second.value = newValue;
 #ifdef ENABLE_CLOUDVARS
         if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
@@ -367,7 +367,7 @@ void BlockExecutor::updateMonitors() {
     for (auto &var : Render::visibleVariables) {
         if (var.visible) {
             Sprite *sprite = nullptr;
-            for (auto &spr : sprites) {
+            for (auto &spr : Scratch::sprites) {
                 if (var.spriteName == "" && spr->isStage) {
                     sprite = spr;
                     break;
@@ -392,8 +392,8 @@ void BlockExecutor::updateMonitors() {
                     var.list = listIt->second.items;
 
                 // Check global lists
-                auto globalIt = stageSprite->lists.find(var.id);
-                if (globalIt != stageSprite->lists.end())
+                auto globalIt = Scratch::stageSprite->lists.find(var.id);
+                if (globalIt != Scratch::stageSprite->lists.end())
                     var.list = globalIt->second.items;
             } else {
                 try {
@@ -452,7 +452,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     }
 
     // Check global variables
-    for (const auto &currentSprite : sprites) {
+    for (const auto &currentSprite : Scratch::sprites) {
         if (currentSprite->isStage) {
             const auto globalIt = currentSprite->variables.find(variableId);
             if (globalIt != currentSprite->variables.end()) return globalIt->second.value;
@@ -460,7 +460,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     }
 
     // Check global lists
-    for (const auto &currentSprite : sprites) {
+    for (const auto &currentSprite : Scratch::sprites) {
         if (currentSprite->isStage) {
             auto globalIt = currentSprite->lists.find(variableId);
             if (globalIt == currentSprite->lists.end()) continue;
@@ -485,7 +485,7 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
 
 #ifdef ENABLE_CLOUDVARS
 void BlockExecutor::handleCloudVariableChange(const std::string &name, const std::string &value) {
-    for (const auto &currentSprite : sprites) {
+    for (const auto &currentSprite : Scratch::sprites) {
         if (currentSprite->isStage) {
             for (auto it = currentSprite->variables.begin(); it != currentSprite->variables.end(); ++it) {
                 if (it->second.name != name) continue;
@@ -499,8 +499,8 @@ void BlockExecutor::handleCloudVariableChange(const std::string &name, const std
 
 Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, Block block) {
     // get the parent prototype block
-    Block *const definitionBlock = getBlockParent(&block);
-    const Block *prototypeBlock = findBlock(Scratch::getInputValue(*definitionBlock, "custom_block", sprite).asString());
+    Block *const definitionBlock = Scratch::getBlockParent(&block);
+    const Block *prototypeBlock = Scratch::findBlock(Scratch::getInputValue(*definitionBlock, "custom_block", sprite).asString());
 
     for (auto &[custId, custBlock] : sprite->customBlocks) {
         // variable must be in the same custom block

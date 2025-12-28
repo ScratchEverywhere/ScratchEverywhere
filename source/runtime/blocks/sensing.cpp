@@ -1,7 +1,6 @@
 #include "blockUtils.hpp"
 #include <cmath>
 #include <input.hpp>
-#include <interpret.hpp>
 #include <sprite.hpp>
 #include <utility>
 #include <value.hpp>
@@ -14,7 +13,7 @@ SCRATCH_BLOCK(sensing, resettimer) {
 
 SCRATCH_BLOCK(sensing, askandwait) {
     const Value inputValue = Scratch::getInputValue(block, "QUESTION", sprite);
-    answer = Input::openSoftwareKeyboard(inputValue.asString().c_str());
+    Scratch::answer = Input::openSoftwareKeyboard(inputValue.asString().c_str());
     return BlockResult::CONTINUE;
 }
 
@@ -39,7 +38,7 @@ SCRATCH_REPORTER_BLOCK(sensing, of) {
     const Value inputValue = Scratch::getInputValue(block, "OBJECT", sprite);
 
     Sprite *spriteObject = nullptr;
-    for (Sprite *currentSprite : sprites) {
+    for (Sprite *currentSprite : Scratch::sprites) {
         if ((currentSprite->name == inputValue.asString() || (inputValue.asString() == "_stage_" && currentSprite->isStage)) && !currentSprite->isClone) {
             spriteObject = currentSprite;
             break;
@@ -85,7 +84,7 @@ SCRATCH_REPORTER_BLOCK(sensing, distanceto) {
         return Value(std::sqrt(dx * dx + dy * dy));
     }
 
-    for (Sprite *currentSprite : sprites) {
+    for (Sprite *currentSprite : Scratch::sprites) {
         if (currentSprite->name != inputValue.asString() || currentSprite->isClone) continue;
         const double dx = currentSprite->xPosition - sprite->xPosition;
         const double dy = currentSprite->yPosition - sprite->yPosition;
@@ -119,7 +118,7 @@ SCRATCH_REPORTER_BLOCK(sensing, current) {
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, answer) {
-    return Value(answer);
+    return Value(Scratch::answer);
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, keypressed) {
@@ -134,14 +133,14 @@ SCRATCH_REPORTER_BLOCK(sensing, keypressed) {
 SCRATCH_REPORTER_BLOCK(sensing, touchingobject) {
     const Value inputValue = Scratch::getInputValue(block, "TOUCHINGOBJECTMENU", sprite);
 
-    if (inputValue.asString() == "_mouse_") return Value(isColliding("mouse", sprite));
-    if (inputValue.asString() == "_edge_") return Value(isColliding("edge", sprite));
+    if (inputValue.asString() == "_mouse_") return Value(Scratch::isColliding("mouse", sprite));
+    if (inputValue.asString() == "_edge_") return Value(Scratch::isColliding("edge", sprite));
 
-    for (size_t i = 0; i < sprites.size(); i++) {
-        Sprite *currentSprite = sprites[i];
+    for (size_t i = 0; i < Scratch::sprites.size(); i++) {
+        Sprite *currentSprite = Scratch::sprites[i];
         if (currentSprite == sprite) continue;
         if (currentSprite->name == inputValue.asString() &&
-            isColliding("sprite", sprite, currentSprite, inputValue.asString())) {
+            Scratch::isColliding("sprite", sprite, currentSprite, inputValue.asString())) {
             return Value(true);
         }
     }

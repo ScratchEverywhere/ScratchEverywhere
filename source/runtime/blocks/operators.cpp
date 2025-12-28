@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <interpret.hpp>
 #include <math.h>
 #include <sprite.hpp>
 #include <value.hpp>
@@ -133,7 +132,7 @@ SCRATCH_REPORTER_BLOCK(operator, and) {
 
     if (oper1 == block.parsedInputs->end() || oper2 == block.parsedInputs->end()) return Value(false);
 
-    return Value(executor.getBlockValue(*findBlock(oper1->second.blockId), sprite).asBoolean() && executor.getBlockValue(*findBlock(oper2->second.blockId), sprite).asBoolean());
+    return Value(executor.getBlockValue(*Scratch::findBlock(oper1->second.blockId), sprite).asBoolean() && executor.getBlockValue(*Scratch::findBlock(oper2->second.blockId), sprite).asBoolean());
 }
 
 SCRATCH_REPORTER_BLOCK(operator, or) {
@@ -142,13 +141,13 @@ SCRATCH_REPORTER_BLOCK(operator, or) {
 
     const auto oper1 = block.parsedInputs->find("OPERAND1");
     if (oper1 != block.parsedInputs->end()) {
-        const Value value1 = executor.getBlockValue(*findBlock(oper1->second.blockId), sprite);
+        const Value value1 = executor.getBlockValue(*Scratch::findBlock(oper1->second.blockId), sprite);
         result1 = value1.asBoolean();
     }
 
     const auto oper2 = block.parsedInputs->find("OPERAND2");
     if (oper2 != block.parsedInputs->end()) {
-        const Value value2 = executor.getBlockValue(*findBlock(oper2->second.blockId), sprite);
+        const Value value2 = executor.getBlockValue(*Scratch::findBlock(oper2->second.blockId), sprite);
         result2 = value2.asBoolean();
     }
 
@@ -158,7 +157,7 @@ SCRATCH_REPORTER_BLOCK(operator, or) {
 SCRATCH_REPORTER_BLOCK(operator, not) {
     const auto oper = block.parsedInputs->find("OPERAND");
     if (oper == block.parsedInputs->end()) return Value(true);
-    return Value(!executor.getBlockValue(*findBlock(oper->second.blockId), sprite).asBoolean());
+    return Value(!executor.getBlockValue(*Scratch::findBlock(oper->second.blockId), sprite).asBoolean());
 }
 
 SCRATCH_REPORTER_BLOCK(operator, contains) {

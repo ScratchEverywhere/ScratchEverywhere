@@ -180,6 +180,9 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
 
 bool loadedSettings = false;
 std::string *customProjectsPath = nullptr;
+namespace OS {
+bool toExit = false;
+}
 
 std::string OS::getScratchFolderLocation() {
     if (!loadedSettings) {

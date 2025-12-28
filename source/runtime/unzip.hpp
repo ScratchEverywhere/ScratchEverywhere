@@ -1,9 +1,9 @@
 #pragma once
 
-#include "interpret.hpp"
 #include <iosfwd>
 #include <miniz.h>
 #include <os.hpp>
+#include <parser.hpp>
 #include <string>
 #include <vector>
 

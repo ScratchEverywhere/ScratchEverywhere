@@ -181,7 +181,7 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_BACK)) {
         Input::buttonPress("back");
 #ifdef WII
-        toExit = true;
+        OS::toExit = true;
 #endif
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSTICK)) Input::buttonPress("LeftStickPressed");
@@ -299,7 +299,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
                 break;
 
             case SDL_QUIT:
-                toExit = true;
+                OS::toExit = true;
                 inputActive = false;
                 break;
             }

@@ -117,7 +117,7 @@ void Render::renderSprites() {
     glBegin2D();
     glClearColor(31, 31, 31, 31);
 
-    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *sprite = *it;
         if (!sprite->visible) continue;
 
@@ -156,7 +156,7 @@ void Render::renderSprites() {
             glSpriteRotateScale(sprite->renderInfo.renderX, sprite->renderInfo.renderY, renderRotation, renderScale, flip, image);
 
             // draw collision points (debug)
-            // auto collisionPoints = getCollisionPoints(sprite);
+            // auto collisionPoints = Scratch::getCollisionPoints(sprite);
             // for (const auto &point : collisionPoints) {
             //     int drawX = (int)((point.first * Render::renderScale) + SCREEN_HALF_WIDTH);
             //     int drawY = (int)((-point.second * Render::renderScale) + SCREEN_HALF_HEIGHT);

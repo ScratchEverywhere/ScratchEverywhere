@@ -105,7 +105,7 @@ class BlockExecutor {
     static BlockResult runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh);
 
     /**
-     * Runs and executes every block currently in the `broadcastQueue`.
+     * Runs and executes every block currently in the `Scratch::broadcastQueue`.
      * @return a Vector pair of every block that was run.
      */
     static std::vector<std::pair<Block *, Sprite *>> runBroadcasts();

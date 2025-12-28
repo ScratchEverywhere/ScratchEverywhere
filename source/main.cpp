@@ -2,9 +2,9 @@
 #include <menus/mainMenu.hpp>
 #endif
 #include <cstdlib>
-#include <interpret.hpp>
 #include <menus/mainMenu.hpp>
 #include <render.hpp>
+#include <runtime.hpp>
 #include <unzip.hpp>
 
 #ifdef __SWITCH__
@@ -28,8 +28,6 @@ static bool initApp() {
     if (!Render::Init()) {
         return false;
     }
-
-    loadUsernameFromSettings();
     return true;
 }
 
@@ -76,7 +74,7 @@ void mainLoop() {
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
-    if (toExit || !activateMainMenu()) {
+    if (OS::toExit || !activateMainMenu()) {
         exitApp();
         exit(0);
     }

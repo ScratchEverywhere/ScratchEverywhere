@@ -1,7 +1,7 @@
 #pragma once
 #include <chrono>
-#include <interpret.hpp>
 #include <math.hpp>
+#include <runtime.hpp>
 #include <sprite.hpp>
 #include <text.hpp>
 #include <vector>
@@ -187,7 +187,7 @@ class Render {
      * Force updates every sprite's position on screen. Should be called when window size changes.
      */
     static void forceUpdateSpritePosition() {
-        for (auto &sprite : sprites) {
+        for (auto &sprite : Scratch::sprites) {
             sprite->renderInfo.forceUpdate = true;
         }
     }

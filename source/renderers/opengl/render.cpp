@@ -18,9 +18,9 @@
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
-#include <interpret.hpp>
 #include <math.hpp>
 #include <render.hpp>
+#include <runtime.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <unordered_map>
@@ -492,7 +492,7 @@ void Render::renderSprites() {
 
     glEnable(GL_TEXTURE_2D);
 
-    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
 
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
@@ -575,7 +575,7 @@ void Render::renderSprites() {
 }
 
 bool Render::appShouldRun() {
-    if (toExit) return false;
+    if (OS::toExit) return false;
     if (globalWindow) {
         globalWindow->pollEvents();
         return !globalWindow->shouldClose();

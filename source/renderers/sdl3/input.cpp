@@ -269,7 +269,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
                 break;
 
             case SDL_EVENT_QUIT:
-                toExit = true;
+                OS::toExit = true;
                 inputActive = false;
                 break;
             }

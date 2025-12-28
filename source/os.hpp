@@ -66,6 +66,9 @@ class Timer {
 };
 
 namespace OS {
+
+extern bool toExit;
+
 /**
  * Function to detect whether the platform is a DSi.
  * @return `true` on DSi, `false` everywhere else.

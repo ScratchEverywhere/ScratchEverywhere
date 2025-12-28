@@ -15,7 +15,7 @@ void ControlsMenu::init() {
     Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
     if (!Unzip::load()) {
         Log::logError("Failed to load project for ControlsMenu.");
-        toExit = true;
+        OS::toExit = true;
         return;
     }
     Unzip::filePath = "";
@@ -23,7 +23,7 @@ void ControlsMenu::init() {
     // get controls
     std::vector<std::string> controls;
 
-    for (auto &sprite : sprites) {
+    for (auto &sprite : Scratch::sprites) {
         for (auto &[id, block] : sprite->blocks) {
             std::string buttonCheck;
             if (block.opcode == "sensing_keypressed") {

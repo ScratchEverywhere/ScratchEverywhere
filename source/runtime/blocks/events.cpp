@@ -1,6 +1,5 @@
 #include "blockUtils.hpp"
 #include <input.hpp>
-#include <interpret.hpp>
 #include <sprite.hpp>
 
 SCRATCH_BLOCK_NOP(event, whenflagclicked)
@@ -8,7 +7,7 @@ SCRATCH_BLOCK_NOP(event, whenflagclicked)
 SCRATCH_BLOCK_NOP(event, whenbackdropswitchesto)
 
 SCRATCH_BLOCK(event, broadcast) {
-    broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
+    Scratch::broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
     return BlockResult::CONTINUE;
 }
 

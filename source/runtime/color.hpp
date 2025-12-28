@@ -57,7 +57,7 @@ end:
     return {0, s, cmax * 100, a};
 }
 
-static Color legacyUpdatePenColor(const Color &color, const double &shade) {
+inline Color legacyUpdatePenColor(const Color &color, const double &shade) {
     ColorRGBA rgba = CSBT2RGBA({color.hue, 100.0, 100.0, color.transparency});
     const double penShade = (shade > 100) ? 200 - shade : shade;
     if (penShade < 50) {

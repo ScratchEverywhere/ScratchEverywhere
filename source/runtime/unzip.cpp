@@ -73,11 +73,11 @@ int Unzip::openFile(std::istream *&file) {
 #else
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
-    projectType = UNZIPPED;
+    Scratch::projectType = UNZIPPED;
     if (file != nullptr && *file) return 1;
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
-    projectType = EMBEDDED;
+    Scratch::projectType = EMBEDDED;
 #ifdef USE_CMAKERC
     if (fs.exists(embeddedFilename)) {
         const auto &romfsFile = fs.open(embeddedFilename);
@@ -91,7 +91,7 @@ int Unzip::openFile(std::istream *&file) {
     if (file != nullptr && *file) return 1;
     // Main menu
     Log::logWarning("No sb3 project, trying Main Menu.");
-    projectType = UNEMBEDDED;
+    Scratch::projectType = UNEMBEDDED;
     if (filePath == "") {
         Log::log("Activating main menu...");
         return -1;
@@ -109,7 +109,7 @@ int Unzip::openFile(std::istream *&file) {
 
         return 1;
     }
-    projectType = UNZIPPED;
+    Scratch::projectType = UNZIPPED;
     Log::log("Unpacked .sb3 project in SD card");
     // check if Unpacked Project
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
@@ -131,17 +131,17 @@ int projectLoaderThread(void *data) {
 void loadInitialImages() {
     Unzip::loadingState = "Loading images";
     int sprIndex = 1;
-    if (projectType == UNZIPPED) {
-        for (auto &currentSprite : sprites) {
+    if (Scratch::projectType == UNZIPPED) {
+        for (auto &currentSprite : Scratch::sprites) {
             if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
+            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(Scratch::sprites.size());
             Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
             sprIndex++;
         }
     } else {
-        for (auto &currentSprite : sprites) {
+        for (auto &currentSprite : Scratch::sprites) {
             if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(sprites.size());
+            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(Scratch::sprites.size());
             Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
             sprIndex++;
         }
@@ -271,7 +271,7 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
     loadingState = "Loading Sprites";
-    loadSprites(project_json);
+    Parser::loadSprites(project_json);
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
     delete file;
@@ -405,7 +405,7 @@ std::string Unzip::getSplashText() {
 nlohmann::json Unzip::unzipProject(std::istream *file) {
     nlohmann::json project_json;
 
-    if (projectType != UNZIPPED) {
+    if (Scratch::projectType != UNZIPPED) {
         // read the file
         Log::log("Reading SB3...");
         std::streamsize size = file->tellg();
