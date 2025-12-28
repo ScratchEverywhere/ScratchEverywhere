@@ -35,9 +35,9 @@ extern char nickname[0x21];
 #endif
 
 #ifdef _WIN32
-#include <Lmcons.h>
 #include <direct.h>
 #include <io.h>
+#include <lmcons.h>
 #include <shlwapi.h>
 #include <windows.h>
 #else
