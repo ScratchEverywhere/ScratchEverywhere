@@ -1,6 +1,6 @@
 #include "mainMenu.hpp"
-#include "migrate.hpp"
 #include "projectMenu.hpp"
+#include "settings.hpp"
 #include "settingsMenu.hpp"
 #include <audio.hpp>
 #include <cctype>
@@ -131,20 +131,14 @@ void MainMenu::init() {
     mainMenuControl->buttonObjects.push_back(settingsButton);
     isInitialized = true;
 
-    migrate();
-    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-    if (inFile.good()) {
-        settings = new nlohmann::json();
-        inFile >> *settings;
-        inFile.close();
-    }
+    settings = SettingsManager::getConfigSettings();
 }
 
 void MainMenu::render() {
     Input::getInput();
     mainMenuControl->input();
 
-    if (!(settings != nullptr && settings->contains("MenuMusic") && (*settings)["MenuMusic"].is_boolean() && !(*settings)["MenuMusic"].get<bool>())) {
+    if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
         if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
             SoundPlayer::playSound("gfx/menu/mm_full.wav");
@@ -192,9 +186,8 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
-    if (settings != nullptr) {
-        delete settings;
-        settings = nullptr;
+    if (!settings.empty()) {
+        settings.clear();
     }
 
     if (logo) {

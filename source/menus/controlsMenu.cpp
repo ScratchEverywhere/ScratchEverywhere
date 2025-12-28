@@ -1,4 +1,5 @@
 #include "controlsMenu.hpp"
+#include <settings.hpp>
 
 ControlsMenu::ControlsMenu(std::string projPath) {
     projectPath = projPath;
@@ -134,7 +135,11 @@ void ControlsMenu::render() {
         return;
     }
     if (applyButton->isPressed({"y"})) {
-        applyControls();
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        for (const auto &c : controlButtons) {
+            settings["controls"][c.control] = c.controlValue;
+        }
+        SettingsManager::saveProjectSettings(settings, projectPath);
         MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
@@ -199,40 +204,6 @@ void ControlsMenu::render() {
     applyButton->render();
 
     Render::endFrame();
-}
-
-void ControlsMenu::applyControls() {
-    // Build the file path
-    std::string folderPath = OS::getScratchFolderLocation() + projectPath;
-    std::string filePath = folderPath + ".sb3" + ".json";
-
-    // Make sure parent directories exist
-    try {
-        OS::createDirectory(OS::parentPath(filePath));
-    } catch (const OS::FilesystemError &e) {
-        Log::logError("Failed to create directories: " + std::string(e.what()));
-        return;
-    }
-
-    // Create a JSON object to hold control mappings
-    nlohmann::json json;
-    json["controls"] = nlohmann::json::object();
-
-    // Save each control in the form: "ControlName": "MappedKey"
-    for (const auto &c : controlButtons) {
-        json["controls"][c.control] = c.controlValue;
-    }
-
-    // Write JSON to file (overwrite if exists)
-    std::ofstream file(filePath);
-    if (!file) {
-        Log::logError("Failed to create JSON file: " + filePath);
-        return;
-    }
-    file << json.dump(2);
-    file.close();
-
-    Log::log("Controls saved to: " + filePath);
 }
 
 void ControlsMenu::cleanup() {

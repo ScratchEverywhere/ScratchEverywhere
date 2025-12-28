@@ -1,6 +1,6 @@
 #include "os.hpp"
-#include "migrate.hpp"
 #include "render.hpp"
+#include "settings.hpp"
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
@@ -178,16 +178,9 @@ std::string OS::getScratchFolderLocation() {
     if (!loadedSettings) {
         loadedSettings = true;
 
-        migrate();
+        nlohmann::json json = SettingsManager::getConfigSettings();
 
-        std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-        if (inFile.good()) {
-            nlohmann::json j;
-            inFile >> j;
-            inFile.close();
-
-            if (j.contains("ProjectsPath") && j["ProjectsPath"].is_string() && j.contains("UseProjectsPath") && j["UseProjectsPath"].is_boolean() && j["UseProjectsPath"] == true) customProjectsPath = new std::string(j["ProjectsPath"].get<std::string>());
-        }
+        if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string() && json.contains("UseProjectsPath") && json["UseProjectsPath"].is_boolean() && json["UseProjectsPath"] == true) customProjectsPath = new std::string(json["ProjectsPath"].get<std::string>());
     }
 
     if (customProjectsPath != nullptr) return *customProjectsPath;

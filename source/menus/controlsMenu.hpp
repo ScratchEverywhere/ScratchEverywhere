@@ -22,6 +22,5 @@ class ControlsMenu : public Menu {
 
     void init() override;
     void render() override;
-    void applyControls();
     void cleanup() override;
 };

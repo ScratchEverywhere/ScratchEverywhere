@@ -1,7 +1,7 @@
 #include "interpret.hpp"
 #include "math.hpp"
-#include "migrate.hpp"
 #include "nlohmann/json.hpp"
+#include "settings.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include <audio.hpp>
@@ -135,29 +135,23 @@ void loadUsernameFromSettings() {
     customUsername = "Player";
     useCustomUsername = false;
 
-    migrate();
-    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-    if (inFile.good()) {
-        nlohmann::json j;
-        inFile >> j;
-        inFile.close();
+    nlohmann::json j = SettingsManager::getConfigSettings();
 
-        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
-            useCustomUsername = j["EnableUsername"].get<bool>();
-        }
+    if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
+        useCustomUsername = j["EnableUsername"].get<bool>();
+    }
 
-        if (j.contains("Username") && j["Username"].is_string()) {
-            bool hasNonSpace = false;
-            for (char c : j["Username"].get<std::string>()) {
-                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-                    hasNonSpace = true;
-                } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                    break;
-                }
+    if (j.contains("Username") && j["Username"].is_string()) {
+        bool hasNonSpace = false;
+        for (char c : j["Username"].get<std::string>()) {
+            if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                hasNonSpace = true;
+            } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                break;
             }
-            if (hasNonSpace) customUsername = j["Username"].get<std::string>();
-            else customUsername = "Player";
         }
+        if (hasNonSpace) customUsername = j["Username"].get<std::string>();
+        else customUsername = "Player";
     }
 }
 

@@ -15,8 +15,6 @@ class ProjectSettings : public Menu {
     std::string projectPath;
 
     ProjectSettings(std::string projPath = "", bool existUnpacked = false);
-    nlohmann::json getProjectSettings();
-    void applySettings(const nlohmann::json &settingsData);
     ~ProjectSettings();
 
     void init() override;

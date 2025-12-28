@@ -19,7 +19,7 @@ class ProjectMenu : public Menu {
     TextObject *noProjectInfo = nullptr;
     TextObject *noProjectsText = nullptr;
 
-    nlohmann::json *settings = nullptr;
+    nlohmann::json settings;
 
     ProjectMenu();
     ~ProjectMenu();
