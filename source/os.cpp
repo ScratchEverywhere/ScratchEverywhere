@@ -15,15 +15,26 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
-#ifdef WII
+#if defined(__3DS__)
+#include <malloc.h>
+#elif defined(__WIIU__)
+#include <nn/act.h>
+#elif defined(__SWITCH__)
+extern char nickname[0x21];
+#elif defined(VITA)
+#include <psp2/apputil.h>
+#include <psp2/system_param.h>
+#elif defined(__PS4__)
+#include <orbis/UserService.h>
+#include <orbis/libkernel.h>
+int userId;
+#elif defined(WII)
 #include <gccore.h>
-#endif
-#ifdef __NDS__
+#include <ogc/conf.h>
+#elif defined(__NDS__)
 #include <nds.h>
 #endif
-#ifdef __PS4__
-#include <orbis/libkernel.h>
-#endif
+
 #ifdef _WIN32
 #include <direct.h>
 #include <io.h>
@@ -31,9 +42,6 @@
 #else
 #include <dirent.h>
 #include <unistd.h>
-#endif
-#ifdef __3DS__
-#include <malloc.h>
 #endif
 
 // PS4 implementation of logging

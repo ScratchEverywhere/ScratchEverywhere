@@ -123,3 +123,7 @@ void Input::getInput() {
 
     BlockExecutor::doSpriteClicking();
 }
+
+std::string Input::openSoftwareKeyboard(const char *hintText) {
+    return "";
+}

@@ -137,4 +137,6 @@ class Input {
         }
         return false;
     }
+
+    static std::string openSoftwareKeyboard(const char *hintText);
 };

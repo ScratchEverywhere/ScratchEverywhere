@@ -1,7 +1,6 @@
 #include "settingsMenu.hpp"
 #include "menuObjects.hpp"
 #include "settings.hpp"
-#include <keyboard.hpp>
 
 SettingsMenu::SettingsMenu() {
     init();
@@ -166,8 +165,7 @@ void SettingsMenu::render() {
     }
 
     if (ChangeUsername->isPressed({"a"})) {
-        SoftwareKeyboard kbd;
-        std::string newUsername = kbd.openKeyboard(username.c_str());
+        std::string newUsername = Input::openSoftwareKeyboard(username.c_str());
         // You could also use regex here, Idk what would be more sensible
         // std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))
         if (newUsername.length() <= 9) {
@@ -186,8 +184,7 @@ void SettingsMenu::render() {
     }
 
     if (ChangeFolderPath->isPressed({"a"})) {
-        SoftwareKeyboard kbd;
-        const std::string newPath = kbd.openKeyboard(projectsPath.c_str());
+        const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
         if (newPath.length() > 0) {
             projectsPath = newPath;
 

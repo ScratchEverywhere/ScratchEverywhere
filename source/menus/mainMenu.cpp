@@ -7,7 +7,7 @@
 #include <cmath>
 #include <image.hpp>
 #include <interpret.hpp>
-#include <keyboard.hpp>
+
 #include <nlohmann/json.hpp>
 
 Menu::~Menu() = default;
@@ -73,8 +73,7 @@ MainMenu::~MainMenu() {
 
 void MainMenu::init() {
 #ifdef RENDERER_HEADLESS // let the user type what project they want to open if headless
-    SoftwareKeyboard kbd;
-    std::string answer = kbd.openKeyboard("Please type what project you want to open.");
+    std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
 
     const std::string ext = ".sb3";
     if (answer.size() >= ext.size() &&

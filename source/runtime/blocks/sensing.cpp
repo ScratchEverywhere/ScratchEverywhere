@@ -2,7 +2,6 @@
 #include <cmath>
 #include <input.hpp>
 #include <interpret.hpp>
-#include <keyboard.hpp>
 #include <sprite.hpp>
 #include <utility>
 #include <value.hpp>
@@ -14,9 +13,8 @@ SCRATCH_BLOCK(sensing, resettimer) {
 }
 
 SCRATCH_BLOCK(sensing, askandwait) {
-    SoftwareKeyboard kbd;
     const Value inputValue = Scratch::getInputValue(block, "QUESTION", sprite);
-    answer = kbd.openKeyboard(inputValue.asString().c_str());
+    answer = Input::openSoftwareKeyboard(inputValue.asString().c_str());
     return BlockResult::CONTINUE;
 }
 
