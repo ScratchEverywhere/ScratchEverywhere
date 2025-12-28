@@ -27,7 +27,6 @@ extern char nickname[0x21];
 #elif defined(__PS4__)
 #include <orbis/UserService.h>
 #include <orbis/libkernel.h>
-int userId;
 #elif defined(WII)
 #include <gccore.h>
 #include <ogc/conf.h>
@@ -307,6 +306,7 @@ std::string OS::getUsername() {
     }
 #elif defined(__PS4__)
     char username[32];
+    int userId;
     sceUserServiceGetInitialUser(&userId);
     if (sceUserServiceGetUserName(userId, username, 31) == 0) {
         return std::string(reinterpret_cast<char *>(username));

@@ -36,7 +36,6 @@ extern char nickname[0x21];
 
 #ifdef __PS4__
 #include <orbis/UserService.h>
-int userId;
 #endif
 
 Input::Mouse Input::mousePointer;
