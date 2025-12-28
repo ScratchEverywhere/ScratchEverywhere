@@ -422,7 +422,7 @@ void Render::renderSprites() {
                 // if no brightness just render normal image
                 SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 SDL_RenderTextureRotated(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                 Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
+                                         Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
             }
         }
 
