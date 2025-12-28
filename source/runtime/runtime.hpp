@@ -53,18 +53,6 @@ class Scratch {
      */
     static void cleanupSprites();
 
-    /**
-     * Initializes a Pool of `Sprite` variables to be used by Clones.
-     * @param poolSize Amount of clones to initialize.
-     */
-    static void initializeSpritePool(int poolSize);
-
-    /**
-     * Gets an available sprite from the `Sprite Pool`.
-     * @return A `Sprite*` if there is any, `nullptr` otherwise.
-     */
-    static Sprite *getAvailableSprite();
-
     static void gotoXY(Sprite *sprite, double x, double y);
     static void fenceSpriteWithinBounds(Sprite *sprite);
     static bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, std::string targetName = "");
@@ -76,6 +64,8 @@ class Scratch {
     static int projectWidth;
     static int projectHeight;
     static int FPS;
+    static int cloneCount;
+    static int maxClones;
     static bool turbo;
     static bool fencing;
     static bool hqpen;
@@ -90,7 +80,6 @@ class Scratch {
 
     static std::vector<Sprite *> sprites;
     static Sprite *stageSprite;
-    static std::vector<Sprite> spritePool;
     static std::vector<std::string> broadcastQueue;
     static std::vector<Sprite *> cloneQueue;
     static std::unordered_map<std::string, Block *> blockLookup;

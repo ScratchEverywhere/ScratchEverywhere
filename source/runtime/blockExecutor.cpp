@@ -164,20 +164,16 @@ void BlockExecutor::runRepeatBlocks() {
         }
     }
     // delete sprites ready for deletion
-
-    for (auto &toDelete : Scratch::sprites) {
-        if (!toDelete->toDelete) continue;
-        for (auto &[id, block] : toDelete->blocks) {
-            for (std::string repeatID : toDelete->blockChains[block.blockChainID].blocksToRepeat) {
-                Block *repeatBlock = Scratch::findBlock(repeatID);
-                if (repeatBlock) repeatBlock->repeatTimes = -1;
-            }
-        }
-        toDelete->isDeleted = true;
+    std::vector<Sprite *> toDelete;
+    for (auto &spr : Scratch::sprites) {
+        if (!spr->toDelete) continue;
+        toDelete.push_back(spr);
     }
-    Scratch::sprites.erase(std::remove_if(Scratch::sprites.begin(), Scratch::sprites.end(),
-                                          [](Sprite *s) { return s->toDelete; }),
-                           Scratch::sprites.end());
+    for (auto *spr : toDelete) {
+        delete spr;
+        Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
+                               Scratch::sprites.end());
+    }
 }
 
 void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {

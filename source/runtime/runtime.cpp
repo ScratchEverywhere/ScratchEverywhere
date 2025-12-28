@@ -21,7 +21,6 @@
 
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
-std::vector<Sprite> Scratch::spritePool;
 std::vector<std::string> Scratch::broadcastQueue;
 std::vector<Sprite *> Scratch::cloneQueue;
 std::unordered_map<std::string, Block *> Scratch::blockLookup;
@@ -32,6 +31,8 @@ BlockExecutor executor;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
+int Scratch::cloneCount = 0;
+int Scratch::maxClones = 300;
 int Scratch::FPS = 30;
 bool Scratch::turbo = false;
 bool Scratch::hqpen = false;
@@ -101,6 +102,7 @@ void Scratch::cleanupScratchProject() {
         delete textPair.second;
     }
     Render::monitorTexts.clear();
+
     for (auto &[id, listMon] : Render::listMonitors) {
         delete listMon.name;
         delete listMon.length;
@@ -110,13 +112,12 @@ void Scratch::cleanupScratchProject() {
             delete t;
     }
     Render::listMonitors.clear();
-    TextObject::cleanupText();
 
+    TextObject::cleanupText();
     Render::visibleVariables.clear();
 
     // Clean up ZIP archive if it was initialized
     if (projectType != UNZIPPED) {
-
         mz_zip_reader_end(&Unzip::zipArchive);
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
@@ -127,19 +128,33 @@ void Scratch::cleanupScratchProject() {
     projectJSON.clear();
     projectJSON.shrink_to_fit();
 #endif
+
     DownloadManager::deinit();
 
-    // reset default settings
-    Scratch::FPS = 30;
-    Scratch::turbo = false;
-    Scratch::hqpen = false;
-    Scratch::projectWidth = 480;
-    Scratch::projectHeight = 360;
-    Scratch::fencing = true;
-    Scratch::miscellaneousLimits = true;
-    Scratch::counter = 0;
+    // Reset Runtime
+
+    broadcastQueue.clear();
+    cloneQueue.clear();
+    stageSprite = nullptr;
+    answer.clear();
+    customUsername.clear();
+    projectWidth = 480;
+    projectHeight = 360;
+    cloneCount = 0;
+    maxClones = 300;
+    FPS = 30;
+    counter = 0;
+    turbo = false;
+    hqpen = false;
+    fencing = true;
+    miscellaneousLimits = true;
+    shouldStop = false;
+    forceRedraw = false;
+    nextProject = false;
+    useCustomUsername = false;
+    projectType = UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
-    // Unzip::filePath = "";
+
     Log::log("Cleaned up Scratch project.");
 }
 
@@ -189,39 +204,13 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
     return std::make_pair(scratchX, scratchY);
 }
 
-void Scratch::initializeSpritePool(int poolSize) {
-    for (int i = 0; i < poolSize; i++) {
-        Sprite newSprite;
-        newSprite.id = Math::generateRandomString(15);
-        newSprite.isClone = true;
-        newSprite.toDelete = true;
-        newSprite.isDeleted = true;
-        Scratch::spritePool.push_back(newSprite);
-    }
-}
-
-Sprite *Scratch::getAvailableSprite() {
-    for (Sprite &sprite : Scratch::spritePool) {
-        if (sprite.isDeleted) {
-            sprite.isDeleted = false;
-            sprite.toDelete = false;
-            return &sprite;
-        }
-    }
-    return nullptr;
-}
-
 void Scratch::cleanupSprites() {
     for (Sprite *sprite : Scratch::sprites) {
         if (sprite) {
-            if (sprite->isClone) {
-                sprite->toDelete = true;
-                sprite->isDeleted = true;
-            } else delete sprite;
+            delete sprite;
         }
     }
     Scratch::sprites.clear();
-    Scratch::spritePool.clear();
 }
 
 std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *currentSprite) {

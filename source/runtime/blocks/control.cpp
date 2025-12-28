@@ -70,10 +70,10 @@ end:
 }
 
 SCRATCH_BLOCK(control, create_clone_of) {
+    if (Scratch::cloneCount >= Scratch::maxClones) return BlockResult::CONTINUE;
     const Value inputValue = Scratch::getInputValue(block, "CLONE_OPTION", sprite);
 
-    Sprite *const spriteToClone = Scratch::getAvailableSprite();
-    if (!spriteToClone) return BlockResult::CONTINUE;
+    Sprite *const spriteToClone = new Sprite();
     if (inputValue.asString() == "_myself_") {
         *spriteToClone = *sprite;
     } else {
@@ -93,6 +93,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     Sprite *addedSprite = Scratch::sprites.back();
 
     Scratch::cloneQueue.push_back(addedSprite);
+    Scratch::cloneCount++;
 
     Scratch::sortSprites();
     return BlockResult::CONTINUE;
@@ -100,6 +101,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
 
 SCRATCH_BLOCK(control, delete_this_clone) {
     if (sprite->isClone) sprite->toDelete = true;
+    Scratch::cloneCount--;
     return BlockResult::CONTINUE;
 }
 

@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include <input.hpp>
+#include <limits>
 #include <math.hpp>
 #include <os.hpp>
 #include <render.hpp>
@@ -608,26 +609,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 #endif
 
-    // if infinite clones are enabled, set a (potentially) higher max clone count
-    if (!infClones) Scratch::initializeSpritePool(300);
-    else {
-        if (OS::getPlatform() == "3DS") {
-            Scratch::initializeSpritePool(OS::isNew3DS() ? 450 : 300);
-        } else if (OS::getPlatform() == "Wii" || OS::getPlatform() == "Vita") {
-            Scratch::initializeSpritePool(450);
-        } else if (OS::getPlatform() == "Wii U") {
-            Scratch::initializeSpritePool(800);
-        } else if (OS::getPlatform() == "GameCube") {
-            Scratch::initializeSpritePool(300);
-        } else if (OS::getPlatform() == "Switch") {
-            Scratch::initializeSpritePool(1500);
-        } else if (OS::getPlatform() == "PC") {
-            Scratch::initializeSpritePool(2000);
-        } else {
-            Log::logWarning("Unknown platform: " + OS::getPlatform() + " doing default clone limit.");
-            Scratch::initializeSpritePool(300);
-        }
-    }
+    if (infClones) Scratch::maxClones = std::numeric_limits<int>::max();
+    else Scratch::maxClones = 300;
 
     // get block chains for every block
     for (Sprite *currentSprite : Scratch::sprites) {
