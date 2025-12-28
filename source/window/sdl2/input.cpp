@@ -1,6 +1,7 @@
 #include "window.hpp"
 #ifdef __SWITCH__
 #include <switch.h>
+#endif
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
