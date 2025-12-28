@@ -8,6 +8,7 @@
 #include <istream>
 #include <menus/loading.hpp>
 #include <random>
+#include <settings.hpp>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <vector>
@@ -383,8 +384,18 @@ std::string Unzip::getSplashText() {
     // Replace {PlatformName} and {UserName} placeholders with actual values
     const std::string platformPlaceholder = "{PlatformName}";
     const std::string platform = OS::getPlatform();
+
     const std::string usernamePlaceholder = "{UserName}";
-    const std::string username = OS::getUsername();
+    std::string username = OS::getUsername();
+    nlohmann::json json = SettingsManager::getConfigSettings();
+    if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean() && json["EnableUsername"].get<bool>()) {
+        if (json.contains("Username") && json["Username"].is_string()) {
+            std::string customUsername = json["Username"].get<std::string>();
+            if (!customUsername.empty()) {
+                username = customUsername;
+            }
+        }
+    }
 
     size_t pos = 0;
 
