@@ -66,6 +66,16 @@ if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
     )
 endif()
 
+if(SE_RENDERER STREQUAL "sdl3")
+	set(SE_AUDIO_ENGINE "sdl3")
+elseif(SE_RENDERER STREQUAL "sdl2")
+	set(SE_AUDIO_ENGINE "sdl2")
+elseif(SE_REDNERER STREQUAL "sdl1")
+	set(SE_AUDIO_ENGINE "sdl1")
+else()
+	set(SE_AUDIO_ENGINE "headless")
+endif()
+
 if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
@@ -289,56 +299,54 @@ endif()
 
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
-	set(CURL_OPTIONS
-		"BUILD_CURL_EXE OFF"
-		"BUILD_TESTING OFF"
-		"BUILD_EXAMPLES OFF"
-		"ENABLE_MANUAL OFF"
-		"CURL_DISABLE_INSTALL ON"
-		"ENABLE_ARES OFF"
-		"USE_LIBIDN2 OFF"
-		"ENABLE_WEBSOCKETS ON"
-		"CURL_DISABLE_WEBSOCKETS OFF"
-		"CURL_DISABLE_LDAP ON"
-		"CURL_USE_LIBSSH2 OFF"
-	)
-	if(WEBOS)
-		list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
-	else()
-		list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-		list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
-	endif()
-	if(WIN32 OR WEBOS)
-		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
-	endif()
+	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
+	if(NOT HAIKU)
+		set(CURL_OPTIONS
+			"BUILD_CURL_EXE OFF"
+			"BUILD_TESTING OFF"
+			"BUILD_EXAMPLES OFF"
+			"ENABLE_MANUAL OFF"
+			"CURL_DISABLE_INSTALL ON"
+			"ENABLE_ARES OFF"
+			"USE_LIBIDN2 OFF"
+			"ENABLE_WEBSOCKETS ON"
+			"CURL_DISABLE_WEBSOCKETS OFF"
+			"CURL_DISABLE_LDAP ON"
+			"CURL_USE_LIBSSH2 OFF"
+		)
+		if(WEBOS)
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+		else()
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
+		endif()
+		if(WIN32 OR WEBOS)
+			list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
+		endif()
 
-	CPMAddPackage(
-		NAME curl
-		GIT_REPOSITORY "https://github.com/curl/curl.git"
-		GIT_TAG "curl-8_16_0"
-		VERSION 8.16.0
-		OPTIONS ${CURL_OPTIONS}
-	)
+		CPMAddPackage(
+			NAME curl
+			GIT_REPOSITORY "https://github.com/curl/curl.git"
+			GIT_TAG "curl-8_17_0"
+			VERSION 8.17.0
+			OPTIONS ${CURL_OPTIONS}
+		)
+	else()
+		find_package(CURL REQUIRED)
+	endif()
 	if(SE_CLOUDVARS)
 		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
 	endif()
 endif()
 
-if(SE_RENDERER STREQUAL "headless")
-	set(SOURCES source source/scratch source/scratch/blocks source/headless)
-elseif(SE_RENDERER STREQUAL "sdl3")
-	set(SOURCES source source/scratch source/scratch/blocks source/sdl3 source/sdl3/audio)
-elseif(SE_RENDERER STREQUAL "sdl2")
-	set(SOURCES source source/scratch source/scratch/blocks source/sdl2 source/sdl2/audio)
-else()
-	set(SOURCES source source/scratch source/scratch/blocks source/sdl1 source/sdl1/audio)
-endif()
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/audio/${SE_AUDIO_ENGINE}")
+
 
 if(SE_MENU)
-	list(APPEND SOURCES source/scratch/menus)
+	list(APPEND SOURCES source/menus)
 endif()
 
 set(SOURCE_FILES)

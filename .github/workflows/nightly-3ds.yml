@@ -4,8 +4,11 @@ on:
   push:
     paths:
       - make/Makefile_3ds
-      - source/scratch/**
-      - source/3ds/**
+      - source/runtime/**
+      - source/renderers/citro2d/**
+      - source/*
+      - source/menus/**
+      - source/audio/sdl3/**
       - gfx/3ds/**
       - gfx/menu/**
       - include/**

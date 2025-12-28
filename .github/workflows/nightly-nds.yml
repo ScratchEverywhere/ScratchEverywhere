@@ -4,8 +4,11 @@ on:
   push:
     paths:
       - make/Makefile_nds
-      - source/scratch/**
-      - source/nds/**
+      - source/runtime/**
+      - source/renderers/gl2d/**
+      - source/*
+      - source/menus/**
+      - source/audio/nds/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-nds.yml
