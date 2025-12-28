@@ -1,6 +1,6 @@
 #include <render.hpp>
 #include <window.hpp>
-#include <window/headless/window.hpp>
+#include <windowing/headless/window.hpp>
 
 // Static member initialization
 std::chrono::_V2::system_clock::time_point Render::startTime;

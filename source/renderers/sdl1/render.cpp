@@ -21,7 +21,7 @@
 #include <unzip.hpp>
 #include <vector>
 #include <window.hpp>
-#include <window/sdl1/window.hpp>
+#include <windowing/sdl1/window.hpp>
 
 #ifdef __MINGW32__
 #define filledCircleRGBA GFX_filledCircleRGBA

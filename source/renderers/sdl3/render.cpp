@@ -17,7 +17,7 @@
 #include <unordered_map>
 #include <vector>
 #include <window.hpp>
-#include <window/sdl3/window.hpp>
+#include <windowing/sdl3/window.hpp>
 
 #ifdef SYSTEM_LIBS
 #include <SDL3_gfx/SDL3_gfxPrimitives.h>

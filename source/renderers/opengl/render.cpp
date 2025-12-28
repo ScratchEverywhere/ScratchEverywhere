@@ -2,13 +2,13 @@
 #include "image.hpp"
 #include <window.hpp>
 #if defined(WINDOWING_GLFW)
-#include <window/glfw/window.hpp>
+#include <windowing/glfw/window.hpp>
 #elif defined(WINDOWING_SDL1)
-#include <window/sdl1/window.hpp>
+#include <windowing/sdl1/window.hpp>
 #elif defined(WINDOWING_SDL2)
-#include <window/sdl2/window.hpp>
+#include <windowing/sdl2/window.hpp>
 #elif defined(WINDOWING_SDL3)
-#include <window/sdl3/window.hpp>
+#include <windowing/sdl3/window.hpp>
 #else
 #error "No windowing backend defined"
 #endif
@@ -20,9 +20,9 @@
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
+#include <interpret.hpp>
 #include <math.hpp>
 #include <render.hpp>
-#include <runtime.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <unordered_map>
@@ -496,7 +496,7 @@ void Render::renderSprites() {
 
     glEnable(GL_TEXTURE_2D);
 
-    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
+    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
 
         auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
@@ -579,7 +579,7 @@ void Render::renderSprites() {
 }
 
 bool Render::appShouldRun() {
-    if (OS::toExit) return false;
+    if (toExit) return false;
     if (globalWindow) {
         globalWindow->pollEvents();
         return !globalWindow->shouldClose();

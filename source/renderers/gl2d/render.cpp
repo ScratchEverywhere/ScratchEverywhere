@@ -8,7 +8,7 @@
 #include <nds/arm9/dldi.h>
 #include <render.hpp>
 #include <window.hpp>
-#include <window/nds/window.hpp>
+#include <windowing/nds/window.hpp>
 
 // Static member initialization
 std::chrono::_V2::system_clock::time_point Render::startTime;

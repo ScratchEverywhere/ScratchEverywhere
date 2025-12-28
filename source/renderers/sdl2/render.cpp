@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <vector>
 #include <window.hpp>
-#include <window/sdl2/window.hpp>
+#include <windowing/sdl2/window.hpp>
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>

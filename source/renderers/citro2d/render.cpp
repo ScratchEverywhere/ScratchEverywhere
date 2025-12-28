@@ -8,7 +8,7 @@
 #include <text.hpp>
 #include <unzip.hpp>
 #include <window.hpp>
-#include <window/3ds/window.hpp>
+#include <windowing/3ds/window.hpp>
 
 #define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320
