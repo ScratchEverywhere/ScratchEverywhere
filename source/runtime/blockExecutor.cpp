@@ -24,8 +24,15 @@ Timer BlockExecutor::timer;
 int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
 
-std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> BlockExecutor::handlers;
-std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> BlockExecutor::valueHandlers;
+std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> &BlockExecutor::getHandlers() {
+    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
+    return handlers;
+}
+
+std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &BlockExecutor::getValueHandlers() {
+    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
+    return valueHandlers;
+}
 
 std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     std::vector<Block *> ranBlocks;
@@ -48,8 +55,9 @@ std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool 
 }
 
 BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    const auto iterator = handlers.find(block.opcode);
-    if (iterator != handlers.end()) return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
+    auto &h = getHandlers();
+    const auto iterator = h.find(block.opcode);
+    if (iterator != h.end()) return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
 
     Log::logWarning("Unkown block: " + block.opcode);
 
@@ -328,8 +336,9 @@ void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
 }
 
 Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
-    const auto iterator = valueHandlers.find(block.opcode);
-    if (iterator != valueHandlers.end()) return iterator->second(block, sprite);
+    auto &vh = getValueHandlers();
+    const auto iterator = vh.find(block.opcode);
+    if (iterator != vh.end()) return iterator->second(block, sprite);
 
     Log::logWarning("Unkown block: " + block.opcode);
 

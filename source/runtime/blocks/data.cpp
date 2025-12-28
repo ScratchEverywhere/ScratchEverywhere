@@ -72,7 +72,7 @@ SCRATCH_BLOCK(data, addtolist) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(data, deletefromlist) {
+SCRATCH_BLOCK(data, deleteoflist) {
     const Value val = Scratch::getInputValue(block, "INDEX", sprite);
     const std::string listId = Scratch::getFieldId(block, "LIST");
 

@@ -14,7 +14,6 @@
 #include "speech_manager.hpp"
 #endif
 
-#include "blockUtils.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
@@ -22,8 +21,6 @@
 #include <cstddef>
 #include <image.hpp>
 #include <interpret.hpp>
-#include <sprite.hpp>
-#include <value.hpp>
 
 SCRATCH_BLOCK(looks, show) {
     sprite->visible = true;
@@ -107,11 +104,6 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
         return BlockResult::CONTINUE;
     }
 
-    if (inputValue.isNumeric()) {
-        Scratch::switchCostume(stageSprite, inputValue.asDouble() - 1);
-        return BlockResult::CONTINUE;
-    }
-
     for (auto &currentSprite : sprites) {
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
             if (spriteBlock.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
@@ -124,7 +116,7 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
 }
 
 SCRATCH_BLOCK(looks, nextbackdrop) {
-    Scratch::switchCostume(stageSprite, stageSprite->currentCostume++);
+    Scratch::switchCostume(stageSprite, ++stageSprite->currentCostume);
 
     for (auto &currentSprite : sprites) {
         for (auto &[id, spriteBlock] : currentSprite->blocks) {
@@ -133,6 +125,7 @@ SCRATCH_BLOCK(looks, nextbackdrop) {
             }
         }
     }
+
     return BlockResult::CONTINUE;
 }
 

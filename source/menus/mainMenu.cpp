@@ -7,6 +7,7 @@
 #include <image.hpp>
 #include <interpret.hpp>
 #include <keyboard.hpp>
+#include <nlohmann/json.hpp>
 
 Menu::~Menu() = default;
 
@@ -131,19 +132,30 @@ void MainMenu::init() {
 }
 
 void MainMenu::render() {
-
     Input::getInput();
     mainMenuControl->input();
 
+    nlohmann::json *settings;
+    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
+    if (inFile.good()) {
+        settings = new nlohmann::json();
+        inFile >> *settings;
+        inFile.close();
+    }
+
+    if (!(settings != nullptr && settings->contains("MenuMusic") && (*settings)["MenuMusic"].is_boolean() && !(*settings)["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
-        SoundPlayer::playSound("gfx/menu/mm_full.wav");
-    }
+        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
+            SoundPlayer::playSound("gfx/menu/mm_full.wav");
+        }
 #else
-    if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-    }
+        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+            SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        }
 #endif
+    }
+
+    if (settings != nullptr) delete settings;
 
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();
@@ -165,7 +177,7 @@ void MainMenu::render() {
     logo->y = 75 + bobbingOffset;
     logo->render();
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
-    splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7) * logo->image->scale);
+    splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7));
 
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 87, 60, 88);
