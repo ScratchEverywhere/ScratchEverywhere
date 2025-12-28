@@ -144,7 +144,7 @@ clean:
 	@echo Cleaning...
 	@rm -rf $(BUILD) $(GFXBUILD)
 
-package:
+package: $(OUTPUT).wuhb $(OUTPUT).rpx
 	@echo Packaging...
 	@mkdir -p $(OUTPUT)
 	@cp -t $(OUTPUT) $(OUTPUT).wuhb $(OUTPUT).rpx
