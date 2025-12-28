@@ -287,6 +287,18 @@ void OS::deInitWifi() {
 }
 
 std::string OS::getUsername() {
+    // use custom username if enabled in settings
+    nlohmann::json json = SettingsManager::getConfigSettings();
+    if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean() && json["EnableUsername"].get<bool>()) {
+        if (json.contains("Username") && json["Username"].is_string()) {
+            std::string customUsername = json["Username"].get<std::string>();
+            if (!customUsername.empty()) {
+                return customUsername;
+            }
+        }
+    }
+
+    // otherwise, use system fallbacks
 #ifdef __WIIU__
     int16_t miiName[256];
     nn::act::GetMiiName(miiName);
