@@ -1,10 +1,8 @@
 #include "window.hpp"
-#include <renderers/gl2d/render.hpp>
 #include <fat.h>
 #include <filesystem.h>
-#include <gl2d.h>
-#include <nds/arm9/dldi.h>
 #include <input.hpp>
+#include <nds/arm9/dldi.h>
 
 bool WindowNDS::init(int w, int h, const std::string &title) {
     cpuStartTiming(0);

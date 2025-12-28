@@ -229,7 +229,7 @@ void Render::penClear() {
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
-	SDL_Surface *window = static_cast<SDL_Surface *>(getRenderer());
+    SDL_Surface *window = static_cast<SDL_Surface *>(getRenderer());
     if (!hasFrameBegan) {
         SDL_FillRect(window, NULL, SDL_MapRGB(window->format, colorR, colorG, colorB));
         hasFrameBegan = true;
@@ -244,13 +244,13 @@ void Render::endFrame(bool shouldFlush) {
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-	SDL_Surface *window = static_cast<SDL_Surface *>(getRenderer());
+    SDL_Surface *window = static_cast<SDL_Surface *>(getRenderer());
     SDL_Rect rect = {static_cast<Sint16>(x - (w / 2)), static_cast<Sint16>(y - (h / 2)), static_cast<Uint16>(w), static_cast<Uint16>(h)};
     SDL_FillRect(window, &rect, SDL_MapRGBA(window->format, colorR, colorG, colorB, colorA));
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
-	SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
+    SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
 

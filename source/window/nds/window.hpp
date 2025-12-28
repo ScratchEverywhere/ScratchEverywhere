@@ -1,6 +1,7 @@
 #pragma once
-#include <window.hpp>
+#include <gl2d.h>
 #include <nds.h>
+#include <window.hpp>
 
 class WindowNDS : public Window {
   public:

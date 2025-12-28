@@ -1,6 +1,6 @@
 #pragma once
-#include <window.hpp>
 #include <SDL2/SDL.h>
+#include <window.hpp>
 
 class WindowSDL2 : public Window {
   public:

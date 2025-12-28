@@ -23,9 +23,9 @@ extern char nickname[0x21];
 #endif
 
 #ifdef __WIIU__
+#include <nn/act.h>
 #include <romfs-wiiu.h>
 #include <whb/sdcard.h>
-#include <nn/act.h>
 #endif
 
 SDL_Gamepad *controller = nullptr;

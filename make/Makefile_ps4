@@ -17,7 +17,7 @@ ENABLE_MENU		?=	1
 LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceSysmodule -lSceAudioOut -lSceUserService \
 			    -lScePigletv2VSH -lScePrecompiledShaders -lSceFreeType -lScePad -lSceSystemService \
 			    -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lsamplerate -lpthread \
-			   
+
 # Additional compile flags.
 EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DRENDERER_SDL2 -DCONSOLE -DMOUSE_INPUT
 
@@ -26,8 +26,8 @@ TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 TARGET		:= scratch-ps4
 BUILD		:= build/ps4
 GRAPHICS	:= gfx
-SOURCES		:= source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/audio/sdl2 include/nlohmann include/miniz
-INCLUDES	:= include $(SOURCES) 
+SOURCES		:= source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/window/sdl2 source/audio/sdl2 include/nlohmann include/miniz
+INCLUDES	:= include $(SOURCES)
 FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
 			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
 			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
@@ -69,7 +69,7 @@ endif
 
 # Handle enable audio
 ifeq ($(ENABLE_AUDIO),1)
-LIBS		+= -lSDL2_mixer -lmodplug -lmpg123 -logg -lopus -lopusfile -lvorbis -lvorbisfile 
+LIBS		+= -lSDL2_mixer -lmodplug -lmpg123 -logg -lopus -lopusfile -lvorbis -lvorbisfile
 EXTRAFLAGS	+= -DENABLE_AUDIO
 endif
 
@@ -124,10 +124,10 @@ $(BUILD)/sce_sys/param.sfo: Makefile
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ APP_VER --type Utf8 --maxsize 8 --value '$(VERSION)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ ATTRIBUTE --type Integer --maxsize 18 --value 81936
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CATEGORY --type Utf8 --maxsize 4 --value 'gde'
-	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ FORMAT --type Utf8 --maxsize 4 --value 'obs'  
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ FORMAT --type Utf8 --maxsize 4 --value 'obs'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ CONTENT_ID --type Utf8 --maxsize 48 --value '$(CONTENT_ID)'
-	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ DOWNLOAD_DATA_SIZE --type Integer --maxsize 4 --value 0 
-	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ SYSTEM_VER --type Integer --maxsize 4 --value 0 
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ DOWNLOAD_DATA_SIZE --type Integer --maxsize 4 --value 0
+	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ SYSTEM_VER --type Integer --maxsize 4 --value 0
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE --type Utf8 --maxsize 128 --value '$(TITLE)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
 	$(TOOLCHAIN)/bin/$(CDIR)/PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'

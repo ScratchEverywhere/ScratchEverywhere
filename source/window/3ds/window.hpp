@@ -1,6 +1,8 @@
 #pragma once
-#include <window.hpp>
 #include <3ds.h>
+#include <citro2d.h>
+#include <citro3d.h>
+#include <window.hpp>
 
 class Window3DS : public Window {
   public:

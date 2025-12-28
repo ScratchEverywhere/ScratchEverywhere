@@ -1,6 +1,6 @@
 #pragma once
-#include <window.hpp>
 #include <SDL/SDL.h>
+#include <window.hpp>
 
 #ifdef RENDERER_OPENGL
 #include <GL/gl.h>

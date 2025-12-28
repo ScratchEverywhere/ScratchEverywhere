@@ -28,7 +28,7 @@ APP_VERSION	:= 0.31
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-wii
 BUILD		:=	build/wii
-SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/audio/sdl2 include/nlohmann include/miniz
+SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/window/sdl2 source/audio/sdl2 include/nlohmann include/miniz
 DATA		:=	data
 INCLUDES	:=	include $(SOURCES)
 ROMFS		:=	romfs

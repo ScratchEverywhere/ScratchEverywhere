@@ -1,8 +1,8 @@
+#include "window.hpp"
 #include <3ds.h>
 #include <blockExecutor.hpp>
 #include <input.hpp>
 #include <render.hpp>
-#include "window.hpp"
 
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240

@@ -1,8 +1,8 @@
 #include "window.hpp"
+#include <chrono>
 #include <input.hpp>
 #include <math.hpp>
 #include <render.hpp>
-#include <chrono>
 #include <thread>
 #ifdef RENDERER_OPENGL
 #include <GL/gl.h>

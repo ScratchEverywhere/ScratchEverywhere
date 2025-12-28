@@ -18,7 +18,7 @@ PKGCONF_GAMECUBE	:=	$(DEVKITPRO)/libogc2/gamecube/bin/powerpc-eabi-pkg-config
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-gamecube
 BUILD		:=	build/gamecube
-SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/audio/sdl2 include/nlohmann include/miniz
+SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/window/sdl2 source/audio/sdl2 include/nlohmann include/miniz
 DATA		:=	data
 INCLUDES	:=	include $(SOURCES)
 ROMFS		:=	romfs

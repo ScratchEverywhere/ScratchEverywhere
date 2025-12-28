@@ -1,6 +1,4 @@
 #include "image.hpp"
-#include <window.hpp>
-#include <window/nds/window.hpp>
 #include <audio.hpp>
 #include <fat.h>
 #include <filesystem.h>
@@ -9,6 +7,8 @@
 #include <nds.h>
 #include <nds/arm9/dldi.h>
 #include <render.hpp>
+#include <window.hpp>
+#include <window/nds/window.hpp>
 
 // Static member initialization
 std::chrono::_V2::system_clock::time_point Render::startTime;
