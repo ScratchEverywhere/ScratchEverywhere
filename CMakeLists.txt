@@ -447,7 +447,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 		find_package(CURL REQUIRED)
 	endif()
 	if(SE_CLOUDVARS)
-		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
+		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.3")
 	endif()
 endif()
 
