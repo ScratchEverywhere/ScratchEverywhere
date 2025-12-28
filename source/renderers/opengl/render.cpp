@@ -1,14 +1,16 @@
 #include "render.hpp"
 #include "image.hpp"
-#include "window.hpp"
-#if defined(OPENGL_WINDOWING_GLFW)
-#include "glfw/window.hpp"
-#elif defined(OPENGL_WINDOWING_SDL2)
-#include "sdl2/window.hpp"
-#elif defined(OPENGL_WINDOWING_SDL3)
-#include "sdl3/window.hpp"
+#include <window.hpp>
+#if defined(WINDOWING_GLFW)
+#include <window/glfw/window.hpp>
+#elif defined(WINDOWING_SDL1)
+#include <window/sdl1/window.hpp>
+#elif defined(WINDOWING_SDL2)
+#include <window/sdl2/window.hpp>
+#elif defined(WINDOWING_SDL3)
+#include <window/sdl3/window.hpp>
 #else
-#error "No OpenGL windowing system defined"
+#error "No windowing backend defined"
 #endif
 #include <algorithm>
 #include <audio.hpp>
@@ -48,14 +50,16 @@ static int penWidth = 0;
 static int penHeight = 0;
 
 bool Render::Init() {
-#if defined(OPENGL_WINDOWING_GLFW)
+#if defined(WINDOWING_GLFW)
     globalWindow = new WindowGLFW();
-#elif defined(OPENGL_WINDOWING_SDL2)
+#elif defined(WINDOWING_SDL1)
+    globalWindow = new WindowSDL1();
+#elif defined(WINDOWING_SDL2)
     globalWindow = new WindowSDL2();
-#elif defined(OPENGL_WINDOWING_SDL3)
+#elif defined(WINDOWING_SDL3)
     globalWindow = new WindowSDL3();
 #else
-#error "No OpenGL windowing system defined"
+#error "No windowing backend defined"
 #endif
 
     if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {

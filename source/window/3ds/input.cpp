@@ -1,8 +1,8 @@
-#include "render.hpp"
 #include <3ds.h>
 #include <blockExecutor.hpp>
 #include <input.hpp>
 #include <render.hpp>
+#include "window.hpp"
 
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -44,7 +44,7 @@ void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
-    hidScanInput();
+    if (globalWindow) globalWindow->pollEvents();
     u32 kDown = hidKeysHeld();
 
     hidTouchRead(&touch);

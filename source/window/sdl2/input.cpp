@@ -1,11 +1,4 @@
-#ifdef RENDERER_OPENGL
-#include "../opengl/sdl2/window.hpp"
-#else
-#include "render.hpp"
-#endif
-#ifdef __SWITCH__
-#include <switch.h>
-#endif
+#include "window.hpp"
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>

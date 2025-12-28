@@ -1,5 +1,5 @@
 #include "window.hpp"
-#include "../render.hpp"
+#include <renderers/opengl/render.hpp>
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <input.hpp>

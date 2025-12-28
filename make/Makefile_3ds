@@ -38,9 +38,9 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/renderers/citro2d source/runtime source/runtime/blocks source/menus include/miniz source/audio/sdl3
+SOURCES		:=	source source/renderers/citro2d source/window/3ds source/runtime source/runtime/blocks source/menus include/miniz source/audio/sdl3
 DATA		:=	data
-INCLUDES	:=	include source source/renderers/citro2d source/runtime source/runtime/blocks source/menus include/miniz source/audio/sdl3 include/miniz
+INCLUDES	:=	include source source/renderers/citro2d source/window/3ds source/runtime source/runtime/blocks source/menus include/miniz source/audio/sdl3 include/miniz
 GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png

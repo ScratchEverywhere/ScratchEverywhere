@@ -1,4 +1,6 @@
 #include "image.hpp"
+#include <window.hpp>
+#include <window/nds/window.hpp>
 #include <audio.hpp>
 #include <fat.h>
 #include <filesystem.h>
@@ -19,6 +21,8 @@ std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::m
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 std::vector<Monitor> Render::visibleVariables;
 
+Window *globalWindow = nullptr;
+
 #define SCREEN_WIDTH 256
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
@@ -27,36 +31,11 @@ std::vector<Monitor> Render::visibleVariables;
 #define SCREEN_HALF_HEIGHT 96
 
 bool Render::Init() {
-    cpuStartTiming(0);
-    consoleDemoInit();
-
-    if (!OS::isDSi()) {
-        dldiSetMode(DLDI_MODE_AUTODETECT);
-        if (!fatInitDefault()) {
-            Log::logError("FAT init failed!\nUsing an emulator? Be sure to\nenable SD card emulation in your emulator settings!");
-            while (1)
-                swiWaitForVBlank();
-        }
-    }
-
-    if (!nitroFSInit(NULL)) {
-        Log::logError("NitroFS init failed!");
-        while (1)
-            swiWaitForVBlank();
-    }
-    glScreen2D();
-    videoSetMode(MODE_0_3D);
-    vramSetBankA(VRAM_A_TEXTURE);
-    vramSetBankE(VRAM_E_TEX_PALETTE);
-
-    scanKeys();
-    uint16_t kDown = keysHeld();
-    if (!(kDown & KEY_SELECT)) {
-        vramSetBankB(VRAM_B_TEXTURE);
-        vramSetBankC(VRAM_C_TEXTURE);
-        vramSetBankD(VRAM_D_TEXTURE);
-        vramSetBankF(VRAM_F_TEX_PALETTE);
-        debugMode = true;
+    globalWindow = new WindowNDS();
+    if (!globalWindow->init(256, 192, "Scratch Everywhere!")) {
+        delete globalWindow;
+        globalWindow = nullptr;
+        return false;
     }
     return true;
 }
@@ -64,6 +43,12 @@ bool Render::Init() {
 void Render::deInit() {
     Image::cleanupImages();
     TextObject::cleanupText();
+
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
 }
 
 void *Render::getRenderer() {

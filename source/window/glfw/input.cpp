@@ -1,8 +1,8 @@
-#include "window.hpp"
 #include <blockExecutor.hpp>
 #include <input.hpp>
 #include <string>
 #include <vector>
+#include "window.hpp"
 
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;

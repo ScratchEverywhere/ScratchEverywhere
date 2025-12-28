@@ -1,6 +1,5 @@
 #include "render.hpp"
 #include "image.hpp"
-#include <SDL3/SDL.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <chrono>
@@ -11,11 +10,14 @@
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
+#include <SDL3/SDL.h>
 #include <sprite.hpp>
 #include <string>
 #include <text.hpp>
 #include <unordered_map>
 #include <vector>
+#include <window.hpp>
+#include <window/sdl3/window.hpp>
 
 #ifdef SYSTEM_LIBS
 #include <SDL3_gfx/SDL3_gfxPrimitives.h>
@@ -38,9 +40,7 @@ char nickname[0x21];
 #include <psp2/touch.h>
 #endif
 
-int windowWidth = 540;
-int windowHeight = 405;
-SDL_Window *window = nullptr;
+Window *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
 
@@ -52,91 +52,28 @@ std::chrono::system_clock::time_point Render::endTime = std::chrono::system_cloc
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
-// TODO: properly export these to input.cpp
-SDL_Gamepad *controller;
-bool touchActive = false;
-SDL_Point touchPosition;
-
 bool Render::Init() {
 #ifdef __SWITCH__
-    windowWidth = 1280;
-    windowHeight = 720;
-
-    AccountUid userID = {0};
-    AccountProfile profile;
-    AccountProfileBase profilebase;
-    memset(&profilebase, 0, sizeof(profilebase));
-
-    Result rc = romfsInit();
-    if (R_FAILED(rc)) {
-        Log::logError("Failed to init romfs."); // TODO: Include error code
-        goto postAccount;
-    }
-
-    rc = accountInitialize(AccountServiceType_Application);
-    if (R_FAILED(rc)) {
-        Log::logError("accountInitialize failed.");
-        goto postAccount;
-    }
-
-    rc = accountGetPreselectedUser(&userID);
-    if (R_FAILED(rc)) {
-        PselUserSelectionSettings settings;
-        memset(&settings, 0, sizeof(settings));
-        rc = pselShowUserSelector(&userID, &settings);
-        if (R_FAILED(rc)) {
-            Log::logError("pselShowUserSelector failed.");
-            goto postAccount;
-        }
-    }
-
-    rc = accountGetProfile(&profile, userID);
-    if (R_FAILED(rc)) {
-        Log::logError("accountGetProfile failed.");
-        goto postAccount;
-    }
-
-    rc = accountProfileGet(&profile, NULL, &profilebase);
-    if (R_FAILED(rc)) {
-        Log::logError("accountProfileGet failed.");
-        goto postAccount;
-    }
-
-    memset(nickname, 0, sizeof(nickname));
-    strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
-
-    socketInitializeDefault();
-
-    accountProfileClose(&profile);
-    accountExit();
-postAccount:
+    int windowWidth = 1280;
+    int windowHeight = 720;
 #elif defined(VITA)
-    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
-
-    windowWidth = 960;
-    windowHeight = 544;
-
-    Log::log("[Vita] Loading module SCE_SYSMODULE_NET");
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-
-    Log::log("[Vita] Running sceNetInit");
-    SceNetInitParam netInitParam;
-    int size = 1 * 1024 * 1024; // net buffer size ([size in MB]*1024*1024)
-    netInitParam.memory = malloc(size);
-    netInitParam.size = size;
-    netInitParam.flags = 0;
-    sceNetInit(&netInitParam);
-
-    Log::log("[Vita] Running sceNetCtlInit");
-    sceNetCtlInit();
+    int windowWidth = 960;
+    int windowHeight = 544;
+#else
+    int windowWidth = 540;
+    int windowHeight = 405;
 #endif
 
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS);
     TTF_Init();
-    window = SDL_CreateWindow("Scratch Everywhere!", windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
-    renderer = SDL_CreateRenderer(window, "");
 
-    if (SDL_GetGamepads(NULL) != NULL) controller = SDL_OpenGamepad(0);
+    globalWindow = new WindowSDL3();
+    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+        delete globalWindow;
+        globalWindow = nullptr;
+        return false;
+    }
+
+    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), "");
 
     debugMode = true;
 
@@ -149,17 +86,15 @@ void Render::deInit() {
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
+
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
+
     SoundPlayer::deinit();
     SDL_Quit();
-
-#if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)
-    romfsExit();
-#endif
-#ifdef __WIIU__
-    WHBUnmountSdCard();
-    nn::act::Finalize();
-#endif
 }
 
 void *Render::getRenderer() {
@@ -167,20 +102,22 @@ void *Render::getRenderer() {
 }
 
 int Render::getWidth() {
-    return windowWidth;
+    if (globalWindow) return globalWindow->getWidth();
+    return 540;
 }
 int Render::getHeight() {
-    return windowHeight;
+    if (globalWindow) return globalWindow->getHeight();
+    return 405;
 }
 
 bool Render::initPen() {
     if (penTexture != nullptr) return true;
 
     if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight))
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight)), windowHeight);
+        if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
         else
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, windowWidth, Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth)));
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
     } else penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
 
     // Clear the texture
@@ -293,14 +230,18 @@ void Render::penStamp(Sprite *sprite) {
     }
 
     // Pen mapping stuff
-    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
+    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, getWidth(), getHeight());
     image->renderRect.x = cords.first + Scratch::projectWidth / 2;
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
     if (Scratch::hqpen) {
         image->setScale(sprite->renderInfo.renderScaleY);
 
+        int penWidth;
+        int penHeight;
+        SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
         const double scale = (penTexture->h / static_cast<double>(Scratch::projectHeight));
+
         image->renderRect.x *= scale;
         image->renderRect.y *= scale;
     } else {
@@ -398,8 +339,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_FRect topBar = {0, 0, static_cast<float>(screenWidth), std::ceil(barHeight)};
-        SDL_FRect bottomBar = {0, std::floor(screenHeight - barHeight), static_cast<float>(screenWidth), std::ceil(barHeight)};
+        SDL_FRect topBar = {0, 0, screenWidth, static_cast<int>(std::ceil(barHeight))};
+        SDL_FRect bottomBar = {0, static_cast<int>(std::floor(screenHeight - barHeight)), screenWidth, static_cast<int>(std::ceil(barHeight))};
 
         SDL_RenderFillRect(renderer, &topBar);
         SDL_RenderFillRect(renderer, &bottomBar);
@@ -481,7 +422,7 @@ void Render::renderSprites() {
                 // if no brightness just render normal image
                 SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
                 SDL_RenderTextureRotated(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                         Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
+                                 Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
             }
         }
 
@@ -505,7 +446,7 @@ void Render::renderSprites() {
         if (currentSprite->isStage) renderPenLayer();
     }
 
-    drawBlackBars(windowWidth, windowHeight);
+    drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
 
     SDL_RenderPresent(renderer);
@@ -519,14 +460,14 @@ std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMo
 void Render::renderPenLayer() {
     SDL_FRect renderRect = {0, 0, 0, 0};
 
-    if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
-        renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
-        renderRect.w = windowWidth - renderRect.x * 2;
-        renderRect.h = windowHeight;
+    if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+        renderRect.x = std::ceil((getWidth() - Scratch::projectWidth * (static_cast<float>(getHeight()) / Scratch::projectHeight)) / 2.0f);
+        renderRect.w = getWidth() - renderRect.x * 2;
+        renderRect.h = getHeight();
     } else {
-        renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
-        renderRect.h = windowHeight - renderRect.y * 2;
-        renderRect.w = windowWidth;
+        renderRect.y = std::ceil((getHeight() - Scratch::projectHeight * (static_cast<float>(getWidth()) / Scratch::projectWidth)) / 2.0f);
+        renderRect.h = getHeight() - renderRect.y * 2;
+        renderRect.w = getWidth();
     }
 
     SDL_RenderTexture(renderer, penTexture, NULL, &renderRect);
@@ -534,34 +475,26 @@ void Render::renderPenLayer() {
 
 bool Render::appShouldRun() {
     if (OS::toExit) return false;
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        switch (event.type) {
-        case SDL_EVENT_QUIT:
-            OS::toExit = true;
-            return false;
-        case SDL_EVENT_GAMEPAD_ADDED:
-            controller = SDL_OpenGamepad(0);
-            break;
-        case SDL_EVENT_FINGER_DOWN:
-            touchActive = true;
-            touchPosition = {
-                static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)};
-            break;
-        case SDL_EVENT_FINGER_MOTION:
-            touchPosition = {
-                static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)};
-            break;
-        case SDL_EVENT_FINGER_UP:
-            touchActive = false;
-            break;
-        case SDL_EVENT_WINDOW_RESIZED:
-            SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-            setRenderScale();
-            break;
+    if (globalWindow) {
+        globalWindow->pollEvents();
+
+        static int lastW = 0, lastH = 0;
+        int currentW = globalWindow->getWidth();
+        int currentH = globalWindow->getHeight();
+
+        if (lastW != currentW || lastH != currentH) {
+            lastW = currentW;
+            lastH = currentH;
+
+            if (Scratch::hqpen) {
+                // Recreate pen texture
+                SDL_DestroyTexture(penTexture);
+                penTexture = nullptr;
+                initPen();
+            }
         }
+
+        return !globalWindow->shouldClose();
     }
-    return true;
+    return false;
 }

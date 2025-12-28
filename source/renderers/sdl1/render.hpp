@@ -16,7 +16,3 @@
 #define BMASK 0x00ff0000
 #define AMASK 0xff000000
 #endif
-
-extern int windowWidth;
-extern int windowHeight;
-extern SDL_Surface *window;

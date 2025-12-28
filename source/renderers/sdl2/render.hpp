@@ -5,7 +5,4 @@
 #endif
 #include <SDL_ttf.h>
 
-extern int windowWidth;
-extern int windowHeight;
-extern SDL_Window *window;
 extern SDL_Renderer *renderer;

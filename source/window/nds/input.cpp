@@ -1,6 +1,7 @@
 #include <input.hpp>
 #include <nds.h>
 #include <render.hpp>
+#include "window.hpp"
 
 // Static member initialization
 Input::Mouse Input::mousePointer = {0, 0, 0, false, false};
@@ -37,7 +38,7 @@ void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
-    scanKeys();
+    if (globalWindow) globalWindow->pollEvents();
     uint16_t kDown = keysHeld();
 
     touchRead(&touch);

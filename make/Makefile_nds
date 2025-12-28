@@ -28,7 +28,7 @@ RANLIB		:= $(PREFIX)ranlib
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-ds
 BUILD		:=	build/nds
-SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/gl2d source/audio/nds include/miniz
+SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/gl2d source/window/nds source/audio/nds include/miniz
 INCLUDES	:=	include include/nlohmann $(SOURCES)
 DATA		:=
 NITRODATA	:=	romfs

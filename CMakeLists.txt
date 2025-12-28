@@ -72,16 +72,65 @@ if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
     )
 endif()
 
+if(SE_RENDERER STREQUAL "opengl")
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "headless" "sdl2")
+	if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+		list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl1" "sdl3" "glfw")
+	endif()
+
+	if("glfw" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+		set(
+			SE_WINDOWING
+			"glfw"
+			CACHE STRING "Select the desired windowing backend."
+		)
+	elseif("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+		set(
+			SE_WINDOWING
+			"sdl3"
+			CACHE STRING "Select the desired windowing backend."
+		)
+	elseif("sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+		set(
+			SE_WINDOWING
+			"sdl2"
+			CACHE STRING "Select the desired windowing backend."
+		)
+	elseif("sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+		set(
+			SE_WINDOWING
+			"sdl1"
+			CACHE STRING "Select the desired windowing backend."
+		)
+	else()
+		set(
+			SE_WINDOWING
+			"headless"
+			CACHE STRING "Select the desired windowing backend."
+		)
+	endif()
+	if(NOT SE_WINDOWING IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	    message(
+	        FATAL_ERROR
+	        "Invalid value for SE_WINDOWING: '${SE_WINDOWING}'. Must be one of: ${SE_WINDOWING_VALID_OPTIONS}"
+	    )
+	endif()
+elseif(SE_RENDERER STREQUAL "sdl1" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "sdl3")
+	set(SE_WINDOWING ${SE_RENDERER})
+else()
+	set(SE_WINDOWING "headless")
+endif()
+
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl2")
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
-if(SE_RENDERER STREQUAL "sdl3" OR (SE_RENDERER STREQUAL "opengl" AND SE_OPENGL_WINDOWING STREQUAL "sdl3"))
+if(SE_RENDERER STREQUAL "sdl3" OR SE_WINDOWING STREQUAL "sdl3")
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
-elseif(SE_RENDERER STREQUAL "sdl2" OR (SE_RENDERER STREQUAL "opengl" AND (SE_OPENGL_WINDOWING STREQUAL "sdl2" OR SE_OPENGL_WINDOWING STREQUAL "glfw")))
+elseif(SE_RENDERER STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "glfw")
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
-elseif(SE_RENDERER STREQUAL "sdl1")
+elseif(SE_RENDERER STREQUAL "sdl1" OR SE_WINDOWING STREQUAL "sdl1")
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl1")
 else()
 	set(SE_AUDIO_ENGINE_DEFAULT "headless")
@@ -293,24 +342,36 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 		)
 	endif()
 elseif(SE_RENDERER STREQUAL "opengl")
-	set(SE_OPENGL_WINDOWING "glfw" CACHE STRING "Windowing backend for OpenGL (glfw, sdl2 or sdl3)")
 	option(SE_OPENGL_ES "Use OpenGL ES instead of OpenGL" OFF)
 
-	if(SE_OPENGL_WINDOWING STREQUAL "glfw")
-		if(SE_SYSTEM)
-			find_package(glfw3 REQUIRED)
-		else()
-			CPMAddPackage(
-				NAME glfw
-				GITHUB_REPOSITORY glfw/glfw
-				GIT_TAG 3.4
-				OPTIONS "GLFW_BUILD_DOCS OFF" "GLFW_BUILD_TESTS OFF" "GLFW_BUILD_EXAMPLES OFF"
-			)
-		endif()
-	elseif(SE_OPENGL_WINDOWING STREQUAL "sdl2")
-		if(SE_SYSTEM)
-			pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
-		else()
+	find_package(OpenGL REQUIRED)
+	if(SE_OPENGL_ES)
+		find_package(OpenGL REQUIRED COMPONENTS GLES2)
+	endif()
+endif()
+
+if(SE_WINDOWING STREQUAL "glfw")
+	if(SE_SYSTEM)
+		find_package(glfw3 REQUIRED)
+	else()
+		CPMAddPackage(
+			NAME glfw
+			GITHUB_REPOSITORY glfw/glfw
+			GIT_TAG 3.4
+			OPTIONS "GLFW_BUILD_DOCS OFF" "GLFW_BUILD_TESTS OFF" "GLFW_BUILD_EXAMPLES OFF"
+		)
+	endif()
+elseif(SE_WINDOWING STREQUAL "sdl1")
+	if(SE_SYSTEM)
+		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
+	else()
+		error("SDL1 is currently not supported without system libraries")
+	endif()
+elseif(SE_WINDOWING STREQUAL "sdl2")
+	if(SE_SYSTEM)
+		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
+	else()
+		if(NOT TARGET SDL2::SDL2 AND NOT TARGET SDL2)
 			if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
 				set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
 			else()
@@ -324,10 +385,12 @@ elseif(SE_RENDERER STREQUAL "opengl")
 				OPTIONS ${SDL2_OPTIONS}
 			)
 		endif()
-	elseif(SE_OPENGL_WINDOWING STREQUAL "sdl3")
-		if(SE_SYSTEM)
-			pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
-		else()
+	endif()
+elseif(SE_WINDOWING STREQUAL "sdl3")
+	if(SE_SYSTEM)
+		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
+	else()
+		if(NOT TARGET SDL3::SDL3)
 			CPMAddPackage(
 				NAME SDL3
 				VERSION 3.2.26
@@ -336,11 +399,6 @@ elseif(SE_RENDERER STREQUAL "opengl")
 				OPTIONS "SDL_TEST_LIBRARY OFF"
 			)
 		endif()
-	endif()
-
-	find_package(OpenGL REQUIRED)
-	if(SE_OPENGL_ES)
-		find_package(OpenGL REQUIRED COMPONENTS GLES2)
 	endif()
 endif()
 
@@ -451,11 +509,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	endif()
 endif()
 
-if(SE_RENDERER STREQUAL "opengl")
-	set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/renderers/${SE_RENDERER}/${SE_OPENGL_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
-else()
-	set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/audio/${SE_AUDIO_ENGINE}")
-endif()
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/window/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_MENU)
 	list(APPEND SOURCES source/menus)
@@ -471,19 +525,6 @@ foreach(DIR IN LISTS SOURCES)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
-if(SE_RENDERER STREQUAL "opengl")
-	if(SE_OPENGL_WINDOWING STREQUAL "sdl2")
-		list(APPEND SOURCE_FILES
-			"${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/sdl2/input.cpp"
-			"${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/sdl2/keyboard.cpp"
-		)
-	elseif(SE_OPENGL_WINDOWING STREQUAL "sdl3")
-		list(APPEND SOURCE_FILES
-			"${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/sdl3/input.cpp"
-			"${CMAKE_CURRENT_SOURCE_DIR}/source/renderers/sdl3/keyboard.cpp"
-		)
-	endif()
-endif()
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
@@ -619,36 +660,44 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 	target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
 elseif(SE_RENDERER STREQUAL "opengl")
-	if(SE_OPENGL_WINDOWING STREQUAL "sdl2")
-		if(SE_SYSTEM)
-			target_link_libraries(scratch-everywhere PRIVATE ${SDL2_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS})
-		else()
-			target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2)
-			if(WIN32)
-				target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2main)
-			endif()
-		endif()
-        target_compile_definitions(scratch-everywhere PRIVATE OPENGL_WINDOWING_SDL2)
-	elseif(SE_OPENGL_WINDOWING STREQUAL "sdl3")
-		if(SE_SYSTEM)
-			target_link_libraries(scratch-everywhere PRIVATE ${SDL3_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS})
-		else()
-			target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
-		endif()
-		target_compile_definitions(scratch-everywhere PRIVATE OPENGL_WINDOWING_SDL3)
-	else()
-		target_link_libraries(scratch-everywhere PRIVATE glfw)
-		target_compile_definitions(scratch-everywhere PRIVATE OPENGL_WINDOWING_GLFW)
-	endif()
-
 	target_link_libraries(scratch-everywhere PRIVATE OpenGL::GL)
 	if(SE_OPENGL_ES)
 		target_link_libraries(scratch-everywhere PRIVATE OpenGL::GLES2)
 		target_compile_definitions(scratch-everywhere PRIVATE USE_GLES)
 	endif()
 	target_include_directories(scratch-everywhere PRIVATE include)
+endif()
+
+if(SE_WINDOWING STREQUAL "sdl1")
+	if(SE_SYSTEM)
+		target_link_libraries(scratch-everywhere PRIVATE ${SDL_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS})
+	else()
+		target_link_libraries(scratch-everywhere PRIVATE SDL::SDL)
+	endif()
+	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL1)
+elseif(SE_WINDOWING STREQUAL "sdl2")
+	if(SE_SYSTEM)
+		target_link_libraries(scratch-everywhere PRIVATE ${SDL2_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS})
+	else()
+		target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2)
+		if(WIN32)
+			target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2main)
+		endif()
+	endif()
+    target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL2)
+elseif(SE_WINDOWING STREQUAL "sdl3")
+	if(SE_SYSTEM)
+		target_link_libraries(scratch-everywhere PRIVATE ${SDL3_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS})
+	else()
+		target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
+	endif()
+	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL3)
+else()
+	target_link_libraries(scratch-everywhere PRIVATE glfw)
+	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_GLFW)
 endif()
 
 if(SE_SYSTEM)

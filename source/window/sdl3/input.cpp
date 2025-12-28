@@ -1,11 +1,4 @@
-#ifdef RENDERER_OPENGL
-#include "../opengl/sdl3/window.hpp"
-#else
-#include "render.hpp"
-#endif
-#ifdef __SWITCH__
-#include <switch.h>
-#endif
+#include "window.hpp"
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
@@ -213,9 +206,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     enterText->setCenterAligned(true);
     enterText->setColor(Math::color(0, 0, 0, 255));
 
-#ifdef RENDERER_OPENGL
     SDL_Window *window = (SDL_Window *)globalWindow->getHandle();
-#endif
     SDL_StartTextInput(window);
 
     std::string inputText = "";
