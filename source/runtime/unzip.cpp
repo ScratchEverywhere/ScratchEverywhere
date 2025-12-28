@@ -1,12 +1,12 @@
 #include "unzip.hpp"
-#include <image.hpp>
 #include "input.hpp"
-#include <menus/loading.hpp>
 #include <cstring>
 #include <ctime>
 #include <errno.h>
 #include <fstream>
+#include <image.hpp>
 #include <istream>
+#include <menus/loading.hpp>
 #include <random>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -19,14 +19,18 @@
 #include <dirent.h>
 #endif
 
+#ifdef ENABLE_LOADSCREEN
 #ifdef __3DS__
 #include <3ds.h>
 #elif defined(RENDERER_SDL1)
 #include "SDL/SDL.h"
-#elif defined(RENDERER_SDL2)
+#elif defined(RENDERER_SDL2) || defined(OPENGL_WINDOWING_SDL2)
 #include "SDL2/SDL.h"
-#elif defined(RENDERER_SDL3)
+#elif defined(RENDERER_SDL3) || defined(OPENGL_WINDOWING_SDL3)
 #include "SDL3/SDL.h"
+#else
+#include <thread>
+#endif
 #endif
 
 #ifdef USE_CMAKERC
@@ -183,10 +187,10 @@ bool Unzip::load() {
     loading.cleanup();
     osSetSpeedupEnable(false);
 
-#elif defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(RENDERER_SDL3) // create SDL thread for loading screen
+#elif defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(OPENGL_WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(OPENGL_WINDOWING_SDL3) // create SDL thread for loading screen
 #ifdef RENDERER_SDL1
     SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, nullptr);
-#elif defined(RENDERER_SDL2)
+#elif defined(RENDERER_SDL2) || defined(OPENGL_WINDOWING_SDL2)
     SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x15000, nullptr);
 #else
     SDL_PropertiesID props = SDL_CreateProperties();
@@ -207,6 +211,21 @@ bool Unzip::load() {
             loading.render();
         }
         SDL_WaitThread(thread, nullptr);
+        loading.cleanup();
+    } else Unzip::openScratchProject(NULL);
+
+    if (Unzip::projectOpened != 1)
+        return false;
+#else                 // create thread for loading screen
+    std::thread thread(projectLoaderThread, nullptr);
+    if (thread.joinable()) {
+        Loading loading;
+        loading.init();
+
+        while (!Unzip::threadFinished) {
+            loading.render();
+        }
+        thread.join();
         loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 

@@ -1,10 +1,15 @@
+#ifdef RENDERER_OPENGL
+#include "../opengl/sdl2/window.hpp"
+#else
 #include "render.hpp"
+#endif
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
 #include <input.hpp>
 #include <map>
+#include <render.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <vector>
@@ -116,11 +121,11 @@ void Input::getInput() {
         else if (scancode == (SDL_Scancode)489) keyName = "r";
         else if (scancode == (SDL_Scancode)452) keyName = "z";
         else if (scancode == (SDL_Scancode)451) keyName = "f";
-            // REMOTE SCANCODES
-            // color dots: 486-489
-            // forward: 451 | backward: 452
-            // record: 453
-            // play: 450
+        // REMOTE SCANCODES
+        // color dots: 486-489
+        // forward: 451 | backward: 452
+        // record: 453
+        // play: 450
 #else
         else if (keyName == "return") keyName = "enter";
 #endif
@@ -201,7 +206,7 @@ void Input::getInput() {
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     if (SDL_GetNumTouchDevices() > 0 && SDL_GetNumTouchFingers(SDL_GetTouchDevice(0))) {
         // Transform touch coordinates to Scratch space
-        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
@@ -213,7 +218,7 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 
