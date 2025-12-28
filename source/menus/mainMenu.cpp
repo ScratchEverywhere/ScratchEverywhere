@@ -192,7 +192,10 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
-    if (settings != nullptr) delete settings;
+    if (settings != nullptr) {
+        delete settings;
+        settings = nullptr;
+    }
 
     if (logo) {
         delete logo;

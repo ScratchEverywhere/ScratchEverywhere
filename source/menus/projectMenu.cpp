@@ -245,7 +245,10 @@ void ProjectMenu::render() {
 }
 
 void ProjectMenu::cleanup() {
-    if (settings != nullptr) delete settings;
+    if (settings != nullptr) {
+        delete settings;
+        settings = nullptr;
+    }
 
     projectFiles.clear();
     UnzippedFiles.clear();
