@@ -170,8 +170,6 @@ static void preparePenDrawing() {
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_SCISSOR_TEST); // we want to draw lines starting from outside
-    glEnable(GL_SCISSOR_TEST);  // wait actually we want to clip to texture bounds
 
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
