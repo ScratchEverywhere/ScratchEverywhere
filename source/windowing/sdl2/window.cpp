@@ -238,6 +238,7 @@ void WindowSDL2::pollEvents() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
+            OS::toExit = true;
             shouldCloseFlag = true;
             break;
         case SDL_WINDOWEVENT:

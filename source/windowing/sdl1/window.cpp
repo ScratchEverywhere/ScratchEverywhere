@@ -5,7 +5,6 @@
 #include <render.hpp>
 #include <thread>
 #ifdef RENDERER_OPENGL
-#include <GL/gl.h>
 #include <renderers/opengl/render.hpp>
 #else
 #include <renderers/sdl1/render.hpp>
@@ -70,6 +69,7 @@ void WindowSDL1::pollEvents() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
+        	OS::toExit = true;
             shouldCloseFlag = true;
             break;
         case SDL_VIDEORESIZE:

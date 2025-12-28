@@ -69,11 +69,11 @@ bool Render::Init() {
 
 bool Render::appShouldRun() {
     if (OS::toExit) return false;
-    if (globalWindow) {
-        globalWindow->pollEvents();
-        return !globalWindow->shouldClose();
+    if (!globalWindow->shouldClose()) {
+    	OS::toExit = true;
+    	return false;
     }
-    return false;
+    return true;
 }
 
 void *Render::getRenderer() {

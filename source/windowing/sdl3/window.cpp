@@ -176,6 +176,7 @@ void WindowSDL3::pollEvents() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_EVENT_QUIT:
+            OS::toExit = true;
             shouldCloseFlag = true;
             break;
         case SDL_EVENT_WINDOW_RESIZED: {
