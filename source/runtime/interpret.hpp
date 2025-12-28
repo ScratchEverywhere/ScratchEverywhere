@@ -10,7 +10,7 @@
 #elif defined(RENDERER_SDL3)
 #include "speech_manager_sdl3.hpp"
 #elif defined(__NDS__)
-#include "speech_manager_nds.hpp"
+#include "speech_manager_gl2d.hpp"
 #else
 #include "speech_manager.hpp"
 #endif
@@ -32,8 +32,8 @@ class BlockExecutor;
 extern BlockExecutor executor;
 
 #ifdef __3DS__
-class SpeechManager3DS;
-extern SpeechManager3DS *speechManager;
+class SpeechManagerC2D;
+extern SpeechManagerC2D *speechManager;
 #elif defined(RENDERER_SDL1)
 class SpeechManagerSDL1;
 extern SpeechManagerSDL1 *speechManager;
@@ -44,8 +44,8 @@ extern SpeechManagerSDL2 *speechManager;
 class SpeechManagerSDL3;
 extern SpeechManagerSDL3 *speechManager;
 #elif defined(__NDS__)
-class SpeechManagerNDS;
-extern SpeechManagerNDS *speechManager;
+class SpeechManagerGL2D;
+extern SpeechManagerGL2D *speechManager;
 #else
 class SpeechManager;
 extern SpeechManager *speechManager;

@@ -1,4 +1,5 @@
 #include "speech_manager_sdl3.hpp"
+#include "image.hpp"
 #include <image.hpp>
 #include <interpret.hpp>
 

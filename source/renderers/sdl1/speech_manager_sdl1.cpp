@@ -1,4 +1,5 @@
 #include "speech_manager_sdl1.hpp"
+#include "image.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_gfxBlitFunc.h>
 #include <SDL/SDL_rotozoom.h>
@@ -6,30 +7,30 @@
 #include <interpret.hpp>
 #include <render.hpp>
 
-SpeechManagerSDL::SpeechManagerSDL(SDL_Surface *window) : window(window) {
+SpeechManagerSDL1::SpeechManagerSDL1(SDL_Surface *window) : window(window) {
     speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");
 }
 
-SpeechManagerSDL::~SpeechManagerSDL() {
+SpeechManagerSDL1::~SpeechManagerSDL1() {
     cleanup();
 }
 
-void SpeechManagerSDL::ensureImagesLoaded() {
+void SpeechManagerSDL1::ensureImagesLoaded() {
     if (images.find(speechIndicatorImage->imageId) == images.end()) {
         Image::loadImageFromFile("gfx/ingame/speech_simple.svg", nullptr, false);
     }
 }
 
-double SpeechManagerSDL::getCurrentTime() {
+double SpeechManagerSDL1::getCurrentTime() {
     return SDL_GetTicks() / 1000.0;
 }
 
-void SpeechManagerSDL::createSpeechObject(Sprite *sprite, const std::string &message) {
+void SpeechManagerSDL1::createSpeechObject(Sprite *sprite, const std::string &message) {
     speechObjects[sprite] = std::make_unique<SpeechTextObjectSDL>(message, 200);
     static_cast<SpeechTextObjectSDL *>(speechObjects[sprite].get())->setRenderer(window);
 }
 
-void SpeechManagerSDL::render() {
+void SpeechManagerSDL1::render() {
     if (!window) return;
 
     ensureImagesLoaded();
@@ -105,7 +106,7 @@ void SpeechManagerSDL::render() {
     }
 }
 
-void SpeechManagerSDL::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
+void SpeechManagerSDL1::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
     auto styleIt = speechStyles.find(sprite);
     if (styleIt == speechStyles.end()) return;
 

@@ -1,8 +1,8 @@
 #pragma once
 
+#include <speech_manager.hpp>
 #include "speech_text_c2d.hpp"
 #include <memory>
-#include <speech_manager.hpp>
 
 class Image;
 

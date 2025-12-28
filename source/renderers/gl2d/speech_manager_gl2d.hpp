@@ -4,9 +4,8 @@
 #include <memory>
 
 class Image;
-class SpeechTextObjectNDS;
 
-class SpeechManagerNDS : public SpeechManager {
+class SpeechManagerGL2D : public SpeechManager {
   private:
     std::unique_ptr<Image> speechIndicatorImage;
 
@@ -19,8 +18,8 @@ class SpeechManagerNDS : public SpeechManager {
     void ensureImagesLoaded();
 
   public:
-    SpeechManagerNDS();
-    ~SpeechManagerNDS();
+    SpeechManagerGL2D();
+    ~SpeechManagerGL2D();
 
     void render() override;
 };

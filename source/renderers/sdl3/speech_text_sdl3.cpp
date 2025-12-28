@@ -1,8 +1,8 @@
 #include "speech_text_sdl3.hpp"
+#include <os.hpp>
 #include "text.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include <os.hpp>
 
 #ifdef __PC__
 #include <cmrc/cmrc.hpp>
@@ -11,16 +11,16 @@ CMRC_DECLARE(romfs);
 #endif
 
 SpeechTextObjectSDL3::SpeechTextObjectSDL3(const std::string &text, int maxWidth)
-    : TextObjectSDL(text, 0, 0), SpeechText(text, maxWidth) {
+    : TextObjectSDL3(text, 0, 0), SpeechText(text, maxWidth) {
     setColor(0x00);
     setCenterAligned(false); // easier for positioning logic
 
     if (font && !pathFont.empty()) {
-        TextObjectSDL::fontUsageCount[pathFont]--;
-        if (TextObjectSDL::fontUsageCount[pathFont] <= 0) {
-            TTF_CloseFont(TextObjectSDL::fonts[pathFont]);
-            TextObjectSDL::fonts.erase(pathFont);
-            TextObjectSDL::fontUsageCount.erase(pathFont);
+        TextObjectSDL3::fontUsageCount[pathFont]--;
+        if (TextObjectSDL3::fontUsageCount[pathFont] <= 0) {
+            TTF_CloseFont(TextObjectSDL3::fonts[pathFont]);
+            TextObjectSDL3::fonts.erase(pathFont);
+            TextObjectSDL3::fontUsageCount.erase(pathFont);
         }
         font = nullptr;
         pathFont.clear();
@@ -55,7 +55,7 @@ float SpeechTextObjectSDL3::measureTextWidth(const std::string &text) {
 }
 
 void SpeechTextObjectSDL3::platformSetText(const std::string &text) {
-    TextObjectSDL::setText(text);
+    TextObjectSDL3::setText(text);
 }
 
 void SpeechTextObjectSDL3::setText(std::string txt) {

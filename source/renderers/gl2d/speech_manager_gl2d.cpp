@@ -1,33 +1,34 @@
-#include "speech_manager_nds.hpp"
+#include "speech_manager_gl2d.hpp"
+#include "image.hpp"
 #include <image.hpp>
 #include <interpret.hpp>
 #include <math.hpp>
+#include "speech_text_gl2d.hpp"
 #include <nds.h>
-#include <speech_text_nds.hpp>
 
-SpeechManagerNDS::SpeechManagerNDS() {
+SpeechManagerGL2D::SpeechManagerGL2D() {
     speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");
 }
 
-SpeechManagerNDS::~SpeechManagerNDS() {
+SpeechManagerGL2D::~SpeechManagerGL2D() {
     cleanup();
 }
 
-void SpeechManagerNDS::ensureImagesLoaded() {
+void SpeechManagerGL2D::ensureImagesLoaded() {
     if (images.find(speechIndicatorImage->imageId) == images.end()) {
         Image::loadImageFromFile("gfx/ingame/speech_simple.svg", nullptr, false);
     }
 }
 
-double SpeechManagerNDS::getCurrentTime() {
+double SpeechManagerGL2D::getCurrentTime() {
     return cpuGetTiming() / 33513982.0;
 }
 
-void SpeechManagerNDS::createSpeechObject(Sprite *sprite, const std::string &message) {
-    speechObjects[sprite] = std::make_unique<SpeechTextObjectNDS>(message, 100);
+void SpeechManagerGL2D::createSpeechObject(Sprite *sprite, const std::string &message) {
+    speechObjects[sprite] = std::make_unique<SpeechTextObjectGL2D>(message, 100);
 }
 
-void SpeechManagerNDS::render() {
+void SpeechManagerGL2D::render() {
     // Ensure images are loaded (they may have been cleaned up)
     ensureImagesLoaded();
 
@@ -55,7 +56,7 @@ void SpeechManagerNDS::render() {
             int spriteRight = spriteCenterX + (spriteWidth / 2);
 
             // determine horizontal positioning based on sprite's side of screen
-            SpeechTextObjectNDS *speechObj = static_cast<SpeechTextObjectNDS *>(obj.get());
+            SpeechTextObjectGL2D *speechObj = static_cast<SpeechTextObjectGL2D *>(obj.get());
 
             auto textSize = speechObj->getSize();
             int textWidth = static_cast<int>(textSize[0]);
@@ -97,7 +98,7 @@ void SpeechManagerNDS::render() {
     }
 }
 
-void SpeechManagerNDS::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
+void SpeechManagerGL2D::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
     auto styleIt = speechStyles.find(sprite);
     if (styleIt == speechStyles.end()) return;
 

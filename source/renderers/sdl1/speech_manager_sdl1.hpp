@@ -7,7 +7,7 @@
 
 class Image;
 
-class SpeechManagerSDL : public SpeechManager {
+class SpeechManagerSDL1 : public SpeechManager {
   private:
     SDL_Surface *window;
     std::unique_ptr<Image> speechIndicatorImage;
@@ -21,8 +21,8 @@ class SpeechManagerSDL : public SpeechManager {
     void ensureImagesLoaded();
 
   public:
-    SpeechManagerSDL(SDL_Surface *window);
-    ~SpeechManagerSDL();
+    SpeechManagerSDL1(SDL_Surface *window);
+    ~SpeechManagerSDL1();
 
     void render() override;
 };

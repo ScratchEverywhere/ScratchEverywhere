@@ -60,7 +60,7 @@ bool Render::Init() {
 
     romfsInit();
 
-    speechManager = new SpeechManager3DS();
+    speechManager = new SpeechManagerC2D();
 
     return true;
 }

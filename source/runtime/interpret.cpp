@@ -55,7 +55,7 @@ ProjectType projectType;
 BlockExecutor executor;
 
 #ifdef __3DS__
-SpeechManager3DS *speechManager = nullptr;
+SpeechManagerC2D *speechManager = nullptr;
 #elif defined(RENDERER_SDL1)
 SpeechManagerSDL1 *speechManager = nullptr;
 #elif defined(RENDERER_SDL2)
@@ -63,7 +63,7 @@ SpeechManagerSDL2 *speechManager = nullptr;
 #elif defined(RENDERER_SDL3)
 SpeechManagerSDL3 *speechManager = nullptr;
 #elif defined(__NDS__)
-SpeechManagerNDS *speechManager = nullptr;
+SpeechManagerGL2D *speechManager = nullptr;
 #else
 SpeechManager *speechManager = nullptr;
 #endif

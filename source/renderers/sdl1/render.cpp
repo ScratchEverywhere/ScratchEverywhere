@@ -62,7 +62,7 @@ bool Render::Init() {
 
     if (SDL_NumJoysticks() > 0) controller = SDL_JoystickOpen(0);
 
-    speechManager = new SpeechManagerSDL(window);
+    speechManager = new SpeechManagerSDL1(window);
 
     debugMode = true;
 

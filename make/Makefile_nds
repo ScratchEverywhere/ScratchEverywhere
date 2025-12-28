@@ -78,8 +78,6 @@ LIBS	:= -lstdc++ -lc -lnds9 -lmm9
 LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
 
 ifeq ($(ENABLE_MENU),1)
-SOURCES += source/scratch/menus
-INCLUDES += source/scratch/menus
 CFLAGS	+=	-DENABLE_MENU
 endif
 

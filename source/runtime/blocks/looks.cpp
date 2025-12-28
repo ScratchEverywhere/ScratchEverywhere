@@ -9,7 +9,7 @@
 #elif defined(RENDERER_SDL3)
 #include "speech_manager_sdl3.hpp"
 #elif defined(__NDS__)
-#include "speech_manager_nds.hpp"
+#include "speech_manager_gl2d.hpp"
 #else
 #include "speech_manager.hpp"
 #endif

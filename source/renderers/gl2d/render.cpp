@@ -1,5 +1,5 @@
 #include "image.hpp"
-#include "speech_manager_nds.hpp"
+#include "speech_manager_gl2d.hpp"
 #include <audio.hpp>
 #include <fat.h>
 #include <filesystem.h>
@@ -60,7 +60,7 @@ bool Render::Init() {
         debugMode = true;
     }
 
-    speechManager = new SpeechManagerNDS();
+    speechManager = new SpeechManagerGL2D();
 
     return true;
 }
@@ -93,6 +93,7 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Render::endFrame(bool shouldFlush) {
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
+    swiWaitForVBlank();
     if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }

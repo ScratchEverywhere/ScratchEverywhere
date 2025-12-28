@@ -1,32 +1,32 @@
-#include "speech_text_nds.hpp"
-#include "text_nds.hpp"
+#include "speech_text_gl2d.hpp"
 #include <math.hpp>
+#include "text_gl2d.hpp"
 
-SpeechTextObjectNDS::SpeechTextObjectNDS(const std::string &text, int maxWidth)
-    : TextObjectNDS(text, 0, 0, "gfx/menu/Ubuntu-Bold", 14), SpeechText(text, maxWidth) {
+SpeechTextObjectGL2D::SpeechTextObjectGL2D(const std::string &text, int maxWidth)
+    : TextObjectGL2D(text, 0, 0, "gfx/menu/Ubuntu-Bold", 14), SpeechText(text, maxWidth) {
     setColor(Math::color(0, 0, 0, 255));
     setCenterAligned(false);
     platformSetText(wrapText());
 }
 
-float SpeechTextObjectNDS::measureTextWidth(const std::string &text) {
+float SpeechTextObjectGL2D::measureTextWidth(const std::string &text) {
     if (text.empty()) return 0.0f;
 
-    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
+    TextObjectGL2D temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
     temp.setText(text);
     auto size = temp.getSize();
     return size[0];
 }
 
-void SpeechTextObjectNDS::platformSetText(const std::string &text) {
-    TextObjectNDS::setText(text);
+void SpeechTextObjectGL2D::platformSetText(const std::string &text) {
+    TextObjectGL2D::setText(text);
 }
 
-void SpeechTextObjectNDS::setText(std::string txt) {
+void SpeechTextObjectGL2D::setText(std::string txt) {
     SpeechText::setText(txt);
 }
 
-std::vector<float> SpeechTextObjectNDS::getSize() {
+std::vector<float> SpeechTextObjectGL2D::getSize() {
     std::vector<std::string> lines = splitTextByNewlines(getText());
     if (lines.empty()) {
         return {0.0f, 0.0f};
@@ -34,7 +34,7 @@ std::vector<float> SpeechTextObjectNDS::getSize() {
 
     float maxWidth = 0.0f;
     float totalHeight = 0.0f;
-    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
+    TextObjectGL2D temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
     temp.setColor(color);
     temp.setCenterAligned(false);
 
@@ -56,11 +56,11 @@ std::vector<float> SpeechTextObjectNDS::getSize() {
     return {maxWidth, totalHeight};
 }
 
-void SpeechTextObjectNDS::render(int xPos, int yPos) {
+void SpeechTextObjectGL2D::render(int xPos, int yPos) {
     std::vector<std::string> lines = splitTextByNewlines(getText());
     if (lines.empty()) return;
 
-    TextObjectNDS temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
+    TextObjectGL2D temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
     temp.setColor(color);
     temp.setCenterAligned(false);
 
@@ -80,7 +80,7 @@ void SpeechTextObjectNDS::render(int xPos, int yPos) {
     }
 }
 
-std::vector<std::string> SpeechTextObjectNDS::splitTextByNewlines(const std::string &text) {
+std::vector<std::string> SpeechTextObjectGL2D::splitTextByNewlines(const std::string &text) {
     std::vector<std::string> lines;
     std::string currentLine;
 
