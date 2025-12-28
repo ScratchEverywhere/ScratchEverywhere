@@ -196,23 +196,3 @@ void Input::getInput() {
 
     BlockExecutor::doSpriteClicking();
 }
-
-std::string Input::getUsername() {
-    if (useCustomUsername) {
-        return customUsername;
-    }
-#ifdef ENABLE_CLOUDVARS
-    if (cloudProject) return cloudUsername;
-#endif
-#ifdef __SWITCH__
-    if (std::string(nickname) != "") return std::string(nickname);
-#elif defined(VITA)
-    static SceChar8 username[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE];
-    sceAppUtilSystemParamGetString(
-        SCE_SYSTEM_PARAM_ID_USERNAME,
-        username,
-        sizeof(username));
-    return std::string(reinterpret_cast<char *>(username));
-#endif
-    return "Player";
-}

@@ -123,7 +123,3 @@ void Input::getInput() {
 
     BlockExecutor::doSpriteClicking();
 }
-
-std::string Input::getUsername() {
-    return "";
-}

@@ -163,37 +163,3 @@ void Input::getInput() {
 
     BlockExecutor::doSpriteClicking();
 }
-
-/**
- * Grabs the 3DS's Nickname.
- * @return String of the 3DS's nickname
- */
-std::string Input::getUsername() {
-    if (useCustomUsername) {
-        return customUsername;
-    }
-#ifdef ENABLE_CLOUDVARS
-    if (cloudProject) return cloudUsername;
-#endif
-
-    const u16 *block = (const u16 *)malloc(0x1C);
-
-    cfguInit();
-    CFGU_GetConfigInfoBlk2(0x1C, 0xA0000, (u8 *)block);
-    cfguExit();
-
-    char *usernameBuffer = (char *)malloc(0x14);
-    ssize_t length = utf16_to_utf8((u8 *)usernameBuffer, block, 0x14);
-
-    std::string username;
-    if (length <= 0) {
-        username = "Player";
-    } else {
-        username = std::string(usernameBuffer, length); // Convert char* to std::string
-    }
-
-    free((void *)block);  // Free the memory allocated for block
-    free(usernameBuffer); // Free the memory allocated for usernameBuffer
-
-    return username;
-}

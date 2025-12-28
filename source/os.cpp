@@ -275,6 +275,59 @@ void OS::deInitWifi() {
         socExit();
 #endif
 }
+
+std::string OS::getUsername() {
+#ifdef __WIIU__
+    int16_t miiName[256];
+    nn::act::GetMiiName(miiName);
+    return std::string(miiName, miiName + sizeof(miiName) / sizeof(miiName[0]));
+#elif defined(__SWITCH__)
+    if (std::string(nickname) != "") return std::string(nickname);
+#elif defined(VITA)
+    static SceChar8 username[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE];
+    sceAppUtilSystemParamGetString(
+        SCE_SYSTEM_PARAM_ID_USERNAME,
+        username,
+        sizeof(username));
+    return std::string(reinterpret_cast<char *>(username));
+#elif defined(WII)
+
+    CONF_Init();
+    u8 nickname[24];
+    if (CONF_GetNickName(nickname) != 0) {
+        return std::string(reinterpret_cast<char *>(nickname));
+    }
+#elif defined(__PS4__)
+    char username[32];
+    sceUserServiceGetInitialUser(&userId);
+    if (sceUserServiceGetUserName(userId, username, 31) == 0) {
+        return std::string(reinterpret_cast<char *>(username));
+    }
+#elif defined(__3DS__)
+    const u16 *block = (const u16 *)malloc(0x1C);
+
+    cfguInit();
+    CFGU_GetConfigInfoBlk2(0x1C, 0xA0000, (u8 *)block);
+    cfguExit();
+
+    char *usernameBuffer = (char *)malloc(0x14);
+    ssize_t length = utf16_to_utf8((u8 *)usernameBuffer, block, 0x14);
+
+    std::string username;
+    if (length <= 0) {
+        username = "Player";
+    } else {
+        username = std::string(usernameBuffer, length);
+    }
+
+    free((void *)block);
+    free(usernameBuffer);
+
+    return username;
+#endif
+    return "Player";
+}
+
 void OS::createDirectory(const std::string &path) {
     std::string p = path;
     std::replace(p.begin(), p.end(), '\\', '/');

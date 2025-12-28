@@ -61,6 +61,14 @@ class Scratch {
 
     static bool nextProject;
     static Value dataNextProject;
+
+    static bool useCustomUsername;
+    static std::string customUsername;
+
+#ifdef ENABLE_CLOUDVARS
+    static bool cloudProject;
+    static std::string cloudUsername;
+#endif
 };
 
 /**

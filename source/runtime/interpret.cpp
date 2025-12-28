@@ -31,16 +31,13 @@
 const uint64_t FNV_PRIME_64 = 1099511628211ULL;
 const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
 
-std::string cloudUsername;
+std::string Scratch::cloudUsername;
+bool Scratch::cloudProject = false;
 
 std::string projectJSON;
-extern bool cloudProject;
 
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 #endif
-
-bool useCustomUsername;
-std::string customUsername;
 
 std::vector<Sprite *> sprites;
 Sprite *stageSprite;
@@ -69,9 +66,8 @@ double Scratch::counter = 0;
 bool Scratch::nextProject = false;
 Value Scratch::dataNextProject;
 
-#ifdef ENABLE_CLOUDVARS
-bool cloudProject = false;
-#endif
+bool Scratch::useCustomUsername = false;
+std::string Scratch::customUsername;
 
 #ifdef ENABLE_CLOUDVARS
 void initMist() {
@@ -91,13 +87,13 @@ void initMist() {
         std::random_device rd;
         std::ostringstream usernameStream;
         usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
-        cloudUsername = usernameStream.str();
+        Scratch::cloudUsername = usernameStream.str();
         std::ofstream usernameFile;
         usernameFile.open(usernameFilename);
-        usernameFile << cloudUsername;
+        usernameFile << Scratch::cloudUsername;
         usernameFile.close();
     } else {
-        fileStream >> cloudUsername;
+        fileStream >> Scratch::cloudUsername;
     }
     fileStream.close();
 
@@ -109,7 +105,7 @@ void initMist() {
 
     std::ostringstream projectID;
     projectID << "Scratch-3DS/hash-" << std::hex << std::setw(16) << std::setfill('0') << projectHash;
-    cloudConnection = std::make_unique<MistConnection>(projectID.str(), cloudUsername, "contact@grady.link");
+    cloudConnection = std::make_unique<MistConnection>(projectID.str(), Scratch::cloudUsername, "contact@grady.link");
 
     cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
         if (connected) {
@@ -132,13 +128,13 @@ void initMist() {
 #endif
 
 void loadUsernameFromSettings() {
-    customUsername = "Player";
-    useCustomUsername = false;
+    Scratch::customUsername = "Player";
+    Scratch::useCustomUsername = false;
 
     nlohmann::json j = SettingsManager::getConfigSettings();
 
     if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
-        useCustomUsername = j["EnableUsername"].get<bool>();
+        Scratch::useCustomUsername = j["EnableUsername"].get<bool>();
     }
 
     if (j.contains("Username") && j["Username"].is_string()) {
@@ -150,8 +146,8 @@ void loadUsernameFromSettings() {
                 break;
             }
         }
-        if (hasNonSpace) customUsername = j["Username"].get<std::string>();
-        else customUsername = "Player";
+        if (hasNonSpace) Scratch::customUsername = j["Username"].get<std::string>();
+        else Scratch::customUsername = "Player";
     }
 }
 
@@ -711,7 +707,7 @@ void loadSprites(const nlohmann::json &json) {
             newVariable.value = Value::fromJson(data[1]);
 #ifdef ENABLE_CLOUDVARS
             newVariable.cloud = data.size() == 3;
-            cloudProject = cloudProject || newVariable.cloud;
+            Scratch::cloudProject = Scratch::cloudProject || newVariable.cloud;
 #endif
             newSprite->variables[newVariable.id] = newVariable; // add variable to sprite
         }

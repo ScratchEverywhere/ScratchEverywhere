@@ -12,7 +12,3 @@ std::vector<int> Input::getTouchPosition() {
 
 void Input::getInput() {
 }
-
-std::string Input::getUsername() {
-    return "";
-}

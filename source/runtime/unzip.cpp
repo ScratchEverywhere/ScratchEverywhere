@@ -216,7 +216,7 @@ bool Unzip::load() {
 
     if (Unzip::projectOpened != 1)
         return false;
-#else                 // create thread for loading screen
+#else // create thread for loading screen
     std::thread thread(projectLoaderThread, nullptr);
     if (thread.joinable()) {
         Loading loading;
@@ -384,7 +384,7 @@ std::string Unzip::getSplashText() {
     const std::string platformPlaceholder = "{PlatformName}";
     const std::string platform = OS::getPlatform();
     const std::string usernamePlaceholder = "{UserName}";
-    const std::string username = Input::getUsername();
+    const std::string username = OS::getUsername();
 
     size_t pos = 0;
 

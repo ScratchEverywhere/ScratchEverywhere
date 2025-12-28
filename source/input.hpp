@@ -29,7 +29,6 @@ class Input {
 
     static std::vector<int> getTouchPosition();
     static void getInput();
-    static std::string getUsername();
 
     static void applyControls(std::string controlsFilePath = "") {
         Input::inputControls.clear();

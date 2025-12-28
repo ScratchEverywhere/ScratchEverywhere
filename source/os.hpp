@@ -188,6 +188,11 @@ bool initWifi();
 void deInitWifi();
 
 /**
+ * Gets the device's nickname, or the user's custom username if set.
+ */
+std::string getUsername();
+
+/**
  * Create a directory.
  * @param path The path of the directory to create.
  */

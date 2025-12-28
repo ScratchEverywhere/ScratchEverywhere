@@ -155,5 +155,9 @@ SCRATCH_REPORTER_BLOCK(sensing, mousedown) {
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, username) {
-    return Value(Input::getUsername());
+#ifdef ENABLE_CLOUDVARS
+    if (Scratch::cloudProject) return Value(Scratch::cloudUsername);
+#endif
+    if (Scratch::useCustomUsername) return Value(Scratch::customUsername);
+    return Value(OS::getUsername());
 }

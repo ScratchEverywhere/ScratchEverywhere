@@ -143,13 +143,3 @@ void Input::getInput() {
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
 }
-
-std::string Input::getUsername() {
-    if (useCustomUsername) {
-        return customUsername;
-    }
-#ifdef ENABLE_CLOUDVARS
-    if (cloudProject) return cloudUsername;
-#endif
-    return "Player";
-}
