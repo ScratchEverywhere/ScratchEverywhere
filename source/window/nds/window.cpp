@@ -3,6 +3,7 @@
 #include <filesystem.h>
 #include <input.hpp>
 #include <nds/arm9/dldi.h>
+#include <render.hpp>
 
 bool WindowNDS::init(int w, int h, const std::string &title) {
     cpuStartTiming(0);
