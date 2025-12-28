@@ -30,16 +30,18 @@ class Scratch {
     /**
      * Gets the top level block of the specified `Block`.
      * @param block
+     * @param sprite
      * @return The top level parent of the specified `block`.
      */
-    static Block *getBlockParent(const Block *block);
+    static Block *getBlockParent(const Block *block, Sprite* sprite);
 
     /**
-     * Finds a block from the `blockLookup`.
+     * Finds a block from a sprite.
      * @param blockId ID of the block you need
+     * @param sprite The sprite to limit the search to.
      * @return A `Block*` if it's found, `nullptr` otherwise.
      */
-    static Block *findBlock(std::string blockId);
+    static Block *findBlock(std::string blockId, Sprite* sprite);
 
     /**
      * Gets the Sprite's box collision points.
@@ -82,7 +84,6 @@ class Scratch {
     static Sprite *stageSprite;
     static std::vector<std::string> broadcastQueue;
     static std::vector<Sprite *> cloneQueue;
-    static std::unordered_map<std::string, Block *> blockLookup;
     static std::string answer;
     static ProjectType projectType;
 

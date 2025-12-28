@@ -182,7 +182,7 @@ void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockCh
 
     while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
         const std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
-        Block *toRun = Scratch::findBlock(toRepeat);
+        Block *toRun = Scratch::findBlock(toRepeat, sprite);
         if (toRun != nullptr)
             executor.runBlock(*toRun, sprite, &withoutRefresh, true);
     }
@@ -495,8 +495,8 @@ void BlockExecutor::handleCloudVariableChange(const std::string &name, const std
 
 Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, Block block) {
     // get the parent prototype block
-    Block *const definitionBlock = Scratch::getBlockParent(&block);
-    const Block *prototypeBlock = Scratch::findBlock(Scratch::getInputValue(*definitionBlock, "custom_block", sprite).asString());
+    Block *const definitionBlock = Scratch::getBlockParent(&block, sprite);
+    const Block *prototypeBlock = Scratch::findBlock(Scratch::getInputValue(*definitionBlock, "custom_block", sprite).asString(), sprite);
 
     for (auto &[custId, custBlock] : sprite->customBlocks) {
         // variable must be in the same custom block

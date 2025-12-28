@@ -23,7 +23,6 @@ std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
 std::vector<std::string> Scratch::broadcastQueue;
 std::vector<Sprite *> Scratch::cloneQueue;
-std::unordered_map<std::string, Block *> Scratch::blockLookup;
 std::string Scratch::answer;
 ProjectType Scratch::projectType;
 
@@ -95,7 +94,6 @@ void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
-    blockLookup.clear();
 
     for (auto &[id, textPair] : Render::monitorTexts) {
         delete textPair.first;
@@ -529,21 +527,19 @@ void Scratch::sortSprites() {
               });
 }
 
-Block *Scratch::findBlock(std::string blockId) {
-
-    auto block = blockLookup.find(blockId);
-    if (block != blockLookup.end()) {
-        return block->second;
+Block *Scratch::findBlock(std::string blockId, Sprite* sprite) {
+    auto block = sprite->blocks.find(blockId);
+    if (block == sprite->blocks.end()) {
+        return nullptr;
     }
-
-    return nullptr;
+    return &block->second;
 }
 
-Block *Scratch::getBlockParent(const Block *block) {
+Block *Scratch::getBlockParent(const Block *block, Sprite* sprite) {
     Block *parentBlock;
     const Block *currentBlock = block;
     while (currentBlock->parent != "null") {
-        parentBlock = findBlock(currentBlock->parent);
+        parentBlock = findBlock(currentBlock->parent, sprite);
         if (parentBlock != nullptr) {
             currentBlock = parentBlock;
         } else {
@@ -570,10 +566,10 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
         return BlockExecutor::getVariableValue(input.variableId, sprite);
 
     case ParsedInput::BLOCK:
-        return executor.getBlockValue(*findBlock(input.blockId), sprite);
+        return executor.getBlockValue(*findBlock(input.blockId, sprite), sprite);
 
     case ParsedInput::BOOLEAN:
-        return executor.getBlockValue(*findBlock(input.blockId), sprite);
+        return executor.getBlockValue(*findBlock(input.blockId, sprite), sprite);
     }
     return Value();
 }

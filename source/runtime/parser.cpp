@@ -453,18 +453,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
         Render::visibleVariables.push_back(newMonitor);
     }
 
-    // load block lookup table
-    Scratch::blockLookup.clear();
-    for (Sprite *sprite : Scratch::sprites) {
-        for (auto &[id, block] : sprite->blocks) {
-            Scratch::blockLookup[id] = &block;
-        }
-    }
     // setup top level blocks
     for (Sprite *currentSprite : Scratch::sprites) {
         for (auto &[id, block] : currentSprite->blocks) {
             if (block.topLevel) continue;                                    // skip top level blocks
-            block.topLevelParentBlock = Scratch::getBlockParent(&block)->id; // get parent block id
+            block.topLevelParentBlock = Scratch::getBlockParent(&block, currentSprite)->id; // get parent block id
             // std::cout<<"block id = "<< block.topLevelParentBlock << std::endl;
         }
     }
@@ -618,7 +611,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
             if (!block.topLevel) continue;
             std::string outID;
             BlockChain chain;
-            chain.blockChain = Parser::getBlockChain(block.id, &outID);
+            chain.blockChain = Parser::getBlockChain(block.id, currentSprite, &outID);
             currentSprite->blockChains[outID] = chain;
             // std::cout << "ok = " << outID << std::endl;
             block.blockChainID = outID;
@@ -638,9 +631,9 @@ void Parser::loadSprites(const nlohmann::json &json) {
     Log::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
 }
 
-std::vector<Block *> Parser::getBlockChain(std::string blockId, std::string *outID) {
+std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite* sprite, std::string *outID) {
     std::vector<Block *> blockChain;
-    Block *currentBlock = Scratch::findBlock(blockId);
+    Block *currentBlock = Scratch::findBlock(blockId, sprite);
     while (currentBlock != nullptr) {
         blockChain.push_back(currentBlock);
         if (outID)
@@ -652,7 +645,7 @@ std::vector<Block *> Parser::getBlockChain(std::string blockId, std::string *out
             !substackIt->second.blockId.empty()) {
 
             std::vector<Block *> subBlockChain;
-            subBlockChain = getBlockChain(substackIt->second.blockId, outID);
+            subBlockChain = getBlockChain(substackIt->second.blockId, sprite, outID);
             for (auto &block : subBlockChain) {
                 blockChain.push_back(block);
                 if (outID)
@@ -666,14 +659,14 @@ std::vector<Block *> Parser::getBlockChain(std::string blockId, std::string *out
             !substack2It->second.blockId.empty()) {
 
             std::vector<Block *> subBlockChain;
-            subBlockChain = getBlockChain(substack2It->second.blockId, outID);
+            subBlockChain = getBlockChain(substack2It->second.blockId, sprite, outID);
             for (auto &block : subBlockChain) {
                 blockChain.push_back(block);
                 if (outID)
                     *outID += block->id;
             }
         }
-        currentBlock = Scratch::findBlock(currentBlock->next);
+        currentBlock = Scratch::findBlock(currentBlock->next, sprite);
     }
     return blockChain;
 }
