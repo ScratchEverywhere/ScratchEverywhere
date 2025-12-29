@@ -1,6 +1,7 @@
 #include "projectSettings.hpp"
 #include "controlsMenu.hpp"
 #include "projectMenu.hpp"
+#include "settings.hpp"
 #include "unpackMenu.hpp"
 
 ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
@@ -52,7 +53,7 @@ void ProjectSettings::init() {
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
     settingsControl->buttonObjects.push_back(bottomScreenButton);
 
-    nlohmann::json settings = getProjectSettings();
+    nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
     if (!settings.is_null() && !settings["settings"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
         bottomScreenButton->text->setText("Bottom Screen: ON");
     } else {
@@ -72,9 +73,9 @@ void ProjectSettings::render() {
         return;
     }
     if (bottomScreenButton->isPressed()) {
-        nlohmann::json screenSetting;
-        screenSetting["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
-        applySettings(screenSetting);
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
         bottomScreenButton->text->setText(bottomScreenButton->text->getText() == "Bottom Screen: ON" ? "Bottom Screen: OFF" : "Bottom Screen: ON");
     }
     if (UnpackProjectButton->isPressed({"a"})) {
@@ -115,55 +116,6 @@ void ProjectSettings::render() {
     backButton->render();
 
     Render::endFrame();
-}
-
-nlohmann::json ProjectSettings::getProjectSettings() {
-    nlohmann::json json;
-
-    std::ifstream file(OS::getScratchFolderLocation() + projectPath + ".sb3.json");
-    if (file.is_open()) {
-        file >> json;
-        file.close();
-    } else {
-        Log::logWarning("Failed to open controls file: " + OS::getScratchFolderLocation() + projectPath + ".sb3.json");
-    }
-    return json;
-}
-
-void ProjectSettings::applySettings(const nlohmann::json &settingsData) {
-    std::string folderPath = OS::getScratchFolderLocation() + projectPath;
-    std::string filePath = folderPath + ".sb3" + ".json";
-
-    try {
-        OS::createDirectory(OS::parentPath(filePath));
-    } catch (const OS::FilesystemError &e) {
-        Log::logError("Failed to create directories: " + std::string(e.what()));
-        return;
-    }
-
-    nlohmann::json json;
-    std::ifstream existingFile(filePath);
-    if (existingFile.good()) {
-        try {
-            existingFile >> json;
-        } catch (const nlohmann::json::parse_error &e) {
-            Log::logError("Failed to parse existing JSON file: " + std::string(e.what()));
-            json = nlohmann::json::object();
-        }
-        existingFile.close();
-    }
-
-    json["settings"] = settingsData;
-
-    std::ofstream file(filePath);
-    if (!file) {
-        Log::logError("Failed to create JSON file: " + filePath);
-        return;
-    }
-
-    file << json.dump(2);
-    file.close();
-    Log::log("Settings saved to: " + filePath);
 }
 
 void ProjectSettings::cleanup() {

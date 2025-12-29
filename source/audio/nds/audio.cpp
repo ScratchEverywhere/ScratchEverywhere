@@ -1,8 +1,8 @@
 #include "audio.hpp"
 #include <audio.hpp>
-#include <interpret.hpp>
 #include <miniz/miniz.h>
 #include <os.hpp>
+#include <runtime.hpp>
 #include <sys/stat.h>
 
 std::unordered_map<std::string, Sound> SoundPlayer::soundsPlaying;
@@ -152,7 +152,7 @@ mm_stream_formats NDS_Audio::getMMStreamType(uint16_t numChannels, uint16_t bits
 void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
 
-    if (projectType != UNZIPPED && zip != nullptr && !fromCache)
+    if (Scratch::projectType != UNZIPPED && zip != nullptr && !fromCache)
         loadSoundFromSB3(sprite, zip, soundId, true);
     else
         loadSoundFromFile(sprite, (fromProject && !fromCache ? "project/" : "") + soundId, true, fromCache);

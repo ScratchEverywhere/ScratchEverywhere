@@ -1,7 +1,7 @@
 #include "speech_manager_sdl2.hpp"
 #include "image.hpp"
 #include <image.hpp>
-#include <interpret.hpp>
+#include <runtime.hpp>
 
 SpeechManagerSDL2::SpeechManagerSDL2(SDL_Renderer *renderer) : renderer(renderer) {
     bubbleImage = std::make_unique<Image>("gfx/ingame/speechbubble.svg");

@@ -1,6 +1,5 @@
 #include "blockUtils.hpp"
 #include <audio.hpp>
-#include <interpret.hpp>
 #include <math.hpp>
 #include <sprite.hpp>
 #include <unzip.hpp>
@@ -100,7 +99,7 @@ SCRATCH_BLOCK(sound, play) {
 }
 
 SCRATCH_BLOCK(sound, stopallsounds) {
-    for (auto &currentSprite : sprites) {
+    for (auto &currentSprite : Scratch::sprites) {
         for (Sound sound : currentSprite->sounds) {
             SoundPlayer::stopSound(sound.fullName);
         }

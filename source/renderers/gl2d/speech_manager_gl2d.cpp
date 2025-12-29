@@ -1,10 +1,10 @@
 #include "speech_manager_gl2d.hpp"
 #include "image.hpp"
-#include <image.hpp>
-#include <interpret.hpp>
-#include <math.hpp>
 #include "speech_text_gl2d.hpp"
+#include <image.hpp>
+#include <math.hpp>
 #include <nds.h>
+#include <runtime.hpp>
 
 SpeechManagerGL2D::SpeechManagerGL2D() {
     speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");

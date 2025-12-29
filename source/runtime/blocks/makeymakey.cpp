@@ -1,6 +1,5 @@
 #include "blockUtils.hpp"
 #include <input.hpp>
-#include <interpret.hpp>
 #include <sprite.hpp>
 
 SCRATCH_BLOCK_NOP(makemakey, whenMakeyKeyPressed)

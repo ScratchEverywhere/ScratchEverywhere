@@ -1,4 +1,6 @@
 #include <input.hpp>
+#include <iostream>
+#include <os.hpp>
 
 // Static member initialization
 Input::Mouse Input::mousePointer = {0, 0, 0, false, false};
@@ -13,6 +15,9 @@ std::vector<int> Input::getTouchPosition() {
 void Input::getInput() {
 }
 
-std::string Input::getUsername() {
-    return "";
+std::string Input::openSoftwareKeyboard(const char *hintText) {
+    Log::log(std::string(hintText));
+    std::string input;
+    std::getline(std::cin, input);
+    return input;
 }

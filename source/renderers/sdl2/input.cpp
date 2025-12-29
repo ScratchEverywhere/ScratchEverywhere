@@ -1,10 +1,18 @@
+#ifdef RENDERER_OPENGL
+#include "../opengl/sdl2/window.hpp"
+#else
 #include "render.hpp"
+#endif
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
 #include <input.hpp>
 #include <map>
+#include <render.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <vector>
@@ -28,7 +36,6 @@ extern char nickname[0x21];
 
 #ifdef __PS4__
 #include <orbis/UserService.h>
-int userId;
 #endif
 
 Input::Mouse Input::mousePointer;
@@ -174,7 +181,7 @@ void Input::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_BACK)) {
         Input::buttonPress("back");
 #ifdef WII
-        toExit = true;
+        OS::toExit = true;
 #endif
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSTICK)) Input::buttonPress("LeftStickPressed");
@@ -201,7 +208,7 @@ void Input::getInput() {
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     if (SDL_GetNumTouchDevices() > 0 && SDL_GetNumTouchFingers(SDL_GetTouchDevice(0))) {
         // Transform touch coordinates to Scratch space
-        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
@@ -213,7 +220,7 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 
@@ -225,39 +232,101 @@ void Input::getInput() {
     BlockExecutor::doSpriteClicking();
 }
 
-std::string Input::getUsername() {
-    if (useCustomUsername) {
-        return customUsername;
+std::string Input::openSoftwareKeyboard(const char *hintText) {
+#if defined(__WIIU__) || defined(__OGC__) || defined(__PS4__)
+// doesn't work on these platforms....
+#else
+    TextObject *text = createTextObject(std::string(hintText), 0, 0);
+    text->setCenterAligned(true);
+    text->setColor(Math::color(0, 0, 0, 170));
+    if (text->getSize()[0] > Render::getWidth() * 0.85) {
+        float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.15);
+        text->setScale(scale);
     }
-#ifdef ENABLE_CLOUDVARS
-    if (cloudProject) return cloudUsername;
-#endif
-#ifdef __WIIU__
-    int16_t miiName[256];
-    nn::act::GetMiiName(miiName);
-    return std::string(miiName, miiName + sizeof(miiName) / sizeof(miiName[0]));
-#elif defined(__SWITCH__)
-    if (std::string(nickname) != "") return std::string(nickname);
-#elif defined(VITA)
-    static SceChar8 username[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE];
-    sceAppUtilSystemParamGetString(
-        SCE_SYSTEM_PARAM_ID_USERNAME,
-        username,
-        sizeof(username));
-    return std::string(reinterpret_cast<char *>(username));
-#elif defined(WII)
 
-    CONF_Init();
-    u8 nickname[24];
-    if (CONF_GetNickName(nickname) != 0) {
-        return std::string(reinterpret_cast<char *>(nickname));
-    }
-#elif defined(__PS4__)
-    char username[32];
-    sceUserServiceGetInitialUser(&userId);
-    if (sceUserServiceGetUserName(userId, username, 31) == 0) {
-        return std::string(reinterpret_cast<char *>(username));
-    }
+    TextObject *enterText = createTextObject("ENTER TEXT:", 0, 0);
+    enterText->setCenterAligned(true);
+    enterText->setColor(Math::color(0, 0, 0, 255));
+
+    SDL_StartTextInput();
+
+    std::string inputText = "";
+    bool inputActive = true;
+    SDL_Event event;
+
+    while (inputActive) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_TEXTINPUT:
+                // Add text
+                inputText += event.text.text;
+                text->setText(inputText);
+                text->setColor(Math::color(0, 0, 0, 255));
+
+#if defined(__SWITCH__) || defined(VITA)
+                inputActive = false;
 #endif
-    return "Player";
+
+                break;
+
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym) {
+                case SDLK_RETURN:
+                case SDLK_KP_ENTER:
+                    // finish input
+                    inputActive = false;
+                    break;
+
+                case SDLK_BACKSPACE:
+                    // remove character
+                    if (!inputText.empty()) {
+                        inputText.pop_back();
+                    }
+                    if (inputText.empty()) {
+                        text->setText(std::string(hintText));
+                        text->setColor(Math::color(0, 0, 0, 170));
+                    } else {
+                        text->setText(inputText);
+                    }
+
+                    break;
+
+                case SDLK_ESCAPE:
+                    // finish input
+                    inputActive = false;
+                    break;
+                }
+                break;
+
+            case SDL_QUIT:
+                OS::toExit = true;
+                inputActive = false;
+                break;
+            }
+        }
+
+        // set text size
+        text->setScale(1.0f);
+        if (text->getSize()[0] > Render::getWidth() * 0.95) {
+            float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.05);
+            text->setScale(scale);
+        } else {
+            text->setScale(1.0f);
+        }
+
+        Render::beginFrame(0, 117, 77, 117);
+
+        text->render(Render::getWidth() / 2, Render::getHeight() * 0.25);
+        enterText->render(Render::getWidth() / 2, Render::getHeight() * 0.15);
+
+        Render::endFrame(false);
+    }
+
+    SDL_StopTextInput();
+    delete text;
+    delete enterText;
+    return inputText;
+#endif
+
+    return "";
 }

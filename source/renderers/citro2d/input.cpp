@@ -164,36 +164,30 @@ void Input::getInput() {
     BlockExecutor::doSpriteClicking();
 }
 
-/**
- * Grabs the 3DS's Nickname.
- * @return String of the 3DS's nickname
- */
-std::string Input::getUsername() {
-    if (useCustomUsername) {
-        return customUsername;
-    }
-#ifdef ENABLE_CLOUDVARS
-    if (cloudProject) return cloudUsername;
-#endif
+std::string Input::openSoftwareKeyboard(const char *hintText) {
 
-    const u16 *block = (const u16 *)malloc(0x1C);
+    static SwkbdState swkbd;
+    static char mybuf[60];
+    static SwkbdStatusData swkbdStatus;
+    static SwkbdLearningData swkbdLearning;
+    static SwkbdButton button = SWKBD_BUTTON_NONE;
 
-    cfguInit();
-    CFGU_GetConfigInfoBlk2(0x1C, 0xA0000, (u8 *)block);
-    cfguExit();
+    swkbdInit(&swkbd, SWKBD_TYPE_NORMAL, 2, -1);
+    swkbdSetInitialText(&swkbd, mybuf);
+    swkbdSetHintText(&swkbd, hintText);
+    swkbdSetButton(&swkbd, SWKBD_BUTTON_LEFT, "Cancel", false);
+    swkbdSetButton(&swkbd, SWKBD_BUTTON_RIGHT, "Submit", true);
+    swkbdSetFeatures(&swkbd, SWKBD_PREDICTIVE_INPUT);
+    static bool reload = false;
+    swkbdSetStatusData(&swkbd, &swkbdStatus, reload, true);
+    swkbdSetLearningData(&swkbd, &swkbdLearning, reload, true);
+    reload = true;
+    button = swkbdInputText(&swkbd, mybuf, sizeof(mybuf));
 
-    char *usernameBuffer = (char *)malloc(0x14);
-    ssize_t length = utf16_to_utf8((u8 *)usernameBuffer, block, 0x14);
-
-    std::string username;
-    if (length <= 0) {
-        username = "Player";
-    } else {
-        username = std::string(usernameBuffer, length); // Convert char* to std::string
+    if (button != SWKBD_BUTTON_NONE) {
+        std::string result = mybuf;
+        return result;
     }
 
-    free((void *)block);  // Free the memory allocated for block
-    free(usernameBuffer); // Free the memory allocated for usernameBuffer
-
-    return username;
+    return "";
 }

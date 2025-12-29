@@ -3,8 +3,8 @@
 #include <chrono>
 #include <downloader.hpp>
 #include <input.hpp>
-#include <interpret.hpp>
 #include <render.hpp>
+#include <runtime.hpp>
 #include <text.hpp>
 #include <unzip.hpp>
 
@@ -66,9 +66,9 @@ bool Render::Init() {
 }
 
 bool Render::appShouldRun() {
-    if (toExit) return false;
+    if (OS::toExit) return false;
     if (!aptMainLoop()) {
-        toExit = true;
+        OS::toExit = true;
         return false;
     }
     return true;
@@ -338,7 +338,7 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
     data.freeTimer = data.maxFreeTimer;
 
     // collisioon points (debug)
-    // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
+    // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
 
     // for (const auto &point : collisionPoints) {
     //     double screenX = (point.first * Render::renderScale) + (Render::getWidth() / 2);
@@ -363,7 +363,7 @@ void Render::renderSprites() {
     C2D_SceneBegin(topScreen);
 
     float slider = osGet3DSliderState();
-    const float depthScale = 8.0f / sprites.size();
+    const float depthScale = 8.0f / Scratch::sprites.size();
 
     // ---------- LEFT EYE ----------
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
@@ -371,7 +371,7 @@ void Render::renderSprites() {
         currentScreen = 0;
 
         size_t i = 0;
-        for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+        for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
             Sprite *currentSprite = *it;
 
             // render the pen texture above the backdrop, but below every other sprite
@@ -394,7 +394,7 @@ void Render::renderSprites() {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
 
-                    size_t totalSprites = sprites.size();
+                    size_t totalSprites = Scratch::sprites.size();
                     float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
                     renderImage(
@@ -434,7 +434,7 @@ void Render::renderSprites() {
         currentScreen = 0;
 
         size_t i = 0;
-        for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+        for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
             Sprite *currentSprite = *it;
 
             // render the pen texture above the backdrop, but below every other sprite
@@ -457,7 +457,7 @@ void Render::renderSprites() {
                     currentSprite->rotationCenterX = costume.rotationCenterX;
                     currentSprite->rotationCenterY = costume.rotationCenterY;
 
-                    size_t totalSprites = sprites.size();
+                    size_t totalSprites = Scratch::sprites.size();
                     float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
 
                     renderImage(
@@ -491,7 +491,7 @@ void Render::renderSprites() {
             currentScreen = 1;
 
         size_t i = 0;
-        for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+        for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
             Sprite *currentSprite = *it;
 
             // render the pen texture above the backdrop, but below every other sprite

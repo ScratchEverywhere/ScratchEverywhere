@@ -4,8 +4,8 @@
 #include <SDL/SDL_gfxBlitFunc.h>
 #include <SDL/SDL_rotozoom.h>
 #include <image.hpp>
-#include <interpret.hpp>
 #include <render.hpp>
+#include <runtime.hpp>
 
 SpeechManagerSDL1::SpeechManagerSDL1(SDL_Surface *window) : window(window) {
     speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");

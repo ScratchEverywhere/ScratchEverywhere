@@ -1,8 +1,8 @@
 #include "audio.hpp"
 #include <audio.hpp>
-#include <interpret.hpp>
 #include <miniz.h>
 #include <os.hpp>
+#include <runtime.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <unordered_map>
@@ -90,7 +90,7 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     params.streamed = false;
 #endif
 
-    if (projectType != UNZIPPED && fromProject && !fromCache)
+    if (Scratch::projectType != UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else
         loadSoundFromFile(params.sprite, (fromProject && !fromCache ? "project/" : "") + params.soundId, params.streamed, fromCache);

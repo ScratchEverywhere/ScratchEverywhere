@@ -1,5 +1,5 @@
 #include "speech_manager.hpp"
-#include "interpret.hpp"
+#include "runtime.hpp"
 
 void SpeechManager::updateSpeechObject(Sprite *sprite, const std::string &message) {
     auto it = speechObjects.find(sprite);

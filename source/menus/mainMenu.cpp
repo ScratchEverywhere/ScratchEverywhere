@@ -1,12 +1,13 @@
 #include "mainMenu.hpp"
 #include "projectMenu.hpp"
+#include "settings.hpp"
 #include "settingsMenu.hpp"
 #include <audio.hpp>
 #include <cctype>
 #include <cmath>
 #include <image.hpp>
-#include <interpret.hpp>
-#include <keyboard.hpp>
+#include <parser.hpp>
+
 #include <nlohmann/json.hpp>
 
 Menu::~Menu() = default;
@@ -72,8 +73,7 @@ MainMenu::~MainMenu() {
 
 void MainMenu::init() {
 #ifdef RENDERER_HEADLESS // let the user type what project they want to open if headless
-    SoftwareKeyboard kbd;
-    std::string answer = kbd.openKeyboard("Please type what project you want to open.");
+    std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
 
     const std::string ext = ".sb3";
     if (answer.size() >= ext.size() &&
@@ -129,21 +129,15 @@ void MainMenu::init() {
     mainMenuControl->buttonObjects.push_back(loadButton);
     mainMenuControl->buttonObjects.push_back(settingsButton);
     isInitialized = true;
+
+    settings = SettingsManager::getConfigSettings();
 }
 
 void MainMenu::render() {
     Input::getInput();
     mainMenuControl->input();
 
-    nlohmann::json *settings;
-    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-    if (inFile.good()) {
-        settings = new nlohmann::json();
-        inFile >> *settings;
-        inFile.close();
-    }
-
-    if (!(settings != nullptr && settings->contains("MenuMusic") && (*settings)["MenuMusic"].is_boolean() && !(*settings)["MenuMusic"].get<bool>())) {
+    if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
         if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
             SoundPlayer::playSound("gfx/menu/mm_full.wav");
@@ -154,8 +148,6 @@ void MainMenu::render() {
         }
 #endif
     }
-
-    if (settings != nullptr) delete settings;
 
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();
@@ -193,6 +185,9 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
+    if (!settings.empty()) {
+        settings.clear();
+    }
 
     if (logo) {
         delete logo;

@@ -1,5 +1,6 @@
 #include "projectMenu.hpp"
 #include "projectSettings.hpp"
+#include "settings.hpp"
 #include "unpackMenu.hpp"
 #include <audio.hpp>
 
@@ -140,21 +141,15 @@ void ProjectMenu::init() {
         hasProjects = true;
     }
     isInitialized = true;
+
+    settings = SettingsManager::getConfigSettings();
 }
 
 void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
-    nlohmann::json *settings;
-    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-    if (inFile.good()) {
-        settings = new nlohmann::json();
-        inFile >> *settings;
-        inFile.close();
-    }
-
-    if (!(settings != nullptr && settings->contains("MenuMusic") && (*settings)["MenuMusic"].is_boolean() && !(*settings)["MenuMusic"].get<bool>())) {
+    if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
         if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
             SoundPlayer::playSound("gfx/menu/mm_full.wav");
@@ -244,6 +239,10 @@ void ProjectMenu::render() {
 }
 
 void ProjectMenu::cleanup() {
+    if (!settings.empty()) {
+        settings.clear();
+    }
+
     projectFiles.clear();
     UnzippedFiles.clear();
     for (ButtonObject *button : projects) {

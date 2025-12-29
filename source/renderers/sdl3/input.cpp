@@ -1,10 +1,18 @@
+#ifdef RENDERER_OPENGL
+#include "../opengl/sdl3/window.hpp"
+#else
 #include "render.hpp"
+#endif
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
 #include <input.hpp>
 #include <map>
+#include <render.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <vector>
@@ -48,13 +56,14 @@ std::vector<int> Input::getTouchPosition() {
     float rawMouseX, rawMouseY;
     int numDevices, numFingers;
     SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
-    SDL_GetTouchFingers(*touchID, &numFingers); // kanye west he likes
+    SDL_free(SDL_GetTouchFingers(*touchID, &numFingers)); // kanye west he likes
     if (numDevices > 0 && numFingers > 0) {
         pos.push_back(touchPosition.x);
         pos.push_back(touchPosition.y);
         return pos;
     }
 
+    SDL_free(touchID);
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
     pos.push_back(rawMouseX);
     pos.push_back(rawMouseY);
@@ -163,22 +172,25 @@ void Input::getInput() {
     // TODO: Add way to disable touch input (currently overrides mouse input.)
     int numDevices, numFingers;
     SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
-    SDL_GetTouchFingers(*touchID, &numFingers);
+    SDL_free(SDL_GetTouchFingers(*touchID, &numFingers));
     if (numDevices > 0 && numFingers) {
         // Transform touch coordinates to Scratch space
-        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, windowWidth, windowHeight);
+        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
 
+        SDL_free(touchID);
         BlockExecutor::doSpriteClicking();
         return;
     }
 
+    SDL_free(touchID);
+
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 
@@ -188,22 +200,102 @@ void Input::getInput() {
     BlockExecutor::doSpriteClicking();
 }
 
-std::string Input::getUsername() {
-    if (useCustomUsername) {
-        return customUsername;
+std::string Input::openSoftwareKeyboard(const char *hintText) {
+    TextObject *text = createTextObject(std::string(hintText), 0, 0);
+    text->setCenterAligned(true);
+    text->setColor(Math::color(0, 0, 0, 170));
+    if (text->getSize()[0] > Render::getWidth() * 0.85) {
+        float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.15);
+        text->setScale(scale);
     }
-#ifdef ENABLE_CLOUDVARS
-    if (cloudProject) return cloudUsername;
+
+    TextObject *enterText = createTextObject("ENTER TEXT:", 0, 0);
+    enterText->setCenterAligned(true);
+    enterText->setColor(Math::color(0, 0, 0, 255));
+
+#ifdef RENDERER_OPENGL
+    SDL_Window *window = (SDL_Window *)globalWindow->getHandle();
 #endif
-#ifdef __SWITCH__
-    if (std::string(nickname) != "") return std::string(nickname);
-#elif defined(VITA)
-    static SceChar8 username[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE];
-    sceAppUtilSystemParamGetString(
-        SCE_SYSTEM_PARAM_ID_USERNAME,
-        username,
-        sizeof(username));
-    return std::string(reinterpret_cast<char *>(username));
+    SDL_StartTextInput(window);
+
+    std::string inputText = "";
+    bool inputActive = true;
+    SDL_Event event;
+
+    while (inputActive) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_EVENT_TEXT_INPUT:
+                // Add text
+                inputText += event.text.text;
+                text->setText(inputText);
+                text->setColor(Math::color(0, 0, 0, 255));
+
+#if defined(__SWITCH__) || defined(VITA)
+                inputActive = false;
 #endif
-    return "Player";
+
+                break;
+
+            case SDL_EVENT_KEY_DOWN:
+                switch (event.key.scancode) {
+                case SDL_SCANCODE_RETURN:
+                case SDL_SCANCODE_KP_ENTER:
+                    // finish input
+                    inputActive = false;
+                    break;
+
+                case SDL_SCANCODE_BACKSPACE:
+                    // remove character
+                    if (!inputText.empty()) {
+                        inputText.pop_back();
+                    }
+                    if (inputText.empty()) {
+                        text->setText(std::string(hintText));
+                        text->setColor(Math::color(0, 0, 0, 170));
+                    } else {
+                        text->setText(inputText);
+                    }
+
+                    break;
+
+                case SDL_SCANCODE_ESCAPE:
+                    // finish input
+                    inputActive = false;
+                    break;
+                default:
+                    break;
+                }
+                break;
+
+            case SDL_EVENT_QUIT:
+                OS::toExit = true;
+                inputActive = false;
+                break;
+            }
+        }
+
+        // set text size
+        text->setScale(1.0f);
+        if (text->getSize()[0] > Render::getWidth() * 0.95) {
+            float scale = (float)Render::getWidth() / (text->getSize()[0] * 1.05);
+            text->setScale(scale);
+        } else {
+            text->setScale(1.0f);
+        }
+
+        Render::beginFrame(0, 117, 77, 117);
+
+        text->render(Render::getWidth() / 2, Render::getHeight() * 0.25);
+        enterText->render(Render::getWidth() / 2, Render::getHeight() * 0.15);
+
+        Render::endFrame(false);
+    }
+
+    SDL_StopTextInput(window);
+    delete text;
+    delete enterText;
+    return inputText;
+
+    return "";
 }

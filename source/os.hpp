@@ -66,6 +66,9 @@ class Timer {
 };
 
 namespace OS {
+
+extern bool toExit;
+
 /**
  * Function to detect whether the platform is a DSi.
  * @return `true` on DSi, `false` everywhere else.
@@ -186,6 +189,11 @@ bool initWifi();
  * De-Initializes the internet.
  */
 void deInitWifi();
+
+/**
+ * Gets the device's nickname, or the user's custom username if set.
+ */
+std::string getUsername();
 
 /**
  * Create a directory.

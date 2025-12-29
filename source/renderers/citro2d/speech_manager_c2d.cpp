@@ -1,7 +1,7 @@
 #include "speech_manager_c2d.hpp"
 #include "image.hpp"
-#include "interpret.hpp"
 #include "render.hpp"
+#include "runtime.hpp"
 #include <3ds.h>
 
 SpeechManagerC2D::SpeechManagerC2D() {
