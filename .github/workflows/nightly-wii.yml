@@ -4,14 +4,16 @@ on:
   push:
     paths:
       - make/Makefile_wii
-      - source/scratch/**
-      - source/sdl2/**
+      - source/runtime/**
+      - source/renderers/sdl2/**
+      - source/*
+      - source/menus/**
+      - source/audio/sdl2/**
       - gfx/wii/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-wii.yml
       - docker/Dockerfile.wii
-      - source/main.cpp
     branches:
       - main
   workflow_dispatch:
