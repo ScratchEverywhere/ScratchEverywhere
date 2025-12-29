@@ -69,7 +69,7 @@ bool Render::Init() {
 
 bool Render::appShouldRun() {
     if (OS::toExit) return false;
-    if (!globalWindow->shouldClose()) {
+    if (globalWindow->shouldClose()) {
     	OS::toExit = true;
     	return false;
     }
