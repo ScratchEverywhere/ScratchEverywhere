@@ -288,18 +288,19 @@ SCRATCH_BLOCK(control, clear_counter) {
 }
 
 SCRATCH_BLOCK(control, for_each) {
+    double upperBound = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
     if (!fromRepeat) {
-        block.repeatTimes = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
+        block.repeatTimes = 0;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
-    if (block.repeatTimes <= 0) {
+    if (block.repeatTimes >= upperBound) {
         block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
 
-    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(Scratch::getInputValue(block, "VALUE", sprite).asDouble() - block.repeatTimes + 1), sprite);
+    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(block.repeatTimes + 1), sprite);
 
     const auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
@@ -307,6 +308,6 @@ SCRATCH_BLOCK(control, for_each) {
         if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     }
 
-    block.repeatTimes--;
+    block.repeatTimes++;
     return BlockResult::RETURN;
 }
