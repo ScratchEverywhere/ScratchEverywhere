@@ -21,8 +21,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
     std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
     std::string tempFile = tempDir + safeName;
 
-    if (block.repeatTimes >= -1) {
-        Log::log("T2S: resetting repeatTimes");
+    if (block.repeatTimes >= -1 || !fromRepeat) {
         block.repeatTimes = -2;
     }
 
@@ -35,13 +34,11 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         if (SoundPlayer::isSoundLoaded(tempFile)) {
             Log::log("T2S: sound loaded, playing");
             SoundPlayer::playSound(tempFile);
-            block.repeatTimes = -4;
             BlockExecutor::addToRepeatQueue(sprite, &block);
+            block.repeatTimes = -4;
             return BlockResult::RETURN;
         }
         block.repeatTimes = -3;
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-        return BlockResult::RETURN;
     }
     if (block.repeatTimes == -3) {
         if (!DownloadManager::init()) return BlockResult::CONTINUE;
@@ -49,20 +46,20 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
             if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(api)) {
                 Log::log("T2S audio already downloaded: " + inputString);
                 SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, tempFile, false, false, true);
-                block.repeatTimes = -4;
                 BlockExecutor::addToRepeatQueue(sprite, &block);
+                block.repeatTimes = -4;
                 return BlockResult::RETURN;
             }
 
-            if (!DownloadManager::isDownloading(api)) {
+            if (!DownloadManager::isDownloading(api) && !fromRepeat) {
                 Log::log("T2S: starting download for: " + inputString + " -> " + tempFile);
 
                 DownloadManager::addDownload(api, tempFile);
                 BlockExecutor::addToRepeatQueue(sprite, &block);
+                block.repeatTimes = -3;
                 return BlockResult::RETURN;
-            }
-            BlockExecutor::addToRepeatQueue(sprite, &block);
-            return BlockResult::RETURN;
+            } else if (DownloadManager::isDownloading(api)) return BlockResult::RETURN;
+
         } catch (const std::exception &e) {
             Log::logWarning(std::string("Filesystem::exists threw: ") + e.what());
             BlockExecutor::removeFromRepeatQueue(sprite, &block);
@@ -70,18 +67,14 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         }
     }
     if (block.repeatTimes == -4) {
-
-        if (SoundPlayer::isSoundPlaying(tempFile)) {
-            BlockExecutor::addToRepeatQueue(sprite, &block);
-            return BlockResult::RETURN;
-        }
+        if (SoundPlayer::isSoundPlaying(tempFile)) return BlockResult::RETURN;
     }
 
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     block.repeatTimes = -1;
     Log::log("T2S: finished speaking: " + inputString);
 #else
-    Log::log("T2S: ENABLE_AUDIO is NOT defined");
+    Log::logWarning("T2S: ENABLE_AUDIO is NOT defined");
 #endif
 
     return BlockResult::CONTINUE;
