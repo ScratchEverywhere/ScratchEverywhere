@@ -89,7 +89,7 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
         // if just stopped clicking, count as a button press
         if (!pressedLastFrame) {
-            if (std::abs(lastFrameTouchPos[0] - touchX) < 2 && std::abs(lastFrameTouchPos[1] - touchY) < 2) return true;
+            if (std::abs(lastFrameTouchPos[0] - touchX) < 8 * getScaleFactor() && std::abs(lastFrameTouchPos[1] - touchY) < 8 * getScaleFactor()) return true;
         } else {
             lastFrameTouchPos = touchPos;
         }
@@ -210,6 +210,7 @@ ButtonObject *ControlObject::getClosestObject() {
     float closestDist = std::numeric_limits<float>::max();
 
     for (ButtonObject *object : buttonObjects) {
+        if (object->hidden) continue;
         float dx = object->x - this->x;
         float dy = object->y - this->y - (REFERENCE_HEIGHT / 2);
         float dist = dx * dx + dy * dy;

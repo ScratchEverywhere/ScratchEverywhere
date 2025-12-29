@@ -82,6 +82,9 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
 
+    settingsControl->enableScrolling = true;
+    settingsControl->setScrollLimits();
+
     isInitialized = true;
 }
 
@@ -141,14 +144,6 @@ void SettingsMenu::render() {
     Render::beginFrame(0, 96, 90, 105);
     Render::beginFrame(1, 96, 90, 105);
 
-    backButton->render();
-    // Credits->render();
-    EnableUsername->render();
-    EnableCustomFolderPath->render();
-    EnableMenuMusic->render();
-    if (UseCostumeUsername) ChangeUsername->render();
-    if (UseProjectsPath) ChangeFolderPath->render();
-
     if (EnableMenuMusic->isPressed({"a"})) {
         menuMusic = !menuMusic;
         updateButtonStates();
@@ -192,6 +187,7 @@ void SettingsMenu::render() {
         }
     }
 
+    backButton->render();
     settingsControl->render();
     Render::endFrame();
 }
