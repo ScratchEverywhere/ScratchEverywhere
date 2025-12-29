@@ -70,7 +70,6 @@ struct Block {
     double glideEndX, glideEndY;
     Timer waitTimer;
     bool customBlockExecuted = false;
-    bool stopScript = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
 

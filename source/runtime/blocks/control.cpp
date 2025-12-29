@@ -14,6 +14,8 @@ SCRATCH_BLOCK(control, if) {
     const bool condition = conditionValue.asBoolean();
     const auto it = block.parsedInputs->find("SUBSTACK");
     Block *const subBlock = it == block.parsedInputs->end() ? nullptr : &sprite->blocks[it->second.blockId];
+    std::vector<std::string> blockID;
+    Block *repeatBlock;
 
     if (!fromRepeat) {
         block.repeatTimes = -4;
@@ -23,13 +25,11 @@ SCRATCH_BLOCK(control, if) {
     }
 
     if (!condition || subBlock == nullptr) goto end;
-    for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false)) {
-        if (ranBlock->isRepeating) return BlockResult::RETURN;
-        if (ranBlock->stopScript) {
-            ranBlock->stopScript = false;
-            return BlockResult::RETURN;
-        }
-    }
+    executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
+    blockID = sprite->blockChains[block.blockChainID].blocksToRepeat;
+    if (blockID.empty()) return BlockResult::RETURN;
+    repeatBlock = &sprite->blocks[blockID.back()];
+    if (!repeatBlock || repeatBlock != &block) return BlockResult::RETURN;
 
 end:
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
@@ -39,6 +39,10 @@ end:
 SCRATCH_BLOCK(control, if_else) {
     const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     const bool condition = conditionValue.asBoolean();
+    const std::string key = condition ? "SUBSTACK" : "SUBSTACK2";
+    const auto it = block.parsedInputs->find(key);
+    std::vector<std::string> blockID;
+    Block *repeatBlock;
 
     if (!fromRepeat) {
         block.repeatTimes = -4;
@@ -48,21 +52,17 @@ SCRATCH_BLOCK(control, if_else) {
         return BlockResult::CONTINUE;
     }
 
-    const std::string key = condition ? "SUBSTACK" : "SUBSTACK2";
-    const auto it = block.parsedInputs->find(key);
     if (it == block.parsedInputs->end()) {
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
     Block *const subBlock = &sprite->blocks[it->second.blockId];
     if (subBlock == nullptr) goto end;
-    for (auto &ranBlock : executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false)) {
-        if (ranBlock->isRepeating) return BlockResult::RETURN;
-        if (ranBlock->stopScript) {
-            ranBlock->stopScript = false;
-            return BlockResult::RETURN;
-        }
-    }
+    executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
+    blockID = sprite->blockChains[block.blockChainID].blocksToRepeat;
+    if (blockID.empty()) return BlockResult::RETURN;
+    repeatBlock = &sprite->blocks[blockID.back()];
+    if (!repeatBlock || repeatBlock != &block) return BlockResult::RETURN;
 
 end:
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
@@ -121,7 +121,6 @@ SCRATCH_BLOCK(control, stop) {
         }
 
         sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
-        block.stopScript = true;
         return BlockResult::RETURN;
     }
 
