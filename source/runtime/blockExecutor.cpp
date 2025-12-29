@@ -108,11 +108,11 @@ void BlockExecutor::doSpriteClicking() {
         Input::mousePointer.heldFrames++;
         bool hasClicked = false;
         for (auto &sprite : Scratch::sprites) {
-            if (!sprite->visible) continue;
+            if (!sprite->visible || sprite->ghostEffect == 100.0) continue;
 
             // click a sprite
             if (sprite->shouldDoSpriteClick) {
-                if (Input::mousePointer.heldFrames < 2 && Scratch::isColliding("mouse", sprite) && sprite->ghostEffect != 100.0) {
+                if (Input::mousePointer.heldFrames < 2 && Scratch::isColliding("mouse", sprite)) {
 
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;
