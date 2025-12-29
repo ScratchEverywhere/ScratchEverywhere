@@ -254,10 +254,10 @@ $(BUILD):
 ifneq ($(GFXBUILD),$(BUILD))
 $(GFXBUILD):
 	@mkdir -p $@
+	@cp -r $(GRAPHICS)/ingame $@/
 ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
 endif
-#	@cp -r $(GRAPHICS)/ingame $@/
 endif
 
 ifneq ($(DEPSDIR),$(BUILD))

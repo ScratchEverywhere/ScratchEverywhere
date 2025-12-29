@@ -12,7 +12,7 @@ typedef struct {
     int textureID;
     int atlasWidth;
     int atlasHeight;
-    int fontPixels;
+    int fontSize;
     int firstChar;
     int numChars;
     stbtt_bakedchar *charData = nullptr;
@@ -20,16 +20,19 @@ typedef struct {
 
 class TextObjectGL2D : public TextObject {
   private:
-    bool loadFont(std::string fontPath);
+    bool loadFont(std::string fontPath, int fontSize);
     void setDimensions();
-    FontData *font;
     int width = 0;
     int height = 0;
     float minScale = 1.0f;
 
+  protected:
+    FontData *font;
+    int fontSize = 16;
+
   public:
     static std::map<std::string, FontData> fonts;
-    TextObjectGL2D(std::string txt, double posX, double posY, std::string fontPath = "");
+    TextObjectGL2D(std::string txt, double posX, double posY, std::string fontPath = "", int fontSize = 16);
     ~TextObjectGL2D() override;
 
     void setText(std::string txt) override;

@@ -1,5 +1,9 @@
 #include "render.hpp"
 #include "image.hpp"
+#include "speech_manager_sdl1.hpp"
+#include "sprite.hpp"
+#include "text.hpp"
+#include "unzip.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_gfxBlitFunc.h>
 #include <SDL/SDL_gfxPrimitives.h>
@@ -58,6 +62,8 @@ bool Render::Init() {
 
     if (SDL_NumJoysticks() > 0) controller = SDL_JoystickOpen(0);
 
+    speechManager = new SpeechManagerSDL1(window);
+
     debugMode = true;
 
     // Print SDL version number. could be useful for debugging
@@ -68,6 +74,11 @@ bool Render::Init() {
     return true;
 }
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
     SDL_FreeSurface(penSurface);
 
     Image::cleanupImages();
@@ -350,6 +361,10 @@ void Render::renderSprites() {
         // }
 
         if (currentSprite->isStage) renderPenLayer();
+    }
+
+    if (speechManager) {
+        speechManager->render();
     }
 
     drawBlackBars(windowWidth, windowHeight);

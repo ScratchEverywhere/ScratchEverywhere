@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "speech_manager_gl2d.hpp"
 #include <audio.hpp>
 #include <fat.h>
 #include <filesystem.h>
@@ -58,10 +59,18 @@ bool Render::Init() {
         vramSetBankF(VRAM_F_TEX_PALETTE);
         debugMode = true;
     }
+
+    speechManager = new SpeechManagerGL2D();
+
     return true;
 }
 
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
     Image::cleanupImages();
     TextObject::cleanupText();
 }
@@ -84,6 +93,7 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Render::endFrame(bool shouldFlush) {
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
+    swiWaitForVBlank();
     if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
@@ -177,6 +187,11 @@ void Render::renderSprites() {
     }
 
     renderVisibleVariables();
+
+    if (speechManager) {
+        speechManager->render();
+    }
+
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
     Image::FlushImages();

@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "image.hpp"
+#include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2_gfxPrimitives.h>
@@ -230,6 +231,8 @@ postAccount:
     SDL_GetRendererOutputSize(renderer, &windowWidth, &windowHeight);
 #endif
 
+    speechManager = new SpeechManagerSDL2(renderer);
+
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
 
     debugMode = true;
@@ -242,6 +245,11 @@ postAccount:
     return true;
 }
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
     SDL_DestroyTexture(penTexture);
 
     Image::cleanupImages();
@@ -601,6 +609,10 @@ void Render::renderSprites() {
         // }
 
         if (currentSprite->isStage) renderPenLayer();
+    }
+
+    if (speechManager) {
+        speechManager->render();
     }
 
     drawBlackBars(windowWidth, windowHeight);

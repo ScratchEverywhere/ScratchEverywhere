@@ -130,12 +130,12 @@ mkdir:
 
 $(GFXBUILD):
 	@mkdir -p $@
+	@cp -r $(GRAPHICS)/ingame $@/
 ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
 else
 	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
 endif
-#	@cp -r $(GRAPHICS)/ingame $@/
 
 test:
 	cemu -g $(OUTPUT).rpx

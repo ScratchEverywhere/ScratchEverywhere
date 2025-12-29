@@ -60,6 +60,8 @@ bool Render::Init() {
 
     romfsInit();
 
+    speechManager = new SpeechManagerC2D();
+
     return true;
 }
 
@@ -408,6 +410,11 @@ void Render::renderSprites() {
             i++;
         }
         renderVisibleVariables();
+
+        if (speechManager) {
+            speechManager->render();
+        }
+
         // Draw mouse pointer
         if (Input::mousePointer.isMoving) {
             C2D_DrawRectSolid((Input::mousePointer.x * renderScale) + (SCREEN_WIDTH * 0.5),
@@ -467,6 +474,10 @@ void Render::renderSprites() {
         }
         renderVisibleVariables();
 
+        if (speechManager) {
+            speechManager->render();
+        }
+
         if (Render::renderMode != Render::BOTH_SCREENS)
             drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
     }
@@ -521,6 +532,9 @@ void Render::renderSprites() {
         if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
             renderVisibleVariables();
+            if (speechManager) {
+                speechManager->render();
+            }
         }
     }
 
@@ -535,6 +549,10 @@ void Render::renderSprites() {
 }
 
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
 
     if (penRenderTarget != nullptr) {
         C3D_RenderTargetDelete(penRenderTarget);
