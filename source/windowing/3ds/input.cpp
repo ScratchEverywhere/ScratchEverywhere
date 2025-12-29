@@ -44,7 +44,7 @@ void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
-    if (globalWindow) globalWindow->pollEvents();
+    hidScanInput();
     u32 kDown = hidKeysHeld();
 
     hidTouchRead(&touch);
