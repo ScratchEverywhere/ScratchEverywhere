@@ -1,5 +1,5 @@
 #include "blockUtils.hpp"
 
-BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    return BlockResult::CONTINUE;
+BlockResult nopBlock(Block &block, ScriptThread *thread, Sprite *sprite) {
+    return BlockResult(Value(), Progress::CONTINUE);
 }

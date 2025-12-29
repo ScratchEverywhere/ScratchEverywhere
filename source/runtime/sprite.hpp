@@ -1,10 +1,35 @@
+//sprite.hpp
 #pragma once
+#include "os.hpp"
+#include "runtime.hpp"
 #include "value.hpp"
 #include <nlohmann/json.hpp>
-#include <os.hpp>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <list>
+#include <functional>
 
+
+struct RenderInfo;
+struct Monitor;
+
+enum class Progress;
+struct BlockResult;
+struct BlockState;
+struct ExecutionFrame;
+struct ScriptThread;
+struct BlockHat;
+struct Block;
+struct ParsedInput;
+struct ParsedField;
+
+struct Variable;
+struct List;
+struct Sound;
+struct Costume;
+
+struct CollisionManager;
 class Sprite;
 
 struct RenderInfo {
@@ -20,6 +45,96 @@ struct RenderInfo {
     bool forceUpdate = false;
 };
 
+struct Monitor {
+    std::string id;
+    std::string mode;
+    std::string opcode;
+    std::unordered_map<std::string, std::string> parameters;
+    std::string spriteName;
+    std::string displayName;
+    Value value;
+    std::vector<Value> list;
+    int x;
+    int y;
+    bool visible;
+    double sliderMin;
+    double sliderMax;
+    bool isDiscrete;
+};
+
+enum class Progress {
+    CONTINUE,
+    REPEAT,                 // for blocks that needs more than one frame etc
+    RETURN_AND_STOP_SCRIPT, // such as "Stop this script" (and if it is directly inside a MyBlock, the specified value is returned).
+    STOP_SPRITE,            // to stop this sprite
+    CLOSE_PROJECT,          // to close project (like stop all)
+};
+
+struct BlockResult {
+    Value value;
+    Block *next = nullptr;
+    BlockResult(Value value = Value(), Progress progress = Progress::CONTINUE) : value(value), progress(progress) {}
+    Progress progress;
+};
+
+struct BlockState {
+    std::unordered_map<std::string, Value> values; // for the calculated Values of Inputs
+
+    int repeatTimes = -1;
+    bool isRepeating = false;
+    double waitDuration;
+    double glideStartX, glideStartY;
+    double glideEndX, glideEndY;
+    Timer waitTimer;
+};
+
+struct ScriptThread {
+    int blockHatID;
+    int currentBlock;
+    std::unordered_map<int, BlockState> states;
+    std::vector<int> callStack;
+    bool finished = false;
+    bool withoutScreenRefresh = false;
+};
+struct ParsedInput {
+    enum InputType {
+        VALUE,
+        VARIABLE,
+        BLOCK
+    } inputType = InputType::VALUE;
+    explicit ParsedInput(Value value) : value(value) {inputType = InputType::VALUE;}
+    explicit ParsedInput(unsigned int blockID) : blockID(blockID) {inputType = InputType::BLOCK;}
+    explicit ParsedInput(std::string variableID) : variableID(variableID) {inputType = InputType::VARIABLE;}
+
+    Value value;
+    unsigned int blockID = 0;
+    std::string variableID = 0;
+};
+struct Block {
+    unsigned int blockId;
+    unsigned int nextBlockId = -1;
+    std::string opcode = ""; // only relevant for Hats
+    std::function<BlockResult(Block *block, ScriptThread *thread, Sprite *sprite)> blockFunction;
+
+    inline BlockResult getInput(std::string inputName, ScriptThread *thread, Sprite *sprite);
+
+    std::unordered_map<std::string, ParsedInput> inputs;
+    std::unordered_map<std::string, ParsedField> fields;
+
+    //for MyBlocks
+    unsigned int MyBlockDefinitionID;
+    std::vector<std::string> argumentIDs;
+    std::vector<std::string> argumentDefaults;
+};
+
+
+
+struct ParsedField {
+    std::string value;
+    std::string id;
+
+};
+
 struct Variable {
     std::string id;
     std::string name;
@@ -27,69 +142,6 @@ struct Variable {
     bool cloud;
 #endif
     Value value;
-};
-
-struct ParsedField {
-    std::string value;
-    std::string id;
-};
-
-struct ParsedInput {
-    enum InputType {
-        LITERAL,
-        VARIABLE,
-        BLOCK,
-        BOOLEAN
-    };
-
-    InputType inputType;
-    Value literalValue;
-    std::string variableId;
-    std::string blockId;
-};
-
-struct Block {
-    std::string id;
-    std::string customBlockId;
-    std::string opcode;
-    std::string next;
-    Block *nextBlock;
-    std::string parent;
-    std::string blockChainID;
-    std::shared_ptr<std::map<std::string, ParsedInput>> parsedInputs;
-    std::shared_ptr<std::map<std::string, ParsedField>> parsedFields;
-    bool shadow;
-    bool topLevel;
-    std::string topLevelParentBlock;
-
-    /* variables that some blocks need*/
-    int repeatTimes = -1;
-    bool isRepeating = false;
-    double waitDuration;
-    double glideStartX, glideStartY;
-    double glideEndX, glideEndY;
-    Timer waitTimer;
-    bool customBlockExecuted = false;
-    bool stopScript = false;
-    Block *customBlockPtr = nullptr;
-    std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
-
-    Block() {
-        parsedFields = std::make_shared<std::map<std::string, ParsedField>>();
-        parsedInputs = std::make_shared<std::map<std::string, ParsedInput>>();
-    }
-};
-
-struct CustomBlock {
-
-    std::string name;
-    std::string tagName;
-    std::string blockId;
-    std::vector<std::string> argumentIds;
-    std::vector<std::string> argumentNames;
-    std::vector<std::string> argumentDefaults;
-    std::unordered_map<std::string, Value> argumentValues;
-    bool runWithoutScreenRefresh;
 };
 
 struct List {
@@ -118,44 +170,12 @@ struct Costume {
     double rotationCenterY;
 };
 
-struct Comment {
-    std::string id;
-    std::string blockId;
-    std::string text;
-    bool minimized;
-    int x;
-    int y;
-    int width;
-    int height;
-};
+struct CollisionManager {
+    double x;
+    double y;
 
-struct Broadcast {
-    std::string id;
-    std::string name;
-};
-
-struct BlockChain {
-    std::vector<Block *> blockChain;
-    std::vector<std::string> blocksToRepeat;
-};
-
-struct Monitor {
-    std::string id;
-    std::string mode;
-    std::string opcode;
-    std::unordered_map<std::string, std::string> parameters;
-    std::string spriteName;
-    std::string displayName;
-    Value value;
-    std::vector<Value> list;
-    int x;
-    int y;
-    int width;
-    int height;
-    bool visible;
-    double sliderMin;
-    double sliderMax;
-    bool isDiscrete;
+    int spriteWidth;
+    int spriteHeight;
 };
 
 class Sprite {
@@ -167,39 +187,40 @@ class Sprite {
     bool visible;
     bool isClone;
     bool toDelete;
-    bool isDeleted = false;
-    bool shouldDoSpriteClick = false;
+
     int currentCostume;
     float volume;
+
     float xPosition;
     float yPosition;
     int rotationCenterX;
     int rotationCenterY;
+
     float size;
     float rotation;
     int layer;
-    RenderInfo renderInfo;
 
     float ghostEffect;
     float brightnessEffect;
-    float colorEffect;
+    double colorEffect = -99999;
+
+    int spriteHeight = 10;
+    int spriteWidth = 10;
+
+    RenderInfo renderInfo;
 
     enum RotationStyle {
         NONE,
         LEFT_RIGHT,
         ALL_AROUND
-    };
+    } rotationStyle;
 
-    RotationStyle rotationStyle;
-    std::vector<std::pair<double, double>> collisionPoints;
-    int spriteWidth;
-    int spriteHeight;
+    CollisionManager collisionManager;
 
     struct {
         bool down = false;
         double size = 1;
         Color color = {66.66, 100.0, 100.0, 0.0};
-        double shade = 50;
     } penData;
 
     struct {
@@ -209,25 +230,22 @@ class Sprite {
     } textToSpeechData;
 
     std::unordered_map<std::string, Variable> variables;
-    std::map<std::string, Block> blocks;
     std::unordered_map<std::string, List> lists;
-    std::vector<Sound> sounds;
+
     std::vector<Costume> costumes;
-    std::unordered_map<std::string, Comment> comments;
-    std::unordered_map<std::string, Broadcast> broadcasts;
-    std::unordered_map<std::string, CustomBlock> customBlocks;
-    std::unordered_map<std::string, BlockChain> blockChains;
+    std::map<std::string, Sound> sounds;
+
+    std::list<ScriptThread> threads;
+    std::unordered_set<unsigned int> hats;
+    void startThread(int blockID);
+
+    void deleteThread(int blockID);
 
     ~Sprite() {
         variables.clear();
-        blocks.clear();
         lists.clear();
         sounds.clear();
         costumes.clear();
-        comments.clear();
-        broadcasts.clear();
-        customBlocks.clear();
-        blockChains.clear();
-        collisionPoints.clear();
+        threads.clear();
     }
 };

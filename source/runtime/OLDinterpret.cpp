@@ -1,4 +1,5 @@
-#include "interpret.hpp"
+
+/*#include "interpret.hpp"
 #include "math.hpp"
 #include "migrate.hpp"
 #include "nlohmann/json.hpp"
@@ -131,9 +132,7 @@ void initMist() {
 }
 #endif
 
-void loadUsernameFromSettings() {
-    customUsername = "Player";
-    useCustomUsername = false;
+std::string loadUsernameFromSettings() {
 
     migrate();
     std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
@@ -141,10 +140,6 @@ void loadUsernameFromSettings() {
         nlohmann::json j;
         inFile >> j;
         inFile.close();
-
-        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
-            useCustomUsername = j["EnableUsername"].get<bool>();
-        }
 
         if (j.contains("Username") && j["Username"].is_string()) {
             bool hasNonSpace = false;
@@ -155,10 +150,11 @@ void loadUsernameFromSettings() {
                     break;
                 }
             }
-            if (hasNonSpace) customUsername = j["Username"].get<std::string>();
-            else customUsername = "Player";
+            if (hasNonSpace) return j["Username"].get<std::string>();
+            return "";
         }
     }
+    return "";
 }
 
 bool Scratch::startScratchProject() {
@@ -1307,3 +1303,4 @@ std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
     }
     return fieldFind->second.id;
 }
+*/

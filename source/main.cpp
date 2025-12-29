@@ -56,11 +56,11 @@ bool activateMainMenu() {
 }
 
 void mainLoop() {
-    Scratch::startScratchProject();
+    Runtime::startScratchProject();
     if (Scratch::nextProject) {
         Log::log(Unzip::filePath);
         if (!Unzip::load()) {
-            if (Unzip::projectOpened == -3) { // main menu
+            if (Unzip::error.empty) { // main menu
                 if (!activateMainMenu()) {
                     exitApp();
                     exit(0);
@@ -76,7 +76,7 @@ void mainLoop() {
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
-    if (toExit || !activateMainMenu()) {
+    if (Scratch::toExit || !activateMainMenu()) {
         exitApp();
         exit(0);
     }
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
     }
 
     if (!Unzip::load()) {
-        if (Unzip::projectOpened == -3) {
+        if (Unzip::error.empty()) {
 #ifdef __EMSCRIPTEN__
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {

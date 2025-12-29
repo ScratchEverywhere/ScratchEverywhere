@@ -1,3 +1,8 @@
+/*
+I try to get rid of this file, but it's taking some time.
+and rewrite everything in the runtime.hpp/cpp files. 
+*/
+
 #pragma once
 #include "blockExecutor.hpp"
 #include "sprite.hpp"
@@ -27,7 +32,7 @@ extern std::unordered_map<std::string, Block *> blockLookup;
 extern bool toExit;
 extern std::string answer;
 
-void loadUsernameFromSettings();
+std::string loadUsernameFromSettings();
 
 class Scratch {
   public:

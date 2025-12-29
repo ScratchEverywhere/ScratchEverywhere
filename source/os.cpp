@@ -216,6 +216,10 @@ std::string OS::getScratchFolderLocation() {
 #endif
 }
 
+std::string OS::getChacheFolderLocation() {
+    return OS::getScratchFolderLocation() + "cache/";
+}
+
 std::string OS::getConfigFolderLocation() {
     const std::string prefix = getFilesystemRootPrefix();
     std::string path = getScratchFolderLocation();

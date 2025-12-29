@@ -1,5 +1,5 @@
 #pragma once
-#include <interpret.hpp>
+#include <runtime.hpp>
 #include <miniz.h>
 #include <string>
 #include <unzip.hpp>
@@ -48,7 +48,7 @@ class Image {
      * Loads an image from a Sprite's current costume.
      */
     static void loadImageFromProject(Sprite *sprite) {
-        if (projectType == UNZIPPED) {
+        if (Scratch::projectType == Scratch::ProjectType::EXTRACTED) {
             Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
         } else {
             Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);

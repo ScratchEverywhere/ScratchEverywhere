@@ -1,9 +1,9 @@
 #pragma once
 
 #include <blockExecutor.hpp>
-#include <interpret.hpp>
+#include <runtime.hpp>
 
-BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);
+BlockResult nopBlock(Block &block, ScriptThread *thread, Sprite *sprite);
 
 /**
  * @brief Defines and registers a block
@@ -20,9 +20,8 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * The code block directly following the macro is the body of the handler function.
  *
  * @param block A reference to the Block being ran. This is used to fetch inputs/fields and track repeats.
+ * @param thread A pointer to the ScriptThread running the block. This is used for tracking execution state and to store block states.
  * @param sprite A pointer to the Sprite the block is being ran in. This is used for actions like motion and data changes.
- * @param withoutScreenRefresh A pointer to a boolean representing if the block is running without refreshing the screen.
- * @param fromRepeat A boolean representing whether or not the block being ran is inside of a repeat.
  *
  * @return BlockResult
  *
@@ -33,9 +32,9 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @sa BlockExecutor
  */
 #define SCRATCH_BLOCK(category, id)                                                                                               \
-    BlockResult block_##category##_##id##_(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat);            \
+    BlockResult block_##category##_##id##_(Block &block, ScriptThread *thread, Sprite *sprite);            \
     static uint8_t block_##category##_##id##_reg_ = (BlockExecutor::handlers[#category "_" #id] = block_##category##_##id##_, 0); \
-    BlockResult block_##category##_##id##_(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat)
+    BlockResult block_##category##_##id##_(Block &block, ScriptThread *thread, Sprite *sprite)
 
 /**
  * @brief Defines and registers a block that does nothing
@@ -72,9 +71,10 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * The code block directly following the macro is the body of the handler function.
  *
  * @param block A reference to the Block being ran. This is used to fetch inputs/fields and track repeats.
+ * @param thread A pointer to the ScriptThread running the block. This is used for tracking execution state and to store block states.
  * @param sprite A pointer to the Sprite the block is being ran in. This is used for actions like motion and data changes.
  *
- * @return Value
+ * @return BlockResult
  *
  * @sa SCRATCH_BLOCK
  * @sa SCRATCH_REPORTER_BLOCK_OPCODE
@@ -83,9 +83,9 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @sa BlockExecutor
  */
 #define SCRATCH_REPORTER_BLOCK(category, id)                                                                                           \
-    Value block_##category##_##id##_(Block &block, Sprite *sprite);                                                                    \
-    static uint8_t block_##category##_##id##_reg_ = (BlockExecutor::valueHandlers[#category "_" #id] = block_##category##_##id##_, 0); \
-    Value block_##category##_##id##_(Block &block, Sprite *sprite)
+    BlockResult block_##category##_##id##_(Block &block, ScriptThread *thread, Sprite *sprite);                                                                    \
+    static uint8_t block_##category##_##id##_reg_ = (BlockExecutor::handlers[#category "_" #id] = block_##category##_##id##_, 0); \
+    BlockResult block_##category##_##id##_(Block &block, ScriptThread *thread, Sprite *sprite)
 
 /**
  * @brief Defines and registers a reporter block
@@ -99,9 +99,10 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * The code block directly following the macro is the body of the handler function.
  *
  * @param block A reference to the Block being ran. This is used to fetch inputs/fields and track repeats.
+ * @param thread A pointer to the ScriptThread running the block. This is used for tracking execution state and to store block states.
  * @param sprite A pointer to the Sprite the block is being ran in. This is used for actions like motion and data changes.
  *
- * @return Value
+ * @return BlockResult
  *
  * @sa SCRATCH_BLOCK
  * @sa SCRATCH_REPORTER_BLOCK
@@ -110,9 +111,9 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @sa BlockExecutor
  */
 #define SCRATCH_REPORTER_BLOCK_OPCODE(opcode)                                                              \
-    Value block_##opcode##_(Block &block, Sprite *sprite);                                                 \
-    static uint8_t block_##opcode##_reg_ = (BlockExecutor::valueHandlers[#opcode] = block_##opcode##_, 0); \
-    Value block_##opcode##_(Block &block, Sprite *sprite)
+    BlockResult block_##opcode##_(Block &block, ScriptThread *thread, Sprite *sprite);                                                 \
+    static uint8_t block_##opcode##_reg_ = (BlockExecutor::handlers[#opcode] = block_##opcode##_, 0); \
+    BlockResult block_##opcode##_(Block &block, ScriptThread *thread, Sprite *sprite)
 
 /**
  * @brief Defines and registers a shadow block
@@ -131,5 +132,5 @@ BlockResult nopBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, b
  * @sa BlockExecutor
  */
 #define SCRATCH_SHADOW_BLOCK(opcode, fieldId)                                                                        \
-    Value block_##opcode##_(Block &block, Sprite *sprite) { return Value(Scratch::getFieldValue(block, #fieldId)); } \
-    static uint8_t block_##opcode##_reg_ = (BlockExecutor::valueHandlers[#opcode] = block_##opcode##_, 0);
+    BlockResult block_##opcode##_(Block &block, ScriptThread *thread, Sprite *sprite) { return BlockResult{.value = Scratch::getFieldValue(block, #fieldId)}; } \
+    static uint8_t block_##opcode##_reg_ = (BlockExecutor::handlers[#opcode] = block_##opcode##_, 0);
