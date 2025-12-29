@@ -322,26 +322,19 @@ std::string OS::getUsername() {
         return std::string(reinterpret_cast<char *>(username));
     }
 #elif defined(__3DS__)
-    const u16 *block = (const u16 *)malloc(0x1C);
+    std::array<u16, 0x1C / sizeof(u16)> block{};
 
     cfguInit();
-    CFGU_GetConfigInfoBlk2(0x1C, 0xA0000, (u8 *)block);
+    CFGU_GetConfigInfoBlk2(0x1C, 0xA0000, reinterpret_cast<u8 *>(block.data()));
     cfguExit();
 
-    char *usernameBuffer = (char *)malloc(0x14);
-    ssize_t length = utf16_to_utf8((u8 *)usernameBuffer, block, 0x14);
+    std::string username(0x14, '\0');
+    const ssize_t length = utf16_to_utf8(reinterpret_cast<u8 *>(username.data()), block.data(), username.size());
 
-    std::string username;
-    if (length <= 0) {
-        username = "Player";
-    } else {
-        username = std::string(usernameBuffer, length);
+    if (length > 0) {
+        username.resize(static_cast<size_t>(length));
+        return username;
     }
-
-    free((void *)block);
-    free(usernameBuffer);
-
-    return username;
 #elif defined(_WIN32) || defined(_WIN64)
     TCHAR username[UNLEN + 1];
     DWORD size = UNLEN + 1;
