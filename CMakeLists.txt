@@ -72,51 +72,56 @@ if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
     )
 endif()
 
-if(SE_RENDERER STREQUAL "sdl1" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "sdl3")
-	set(SE_WINDOWING ${SE_RENDERER})
-else()
-	list(APPEND SE_WINDOWING_VALID_OPTIONS "headless" "sdl2")
-	if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
-		list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl1" "sdl3" "glfw")
-	endif()
+list(APPEND SE_WINDOWING_VALID_OPTIONS "headless")
+if(SE_RENDERER STREQUAL "opengl")
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "glfw")
+endif()
+if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "opengl")
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl3")
+endif()
+if(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
+endif()
+if(SE_RENDERER STREQUAL "sdl1" OR SE_RENDERER STREQUAL "opengl")
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl1")
+endif()
 
-	if("glfw" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-		set(
-			SE_WINDOWING
-			"glfw"
-			CACHE STRING "Select the desired windowing backend."
-		)
-	elseif("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-		set(
-			SE_WINDOWING
-			"sdl3"
-			CACHE STRING "Select the desired windowing backend."
-		)
-	elseif("sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-		set(
-			SE_WINDOWING
-			"sdl2"
-			CACHE STRING "Select the desired windowing backend."
-		)
-	elseif("sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-		set(
-			SE_WINDOWING
-			"sdl1"
-			CACHE STRING "Select the desired windowing backend."
-		)
-	else()
-		set(
-			SE_WINDOWING
-			"headless"
-			CACHE STRING "Select the desired windowing backend."
-		)
-	endif()
-	if(NOT SE_WINDOWING IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	    message(
-	        FATAL_ERROR
-	        "Invalid value for SE_WINDOWING: '${SE_WINDOWING}'. Must be one of: ${SE_WINDOWING_VALID_OPTIONS}"
-	    )
-	endif()
+if("glfw" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"glfw"
+		CACHE STRING "Select the desired windowing backend."
+	)
+elseif("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"sdl3"
+		CACHE STRING "Select the desired windowing backend."
+	)
+elseif("sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"sdl2"
+		CACHE STRING "Select the desired windowing backend."
+	)
+elseif("sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"sdl1"
+		CACHE STRING "Select the desired windowing backend."
+	)
+else()
+	set(
+		SE_WINDOWING
+		"headless"
+		CACHE STRING "Select the desired windowing backend."
+	)
+endif()
+if(NOT SE_WINDOWING IN_LIST SE_WINDOWING_VALID_OPTIONS)
+    message(
+        FATAL_ERROR
+        "Invalid value for SE_WINDOWING: '${SE_WINDOWING}'. Must be one of: ${SE_WINDOWING_VALID_OPTIONS}"
+    )
 endif()
 
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl2")
