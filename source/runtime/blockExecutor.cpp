@@ -59,7 +59,7 @@ BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *with
     const auto iterator = h.find(block.opcode);
     if (iterator != h.end()) return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
 
-    Log::logWarning("Unkown block: " + block.opcode);
+    Log::logWarning("Unknown block: " + block.opcode);
 
     return BlockResult::CONTINUE;
 }
@@ -336,7 +336,7 @@ Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
     const auto iterator = vh.find(block.opcode);
     if (iterator != vh.end()) return iterator->second(block, sprite);
 
-    Log::logWarning("Unkown block: " + block.opcode);
+    Log::logWarning("Unknown block: " + block.opcode);
 
     return Value();
 }
