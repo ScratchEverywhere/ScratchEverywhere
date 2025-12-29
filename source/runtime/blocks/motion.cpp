@@ -172,7 +172,7 @@ SCRATCH_BLOCK(motion, glideto) {
     return BlockResult::RETURN;
 }
 
-SCRATCH_BLOCK(motion, pointtoward) {
+SCRATCH_BLOCK(motion, pointtowards) {
     const std::string objectName = Scratch::getInputValue(block, "TOWARDS", sprite).asString();
     double targetX = 0;
     double targetY = 0;
