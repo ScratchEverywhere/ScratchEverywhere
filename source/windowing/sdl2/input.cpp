@@ -1,8 +1,4 @@
-#ifdef RENDERER_OPENGL
-#include "../opengl/sdl2/window.hpp"
-#else
-#include "render.hpp"
-#endif
+#include "window.hpp"
 #ifdef __SWITCH__
 #include <switch.h>
 #endif

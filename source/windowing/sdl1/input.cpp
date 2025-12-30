@@ -1,11 +1,11 @@
-#include "render.hpp"
-#include <SDL/SDL.h>
+#include "window.hpp"
 #include <algorithm>
 #include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
 #include <input.hpp>
 #include <map>
+#include <render.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <vector>
@@ -145,7 +145,7 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], windowWidth, windowHeight);
+    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 

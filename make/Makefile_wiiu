@@ -12,7 +12,7 @@ PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
 
 TARGET		:=	scratch-wiiu
 BUILD		:=	build/wiiu
-SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/audio/sdl2 include/nlohmann include/miniz
+SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/miniz
 INCLUDES	:=	include $(SOURCES)
 ROMFS	:=	romfs
 GRAPHICS	:=	gfx
@@ -123,7 +123,7 @@ OFILES		+=	$(ROMFS_TARGET)
 
 .PHONY: $(BUILD) clean all
 
-all: mkdir $(GFXBUILD) $(OUTPUT).wuhb package 
+all: mkdir $(GFXBUILD) $(OUTPUT).wuhb package
 
 mkdir:
 	@mkdir -p $(BUILD)

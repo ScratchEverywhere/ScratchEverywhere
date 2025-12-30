@@ -1,4 +1,6 @@
 #include <render.hpp>
+#include <window.hpp>
+#include <windowing/headless/window.hpp>
 
 // Static member initialization
 std::chrono::_V2::system_clock::time_point Render::startTime;
@@ -11,11 +13,20 @@ std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMo
 std::vector<Monitor> Render::visibleVariables;
 float Render::renderScale;
 
+Window *globalWindow = nullptr;
+
 bool Render::Init() {
+    globalWindow = new WindowHeadless();
+    globalWindow->init(0, 0, "");
     return true;
 }
 
 void Render::deInit() {
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
 }
 
 void *Render::getRenderer() {

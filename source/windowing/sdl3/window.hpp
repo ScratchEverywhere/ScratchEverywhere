@@ -1,9 +1,8 @@
 #pragma once
-#include "../window.hpp"
-#define GL_INCLUDE_NONE
-#include <GLFW/glfw3.h>
+#include <SDL3/SDL.h>
+#include <window.hpp>
 
-class WindowGLFW : public Window {
+class WindowSDL3 : public Window {
   public:
     bool init(int width, int height, const std::string &title) override;
     void cleanup() override;
@@ -18,7 +17,9 @@ class WindowGLFW : public Window {
     void *getHandle() override;
 
   private:
-    GLFWwindow *window = nullptr;
+    SDL_Window *window = nullptr;
+    SDL_GLContext context = nullptr;
     int width = 0;
     int height = 0;
+    bool shouldCloseFlag = false;
 };

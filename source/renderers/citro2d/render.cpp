@@ -7,11 +7,14 @@
 #include <runtime.hpp>
 #include <text.hpp>
 #include <unzip.hpp>
+#include <window.hpp>
+#include <windowing/3ds/window.hpp>
 
 #define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
+Window *globalWindow = nullptr;
 C3D_RenderTarget *topScreen = nullptr;
 C3D_RenderTarget *topScreenRightEye = nullptr;
 C3D_RenderTarget *bottomScreen = nullptr;
@@ -38,7 +41,13 @@ static int currentScreen = 0;
 std::vector<Monitor> Render::visibleVariables;
 
 bool Render::Init() {
-    gfxInitDefault();
+    globalWindow = new Window3DS();
+    if (!globalWindow->init(400, 240, "Scratch Everywhere!")) {
+        delete globalWindow;
+        globalWindow = nullptr;
+        return false;
+    }
+
     hidScanInput();
     u32 kDown = hidKeysHeld();
     if (kDown & KEY_SELECT) {
@@ -48,9 +57,6 @@ bool Render::Init() {
     }
     osSetSpeedupEnable(true);
 
-    C3D_Init(0x100000);
-    C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
-    C2D_Prepare();
     gfxSet3D(true);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
@@ -58,16 +64,14 @@ bool Render::Init() {
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
-    romfsInit();
-
     return true;
 }
 
 bool Render::appShouldRun() {
     if (OS::toExit) return false;
-    if (!aptMainLoop()) {
-        OS::toExit = true;
-        return false;
+    if (globalWindow->shouldClose()) {
+    	OS::toExit = true;
+    	return false;
     }
     return true;
 }
@@ -545,8 +549,10 @@ void Render::deInit() {
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SoundPlayer::deinit();
-    C2D_Fini();
-    C3D_Fini();
-    romfsExit();
-    gfxExit();
+
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
 }

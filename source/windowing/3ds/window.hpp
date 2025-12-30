@@ -1,8 +1,10 @@
 #pragma once
-#include "../window.hpp"
-#include <SDL2/SDL.h>
+#include <3ds.h>
+#include <citro2d.h>
+#include <citro3d.h>
+#include <window.hpp>
 
-class WindowSDL2 : public Window {
+class Window3DS : public Window {
   public:
     bool init(int width, int height, const std::string &title) override;
     void cleanup() override;
@@ -17,9 +19,6 @@ class WindowSDL2 : public Window {
     void *getHandle() override;
 
   private:
-    SDL_Window *window = nullptr;
-    SDL_GLContext context = nullptr;
-    int width = 0;
-    int height = 0;
-    bool shouldCloseFlag = false;
+    int width = 400;
+    int height = 240;
 };

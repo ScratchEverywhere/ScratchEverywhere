@@ -1,8 +1,8 @@
 #pragma once
-#include "../window.hpp"
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
+#include <window.hpp>
 
-class WindowSDL3 : public Window {
+class WindowSDL2 : public Window {
   public:
     bool init(int width, int height, const std::string &title) override;
     void cleanup() override;

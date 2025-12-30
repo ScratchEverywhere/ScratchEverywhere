@@ -1,8 +1,6 @@
 #include "render.hpp"
 #include "image.hpp"
 #include "sprite.hpp"
-#include <SDL2/SDL.h>
-#include <SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <chrono>
@@ -13,10 +11,14 @@
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
+#include <SDL2/SDL.h>
+#include <SDL2_gfxPrimitives.h>
 #include <string>
 #include <text.hpp>
 #include <unordered_map>
 #include <vector>
+#include <window.hpp>
+#include <windowing/sdl2/window.hpp>
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>
@@ -51,11 +53,6 @@ char nickname[0x21];
 #include <orbis/Net.h>
 #include <orbis/Sysmodule.h>
 #include <orbis/libkernel.h>
-
-inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
-    // On PS4 there is no DPI scaling, so this is fine
-    SDL_GetWindowSize(window, w, h);
-}
 #endif
 
 #ifdef GAMECUBE
@@ -63,9 +60,7 @@ inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
 #include <ogc/exi.h>
 #endif
 
-int windowWidth = 540;
-int windowHeight = 405;
-SDL_Window *window = nullptr;
+Window *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
 
@@ -77,138 +72,28 @@ std::chrono::system_clock::time_point Render::endTime = std::chrono::system_cloc
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
-// TODO: properly export these to input.cpp
-SDL_GameController *controller;
-bool touchActive = false;
-SDL_Point touchPosition;
-
 bool Render::Init() {
 #ifdef __WIIU__
-    WHBLogUdpInit();
-
-    if (romfsInit()) {
-        OSFatal("Failed to init romfs.");
-        return false;
-    }
-    if (!WHBMountSdCard()) {
-        OSFatal("Failed to mount sd card.");
-        return false;
-    }
-    nn::act::Initialize();
-
-    windowWidth = 854;
-    windowHeight = 480;
+    int windowWidth = 854;
+    int windowHeight = 480;
 #elif defined(__SWITCH__)
-
-    windowWidth = 1280;
-    windowHeight = 720;
-
-    AccountUid userID = {0};
-    AccountProfile profile;
-    AccountProfileBase profilebase;
-    memset(&profilebase, 0, sizeof(profilebase));
-
-    Result rc = romfsInit();
-    if (R_FAILED(rc)) {
-        Log::logError("Failed to init romfs."); // TODO: Include error code
-        goto postAccount;
-    }
-
-    rc = accountInitialize(AccountServiceType_Application);
-    if (R_FAILED(rc)) {
-        Log::logError("accountInitialize failed.");
-        goto postAccount;
-    }
-
-    rc = accountGetPreselectedUser(&userID);
-    if (R_FAILED(rc)) {
-        PselUserSelectionSettings settings;
-        memset(&settings, 0, sizeof(settings));
-        rc = pselShowUserSelector(&userID, &settings);
-        if (R_FAILED(rc)) {
-            Log::logError("pselShowUserSelector failed.");
-            goto postAccount;
-        }
-    }
-
-    rc = accountGetProfile(&profile, userID);
-    if (R_FAILED(rc)) {
-        Log::logError("accountGetProfile failed.");
-        goto postAccount;
-    }
-
-    rc = accountProfileGet(&profile, NULL, &profilebase);
-    if (R_FAILED(rc)) {
-        Log::logError("accountProfileGet failed.");
-        goto postAccount;
-    }
-
-    memset(nickname, 0, sizeof(nickname));
-    strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
-
-    socketInitializeDefault();
-
-    accountProfileClose(&profile);
-    accountExit();
-postAccount:
+    int windowWidth = 1280;
+    int windowHeight = 720;
 #elif defined(__OGC__)
-#ifdef GAMECUBE
-    if ((SYS_GetConsoleType() & SYS_CONSOLE_MASK) == SYS_CONSOLE_DEVELOPMENT) {
-        CON_EnableBarnacle(EXI_CHANNEL_0, EXI_DEVICE_1);
-    }
-    CON_EnableGecko(EXI_CHANNEL_1, true);
-#else
-    SYS_STDIO_Report(true);
-#endif
-
-    fatInitDefault();
-    windowWidth = 640;
-    windowHeight = 480;
-    if (romfsInit()) {
-        Log::logError("Failed to init romfs.");
-        return false;
-    }
-
+    int windowWidth = 640;
+    int windowHeight = 480;
 #elif defined(VITA)
-    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
-
-    windowWidth = 960;
-    windowHeight = 544;
-
-    Log::log("[Vita] Loading module SCE_SYSMODULE_NET");
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-
-    Log::log("[Vita] Running sceNetInit");
-    SceNetInitParam netInitParam;
-    int size = 1 * 1024 * 1024; // net buffer size ([size in MB]*1024*1024)
-    netInitParam.memory = malloc(size);
-    netInitParam.size = size;
-    netInitParam.flags = 0;
-    sceNetInit(&netInitParam);
-
-    Log::log("[Vita] Running sceNetCtlInit");
-    sceNetCtlInit();
+    int windowWidth = 960;
+    int windowHeight = 544;
 #elif defined(__PSP__)
-    windowWidth = 480;
-    windowHeight = 272;
+    int windowWidth = 480;
+    int windowHeight = 272;
 #elif defined(__PS4__)
-    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
-    if (rc != ORBIS_OK) {
-        Log::logError("Failed to init freetype.");
-        return false;
-    }
-
-    windowWidth = 1280;
-    windowHeight = 720;
-#endif
-#ifndef __PS4__
-    SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-#endif
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
-#ifdef WEBOS
-    windowWidth = 800;
-    windowHeight = 480;
+    int windowWidth = 1280;
+    int windowHeight = 720;
+#elif defined(WEBOS)
+    int windowWidth = 800;
+    int windowHeight = 480;
 
     SDL_DisplayMode mode;
     SDL_GetDisplayMode(0, 0, &mode);
@@ -216,28 +101,24 @@ postAccount:
         windowWidth = mode.w;
         windowHeight = mode.h;
     }
+#else
+    int windowWidth = 540;
+    int windowHeight = 405;
 #endif
+
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
-#ifdef WEBOS
-    Log::log("[SDL] windowWidth is " + std::to_string(windowWidth));
-    Log::log("[SDL] windowHeight is " + std::to_string(windowHeight));
-    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowWidth, windowHeight, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-#else
-    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_GetRendererOutputSize(renderer, &windowWidth, &windowHeight);
-#endif
 
-    if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
+    globalWindow = new WindowSDL2();
+    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+        delete globalWindow;
+        globalWindow = nullptr;
+        return false;
+    }
+
+    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
     debugMode = true;
-
-    // Print SDL version number. could be useful for debugging
-    SDL_version ver;
-    SDL_VERSION(&ver);
-    Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
 
     return true;
 }
@@ -248,18 +129,16 @@ void Render::deInit() {
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
+
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
+
     SoundPlayer::deinit();
     IMG_Quit();
     SDL_Quit();
-
-#if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)
-    romfsExit();
-#endif
-#ifdef __WIIU__
-    WHBUnmountSdCard();
-    nn::act::Finalize();
-#endif
 }
 
 void *Render::getRenderer() {
@@ -267,20 +146,22 @@ void *Render::getRenderer() {
 }
 
 int Render::getWidth() {
-    return windowWidth;
+    if (globalWindow) return globalWindow->getWidth();
+    return 540;
 }
 int Render::getHeight() {
-    return windowHeight;
+    if (globalWindow) return globalWindow->getHeight();
+    return 405;
 }
 
 bool Render::initPen() {
     if (penTexture != nullptr) return true;
 
     if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight))
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight)), windowHeight);
+        if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
         else
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, windowWidth, Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth)));
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
     } else penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
 
     // Clear the texture
@@ -397,7 +278,7 @@ void Render::penStamp(Sprite *sprite) {
     }
 
     // Pen mapping stuff
-    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
+    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, getWidth(), getHeight());
     image->renderRect.x = cords.first + Scratch::projectWidth / 2;
     image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
 
@@ -603,7 +484,7 @@ void Render::renderSprites() {
         if (currentSprite->isStage) renderPenLayer();
     }
 
-    drawBlackBars(windowWidth, windowHeight);
+    drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
 
     SDL_RenderPresent(renderer);
@@ -617,14 +498,14 @@ std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMo
 void Render::renderPenLayer() {
     SDL_Rect renderRect = {0, 0, 0, 0};
 
-    if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
-        renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
-        renderRect.w = windowWidth - renderRect.x * 2;
-        renderRect.h = windowHeight;
+    if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+        renderRect.x = std::ceil((getWidth() - Scratch::projectWidth * (static_cast<float>(getHeight()) / Scratch::projectHeight)) / 2.0f);
+        renderRect.w = getWidth() - renderRect.x * 2;
+        renderRect.h = getHeight();
     } else {
-        renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
-        renderRect.h = windowHeight - renderRect.y * 2;
-        renderRect.w = windowWidth;
+        renderRect.y = std::ceil((getHeight() - Scratch::projectHeight * (static_cast<float>(getWidth()) / Scratch::projectWidth)) / 2.0f);
+        renderRect.h = getHeight() - renderRect.y * 2;
+        renderRect.w = getWidth();
     }
 
     SDL_RenderCopy(renderer, penTexture, NULL, &renderRect);
@@ -632,42 +513,23 @@ void Render::renderPenLayer() {
 
 bool Render::appShouldRun() {
     if (OS::toExit) return false;
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        switch (event.type) {
-        case SDL_QUIT:
-            OS::toExit = true;
-            return false;
-        case SDL_CONTROLLERDEVICEADDED:
-            controller = SDL_GameControllerOpen(0);
-            break;
-        case SDL_FINGERDOWN:
-            touchActive = true;
-            touchPosition = {
-                static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)};
-            break;
-        case SDL_FINGERMOTION:
-            touchPosition = {
-                static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)};
-            break;
-        case SDL_FINGERUP:
-            touchActive = false;
-            break;
-        case SDL_WINDOWEVENT:
-            switch (event.window.event) {
-            case SDL_WINDOWEVENT_RESIZED:
-                SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-                setRenderScale();
+    if (globalWindow) {
+        globalWindow->pollEvents();
 
-                if (!Scratch::hqpen) break;
+        static int lastW = 0, lastH = 0;
+        int currentW = globalWindow->getWidth();
+        int currentH = globalWindow->getHeight();
 
+        if (lastW != currentW || lastH != currentH) {
+            lastW = currentW;
+            lastH = currentH;
+
+            if (Scratch::hqpen) {
                 SDL_Texture *newTexture;
-                if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight))
-                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight)), windowHeight);
+                if (Scratch::projectWidth / static_cast<double>(currentW) < Scratch::projectHeight / static_cast<double>(currentH))
+                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (currentH / static_cast<double>(Scratch::projectHeight)), currentH);
                 else
-                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, windowWidth, Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth)));
+                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, currentW, Scratch::projectHeight * (currentW / static_cast<double>(Scratch::projectWidth)));
 
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_NONE);
                 SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_NONE);
@@ -676,12 +538,10 @@ bool Render::appShouldRun() {
                 SDL_SetRenderTarget(renderer, nullptr);
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_BLEND);
                 SDL_DestroyTexture(penTexture);
-                penTexture = newTexture;
-
-                break;
             }
-            break;
         }
+
+        return !globalWindow->shouldClose();
     }
-    return true;
+    return false;
 }

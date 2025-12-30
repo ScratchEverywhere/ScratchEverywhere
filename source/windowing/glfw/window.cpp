@@ -1,11 +1,11 @@
 #include "window.hpp"
-#include "../render.hpp"
 #include <GLFW/glfw3.h>
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
 #include <math.hpp>
 #include <render.hpp>
+#include <renderers/opengl/render.hpp>
 #include <text.hpp>
 
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
