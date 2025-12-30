@@ -246,6 +246,8 @@ void WindowSDL2::pollEvents() {
                 int w, h;
 #ifdef RENDERER_OPENGL
                 SDL_GL_GetDrawableSize(window, &w, &h);
+#elif defined(__PS4__)
+                SDL_GetWindowSize(window, &w, &h);
 #else
                 SDL_GetWindowSizeInPixels(window, &w, &h);
 #endif
