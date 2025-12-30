@@ -12,10 +12,27 @@ SCRATCH_BLOCK(event, broadcast) {
 }
 
 SCRATCH_BLOCK(event, broadcastandwait) {
+    std::string broadcastName = Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString();
+
     if (!fromRepeat) {
-        block.repeatTimes = -10;
         BlockExecutor::addToRepeatQueue(sprite, &block);
-        block.broadcastsRun = BlockExecutor::runBroadcast(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
+        Scratch::broadcastQueue.push_back(broadcastName);
+        return BlockResult::RETURN;
+    }
+
+    if (block.broadcastsRun.empty()) {
+        for (Sprite *spr : Scratch::sprites) {
+            for (auto &[id, chain] : spr->blockChains) {
+                if (chain.blocksToRepeat.empty()) continue;
+
+                for (auto &chainBlock : chain.blockChain) {
+                    if (chainBlock->opcode == "event_whenbroadcastreceived" && Scratch::getFieldValue(*chainBlock, "BROADCAST_OPTION") == broadcastName) {
+                        block.broadcastsRun.push_back({chainBlock, spr});
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     bool shouldEnd = true;
@@ -30,6 +47,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     if (!shouldEnd) return BlockResult::RETURN;
 
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
+    block.broadcastsRun.clear();
     return BlockResult::CONTINUE;
 }
 
