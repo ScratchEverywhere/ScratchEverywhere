@@ -300,7 +300,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     nlohmann::json parsedAID = nlohmann::json::parse(rawArgumentIds);
                     newCustomBlock.argumentIds = parsedAID.get<std::vector<std::string>>();
 
-                    if (data["mutation"]["warp"] == "true") {
+                    if (data["mutation"]["warp"] == "true" || data["mutation"]["warp"] == true) {
                         newCustomBlock.runWithoutScreenRefresh = true;
                     } else newCustomBlock.runWithoutScreenRefresh = false;
 
