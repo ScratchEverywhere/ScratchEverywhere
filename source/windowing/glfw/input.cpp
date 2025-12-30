@@ -1,7 +1,9 @@
 #include "window.hpp"
 #include <blockExecutor.hpp>
 #include <input.hpp>
+#include <render.hpp>
 #include <string>
+#include <text.hpp>
 #include <vector>
 
 Input::Mouse Input::mousePointer;
@@ -19,6 +21,9 @@ extern bool cloudProject;
 
 extern bool useCustomUsername;
 extern std::string customUsername;
+
+static bool g_inputActive = false;
+static std::string g_inputText = "";
 
 std::vector<int> Input::getTouchPosition() {
     double x, y;
