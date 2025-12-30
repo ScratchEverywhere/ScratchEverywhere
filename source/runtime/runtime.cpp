@@ -68,7 +68,7 @@ bool Scratch::startScratchProject() {
         const bool checkFPS = Render::checkFramerate();
         if (!forceRedraw || checkFPS) {
             forceRedraw = false;
-            Input::getInput();
+            if (checkFPS) Input::getInput();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::runCloneStarts();
             BlockExecutor::runBroadcasts();
@@ -527,7 +527,7 @@ void Scratch::sortSprites() {
               });
 }
 
-Block *Scratch::findBlock(std::string blockId, Sprite* sprite) {
+Block *Scratch::findBlock(std::string blockId, Sprite *sprite) {
     auto block = sprite->blocks.find(blockId);
     if (block == sprite->blocks.end()) {
         return nullptr;
@@ -535,7 +535,7 @@ Block *Scratch::findBlock(std::string blockId, Sprite* sprite) {
     return &block->second;
 }
 
-Block *Scratch::getBlockParent(const Block *block, Sprite* sprite) {
+Block *Scratch::getBlockParent(const Block *block, Sprite *sprite) {
     Block *parentBlock;
     const Block *currentBlock = block;
     while (currentBlock->parent != "null") {
