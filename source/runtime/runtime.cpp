@@ -18,6 +18,9 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#ifdef ENABLE_MENU
+#include <pauseMenu.hpp>
+#endif
 
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
@@ -75,9 +78,31 @@ bool Scratch::startScratchProject() {
             BlockExecutor::updateMonitors();
             if (checkFPS) Render::renderSprites();
 
+#ifdef ENABLE_MENU
+
+            if ((projectType == UNEMBEDDED || (projectType == UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+
+                PauseMenu *menu = new PauseMenu();
+                MenuManager::changeMenu(menu);
+
+                while (Render::appShouldRun()) {
+                    MenuManager::render();
+                    if (menu->shouldUnpause) break;
+
+#ifdef __EMSCRIPTEN__
+                    emscripten_sleep(0);
+#endif
+                }
+                MenuManager::cleanup();
+                if (!Render::appShouldRun()) break;
+            }
+
+#endif
+
             if (shouldStop) {
-                if (projectType != UNEMBEDDED || (projectType == UNZIPPED && Unzip::UnpackedInSD)) {
+                if (projectType != UNEMBEDDED && !(projectType == UNZIPPED && Unzip::UnpackedInSD)) {
                     OS::toExit = true;
+                    cleanupScratchProject();
                     return false;
                 }
                 cleanupScratchProject();

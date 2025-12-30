@@ -42,16 +42,7 @@ void MenuManager::render() {
 }
 
 bool MenuManager::loadProject() {
-    if (currentMenu != nullptr) {
-        currentMenu->cleanup();
-        delete currentMenu;
-        currentMenu = nullptr;
-    }
-    if (previousMenu != nullptr) {
-        delete previousMenu;
-        previousMenu = nullptr;
-    }
-
+    cleanup();
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
 
@@ -62,6 +53,18 @@ bool MenuManager::loadProject() {
     }
     isProjectLoaded = 1;
     return true;
+}
+
+void MenuManager::cleanup() {
+    if (currentMenu != nullptr) {
+        currentMenu->cleanup();
+        delete currentMenu;
+        currentMenu = nullptr;
+    }
+    if (previousMenu != nullptr) {
+        delete previousMenu;
+        previousMenu = nullptr;
+    }
 }
 
 MainMenu::MainMenu() {

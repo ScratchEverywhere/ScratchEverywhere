@@ -30,6 +30,7 @@ class MenuManager {
     static void changeMenu(Menu *menu);
     static void render();
     static bool loadProject();
+    static void cleanup();
 };
 
 class MainMenu : public Menu {
