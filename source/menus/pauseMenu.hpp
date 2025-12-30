@@ -8,6 +8,7 @@ class PauseMenu : public Menu {
     ButtonObject *backButton = nullptr;
     ButtonObject *exitProjectButton = nullptr;
     ButtonObject *flagButton = nullptr;
+    ButtonObject *turboButton = nullptr;
 
     bool shouldUnpause = false;
 

@@ -14,21 +14,28 @@ void PauseMenu::init() {
     pauseControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
 
-    exitProjectButton = new ButtonObject("Exit Project", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
+    exitProjectButton = new ButtonObject("Exit Project", "gfx/menu/projectBox.svg", 200, 60, "gfx/menu/Ubuntu-Bold");
     exitProjectButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    flagButton = new ButtonObject("Run Green Flag", "gfx/menu/projectBox.svg", 200, 140, "gfx/menu/Ubuntu-Bold");
+    flagButton = new ButtonObject("Run Green Flag", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
     flagButton->text->setColor(Math::color(0, 0, 0, 255));
+
+    turboButton = new ButtonObject((Scratch::turbo ? "Turbo Mode: ON" : "Turbo Mode: OFF"), "gfx/menu/projectBox.svg", 200, 140, "gfx/menu/Ubuntu-Bold");
+    turboButton->text->setColor(Math::color(0, 0, 0, 255));
 
     backButton->needsToBeSelected = false;
 
     pauseControl->buttonObjects.push_back(exitProjectButton);
     pauseControl->buttonObjects.push_back(flagButton);
+    pauseControl->buttonObjects.push_back(turboButton);
     pauseControl->selectedObject = exitProjectButton;
     exitProjectButton->isSelected = true;
 
     exitProjectButton->buttonDown = flagButton;
     flagButton->buttonUp = exitProjectButton;
+
+    flagButton->buttonDown = turboButton;
+    turboButton->buttonUp = flagButton;
 }
 
 void PauseMenu::render() {
@@ -68,6 +75,17 @@ void PauseMenu::render() {
         return;
     }
 
+    if (turboButton->isPressed()) {
+        if (!Scratch::turbo) {
+            Scratch::turbo = true;
+            turboButton->text->setText("Turbo Mode: ON");
+        } else {
+            Scratch::turbo = false;
+            turboButton->text->setText("Turbo Mode: OFF");
+        }
+        return;
+    }
+
     Render::beginFrame(0, 71, 49, 71);
     Render::beginFrame(1, 71, 49, 71);
 
@@ -94,6 +112,10 @@ void PauseMenu::cleanup() {
     if (pauseControl != nullptr) {
         delete pauseControl;
         pauseControl = nullptr;
+    }
+    if (turboButton != nullptr) {
+        delete turboButton;
+        turboButton = nullptr;
     }
     Render::beginFrame(0, 0, 0, 0);
     Render::beginFrame(1, 0, 0, 0);
