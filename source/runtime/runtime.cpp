@@ -69,6 +69,8 @@ bool Scratch::startScratchProject() {
 
     while (Render::appShouldRun()) {
         const bool checkFPS = Render::checkFramerate();
+        if (Scratch::turbo) forceRedraw = false;
+
         if (!forceRedraw || checkFPS) {
             forceRedraw = false;
             if (checkFPS) Input::getInput();

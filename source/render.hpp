@@ -475,7 +475,6 @@ class Render {
      * @return True if we should go to the next frame, False otherwise.
      */
     static bool checkFramerate() {
-        if (Scratch::turbo) return true;
         static Timer frameTimer;
         int frameDuration = 1000 / Scratch::FPS;
         return frameTimer.hasElapsedAndRestart(frameDuration);
