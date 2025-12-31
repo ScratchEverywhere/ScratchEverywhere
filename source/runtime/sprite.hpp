@@ -63,7 +63,7 @@ struct Block {
     std::string topLevelParentBlock;
 
     /* variables that some blocks need*/
-    int repeatTimes = -1;
+    double repeatTimes = -1;
     bool isRepeating = false;
     double waitDuration;
     double glideStartX, glideStartY;
