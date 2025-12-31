@@ -443,10 +443,6 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
         size_t json_size;
         const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
 
-#ifdef ENABLE_CLOUDVARS
-        projectJSON = std::string(json_data, json_size);
-#endif
-
         // Parse JSON file
         Log::log("Parsing project.json...");
 
@@ -467,10 +463,6 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
         json_content.reserve(size);
         json_content.assign(std::istreambuf_iterator<char>(*file),
                             std::istreambuf_iterator<char>());
-
-#ifdef ENABLE_CLOUDVARS
-        projectJSON = json_content;
-#endif
 
         project_json = nlohmann::json::parse(json_content);
     }

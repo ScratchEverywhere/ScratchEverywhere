@@ -54,7 +54,7 @@ std::string Scratch::customUsername;
 bool Scratch::startScratchProject() {
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
-    if (cloudProject && !projectJSON.empty()) Parser::initMist();
+    if (cloudProject) Parser::initMist();
 #endif
     Scratch::nextProject = false;
 
@@ -148,11 +148,6 @@ void Scratch::cleanupScratchProject() {
         Unzip::zipBuffer.shrink_to_fit();
         memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
     }
-
-#ifdef ENABLE_CLOUDVARS
-    projectJSON.clear();
-    projectJSON.shrink_to_fit();
-#endif
 
     DownloadManager::deinit();
 

@@ -23,8 +23,6 @@ const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
 std::string Scratch::cloudUsername;
 bool Scratch::cloudProject = false;
 
-std::string projectJSON;
-
 std::unique_ptr<MistConnection> cloudConnection = nullptr;
 #endif
 
@@ -55,28 +53,42 @@ void Parser::initMist() {
     }
     fileStream.close();
 
-    uint64_t projectHash = FNV_OFFSET_BASIS_64;
-    for (char c : projectJSON) {
-        projectHash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
-        projectHash *= FNV_PRIME_64;
+    std::vector<std::string> assetIds;
+    for (const auto &sprite : Scratch::sprites) {
+        for (const auto &costume : sprite->costumes) {
+            assetIds.push_back(costume.id);
+        }
+        for (const auto &sound : sprite->sounds) {
+            assetIds.push_back(sound.id);
+        }
+    }
+
+    uint64_t assetHash = 0;
+    for (const auto &assetId : assetIds) {
+        uint64_t hash = FNV_OFFSET_BASIS_64;
+        for (char c : assetId) {
+            hash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
+            hash *= FNV_PRIME_64;
+        }
+
+        assetHash += hash;
     }
 
     std::ostringstream projectID;
-    projectID << "Scratch-3DS/hash-" << std::hex << std::setw(16) << std::setfill('0') << projectHash;
+    projectID << "ScratchEverywhere/hash-" << std::hex << std::setw(16) << std::setfill('0') << assetHash;
     cloudConnection = std::make_unique<MistConnection>(projectID.str(), Scratch::cloudUsername, "contact@grady.link");
 
     cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
         if (connected) {
-            Log::log("Mist++ Connected:");
-            Log::log(message);
+            Log::log("Mist++ Connected: " + message);
             return;
         }
-        Log::log("Mist++ Disconnected:");
-        Log::log(message);
+        Log::log("Mist++ Disconnected: " + message);
     });
 
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
+    Log::log("Connecting to cloud variables with id: " + projectID.str());
 #if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(WEBOS) // These platforms require Mist++ 0.2.0 or later.
     cloudConnection->connect(false);
 #else // These platforms require Mist++ 0.1.4 or later.
@@ -456,7 +468,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
     // setup top level blocks
     for (Sprite *currentSprite : Scratch::sprites) {
         for (auto &[id, block] : currentSprite->blocks) {
-            if (block.topLevel) continue;                                    // skip top level blocks
+            if (block.topLevel) continue;                                                   // skip top level blocks
             block.topLevelParentBlock = Scratch::getBlockParent(&block, currentSprite)->id; // get parent block id
             // std::cout<<"block id = "<< block.topLevelParentBlock << std::endl;
         }
@@ -631,7 +643,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
     Log::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
 }
 
-std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite* sprite, std::string *outID) {
+std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, std::string *outID) {
     std::vector<Block *> blockChain;
     Block *currentBlock = Scratch::findBlock(blockId, sprite);
     while (currentBlock != nullptr) {
