@@ -1,4 +1,5 @@
 #pragma once
+#include <ryu/d2s.h>
 #include <cstdint>
 #include <string>
 #ifndef M_PI
@@ -9,6 +10,8 @@ namespace Math {
 
 bool isNumber(const std::string &str);
 double parseNumber(std::string str);
+
+std::string toString(double number);
 
 int color(int r, int g, int b, int a);
 

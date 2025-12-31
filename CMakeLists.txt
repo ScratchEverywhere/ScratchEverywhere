@@ -223,6 +223,11 @@ CPMAddPackage(
 	GITHUB_REPOSITORY nlohmann/json
 	VERSION 3.12.0
 )
+CPMAddPackage(
+	NAME poipole807_ryuJS
+	GITHUB_REPOSITORY poipole807/ryuJS
+	VERSION 3.0
+)
 include(FetchContent)
 FetchContent_Declare(
     miniz
@@ -785,6 +790,14 @@ if(SE_AUDIO)
 endif()
 
 target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+add_library(ryuJS STATIC
+  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
+  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
+)
+target_link_libraries(scratch-everywhere PRIVATE ryuJS)
+target_include_directories(ryuJS PUBLIC
+  ${poipole807_ryuJS_SOURCE_DIR}
+)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
 if(PSP)

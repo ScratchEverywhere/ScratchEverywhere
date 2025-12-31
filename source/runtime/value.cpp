@@ -1,10 +1,8 @@
 #include "value.hpp"
 #include "math.hpp"
 #include <array>
-#include <charconv>
 #include <os.hpp>
 #include <regex>
-#include <sstream>
 
 Value::Value(int val) : value(val) {}
 
@@ -66,18 +64,7 @@ std::string Value::asString() const {
     if (isInteger()) {
         return std::to_string(std::get<int>(value));
     } else if (isDouble()) {
-        double doubleValue = std::get<double>(value);
-        if (std::isnan(doubleValue)) return "NaN";
-        if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
-        /*
-        std::array<char, 24> buffer;
-        std::to_chars_result result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), doubleValue);
-        *result.ptr = '\0';
-        return buffer.data();
-        */
-        std::ostringstream oss;
-        oss << std::setprecision(17) << doubleValue;
-        return oss.str();
+        return Math::toString(std::get<double>(value));
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
