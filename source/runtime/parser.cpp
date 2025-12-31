@@ -299,10 +299,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     for (const auto &item : parsedAD) {
                         if (item.is_string()) {
                             newCustomBlock.argumentDefaults.push_back(item.get<std::string>());
-                        } else if (item.is_number_integer()) {
-                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<int>()));
-                        } else if (item.is_number_float()) {
-                            newCustomBlock.argumentDefaults.push_back(std::to_string(item.get<double>()));
+                        } else if (item.is_number()) {
+                            newCustomBlock.argumentDefaults.push_back(Math::toString(item.get<double>()));
                         } else {
                             newCustomBlock.argumentDefaults.push_back(item.dump());
                         }
