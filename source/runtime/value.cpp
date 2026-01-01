@@ -4,7 +4,7 @@
 #include <os.hpp>
 #include <regex>
 
-Value::Value(int val) : value(val) {}
+Value::Value(int val) : value(static_cast<double>(val)) {}
 
 Value::Value(double val) : value(val) {}
 
@@ -23,47 +23,18 @@ double Value::asDouble() const {
         } catch (...) {
             return 0.0;
         }
-    } else if (isColor() || isInteger() || isBoolean()) {
-        return static_cast<double>(asInt());
+    } else if (isColor()) {
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
+        return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
+    } else if (isBoolean()) {
+        return std::get<bool>(value) ? 1 : 0;
     }
 
     return 0.0;
 }
 
-int Value::asInt() const {
-    if (isInteger()) {
-        return std::get<int>(value);
-    } else if (isDouble()) {
-        auto doubleValue = std::get<double>(value);
-        return static_cast<int>(std::round(doubleValue));
-    } else if (isString()) {
-        auto &strValue = std::get<std::string>(value);
-
-        if (strValue == "Infinity") {
-            return std::numeric_limits<int>::infinity();
-        }
-
-        if (strValue == "-Infinity") {
-            return -std::numeric_limits<int>::infinity();
-        }
-
-        if (Math::isNumber(strValue)) {
-            return static_cast<int>(std::round(Math::parseNumber(strValue)));
-        }
-    } else if (isBoolean()) {
-        return std::get<bool>(value) ? 1 : 0;
-    } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
-        return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
-    }
-
-    return 0;
-}
-
 std::string Value::asString() const {
-    if (isInteger()) {
-        return std::to_string(std::get<int>(value));
-    } else if (isDouble()) {
+    if (isDouble()) {
         return Math::toString(std::get<double>(value));
     } else if (isString()) {
         return std::get<std::string>(value);
@@ -91,9 +62,6 @@ std::string Value::asString() const {
 bool Value::asBoolean() const {
     if (isBoolean()) {
         return std::get<bool>(value);
-    }
-    if (isInteger()) {
-        return std::get<int>(value) != 0;
     }
     if (isDouble()) {
         return std::get<double>(value) != 0.0 && !isNaN();

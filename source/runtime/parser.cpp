@@ -144,19 +144,19 @@ void Parser::loadSprites(const nlohmann::json &json) {
             newSprite->currentCostume = target["currentCostume"].get<int>();
         }
         if (target.contains("volume")) {
-            newSprite->volume = target["volume"].get<int>();
+            newSprite->volume = target["volume"].get<float>();
         }
         if (target.contains("x")) {
-            newSprite->xPosition = target["x"].get<int>();
+            newSprite->xPosition = target["x"].get<float>();
         }
         if (target.contains("y")) {
-            newSprite->yPosition = target["y"].get<int>();
+            newSprite->yPosition = target["y"].get<float>();
         }
         if (target.contains("size")) {
-            newSprite->size = target["size"].get<int>();
+            newSprite->size = target["size"].get<float>();
         } else newSprite->size = 100;
         if (target.contains("direction")) {
-            newSprite->rotation = target["direction"].get<int>();
+            newSprite->rotation = target["direction"].get<float>();
         } else newSprite->rotation = 90;
         if (target.contains("layerOrder")) {
             newSprite->layer = target["layerOrder"].get<int>();

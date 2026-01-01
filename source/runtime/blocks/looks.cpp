@@ -121,7 +121,7 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
     const std::string forwardBackward = Scratch::getFieldValue(block, "FORWARD_BACKWARD");
     if (!value.isNumeric()) return BlockResult::CONTINUE;
 
-    const int shift = value.asInt();
+    const int shift = floor(value.asDouble());
     if (shift == 0) return BlockResult::CONTINUE;
 
     if (forwardBackward == "forward") {
