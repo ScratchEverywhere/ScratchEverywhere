@@ -3,6 +3,7 @@
 #include <ctime>
 #include <limits>
 #include <math.h>
+#include <os.hpp>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -43,6 +44,8 @@ double Math::parseNumber(std::string str) {
     while (!str.empty() && std::isspace(str.back())) {
         str.pop_back();
     }
+
+    if (str.empty()) throw std::invalid_argument("");
 
     if (str == "Infinity" || str == "+Infinity") {
         return std::numeric_limits<double>::infinity();
@@ -99,7 +102,7 @@ double Math::parseNumber(std::string str) {
             return std::numeric_limits<double>::infinity();
         }
     } catch (const std::invalid_argument &e) {
-        return 0;
+        Log::logWarning("Unexpected string->double conversion failure.");
     }
 
     return conversion;
