@@ -651,7 +651,7 @@ std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, 
 
         auto substackIt = currentBlock->parsedInputs->find("SUBSTACK");
         if (substackIt != currentBlock->parsedInputs->end() &&
-            (substackIt->second.inputType == ParsedInput::BOOLEAN || substackIt->second.inputType == ParsedInput::BLOCK) &&
+            substackIt->second.inputType == ParsedInput::BLOCK &&
             !substackIt->second.blockId.empty()) {
 
             std::vector<Block *> subBlockChain;
@@ -665,7 +665,7 @@ std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, 
 
         auto substack2It = currentBlock->parsedInputs->find("SUBSTACK2");
         if (substack2It != currentBlock->parsedInputs->end() &&
-            (substack2It->second.inputType == ParsedInput::BOOLEAN || substack2It->second.inputType == ParsedInput::BLOCK) &&
+            substack2It->second.inputType == ParsedInput::BLOCK &&
             !substack2It->second.blockId.empty()) {
 
             std::vector<Block *> subBlockChain;

@@ -38,8 +38,7 @@ struct ParsedInput {
     enum InputType {
         LITERAL,
         VARIABLE,
-        BLOCK,
-        BOOLEAN
+        BLOCK
     };
 
     InputType inputType;

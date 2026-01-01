@@ -589,10 +589,8 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
 
     case ParsedInput::BLOCK:
         return executor.getBlockValue(*findBlock(input.blockId, sprite), sprite);
-
-    case ParsedInput::BOOLEAN:
-        return executor.getBlockValue(*findBlock(input.blockId, sprite), sprite);
     }
+
     return Value();
 }
 
