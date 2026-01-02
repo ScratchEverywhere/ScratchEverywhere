@@ -101,8 +101,6 @@ double Math::parseNumber(std::string str) {
         } else {
             return std::numeric_limits<double>::infinity();
         }
-    } catch (const std::invalid_argument &e) {
-        Log::logWarning("Unexpected string->double conversion failure.");
     }
 
     return conversion;
