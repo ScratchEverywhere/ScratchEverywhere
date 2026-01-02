@@ -528,7 +528,6 @@ Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, 
 void BlockExecutor::addToRepeatQueue(Sprite *sprite, Block *block) {
     auto &repeatList = sprite->blockChains[block->blockChainID].blocksToRepeat;
     if (std::find(repeatList.begin(), repeatList.end(), block->id) == repeatList.end()) {
-        block->isRepeating = true;
         repeatList.push_back(block->id);
     }
 }
@@ -539,8 +538,6 @@ void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
 
     auto &blocksToRepeat = it->second.blocksToRepeat;
     if (!blocksToRepeat.empty()) {
-        block->isRepeating = false;
-        block->repeatTimes = -1;
         blocksToRepeat.pop_back();
     }
 }

@@ -21,7 +21,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
     std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
     std::string tempFile = tempDir + safeName;
 
-    if (block.repeatTimes >= -1 || !fromRepeat) {
+    if (!fromRepeat || block.repeatTimes >= -1) {
         block.repeatTimes = -2;
     }
 

@@ -18,7 +18,6 @@ SCRATCH_BLOCK(control, if) {
     Block *repeatBlock;
 
     if (!fromRepeat) {
-        block.repeatTimes = -4;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     } else {
         goto end;
@@ -45,7 +44,6 @@ SCRATCH_BLOCK(control, if_else) {
     Block *repeatBlock;
 
     if (!fromRepeat) {
-        block.repeatTimes = -4;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     } else {
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
@@ -112,14 +110,6 @@ SCRATCH_BLOCK(control, stop) {
         return BlockResult::RETURN;
     }
     if (stopType == "this script") {
-        for (std::string repeatID : sprite->blockChains[block.blockChainID].blocksToRepeat) {
-            Block *const repeatBlock = &sprite->blocks[repeatID];
-            if (repeatBlock) {
-                repeatBlock->repeatTimes = -1;
-                repeatBlock->isRepeating = false;
-            }
-        }
-
         sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
         return BlockResult::RETURN;
     }
@@ -127,10 +117,6 @@ SCRATCH_BLOCK(control, stop) {
     if (stopType == "other scripts in sprite") {
         for (auto &[id, chain] : sprite->blockChains) {
             if (id == block.blockChainID) continue;
-            for (std::string repeatID : chain.blocksToRepeat) {
-                Block *repeatBlock = &sprite->blocks[repeatID];
-                if (repeatBlock) repeatBlock->repeatTimes = -1;
-            }
             chain.blocksToRepeat.clear();
         }
         for (Sound sound : sprite->sounds)
@@ -145,10 +131,8 @@ SCRATCH_BLOCK_NOP(control, start_as_clone)
 
 SCRATCH_BLOCK(control, wait) {
     if (!fromRepeat) {
-        block.repeatTimes = -2;
-
         const Value duration = Scratch::getInputValue(block, "DURATION", sprite);
-        block.waitDuration = duration.isNumeric() ? duration.asDouble() * 1000 : 0;
+        block.waitDuration = duration.asDouble() * 1000;
 
         block.waitTimer.start();
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -157,7 +141,6 @@ SCRATCH_BLOCK(control, wait) {
     }
 
     if (!block.waitTimer.hasElapsed(block.waitDuration)) return BlockResult::RETURN;
-    block.repeatTimes = -1;
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -165,12 +148,10 @@ SCRATCH_BLOCK(control, wait) {
 
 SCRATCH_BLOCK(control, wait_until) {
     if (!fromRepeat) {
-        block.repeatTimes = -4;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
     const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-
     const bool conditionMet = conditionValue.asBoolean();
 
     if (!conditionMet) return BlockResult::RETURN;
@@ -185,7 +166,6 @@ SCRATCH_BLOCK(control, repeat) {
     }
 
     if (block.repeatTimes <= 0) {
-        block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
@@ -202,7 +182,6 @@ SCRATCH_BLOCK(control, repeat) {
 
 SCRATCH_BLOCK(control, while) {
     if (!fromRepeat) {
-        block.repeatTimes = -2;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
@@ -231,7 +210,6 @@ SCRATCH_BLOCK(control, while) {
 
 SCRATCH_BLOCK(control, repeat_until) {
     if (!fromRepeat) {
-        block.repeatTimes = -2;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
@@ -261,7 +239,6 @@ SCRATCH_BLOCK(control, repeat_until) {
 
 SCRATCH_BLOCK(control, forever) {
     if (!fromRepeat) {
-        block.repeatTimes = -3;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
@@ -295,7 +272,6 @@ SCRATCH_BLOCK(control, for_each) {
     }
 
     if (block.repeatTimes >= upperBound) {
-        block.repeatTimes = -1;
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
