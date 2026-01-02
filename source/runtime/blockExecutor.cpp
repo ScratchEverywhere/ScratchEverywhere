@@ -197,7 +197,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             }
 
             // Get the parent of the prototype block (the definition containing all blocks)
-            Block *customBlockDefinition = &sprite->blocks[sprite->blocks[data.blockId].parent];
+            Block *customBlockDefinition = &sprite->blocks[sprite->customBlockDefinitions[data.blockId]];
 
             callerBlock->customBlockPtr = customBlockDefinition;
 

@@ -213,6 +213,7 @@ class Sprite {
     std::unordered_map<std::string, Comment> comments;
     std::unordered_map<std::string, Broadcast> broadcasts;
     std::unordered_map<std::string, CustomBlock> customBlocks;
+    std::unordered_map<std::string, std::string> customBlockDefinitions;
     std::map<std::string, BlockChain> blockChains;
 
     ~Sprite() {
