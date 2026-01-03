@@ -575,7 +575,7 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
     auto parsedFind = block.parsedInputs->find(inputName);
 
     if (parsedFind == block.parsedInputs->end()) {
-        return Value();
+        return Value(0.0);
     }
 
     const ParsedInput &input = parsedFind->second;

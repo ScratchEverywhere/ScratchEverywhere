@@ -239,7 +239,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                             parsedInput.literalValue = Value::fromJson(inputValue);
                         } else if (inputValue.is_null()) {
                             parsedInput.inputType = ParsedInput::LITERAL;
-                            parsedInput.literalValue = Value(0);
+                            parsedInput.literalValue = Value(0.0);
                         } else if (newBlock.opcode == "procedures_definition") {
                             parsedInput.inputType = ParsedInput::LITERAL;
                             parsedInput.literalValue = Value(inputValue.get<std::string>());
