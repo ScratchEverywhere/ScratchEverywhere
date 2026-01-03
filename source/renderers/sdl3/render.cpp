@@ -237,9 +237,9 @@ void Render::penStamp(Sprite *sprite) {
     if (Scratch::hqpen) {
         image->setScale(sprite->renderInfo.renderScaleY);
 
-        int penWidth;
-        int penHeight;
-        SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+        float penWidth;
+        float penHeight;
+        SDL_GetTextureSize(penTexture, &penWidth, &penHeight);
         const double scale = (penTexture->h / static_cast<double>(Scratch::projectHeight));
 
         image->renderRect.x *= scale;
@@ -339,8 +339,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_FRect topBar = {0, 0, screenWidth, static_cast<int>(std::ceil(barHeight))};
-        SDL_FRect bottomBar = {0, static_cast<int>(std::floor(screenHeight - barHeight)), screenWidth, static_cast<int>(std::ceil(barHeight))};
+        SDL_FRect topBar = {0, 0, static_cast<float>(screenWidth), std::ceil(barHeight)};
+        SDL_FRect bottomBar = {0, std::floor(screenHeight - barHeight), static_cast<float>(screenWidth), std::ceil(barHeight)};
 
         SDL_RenderFillRect(renderer, &topBar);
         SDL_RenderFillRect(renderer, &bottomBar);

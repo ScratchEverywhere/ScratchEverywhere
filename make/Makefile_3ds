@@ -317,9 +317,7 @@ icon.smdh: $(ICON_PNG)
 	@echo "built ... $@"
 
 $(OUTPUT).cia: $(OUTPUT).elf banner.bnr icon.smdh $(RSF_FILE)
-	@echo "Setting RAM to $(RAM_AMOUNT) MB..."
-	@sed -i '/# Process Settings/,/# New3DS Exclusive Process Settings/ s/SystemMode.*: .*/SystemMode                    : $(RAM_AMOUNT)MB # 64MB(Default)\/96MB\/80MB\/72MB\/32MB/' $(RSF_FILE)
-	@$(MAKEROM) -f cia -o $@ -elf $(OUTPUT).elf -rsf $(RSF_FILE) -banner banner.bnr -icon icon.smdh -target t -exefslogo
+	@$(MAKEROM) -f cia -o $@ -elf $(OUTPUT).elf -rsf $(RSF_FILE) -banner banner.bnr -icon icon.smdh -target t -exefslogo -DSystemMode=$(RAM_AMOUNT)MB
 	@echo "built ... $@"
 
 #---------------------------------------------------------------------------------
