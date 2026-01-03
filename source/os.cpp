@@ -74,6 +74,10 @@ void Log::logError(std::string message, bool printToScreen) {
 }
 void Log::writeToFile(std::string message) {
 }
+
+void Log::deleteLogFile(){
+}
+
 #else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
@@ -105,6 +109,12 @@ void Log::writeToFile(std::string message) {
         }
     }
 }
+
+void Log::deleteLogFile() {
+    std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
+    std::remove(filePath.c_str());
+}
+
 #endif
 
 // Nintendo DS Timer implementation
