@@ -347,7 +347,7 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
     //     double screenY = (point.second * -Render::renderScale) + (Render::getHeight() / 2);
     //     C2D_DrawRectSolid(
     //         screenX + xOffset,
-    //         screenY + yOffset * 2,
+    //         screenY + yOffset,
     //         1,
     //         4,
     //         4,

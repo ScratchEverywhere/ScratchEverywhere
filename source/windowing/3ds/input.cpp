@@ -136,7 +136,7 @@ void Input::getInput() {
 
                 if (Render::renderMode == Render::BOTH_SCREENS) {
                     mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
-                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
+                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
                 } else {
                     auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
                     mousePointer.x = coords.first;
