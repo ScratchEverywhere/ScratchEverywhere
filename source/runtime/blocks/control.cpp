@@ -86,6 +86,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     spriteToClone->isClone = true;
     spriteToClone->isStage = false;
     spriteToClone->toDelete = false;
+    spriteToClone->renderInfo.forceUpdate = true;
     spriteToClone->id = Math::generateRandomString(15);
     Scratch::sprites.push_back(spriteToClone);
     Sprite *addedSprite = Scratch::sprites.back();

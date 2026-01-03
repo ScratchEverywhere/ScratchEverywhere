@@ -77,6 +77,7 @@ class Render {
 
         if (sprite->size != sprite->renderInfo.oldSize) {
             sprite->renderInfo.oldSize = sprite->size;
+            sprite->renderInfo.oldRotation++;
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
 #ifdef RENDERER_GL2D
@@ -94,6 +95,7 @@ class Render {
         }
         if (sprite->rotation != sprite->renderInfo.oldRotation) {
             sprite->renderInfo.oldRotation = sprite->rotation;
+            sprite->renderInfo.oldSize++;
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
             if (sprite->rotationStyle == sprite->ALL_AROUND) {
