@@ -73,8 +73,8 @@ CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_WIIU) --cflags mist++`
 LIBS		+=	`$(PKGCONF_WIIU) --libs mist++`
 
 # Mist++ Version Check
-ifeq ($(shell $(PKGCONF_WIIU) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
-$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+ifeq ($(shell $(PKGCONF_WIIU) --atleast-version=0.3.4 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.3.4 or newer.")
 endif
 endif
 
