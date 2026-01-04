@@ -559,7 +559,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
     }
     try {
         Scratch::projectWidth = config["width"].get<int>();
-        Log::log("Set width to:" + std::to_string(Scratch::projectWidth));
+        Log::log("Set width to: " + std::to_string(Scratch::projectWidth));
     } catch (...) {
 #ifdef DEBUG
         Log::logWarning("no width property.");
