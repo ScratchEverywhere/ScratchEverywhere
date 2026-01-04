@@ -26,6 +26,8 @@ class Scratch {
     static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
     static std::string getFieldValue(Block &block, const std::string &fieldName);
     static std::string getFieldId(Block &block, const std::string &fieldName);
+    static std::string getListName(Block &block);
+    static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
 
     /**
      * Gets the top level block of the specified `Block`.
@@ -60,7 +62,6 @@ class Scratch {
     static bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, std::string targetName = "");
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
-    static Sprite *getListTargetSprite(std::string listId, Sprite *sprite);
     static void sortSprites();
 
     static int projectWidth;

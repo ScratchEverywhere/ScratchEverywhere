@@ -539,12 +539,6 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     Scratch::forceRedraw = true;
 }
 
-Sprite *Scratch::getListTargetSprite(std::string listId, Sprite *sprite) {
-    if (sprite->lists.find(listId) != sprite->lists.end()) return sprite;                // First check if the current sprite has the list
-    if (stageSprite->lists.find(listId) != stageSprite->lists.end()) return stageSprite; // If not found in current sprite, check stage (global lists)
-    return nullptr;                                                                      // List not found
-}
-
 void Scratch::sortSprites() {
     std::sort(sprites.begin(), sprites.end(),
               [](const Sprite *a, const Sprite *b) {
@@ -613,4 +607,37 @@ std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
         return "";
     }
     return fieldFind->second.id;
+}
+
+std::string Scratch::getListName(Block &block) {
+    auto fieldFind = block.parsedFields->find("LIST");
+    if (fieldFind == block.parsedFields->end()) {
+        return "";
+    }
+    return fieldFind->second.value;
+}
+
+std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
+    std::string listId = Scratch::getFieldId(block, "LIST");
+    Sprite *targetSprite = nullptr;
+    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
+    if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite;
+    if (!targetSprite) {
+        for (const auto &[id, list] : stageSprite->lists) {
+            if (list.name == getListName(block)) {
+                listId = list.id;
+                targetSprite = stageSprite;
+                break;
+            }
+        }
+        for (const auto &[id, list] : sprite->lists) {
+            if (list.name == getListName(block)) {
+                listId = list.id;
+                targetSprite = sprite;
+                break;
+            }
+        }
+    }
+    if (!targetSprite) return nullptr; // TODO: Implement list creation
+    return &targetSprite->lists[listId].items;
 }
