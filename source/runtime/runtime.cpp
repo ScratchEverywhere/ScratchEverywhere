@@ -22,6 +22,10 @@
 #include <pauseMenu.hpp>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
 std::vector<std::string> Scratch::broadcastQueue;
