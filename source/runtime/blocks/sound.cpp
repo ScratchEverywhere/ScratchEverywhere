@@ -1,3 +1,4 @@
+#ifdef ENABLE_AUDIO
 #include "blockUtils.hpp"
 #include <audio.hpp>
 #include <math.hpp>
@@ -95,6 +96,7 @@ SCRATCH_BLOCK(sound, play) {
             SoundPlayer::playSound(soundFullName);
     }
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -104,14 +106,60 @@ SCRATCH_BLOCK(sound, stopallsounds) {
             SoundPlayer::stopSound(sound.fullName);
         }
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK_NOP(sound, changeeffectby)
+SCRATCH_BLOCK(sound, changeeffectby) {
+    const std::string effect = Scratch::getFieldValue(block, "EFFECT");
+    const Value amount = Scratch::getInputValue(block, "VALUE", sprite);
 
-SCRATCH_BLOCK_NOP(sound, seteffectto)
+    if (effect == "PITCH") {
+        sprite->pitch += amount.asDouble();
+        sprite->pitch = std::clamp(sprite->pitch, -1000.0f, 1000.0f);
+        for (Sound sound : sprite->sounds) {
+            SoundPlayer::setPitch(sound.fullName, sprite->pitch);
+        }
+    } else if (effect == "PAN") {
+        sprite->pan += amount.asDouble();
+        for (Sound sound : sprite->sounds) {
+            SoundPlayer::setPan(sound.fullName, sprite->pan);
+        }
+    }
+    Scratch::forceRedraw = true;
+    return BlockResult::CONTINUE;
+}
 
-SCRATCH_BLOCK_NOP(sound, cleareffects)
+SCRATCH_BLOCK(sound, seteffectto) {
+    const std::string effect = Scratch::getFieldValue(block, "EFFECT");
+    const Value amount = Scratch::getInputValue(block, "VALUE", sprite);
+
+    if (effect == "PITCH") {
+        sprite->pitch = amount.asDouble();
+        sprite->pitch = std::clamp(sprite->pitch, -1000.0f, 1000.0f);
+        for (Sound sound : sprite->sounds) {
+            SoundPlayer::setPitch(sound.fullName, sprite->pitch);
+        }
+    } else if (effect == "PAN") {
+        sprite->pan = amount.asDouble();
+        for (Sound sound : sprite->sounds) {
+            SoundPlayer::setPan(sound.fullName, sprite->pan);
+        }
+    }
+    Scratch::forceRedraw = true;
+    return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK(sound, cleareffects) {
+    sprite->pitch = 100.0f;
+    sprite->pan = 100.0f;
+    for (Sound sound : sprite->sounds) {
+        SoundPlayer::setPitch(sound.fullName, sprite->pitch);
+        SoundPlayer::setPan(sound.fullName, sprite->pan);
+    }
+    Scratch::forceRedraw = true;
+    return BlockResult::CONTINUE;
+}
 
 SCRATCH_BLOCK(sound, changevolumeby) {
     const Value inputValue = Scratch::getInputValue(block, "VOLUME", sprite);
@@ -119,6 +167,7 @@ SCRATCH_BLOCK(sound, changevolumeby) {
         SoundPlayer::setSoundVolume(sound.fullName, sprite->volume + inputValue.asDouble());
         sprite->volume = SoundPlayer::getSoundVolume(sound.fullName);
     }
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -128,9 +177,12 @@ SCRATCH_BLOCK(sound, setvolumeto) {
         SoundPlayer::setSoundVolume(sound.fullName, inputValue.asDouble());
     }
     sprite->volume = inputValue.asDouble();
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_REPORTER_BLOCK(sound, volume) {
     return Value(sprite->volume);
 }
+
+#endif

@@ -210,7 +210,8 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     }
 
     // Create SDL_Audio object
-    std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
+    std::unique_ptr<SDL_Audio>
+        audio = std::make_unique<SDL_Audio>();
     audio->sound = sound;
     audio->audioId = fileName;
 
@@ -293,6 +294,43 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     }
 #endif
     return -1.0f;
+}
+
+void SoundPlayer::setPitch(const std::string &soundId, float pitch) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        if (soundFind->second->track == nullptr) {
+            Log::logWarning("Track not initialized, cannot set pitch!");
+            return;
+        }
+
+        if (!MIX_SetTrackFrequencyRatio(soundFind->second->track, pitch * 0.01f)) {
+            Log::logWarning("Failed to set pitch effect: " + std::string(SDL_GetError()));
+        }
+    }
+
+#endif
+}
+
+void SoundPlayer::setPan(const std::string &soundId, float pan) {
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        if (soundFind->second->track == nullptr) {
+            Log::logWarning("Track not initialized, cannot set pan!");
+            return;
+        }
+
+        // this method kinda just forces the sound to be on one side without it being gradual..
+        MIX_Point3D panPos;
+        panPos.x = std::clamp(pan * 0.0001f, -0.1f, 0.1f);
+        panPos.y = 0;
+        panPos.z = 0;
+
+        if (!MIX_SetTrack3DPosition(soundFind->second->track, &panPos)) {
+            Log::logWarning("Failed to set pan effect: " + std::string(SDL_GetError()));
+        }
+    }
 }
 
 double SoundPlayer::getMusicPosition(const std::string &soundId) {
