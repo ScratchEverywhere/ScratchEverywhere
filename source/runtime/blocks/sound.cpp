@@ -118,12 +118,12 @@ SCRATCH_BLOCK(sound, changeeffectby) {
         sprite->pitch += amount.asDouble();
         sprite->pitch = std::clamp(sprite->pitch, -1000.0f, 1000.0f);
         for (Sound sound : sprite->sounds) {
-            SoundPlayer::setPitch(sound.fullName, sprite->pitch);
+            SoundPlayer::setPitch(sound.fullName, sprite->pitch - 100.0f);
         }
     } else if (effect == "PAN") {
         sprite->pan += amount.asDouble();
         for (Sound sound : sprite->sounds) {
-            SoundPlayer::setPan(sound.fullName, sprite->pan);
+            SoundPlayer::setPan(sound.fullName, sprite->pan - 100.0f);
         }
     }
     Scratch::forceRedraw = true;
@@ -138,12 +138,12 @@ SCRATCH_BLOCK(sound, seteffectto) {
         sprite->pitch = amount.asDouble();
         sprite->pitch = std::clamp(sprite->pitch, -1000.0f, 1000.0f);
         for (Sound sound : sprite->sounds) {
-            SoundPlayer::setPitch(sound.fullName, sprite->pitch);
+            SoundPlayer::setPitch(sound.fullName, sprite->pitch - 100.0f);
         }
     } else if (effect == "PAN") {
         sprite->pan = amount.asDouble();
         for (Sound sound : sprite->sounds) {
-            SoundPlayer::setPan(sound.fullName, sprite->pan);
+            SoundPlayer::setPan(sound.fullName, sprite->pan - 100.0f);
         }
     }
     Scratch::forceRedraw = true;
@@ -154,8 +154,8 @@ SCRATCH_BLOCK(sound, cleareffects) {
     sprite->pitch = 100.0f;
     sprite->pan = 100.0f;
     for (Sound sound : sprite->sounds) {
-        SoundPlayer::setPitch(sound.fullName, sprite->pitch);
-        SoundPlayer::setPan(sound.fullName, sprite->pan);
+        SoundPlayer::setPitch(sound.fullName, sprite->pitch - 100.0f);
+        SoundPlayer::setPan(sound.fullName, sprite->pan - 100.0f);
     }
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;

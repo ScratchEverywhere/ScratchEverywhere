@@ -182,9 +182,9 @@ class Sprite {
     float colorEffect;
 
     /** Audio effects */
-    float volume;
-    float pitch;
-    float pan;
+    float volume = 100.0f;
+    float pitch = 100.0f;
+    float pan = 100.0f;
 
     enum RotationStyle {
         NONE,

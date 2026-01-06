@@ -305,7 +305,7 @@ void SoundPlayer::setPitch(const std::string &soundId, float pitch) {
             return;
         }
 
-        if (!MIX_SetTrackFrequencyRatio(soundFind->second->track, pitch * 0.01f)) {
+        if (!MIX_SetTrackFrequencyRatio(soundFind->second->track, (pitch * 0.01f) + 1.0f)) {
             Log::logWarning("Failed to set pitch effect: " + std::string(SDL_GetError()));
         }
     }
