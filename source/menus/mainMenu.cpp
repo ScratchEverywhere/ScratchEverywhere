@@ -88,8 +88,8 @@ void MainMenu::init() {
 
     MenuManager::loadProject();
 #elif defined(__NDS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_ds.wav")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_ds.wav", false, false);
     }
 #else
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
@@ -142,8 +142,8 @@ void MainMenu::render() {
 
     if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
-            SoundPlayer::playSound("gfx/menu/mm_full.wav");
+        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_ds.wav")) {
+            SoundPlayer::playSound("gfx/menu/mm_ds.wav");
         }
 #else
         if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {

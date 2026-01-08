@@ -152,6 +152,8 @@ $(GFXBUILD):
 	@mkdir -p $@
 ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
+	@rm -f $@/menu/mm_splash.ogg
+	@cp $(GRAPHICS)/nds/mm_ds.wav $@/menu/mm_ds.wav
 else
 	@cp $(GRAPHICS)/menu/Ubuntu-Bold.ttf $@/
 endif
