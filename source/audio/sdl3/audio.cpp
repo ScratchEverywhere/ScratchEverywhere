@@ -314,6 +314,7 @@ void SoundPlayer::setPitch(const std::string &soundId, float pitch) {
 }
 
 void SoundPlayer::setPan(const std::string &soundId, float pan) {
+#ifdef ENABLE_AUDIO
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         if (soundFind->second->track == nullptr) {
@@ -331,6 +332,7 @@ void SoundPlayer::setPan(const std::string &soundId, float pan) {
             Log::logWarning("Failed to set pan effect: " + std::string(SDL_GetError()));
         }
     }
+#endif
 }
 
 double SoundPlayer::getMusicPosition(const std::string &soundId) {
