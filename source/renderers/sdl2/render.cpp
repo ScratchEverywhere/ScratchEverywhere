@@ -1,6 +1,8 @@
 #include "render.hpp"
 #include "image.hpp"
 #include "sprite.hpp"
+#include <SDL2/SDL.h>
+#include <SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <chrono>
@@ -11,8 +13,6 @@
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <SDL2/SDL.h>
-#include <SDL2_gfxPrimitives.h>
 #include <string>
 #include <text.hpp>
 #include <unordered_map>
@@ -117,6 +117,10 @@ bool Render::Init() {
     }
 
     renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (renderer == NULL) {
+        Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
+        return false;
+    }
 
     debugMode = true;
 

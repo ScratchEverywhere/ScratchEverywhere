@@ -54,7 +54,7 @@ bool Render::Init() {
         consoleInit(GFX_BOTTOM, NULL);
         debugMode = true;
         isConsoleInit = true;
-    }
+    } else debugMode = false;
     osSetSpeedupEnable(true);
 
     gfxSet3D(true);
@@ -70,8 +70,8 @@ bool Render::Init() {
 bool Render::appShouldRun() {
     if (OS::toExit) return false;
     if (globalWindow->shouldClose()) {
-    	OS::toExit = true;
-    	return false;
+        OS::toExit = true;
+        return false;
     }
     return true;
 }

@@ -154,7 +154,7 @@ postAccount:
 #endif
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
-        Log::logError("Failed to initialize SDL2");
+        Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
         return false;
     }
 
@@ -178,14 +178,14 @@ postAccount:
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, flags);
     if (!window) {
-        Log::logError("Failed to create SDL2 window");
+        Log::logError("Failed to create SDL2 window: " + std::string(SDL_GetError()));
         return false;
     }
 
 #ifdef RENDERER_OPENGL
     context = SDL_GL_CreateContext(window);
     if (!context) {
-        Log::logError("Failed to create OpenGL context");
+        Log::logError("Failed to create OpenGL context: " + std::string(SDL_GetError()));
         return false;
     }
 

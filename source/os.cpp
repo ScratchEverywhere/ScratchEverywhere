@@ -75,7 +75,7 @@ void Log::logError(std::string message, bool printToScreen) {
 void Log::writeToFile(std::string message) {
 }
 
-void Log::deleteLogFile(){
+void Log::deleteLogFile() {
 }
 
 #else
@@ -112,7 +112,9 @@ void Log::writeToFile(std::string message) {
 
 void Log::deleteLogFile() {
     std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
-    std::remove(filePath.c_str());
+    if (std::remove(filePath.c_str()) != 0) {
+        Log::logError("Failed to delete log file: " + std::string(std::strerror(errno)));
+    }
 }
 
 #endif
