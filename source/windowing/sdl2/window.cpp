@@ -153,10 +153,13 @@ postAccount:
     }
 #endif
 
+    // SDL has to be initialized before window creation on webOS
+    #ifndef WEBOS
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
         Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
         return false;
     }
+    #endif
 
 #ifdef RENDERER_OPENGL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);

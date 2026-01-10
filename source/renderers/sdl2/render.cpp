@@ -92,6 +92,12 @@ bool Render::Init() {
     int windowWidth = 1280;
     int windowHeight = 720;
 #elif defined(WEBOS)
+    // SDL has to be initialized before window creation on webOS
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
+        Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
+        return false;
+    }
+
     int windowWidth = 800;
     int windowHeight = 480;
 
@@ -115,8 +121,11 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
-
+    #if defined(WEBOS)
+    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, SDL_RENDERER_ACCELERATED);
+    #else
     renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    #endif
     if (renderer == NULL) {
         Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
         return false;
