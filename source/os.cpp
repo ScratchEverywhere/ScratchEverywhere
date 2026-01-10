@@ -240,13 +240,14 @@ std::string OS::getScratchFolderLocation() {
 
 std::string OS::getConfigFolderLocation() {
     const std::string prefix = getFilesystemRootPrefix();
-    std::string path = getScratchFolderLocation();
+    std::string path = prefix + getScratchFolderLocation();
 #if defined(_WIN32) || defined(_WIN64)
-    PWSTR szPath = NULL;
-    if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &szPath) == S_OK) {
-        path = (std::filesystem::path(szPath) / "scratch-everywhere" / "").string();
-        CoTaskMemFree(szPath);
-    }
+// for some reason this makes some Windows devices crash, so comment this out for now
+// PWSTR szPath = NULL;
+// if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &szPath) == S_OK) {
+//     path = (std::filesystem::path(szPath) / "scratch-everywhere" / "").string();
+//     CoTaskMemFree(szPath);
+// }
 #elif defined(__APPLE__)
     const char *home = std::getenv("HOME");
     if (home) path = (std::filesystem::path(home) / "Library" / "Application Support" / "scratch-everywhere" / "").string();
