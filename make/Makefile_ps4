@@ -14,7 +14,7 @@ ENABLE_LOADSCREEN	?= 0
 ENABLE_MENU		?=	1
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceSysmodule -lSceAudioOut -lSceUserService \
+LIBS        := -lc -lkernel -lc++ -lSceSysmodule -lSceAudioOut -lSceUserService \
 			    -lScePigletv2VSH -lScePrecompiledShaders -lSceFreeType -lScePad -lSceSystemService \
 			    -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lsamplerate -lpthread \
 

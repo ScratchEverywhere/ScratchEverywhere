@@ -51,7 +51,6 @@ char nickname[0x21];
 #endif
 
 #ifdef __PS4__
-#include <orbis/Net.h>
 #include <orbis/Sysmodule.h>
 #include <orbis/libkernel.h>
 #endif
@@ -92,6 +91,13 @@ bool Render::Init() {
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
+
+    // Freetype has to be initialized before SDL2_ttf
+    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
+    if (rc != ORBIS_OK) {
+        Log::logError("Failed to init freetype.");
+        return false;
+    }
 #elif defined(WEBOS)
     // SDL has to be initialized before window creation on webOS
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
