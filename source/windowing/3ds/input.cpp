@@ -4,6 +4,7 @@
 #include <input.hpp>
 #include <render.hpp>
 
+#define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
@@ -140,19 +141,17 @@ void Input::getInput() {
                 } else {
                     auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
                     mousePointer.x = coords.first;
-                    mousePointer.y = (coords.second);
+                    mousePointer.y = coords.second;
                 }
             }
 
-            // trackpad movement if top screen only
+            // map bottom screen to top screen
             if (Render::renderMode == Render::TOP_SCREEN_ONLY) {
-                if (mouseHeldFrames == 1) {
-                    oldTouchPx = touchPos[0];
-                    oldTouchPy = touchPos[1];
-                }
-                mousePointer.x += touchPos[0] - oldTouchPx;
-                mousePointer.y -= touchPos[1] - oldTouchPy;
+                mousePointer.isPressed = true;
                 mousePointer.isMoving = true;
+                auto coords = Scratch::screenToScratchCoords(touchPos[0] * ((float)SCREEN_WIDTH / (float)BOTTOM_SCREEN_WIDTH), touchPos[1], Render::getWidth(), Render::getHeight());
+                mousePointer.x = coords.first;
+                mousePointer.y = coords.second;
             }
         }
     }

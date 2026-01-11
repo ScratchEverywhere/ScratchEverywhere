@@ -13,8 +13,6 @@ std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 
 static uint16_t mouseHeldFrames = 0;
-static uint8_t oldTouchPx = 0;
-static uint8_t oldTouchPy = 0;
 static touchPosition touch;
 
 #define SCREEN_WIDTH 256
@@ -93,35 +91,18 @@ void Input::getInput() {
             Input::buttonPress("shoulderR");
         }
         if (kDown & KEY_TOUCH) {
+            mousePointer.isPressed = true;
 
-            // normal touch screen if both screens or bottom screen only
-            if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
-                mousePointer.isPressed = true;
-                mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
-                if (Render::renderMode == Render::BOTH_SCREENS)
-                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
-                else if (Render::renderMode == Render::BOTTOM_SCREEN_ONLY)
-                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT / 2;
-            }
-
-            // trackpad movement if top screen only
-            if (Render::renderMode == Render::TOP_SCREEN_ONLY) {
-                if (mouseHeldFrames == 1) {
-                    oldTouchPx = touchPos[0];
-                    oldTouchPy = touchPos[1];
-                }
-                mousePointer.x += touchPos[0] - oldTouchPx;
-                mousePointer.y -= touchPos[1] - oldTouchPy;
+            if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
                 mousePointer.isMoving = true;
-            }
+
+            auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
+            mousePointer.x = coords.first;
+            mousePointer.y = coords.second;
         }
     }
 
     BlockExecutor::executeKeyHats();
-
-    oldTouchPx = touchPos[0];
-    oldTouchPy = touchPos[1];
-
     BlockExecutor::doSpriteClicking();
 }
 
