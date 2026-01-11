@@ -112,7 +112,9 @@ void Log::writeToFile(std::string message) {
 
 void Log::deleteLogFile() {
     std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
-    std::remove(filePath.c_str());
+    if (std::remove(filePath.c_str()) != 0) {
+        Log::logError("Failed to delete log file: " + std::string(std::strerror(errno)));
+    }
 }
 
 #endif
@@ -233,6 +235,8 @@ std::string OS::getScratchFolderLocation() {
     return prefix + "/scratch-ds/";
 #elif defined(__XENON__)
     return prefix + "/scratch-xbox360/";
+#elif defined(WEBOS)
+    return prefix + "projects/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -246,6 +250,8 @@ std::string OS::getConfigFolderLocation() {
     if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &szPath) == S_OK) {
         path = (std::filesystem::path(szPath) / "scratch-everywhere" / "").string();
         CoTaskMemFree(szPath);
+    } else {
+        Log::logError("Could not find RoamingData path.");
     }
 #elif defined(__APPLE__)
     const char *home = std::getenv("HOME");

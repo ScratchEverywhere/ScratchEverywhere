@@ -23,6 +23,8 @@ class SoundPlayer {
     static int playSound(const std::string &soundId);
     static void setSoundVolume(const std::string &soundId, float volume);
     static float getSoundVolume(const std::string &soundId);
+    static void setPitch(const std::string &soundId, float pitch);
+    static void setPan(const std::string &soundId, float pan);
     static double getMusicPosition(const std::string &soundId = "");
     static void setMusicPosition(double position, const std::string &soundId = "");
     static void stopSound(const std::string &soundId);

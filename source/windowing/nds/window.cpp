@@ -36,7 +36,7 @@ bool WindowNDS::init(int w, int h, const std::string &title) {
         vramSetBankD(VRAM_D_TEXTURE);
         vramSetBankF(VRAM_F_TEX_PALETTE);
         Render::debugMode = true;
-    }
+    } else Render::debugMode = false;
     return true;
 }
 

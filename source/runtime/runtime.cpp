@@ -220,11 +220,11 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
 
     } else {
         // no black bars..
-        float scale = 1.0f;
+        float scale = static_cast<float>(windowWidth) / Scratch::projectWidth;
         scratchX = (screenX / scale) - (Scratch::projectWidth / 2.0f);
         scratchY = (Scratch::projectHeight / 2.0f) - (screenY / scale);
 #ifdef RENDERER_CITRO2D
-        if(Render::renderMode == Render::BOTH_SCREENS) {
+        if (Render::renderMode == Render::BOTH_SCREENS) {
             scratchY -= 120;
         }
 #endif

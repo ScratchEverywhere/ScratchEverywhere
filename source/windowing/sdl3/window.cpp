@@ -28,9 +28,14 @@ extern char nickname[0x21];
 #include <whb/sdcard.h>
 #endif
 
+#ifdef PLATFORM_HAS_CONTROLLER
 SDL_Gamepad *controller = nullptr;
+#endif
+
+#ifdef PLATFORM_HAS_TOUCH
 bool touchActive = false;
 SDL_Point touchPosition;
+#endif
 
 bool WindowSDL3::init(int width, int height, const std::string &title) {
 #ifdef __SWITCH__
@@ -134,12 +139,14 @@ postAccount:
     SDL_GL_SetSwapInterval(1); // VSync
 #endif
 
+#ifdef PLATFORM_HAS_CONTROLLER
     int numGamepads;
     SDL_JoystickID *gamepads = SDL_GetGamepads(&numGamepads);
     if (numGamepads > 0) {
         controller = SDL_OpenGamepad(gamepads[0]);
     }
     SDL_free(gamepads);
+#endif
 
     this->width = width;
     this->height = height;
@@ -152,7 +159,9 @@ postAccount:
 }
 
 void WindowSDL3::cleanup() {
+#ifdef PLATFORM_HAS_CONTROLLER
     if (controller) SDL_CloseGamepad(controller);
+#endif
 #ifdef RENDERER_OPENGL
     SDL_GL_DestroyContext(context);
 #endif
@@ -184,6 +193,7 @@ void WindowSDL3::pollEvents() {
             SDL_GetWindowSizeInPixels(window, &w, &h);
             resize(w, h);
         } break;
+#ifdef PLATFORM_HAS_CONTROLLER
         case SDL_EVENT_GAMEPAD_ADDED:
             if (!controller) controller = SDL_OpenGamepad(event.gdevice.which);
             break;
@@ -193,6 +203,8 @@ void WindowSDL3::pollEvents() {
                 controller = nullptr;
             }
             break;
+#endif
+#ifdef PLATFORM_HAS_TOUCH
         case SDL_EVENT_FINGER_DOWN:
             touchActive = true;
             touchPosition = {
@@ -207,6 +219,7 @@ void WindowSDL3::pollEvents() {
         case SDL_EVENT_FINGER_UP:
             touchActive = false;
             break;
+#endif
         }
     }
 }

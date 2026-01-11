@@ -13,6 +13,7 @@
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml/badge.svg" alt="PSP Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml/badge.svg" alt="PS4 Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml/badge.svg" alt="PC Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-webos.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-webos.yml/badge.svg" alt="webOS Nightly Build"></a>
 <a href="https://discord.gg/Y2gf5vZHpJ"><img alt="Discord" src="https://img.shields.io/discord/1408875318248345612?style=flat&logo=discord&label=Discord%20Server&link=https%3A%2F%2Fdiscord.gg%2FY2gf5vZHpJ"></a>
 </p>
 
@@ -120,7 +121,8 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   All say and think blocks ([#393](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/393))
 -   Most costume effects;
     -   Only the `Ghost` and `Brightness` costume effects are supported
--   `Pitch` and `Pan left-right` sound effects
+-   `Pitch` and `Pan left-right` audio effects
+   - These effects are only available on 3DS and some PC platforms.
 -   When loudness > \_\_\_
 -   All color touching blocks
 -   Loudness

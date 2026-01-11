@@ -353,26 +353,42 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
 
 std::string Unzip::getSplashText() {
     std::string textPath = "gfx/menu/splashText.txt";
+    std::string fallback = "Everywhere!";
 
     textPath = OS::getRomFSLocation() + textPath;
 
     std::vector<std::string> splashLines;
-    std::ifstream file(textPath);
+#ifdef USE_CMAKERC
+    try {
+        auto file = cmrc::romfs::get_filesystem().open(textPath);
+        std::string_view sv(file.begin(), file.size());
+        std::istringstream stream{std::string(sv)};
 
-    if (!file.is_open()) {
-        return "Everywhere!"; // fallback text
+        std::string line;
+        while (std::getline(stream, line)) {
+            if (!line.empty()) {
+                splashLines.push_back(line);
+            }
+        }
+    } catch (const std::exception &e) {
+        return fallback;
     }
-
+#else
+    std::ifstream file(textPath);
+    if (!file.is_open()) {
+        return fallback;
+    }
     std::string line;
     while (std::getline(file, line)) {
-        if (!line.empty()) { // skip empty lines
+        if (!line.empty()) {
             splashLines.push_back(line);
         }
     }
     file.close();
+#endif
 
     if (splashLines.empty()) {
-        return "Everywhere!"; // fallback if file is empty
+        return fallback;
     }
 
     // Initialize random number generator with current time

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.32 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.33 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -554,6 +554,14 @@ elseif(VITA)
 elseif(WEBOS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+	set_target_properties(scratch-everywhere PROPERTIES
+		MACOSX_BUNDLE True
+		MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/gfx/macOS/Info.plist
+		OUTPUT_NAME "scratch-macOS"
+	)
+	add_custom_command(TARGET scratch-everywhere POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/gfx/macOS/Icon.icns "$<TARGET_BUNDLE_DIR:scratch-everywhere>/Contents/Resources/Icon.icns")
 endif()
 
 if(SE_CMAKERC)
@@ -572,7 +580,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC)
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
@@ -753,6 +761,22 @@ if(SE_CLOUDVARS)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CLOUDVARS)
 	target_link_libraries(scratch-everywhere PRIVATE mist++)
 endif()
+
+
+if(NOT PSP AND NOT WEBOS)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
+endif()
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
+endif()
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
+endif()
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING) ) # joystick doesn't work on MacOS with current Dockerfile
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
+endif()
+
+
 
 if(SE_AUDIO)
 	if(SE_AUDIO_ENGINE STREQUAL "sdl1")

@@ -167,7 +167,6 @@ class Sprite {
     bool isDeleted = false;
     bool shouldDoSpriteClick = false;
     int currentCostume;
-    float volume;
     float xPosition;
     float yPosition;
     int rotationCenterX;
@@ -177,9 +176,15 @@ class Sprite {
     int layer;
     RenderInfo renderInfo;
 
+    /** Costume effects */
     float ghostEffect;
     float brightnessEffect;
     float colorEffect;
+
+    /** Audio effects */
+    float volume = 100.0f;
+    float pitch = 100.0f;
+    float pan = 100.0f;
 
     enum RotationStyle {
         NONE,

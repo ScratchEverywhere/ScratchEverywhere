@@ -3,7 +3,12 @@
 #include <fstream>
 
 void SettingsManager::migrate() {
-    OS::createDirectory(OS::getConfigFolderLocation());
+    try {
+        OS::createDirectory(OS::getConfigFolderLocation());
+    } catch (...) {
+        Log::logError("Could not make config directory.");
+        return;
+    }
     if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation() && OS::fileExists(OS::getScratchFolderLocation() + "Settings.json")) {
         OS::renameFile(OS::getScratchFolderLocation() + "Settings.json", OS::getConfigFolderLocation() + "Settings.json");
     }

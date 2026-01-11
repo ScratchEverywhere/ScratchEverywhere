@@ -61,7 +61,7 @@ CFLAGS	:=	-g -Wall -O2 \
 			-ffunction-sections -fdata-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DRENDERER_GL2D
+CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DRENDERER_GL2D -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 
 
 ASFLAGS	:=	-g $(ARCH)
@@ -152,6 +152,8 @@ $(GFXBUILD):
 	@mkdir -p $@
 ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
+	@rm -f $@/menu/mm_splash.ogg
+	@cp $(GRAPHICS)/nds/mm_ds.wav $@/menu/mm_ds.wav
 else
 	@cp $(GRAPHICS)/menu/Ubuntu-Bold.ttf $@/
 endif

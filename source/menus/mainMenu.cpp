@@ -88,8 +88,8 @@ void MainMenu::init() {
 
     MenuManager::loadProject();
 #elif defined(__NDS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
+    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_ds.wav")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_ds.wav", false, false);
     }
 #else
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
@@ -107,7 +107,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 32", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 33", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -142,8 +142,8 @@ void MainMenu::render() {
 
     if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
-            SoundPlayer::playSound("gfx/menu/mm_full.wav");
+        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_ds.wav")) {
+            SoundPlayer::playSound("gfx/menu/mm_ds.wav");
         }
 #else
         if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
@@ -171,7 +171,7 @@ void MainMenu::render() {
     splashText->scale = splashTextOriginalScale + splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
-    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
+    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
     splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7));
 
     // begin 3DS bottom screen frame

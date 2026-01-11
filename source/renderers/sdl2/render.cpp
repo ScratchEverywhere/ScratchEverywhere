@@ -1,6 +1,8 @@
 #include "render.hpp"
 #include "image.hpp"
 #include "sprite.hpp"
+#include <SDL2/SDL.h>
+#include <SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <chrono>
@@ -8,11 +10,10 @@
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
+#include <input.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <SDL2/SDL.h>
-#include <SDL2_gfxPrimitives.h>
 #include <string>
 #include <text.hpp>
 #include <unordered_map>
@@ -50,7 +51,6 @@ char nickname[0x21];
 #endif
 
 #ifdef __PS4__
-#include <orbis/Net.h>
 #include <orbis/Sysmodule.h>
 #include <orbis/libkernel.h>
 #endif
@@ -91,7 +91,20 @@ bool Render::Init() {
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
+
+    // Freetype has to be initialized before SDL2_ttf
+    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
+    if (rc != ORBIS_OK) {
+        Log::logError("Failed to init freetype.");
+        return false;
+    }
 #elif defined(WEBOS)
+    // SDL has to be initialized before window creation on webOS
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
+        Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
+        return false;
+    }
+
     int windowWidth = 800;
     int windowHeight = 480;
 
@@ -115,8 +128,16 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
-
-    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+#if defined(WEBOS)
+    uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
+#else
+    uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+#endif
+    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, sdlFlags);
+    if (renderer == NULL) {
+        Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
+        return false;
+    }
 
     debugMode = true;
 
@@ -486,6 +507,19 @@ void Render::renderSprites() {
 
     drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
+
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        SDL_Rect rect;
+        rect.w = rect.h = 5;
+        rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5);
+        rect.y = (Input::mousePointer.y * -1 * renderScale) + (globalWindow->getHeight() * 0.5);
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+#endif
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();

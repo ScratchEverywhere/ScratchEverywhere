@@ -26,6 +26,7 @@ static void exitApp() {
 
 static bool initApp() {
     Log::deleteLogFile();
+    Render::debugMode = true;
     if (!Render::Init()) {
         return false;
     }

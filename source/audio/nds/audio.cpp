@@ -347,6 +347,12 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     return 0.0f;
 }
 
+void SoundPlayer::setPitch(const std::string &soundId, float pitch) {
+}
+
+void SoundPlayer::setPan(const std::string &soundId, float pan) {
+}
+
 double SoundPlayer::getMusicPosition(const std::string &soundId) {
 #ifdef ENABLE_AUDIO
 

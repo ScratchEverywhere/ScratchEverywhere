@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "image.hpp"
+#include <SDL3/SDL.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <chrono>
@@ -7,10 +8,10 @@
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
+#include <input.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <SDL3/SDL.h>
 #include <sprite.hpp>
 #include <string>
 #include <text.hpp>
@@ -74,6 +75,10 @@ bool Render::Init() {
     }
 
     renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), "");
+    if (renderer == NULL) {
+        Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
+        return false;
+    }
 
     debugMode = true;
 
@@ -448,6 +453,19 @@ void Render::renderSprites() {
 
     drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
+
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        SDL_FRect rect;
+        rect.w = rect.h = 5.0f;
+        rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5);
+        rect.y = (Input::mousePointer.y * -1 * renderScale) + (globalWindow->getHeight() * 0.5);
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+        SDL_RenderFillRect(renderer, &rect);
+    }
+#endif
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();

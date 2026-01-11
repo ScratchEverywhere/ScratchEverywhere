@@ -3,7 +3,7 @@
 
 # Package metadata.
 TITLE       := Scratch Everywhere!
-VERSION     := 0.32
+VERSION     := 0.33
 TITLE_ID    := NTXS10053
 CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 
@@ -14,12 +14,12 @@ ENABLE_LOADSCREEN	?= 0
 ENABLE_MENU		?=	1
 
 # Libraries linked into the ELF.
-LIBS        := -lc -lkernel -lc++ -lSceLibcInternal -lSceSysmodule -lSceAudioOut -lSceUserService \
+LIBS        := -lc -lkernel -lc++ -lSceSysmodule -lSceAudioOut -lSceUserService \
 			    -lScePigletv2VSH -lScePrecompiledShaders -lSceFreeType -lScePad -lSceSystemService \
 			    -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lsamplerate -lpthread \
 
 # Additional compile flags.
-EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DRENDERER_SDL2 -DCONSOLE -DMOUSE_INPUT
+EXTRAFLAGS  := -fcolor-diagnostics -fexceptions -fcxx-exceptions -O2 -Wall -D__PS4__ -DRENDERER_SDL2 -DCONSOLE -DPLATFORM_HAS_CONTROLLER
 
 # Build target
 TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
