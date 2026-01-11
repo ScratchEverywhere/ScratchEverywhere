@@ -31,13 +31,17 @@ std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 
+#ifdef PLATFORM_HAS_CONTROLLER
 extern SDL_Gamepad *controller;
-extern bool touchActive;
-extern SDL_Point touchPosition;
-
 #define CONTROLLER_DEADZONE_X 10000
 #define CONTROLLER_DEADZONE_Y 18000
 #define CONTROLLER_DEADZONE_TRIGGER 1000
+#endif
+
+#ifdef PLATFORM_HAS_TOUCH
+extern bool touchActive;
+extern SDL_Point touchPosition;
+#endif
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
@@ -48,44 +52,33 @@ extern bool useCustomUsername;
 extern std::string customUsername;
 
 std::vector<int> Input::getTouchPosition() {
-    std::vector<int> pos;
+    std::vector<int> pos = {0, 0};
     float rawMouseX, rawMouseY;
     int numDevices, numFingers;
     SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
     SDL_free(SDL_GetTouchFingers(*touchID, &numFingers)); // kanye west he likes
     if (numDevices > 0 && numFingers > 0) {
-        pos.push_back(touchPosition.x);
-        pos.push_back(touchPosition.y);
-        return pos;
+#ifdef PLATFORM_HAS_TOUCH
+        pos[0] = touchPosition.x;
+        pos[1] = touchPosition.y;
+#endif
     }
 
     SDL_free(touchID);
+#ifdef PLATFORM_HAS_MOUSE
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
-    pos.push_back(rawMouseX);
-    pos.push_back(rawMouseY);
+    pos[0] = rawMouseX;
+    pos[1] = rawMouseY;
+#endif
     return pos;
 }
 
 void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
-    mousePointer.isMoving = false;
 
+#ifdef PLATFORM_HAS_KEYBOARD
     const bool *keyStates = SDL_GetKeyboardState(NULL);
-
-    // prints what buttons are being pressed (debug)
-    // for (int i = 0; i < SDL_GAMEPAD_BUTTON_MAX; ++i) {
-    //     if (SDL_GetGamepadButton(controller, static_cast<SDL_GamepadButton>(i))) {
-    //         Log::log("Pressed button " + std::to_string(i));
-    //     }
-    // }
-
-    // for (int i = 0; i < SDL_CONTROLLER_AXIS_MAX; ++i) {
-    //     int val = SDL_GameControllerGetAxis(controller, static_cast<SDL_GameControllerAxis>(i));
-    //     if (abs(val) > CONTROLLER_DEADZONE_TRIGGER) {
-    //         Log::log("Moved axis " + std::to_string(i) + ": " + std::to_string(val));
-    //     }
-    // }
 
     for (int scancode = 0; scancode < SDL_SCANCODE_COUNT; ++scancode) {
         if (keyStates[scancode]) {
@@ -104,23 +97,33 @@ void Input::getInput() {
             }
         }
     }
+#endif
 
-    // TODO: Clean this up
+#ifdef PLATFORM_HAS_CONTROLLER
+
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_UP)) {
         Input::buttonPress("dpadUp");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.y += 3;
+#endif
     }
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_DOWN)) {
         Input::buttonPress("dpadDown");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.y -= 3;
+#endif
     }
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_LEFT)) {
         Input::buttonPress("dpadLeft");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.x -= 3;
+#endif
     }
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) {
         Input::buttonPress("dpadRight");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
         if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.x += 3;
+#endif
     }
     // Swap face buttons for Switch
 #ifdef __SWITCH__
@@ -136,11 +139,15 @@ void Input::getInput() {
 #endif
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) {
         Input::buttonPress("shoulderL");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
         mousePointer.isMoving = true;
-    }
+#endif
+    } else mousePointer.isMoving = false;
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER)) {
         Input::buttonPress("shoulderR");
-        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER)) mousePointer.isPressed = true;
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+        if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) && mousePointer.isMoving) mousePointer.isPressed = true;
+#endif
     }
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_START)) Input::buttonPress("start");
     if (SDL_GetGamepadButton(controller, SDL_GamepadButton::SDL_GAMEPAD_BUTTON_BACK)) Input::buttonPress("back");
@@ -161,11 +168,13 @@ void Input::getInput() {
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
 
+#endif
+
     if (!inputButtons.empty()) inputButtons.push_back("any");
 
     BlockExecutor::executeKeyHats();
 
-    // TODO: Add way to disable touch input (currently overrides mouse input.)
+#ifdef PLATFORM_HAS_TOUCH
     int numDevices, numFingers;
     SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
     SDL_free(SDL_GetTouchFingers(*touchID, &numFingers));
@@ -180,8 +189,10 @@ void Input::getInput() {
         BlockExecutor::doSpriteClicking();
         return;
     }
-
     SDL_free(touchID);
+#endif
+
+#ifdef PLATFORM_HAS_MOUSE
 
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
@@ -192,6 +203,8 @@ void Input::getInput() {
 
     const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
     mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;
+
+#endif
 
     BlockExecutor::doSpriteClicking();
 }

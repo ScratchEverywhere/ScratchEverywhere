@@ -754,6 +754,22 @@ if(SE_CLOUDVARS)
 	target_link_libraries(scratch-everywhere PRIVATE mist++)
 endif()
 
+
+if(NOT PSP AND NOT WEBOS)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
+endif()
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
+endif()
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
+endif()
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING) ) # joystick doesn't work on MacOS with current Dockerfile
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
+endif()
+
+
+
 if(SE_AUDIO)
 	if(SE_AUDIO_ENGINE STREQUAL "sdl1")
 		if(SE_SYSTEM)

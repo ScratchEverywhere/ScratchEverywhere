@@ -47,9 +47,14 @@ extern char nickname[0x21];
 #include <ogc/exi.h>
 #endif
 
+#ifdef PLATFORM_HAS_CONTROLLER
 SDL_GameController *controller = nullptr;
+#endif
+
+#ifdef PLATFORM_HAS_TOUCH
 bool touchActive = false;
 SDL_Point touchPosition;
+#endif
 
 bool WindowSDL2::init(int width, int height, const std::string &title) {
 #ifdef __WIIU__
@@ -153,13 +158,17 @@ postAccount:
     }
 #endif
 
-    // SDL has to be initialized before window creation on webOS
-    #ifndef WEBOS
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
+// SDL has to be initialized before window creation on webOS
+#ifndef WEBOS
+    uint32_t sdlFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
+#ifdef PLATFORM_HAS_CONTROLLER
+    sdlFlags |= SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER;
+#endif
+    if (SDL_Init(sdlFlags) < 0) {
         Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
         return false;
     }
-    #endif
+#endif
 
 #ifdef RENDERER_OPENGL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
@@ -195,7 +204,9 @@ postAccount:
     SDL_GL_SetSwapInterval(1); // VSync
 #endif
 
+#ifdef PLATFORM_HAS_CONTROLLER
     if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
+#endif
 
     this->width = width;
     this->height = height;
@@ -217,7 +228,10 @@ postAccount:
 }
 
 void WindowSDL2::cleanup() {
+#ifdef PLATFORM_HAS_CONTROLLER
     if (controller) SDL_GameControllerClose(controller);
+#endif
+
 #ifdef RENDERER_OPENGL
     SDL_GL_DeleteContext(context);
 #endif
@@ -257,6 +271,7 @@ void WindowSDL2::pollEvents() {
                 resize(w, h);
             }
             break;
+#ifdef PLATFORM_HAS_CONTROLLER
         case SDL_CONTROLLERDEVICEADDED:
             if (!controller) controller = SDL_GameControllerOpen(event.cdevice.which);
             break;
@@ -266,6 +281,8 @@ void WindowSDL2::pollEvents() {
                 controller = nullptr;
             }
             break;
+#endif
+#ifdef PLATFORM_HAS_TOUCH
         case SDL_FINGERDOWN:
             touchActive = true;
             touchPosition = {
@@ -280,6 +297,7 @@ void WindowSDL2::pollEvents() {
         case SDL_FINGERUP:
             touchActive = false;
             break;
+#endif
         }
     }
 }

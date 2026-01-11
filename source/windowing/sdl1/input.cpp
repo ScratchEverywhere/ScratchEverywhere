@@ -19,13 +19,17 @@ std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 
+#ifdef PLATFORM_HAS_CONTROLLER
 extern SDL_Joystick *controller;
-extern bool touchActive;
-extern SDL_Rect touchPosition;
-
 #define CONTROLLER_DEADZONE_X 10000
 #define CONTROLLER_DEADZONE_Y 18000
 #define CONTROLLER_DEADZONE_TRIGGER 20000
+#endif
+
+#ifdef PLATFORM_HAS_TOUCH
+extern bool touchActive;
+extern SDL_Rect touchPosition;
+#endif
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
@@ -36,12 +40,13 @@ extern bool useCustomUsername;
 extern std::string customUsername;
 
 std::vector<int> Input::getTouchPosition() {
-    std::vector<int> pos;
+    std::vector<int> pos = {0, 0};
+#ifdef PLATFORM_HAS_MOUSE
     int rawMouseX, rawMouseY;
-
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
-    pos.push_back(rawMouseX);
-    pos.push_back(rawMouseY);
+    pos[0] = rawMouseX;
+    pos[1] = rawMouseY;
+#endif
 
     return pos;
 }
@@ -49,24 +54,10 @@ std::vector<int> Input::getTouchPosition() {
 void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = false;
-    mousePointer.isMoving = false;
 
+#ifdef PLATFORM_HAS_KEYBOARD
     int numkeys;
     Uint8 *keyStates = SDL_GetKeyState(&numkeys);
-
-    // prints what buttons are being pressed (debug)
-    // for (int i = 0; i < SDL_JoystickNumButtons(controller); ++i) {
-    //     if (SDL_JoystickGetButton(controller, i)) {
-    //         Log::log("Pressed button " + std::to_string(i));
-    //     }
-    // }
-
-    // for (int i = 0; i < SDL_JoystickNumAxes(controller); ++i) {
-    //     int val = SDL_JoystickGetAxis(controller, i);
-    //     if (abs(val) > CONTROLLER_DEADZONE_TRIGGER) {
-    //         Log::log("Moved axis " + std::to_string(i) + ": " + std::to_string(val));
-    //     }
-    // }
 
     for (int i = 0; i < SDLK_LAST; ++i) {
         if (keyStates[i]) {
@@ -85,25 +76,35 @@ void Input::getInput() {
             }
         }
     }
+#endif
 
-    // Handle keyboard-only controls if no joystick is present
+#ifdef PLATFORM_HAS_CONTROLLER
+
     if (controller) {
         Uint8 hat = SDL_JoystickGetHat(controller, 0);
         if (hat & SDL_HAT_UP) {
             Input::buttonPress("dpadUp");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.y += 3;
+#endif
         }
         if (hat & SDL_HAT_DOWN) {
             Input::buttonPress("dpadDown");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.y -= 3;
+#endif
         }
         if (hat & SDL_HAT_LEFT) {
             Input::buttonPress("dpadLeft");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.x -= 3;
+#endif
         }
         if (hat & SDL_HAT_RIGHT) {
             Input::buttonPress("dpadRight");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.x += 3;
+#endif
         }
 
         if (SDL_JoystickGetButton(controller, 0)) Input::buttonPress("A");
@@ -112,11 +113,15 @@ void Input::getInput() {
         if (SDL_JoystickGetButton(controller, 3)) Input::buttonPress("Y");
         if (SDL_JoystickGetButton(controller, 4)) {
             Input::buttonPress("shoulderL");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             mousePointer.isMoving = true;
-        }
+#endif
+        } else mousePointer.isMoving = false;
         if (SDL_JoystickGetButton(controller, 5)) {
             Input::buttonPress("shoulderR");
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             if (SDL_JoystickGetButton(controller, 4)) mousePointer.isPressed = true;
+#endif
         }
         if (SDL_JoystickGetButton(controller, 7)) Input::buttonPress("start");
         if (SDL_JoystickGetButton(controller, 6)) Input::buttonPress("back");
@@ -138,10 +143,13 @@ void Input::getInput() {
         if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
     }
 
+#endif
+
     if (!inputButtons.empty()) inputButtons.push_back("any");
 
     BlockExecutor::executeKeyHats();
 
+#ifdef PLATFORM_HAS_MOUSE
     // Get raw mouse coordinates
     std::vector<int> rawMouse = getTouchPosition();
 
@@ -153,6 +161,7 @@ void Input::getInput() {
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.isPressed = true;
     }
+#endif
 
     BlockExecutor::doSpriteClicking();
 }

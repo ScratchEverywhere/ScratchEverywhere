@@ -10,7 +10,9 @@
 #include <renderers/sdl1/render.hpp>
 #endif
 
+#ifdef PLATFORM_HAS_CONTROLLER
 SDL_Joystick *controller = nullptr;
+#endif
 
 #ifdef RENDERER_OPENGL
 static auto lastFrameTime = std::chrono::high_resolution_clock::now();
@@ -40,7 +42,9 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
         return false;
     }
 
+#ifdef PLATFORM_HAS_CONTROLLER
     if (SDL_NumJoysticks() > 0) controller = SDL_JoystickOpen(0);
+#endif
 
     this->width = width;
     this->height = height;
@@ -56,7 +60,9 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
 }
 
 void WindowSDL1::cleanup() {
+#ifdef PLATFORM_HAS_CONTROLLER
     if (controller) SDL_JoystickClose(controller);
+#endif
     SDL_Quit();
 }
 
@@ -69,7 +75,7 @@ void WindowSDL1::pollEvents() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
         case SDL_QUIT:
-        	OS::toExit = true;
+            OS::toExit = true;
             shouldCloseFlag = true;
             break;
         case SDL_VIDEORESIZE:

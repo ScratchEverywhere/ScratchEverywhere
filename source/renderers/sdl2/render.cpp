@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
+#include <input.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
@@ -121,11 +122,12 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
-    #if defined(WEBOS)
-    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, SDL_RENDERER_ACCELERATED);
-    #else
-    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    #endif
+#if defined(WEBOS)
+    uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
+#else
+    uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+#endif
+    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, sdlFlags);
     if (renderer == NULL) {
         Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
         return false;
@@ -499,6 +501,19 @@ void Render::renderSprites() {
 
     drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
+
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        SDL_Rect rect;
+        rect.w = rect.h = 5;
+        rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5);
+        rect.y = (Input::mousePointer.y * -1 * renderScale) + (globalWindow->getHeight() * 0.5);
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+#endif
 
     SDL_RenderPresent(renderer);
     Image::FlushImages();

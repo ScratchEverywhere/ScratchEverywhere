@@ -40,11 +40,11 @@ ENABLE_MENU		?=	1
 
 # Flags
 
-CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP) -DRENDERER_SDL2
+CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP)
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
-CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DRENDERER_SDL2
+CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DRENDERER_SDL2 -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
