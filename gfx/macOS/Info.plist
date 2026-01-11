@@ -9,7 +9,7 @@
     <key>CFBundleIdentifier</key>
     <string>com.se.scratcheverywhere</string>
     <key>CFBundleVersion</key>
-    <string>0.32</string>
+    <string>0.33</string>
     <key>CFBundleIconFile</key>
     <string>Icon</string>
     <key>CFBundleExecutable</key>

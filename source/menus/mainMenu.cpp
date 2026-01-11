@@ -107,7 +107,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 32", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 33", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -171,7 +171,7 @@ void MainMenu::render() {
     splashText->scale = splashTextOriginalScale + splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
-    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
+    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
     splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7));
 
     // begin 3DS bottom screen frame
