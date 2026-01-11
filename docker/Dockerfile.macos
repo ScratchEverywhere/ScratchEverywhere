@@ -28,4 +28,4 @@ RUN mkdir build && cd build && \
 	cmake --build . -j $(nproc)
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/scratch-macOS.app /scratch-macOS.app
+COPY --from=main_builder /app/build/scratch-everywhere /

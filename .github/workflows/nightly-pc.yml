@@ -83,13 +83,13 @@ jobs:
           context: .
           file: docker/Dockerfile.macos
           target: exporter
-          outputs: type=local,dest=./out
+          outputs: type=local,dest=.
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
-          path: out/scratch-macOS.app
+          path: scratch-everywhere
   macos-arm:
     name: macOS ARM64
     runs-on: ubuntu-latest
@@ -106,14 +106,14 @@ jobs:
           context: .
           file: docker/Dockerfile.macos
           target: exporter
-          outputs: type=local,dest=./out
+          outputs: type=local,dest=.
           build-args: ARCH=arm64
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
-          path: out/scratch-macOS.app
+          path: scratch-everywhere
   macos-universal:
     name: macOS Universal
     runs-on: ubuntu-latest
@@ -134,13 +134,9 @@ jobs:
           curl -L -o lipo https://github.com/konoui/lipo/releases/download/v0.9.4/lipo_linux_amd64
           chmod +x lipo
       - name: Create Universal Binary
-        run: |
-          ./lipo -output scratch-macOS -create \
-            arm-build/scratch-macOS.app/Contents/MacOS/scratch-macOS \
-            intel-build/scratch-macOS.app/Contents/MacOS/scratch-macOS
-          cp scratch-macOS arm-build/scratch-macOS.app/Contents/MacOS/scratch-macOS
+        run: ./lipo -output scratch-everywhere -create arm-build/scratch-everywhere intel-build/scratch-everywhere
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS Universal Nightly
-          path: arm-build/scratch-macOS.app
+          path: scratch-everywhere

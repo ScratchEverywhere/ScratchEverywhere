@@ -554,7 +554,7 @@ elseif(VITA)
 elseif(WEBOS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	set_target_properties(scratch-everywhere PROPERTIES
 		MACOSX_BUNDLE True
 		MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/gfx/macOS/Info.plist
