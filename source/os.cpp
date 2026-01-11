@@ -75,7 +75,7 @@ void Log::logError(std::string message, bool printToScreen) {
 void Log::writeToFile(std::string message) {
 }
 
-void Log::deleteLogFile(){
+void Log::deleteLogFile() {
 }
 
 #else
@@ -231,6 +231,8 @@ std::string OS::getScratchFolderLocation() {
     return "/scratch-everywhere/";
 #elif defined(__NDS__)
     return prefix + "/scratch-ds/";
+#elif defined(__XENON__)
+    return prefix + "/scratch-xbox360/";
 #else
     return "scratch-everywhere/";
 #endif

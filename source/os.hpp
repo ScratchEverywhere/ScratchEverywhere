@@ -100,6 +100,8 @@ inline std::string getFilesystemRootPrefix() {
     return "";
 #elif defined(__NDS__)
     return isDSi() ? "sd:" : "fat:";
+#elif defined(__XENON__)
+    return "usb0:/":
 #else
     return "";
 #endif
@@ -163,6 +165,8 @@ inline std::string getPlatform() {
     return "PS4";
 #elif defined(__PSP__)
     return "PSP";
+#elif defined(__XENON__)
+    return "Xbox 360";
 #else
     return "Unknown";
 #endif
