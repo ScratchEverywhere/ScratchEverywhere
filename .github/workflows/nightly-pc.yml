@@ -83,13 +83,13 @@ jobs:
           context: .
           file: docker/Dockerfile.macos
           target: exporter
-          outputs: type=local,dest=.
+          outputs: type=local,dest=./out
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
-          path: scratch-macOS.app
+          path: out/scratch-macOS.app
   macos-arm:
     name: macOS ARM64
     runs-on: ubuntu-latest
@@ -106,14 +106,14 @@ jobs:
           context: .
           file: docker/Dockerfile.macos
           target: exporter
-          outputs: type=local,dest=.
+          outputs: type=local,dest=./out
           build-args: ARCH=arm64
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
-          path: scratch-macOS.app
+          path: out/scratch-macOS.app
   macos-universal:
     name: macOS Universal
     runs-on: ubuntu-latest
