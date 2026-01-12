@@ -236,6 +236,11 @@ class Render {
         // FIXME: the text is slightly lower on OpenGL
         for (auto &var : visibleVariables) {
             if (var.visible) {
+
+                // Weird Turbowarp math for monitor positions on custom sized projects
+                float projectX = var.x + (Scratch::projectWidth - 480) * 0.5f;
+                float projectY = var.y + (Scratch::projectHeight - 360) * 0.5f;
+
                 if (var.mode == "list") {
                     if (listMonitors.find(var.id) == listMonitors.end()) {
                         ListMonitorRenderObjects newObj;
@@ -249,14 +254,13 @@ class Render {
                     monitorGfx.name->setScale(1.0f * (scale / 2.0f));
                     monitorGfx.name->setColor(Math::color(0, 0, 0, 255));
 
-                    float monitorX = (var.x * scale + barOffsetX) + (4 * scale);
-                    float monitorY = (var.y * scale + barOffsetY) + (2 * scale);
+                    float monitorX = (projectX * scale + barOffsetX) + (4 * scale);
+                    float monitorY = (projectY * scale + barOffsetY) + (2 * scale);
 
                     const float boxHeight = monitorGfx.name->getSize()[1] + (2 * scale);
 
                     float monitorW = var.width * scale;
                     float monitorH = std::max(static_cast<float>(var.height * scale), (boxHeight * 2 + (8 * scale)) + var.list.size() * (boxHeight + 2 * scale));
-                    ;
 
                     // Draw background
                     drawBox(monitorW + (2 * scale), monitorH + (2 * scale), monitorX + (monitorW / 2), monitorY + (monitorH / 2), 194, 204, 217);
@@ -363,8 +367,8 @@ class Render {
                     nameObj->setCenterAligned(false);
                     valueObj->setCenterAligned(false);
 
-                    float baseRenderX = var.x * scale + barOffsetX;
-                    float baseRenderY = var.y * scale + barOffsetY;
+                    float baseRenderX = projectX * scale + barOffsetX;
+                    float baseRenderY = projectY * scale + barOffsetY;
 
                     if (var.mode == "large") {
                         valueObj->setColor(Math::color(255, 255, 255, 255));
