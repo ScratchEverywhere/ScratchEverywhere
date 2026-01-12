@@ -221,7 +221,7 @@ void WindowSDL2::toggleFullscreen() {
     isFullscreen = !isFullscreen;
 
     if (isFullscreen) {
-        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     } else {
         SDL_SetWindowFullscreen(window, 0);
     }
