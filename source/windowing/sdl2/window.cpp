@@ -49,6 +49,7 @@ extern char nickname[0x21];
 
 SDL_GameController *controller = nullptr;
 bool touchActive = false;
+bool isFullscreen = false;
 SDL_Point touchPosition;
 
 bool WindowSDL2::init(int width, int height, const std::string &title) {
@@ -216,6 +217,24 @@ postAccount:
     return true;
 }
 
+void WindowSDL2::toggleFullscreen() {
+    isFullscreen = !isFullscreen;
+
+    if (isFullscreen) {
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+    } else {
+        SDL_SetWindowFullscreen(window, 0);
+    }
+
+    int w, h;
+#ifdef RENDERER_OPENGL
+    SDL_GL_GetDrawableSize(window, &w, &h);
+#else
+    SDL_GetWindowSizeInPixels(window, &w, &h);
+#endif
+    resize(w, h);
+}
+
 void WindowSDL2::cleanup() {
     if (controller) SDL_GameControllerClose(controller);
 #ifdef RENDERER_OPENGL
@@ -244,6 +263,11 @@ void WindowSDL2::pollEvents() {
             OS::toExit = true;
             shouldCloseFlag = true;
             break;
+        case SDL_KEYDOWN:
+            if (event.key.repeat == 0 && event.key.keysym.sym == SDLK_F11) {
+                toggleFullscreen();
+            }
+        break;
         case SDL_WINDOWEVENT:
             if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 int w, h;
