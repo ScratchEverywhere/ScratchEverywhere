@@ -49,7 +49,9 @@ extern char nickname[0x21];
 
 SDL_GameController *controller = nullptr;
 bool touchActive = false;
+#ifdef __PC__
 bool isFullscreen = false;
+#endif
 SDL_Point touchPosition;
 
 bool WindowSDL2::init(int width, int height, const std::string &title) {
@@ -217,6 +219,7 @@ postAccount:
     return true;
 }
 
+#ifdef __PC__
 void WindowSDL2::toggleFullscreen() {
     isFullscreen = !isFullscreen;
 
@@ -234,6 +237,7 @@ void WindowSDL2::toggleFullscreen() {
 #endif
     resize(w, h);
 }
+#endif
 
 void WindowSDL2::cleanup() {
     if (controller) SDL_GameControllerClose(controller);
@@ -263,11 +267,13 @@ void WindowSDL2::pollEvents() {
             OS::toExit = true;
             shouldCloseFlag = true;
             break;
+#ifdef __PC__
         case SDL_KEYDOWN:
             if (event.key.repeat == 0 && event.key.keysym.sym == SDLK_F11) {
                 toggleFullscreen();
             }
         break;
+#endif
         case SDL_WINDOWEVENT:
             if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 int w, h;
