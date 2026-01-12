@@ -30,6 +30,9 @@ extern char nickname[0x21];
 
 SDL_Gamepad *controller = nullptr;
 bool touchActive = false;
+#ifdef __PC__
+bool isFullscreen = false;
+#endif
 SDL_Point touchPosition;
 
 bool WindowSDL3::init(int width, int height, const std::string &title) {
@@ -151,6 +154,18 @@ postAccount:
     return true;
 }
 
+#ifdef __PC__
+void WindowSDL3::toggleFullscreen() {
+    isFullscreen = !isFullscreen;
+
+    SDL_SetWindowFullscreen(window, isFullscreen);
+
+    int w, h;
+    SDL_GetWindowSizeInPixels(window, &w, &h);
+    resize(w, h);
+}
+#endif
+
 void WindowSDL3::cleanup() {
     if (controller) SDL_CloseGamepad(controller);
 #ifdef RENDERER_OPENGL
@@ -179,6 +194,13 @@ void WindowSDL3::pollEvents() {
             OS::toExit = true;
             shouldCloseFlag = true;
             break;
+#ifdef __PC__
+        case SDL_EVENT_KEY_DOWN:
+            if (!event.key.repeat && event.key.key == SDLK_F11) {
+                toggleFullscreen();
+            }
+        break;
+#endif
         case SDL_EVENT_WINDOW_RESIZED: {
             int w, h;
             SDL_GetWindowSizeInPixels(window, &w, &h);
