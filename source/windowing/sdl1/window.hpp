@@ -14,6 +14,7 @@ class WindowSDL1 : public Window {
     bool shouldClose() override;
     void pollEvents() override;
     void swapBuffers() override;
+    void toggleFullscreen();
     void resize(int width, int height) override;
 
     int getWidth() const override;
