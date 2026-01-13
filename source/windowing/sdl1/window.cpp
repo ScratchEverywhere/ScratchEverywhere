@@ -10,6 +10,13 @@
 #include <renderers/sdl1/render.hpp>
 #endif
 
+#ifdef __XBOX360__
+#include <console/console.h>
+#include <usb/usbmain.h>
+#include <xenos/xe.h>
+#include <xenos/xenos.h>
+#endif
+
 #ifdef PLATFORM_HAS_CONTROLLER
 SDL_Joystick *controller = nullptr;
 #endif
@@ -20,6 +27,14 @@ static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-lik
 #endif
 
 bool WindowSDL1::init(int width, int height, const std::string &title) {
+#ifdef __XBOX360__
+    xenon_make_it_faster(XENON_SPEED_FULL);
+    xenos_init(VIDEO_MODE_AUTO);
+    console_init();
+    usb_init();
+    usb_do_poll();
+#endif
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
         Log::logError("Failed to initialize SDL1");
         return false;

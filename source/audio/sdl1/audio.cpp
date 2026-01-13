@@ -9,6 +9,9 @@
 #ifdef __3DS__
 #include <3ds.h>
 #endif
+#ifdef __XBOX360__
+#include <xenon_sound/sound.h>
+#endif
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -42,14 +45,19 @@ SDL_Audio::~SDL_Audio() {
 bool SoundPlayer::init() {
     if (isInit) return true;
 #ifdef ENABLE_AUDIO
+#ifdef __XBOX360__
+    xenon_sound_init();
+#endif
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
         Log::logWarning(std::string("SDL_Mixer could not initialize! ") + Mix_GetError());
         return false;
     }
+
     int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
     if (Mix_Init(flags) != flags) {
         Log::logWarning(std::string("SDL_Mixer could not initialize MP3/OGG Support! ") + Mix_GetError());
     }
+
     isInit = true;
     return true;
 #endif

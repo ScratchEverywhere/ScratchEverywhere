@@ -1,5 +1,9 @@
 #include "render.hpp"
 #include "image.hpp"
+#include <SDL/SDL.h>
+#include <SDL/SDL_gfxBlitFunc.h>
+#include <SDL/SDL_gfxPrimitives.h>
+#include <SDL/SDL_rotozoom.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <chrono>
@@ -10,10 +14,6 @@
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <SDL/SDL.h>
-#include <SDL/SDL_gfxBlitFunc.h>
-#include <SDL/SDL_gfxPrimitives.h>
-#include <SDL/SDL_rotozoom.h>
 #include <sprite.hpp>
 #include <string>
 #include <text.hpp>
