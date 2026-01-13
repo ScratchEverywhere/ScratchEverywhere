@@ -167,7 +167,7 @@ inline std::string getPlatform() {
     return "PS4";
 #elif defined(__PSP__)
     return "PSP";
-#elif defined(__XENON__)
+#elif defined(__XBOX360__)
     return "Xbox 360";
 #elif defined(WEBOS)
     return "webOS TV";

@@ -233,7 +233,7 @@ std::string OS::getScratchFolderLocation() {
     return "/scratch-everywhere/";
 #elif defined(__NDS__)
     return prefix + "/scratch-ds/";
-#elif defined(__XENON__)
+#elif defined(__XBOX360__)
     return prefix + "/scratch-xbox360/";
 #elif defined(WEBOS)
     return prefix + "projects/";
