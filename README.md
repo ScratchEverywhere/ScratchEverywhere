@@ -122,7 +122,7 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 -   Most costume effects;
     -   Only the `Ghost` and `Brightness` costume effects are supported
 -   `Pitch` and `Pan left-right` audio effects
-   - These effects are only available on 3DS and some PC platforms.
+    -   These effects are only available on 3DS and some PC platforms.
 -   When loudness > \_\_\_
 -   All color touching blocks
 -   Loudness
