@@ -68,7 +68,7 @@ jobs:
         with:
           name: Scratch Everywhere! Linux Headless Nightly
           path: scratch-everywhere
-    linux-opengl:
+  linux-opengl:
     name: Linux OpenGL
     runs-on: ubuntu-latest
     steps:
