@@ -70,5 +70,4 @@ void Loading::cleanup() {
     delete block1;
     delete block2;
     delete block3;
-    delete loadingStateText;
 }

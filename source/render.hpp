@@ -246,7 +246,7 @@ class Render {
                         ListMonitorRenderObjects newObj;
                         newObj.name = createTextObject(var.displayName, 0, 0);
                         newObj.length = createTextObject("", 0, 0);
-                        listMonitors[var.id] = newObj;
+                        listMonitors[var.id] = std::move(newObj);
                     }
                     ListMonitorRenderObjects &monitorGfx = listMonitors[var.id];
                     monitorGfx.name->setText(var.displayName);
@@ -274,11 +274,7 @@ class Render {
 
                     // Items
                     if (monitorGfx.items.size() != var.list.size()) {
-                        for (auto *t : monitorGfx.items)
-                            delete t;
                         monitorGfx.items.clear();
-                        for (auto *t : monitorGfx.indices)
-                            delete t;
                         monitorGfx.indices.clear();
 
                         monitorGfx.items.reserve(var.list.size());
@@ -296,13 +292,13 @@ class Render {
                         for (const auto &s : var.list) {
                             drawBox(monitorW - (24 * scale), boxHeight, monitorX + (22 * scale) + (monitorW - (28 * scale)) / 2, monitorY + boxHeight + item_y + (boxHeight / 2), 252, 102, 44);
 
-                            TextObject *itemText = monitorGfx.items[index - 1];
+                            std::unique_ptr<TextObject> &itemText = monitorGfx.items[index - 1];
                             itemText->setText(s.asString());
                             itemText->setColor(Math::color(255, 255, 255, 255));
                             itemText->setScale(1.0f * (scale / 2.0f));
                             itemText->setCenterAligned(false);
 
-                            TextObject *itemIndexText = monitorGfx.indices[index - 1];
+                            std::unique_ptr<TextObject> &itemIndexText = monitorGfx.indices[index - 1];
                             itemIndexText->setText(std::to_string(index));
                             itemIndexText->setColor(Math::color(0, 0, 0, 255));
                             itemIndexText->setScale(1.0f * (scale / 2.0f));
@@ -315,12 +311,11 @@ class Render {
                             item_y += boxHeight + (4 * scale);
                         }
                     } else {
-                        TextObject *empty = createTextObject("(empty)", 0, 0);
+                        std::unique_ptr<TextObject> empty = createTextObject("(empty)", 0, 0);
                         empty->setColor(Math::color(0, 0, 0, 255));
                         empty->setScale(1.0f * (scale / 2.0f));
                         empty->setCenterAligned(true);
                         empty->render(monitorX + (monitorW / 2), monitorY + boxHeight + (12 * scale));
-                        delete empty;
                     }
 
                     // list length background
@@ -334,17 +329,15 @@ class Render {
                     monitorGfx.length->render(monitorX + (monitorW / 2), monitorY + monitorH - (6 * scale));
 
                     // what the hell, sure
-                    TextObject *plus = createTextObject("+", 0, 0);
+                    std::unique_ptr<TextObject> plus = createTextObject("+", 0, 0);
                     plus->setColor(Math::color(0, 0, 0, 255));
                     plus->setScale(1.0f * (scale / 2.0f));
                     plus->render(monitorX + (8 * scale), monitorY + monitorH - (6 * scale));
-                    delete plus;
 
-                    TextObject *equal = createTextObject("=", 0, 0);
+                    std::unique_ptr<TextObject> equal = createTextObject("=", 0, 0);
                     equal->setColor(Math::color(0, 0, 0, 255));
                     equal->setScale(1.0f * (scale / 2.0f));
                     equal->render(monitorX + monitorW - (8 * scale), monitorY + monitorH - (6 * scale));
-                    delete equal;
                 } else {
                     std::string renderText = var.value.asString();
                     if (monitorTexts.find(var.id) == monitorTexts.end()) {
@@ -355,8 +348,8 @@ class Render {
                         monitorTexts[var.id].second->setText(renderText);
                     }
 
-                    TextObject *nameObj = monitorTexts[var.id].first;
-                    TextObject *valueObj = monitorTexts[var.id].second;
+                    std::unique_ptr<TextObject> &nameObj = monitorTexts[var.id].first;
+                    std::unique_ptr<TextObject> &valueObj = monitorTexts[var.id].second;
 
                     const std::vector<float> nameSizeBox = nameObj->getSize();
                     const std::vector<float> valueSizeBox = valueObj->getSize();
@@ -422,18 +415,10 @@ class Render {
                 }
             } else {
                 if (monitorTexts.find(var.id) != monitorTexts.end()) {
-                    delete monitorTexts[var.id].first;
-                    delete monitorTexts[var.id].second;
                     monitorTexts.erase(var.id);
                 }
                 if (listMonitors.find(var.id) != listMonitors.end()) {
                     auto &monitorGfx = listMonitors[var.id];
-                    delete monitorGfx.name;
-                    delete monitorGfx.length;
-                    for (auto *t : monitorGfx.items)
-                        delete t;
-                    for (auto *t : monitorGfx.indices)
-                        delete t;
                     listMonitors.erase(var.id);
                 }
             }
@@ -493,13 +478,13 @@ class Render {
     };
 
     static RenderModes renderMode;
-    static std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> monitorTexts;
+    static std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> monitorTexts;
 
     struct ListMonitorRenderObjects {
-        TextObject *name;
-        TextObject *length;
-        std::vector<TextObject *> items;
-        std::vector<TextObject *> indices;
+        std::unique_ptr<TextObject> name;
+        std::unique_ptr<TextObject> length;
+        std::vector<std::unique_ptr<TextObject>> items;
+        std::vector<std::unique_ptr<TextObject>> indices;
     };
     static std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
 

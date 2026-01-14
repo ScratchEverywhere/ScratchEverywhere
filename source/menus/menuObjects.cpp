@@ -144,7 +144,6 @@ void ButtonObject::render(double xPos, double yPos) {
 }
 
 ButtonObject::~ButtonObject() {
-    delete text;
     delete buttonTexture;
 }
 

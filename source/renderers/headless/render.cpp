@@ -8,7 +8,7 @@ std::chrono::_V2::system_clock::time_point Render::endTime;
 bool Render::debugMode = false;
 bool Render::hasFrameBegan = false;
 Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
-std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 std::vector<Monitor> Render::visibleVariables;
 float Render::renderScale;

@@ -24,7 +24,7 @@ u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
 std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
-std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 bool Render::debugMode = false;
 static bool isConsoleInit = false;

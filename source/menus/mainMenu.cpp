@@ -208,14 +208,6 @@ void MainMenu::cleanup() {
         delete mainMenuControl;
         mainMenuControl = nullptr;
     }
-    if (versionNumber) {
-        delete versionNumber;
-        versionNumber = nullptr;
-    }
-    if (splashText) {
-        delete splashText;
-        splashText = nullptr;
-    }
     if (snow.image) {
         delete snow.image;
         snow.image = nullptr;

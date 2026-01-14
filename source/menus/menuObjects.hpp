@@ -93,7 +93,7 @@ class ButtonObject : public MenuObject {
     std::vector<int> lastFrameTouchPos;
 
   public:
-    TextObject *text;
+    std::unique_ptr<TextObject> text;
     double textScale;
     bool isSelected = false;
     bool needsToBeSelected = true;

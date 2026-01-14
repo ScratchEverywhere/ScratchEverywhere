@@ -46,8 +46,8 @@ class MainMenu : public Menu {
     ButtonObject *loadButton = nullptr;
     ButtonObject *settingsButton = nullptr;
     ControlObject *mainMenuControl = nullptr;
-    TextObject *versionNumber = nullptr;
-    TextObject *splashText = nullptr;
+    std::unique_ptr<TextObject> versionNumber = nullptr;
+    std::unique_ptr<TextObject> splashText = nullptr;
     float splashTextOriginalScale = 1.0f;
 
     int selectedTextIndex = 0;

@@ -125,21 +125,7 @@ void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
-
-    for (auto &[id, textPair] : Render::monitorTexts) {
-        delete textPair.first;
-        delete textPair.second;
-    }
     Render::monitorTexts.clear();
-
-    for (auto &[id, listMon] : Render::listMonitors) {
-        delete listMon.name;
-        delete listMon.length;
-        for (auto *t : listMon.items)
-            delete t;
-        for (auto *t : listMon.indices)
-            delete t;
-    }
     Render::listMonitors.clear();
 
     TextObject::cleanupText();

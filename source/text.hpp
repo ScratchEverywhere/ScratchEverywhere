@@ -82,4 +82,4 @@ class TextObject : public Object {
     virtual void setRenderer(void *renderer) {}
 };
 
-TextObject *createTextObject(std::string txt, double posX, double posY, std::string fontPath = "");
+std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, double posY, std::string fontPath = "");
