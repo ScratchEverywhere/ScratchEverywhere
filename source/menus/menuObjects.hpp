@@ -28,6 +28,7 @@ class JollySnow {
   public:
     Image *image;
     JollySnow() {
+#ifndef RENDERER_HEADLESS
         oldWindowWidth = Render::getWidth();
         oldWindowHeight = Render::getHeight();
 
@@ -38,9 +39,11 @@ class JollySnow {
                 .fallSpeed = ((float)rand() / RAND_MAX) * 1.1f + 0.2f};
             snow.push_back(std::move(ball));
         }
+#endif
     }
 
     void render(float xOffset = 0.0f, float yOffset = 0.0f) {
+#ifndef RENDERER_HEADLESS
         for (auto &ball : snow) {
             image->render(ball.x + xOffset, ball.y + yOffset, true);
             ball.y += ball.fallSpeed;
@@ -58,6 +61,7 @@ class JollySnow {
                 ball.y = (float)(rand() % Render::getHeight());
             }
         }
+#endif
     }
 };
 
