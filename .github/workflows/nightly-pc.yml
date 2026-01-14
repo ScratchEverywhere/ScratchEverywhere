@@ -22,7 +22,7 @@ on:
 
 jobs:
   linux:
-    name: Linux x86_64
+    name: Linux x86_64 SDL2
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -45,7 +45,7 @@ jobs:
           name: Scratch Everywhere! Linux Nightly
           path: scratch-everywhere
   linux-headless:
-    name: Linux Headless
+    name: Linux x86_64 Headless
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,7 +61,10 @@ jobs:
           file: docker/Dockerfile.linux
           target: exporter
           outputs: type=local,dest=.
-          build-args: RENDERER=headless
+          build-args: |
+            RENDERER=headless
+            WINDOWING=headless
+            AUDIO_ENGINE=headless
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -69,7 +72,7 @@ jobs:
           name: Scratch Everywhere! Linux Headless Nightly
           path: scratch-everywhere
   linux-opengl:
-    name: Linux OpenGL
+    name: Linux x86_64 OpenGL
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -87,7 +90,7 @@ jobs:
           outputs: type=local,dest=.
           build-args: |
             RENDERER=opengl
-            WINDOWING=glfw
+            WINDOWING=sdl3
             AUDIO_ENGINE=sdl3
 
       - name: Upload Artifact
