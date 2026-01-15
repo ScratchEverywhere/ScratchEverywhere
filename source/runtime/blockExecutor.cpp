@@ -502,11 +502,17 @@ Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, 
         // variable must be in the same custom block
         if (prototypeBlock != nullptr && custBlock.blockId != prototypeBlock->id) continue;
 
-        const auto it = std::find(custBlock.argumentNames.begin(), custBlock.argumentNames.end(), valueName);
+        size_t index = custBlock.argumentNames.size();
+        for (size_t i = custBlock.argumentNames.size(); i-- > 0;) {
+            if (custBlock.argumentNames[i] == valueName) {
+                index = i;
+                break;
+            }
+        }
 
-        if (it == custBlock.argumentNames.end()) continue;
-
-        const size_t index = std::distance(custBlock.argumentNames.begin(), it);
+        if (index == custBlock.argumentNames.size()) {
+            continue;
+        }
 
         if (index < custBlock.argumentIds.size()) {
             const std::string argumentId = custBlock.argumentIds[index];
