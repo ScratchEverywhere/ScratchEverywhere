@@ -73,7 +73,7 @@ std::chrono::system_clock::time_point Render::endTime = std::chrono::system_cloc
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
-SpeechManagerSDL2* speechManager = nullptr;
+SpeechManagerSDL2 *speechManager = nullptr;
 
 bool Render::Init() {
 #ifdef __WIIU__

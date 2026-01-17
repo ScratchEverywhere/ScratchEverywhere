@@ -1,10 +1,10 @@
 #include "speech_manager_sdl1.hpp"
 #include "image.hpp"
+#include "render.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_gfxBlitFunc.h>
 #include <SDL/SDL_rotozoom.h>
 #include <image.hpp>
-#include "render.hpp"
 #include <render.hpp>
 #include <runtime.hpp>
 

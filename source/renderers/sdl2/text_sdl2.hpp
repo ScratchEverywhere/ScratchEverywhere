@@ -14,7 +14,7 @@ class TextObjectSDL2 : public TextObject {
     int textHeight = 0;
 
     void updateTexture();
-  
+
   protected:
     static std::unordered_map<std::string, TTF_Font *> fonts;
     static std::unordered_map<std::string, size_t> fontUsageCount;

@@ -96,7 +96,7 @@ void SpeechTextObjectC2D::render(int xPos, int yPos) {
     // Render from bottom to top, keeping bottom fixed at yPos
     float currentBottomY = static_cast<float>(yPos);
     u32 flags = C2D_WithColor;
-    
+
     for (int i = lines.size() - 1; i >= 0; i--) {
         const auto &line = lines[i];
         float lineHeight = lineHeights[i];

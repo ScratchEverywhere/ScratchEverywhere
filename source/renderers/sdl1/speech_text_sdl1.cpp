@@ -1,8 +1,8 @@
 #include "speech_text_sdl1.hpp"
-#include <os.hpp>
 #include "text.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_ttf.h>
+#include <os.hpp>
 
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>

@@ -32,7 +32,7 @@
 Window *globalWindow = nullptr;
 SDL_Surface *penSurface = nullptr;
 
-SpeechManagerSDL1* speechManager = nullptr;
+SpeechManagerSDL1 *speechManager = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;

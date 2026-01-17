@@ -1,6 +1,6 @@
 #include "speech_text_gl2d.hpp"
-#include <math.hpp>
 #include "text_gl2d.hpp"
+#include <math.hpp>
 
 SpeechTextObjectGL2D::SpeechTextObjectGL2D(const std::string &text, int maxWidth)
     : TextObjectGL2D(text, 0, 0, "gfx/menu/Ubuntu-Bold", 14), SpeechText(text, maxWidth) {
@@ -88,7 +88,7 @@ void SpeechTextObjectGL2D::render(int xPos, int yPos) {
         const auto &line = lines[i];
         float lineHeight = lineHeights[i];
         int renderY = (int)(currentBottomY - lineHeight);
-        
+
         if (!line.empty()) {
             temp.setText(line);
             temp.render(xPos, renderY);
@@ -96,7 +96,7 @@ void SpeechTextObjectGL2D::render(int xPos, int yPos) {
             temp.setText(" ");
             temp.render(xPos, renderY);
         }
-        
+
         currentBottomY -= lineHeight;
     }
 }

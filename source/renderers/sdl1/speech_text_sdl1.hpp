@@ -1,6 +1,6 @@
 #pragma once
-#include <speech_text.hpp>
 #include "text_sdl1.hpp"
+#include <speech_text.hpp>
 #include <string>
 
 class SpeechTextObjectSDL : public TextObjectSDL1, public SpeechText {

@@ -1,8 +1,8 @@
 #include "speech_text_sdl3.hpp"
-#include <os.hpp>
 #include "text.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <os.hpp>
 
 #ifdef __PC__
 #include <cmrc/cmrc.hpp>
