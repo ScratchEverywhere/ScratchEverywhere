@@ -257,7 +257,7 @@ $(GFXBUILD):
 ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
 endif
-#	@cp -r $(GRAPHICS)/ingame $@/
+	@cp -r $(GRAPHICS)/ingame $@/
 endif
 
 ifneq ($(DEPSDIR),$(BUILD))
