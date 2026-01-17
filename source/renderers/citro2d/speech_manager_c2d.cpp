@@ -62,8 +62,9 @@ void SpeechManagerC2D::render() {
             int textHeight = static_cast<int>(textSize[1]);
 
             // Position speech next to top corners
+            int desiredBottomY = spriteTop - static_cast<int>(30 * scale);
             int textX;
-            int textY = spriteTop - static_cast<int>(30 * scale) - textHeight;
+            int textY = desiredBottomY; // Will be adjusted in render() to account for height addition
             int screenCenter = SCREEN_WIDTH / 2;
 
             if (spriteCenterX < screenCenter) {
@@ -79,7 +80,7 @@ void SpeechManagerC2D::render() {
             // render basic speech bubble behind text (simple rects due to performance)
             int bubblePadding = static_cast<int>(8 * scale);
             int bubbleX = textX - bubblePadding;
-            int bubbleY = textY - bubblePadding;
+            int bubbleY = textY - textHeight - bubblePadding;
             int bubbleWidth = textWidth + (bubblePadding * 2);
             int bubbleHeight = textHeight + (bubblePadding * 2);
 

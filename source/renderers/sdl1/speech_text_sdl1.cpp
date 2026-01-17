@@ -11,16 +11,16 @@ CMRC_DECLARE(romfs);
 #endif
 
 SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
-    : TextObjectSDL(text, 0, 0), SpeechText(text, maxWidth) {
+    : TextObjectSDL1(text, 0, 0), SpeechText(text, maxWidth) {
     setColor(0x00);
     setCenterAligned(false); // easier for positioning logic
 
     if (font && !pathFont.empty()) {
-        TextObjectSDL::fontUsageCount[pathFont]--;
-        if (TextObjectSDL::fontUsageCount[pathFont] <= 0) {
-            TTF_CloseFont(TextObjectSDL::fonts[pathFont]);
-            TextObjectSDL::fonts.erase(pathFont);
-            TextObjectSDL::fontUsageCount.erase(pathFont);
+        TextObjectSDL1::fontUsageCount[pathFont]--;
+        if (TextObjectSDL1::fontUsageCount[pathFont] <= 0) {
+            TTF_CloseFont(TextObjectSDL1::fonts[pathFont]);
+            TextObjectSDL1::fonts.erase(pathFont);
+            TextObjectSDL1::fontUsageCount.erase(pathFont);
         }
         font = nullptr;
         pathFont.clear();
@@ -55,7 +55,7 @@ float SpeechTextObjectSDL::measureTextWidth(const std::string &text) {
 }
 
 void SpeechTextObjectSDL::platformSetText(const std::string &text) {
-    TextObjectSDL::setText(text);
+    TextObjectSDL1::setText(text);
 }
 
 void SpeechTextObjectSDL::setText(std::string txt) {

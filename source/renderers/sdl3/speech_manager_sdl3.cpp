@@ -1,6 +1,7 @@
 #include "speech_manager_sdl3.hpp"
 #include "image.hpp"
 #include <image.hpp>
+#include <render.hpp>
 #include <runtime.hpp>
 
 SpeechManagerSDL3::SpeechManagerSDL3(SDL_Renderer *renderer) : renderer(renderer) {
@@ -36,7 +37,8 @@ void SpeechManagerSDL3::render() {
     ensureImagesLoaded();
 
     // Get window dimensions and scale so speech size aligns with resolution
-    extern int windowWidth, windowHeight;
+    int windowWidth = Render::getWidth();
+    int windowHeight = Render::getHeight();
     double scaleX = static_cast<double>(windowWidth) / static_cast<double>(Scratch::projectWidth);
     double scaleY = static_cast<double>(windowHeight) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
@@ -107,7 +109,7 @@ void SpeechManagerSDL3::renderSpeechIndicator(Sprite *sprite, int spriteCenterX,
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(16 * scale);
-    extern int windowWidth;
+    int windowWidth = Render::getWidth();
     int screenCenter = windowWidth / 2;
 
     int indicatorX;

@@ -51,7 +51,7 @@ void SpeechManager::clearSpeech(Sprite *sprite) {
     speechDurations.erase(sprite);
 }
 
-void SpeechManager::update(double deltaTime) {
+void SpeechManager::update() {
     double now = getCurrentTime();
 
     // check timers and clear speech objects if they have expired

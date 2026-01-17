@@ -3,7 +3,7 @@
 #include "text_sdl1.hpp"
 #include <string>
 
-class SpeechTextObjectSDL : public TextObjectSDL, public SpeechText {
+class SpeechTextObjectSDL : public TextObjectSDL1, public SpeechText {
   private:
     float measureTextWidth(const std::string &text) override;
     void platformSetText(const std::string &text) override;

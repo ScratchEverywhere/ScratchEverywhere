@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "speech_manager_gl2d.hpp"
 #include <audio.hpp>
 #include <fat.h>
 #include <filesystem.h>
@@ -22,6 +23,7 @@ std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMo
 std::vector<Monitor> Render::visibleVariables;
 
 Window *globalWindow = nullptr;
+SpeechManagerGL2D *speechManager = nullptr;
 
 #define SCREEN_WIDTH 256
 #define BOTTOM_SCREEN_WIDTH 256
@@ -37,10 +39,15 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
+    speechManager = new SpeechManagerGL2D();
     return true;
 }
 
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
     Image::cleanupImages();
     TextObject::cleanupText();
 
@@ -53,6 +60,10 @@ void Render::deInit() {
 
 void *Render::getRenderer() {
     return nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
+    return speechManager;
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -151,6 +162,10 @@ void Render::renderSprites() {
             //         RGB15(31, 0, 0)); // Red box
             // }
         }
+    }
+
+    if (speechManager) {
+        speechManager->render();
     }
 
     if (Input::mousePointer.isMoving) {

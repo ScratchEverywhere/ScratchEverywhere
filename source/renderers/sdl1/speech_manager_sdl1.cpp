@@ -4,6 +4,7 @@
 #include <SDL/SDL_gfxBlitFunc.h>
 #include <SDL/SDL_rotozoom.h>
 #include <image.hpp>
+#include "render.hpp"
 #include <render.hpp>
 #include <runtime.hpp>
 
@@ -36,7 +37,8 @@ void SpeechManagerSDL1::render() {
     ensureImagesLoaded();
 
     // Get window dimensions and scale so speech size aligns with resolution
-    extern int windowWidth, windowHeight;
+    int windowWidth = Render::getWidth();
+    int windowHeight = Render::getHeight();
     double scaleX = static_cast<double>(windowWidth) / static_cast<double>(Scratch::projectWidth);
     double scaleY = static_cast<double>(windowHeight) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
@@ -121,7 +123,7 @@ void SpeechManagerSDL1::renderSpeechIndicator(Sprite *sprite, int spriteCenterX,
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(16 * scale);
-    extern int windowWidth;
+    int windowWidth = Render::getWidth();
     int screenCenter = windowWidth / 2;
 
     int indicatorX;

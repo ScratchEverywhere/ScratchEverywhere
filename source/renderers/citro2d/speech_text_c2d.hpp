@@ -2,11 +2,13 @@
 #include "text_c2d.hpp"
 #include <speech_text.hpp>
 #include <string>
+#include <vector>
 
 class SpeechTextObjectC2D : public TextObjectC2D, public SpeechText {
   private:
     float measureTextWidth(const std::string &text) override;
     void platformSetText(const std::string &text) override;
+    std::vector<std::string> splitTextByNewlines(const std::string &text);
 
   public:
     SpeechTextObjectC2D(const std::string &text, int maxWidth = 200);

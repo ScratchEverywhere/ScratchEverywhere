@@ -31,7 +31,7 @@ class SpeechManager {
 
     void showSpeech(Sprite *sprite, const std::string &message, double showForSecs = -1, const std::string &style = "say");
     void clearSpeech(Sprite *sprite);
-    void update(double deltaTime);
+    void update();
     void cleanup();
 
     virtual void render() = 0;

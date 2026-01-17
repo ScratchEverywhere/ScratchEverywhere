@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "image.hpp"
+#include "speech_manager_sdl1.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_gfxBlitFunc.h>
 #include <SDL/SDL_gfxPrimitives.h>
@@ -31,6 +32,8 @@
 Window *globalWindow = nullptr;
 SDL_Surface *penSurface = nullptr;
 
+SpeechManagerSDL1* speechManager = nullptr;
+
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
@@ -50,11 +53,18 @@ bool Render::Init() {
         return false;
     }
 
+    speechManager = new SpeechManagerSDL1(static_cast<SDL_Surface *>(globalWindow->getHandle()));
+
     debugMode = true;
 
     return true;
 }
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
     SDL_FreeSurface(penSurface);
 
     Image::cleanupImages();
@@ -75,6 +85,10 @@ void Render::deInit() {
 void *Render::getRenderer() {
     if (globalWindow) return globalWindow->getHandle();
     return nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
+    return speechManager;
 }
 
 int Render::getWidth() {
@@ -351,6 +365,10 @@ void Render::renderSprites() {
         // }
 
         if (currentSprite->isStage) renderPenLayer();
+    }
+
+    if (speechManager) {
+        speechManager->render();
     }
 
     drawBlackBars(getWidth(), getHeight());

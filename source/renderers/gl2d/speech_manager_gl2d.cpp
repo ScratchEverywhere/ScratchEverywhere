@@ -4,6 +4,7 @@
 #include <image.hpp>
 #include <math.hpp>
 #include <nds.h>
+#include <render.hpp>
 #include <runtime.hpp>
 
 SpeechManagerGL2D::SpeechManagerGL2D() {
@@ -33,8 +34,8 @@ void SpeechManagerGL2D::render() {
     ensureImagesLoaded();
 
     // Get screen dimensions and scale so speech size aligns with resolution
-    int screenWidth = SCREEN_WIDTH;
-    int screenHeight = SCREEN_HEIGHT;
+    int screenWidth = Render::getWidth();
+    int screenHeight = Render::getHeight();
     double scaleX = static_cast<double>(screenWidth) / static_cast<double>(Scratch::projectWidth);
     double scaleY = static_cast<double>(screenHeight) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
@@ -63,8 +64,9 @@ void SpeechManagerGL2D::render() {
             int textHeight = static_cast<int>(textSize[1]);
 
             // Position speech next to top corners
+            int desiredBottomY = spriteTop - static_cast<int>(30 * scale);
             int textX;
-            int textY = spriteTop - static_cast<int>(30 * scale) - textHeight;
+            int textY = desiredBottomY; // Will be adjusted in render() to account for height addition
             int screenCenter = screenWidth / 2;
 
             if (spriteCenterX < screenCenter) {
@@ -80,7 +82,7 @@ void SpeechManagerGL2D::render() {
             // render basic speech bubble behind text (simple rects due to performance)
             int bubblePadding = static_cast<int>(8 * scale);
             int bubbleX = textX - bubblePadding;
-            int bubbleY = textY - bubblePadding;
+            int bubbleY = textY - textHeight - bubblePadding;
             int bubbleWidth = textWidth + (bubblePadding * 2);
             int bubbleHeight = textHeight + (bubblePadding * 2);
 
@@ -109,8 +111,7 @@ void SpeechManagerGL2D::renderSpeechIndicator(Sprite *sprite, int spriteCenterX,
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(20 * scale);
-    int screenWidth = SCREEN_WIDTH;
-    int screenCenter = screenWidth / 2;
+    int screenCenter = Render::getWidth() / 2;
 
     // Position indicator at bottom edge, on first non-corner tile closest to sprite
     int indicatorX;

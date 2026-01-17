@@ -64,19 +64,40 @@ void SpeechTextObjectGL2D::render(int xPos, int yPos) {
     temp.setColor(color);
     temp.setCenterAligned(false);
 
-    float currentY = (float)yPos;
-
+    std::vector<float> lineHeights;
     for (const auto &line : lines) {
         if (!line.empty()) {
             temp.setText(line);
             auto size = temp.getSize();
-            temp.render(xPos, (int)currentY);
-            currentY += size[1];
+            lineHeights.push_back(size[1]);
         } else {
             temp.setText(" ");
             auto size = temp.getSize();
-            currentY += size[1];
+            lineHeights.push_back(size[1]);
         }
+    }
+
+    float totalHeight = 0.0f;
+    for (float h : lineHeights) {
+        totalHeight += h;
+    }
+
+    // Render from bottom to top, keeping bottom fixed at yPos
+    float currentBottomY = (float)yPos;
+    for (int i = lines.size() - 1; i >= 0; i--) {
+        const auto &line = lines[i];
+        float lineHeight = lineHeights[i];
+        int renderY = (int)(currentBottomY - lineHeight);
+        
+        if (!line.empty()) {
+            temp.setText(line);
+            temp.render(xPos, renderY);
+        } else {
+            temp.setText(" ");
+            temp.render(xPos, renderY);
+        }
+        
+        currentBottomY -= lineHeight;
     }
 }
 
