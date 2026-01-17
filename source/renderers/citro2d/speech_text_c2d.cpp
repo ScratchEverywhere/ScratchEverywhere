@@ -1,6 +1,7 @@
 #include "speech_text_c2d.hpp"
 #include <3ds.h>
 #include <math.hpp>
+#include <sstream>
 
 SpeechTextObjectC2D::SpeechTextObjectC2D(const std::string &text, int maxWidth)
     : TextObjectC2D(text, 0, 0, "gfx/menu/Ubuntu-Bold"), SpeechText(text, maxWidth) {
@@ -33,7 +34,16 @@ void SpeechTextObjectC2D::setText(std::string txt) {
 }
 
 std::vector<float> SpeechTextObjectC2D::getSize() {
-    std::vector<std::string> lines = splitTextByNewlines(getText());
+    std::vector<std::string> lines;
+    std::string text = getText();
+    std::istringstream iss(text);
+    std::string line;
+    while (std::getline(iss, line)) {
+        lines.push_back(line);
+    }
+    if (!text.empty() && text.back() == '\n') {
+        lines.push_back("");
+    }
     if (lines.empty()) {
         return {0.0f, 0.0f};
     }
@@ -75,7 +85,16 @@ std::vector<float> SpeechTextObjectC2D::getSize() {
 }
 
 void SpeechTextObjectC2D::render(int xPos, int yPos) {
-    std::vector<std::string> lines = splitTextByNewlines(getText());
+    std::vector<std::string> lines;
+    std::string text = getText();
+    std::istringstream iss(text);
+    std::string line;
+    while (std::getline(iss, line)) {
+        lines.push_back(line);
+    }
+    if (!text.empty() && text.back() == '\n') {
+        lines.push_back("");
+    }
     if (lines.empty()) return;
 
     // Calculate line heights
@@ -121,23 +140,4 @@ void SpeechTextObjectC2D::render(int xPos, int yPos) {
 
         currentBottomY -= lineHeight;
     }
-}
-
-std::vector<std::string> SpeechTextObjectC2D::splitTextByNewlines(const std::string &text) {
-    std::vector<std::string> lines;
-    std::string currentLine;
-
-    for (char c : text) {
-        if (c == '\n') {
-            lines.push_back(currentLine);
-            currentLine.clear();
-        } else {
-            currentLine += c;
-        }
-    }
-    if (!currentLine.empty() || text.back() == '\n') {
-        lines.push_back(currentLine);
-    }
-
-    return lines;
 }
