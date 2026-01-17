@@ -1,6 +1,7 @@
 #include "speech_text_gl2d.hpp"
 #include "text_gl2d.hpp"
 #include <math.hpp>
+#include <sstream>
 
 SpeechTextObjectGL2D::SpeechTextObjectGL2D(const std::string &text, int maxWidth)
     : TextObjectGL2D(text, 0, 0, "gfx/menu/Ubuntu-Bold", 14), SpeechText(text, maxWidth) {
@@ -27,7 +28,16 @@ void SpeechTextObjectGL2D::setText(std::string txt) {
 }
 
 std::vector<float> SpeechTextObjectGL2D::getSize() {
-    std::vector<std::string> lines = splitTextByNewlines(getText());
+    std::vector<std::string> lines;
+    std::string text = getText();
+    std::istringstream iss(text);
+    std::string line;
+    while (std::getline(iss, line)) {
+        lines.push_back(line);
+    }
+    if (!text.empty() && text.back() == '\n') {
+        lines.push_back("");
+    }
     if (lines.empty()) {
         return {0.0f, 0.0f};
     }
@@ -57,7 +67,16 @@ std::vector<float> SpeechTextObjectGL2D::getSize() {
 }
 
 void SpeechTextObjectGL2D::render(int xPos, int yPos) {
-    std::vector<std::string> lines = splitTextByNewlines(getText());
+    std::vector<std::string> lines;
+    std::string text = getText();
+    std::istringstream iss(text);
+    std::string line;
+    while (std::getline(iss, line)) {
+        lines.push_back(line);
+    }
+    if (!text.empty() && text.back() == '\n') {
+        lines.push_back("");
+    }
     if (lines.empty()) return;
 
     TextObjectGL2D temp("", 0, 0, "gfx/menu/Ubuntu-Bold", 14);
@@ -99,23 +118,4 @@ void SpeechTextObjectGL2D::render(int xPos, int yPos) {
 
         currentBottomY -= lineHeight;
     }
-}
-
-std::vector<std::string> SpeechTextObjectGL2D::splitTextByNewlines(const std::string &text) {
-    std::vector<std::string> lines;
-    std::string currentLine;
-
-    for (char c : text) {
-        if (c == '\n') {
-            lines.push_back(currentLine);
-            currentLine.clear();
-        } else {
-            currentLine += c;
-        }
-    }
-    if (!currentLine.empty() || text.back() == '\n') {
-        lines.push_back(currentLine);
-    }
-
-    return lines;
 }
