@@ -1,4 +1,5 @@
 #include <render.hpp>
+#include <speech_manager.hpp>
 #include <window.hpp>
 #include <windowing/headless/window.hpp>
 
@@ -30,6 +31,10 @@ void Render::deInit() {
 }
 
 void *Render::getRenderer() {
+    return nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
     return nullptr;
 }
 

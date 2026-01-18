@@ -82,7 +82,7 @@ ifeq ($(ENABLE_MENU),1)
 else
 	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
 endif
-#	@cp -r $(GRAPHICS)/ingame $@/
+	@cp -r $(GRAPHICS)/ingame $@/
 
 # Link debug executable
 $(BUILD)/debug/$(TARGET).html: $(patsubst $(BUILD)/%,$(BUILD)/debug/%,$(OBJS))

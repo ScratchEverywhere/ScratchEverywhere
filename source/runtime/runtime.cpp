@@ -14,6 +14,7 @@
 #include <math.h>
 #include <os.hpp>
 #include <render.hpp>
+#include <speech_manager.hpp>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -84,6 +85,10 @@ bool Scratch::startScratchProject() {
             BlockExecutor::runBackdrops();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::updateMonitors();
+            SpeechManager *speechManager = Render::getSpeechManager();
+            if (speechManager) {
+                speechManager->update();
+            }
             if (checkFPS) Render::renderSprites();
 
 #ifdef ENABLE_MENU

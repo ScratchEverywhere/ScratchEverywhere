@@ -144,7 +144,7 @@ ifeq ($(ENABLE_MENU),1)
 else
 	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
 endif
-#	@cp -r $(GRAPHICS)/ingame $@/
+	@cp -r $(GRAPHICS)/ingame $@/
 
 ifneq ($(DEPSDIR),$(BUILD))
 $(DEPSDIR):

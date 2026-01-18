@@ -6,6 +6,8 @@
 #include <text.hpp>
 #include <vector>
 
+class SpeechManager;
+
 class Render {
   public:
     static std::chrono::system_clock::time_point startTime;
@@ -25,6 +27,11 @@ class Render {
      * [SDL] returns the current renderer.
      */
     static void *getRenderer();
+
+    /**
+     * Returns the speech manager instance.
+     */
+    static SpeechManager *getSpeechManager();
 
     /**
      * Begins a drawing frame.
