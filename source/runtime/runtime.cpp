@@ -29,6 +29,7 @@
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
 std::vector<std::string> Scratch::broadcastQueue;
+std::vector<std::string> Scratch::backdropQueue;
 std::vector<Sprite *> Scratch::cloneQueue;
 std::string Scratch::answer;
 ProjectType Scratch::projectType;
@@ -80,6 +81,7 @@ bool Scratch::startScratchProject() {
             if (checkFPS) Input::getInput();
             BlockExecutor::runCloneStarts();
             BlockExecutor::runBroadcasts();
+            BlockExecutor::runBackdrops();
             BlockExecutor::runRepeatBlocks();
             BlockExecutor::updateMonitors();
             if (checkFPS) Render::renderSprites();

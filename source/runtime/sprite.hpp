@@ -70,6 +70,7 @@ struct Block {
     bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
+    std::vector<std::pair<Block *, Sprite *>> backdropsRun;
 
     Block() {
         parsedFields = std::make_shared<std::map<std::string, ParsedField>>();

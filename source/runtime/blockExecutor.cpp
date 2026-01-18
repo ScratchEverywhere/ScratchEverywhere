@@ -319,6 +319,39 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     return blocksToRun;
 }
 
+std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBackdrops() {
+    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
+
+    while (!Scratch::backdropQueue.empty()) {
+        const std::string currentBackdrop = Scratch::backdropQueue.front();
+        Scratch::backdropQueue.erase(Scratch::backdropQueue.begin());
+        const auto results = runBackdrop(currentBackdrop);
+        blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
+    }
+
+    return blocksToRun;
+}
+
+std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBackdrop(std::string backdropToRun) {
+    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
+
+    std::vector<Sprite *> sprToRun = Scratch::sprites;
+    for (auto *currentSprite : sprToRun) {
+        for (auto &[id, block] : currentSprite->blocks) {
+            if (block.opcode == "event_whenbackdropswitchesto" &&
+                Scratch::getFieldValue(block, "BACKDROP") == backdropToRun) {
+                blocksToRun.push_back({&block, currentSprite});
+            }
+        }
+    }
+
+    // run each matching block
+    for (auto &[blockPtr, spritePtr] : blocksToRun)
+        executor.runBlock(*blockPtr, spritePtr);
+
+    return blocksToRun;
+}
+
 void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Sprite *> sprToRun = Scratch::sprites;

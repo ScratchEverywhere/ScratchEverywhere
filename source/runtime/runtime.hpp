@@ -84,6 +84,7 @@ class Scratch {
     static std::vector<Sprite *> sprites;
     static Sprite *stageSprite;
     static std::vector<std::string> broadcastQueue;
+    static std::vector<std::string> backdropQueue;
     static std::vector<Sprite *> cloneQueue;
     static std::string answer;
     static ProjectType projectType;
