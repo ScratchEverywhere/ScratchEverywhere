@@ -78,9 +78,9 @@ bool Scratch::startScratchProject() {
         if (!forceRedraw || checkFPS) {
             forceRedraw = false;
             if (checkFPS) Input::getInput();
-            BlockExecutor::runRepeatBlocks();
             BlockExecutor::runCloneStarts();
             BlockExecutor::runBroadcasts();
+            BlockExecutor::runRepeatBlocks();
             BlockExecutor::updateMonitors();
             if (checkFPS) Render::renderSprites();
 

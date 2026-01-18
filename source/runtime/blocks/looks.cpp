@@ -130,7 +130,7 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
         for (Sprite *currentSprite : Scratch::sprites) {
             if (currentSprite->isStage || currentSprite == sprite) continue;
             if (currentSprite->layer >= targetLayer) {
-                currentSprite->layer++;
+                currentSprite->layer--;
             }
         }
 
@@ -142,8 +142,7 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
         for (Sprite *currentSprite : Scratch::sprites) {
             if (currentSprite->isStage || currentSprite == sprite) continue;
             if (currentSprite->layer <= targetLayer) {
-                currentSprite->layer--;
-                if (currentSprite->layer < 0) currentSprite->layer = 0;
+                currentSprite->layer++;
             }
         }
 
