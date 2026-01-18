@@ -1,0 +1,38 @@
+FROM free60/libxenon:latest AS sdl_builder
+WORKDIR /sdl
+
+RUN git clone https://github.com/LibXenonProject/libSDLXenon.git .
+RUN make -f Makefile.xenon
+
+FROM free60/libxenon:latest AS sdl_image_builder
+WORKDIR /sdl_image
+COPY --from=sdl_builder /usr/local/xenon /usr/local/xenon
+
+RUN git clone --branch SDL-1.2 https://github.com/libsdl-org/SDL_image.git .
+RUN ./configure --prefix=$DEVKITXENON/usr
+RUN make install
+
+FROM free60/libxenon:latest AS sdl_gfx_builder
+WORKDIR /sdl_gfx
+COPY --from=sdl_image_builder /usr/local/xenon /usr/local/xenon
+
+RUN git clone https://github.com/ferzkopp/SDL_gfx.git .
+RUN ./configure --host=ppc-elf --prefix=$DEVKITXENON/usr
+RUN make install
+
+FROM free60/libxenon:latest AS sdl_mixer_builder
+WORKDIR /sdl_mixer
+COPY --from=sdl_gfx_builder /usr/local/xenon /usr/local/xenon
+
+RUN git clone --branch SDL-1.2 https://github.com/libsdl-org/SDL_mixer.git .
+RUN ./configure --host=ppc-elf --prefix=$DEVKITXENON/usr .
+RUN make install
+
+FROM free60/libxenon:latest AS main_builder
+WORKDIR /app
+
+COPY --from=sdl_gfx_builder /usr/local/xenon /usr/local/xenon
+RUN make -j ${nproc}
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/build/xbox360/scratch-everywhere.elf32 /
