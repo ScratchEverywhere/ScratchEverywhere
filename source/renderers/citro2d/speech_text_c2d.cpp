@@ -34,24 +34,14 @@ void SpeechTextObjectC2D::setText(std::string txt) {
 }
 
 std::vector<float> SpeechTextObjectC2D::getSize() {
-    std::vector<std::string> lines;
     std::string text = getText();
     std::istringstream iss(text);
     std::string line;
-    while (std::getline(iss, line)) {
-        lines.push_back(line);
-    }
-    if (!text.empty() && text.back() == '\n') {
-        lines.push_back("");
-    }
-    if (lines.empty()) {
-        return {0.0f, 0.0f};
-    }
 
     float maxWidth = 0.0f;
     float totalHeight = 0.0f;
 
-    for (const auto &line : lines) {
+    while (std::getline(iss, line)) {
         if (!line.empty()) {
             C2D_Text tempText;
             C2D_TextBuf tempBuffer = C2D_TextBufNew(200);
@@ -73,8 +63,8 @@ std::vector<float> SpeechTextObjectC2D::getSize() {
             C2D_TextFontParse(&tempText, *textClass.font, tempBuffer, " ");
             C2D_TextOptimize(&tempText);
 
-            float width, height;
-            C2D_TextGetDimensions(&tempText, scale, scale, &width, &height);
+            float height;
+            C2D_TextGetDimensions(&tempText, scale, scale, nullptr, &height);
             totalHeight += height;
 
             C2D_TextBufDelete(tempBuffer);
@@ -105,8 +95,8 @@ void SpeechTextObjectC2D::render(int xPos, int yPos) {
         C2D_TextFontParse(&tempText, *textClass.font, tempBuffer, line.empty() ? " " : line.c_str());
         C2D_TextOptimize(&tempText);
 
-        float width, height;
-        C2D_TextGetDimensions(&tempText, scale, scale, &width, &height);
+        float height;
+        C2D_TextGetDimensions(&tempText, scale, scale, nullptr, &height);
         lineHeights.push_back(height);
 
         C2D_TextBufDelete(tempBuffer);

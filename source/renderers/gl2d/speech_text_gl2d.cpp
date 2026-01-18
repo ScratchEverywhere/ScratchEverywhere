@@ -28,19 +28,9 @@ void SpeechTextObjectGL2D::setText(std::string txt) {
 }
 
 std::vector<float> SpeechTextObjectGL2D::getSize() {
-    std::vector<std::string> lines;
     std::string text = getText();
     std::istringstream iss(text);
     std::string line;
-    while (std::getline(iss, line)) {
-        lines.push_back(line);
-    }
-    if (!text.empty() && text.back() == '\n') {
-        lines.push_back("");
-    }
-    if (lines.empty()) {
-        return {0.0f, 0.0f};
-    }
 
     float maxWidth = 0.0f;
     float totalHeight = 0.0f;
@@ -48,7 +38,7 @@ std::vector<float> SpeechTextObjectGL2D::getSize() {
     temp.setColor(color);
     temp.setCenterAligned(false);
 
-    for (const auto &line : lines) {
+    while (std::getline(iss, line)) {
         if (!line.empty()) {
             temp.setText(line);
             auto size = temp.getSize();
