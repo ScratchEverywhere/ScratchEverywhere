@@ -303,7 +303,6 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     // find all matching "when I receive" blocks
-    Log::log("Running broadcast: " + broadcastToRun);
     std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (auto *currentSprite : sprToRun) {
         for (auto &[id, block] : currentSprite->blocks) {
