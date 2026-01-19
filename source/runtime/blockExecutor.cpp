@@ -289,8 +289,9 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     while (!Scratch::broadcastQueue.empty()) {
-        const std::string currentBroadcast = Scratch::broadcastQueue.front();
+        std::string currentBroadcast = Scratch::broadcastQueue.front();
         Scratch::broadcastQueue.erase(Scratch::broadcastQueue.begin());
+        std::transform(currentBroadcast.begin(), currentBroadcast.end(), currentBroadcast.begin(), ::tolower);
         const auto results = runBroadcast(currentBroadcast);
         blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
     }
@@ -302,12 +303,16 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
     std::vector<std::pair<Block *, Sprite *>> blocksToRun;
 
     // find all matching "when I receive" blocks
+    Log::log("Running broadcast: " + broadcastToRun);
     std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (auto *currentSprite : sprToRun) {
         for (auto &[id, block] : currentSprite->blocks) {
-            if (block.opcode == "event_whenbroadcastreceived" &&
-                Scratch::getFieldValue(block, "BROADCAST_OPTION") == broadcastToRun) {
-                blocksToRun.push_back({&block, currentSprite});
+            if (block.opcode == "event_whenbroadcastreceived") {
+                std::string fieldValue = Scratch::getFieldValue(block, "BROADCAST_OPTION");
+                std::transform(fieldValue.begin(), fieldValue.end(), fieldValue.begin(), ::tolower);
+                if (fieldValue == broadcastToRun) { 
+                    blocksToRun.push_back({&block, currentSprite});
+                }
             }
         }
     }
