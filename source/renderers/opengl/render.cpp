@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "image.hpp"
+#include "speech_manager_gl.hpp"
 #include <window.hpp>
 #if defined(WINDOWING_GLFW)
 #include <windowing/glfw/window.hpp>
@@ -44,6 +45,8 @@ std::chrono::system_clock::time_point Render::startTime = std::chrono::system_cl
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
+
+SpeechManagerGL *speechManager = nullptr;
 
 static unsigned int penTexture = 0;
 static int penWidth = 0;
@@ -106,6 +109,10 @@ void Render::deInit() {
 
 void *Render::getRenderer() {
     return nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
+    return speechManager;
 }
 
 int Render::getWidth() {

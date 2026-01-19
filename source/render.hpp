@@ -425,7 +425,6 @@ class Render {
                     monitorTexts.erase(var.id);
                 }
                 if (listMonitors.find(var.id) != listMonitors.end()) {
-                    auto &monitorGfx = listMonitors[var.id];
                     listMonitors.erase(var.id);
                 }
             }
