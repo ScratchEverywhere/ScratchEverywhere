@@ -1,4 +1,6 @@
 #include "speech_text_gl.hpp"
+#include "text.hpp"
+#include <os.hpp>
 
 float SpeechTextObjectGL::measureTextWidth(const std::string &text) {
     return 0.0f;

@@ -6,9 +6,13 @@ on:
       - CMakeLists.txt
       - source/runtime/**
       - source/renderers/sdl2/**
+      - source/renderers/opengl/**
+      - source/renderers/headless/**
       - source/*
       - source/menus/**
       - source/audio/sdl2/**
+      - source/audio/sdl3/**
+      - source/audio/headless/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-pc.yml

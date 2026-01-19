@@ -1,4 +1,9 @@
 #include "speech_manager_gl.hpp"
+#include "image.hpp"
+#include "render.hpp"
+#include <image.hpp>
+#include <render.hpp>
+#include <runtime.hpp>
 
 double SpeechManagerGL::getCurrentTime() {
     return 0.0;
