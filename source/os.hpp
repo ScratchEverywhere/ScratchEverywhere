@@ -102,6 +102,8 @@ inline std::string getFilesystemRootPrefix() {
     return isDSi() ? "sd:" : "fat:";
 #elif defined(__NDS__)
     return "apps/usr/palm/applications/io.github.scratcheverywhere/";
+#elif defined(__XBOX360__)
+    return "uda0:";
 #elif defined(_WIN32) || defined(_WIN64)
     return std::filesystem::path(std::getenv("SystemDrive")).string();
 #else
