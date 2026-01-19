@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "speech_manager_c2d.hpp"
 #include <audio.hpp>
 #include <chrono>
 #include <downloader.hpp>
@@ -15,6 +16,7 @@
 #define SCREEN_HEIGHT 240
 
 Window *globalWindow = nullptr;
+SpeechManagerC2D *speechManager = nullptr;
 C3D_RenderTarget *topScreen = nullptr;
 C3D_RenderTarget *topScreenRightEye = nullptr;
 C3D_RenderTarget *bottomScreen = nullptr;
@@ -24,7 +26,7 @@ u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
 std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
 std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
-std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 bool Render::debugMode = false;
 static bool isConsoleInit = false;
@@ -64,6 +66,8 @@ bool Render::Init() {
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
+    speechManager = new SpeechManagerC2D();
+
     return true;
 }
 
@@ -78,6 +82,10 @@ bool Render::appShouldRun() {
 
 void *Render::getRenderer() {
     return nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
+    return speechManager;
 }
 
 int Render::getWidth() {
@@ -411,6 +419,9 @@ void Render::renderSprites() {
             }
             i++;
         }
+        if (speechManager) {
+            speechManager->render();
+        }
         renderVisibleVariables();
         // Draw mouse pointer
         if (Input::mousePointer.isMoving) {
@@ -469,6 +480,9 @@ void Render::renderSprites() {
             }
             i++;
         }
+        if (speechManager) {
+            speechManager->render();
+        }
         renderVisibleVariables();
 
         if (Render::renderMode != Render::BOTH_SCREENS)
@@ -521,10 +535,15 @@ void Render::renderSprites() {
             }
             i++;
         }
+        if (speechManager) {
+            speechManager->render();
+        }
 
         if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
             renderVisibleVariables();
+        } else {
+            renderVisibleVariables(-40, -240);
         }
     }
 
@@ -539,6 +558,10 @@ void Render::renderSprites() {
 }
 
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
 
     if (penRenderTarget != nullptr) {
         C3D_RenderTargetDelete(penRenderTarget);

@@ -167,7 +167,7 @@ void Input::getInput() {
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {
-    TextObject *text = createTextObject(std::string(hintText), 0, 0);
+    std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);
     text->setCenterAligned(true);
     text->setColor(Math::color(0, 0, 0, 170));
     if (text->getSize()[0] > Render::getWidth() * 0.85) {
@@ -175,7 +175,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
         text->setScale(scale);
     }
 
-    TextObject *enterText = createTextObject("ENTER TEXT:", 0, 0);
+    std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
     enterText->setColor(Math::color(0, 0, 0, 255));
 
@@ -248,8 +248,6 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
         Render::endFrame(false);
     }
 
-    delete text;
-    delete enterText;
     return inputText;
 
     return "";

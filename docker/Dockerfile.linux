@@ -2,12 +2,16 @@ FROM gcc:14 AS main_builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev libxcursor-dev libxi-dev libxrandr-dev libxss-dev libxtst-dev
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev libxcursor-dev libxi-dev libxrandr-dev libxss-dev libxtst-dev libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl1-mesa-dev
 
 COPY . .
 
+ARG RENDERER=sdl2
+ARG WINDOWING=sdl2
+ARG AUDIO_ENGINE=sdl2
+
 # TODO: Fix SDL3 compatability in Dockerfile
-RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=sdl2 && cmake --build . -j $(nproc)
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} && cmake --build . -j $(nproc)
 
 FROM scratch AS exporter
 

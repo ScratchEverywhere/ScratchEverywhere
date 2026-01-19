@@ -244,7 +244,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
 #if defined(__WIIU__) || defined(__OGC__) || defined(__PS4__)
 // doesn't work on these platforms....
 #else
-    TextObject *text = createTextObject(std::string(hintText), 0, 0);
+    std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);
     text->setCenterAligned(true);
     text->setColor(Math::color(0, 0, 0, 170));
     if (text->getSize()[0] > Render::getWidth() * 0.85) {
@@ -252,7 +252,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
         text->setScale(scale);
     }
 
-    TextObject *enterText = createTextObject("ENTER TEXT:", 0, 0);
+    std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
     enterText->setColor(Math::color(0, 0, 0, 255));
 
@@ -331,8 +331,6 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     }
 
     SDL_StopTextInput();
-    delete text;
-    delete enterText;
     return inputText;
 #endif
 

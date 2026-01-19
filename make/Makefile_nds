@@ -157,7 +157,7 @@ ifeq ($(ENABLE_MENU),1)
 else
 	@cp $(GRAPHICS)/menu/Ubuntu-Bold.ttf $@/
 endif
-#	@cp -r $(GRAPHICS)/ingame $@/
+	@cp -r $(GRAPHICS)/ingame $@/
 
 #---------------------------------------------------------------------------------
 clean:

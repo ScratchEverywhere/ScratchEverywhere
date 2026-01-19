@@ -42,7 +42,7 @@ SCRATCH_REPORTER_BLOCK_OPCODE(argument_reporter_boolean) {
     if (name == "is New 3DS?") return Value(OS::isNew3DS());
     if (name == "is DSi?") return Value(OS::isDSi());
 
-    return Value(BlockExecutor::getCustomBlockValue(name, sprite, block).asBoolean());
+    return Value(BlockExecutor::getCustomBlockValue(name, sprite, block));
 }
 
 SCRATCH_BLOCK(procedures, call) {

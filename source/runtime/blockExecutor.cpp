@@ -307,7 +307,40 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
         for (auto &[id, block] : currentSprite->blocks) {
             if (block.opcode == "event_whenbroadcastreceived" &&
                 Scratch::getFieldValue(block, "BROADCAST_OPTION") == broadcastToRun) {
-                blocksToRun.insert(blocksToRun.begin(), {&block, currentSprite});
+                blocksToRun.push_back({&block, currentSprite});
+            }
+        }
+    }
+
+    // run each matching block
+    for (auto &[blockPtr, spritePtr] : blocksToRun)
+        executor.runBlock(*blockPtr, spritePtr);
+
+    return blocksToRun;
+}
+
+std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBackdrops() {
+    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
+
+    while (!Scratch::backdropQueue.empty()) {
+        const std::string currentBackdrop = Scratch::backdropQueue.front();
+        Scratch::backdropQueue.erase(Scratch::backdropQueue.begin());
+        const auto results = runBackdrop(currentBackdrop);
+        blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
+    }
+
+    return blocksToRun;
+}
+
+std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBackdrop(std::string backdropToRun) {
+    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
+
+    std::vector<Sprite *> sprToRun = Scratch::sprites;
+    for (auto *currentSprite : sprToRun) {
+        for (auto &[id, block] : currentSprite->blocks) {
+            if (block.opcode == "event_whenbackdropswitchesto" &&
+                Scratch::getFieldValue(block, "BACKDROP") == backdropToRun) {
+                blocksToRun.push_back({&block, currentSprite});
             }
         }
     }
@@ -502,11 +535,17 @@ Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, 
         // variable must be in the same custom block
         if (prototypeBlock != nullptr && custBlock.blockId != prototypeBlock->id) continue;
 
-        const auto it = std::find(custBlock.argumentNames.begin(), custBlock.argumentNames.end(), valueName);
+        size_t index = custBlock.argumentNames.size();
+        for (size_t i = custBlock.argumentNames.size(); i-- > 0;) {
+            if (custBlock.argumentNames[i] == valueName) {
+                index = i;
+                break;
+            }
+        }
 
-        if (it == custBlock.argumentNames.end()) continue;
-
-        const size_t index = std::distance(custBlock.argumentNames.begin(), it);
+        if (index == custBlock.argumentNames.size()) {
+            continue;
+        }
 
         if (index < custBlock.argumentIds.size()) {
             const std::string argumentId = custBlock.argumentIds[index];

@@ -16,8 +16,8 @@ class ProjectMenu : public Menu {
     ControlObject *projectControl = nullptr;
     ButtonObject *backButton = nullptr;
     ButtonObject *noProjectsButton = nullptr;
-    TextObject *noProjectInfo = nullptr;
-    TextObject *noProjectsText = nullptr;
+    std::unique_ptr<TextObject> noProjectInfo = nullptr;
+    std::unique_ptr<TextObject> noProjectsText = nullptr;
 
     nlohmann::json settings;
 

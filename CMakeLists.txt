@@ -193,12 +193,12 @@ set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 if(SE_MENU)
 	file(GLOB_RECURSE GFXFILES
 	    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
-	    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
+	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
 	)
 else()
 	file(GLOB_RECURSE GFXFILES
 	    "${CMAKE_SOURCE_DIR}/gfx/menu/LibSansN.ttf"
-	    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
+	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
 	)
 endif()
 
@@ -555,13 +555,13 @@ elseif(WEBOS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
-	set_target_properties(scratch-everywhere PROPERTIES
-		MACOSX_BUNDLE True
-		MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/gfx/macOS/Info.plist
-		OUTPUT_NAME "scratch-macOS"
-	)
-	add_custom_command(TARGET scratch-everywhere POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/gfx/macOS/Icon.icns "$<TARGET_BUNDLE_DIR:scratch-everywhere>/Contents/Resources/Icon.icns")
+	# set_target_properties(scratch-everywhere PROPERTIES
+	# 	MACOSX_BUNDLE True
+	# 	MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/gfx/macOS/Info.plist
+	# 	OUTPUT_NAME "scratch-macOS"
+	# )
+	# add_custom_command(TARGET scratch-everywhere POST_BUILD
+	# 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/gfx/macOS/Icon.icns "$<TARGET_BUNDLE_DIR:scratch-everywhere>/Contents/Resources/Icon.icns")
 endif()
 
 if(SE_CMAKERC)
@@ -717,7 +717,7 @@ elseif(SE_WINDOWING STREQUAL "sdl3")
 		target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
 	endif()
 	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL3)
-else()
+elseif(SE_WINDOWING STREQUAL "glfw")
 	target_link_libraries(scratch-everywhere PRIVATE glfw)
 	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_GLFW)
 endif()

@@ -14,6 +14,7 @@
 #include <math.h>
 #include <os.hpp>
 #include <render.hpp>
+#include <speech_manager.hpp>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -29,6 +30,7 @@
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
 std::vector<std::string> Scratch::broadcastQueue;
+std::vector<std::string> Scratch::backdropQueue;
 std::vector<Sprite *> Scratch::cloneQueue;
 std::string Scratch::answer;
 ProjectType Scratch::projectType;
@@ -78,10 +80,15 @@ bool Scratch::startScratchProject() {
         if (!forceRedraw || checkFPS) {
             forceRedraw = false;
             if (checkFPS) Input::getInput();
-            BlockExecutor::runRepeatBlocks();
             BlockExecutor::runCloneStarts();
             BlockExecutor::runBroadcasts();
+            BlockExecutor::runBackdrops();
+            BlockExecutor::runRepeatBlocks();
             BlockExecutor::updateMonitors();
+            SpeechManager *speechManager = Render::getSpeechManager();
+            if (speechManager) {
+                speechManager->update();
+            }
             if (checkFPS) Render::renderSprites();
 
 #ifdef ENABLE_MENU
@@ -125,21 +132,7 @@ void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
-
-    for (auto &[id, textPair] : Render::monitorTexts) {
-        delete textPair.first;
-        delete textPair.second;
-    }
     Render::monitorTexts.clear();
-
-    for (auto &[id, listMon] : Render::listMonitors) {
-        delete listMon.name;
-        delete listMon.length;
-        for (auto *t : listMon.items)
-            delete t;
-        for (auto *t : listMon.indices)
-            delete t;
-    }
     Render::listMonitors.clear();
 
     TextObject::cleanupText();
@@ -497,29 +490,29 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     double halfWidth = Scratch::projectWidth / 2.0;
     double halfHeight = Scratch::projectHeight / 2.0;
-    double scale = sprite->size / 100.0;
-    double spriteHalfWidth = (sprite->spriteWidth * scale) / 2.0;
-    double spriteHalfHeight = (sprite->spriteHeight * scale) / 2.0;
+    double scale = sprite->size / (sprite->costumes[sprite->currentCostume].isSVG ? 100.0 : 200.0);
+    double spriteHalfWidth = sprite->spriteWidth * scale;
+    double spriteHalfHeight = sprite->spriteHeight * scale;
 
     // how much of the sprite remains visible when fenced
-    const double sliverSize = 5.0;
+    const double sliverSize = 15.0;
 
-    double maxLeft = halfWidth - sliverSize;
-    double minRight = -halfWidth + sliverSize;
-    double maxBottom = halfHeight - sliverSize;
-    double minTop = -halfHeight + sliverSize;
+    const double inset = std::floor(std::min(spriteHalfWidth, spriteHalfHeight));
 
-    if (sprite->xPosition - spriteHalfWidth > maxLeft) {
-        sprite->xPosition = maxLeft + spriteHalfWidth;
+    double maxX = halfWidth - std::min(inset, sliverSize);
+    double maxY = halfHeight - std::min(inset, sliverSize);
+
+    if (sprite->xPosition - spriteHalfWidth > maxX) {
+        sprite->xPosition = maxX + spriteHalfWidth;
     }
-    if (sprite->xPosition + spriteHalfWidth < minRight) {
-        sprite->xPosition = minRight - spriteHalfWidth;
+    if (sprite->xPosition + spriteHalfWidth < -maxX) {
+        sprite->xPosition = (-maxX) - spriteHalfWidth;
     }
-    if (sprite->yPosition - spriteHalfHeight > maxBottom) {
-        sprite->yPosition = maxBottom + spriteHalfHeight;
+    if (sprite->yPosition - spriteHalfHeight > maxY) {
+        sprite->yPosition = maxY + spriteHalfHeight;
     }
-    if (sprite->yPosition + spriteHalfHeight < minTop) {
-        sprite->yPosition = minTop - spriteHalfHeight;
+    if (sprite->yPosition + spriteHalfHeight < -maxY) {
+        sprite->yPosition = (-maxY) - spriteHalfHeight;
     }
 }
 

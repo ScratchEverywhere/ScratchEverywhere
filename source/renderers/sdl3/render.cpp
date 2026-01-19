@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "image.hpp"
+#include "speech_manager_sdl3.hpp"
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <audio.hpp>
@@ -44,6 +45,7 @@ char nickname[0x21];
 Window *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
+SpeechManagerSDL3 *speechManager = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
@@ -80,11 +82,17 @@ bool Render::Init() {
         return false;
     }
 
+    speechManager = new SpeechManagerSDL3(renderer);
+
     debugMode = true;
 
     return true;
 }
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
     if (penTexture != nullptr) SDL_DestroyTexture(penTexture);
 
     Image::cleanupImages();
@@ -104,6 +112,10 @@ void Render::deInit() {
 
 void *Render::getRenderer() {
     return static_cast<void *>(renderer);
+}
+
+SpeechManager *Render::getSpeechManager() {
+    return speechManager;
 }
 
 int Render::getWidth() {
@@ -451,6 +463,10 @@ void Render::renderSprites() {
         if (currentSprite->isStage) renderPenLayer();
     }
 
+    if (speechManager) {
+        speechManager->render();
+    }
+
     drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
 
@@ -472,7 +488,7 @@ void Render::renderSprites() {
     SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 
 void Render::renderPenLayer() {

@@ -261,14 +261,6 @@ void ProjectMenu::cleanup() {
         delete noProjectsButton;
         noProjectsButton = nullptr;
     }
-    if (noProjectsText != nullptr) {
-        delete noProjectsText;
-        noProjectsText = nullptr;
-    }
-    if (noProjectInfo != nullptr) {
-        delete noProjectInfo;
-        noProjectInfo = nullptr;
-    }
     if (snow.image) {
         delete snow.image;
         snow.image = nullptr;

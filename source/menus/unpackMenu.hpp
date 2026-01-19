@@ -5,8 +5,8 @@ class UnpackMenu : public Menu {
   public:
     ControlObject *settingsControl = nullptr;
 
-    TextObject *infoText = nullptr;
-    TextObject *descText = nullptr;
+    std::unique_ptr<TextObject> infoText = nullptr;
+    std::unique_ptr<TextObject> descText = nullptr;
 
     bool shouldGoBack = false;
 

@@ -47,7 +47,7 @@ bool MenuManager::loadProject() {
     SoundPlayer::cleanupAudio();
 
     if (!Unzip::load()) {
-        Log::logWarning("Could not load project. closing app.");
+        Log::logWarning("Could not load project: " + Unzip::filePath + ". closing app.");
         isProjectLoaded = -1;
         return false;
     }
@@ -84,7 +84,7 @@ void MainMenu::init() {
         answer = answer.substr(0, answer.size() - ext.size());
     }
 
-    Unzip::filePath = answer + ".sb3";
+    Unzip::filePath = OS::getScratchFolderLocation() + answer + ".sb3";
 
     MenuManager::loadProject();
 #elif defined(__NDS__)
@@ -207,14 +207,6 @@ void MainMenu::cleanup() {
     if (mainMenuControl) {
         delete mainMenuControl;
         mainMenuControl = nullptr;
-    }
-    if (versionNumber) {
-        delete versionNumber;
-        versionNumber = nullptr;
-    }
-    if (splashText) {
-        delete splashText;
-        splashText = nullptr;
     }
     if (snow.image) {
         delete snow.image;

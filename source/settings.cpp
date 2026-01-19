@@ -27,7 +27,7 @@ nlohmann::json SettingsManager::getConfigSettings() {
 
     file >> json;
     file.close();
-    return std::move(json);
+    return json;
 }
 
 void SettingsManager::saveConfigSettings(const nlohmann::json &json) {
@@ -47,7 +47,7 @@ nlohmann::json SettingsManager::getProjectSettings(const std::string &projectNam
 
     file >> json;
     file.close();
-    return std::move(json);
+    return json;
 }
 
 void SettingsManager::saveProjectSettings(const nlohmann::json &json, const std::string &projectName) {
