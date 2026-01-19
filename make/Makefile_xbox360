@@ -36,8 +36,8 @@ ENABLE_MENU		?=	1
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	 := -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DMINIZ_NO_TIME \
-			-DSDL -D__XENON__ -D__XBOX360__ -DRENDERER_SDL1 -DCONSOLE -DPLATFORM_HAS_CONTROLLER
+CFLAGS	 := -ffunction-sections -fdata-sections  -mno-altivec -mhard-float -mcpu=cell -mtune=cell -m32 -fno-pic -mpowerpc64 \ 
+			-g -O2 -Wall $(MACHDEP) $(INCLUDE) -DMINIZ_NO_TIME -DSDL -D__XENON__ -D__XBOX360__ -DRENDERER_SDL1 -DCONSOLE -DPLATFORM_HAS_CONTROLLER
 CXXFLAGS :=	$(CFLAGS) -fno-rtti -std=gnu++17
 
 LDFLAGS	=	-g $(MACHDEP) -Wl,--gc-sections -Wl,-Map,$(notdir $@).map
