@@ -30,7 +30,7 @@ SOURCES		:= source source/runtime source/runtime/blocks source/menus source/rend
 INCLUDES	:= include $(SOURCES)
 FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
 			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
-			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu -type f)
+			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu $(GRAPHICS)/ingame -type f)
 AUTHINFO    := "000000000000000000000000001C004000FF000000000080000000000000000000000000000000000000008000400040000000000000008000000000000000080040FFFF000000F000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 
 # Handle main menu

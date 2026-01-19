@@ -118,7 +118,6 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ## Unimplemented blocks
 
--   All say and think blocks ([#393](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/393))
 -   Most costume effects;
     -   Only the `Ghost` and `Brightness` costume effects are supported
 -   `Pitch` and `Pan left-right` audio effects

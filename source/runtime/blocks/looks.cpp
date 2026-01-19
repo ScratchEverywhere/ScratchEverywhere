@@ -2,8 +2,101 @@
 #include <algorithm>
 #include <cstddef>
 #include <image.hpp>
+#include <render.hpp>
+#include <speech_manager.hpp>
 #include <sprite.hpp>
 #include <value.hpp>
+
+SCRATCH_BLOCK(looks, say) {
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (!speechManager) return BlockResult::CONTINUE;
+
+    Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+    std::string message = messageValue.asString();
+
+    speechManager->showSpeech(sprite, message, -1, "say");
+
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK(looks, sayforsecs) {
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (!speechManager) return BlockResult::CONTINUE;
+
+    // copied wait block functionality to hold off subsequent block execution until speech timer expires
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
+
+    if (block.repeatTimes == -1) {
+        block.repeatTimes = -2;
+
+        Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+        Value secondsValue = Scratch::getInputValue(block, "SECS", sprite);
+        std::string message = messageValue.asString();
+        double seconds = secondsValue.asDouble();
+
+        block.waitDuration = seconds * 1000; // convert to milliseconds
+        block.waitTimer.start();
+
+        speechManager->showSpeech(sprite, message, seconds, "say");
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+    }
+
+    block.repeatTimes -= 1;
+
+    if (block.waitTimer.hasElapsed(block.waitDuration) && block.repeatTimes <= -4) {
+        block.repeatTimes = -1;
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+        return BlockResult::CONTINUE;
+    }
+
+    return BlockResult::RETURN;
+}
+SCRATCH_BLOCK(looks, think) {
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (!speechManager) return BlockResult::CONTINUE;
+
+    Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+    std::string message = messageValue.asString();
+
+    speechManager->showSpeech(sprite, message, -1, "think");
+
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK(looks, thinkforsecs) {
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (!speechManager) return BlockResult::CONTINUE;
+
+    // copied wait block functionality to hold off subsequent block execution until speech timer expires
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
+
+    if (block.repeatTimes == -1) {
+        block.repeatTimes = -2;
+
+        Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+        Value secondsValue = Scratch::getInputValue(block, "SECS", sprite);
+        std::string message = messageValue.asString();
+        double seconds = secondsValue.asDouble();
+
+        block.waitDuration = seconds * 1000; // convert to milliseconds
+        block.waitTimer.start();
+
+        speechManager->showSpeech(sprite, message, seconds, "think");
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+    }
+
+    block.repeatTimes -= 1;
+
+    if (block.waitTimer.hasElapsed(block.waitDuration) && block.repeatTimes <= -4) {
+        block.repeatTimes = -1;
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+        return BlockResult::CONTINUE;
+    }
+
+    return BlockResult::RETURN;
+}
 
 SCRATCH_BLOCK(looks, show) {
     sprite->visible = true;

@@ -1,5 +1,6 @@
 #include "render.hpp"
 #include "image.hpp"
+#include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2_gfxPrimitives.h>
@@ -72,6 +73,8 @@ std::chrono::system_clock::time_point Render::endTime = std::chrono::system_cloc
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
+SpeechManagerSDL2 *speechManager = nullptr;
+
 bool Render::Init() {
 #ifdef __WIIU__
     int windowWidth = 854;
@@ -139,11 +142,18 @@ bool Render::Init() {
         return false;
     }
 
+    speechManager = new SpeechManagerSDL2(renderer);
+
     debugMode = true;
 
     return true;
 }
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
     SDL_DestroyTexture(penTexture);
 
     Image::cleanupImages();
@@ -164,6 +174,10 @@ void Render::deInit() {
 
 void *Render::getRenderer() {
     return static_cast<void *>(renderer);
+}
+
+SpeechManager *Render::getSpeechManager() {
+    return speechManager;
 }
 
 int Render::getWidth() {
@@ -503,6 +517,10 @@ void Render::renderSprites() {
         // }
 
         if (currentSprite->isStage) renderPenLayer();
+    }
+
+    if (speechManager) {
+        speechManager->render();
     }
 
     drawBlackBars(getWidth(), getHeight());
