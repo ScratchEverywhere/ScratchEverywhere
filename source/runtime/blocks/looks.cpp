@@ -180,7 +180,7 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
         return BlockResult::CONTINUE;
     }
 
-    Scratch::broadcastQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
+    Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
     return BlockResult::CONTINUE;
 }
 
