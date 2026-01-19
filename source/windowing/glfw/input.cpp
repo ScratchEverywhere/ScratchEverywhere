@@ -156,11 +156,11 @@ static void character_callback(GLFWwindow *window, unsigned int codepoint) {
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {
-    TextObject *text = createTextObject(std::string(hintText), 0, 0);
+    std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);
     text->setCenterAligned(true);
     text->setColor(Math::color(0, 0, 0, 170));
 
-    TextObject *enterText = createTextObject("ENTER TEXT:", 0, 0);
+    std::unique_ptr<TextObject> enterText = createTextObject("ENTER TEXT:", 0, 0);
     enterText->setCenterAligned(true);
     enterText->setColor(Math::color(0, 0, 0, 255));
 
@@ -217,7 +217,5 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     }
 
     glfwSetCharCallback(ctx, oldCharCallback);
-    delete text;
-    delete enterText;
     return g_inputText;
 }
