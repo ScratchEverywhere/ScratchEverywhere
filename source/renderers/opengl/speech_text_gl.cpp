@@ -7,7 +7,7 @@ float SpeechTextObjectGL::measureTextWidth(const std::string &text) {
 void SpeechTextObjectGL::platformSetText(const std::string &text) {
 }
 
-SpeechTextObjectGL::SpeechTextObjectGL(const std::string &text, int maxWidth = 200) : TextObjectGL(text, 0, 0), SpeechText(text, maxWidth) {
+SpeechTextObjectGL::SpeechTextObjectGL(const std::string &text, int maxWidth) : TextObjectGL(text, 0, 0), SpeechText(text, maxWidth) {
 }
 
 SpeechTextObjectGL::~SpeechTextObjectGL() {
