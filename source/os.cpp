@@ -443,9 +443,11 @@ void OS::removeDirectory(const std::string &path) {
 
     closedir(dir);
 
+#ifndef __XBOX360__ // temporary
     if (rmdir(path.c_str()) != 0) {
         throw OS::DirectoryRemovalFailed(path, errno);
     }
+#endif
 #endif
 }
 

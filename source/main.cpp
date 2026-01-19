@@ -25,7 +25,9 @@ static void exitApp() {
 }
 
 static bool initApp() {
+#ifndef __XBOX360__ // TODO: handle this in a better way
     Log::deleteLogFile();
+#endif
     Render::debugMode = true;
     if (!Render::Init()) {
         return false;
