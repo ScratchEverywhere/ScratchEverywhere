@@ -542,6 +542,8 @@ void Render::renderSprites() {
         if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
             renderVisibleVariables();
+        } else {
+            renderVisibleVariables(-40, -240);
         }
     }
 

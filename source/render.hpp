@@ -221,7 +221,7 @@ class Render {
     /**
      * Renders all visible variable and list monitors
      */
-    static void renderVisibleVariables() {
+    static void renderVisibleVariables(const int &offsetX = 0, const int &offsetY = 0) {
         // get screen scale
         const float scale = renderScale;
         const float screenWidth = getWidth();
@@ -245,8 +245,8 @@ class Render {
             if (var.visible) {
 
                 // Weird Turbowarp math for monitor positions on custom sized projects
-                float projectX = var.x + (Scratch::projectWidth - 480) * 0.5f;
-                float projectY = var.y + (Scratch::projectHeight - 360) * 0.5f;
+                float projectX = (var.x + offsetX) + (Scratch::projectWidth - 480) * 0.5f;
+                float projectY = (var.y + offsetY) + (Scratch::projectHeight - 360) * 0.5f;
 
                 if (var.mode == "list") {
                     if (listMonitors.find(var.id) == listMonitors.end()) {
