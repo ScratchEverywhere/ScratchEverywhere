@@ -20,13 +20,15 @@ include $(DEVKITXENON)/rules
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-xbox360
 BUILD		:=	build/xbox360
-SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl1 source/windowing/sdl1 source/audio/sdl1 include/nlohmann include/ryu include/miniz
+SOURCES		:=  source source/runtime source/runtime/blocks source/menus source/renderers/sdl1 source/windowing/sdl1 source/audio/sdl1 include/nlohmann include/ryu include/miniz
 DATA		:=	# unused  
-INCLUDES	:=	include $(SOURCES)
+GFXFILES	:=  gfx/menu
+INCLUDES	:=  include $(GFXFILES) $(SOURCES)
 
-# Config Options
-ENABLE_CLOUDVARS	?=	0
-ENABLE_LOADSCREEN	?=	1
+#---------------------------------------------------------------------------------
+# config options
+#---------------------------------------------------------------------------------
+ENABLE_LOADSCREEN		?=	1
 ENABLE_AUDIO	?=	1
 ENABLE_MENU		?=	1
 
@@ -34,15 +36,32 @@ ENABLE_MENU		?=	1
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	= -g -O2 -Wall $(MACHDEP) $(INCLUDE) -D__XENON__ -DRENDERER_SDL1 -DCONSOLE -DMOUSE_INPUT
-CXXFLAGS	=	$(CFLAGS) -std=c++17 -Wall -fexceptions
+CFLAGS	 := -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DMINIZ_NO_TIME \
+			-DSDL -D__XENON__ -D__XBOX360__ -DRENDERER_SDL1 -DCONSOLE -DPLATFORM_HAS_CONTROLLER
+CXXFLAGS :=	$(CFLAGS) -fno-rtti -std=gnu++17
 
 LDFLAGS	=	-g $(MACHDEP) -Wl,--gc-sections -Wl,-Map,$(notdir $@).map
 
+#---------------------------------------------------------------------------------
+# any extra libraries we wish to link with the project
+#---------------------------------------------------------------------------------
+LIBS	:=  -lSDL -lSDL_image -lSDL_ttf -lSDL_gfx -lpng -lfreetype -lbz2 -lz -lxenon -lm -lfat
+
+#---------------------------------------------------------------------------------
+# list of directories containing libraries, this must be the top level containing
+# include and lib
+#---------------------------------------------------------------------------------
+LIBDIRS	:=
+
+ifeq ($(ENABLE_AUDIO),1)
+LIBS	+=  -lSDL_mixer
+CFLAGS	+=	-DENABLE_AUDIO
+endif
+
 ifeq ($(ENABLE_MENU),1)
-SOURCES += source/scratch/menus
-INCLUDES += source/scratch/menus
-CFLAGS	+=	-DENABLE_MENU
+SOURCES		+= source/scratch/menus
+INCLUDES	+= source/scratch/menus
+CFLAGS		+=	-DENABLE_MENU
 else
 ENABLE_LOADSCREEN = 0
 endif
@@ -52,24 +71,13 @@ CFLAGS	+=	-DENABLE_LOADSCREEN
 endif
 
 #---------------------------------------------------------------------------------
-# any extra libraries we wish to link with the project
-#---------------------------------------------------------------------------------
-LIBS	:=	-lSDL -lSDL_image -lSDL_gfx -lxenon -lm -lfreetype -lpng
-
-#---------------------------------------------------------------------------------
-# list of directories containing libraries, this must be the top level containing
-# include and lib
-#---------------------------------------------------------------------------------
-LIBDIRS	:=
-
-#---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
 #---------------------------------------------------------------------------------
-ifneq ($(BUILD),$(notdir $(CURDIR)))
+ifneq ($(notdir $(BUILD)),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
+export OUTPUT	:=	$(CURDIR)/$(BUILD)/$(TARGET)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 					$(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -81,9 +89,9 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 #---------------------------------------------------------------------------------
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-# sFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-# SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.S)))
-# BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+sFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.S)))
+BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
@@ -103,8 +111,10 @@ export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
 #---------------------------------------------------------------------------------
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 					$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
+					$(foreach dir,$(GFXFILES),-I$(CURDIR)/$(dir)) \
 					-I$(CURDIR)/$(BUILD) \
-					-I$(LIBXENON_INC)
+					-I$(LIBXENON_INC)  \
+					-I$(LIBXENON_INC)/SDL
 
 #---------------------------------------------------------------------------------
 # build a list of library paths
@@ -112,13 +122,19 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib) \
 					-L$(LIBXENON_LIB)
 
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
-.PHONY: $(BUILD) clean
+# Store the path to this makefile for the second phase
+# I stole some code from the NDS makefile, sorry Nate
+export MAKEFILE_PATH := $(CURDIR)/make/Makefile_xbox360
+
+.PHONY: $(BUILD) clean all
+
+#---------------------------------------------------------------------------------
+all: $(BUILD)
 
 #---------------------------------------------------------------------------------
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
-	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
+	@make --no-print-directory -C $(BUILD) -f $(MAKEFILE_PATH)
 
 #---------------------------------------------------------------------------------
 clean:
