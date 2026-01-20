@@ -25,6 +25,7 @@ on:
       - source/main.cpp
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -47,6 +48,7 @@ jobs:
           outputs: type=local,dest=.
 
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux Nightly
@@ -74,6 +76,7 @@ jobs:
             AUDIO_ENGINE=sdl1
 
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux SDL1 Nightly
@@ -101,6 +104,7 @@ jobs:
             AUDIO_ENGINE=headless
 
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux Headless Nightly
@@ -129,6 +133,7 @@ jobs:
             EXT_ARGS=-DSDL_WAYLAND=OFF
 
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux OpenGL Nightly
@@ -152,6 +157,7 @@ jobs:
           outputs: type=local,dest=.
 
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Windows Nightly
@@ -175,6 +181,7 @@ jobs:
           outputs: type=local,dest=.
 
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
@@ -199,6 +206,7 @@ jobs:
           build-args: ARCH=arm64
 
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
@@ -225,6 +233,7 @@ jobs:
       - name: Create Universal Binary
         run: ./lipo -output scratch-everywhere -create arm-build/scratch-everywhere intel-build/scratch-everywhere
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS Universal Nightly
