@@ -8,6 +8,9 @@ on:
       - source/renderers/sdl2/**
       - source/renderers/opengl/**
       - source/renderers/headless/**
+      - source/windowing/sdl2/**
+      - source/windowing/glfw/**
+      - source/windowing/headless/**
       - source/*
       - source/menus/**
       - source/audio/sdl2/**
@@ -94,8 +97,9 @@ jobs:
           outputs: type=local,dest=.
           build-args: |
             RENDERER=opengl
-            WINDOWING=sdl3
+            WINDOWING=glfw
             AUDIO_ENGINE=sdl3
+            EXT_ARGS=-DSDL_WAYLAND=OFF
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
