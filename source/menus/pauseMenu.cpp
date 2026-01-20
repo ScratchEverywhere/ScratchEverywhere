@@ -1,5 +1,7 @@
 #include "pauseMenu.hpp"
+#include <render.hpp>
 #include <runtime.hpp>
+#include <speech_manager.hpp>
 
 PauseMenu::PauseMenu() {
     init();
@@ -64,7 +66,12 @@ void PauseMenu::render() {
             }
             spr->blockChains.clear();
         }
+
+        SpeechManager *speechManager = Render::getSpeechManager();
         for (auto *spr : toDelete) {
+            if (speechManager) {
+                speechManager->clearSpeech(spr);
+            }
             delete spr;
             Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
                                    Scratch::sprites.end());

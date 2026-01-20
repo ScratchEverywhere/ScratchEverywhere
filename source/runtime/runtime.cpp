@@ -227,8 +227,12 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
 }
 
 void Scratch::cleanupSprites() {
+    SpeechManager *speechManager = Render::getSpeechManager();
     for (Sprite *sprite : Scratch::sprites) {
         if (sprite) {
+            if (speechManager) {
+                speechManager->clearSpeech(sprite);
+            }
             delete sprite;
         }
     }
