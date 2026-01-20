@@ -51,6 +51,33 @@ jobs:
         with:
           name: Scratch Everywhere! Linux Nightly
           path: scratch-everywhere
+  linux-sdl1:
+    name: Linux x86_64 SDL1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.linux
+          target: exporter
+          outputs: type=local,dest=.
+          build-args: |
+            RENDERER=sdl1
+            WINDOWING=sdl1
+            AUDIO_ENGINE=sdl1
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Everywhere! Linux SDL1 Nightly
+          path: scratch-everywhere
   linux-headless:
     name: Linux x86_64 Headless
     runs-on: ubuntu-latest
