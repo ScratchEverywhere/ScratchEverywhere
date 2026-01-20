@@ -11,6 +11,7 @@
 #include <ratio>
 #include <render.hpp>
 #include <runtime.hpp>
+#include <speech_manager.hpp>
 #include <utility>
 #include <vector>
 
@@ -169,7 +170,12 @@ void BlockExecutor::runRepeatBlocks() {
         if (!spr->toDelete) continue;
         toDelete.push_back(spr);
     }
+
+    SpeechManager *speechManager = Render::getSpeechManager();
     for (auto *spr : toDelete) {
+        if (speechManager) {
+            speechManager->clearSpeech(spr);
+        }
         delete spr;
         Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
                                Scratch::sprites.end());
@@ -309,7 +315,7 @@ std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::strin
             if (block.opcode == "event_whenbroadcastreceived") {
                 std::string fieldValue = Scratch::getFieldValue(block, "BROADCAST_OPTION");
                 std::transform(fieldValue.begin(), fieldValue.end(), fieldValue.begin(), ::tolower);
-                if (fieldValue == broadcastToRun) { 
+                if (fieldValue == broadcastToRun) {
                     blocksToRun.push_back({&block, currentSprite});
                 }
             }

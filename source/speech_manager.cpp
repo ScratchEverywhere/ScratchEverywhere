@@ -25,6 +25,10 @@ void SpeechManager::showSpeech(Sprite *sprite, const std::string &message, doubl
 
     clearSpeech(sprite);
 
+    if (message.empty()) return;
+    std::string truncatedMessage = message;
+    truncatedMessage = truncatedMessage.substr(0, 330);
+
     // start timer if showForSecs value is given
     if (showForSecs > 0) {
         double now = getCurrentTime();
@@ -36,9 +40,9 @@ void SpeechManager::showSpeech(Sprite *sprite, const std::string &message, doubl
 
     // Create / update speech object
     if (!hasSpeechObject(sprite)) {
-        createSpeechObject(sprite, message);
+        createSpeechObject(sprite, truncatedMessage);
     } else {
-        updateSpeechObject(sprite, message);
+        updateSpeechObject(sprite, truncatedMessage);
     }
 }
 
