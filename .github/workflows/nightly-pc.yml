@@ -213,6 +213,7 @@ jobs:
           path: scratch-everywhere
   macos-universal:
     name: macOS Universal
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     needs: [macos-arm, macos-intel]
     steps:
