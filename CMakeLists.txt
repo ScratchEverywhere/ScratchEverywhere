@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.30.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.33 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,11 +22,15 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
 endif()
 
-option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+option(SE_MENU "Enables the SE! Main Menu." ON)
+
+if(SE_MENU)
+	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
+endif()
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
-	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3")
+	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
 endif()
 
 if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS)
@@ -47,6 +51,12 @@ elseif("sdl1" IN_LIST SE_RENDERER_VALID_OPTIONS)
 		"sdl1"
 		CACHE STRING "Select the desired renderer backend."
 	)
+elseif("opengl" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"opengl"
+		CACHE STRING "Select the desired renderer backend."
+	)
 else()
 	set(
 		SE_RENDERER
@@ -58,6 +68,96 @@ if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
     message(
         FATAL_ERROR
         "Invalid value for SE_RENDERER: '${SE_RENDERER}'. Must be one of: ${SE_RENDERER_VALID_OPTIONS}"
+    )
+endif()
+
+list(APPEND SE_WINDOWING_VALID_OPTIONS "headless")
+if(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
+endif()
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+	if(SE_RENDERER STREQUAL "opengl")
+		list(APPEND SE_WINDOWING_VALID_OPTIONS "glfw")
+	endif()
+	if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "opengl")
+		list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl3")
+	endif()
+	if(SE_RENDERER STREQUAL "sdl1" OR SE_RENDERER STREQUAL "opengl")
+		list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl1")
+	endif()
+endif()
+
+if("glfw" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"glfw"
+		CACHE STRING "Select the desired windowing backend."
+	)
+elseif("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"sdl3"
+		CACHE STRING "Select the desired windowing backend."
+	)
+elseif("sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"sdl2"
+		CACHE STRING "Select the desired windowing backend."
+	)
+elseif("sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"sdl1"
+		CACHE STRING "Select the desired windowing backend."
+	)
+else()
+	set(
+		SE_WINDOWING
+		"headless"
+		CACHE STRING "Select the desired windowing backend."
+	)
+endif()
+if(NOT SE_WINDOWING IN_LIST SE_WINDOWING_VALID_OPTIONS)
+    message(
+        FATAL_ERROR
+        "Invalid value for SE_WINDOWING: '${SE_WINDOWING}'. Must be one of: ${SE_WINDOWING_VALID_OPTIONS}"
+    )
+endif()
+
+list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl2")
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
+endif()
+
+if(SE_RENDERER STREQUAL "sdl3" OR SE_WINDOWING STREQUAL "sdl3")
+	set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
+elseif(SE_RENDERER STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "glfw")
+	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
+elseif(SE_RENDERER STREQUAL "sdl1" OR SE_WINDOWING STREQUAL "sdl1")
+	set(SE_AUDIO_ENGINE_DEFAULT "sdl1")
+else()
+	set(SE_AUDIO_ENGINE_DEFAULT "headless")
+endif()
+
+if(SE_AUDIO_ENGINE_DEFAULT IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
+    set(
+        SE_AUDIO_ENGINE
+        ${SE_AUDIO_ENGINE_DEFAULT}
+        CACHE STRING "Select the desired audio backend."
+    )
+else()
+    set(
+        SE_AUDIO_ENGINE
+        "headless"
+        CACHE STRING "Select the desired audio backend."
+    )
+endif()
+
+if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
+    message(
+        FATAL_ERROR
+        "Invalid value for SE_AUDIO_ENGINE: '${SE_AUDIO_ENGINE}'. Must be one of: ${SE_AUDIO_ENGINE_VALID_OPTIONS}"
     )
 endif()
 
@@ -90,10 +190,18 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
-file(GLOB_RECURSE GFXFILES
-    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
-    # "${CMAKE_SOURCE_DIR}/gfx/ingame/*" # (for say/think pr)
-)
+if(SE_MENU)
+	file(GLOB_RECURSE GFXFILES
+	    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
+	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
+	)
+else()
+	file(GLOB_RECURSE GFXFILES
+	    "${CMAKE_SOURCE_DIR}/gfx/menu/LibSansN.ttf"
+	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
+	)
+endif()
+
 foreach(file IN LISTS GFXFILES)
 	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
@@ -105,11 +213,20 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
+if(SE_SYSTEM)
+	find_package(PkgConfig REQUIRED)
+endif()
+
 # They're single header so I just use CPM no matter what
 CPMAddPackage(
 	NAME nlohmann_json
 	GITHUB_REPOSITORY nlohmann/json
 	VERSION 3.12.0
+)
+CPMAddPackage(
+	NAME poipole807_ryuJS
+	GITHUB_REPOSITORY poipole807/ryuJS
+	VERSION 3.0
 )
 include(FetchContent)
 FetchContent_Declare(
@@ -125,23 +242,17 @@ if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STR
 		GITHUB_REPOSITORY nicbarker/clay
 		VERSION 0.14
 		DOWNLOAD_ONLY TRUE
-		GIT_TAG main # I used a newer version of the lib when I originally started working on the PR and don't really feel like downgrading...
+		GIT_TAG fd97d8179e329be597bd8f7a1a9a2382d191ff1f # newer clay commits have breaking changes that i dont feel like fixing rn
 		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clay.patch"
 	)
 endif()
 
 if(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
-		find_package(PkgConfig REQUIRED)
-
 		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
 		pkg_check_modules(SDL_IMAGE REQUIRED SDL_image>=1.2.0)
 		pkg_check_modules(SDL_TTF REQUIRED SDL_ttf>=1.2.0)
 		pkg_check_modules(SDL_GFX REQUIRED SDL_gfx>=1.0.0)
-
-		if (SE_AUDIO)
-			pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
-		endif()
 	else()
 		error("SDL1 is currently not supported without system libraries")
 	endif()
@@ -152,18 +263,12 @@ if(SE_RENDERER STREQUAL "sdl1")
 	)
 elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
-		find_package(PkgConfig REQUIRED)
-
 		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
 		pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
 
 		if(NOT WEBOS)
 			pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
 			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
-		endif()
-
-		if (SE_AUDIO AND NOT WEBOS)
-			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
 		endif()
 	else()
 		if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
@@ -189,15 +294,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	endif()
 
 	if(NOT SE_SYSTEM OR WEBOS)
-		if(SE_AUDIO)
-			CPMAddPackage(
-				NAME SDL2_mixer
-				VERSION 2.8.1
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG release-2.8.1
-				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
-			)
-		endif()
 		CPMAddPackage(
 			NAME SDL2_image
 			VERSION 2.8.8
@@ -227,10 +323,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 			target_include_directories(SDL2_image PRIVATE ${SDL2_INCLUDE_DIRS})
 			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
 			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
-			if(SE_AUDIO)
-				target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
-				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
-			endif()
 		else()
 			target_link_libraries(SDL2_gfx PUBLIC
 				SDL2::SDL2
@@ -239,16 +331,10 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	endif()
 elseif(SE_RENDERER STREQUAL "sdl3")
 	if(SE_SYSTEM)
-		find_package(PkgConfig REQUIRED)
-
 		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
 		pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image>=3.0.0)
 		pkg_check_modules(SDL3_TTF REQUIRED sdl3-ttf>=3.0.0)
 		pkg_check_modules(SDL3_GFX REQUIRED sdl3-gfx>=1.0.0)
-
-		if (SE_AUDIO)
-			pkg_check_modules(SDL3_MIXER REQUIRED sdl3-mixer>=2.0.0)
-		endif()
 	else()
 		CPMAddPackage(
 			NAME SDL3
@@ -275,7 +361,120 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 			VERSION 1.0.1
 			GITHUB_REPOSITORY sabdul-khabir/SDL3_gfx
 		)
-		if(SE_AUDIO)
+	endif()
+elseif(SE_RENDERER STREQUAL "opengl")
+	option(SE_OPENGL_ES "Use OpenGL ES instead of OpenGL" OFF)
+
+	find_package(OpenGL REQUIRED)
+	if(SE_OPENGL_ES)
+		find_package(OpenGL REQUIRED COMPONENTS GLES2)
+	endif()
+endif()
+
+if(SE_WINDOWING STREQUAL "glfw")
+	if(SE_SYSTEM)
+		find_package(glfw3 REQUIRED)
+	else()
+		CPMAddPackage(
+			NAME glfw
+			GITHUB_REPOSITORY glfw/glfw
+			GIT_TAG 3.4
+			OPTIONS "GLFW_BUILD_DOCS OFF" "GLFW_BUILD_TESTS OFF" "GLFW_BUILD_EXAMPLES OFF"
+		)
+	endif()
+elseif(SE_WINDOWING STREQUAL "sdl1")
+	if(SE_SYSTEM)
+		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
+	else()
+		error("SDL1 is currently not supported without system libraries")
+	endif()
+elseif(SE_WINDOWING STREQUAL "sdl2")
+	if(SE_SYSTEM)
+		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
+	else()
+		if(NOT TARGET SDL2::SDL2 AND NOT TARGET SDL2)
+			if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
+				set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
+			else()
+				set(SDL2_OPTIONS "")
+			endif()
+			CPMAddPackage(
+				NAME SDL2
+				VERSION 2.32.10
+				GITHUB_REPOSITORY libsdl-org/SDL
+				GIT_TAG release-2.32.10
+				OPTIONS ${SDL2_OPTIONS}
+			)
+		endif()
+	endif()
+elseif(SE_WINDOWING STREQUAL "sdl3")
+	if(SE_SYSTEM)
+		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
+	else()
+		if(NOT TARGET SDL3::SDL3)
+			CPMAddPackage(
+				NAME SDL3
+				VERSION 3.2.26
+				GITHUB_REPOSITORY libsdl-org/SDL
+				GIT_TAG main
+				OPTIONS "SDL_TEST_LIBRARY OFF"
+			)
+		endif()
+	endif()
+endif()
+
+if(SE_AUDIO)
+	if(SE_AUDIO_ENGINE STREQUAL "sdl1")
+		if(SE_SYSTEM)
+			pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
+		else()
+			message(FATAL_ERROR "SDL1 Audio is currently not supported without system libraries")
+		endif()
+	elseif(SE_AUDIO_ENGINE STREQUAL "sdl2")
+		if(NOT SE_SYSTEM OR WEBOS)
+			if(NOT TARGET SDL2::SDL2 AND NOT TARGET SDL2)
+				if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
+					set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
+				else()
+					set(SDL2_OPTIONS "")
+				endif()
+				CPMAddPackage(
+					NAME SDL2
+					VERSION 2.32.10
+					GITHUB_REPOSITORY libsdl-org/SDL
+					GIT_TAG release-2.32.10
+					OPTIONS ${SDL2_OPTIONS}
+				)
+			endif()
+
+			CPMAddPackage(
+				NAME SDL2_mixer
+				VERSION 2.8.1
+				GITHUB_REPOSITORY libsdl-org/SDL_mixer
+				GIT_TAG release-2.8.1
+				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+			)
+
+			if(WEBOS)
+				target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
+				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
+			endif()
+		else()
+			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
+		endif()
+	elseif(SE_AUDIO_ENGINE STREQUAL "sdl3")
+		if(SE_SYSTEM)
+			pkg_check_modules(SDL3_MIXER REQUIRED sdl3-mixer>=2.0.0)
+		else()
+			if(NOT TARGET SDL3::SDL3)
+				CPMAddPackage(
+					NAME SDL3
+					VERSION 3.2.26
+					GITHUB_REPOSITORY libsdl-org/SDL
+					GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
+					OPTIONS "SDL_TEST_LIBRARY OFF"
+				)
+			endif()
 			CPMAddPackage(
 				NAME SDL3_mixer
 				VERSION 3
@@ -288,52 +487,57 @@ endif()
 
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
-	set(CURL_OPTIONS
-		"BUILD_CURL_EXE OFF"
-		"BUILD_TESTING OFF"
-		"BUILD_EXAMPLES OFF"
-		"ENABLE_MANUAL OFF"
-		"CURL_DISABLE_INSTALL ON"
-		"ENABLE_ARES OFF"
-		"USE_LIBIDN2 OFF"
-		"ENABLE_WEBSOCKETS ON"
-		"CURL_DISABLE_WEBSOCKETS OFF"
-		"CURL_DISABLE_LDAP ON"
-		"CURL_USE_LIBSSH2 OFF"
-	)
-	if(WEBOS)
-		list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
-	else()
-		list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-		list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
-	endif()
-	if(WIN32 OR WEBOS)
-		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
-	endif()
+	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
+	if(NOT HAIKU)
+		set(CURL_OPTIONS
+			"BUILD_CURL_EXE OFF"
+			"BUILD_TESTING OFF"
+			"BUILD_EXAMPLES OFF"
+			"ENABLE_MANUAL OFF"
+			"CURL_DISABLE_INSTALL ON"
+			"ENABLE_ARES OFF"
+			"USE_LIBIDN2 OFF"
+			"ENABLE_WEBSOCKETS ON"
+			"CURL_DISABLE_WEBSOCKETS OFF"
+			"CURL_DISABLE_LDAP ON"
+			"CURL_USE_LIBSSH2 OFF"
+		)
+		if(WEBOS)
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+		elseif(APPLE)
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+		else()
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
+		endif()
+		if(WIN32 OR WEBOS)
+			list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
+		endif()
 
-	CPMAddPackage(
-		NAME curl
-		GIT_REPOSITORY "https://github.com/curl/curl.git"
-		GIT_TAG "curl-8_16_0"
-		VERSION 8.16.0
-		OPTIONS ${CURL_OPTIONS}
-	)
+		CPMAddPackage(
+			NAME curl
+			GIT_REPOSITORY "https://github.com/curl/curl.git"
+			GIT_TAG "curl-8_17_0"
+			VERSION 8.17.0
+			OPTIONS ${CURL_OPTIONS}
+		)
+	else()
+		find_package(CURL REQUIRED)
+	endif()
 	if(SE_CLOUDVARS)
-		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.1")
+		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.4")
 	endif()
 endif()
 
-if(SE_RENDERER STREQUAL "headless")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/headless)
-elseif(SE_RENDERER STREQUAL "sdl3")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl3 source/sdl3/audio)
-elseif(SE_RENDERER STREQUAL "sdl2")
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio)
-else()
-	set(SOURCES source source/scratch source/scratch/blocks source/scratch/menus source/sdl1 source/sdl1/audio)
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
+
+if(SE_MENU)
+	list(APPEND SOURCES source/menus)
 endif()
 
 set(SOURCE_FILES)
@@ -361,6 +565,14 @@ elseif(VITA)
 elseif(WEBOS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+	# set_target_properties(scratch-everywhere PROPERTIES
+	# 	MACOSX_BUNDLE True
+	# 	MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/gfx/macOS/Info.plist
+	# 	OUTPUT_NAME "scratch-macOS"
+	# )
+	# add_custom_command(TARGET scratch-everywhere POST_BUILD
+	# 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/gfx/macOS/Icon.icns "$<TARGET_BUNDLE_DIR:scratch-everywhere>/Contents/Resources/Icon.icns")
 endif()
 
 if(SE_CMAKERC)
@@ -379,7 +591,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC)
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
@@ -403,19 +615,10 @@ if(SE_RENDERER STREQUAL "sdl3")
 	if(SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
-
-		if (SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS ${SDL3_MIXER_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL3_MIXER_INCLUDE_DIRS})
-		endif()
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL3_image::SDL3_image)
 		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
 		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
-
-		if(SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS SDL3_mixer::SDL3_mixer)
-		endif()
 	else()
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_image::SDL3_image-static>,
 			SDL3_image::SDL3_image-static,
@@ -424,11 +627,6 @@ if(SE_RENDERER STREQUAL "sdl3")
 			SDL3_ttf::SDL3_ttf-static,
 			SDL3_ttf::SDL3_ttf>)
 		list(APPEND SDL_LINK_LIBS SDL3_gfx_Static)
-		if(SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,
-				SDL3_mixer::SDL3_mixer-static,
-				SDL3_mixer::SDL3_mixer>)
-		endif()
 	endif()
 
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
@@ -440,9 +638,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
 	else()
 		list(APPEND SDL_LINK_LIBS SDL2_image)
-		if(SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS SDL2_mixer)
-		endif()
 		list(APPEND SDL_LINK_LIBS SDL2_gfx)
 	endif()
 
@@ -454,17 +649,10 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 		list(APPEND SDL_LINK_LIBS ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
 
-		if (SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS ${SDL2_MIXER_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
-		endif()
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL2_image::SDL2_image)
 		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)
 
-		if(SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS SDL2_mixer::SDL2_mixer)
-		endif()
 	else()
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image-static>,
 			SDL2_image::SDL2_image-static,
@@ -472,11 +660,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf-static>,
 			SDL2_ttf::SDL2_ttf-static,
 			SDL2_ttf::SDL2_ttf>)
-		if(SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer-static>,
-				SDL2_mixer::SDL2_mixer-static,
-				SDL2_mixer::SDL2_mixer>)
-		endif()
 	endif()
 
 	if (WIN32)
@@ -498,17 +681,10 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_IMAGE_LIBRARIES} ${SDL_TTF_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_IMAGE_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
 
-		if (SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS ${SDL_MIXER_LIBRARIES})
-			target_include_directories(scratch-everywhere PRIVATE ${SDL_MIXER_INCLUDE_DIRS})
-		endif()
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL_image::SDL_image)
 		list(APPEND SDL_LINK_LIBS SDL_ttf::SDL_ttf)
 
-		if(SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS SDL_mixer::SDL_mixer)
-		endif()
 	else()
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_image::SDL_image-static>,
 			SDL_image::SDL_image-static,
@@ -516,15 +692,49 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_ttf::SDL_ttf-static>,
 			SDL_ttf::SDL_ttf-static,
 			SDL_ttf::SDL_ttf>)
-		if(SE_AUDIO)
-			list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_mixer::SDL_mixer-static>,
-				SDL_mixer::SDL_mixer-static,
-				SDL_mixer::SDL_mixer>)
-		endif()
 	endif()
 
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 	target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
+elseif(SE_RENDERER STREQUAL "opengl")
+	target_link_libraries(scratch-everywhere PRIVATE OpenGL::GL)
+	if(SE_OPENGL_ES)
+		target_link_libraries(scratch-everywhere PRIVATE OpenGL::GLES2)
+		target_compile_definitions(scratch-everywhere PRIVATE USE_GLES)
+	endif()
+	target_include_directories(scratch-everywhere PRIVATE include)
+endif()
+
+if(SE_WINDOWING STREQUAL "sdl1")
+	if(SE_SYSTEM)
+		target_link_libraries(scratch-everywhere PRIVATE ${SDL_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS})
+	else()
+		target_link_libraries(scratch-everywhere PRIVATE SDL::SDL)
+	endif()
+	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL1)
+elseif(SE_WINDOWING STREQUAL "sdl2")
+	if(SE_SYSTEM)
+		target_link_libraries(scratch-everywhere PRIVATE ${SDL2_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS})
+	else()
+		target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2)
+		if(WIN32)
+			target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2main)
+		endif()
+	endif()
+    target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL2)
+elseif(SE_WINDOWING STREQUAL "sdl3")
+	if(SE_SYSTEM)
+		target_link_libraries(scratch-everywhere PRIVATE ${SDL3_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS})
+	else()
+		target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
+	endif()
+	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_SDL3)
+elseif(SE_WINDOWING STREQUAL "glfw")
+	target_link_libraries(scratch-everywhere PRIVATE glfw)
+	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_GLFW)
 endif()
 
 if(SE_SYSTEM)
@@ -541,12 +751,17 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL2)
 elseif(SE_RENDERER STREQUAL "sdl3")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL3)
+elseif(SE_RENDERER STREQUAL "opengl")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_OPENGL)
 elseif(SE_RENDERER STREQUAL "headless")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
 endif()
 
 if(SE_AUDIO)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
+endif()
+if(SE_MENU)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_MENU)
 endif()
 if(SE_LOADSCREEN)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_LOADSCREEN)
@@ -562,7 +777,73 @@ if(SE_CLOUDVARS)
 	target_link_libraries(scratch-everywhere PRIVATE mist++)
 endif()
 
+
+if(NOT PSP AND NOT WEBOS)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
+endif()
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
+endif()
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
+endif()
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING) ) # joystick doesn't work on MacOS with current Dockerfile
+	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
+endif()
+
+
+if(SE_AUDIO)
+	if(SE_AUDIO_ENGINE STREQUAL "sdl1")
+		if(SE_SYSTEM)
+			target_link_libraries(scratch-everywhere PRIVATE ${SDL_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL_MIXER_INCLUDE_DIRS})
+		else()
+			if(BUILD_SHARED_LIBS)
+				target_link_libraries(scratch-everywhere PRIVATE SDL_mixer::SDL_mixer)
+			else()
+				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL_mixer::SDL_mixer-static>,SDL_mixer::SDL_mixer-static,SDL_mixer::SDL_mixer>)
+			endif()
+		endif()
+	elseif(SE_AUDIO_ENGINE STREQUAL "sdl2")
+		if(SE_SYSTEM AND NOT WEBOS)
+			target_link_libraries(scratch-everywhere PRIVATE ${SDL2_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
+		else()
+			target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2)
+			if(WEBOS)
+				target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer)
+			elseif(BUILD_SHARED_LIBS)
+				target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer::SDL2_mixer)
+			else()
+				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer-static>,SDL2_mixer::SDL2_mixer-static,SDL2_mixer::SDL2_mixer>)
+			endif()
+		endif()
+	elseif(SE_AUDIO_ENGINE STREQUAL "sdl3")
+		if(SE_SYSTEM)
+			target_link_libraries(scratch-everywhere PRIVATE ${SDL3_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS})
+			target_link_libraries(scratch-everywhere PRIVATE ${SDL3_MIXER_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL3_MIXER_INCLUDE_DIRS})
+		else()
+			target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
+			if(BUILD_SHARED_LIBS)
+				target_link_libraries(scratch-everywhere PRIVATE SDL3_mixer::SDL3_mixer)
+			else()
+				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,SDL3_mixer::SDL3_mixer-static,SDL3_mixer::SDL3_mixer>)
+			endif()
+		endif()
+	endif()
+endif()
+
 target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+add_library(ryuJS STATIC
+  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
+  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
+)
+target_link_libraries(scratch-everywhere PRIVATE ryuJS)
+target_include_directories(ryuJS PUBLIC
+  ${poipole807_ryuJS_SOURCE_DIR}
+)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
 if(PSP)
@@ -613,7 +894,7 @@ elseif(VITA)
 elseif(WEBOS)
 	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
 	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++" "-static-libgcc")
-
+	set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
 	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
     install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
 

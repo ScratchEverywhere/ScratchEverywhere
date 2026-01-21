@@ -4,8 +4,11 @@ on:
   push:
     paths:
       - make/Makefile_wiiu
-      - source/scratch/**
-      - source/sdl2/**
+      - source/runtime/**
+      - source/renderers/sdl2/**
+      - source/*
+      - source/menus/**
+      - source/audio/sdl2/**
       - gfx/wiiu/**
       - gfx/menu/**
       - include/**
@@ -14,6 +17,7 @@ on:
       - source/main.cpp
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -34,6 +38,7 @@ jobs:
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Wii U Nightly

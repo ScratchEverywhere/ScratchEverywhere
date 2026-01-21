@@ -4,8 +4,11 @@ on:
   push:
     paths:
       - CMakeLists.txt
-      - source/scratch/**
-      - source/sdl2/**
+      - source/runtime/**
+      - source/renderers/sdl2/**
+      - source/*
+      - source/menus/**
+      - source/audio/sdl2/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-switch.yml
@@ -13,6 +16,7 @@ on:
       - source/main.cpp
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -35,6 +39,7 @@ jobs:
           target: exporter
           outputs: type=local,dest=.
       - name: Upload Artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Switch Nightly

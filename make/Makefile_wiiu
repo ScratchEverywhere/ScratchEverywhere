@@ -11,9 +11,9 @@ PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
 # Build Info
 
 TARGET		:=	scratch-wiiu
-BUILD			:=	build/wiiu
-SOURCES		:=	source source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio include/miniz include/nlohmann
-INCLUDES	:=	include source/scratch source/scratch/blocks source/scratch/menus source/sdl2 source/sdl2/audio include/nlohmann include/miniz
+BUILD		:=	build/wiiu
+SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz
+INCLUDES	:=	include $(SOURCES)
 ROMFS	:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -24,7 +24,7 @@ APP_NAME							:=	Scratch Everywhere!
 APP_AUTHOR						:=	NateXS and Grady Link
 APP_SHORT_DESCRIPTION	:=	Play Scratch Games on the Wii U!
 APP_LONG_DESCRIPTION	:=	$(APP_SHORT_DESCRIPTION)
-APP_VERSION						:=	0.30.1
+APP_VERSION						:=	0.33
 APP_ICON							:=	gfx/wiiu/icon.png
 APP_TV_SPLASH					:=	gfx/wiiu/tv-splash.png
 APP_DRC_SPLASH				:=	gfx/wiiu/drc-splash.png
@@ -36,19 +36,28 @@ ENABLE_CLOUDVARS	?=	0
 ENABLE_AUDIO	?=	1
 ENABLE_DOWNLOAD	?=	1
 ENABLE_LOADSCREEN	?=	1
+ENABLE_MENU		?=	1
 
 # Flags
 
-CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP) -DRENDERER_SDL2
+CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(MACHDEP)
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
-CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DRENDERER_SDL2
+CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DRENDERER_SDL2 -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
+
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
+endif
 
 ifeq ($(ENABLE_AUDIO),1)
 CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF_WIIU) --cflags SDL2_mixer`
@@ -64,8 +73,8 @@ CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_WIIU) --cflags mist++`
 LIBS		+=	`$(PKGCONF_WIIU) --libs mist++`
 
 # Mist++ Version Check
-ifeq ($(shell $(PKGCONF_WIIU) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
-$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+ifeq ($(shell $(PKGCONF_WIIU) --atleast-version=0.3.4 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.3.4 or newer.")
 endif
 endif
 
@@ -113,15 +122,19 @@ OFILES		+=	$(ROMFS_TARGET)
 
 .PHONY: $(BUILD) clean all
 
-all: mkdir $(GFXBUILD) $(OUTPUT).wuhb package 
+all: mkdir $(GFXBUILD) $(OUTPUT).wuhb package
 
 mkdir:
 	@mkdir -p $(BUILD)
 
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
-#	@cp -r $(GRAPHICS)/ingame $@/
+else
+	@cp $(GRAPHICS)/menu/LibSansN.ttf $@/
+endif
+	@cp -r $(GRAPHICS)/ingame $@/
 
 test:
 	cemu -g $(OUTPUT).rpx
@@ -130,7 +143,7 @@ clean:
 	@echo Cleaning...
 	@rm -rf $(BUILD) $(GFXBUILD)
 
-package:
+package: $(OUTPUT).wuhb $(OUTPUT).rpx
 	@echo Packaging...
 	@mkdir -p $(OUTPUT)
 	@cp -t $(OUTPUT) $(OUTPUT).wuhb $(OUTPUT).rpx

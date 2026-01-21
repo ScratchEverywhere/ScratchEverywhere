@@ -13,6 +13,7 @@
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml/badge.svg" alt="PSP Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml/badge.svg" alt="PS4 Nightly Build"></a>
 <a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml/badge.svg" alt="PC Nightly Build"></a>
+<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-webos.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-webos.yml/badge.svg" alt="webOS Nightly Build"></a>
 <a href="https://discord.gg/Y2gf5vZHpJ"><img alt="Discord" src="https://img.shields.io/discord/1408875318248345612?style=flat&logo=discord&label=Discord%20Server&link=https%3A%2F%2Fdiscord.gg%2FY2gf5vZHpJ"></a>
 </p>
 
@@ -117,10 +118,10 @@ As this is in a very work in progress state, you will encounter many bugs, crash
 
 ## Unimplemented blocks
 
--   All say and think blocks ([#393](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/393))
 -   Most costume effects;
     -   Only the `Ghost` and `Brightness` costume effects are supported
--   `Pitch` and `Pan left-right` sound effects
+-   `Pitch` and `Pan left-right` audio effects
+    -   These effects are only available on 3DS and some PC platforms.
 -   When loudness > \_\_\_
 -   All color touching blocks
 -   Loudness
@@ -303,6 +304,8 @@ To compile with Docker all you need installed is Docker and Buildx.
 
 -   To compile for the **3DS**, run `docker build -f docker/Dockerfile.3ds --target exporter -o . .`.
 
+-   To compile for the **NDS**, run `docker build -f docker/Dockerfile.nds --target exporter -o . .`.
+
 -   To compile for the **Wii U**, run `docker build -f docker/Dockerfile.wiiu --target exporter -o . .`.
 
 -   To compile for the **Wii**, run `docker build -f docker/Dockerfile.wii --target exporter -o . .`.
@@ -329,6 +332,7 @@ If you are compiling with cloud variables, you will need to have DevkitPro's SDK
 
 -   **For the 3DS**, you will need the DevkitARM toolchain and libctru.
     -   If you want to compile with audio support, you will also need a 3DS compiled version of SDL3 and SDL3_mixer. See the [Nightly Build commands](https://github.com/ScratchEverywhere/ScratchEverywhere/blob/main/.github/workflows/nightly-3ds.yml) for a reference on how to compile SDL3 3DS for yourself.
+- **For the DS/DSi**, you will need the [BlocksDS](https://blocksds.skylyrac.net/) SDK, with GL2D and Maxmod libraries installed (usually comes installed with the SDK).
 -   **For the Wii U**, you will need the DevkitPPC toolchain, WUT, all SDL2-wiiu libraries, and [libromfs-wiiu.](https://github.com/yawut/libromfs-wiiu).
 -   **For the Wii**, you need the DevkitPPC toolchain, libogc, all SDL2-wii libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
 -   **For the GameCube**, you need the DevkitPPC toolchain, libogc, all SDL2-gamecube libraries, and [libromfs-ogc.](https://github.com/NateXS/libromfs-ogc).
@@ -352,6 +356,7 @@ Make a `romfs` folder inside the unzipped source code and put the Scratch projec
 Then you need to compile the projects into proper Homebrew packages.
 
 -   **For the 3DS**, you simply need to run `make`. Then copy the `Scratch-3DS.3dsx` file like you normally would.
+- **For the NDS**, you need to run `make PLATFORM=nds`, then copy the `build/nds/scratch-ds.nds` file to your flashcart/SD card.
 -   **For the Wii U**, you need to run `make PLATFORM=wiiu` and then copy the `build/wiiu/scratch-wiiu` folder into the `sdcard:/wiiu/apps` folder on your sd card.
 -   **For the Wii**, you need to run `make PLATFORM=wii package`, then find the zipped file in `build/wii/scratch-wii.zip`. Unzip it and put the `apps` folder inside the root of your Wii SD card.
 -   **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the `.dol` file at `build/gamecube/scratch-gamecube.dol`.
@@ -371,6 +376,7 @@ Compilation flags are used to select which features will be enabled in the compi
 -   `ENABLE_LOADSCREEN` (default: `1`): If set to `1`, the loading screen is enabled, if set to `0` the screen is simply black during that time.
 -   `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to `0`, it will be disabled.
 -   `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is enabled, if set to `0` cloud variables are treated like normal variables. If your project doesn't use cloud variables, it is recommended to leave this turned off. If you run into errors while building try turning this off and see if that fixes the errors.
+-   `ENABLE_MENU` (default: `1`): If set to 1, the SE! main menu is enabled. It's good to disable this when packaging a project, as the file size is lowered.
 -   **[Old 3DS]** `RAM_AMOUNT` (default: `72`): the amount of RAM, in megabytes, the old 3DS should be using. Can be set to `32`, `64`, `72`, `80`, or `96`.
 
 ## Disclaimer

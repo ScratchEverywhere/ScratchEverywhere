@@ -40,7 +40,7 @@ WORKDIR /mistpp-packages
 
 COPY --from=libcurl_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
 
-RUN wget https://github.com/ScratchEverywhere/mistpp-packages/releases/download/0.2.0-1/3ds-libmistpp-0.2.0-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.2.0-1-any.pkg.tar.zst
+RUN wget https://github.com/ScratchEverywhere/mistpp-packages/releases/download/0.3.4-1/3ds-libmistpp-0.3.4-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.3.4-1-any.pkg.tar.zst
 
 FROM devkitpro/devkitarm:latest AS makerom_installer
 WORKDIR /makerom
@@ -66,7 +66,7 @@ COPY --from=bannertool_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portl
 COPY . .
 
 # Build .3dsx and .cia for default TARGET (Scratch)
-RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1 ENABLE_DOWNLOAD=1
+RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1 ENABLE_DOWNLOAD=1 -j ${nproc}
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/3ds/scratch-3ds.3dsx /

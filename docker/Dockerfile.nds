@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=nds
+RUN make PLATFORM=nds -j ${nproc}
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/nds/scratch-ds.nds /scratch-ds.nds

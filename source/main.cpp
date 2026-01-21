@@ -1,10 +1,10 @@
-#include "interpret.hpp"
-#include "scratch/input.hpp"
-#include "scratch/menus/menuManager.hpp"
-#include "scratch/render.hpp"
-#include "scratch/unzip.hpp"
 #include <cstdlib>
+#include <input.hpp>
 #include <memory>
+#include <menuManager.hpp>
+#include <render.hpp>
+#include <runtime.hpp>
+#include <unzip.hpp>
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -25,6 +25,8 @@ static void exitApp() {
 }
 
 static bool initApp() {
+    Log::deleteLogFile();
+    Render::debugMode = true;
     const bool result = Render::Init();
     MenuManager::initClay();
     return result;
@@ -39,7 +41,7 @@ bool activateMainMenu() {
         Input::getInput(&menuManager);
 
         menuManager.render();
-        if (Unzip::projectOpened >= 0) break;
+        if (Unzip::projectOpened >= 0) return true;
 
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);
@@ -62,7 +64,6 @@ void mainLoop() {
                     exitApp();
                     exit(0);
                 }
-
             } else {
                 exitApp();
                 exit(0);
@@ -73,7 +74,7 @@ void mainLoop() {
         Unzip::projectOpened = -67; // I have no idea what the correct number.
         Scratch::nextProject = false;
         Scratch::dataNextProject = Value();
-        if (toExit || !activateMainMenu()) {
+        if (OS::toExit || !activateMainMenu()) {
             exitApp();
             exit(0);
         }
@@ -88,8 +89,8 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-#ifdef __EMSCRIPTEN__
     if (argc > 1) {
+#if defined(__EMSCRIPTEN__)
         while (!OS::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
@@ -97,8 +98,11 @@ int main(int argc, char **argv) {
             }
             emscripten_sleep(0);
         }
-    }
+#elif defined(__PC__)
+        Unzip::filePath = std::string(argv[1]);
+#else
 #endif
+    }
 
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {

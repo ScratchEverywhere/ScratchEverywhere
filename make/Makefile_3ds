@@ -21,7 +21,7 @@ PKGCONF_3DS	:=	$(DEVKITPRO)/portlibs/3ds/bin/arm-none-eabi-pkg-config
 #	Application Info
 #---------------------------------------------------------------------------------
 APP_TITLE 	:=	Scratch Everywhere!
-APP_DESCRIPTION := Scratch 3 Games on the 3DS!
+APP_DESCRIPTION := Scratch 3 Games on your 3DS!
 APP_AUTHOR 	:= NateXS
 TARGET		:=	scratch-3ds
 
@@ -41,9 +41,9 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/3ds source/scratch source/scratch/blocks source/scratch/menus include/miniz source/sdl3/audio
+SOURCES		:=	source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3
 DATA		:=	data
-INCLUDES	:=	source include source/3ds source/scratch source/scratch/blocks source/scratch/menus source/sdl3/audio include/miniz
+INCLUDES	:=	include source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3 include/miniz
 GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
@@ -54,6 +54,7 @@ ENABLE_CLOUDVARS	?=	0
 ENABLE_LOADSCREEN	  ?=	1
 ENABLE_AUDIO	?=	1
 ENABLE_DOWNLOAD	?=	1
+ENABLE_MENU		?=	1
 RAM_AMOUNT		?= 72
 
 # Check for SDL3 libraries
@@ -73,7 +74,7 @@ ifneq ($(SDL3_AVAILABLE),0)
 $(warning "[WARNING] SDL3 not found - Disabling audio...")
 override ENABLE_AUDIO := 0
 else ifneq ($(SDL3_MIXER_AVAILABLE),0)
-$(warning "[WARNING] SDL3_mixer not found - Disabling audio...") 
+$(warning "[WARNING] SDL3_mixer not found - Disabling audio...")
 override ENABLE_AUDIO := 0
 endif
 endif
@@ -81,16 +82,24 @@ endif
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft 
+ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft
 
 CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D
+CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+
+ifeq ($(ENABLE_MENU),1)
+SOURCES += source/scratch/menus
+INCLUDES += source/scratch/menus
+CFLAGS	+=	-DENABLE_MENU
+else
+ENABLE_LOADSCREEN = 0
+endif
 
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	+=	-lSDL3_mixer -lSDL3 -lmpg123
@@ -107,8 +116,8 @@ CFLAGS	+=	-DENABLE_CLOUDVARS `$(PKGCONF_3DS) --cflags mist++`
 LIBS	  += `$(PKGCONF_3DS) --libs mist++`
 
 # Mist++ Version Check
-ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.2.0 mist++ >/dev/null 2>&1; echo $$?),1)
-$(error "[ERROR] Mist++ must be v0.2.0 or newer.")
+ifeq ($(shell $(PKGCONF_3DS) --atleast-version=0.3.4 mist++ >/dev/null 2>&1; echo $$?),1)
+$(error "[ERROR] Mist++ must be v0.3.4 or newer.")
 endif
 endif
 
@@ -158,7 +167,11 @@ BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 ALLGFXFILES	:=	$(foreach dir,$(GRAPHICS),$(notdir $(wildcard $(dir)/*.*)))
 
 FONTFILES := $(shell find $(GRAPHICS) -type f -iname "*.ttf" 2>/dev/null)
+ifeq ($(ENABLE_MENU),1)
 ROMFS_FONTFILES := $(patsubst $(GRAPHICS)/%,$(GFXBUILD)/%,$(FONTFILES:.ttf=.bcfnt))
+else
+ROMFS_FONTFILES :=
+endif
 
 
 #---------------------------------------------------------------------------------
@@ -244,8 +257,10 @@ $(BUILD):
 ifneq ($(GFXBUILD),$(BUILD))
 $(GFXBUILD):
 	@mkdir -p $@
+ifeq ($(ENABLE_MENU),1)
 	@cp -r $(GRAPHICS)/menu $@/
-#	@cp -r $(GRAPHICS)/ingame $@/
+endif
+	@cp -r $(GRAPHICS)/ingame $@/
 endif
 
 ifneq ($(DEPSDIR),$(BUILD))
@@ -305,9 +320,7 @@ icon.smdh: $(ICON_PNG)
 	@echo "built ... $@"
 
 $(OUTPUT).cia: $(OUTPUT).elf banner.bnr icon.smdh $(RSF_FILE)
-	@echo "Setting RAM to $(RAM_AMOUNT) MB..."
-	@sed -i '/# Process Settings/,/# New3DS Exclusive Process Settings/ s/SystemMode.*: .*/SystemMode                    : $(RAM_AMOUNT)MB # 64MB(Default)\/96MB\/80MB\/72MB\/32MB/' $(RSF_FILE)
-	@$(MAKEROM) -f cia -o $@ -elf $(OUTPUT).elf -rsf $(RSF_FILE) -banner banner.bnr -icon icon.smdh -target t -exefslogo
+	@$(MAKEROM) -f cia -o $@ -elf $(OUTPUT).elf -rsf $(RSF_FILE) -banner banner.bnr -icon icon.smdh -target t -exefslogo -DSystemMode=$(RAM_AMOUNT)MB
 	@echo "built ... $@"
 
 #---------------------------------------------------------------------------------
