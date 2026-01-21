@@ -12,6 +12,9 @@ struct Settings_HoverData {
     nlohmann::json &settings;
     const std::string key;
     Timer &animationTimer;
+    std::array<float, 2> pointerPos;
+    bool pressed = false;
+    std::string valueText;
 };
 
 class SettingsMenu : public Menu {
@@ -25,6 +28,7 @@ class SettingsMenu : public Menu {
         {"customUsername", "Set Custom Username"},
         {"UseProjectsPath", "Enable Custom Project Path"},
         {"ProjectsPath", "Set Project Path"},
+        {"musicVolume", "Music Volume"},
 
     };
 
@@ -41,6 +45,7 @@ class SettingsMenu : public Menu {
     nlohmann::json settings;
 
     void renderToggle(const std::string &setting);
+    void renderSlider(const std::string &setting);
     void renderInputButton(const std::string &setting);
 
   public:

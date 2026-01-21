@@ -34,6 +34,82 @@ SettingsMenu::~SettingsMenu() {
     }
 }
 
+void SettingsMenu::renderSlider(const std::string &setting) {
+    renderOrder.push_back(setting);
+
+    const int value = settings[setting].get<int>();
+
+    const uint16_t fontSize = 16 * menuManager->scale;
+    const float width = 120 * menuManager->scale;
+    const float height = 25 * menuManager->scale;
+    const uint16_t borderWidth = 3 * menuManager->scale;
+    const uint16_t padding = 5 * menuManager->scale;
+    const float knobHeight = height - padding * 2;
+    const uint16_t knobBorderWidth = 2 * menuManager->scale;
+
+    float offset = (width - (knobHeight * 1.5)) * (static_cast<float>(value) / 100.0f);
+
+    // clang-format off
+    CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = { .width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0) },
+			.childGap = static_cast<uint16_t>(10 * menuManager->scale),
+			.childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
+			.layoutDirection = CLAY_LEFT_TO_RIGHT
+		}
+	}) {
+		
+
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
+		CLAY(CLAY_ID_LOCAL("bar"), (Clay_ElementDeclaration){
+			.layout = {
+				.sizing = { .width = CLAY_SIZING_FIXED(width), .height = CLAY_SIZING_FIXED(height) },
+				.padding = { padding, padding, padding, padding }
+			},
+			.backgroundColor = { 255, 150, 35, 255 },
+			.cornerRadius = { height / 2, height / 2, height / 2, height / 2 },
+			.clip = { .horizontal = true, .childOffset = { .x = offset } },
+			.border = { .color = { 200, 100, 0, 255 }, .width = { borderWidth, borderWidth, borderWidth, borderWidth } },
+		}) {
+			CLAY(CLAY_ID_LOCAL("dial"), (Clay_ElementDeclaration){
+				.layout = {
+					.sizing = { .height = CLAY_SIZING_FIXED(knobHeight) }
+				},
+				.backgroundColor = { 225, 225, 220, 255 },
+				.cornerRadius = { knobHeight / 2, knobHeight / 2, knobHeight / 2, knobHeight / 2 },
+				.aspectRatio = { 1 },
+				.border = { .color = { 220, 120, 5}, .width = { knobBorderWidth, knobBorderWidth, knobBorderWidth, knobBorderWidth } },
+			});
+
+            Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
+			const auto hoverData = reinterpret_cast<Settings_HoverData*>(userdata);
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED) {
+                hoverData->pointerPos[0] = pointerData.position.x;
+                hoverData->pointerPos[1] = pointerData.position.y;
+                hoverData->pressed = true;
+			} else hoverData->pressed = false;
+		}, (intptr_t)&hoverData.at(setting));
+		} 
+        auto &hd = hoverData.at(setting);
+        hd.valueText = std::to_string(value);
+        
+        CLAY_TEXT(( (Clay_String){false, static_cast<int32_t>(hd.valueText.length()), hd.valueText.c_str()}),
+                    CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255},.fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
+
+        
+        Clay_ElementData data = Clay_GetElementData(CLAY_ID_LOCAL("bar"));
+
+        if (hd.pressed && hd.pointerPos[0] >= data.boundingBox.x && hd.pointerPos[0] <= data.boundingBox.x + data.boundingBox.width &&
+            hd.pointerPos[1] >= data.boundingBox.y && hd.pointerPos[1] <= data.boundingBox.y + data.boundingBox.height) {
+
+            float val = std::clamp(static_cast<float>((hd.pointerPos[0] - data.boundingBox.x)) / ((data.boundingBox.x + data.boundingBox.width - 10) - data.boundingBox.x), 0.0f, 1.0f);
+
+            hd.settings[hd.key] = static_cast<int>(100 * val);
+        }
+	}
+    // clang-format on
+}
+
 void SettingsMenu::renderToggle(const std::string &setting) {
     renderOrder.push_back(setting);
 
@@ -196,6 +272,8 @@ GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
     if (!settings.contains("UseProjectsPath")) settings["UseProjectsPath"] = false;
     if (!settings.contains("ProjectsPath")) settings["ProjectsPath"] = "";
 
+    if (!settings.contains("musicVolume")) settings["musicVolume"] = static_cast<int>(100);
+
     SettingsMenu::init();
 }
 
@@ -206,6 +284,8 @@ GlobalSettingsMenu::~GlobalSettingsMenu() {
 }
 
 void GlobalSettingsMenu::renderSettings() {
+    renderSlider("musicVolume");
+
     renderToggle("useCustomUsername");
     if (settings["useCustomUsername"]) renderInputButton("customUsername");
 

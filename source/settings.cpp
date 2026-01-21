@@ -17,13 +17,21 @@ void SettingsManager::migrate() {
     std::ifstream migrationIn(OS::getConfigFolderLocation() + "Settings.json");
     if (migrationIn.good()) {
         nlohmann::json i;
-        nlohmann::json o;
 
         migrationIn >> i;
         migrationIn.close();
 
-        if (i.contains("EnableUsername") && i["EnableUsername"].is_boolean()) o["useCustomUsername"] = i["EnableUsername"];
-        if (i.contains("Username") && i["Username"].is_string()) o["customUsername"] = i["Username"];
+        nlohmann::json o = i;
+
+        if (i.contains("EnableUsername") && i["EnableUsername"].is_boolean()) {
+            o["useCustomUsername"] = i["EnableUsername"];
+            o.erase("EnableUsername");
+        }
+
+        if (i.contains("Username") && i["Username"].is_string()) {
+            o["customUsername"] = i["Username"];
+            o.erase("Username");
+        }
 
         std::ofstream migrationOut(OS::getConfigFolderLocation() + "Settings.json");
         migrationOut << o.dump(4);
