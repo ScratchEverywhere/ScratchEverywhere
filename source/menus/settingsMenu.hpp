@@ -20,7 +20,13 @@ class SettingsMenu : public Menu {
 
     std::map<std::string, Clay_String> clayIds;
     std::map<std::string, Settings_HoverData> hoverData;
-    const std::map<std::string, std::string> names = {{"useCustomUsername", "Custom Username"}, {"customUsername", "Set Custom Username"}};
+    const std::map<std::string, std::string> names = {
+        {"useCustomUsername", "Enable Custom Username"},
+        {"customUsername", "Set Custom Username"},
+        {"UseProjectsPath", "Enable Custom Project Path"},
+        {"ProjectsPath", "Set Project Path"},
+
+    };
 
     std::map<std::string, Timer> animationTimers;
     static constexpr unsigned int animationDuration = 100;
@@ -38,7 +44,7 @@ class SettingsMenu : public Menu {
     void renderInputButton(const std::string &setting);
 
   public:
-    void init(const std::string &title = "Projects");
+    void init(const std::string &title = "Global Settings");
     ~SettingsMenu();
     void render() override;
 

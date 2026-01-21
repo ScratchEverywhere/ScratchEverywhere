@@ -188,20 +188,19 @@ void SettingsMenu::render() {
 GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
     SettingsManager::migrate();
 
-    std::ifstream in(OS::getScratchFolderLocation() + "settings.json");
-    if (in.is_open()) {
-        in >> settings;
-        in.close();
-    }
+    settings = SettingsManager::getConfigSettings();
 
     if (!settings.contains("useCustomUsername")) settings["useCustomUsername"] = false;
     if (!settings.contains("customUsername")) settings["customUsername"] = "";
+
+    if (!settings.contains("UseProjectsPath")) settings["UseProjectsPath"] = false;
+    if (!settings.contains("ProjectsPath")) settings["ProjectsPath"] = "";
 
     SettingsMenu::init();
 }
 
 GlobalSettingsMenu::~GlobalSettingsMenu() {
-    std::ofstream out(OS::getScratchFolderLocation() + "settings.json");
+    std::ofstream out(OS::getConfigFolderLocation() + "Settings.json");
     out << settings.dump(4);
     out.close();
 }
@@ -209,4 +208,7 @@ GlobalSettingsMenu::~GlobalSettingsMenu() {
 void GlobalSettingsMenu::renderSettings() {
     renderToggle("useCustomUsername");
     if (settings["useCustomUsername"]) renderInputButton("customUsername");
+
+    renderToggle("UseProjectsPath");
+    if (settings["UseProjectsPath"]) renderInputButton("ProjectsPath");
 }

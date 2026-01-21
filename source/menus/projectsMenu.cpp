@@ -24,9 +24,13 @@ ProjectsMenu::ProjectsMenu(void *userdata) {
 
     missingIcon = std::make_unique<Image>("gfx/menu/noicon.svg");
 
-    for (const auto &entry : std::filesystem::directory_iterator(OS::getScratchFolderLocation())) {
-        if (entry.path().extension() != ".sb3" && !(entry.is_directory() && std::filesystem::is_regular_file(entry.path() / "project.json"))) continue;
-        projects.push_back({.name = entry.path().stem().string(), .path = entry.path().string()});
+    const std::string path = OS::getScratchFolderLocation();
+
+    if (OS::fileExists(path)) {
+        for (const auto &entry : std::filesystem::directory_iterator(path)) {
+            if (entry.path().extension() != ".sb3" && !(entry.is_directory() && std::filesystem::is_regular_file(entry.path() / "project.json"))) continue;
+            projects.push_back({.name = entry.path().stem().string(), .path = entry.path().string()});
+        }
     }
 
     const std::string noProjectsPathString = "You can put projects in: " + OS::getScratchFolderLocation();

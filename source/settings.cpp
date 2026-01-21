@@ -25,10 +25,9 @@ void SettingsManager::migrate() {
         if (i.contains("EnableUsername") && i["EnableUsername"].is_boolean()) o["useCustomUsername"] = i["EnableUsername"];
         if (i.contains("Username") && i["Username"].is_string()) o["customUsername"] = i["Username"];
 
-        std::ofstream migrationOut(OS::getConfigFolderLocation() + "settings.json");
+        std::ofstream migrationOut(OS::getConfigFolderLocation() + "Settings.json");
         migrationOut << o.dump(4);
         migrationOut.close();
-        std::filesystem::remove(OS::getConfigFolderLocation() + "Settings.json");
     }
 }
 
