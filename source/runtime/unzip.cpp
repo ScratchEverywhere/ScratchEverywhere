@@ -188,7 +188,7 @@ bool Unzip::load() {
     loading.cleanup();
     osSetSpeedupEnable(false);
 
-#elif defined(RENDERER_SDL1) | defined(RENDERER_SDL2) || defined(WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(WINDOWING_SDL3) // create SDL thread for loading screen
+#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(WINDOWING_SDL3) // create SDL thread for loading screen
 #ifdef RENDERER_SDL1
     SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, nullptr);
 #elif defined(RENDERER_SDL2) || defined(WINDOWING_SDL2)

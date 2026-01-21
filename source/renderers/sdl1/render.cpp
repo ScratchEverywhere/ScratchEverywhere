@@ -374,6 +374,7 @@ void Render::renderSprites() {
     drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
 
+    SDL_Flip(window);
     if (globalWindow) globalWindow->swapBuffers();
     Image::FlushImages();
     SoundPlayer::flushAudio();
