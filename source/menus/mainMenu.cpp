@@ -101,8 +101,6 @@ void MainMenu::init() {
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
-    snow.image = new Image("gfx/menu/snow.svg");
-
     logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
     logoStartTime.start();
@@ -158,10 +156,7 @@ void MainMenu::render() {
         return;
     }
 
-    // begin frame
-    Render::beginFrame(0, 87, 60, 88);
-
-    snow.render();
+    Render::beginFrame(0, 117, 77, 117);
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
@@ -175,7 +170,7 @@ void MainMenu::render() {
     splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7));
 
     // begin 3DS bottom screen frame
-    Render::beginFrame(1, 87, 60, 88);
+    Render::beginFrame(1, 117, 77, 117);
 
     if (settingsButton->isPressed()) {
         SettingsMenu *settingsMenu = new SettingsMenu();
@@ -207,10 +202,6 @@ void MainMenu::cleanup() {
     if (mainMenuControl) {
         delete mainMenuControl;
         mainMenuControl = nullptr;
-    }
-    if (snow.image) {
-        delete snow.image;
-        snow.image = nullptr;
     }
     isInitialized = false;
 }

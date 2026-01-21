@@ -24,8 +24,6 @@ void ProjectMenu::init() {
     }
 #endif
 
-    snow.image = new Image("gfx/menu/snow.svg");
-
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->needsToBeSelected = false;
@@ -213,10 +211,8 @@ void ProjectMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 77, 58, 77);
-    Render::beginFrame(1, 77, 58, 77);
-
-    snow.render(0, 0);
+    Render::beginFrame(0, 97, 73, 97);
+    Render::beginFrame(1, 97, 73, 97);
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;
@@ -260,10 +256,6 @@ void ProjectMenu::cleanup() {
     if (noProjectsButton != nullptr) {
         delete noProjectsButton;
         noProjectsButton = nullptr;
-    }
-    if (snow.image) {
-        delete snow.image;
-        snow.image = nullptr;
     }
     isInitialized = false;
 }

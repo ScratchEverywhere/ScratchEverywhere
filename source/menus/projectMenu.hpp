@@ -6,8 +6,6 @@ class ProjectMenu : public Menu {
     bool hasProjects;
     bool shouldGoBack = false;
 
-    JollySnow snow;
-
     std::vector<std::string> projectFiles;
     std::vector<std::string> UnzippedFiles;
 
