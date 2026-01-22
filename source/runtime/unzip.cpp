@@ -21,7 +21,7 @@
 #endif
 
 #ifdef ENABLE_LOADSCREEN
-#ifdef __3DS__
+#ifdef RENDERER_CITRO2D
 #include <3ds.h>
 #elif defined(RENDERER_SDL1)
 #include "SDL/SDL.h"
@@ -156,7 +156,7 @@ bool Unzip::load() {
 
 #ifdef ENABLE_LOADSCREEN
 
-#ifdef __3DS__ // create 3DS thread for loading screen
+#ifdef RENDERER_CITRO2D // create 3DS thread for loading screen
     s32 mainPrio = 0;
     svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
 

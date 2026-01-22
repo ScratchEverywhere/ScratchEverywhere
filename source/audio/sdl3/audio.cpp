@@ -6,9 +6,6 @@
 #include <sprite.hpp>
 #include <string>
 #include <unordered_map>
-#ifdef __3DS__
-#include <3ds.h>
-#endif
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 

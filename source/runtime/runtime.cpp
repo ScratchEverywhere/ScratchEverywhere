@@ -64,7 +64,7 @@ bool Scratch::startScratchProject() {
 #endif
     Scratch::nextProject = false;
 
-#ifdef __3DS__
+#ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird
     BlockExecutor::updateMonitors();
     Render::renderSprites();
