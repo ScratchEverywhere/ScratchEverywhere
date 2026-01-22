@@ -60,6 +60,7 @@ void ProjectsMenu::render() {
 
     unsigned int columns = (Clay_GetElementData(CLAY_ID("main")).boundingBox.width + gap - 2 * padding) / (itemWidth + gap);
     if (columns > maxColumns) columns = maxColumns;
+    else if (columns <= 0) columns = 1;
     const unsigned int rows = std::ceil(projects.size() / static_cast<float>(columns));
 
     bool selectedMoved = false;
