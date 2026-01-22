@@ -125,7 +125,6 @@ void SettingsMenu::renderToggle(const std::string &setting) {
     if (startTimer.getTimeMs() > animationDuration) offset = settings[setting] ? std::lerp(0, height, t) : std::lerp(height, 0, t);
     else offset = settings[setting] ? height : 0;
 
-    Log::log("test: " + std::string(clayIds[setting].chars, clayIds[setting].length));
     // clang-format off
     CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
 		.layout = {
