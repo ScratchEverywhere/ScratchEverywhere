@@ -86,7 +86,8 @@ void ProjectsMenu::render() {
     if (selectedProject == 0 && projects.empty()) selectedProject = -1;
 
     if (!projects.empty()) {
-        float maxScrollPosition = (60 * menuManager->scale * rows) + (10 * menuManager->scale * (rows - 1)) + (24 * menuManager->scale + 10 * menuManager->scale) + (padding * 2) - windowHeight;
+        const Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(CLAY_ID("main"));
+        float maxScrollPosition = scrollContainerData.contentDimensions.height - scrollContainerData.scrollContainerDimensions.height;
         if (maxScrollPosition < 0) maxScrollPosition = 0;
 
         scrollOffset += Input::scrollDelta[1] * frameTimer.getTimeMs();
