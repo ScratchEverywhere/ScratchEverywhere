@@ -28,7 +28,6 @@ struct imageRGBA {
     int textureWidth;
     int textureHeight;
 
-    size_t textureMemSize;
     unsigned char *data;
 };
 
