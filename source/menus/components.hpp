@@ -6,11 +6,10 @@
 #include <map>
 #include <string>
 
-#ifdef __3DS__
+#ifdef RENDERER_CITRO2D
 #include <citro2d.h>
 #elif defined(RENDERER_SDL2)
-#include <SDL2/SDL.h>
-#include <SDL_ttf.h>
+#include <renderers/sdl2/clay_renderer.h>
 #endif
 
 class MenuManager;
@@ -19,13 +18,8 @@ namespace components {
 #define DEFAULT_TEXT_CONFIG CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16})
 
 #ifdef RENDERER_SDL2
-struct Other_SDL2_Font {
-    uint32_t fontId;
-    TTF_Font *font;
-};
-
-extern Other_SDL2_Font fonts[2];
-#elif defined(__3DS__)
+extern SDL2_Font fonts[2];
+#elif defined(RENDERER_CITRO2D)
 extern std::map<unsigned int, C2D_Font> fonts;
 #endif
 

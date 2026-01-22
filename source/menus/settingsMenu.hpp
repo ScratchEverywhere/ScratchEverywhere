@@ -29,7 +29,6 @@ class SettingsMenu : public Menu {
         {"UseProjectsPath", "Enable Custom Project Path"},
         {"ProjectsPath", "Set Project Path"},
         {"musicVolume", "Music Volume"},
-
     };
 
     std::map<std::string, Timer> animationTimers;

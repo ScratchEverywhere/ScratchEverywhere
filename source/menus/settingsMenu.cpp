@@ -81,14 +81,14 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 				.border = { .color = { 220, 120, 5}, .width = { knobBorderWidth, knobBorderWidth, knobBorderWidth, knobBorderWidth } },
 			});
 
-            Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
+            Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto hoverData = reinterpret_cast<Settings_HoverData*>(userdata);
 			if (pointerData.state == CLAY_POINTER_DATA_PRESSED) {
                 hoverData->pointerPos[0] = pointerData.position.x;
                 hoverData->pointerPos[1] = pointerData.position.y;
                 hoverData->pressed = true;
 			} else hoverData->pressed = false;
-		}, (intptr_t)&hoverData.at(setting));
+		}, &hoverData.at(setting));
 		} 
         auto &hd = hoverData.at(setting);
         hd.valueText = std::to_string(value);
@@ -125,6 +125,7 @@ void SettingsMenu::renderToggle(const std::string &setting) {
     if (startTimer.getTimeMs() > animationDuration) offset = settings[setting] ? std::lerp(0, height, t) : std::lerp(height, 0, t);
     else offset = settings[setting] ? height : 0;
 
+    Log::log("test: " + std::string(clayIds[setting].chars, clayIds[setting].length));
     // clang-format off
     CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
 		.layout = {
@@ -134,13 +135,13 @@ void SettingsMenu::renderToggle(const std::string &setting) {
 			.layoutDirection = CLAY_LEFT_TO_RIGHT
 		}
 	}) {
-		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto hoverData = *(const Settings_HoverData*)userdata;
 			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
 				hoverData.settings[hoverData.key] = !hoverData.settings[hoverData.key];
 				hoverData.animationTimer.start();
 			}
-		}, (intptr_t)&hoverData.at(setting));
+		}, &hoverData.at(setting));
 
 		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
 		CLAY(CLAY_ID_LOCAL("toggle"), (Clay_ElementDeclaration){
@@ -182,13 +183,13 @@ void SettingsMenu::renderInputButton(const std::string &setting) {
 		.backgroundColor = {90, 60, 90, 255},
 		.cornerRadius = {5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale}
 	}) {
-		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto hoverData = *(const Settings_HoverData*)userdata;
 			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
 				const std::string newContent = Input::openSoftwareKeyboard(hoverData.settings[hoverData.key].get<std::string>().c_str());
 				if (std::regex_match(newContent, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))) hoverData.settings[hoverData.key] = newContent;
 			}
-		}, (intptr_t)&hoverData.at(setting));
+		}, &hoverData.at(setting));
 
 		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
 	}

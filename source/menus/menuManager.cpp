@@ -16,22 +16,13 @@
 #include <utility>
 
 #ifdef RENDERER_SDL2
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wc++11-narrowing"
-#endif
-
-#include <clay_renderer_SDL2.c>
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+#include <renderers/sdl2/clay_renderer.h>
 #include <renderers/sdl2/render.hpp>
-#elif defined(__3DS__)
-#include "../../3ds/image.hpp"
+#elif defined(RENDERER_CITRO2D)
 #include <citro2d.h>
 #include <citro3d.h>
-#include <clay3ds.h>
+#include <renderers/citro2d/clay_renderer.hpp>
+#include <renderers/citro2d/image.hpp>
 
 constexpr unsigned int windowWidth = 320;
 constexpr unsigned int windowHeight = 240;
@@ -99,24 +90,24 @@ void MenuManager::initClay() {
     if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError(std::string("Failed to load bold menu font: ") + TTF_GetError());
 
     Clay_SetMeasureTextFunction(SDL2_MeasureText, &components::fonts);
-#elif defined(__3DS__)
+#elif defined(RENDERER_CITRO2D)
     C2D_Font font = C2D_FontLoad("romfs:/gfx/menu/RedditSansFudge-Regular.bcfnt");
-    unsigned int fontId = Clay3DS_RegisterFont(font);
-    if (fontId == Clay3DS_FONT_INVALID) Log::logError("Failed to load menu font.");
+    unsigned int fontId = Clay_Citro2D_RegisterFont(font);
+    if (fontId == Clay_Citro2D_FONT_INVALID) Log::logError("Failed to load menu font.");
     else {
         components::fonts[fontId] = font;
         components::FONT_ID_BODY_16 = fontId;
     }
 
     font = C2D_FontLoad("romfs:/gfx/menu/RedditSansFudge-Bold.bcfnt");
-    fontId = Clay3DS_RegisterFont(font);
-    if (fontId == Clay3DS_FONT_INVALID) Log::logError("Failed to load bold menu font.");
+    fontId = Clay_Citro2D_RegisterFont(font);
+    if (fontId == Clay_Citro2D_FONT_INVALID) Log::logError("Failed to load bold menu font.");
     else {
         components::fonts[fontId] = font;
         components::FONT_ID_BODY_BOLD_48 = fontId;
     }
 
-    Clay_SetMeasureTextFunction(Clay3DS_MeasureText, nullptr);
+    Clay_SetMeasureTextFunction(Clay_Citro2D_MeasureText, nullptr);
 #endif
 }
 
@@ -124,7 +115,7 @@ void MenuManager::freeClay() {
 #ifdef RENDERER_SDL2
     if (components::fonts[components::FONT_ID_BODY_16].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_16].font);
     if (components::fonts[components::FONT_ID_BODY_BOLD_48].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_BOLD_48].font);
-#elif defined(__3DS__)
+#elif defined(RENDERER_CITRO2D)
     for (auto &font : components::fonts)
         C2D_FontFree(font.second);
 #endif
@@ -146,7 +137,7 @@ void MenuManager::render() {
 #ifdef RENDERER_SDL2
     SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
     SDL_RenderClear(renderer);
-#elif defined(__3DS__)
+#elif defined(RENDERER_CITRO2D)
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(bottomScreen, C2D_Color32(66, 44, 66, 255));
     C2D_TargetClear(topScreen, C2D_Color32(66, 44, 66, 255));
@@ -168,8 +159,8 @@ void MenuManager::render() {
 #ifdef RENDERER_SDL2
     Clay_SDL2_Render(renderer, Clay_EndLayout(), reinterpret_cast<SDL2_Font *>(components::fonts));
     SDL_RenderPresent(renderer);
-#elif defined(__3DS__)
-    Clay3DS_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
+#elif defined(RENDERER_CITRO2D)
+    Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
     C3D_FrameEnd(0);
 #endif
 }

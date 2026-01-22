@@ -9,7 +9,7 @@
 #ifdef RENDERER_SDL2
 #include <renderers/sdl2/image.hpp>
 #elif defined(__3DS__)
-#include "../../3ds/image.hpp"
+#include <renderers/citro2d/image.hpp>
 #endif
 
 enum class MenuID {

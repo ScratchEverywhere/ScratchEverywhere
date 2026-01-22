@@ -8,8 +8,7 @@
 #include <vector>
 
 #ifdef RENDERER_SDL2
-#include <SDL2/SDL.h>
-#include <SDL_image.h>
+#include <renderers/sdl2/clay_renderer.h>
 #include <renderers/sdl2/render.hpp>
 
 extern SDL_GameController *controller;
@@ -17,8 +16,8 @@ extern SDL_GameController *controller;
 
 namespace components {
 #ifdef RENDERER_SDL2
-Other_SDL2_Font fonts[2] = {};
-#elif defined(__3DS__)
+SDL2_Font fonts[2] = {};
+#elif defined(RENDERER_CITRO2D)
 std::map<unsigned int, C2D_Font> fonts;
 #endif
 
@@ -90,10 +89,10 @@ void Sidebar::renderItem(const std::string tab) {
 		.backgroundColor = bgColor,
 		.cornerRadius = {16 * menuManager->scale, 0, 16 * menuManager->scale, 0},
 	}) {
-		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto hoverData = *(const HoverData*)userdata;
 			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && hoverData.menuManager->currentMenuID != tabToMenuID(hoverData.tab)) hoverData.menuManager->changeMenu(tabToMenuID(hoverData.tab));
-		}, (intptr_t)&hoverData[tab]);
+		}, &hoverData[tab]);
 
 		if (images.contains(tab) && images[tab]) CLAY(CLAY_SID(clayImageId), (Clay_ElementDeclaration){
 			.layout = {
@@ -189,11 +188,11 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 		.border = { .color = borderColor, .width = {static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale)} }
 	}) {
 		if (i <= projectHoverData.size()) projectHoverData.push_back({ menuManager, &projectInfo });
-		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, intptr_t userdata) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME) return;
 			const auto projectHoverData = (const ProjectHoverData*)userdata;
 			projectHoverData->menuManager->launchProject(projectHoverData->projectInfo->path);
-		}, (intptr_t)&projectHoverData[i]);
+		}, &projectHoverData[i]);
 
 		if (image) {
 			CLAY(CLAY_IDI("project-list-item-img", i), (Clay_ElementDeclaration){

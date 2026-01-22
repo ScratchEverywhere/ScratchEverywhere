@@ -242,7 +242,7 @@ if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STR
 		GITHUB_REPOSITORY nicbarker/clay
 		VERSION 0.14
 		DOWNLOAD_ONLY TRUE
-		GIT_TAG fd97d8179e329be597bd8f7a1a9a2382d191ff1f # newer clay commits have breaking changes that i dont feel like fixing rn
+		GIT_TAG main # TODO: Pin Commit
 		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clay.patch"
 	)
 endif()
