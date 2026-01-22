@@ -231,7 +231,6 @@ void Input::getInput(MenuManager *menuManager) {
 #endif
 
 #ifdef PLATFORM_HAS_MOUSE
-
     std::vector<int> rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
@@ -243,13 +242,12 @@ void Input::getInput(MenuManager *menuManager) {
         mousePointer.isPressed = true;
     }
 
-#endif
-
-    BlockExecutor::doSpriteClicking();
-
     if (menuManager == nullptr) return;
     if (controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
     menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
+#endif
+
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {
