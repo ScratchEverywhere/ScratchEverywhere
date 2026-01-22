@@ -596,7 +596,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         Log::logWarning("No Max clones property.");
 #endif
     }
-#ifdef __3DS__
+#ifdef RENDERER_CITRO2D
     if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
     else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
@@ -608,7 +608,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
-#elif defined(__NDS__)
+#elif defined(RENDERER_GL2D)
     auto bottomScreen = Unzip::getSetting("bottomScreen");
     if (!bottomScreen.is_null() && bottomScreen.get<bool>())
         Render::renderMode = Render::BOTTOM_SCREEN_ONLY;

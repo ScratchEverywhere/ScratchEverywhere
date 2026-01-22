@@ -7,10 +7,10 @@
 #include <random>
 #include <stdexcept>
 #include <string>
-#ifdef __3DS__
+#ifdef RENDERER_CITRO2D
 #include <citro2d.h>
 #endif
-#ifdef __NDS__
+#ifdef RENDERER_GL2D
 #include <nds.h>
 #endif
 
@@ -20,7 +20,7 @@ int Math::color(int r, int g, int b, int a) {
     b = std::clamp(b, 0, 255);
     a = std::clamp(a, 0, 255);
 
-#ifdef __NDS__
+#ifdef RENDERER_GL2D
     int r5 = r >> 3;
     int g5 = g >> 3;
     int b5 = b >> 3;
@@ -30,7 +30,7 @@ int Math::color(int r, int g, int b, int a) {
            (g << 16) |
            (b << 8) |
            a;
-#elif defined(__3DS__)
+#elif defined(RENDERER_CITRO2D)
     return C2D_Color32(r, g, b, a);
 #endif
     return 0;

@@ -2,7 +2,6 @@
 #include "menus/menuManager.hpp"
 #include "speech_manager_c2d.hpp"
 #include <audio.hpp>
-#include <chrono>
 #include <downloader.hpp>
 #include <input.hpp>
 #include <render.hpp>
@@ -12,21 +11,18 @@
 #include <window.hpp>
 #include <windowing/3ds/window.hpp>
 
-#define SCREEN_WIDTH 400
-#define BOTTOM_SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 240
+constexpr unsigned int screenWidth = 400;
+constexpr unsigned int bottomScreenWidth = 320;
+constexpr unsigned int screenHeight = 240;
 
 Window *globalWindow = nullptr;
 SpeechManagerC2D *speechManager = nullptr;
 C3D_RenderTarget *topScreen = nullptr;
 C3D_RenderTarget *topScreenRightEye = nullptr;
 C3D_RenderTarget *bottomScreen = nullptr;
-u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
-u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
-u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
-u32 clrScratchBlue = C2D_Color32(71, 107, 115, 255);
-std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
+constexpr u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
+constexpr u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
+constexpr u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 bool Render::debugMode = false;
@@ -93,18 +89,18 @@ SpeechManager *Render::getSpeechManager() {
 
 int Render::getWidth() {
     if (currentScreen == 0 && renderMode != BOTTOM_SCREEN_ONLY)
-        return SCREEN_WIDTH;
-    else return BOTTOM_SCREEN_WIDTH;
+        return screenWidth;
+    else return bottomScreenWidth;
 }
 int Render::getHeight() {
-    return SCREEN_HEIGHT;
+    return screenHeight;
 }
 
 bool Render::initPen() {
     if (penRenderTarget != nullptr) return true;
 
-    const int width = renderMode != BOTTOM_SCREEN_ONLY ? SCREEN_WIDTH : BOTTOM_SCREEN_WIDTH;
-    const int height = renderMode != BOTH_SCREENS ? SCREEN_HEIGHT : SCREEN_HEIGHT * 2;
+    const int width = renderMode != BOTTOM_SCREEN_ONLY ? screenWidth : bottomScreenWidth;
+    const int height = renderMode != BOTH_SCREENS ? screenHeight : screenHeight * 2;
 
     // texture dimensions must be a power of 2. subtex dimensions can be the actual resolution.
     penTex = new C3D_Tex();
@@ -147,7 +143,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const int width = getWidth();
     const int height = getHeight();
 
-    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (SCREEN_HEIGHT * 0.5) + 32;
+    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (screenHeight * 0.5) + 32;
 
     const float heightMultiplier = 0.5f;
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
@@ -179,7 +175,7 @@ void Render::penDot(Sprite *sprite) {
     C2D_SceneBegin(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (SCREEN_HEIGHT * 0.5) + 32;
+    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (screenHeight * 0.5) + 32;
 
     const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
     const int thickness = std::clamp(static_cast<int>(sprite->penData.size * Render::renderScale), 1, 1000);
@@ -226,7 +222,7 @@ void Render::penStamp(Sprite *sprite) {
             C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
     } else C2D_AlphaImageTint(&tinty, 1.0f);
 
-    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (SCREEN_HEIGHT * 0.5) + 32;
+    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (screenHeight * 0.5) + 32;
 
     C2D_DrawImageAtRotated(
         *costumeTexture,
@@ -429,15 +425,15 @@ void Render::renderSprites() {
         renderVisibleVariables();
         // Draw mouse pointer
         if (Input::mousePointer.isMoving) {
-            C2D_DrawRectSolid((Input::mousePointer.x * renderScale) + (SCREEN_WIDTH * 0.5),
-                              (Input::mousePointer.y * -1 * renderScale) + (SCREEN_HEIGHT * 0.5), 1, 5, 5, clrGreen);
+            C2D_DrawRectSolid((Input::mousePointer.x * renderScale) + (screenWidth * 0.5),
+                              (Input::mousePointer.y * -1 * renderScale) + (screenHeight * 0.5), 1, 5, 5, clrGreen);
             Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
             Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
         }
     }
 
     if (Render::renderMode != Render::BOTH_SCREENS)
-        drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+        drawBlackBars(screenWidth, screenHeight);
 
     // ---------- RIGHT EYE ----------
     C2D_TargetClear(topScreenRightEye, clrWhite);
@@ -490,7 +486,7 @@ void Render::renderSprites() {
         renderVisibleVariables();
 
         if (Render::renderMode != Render::BOTH_SCREENS)
-            drawBlackBars(SCREEN_WIDTH, SCREEN_HEIGHT);
+            drawBlackBars(screenWidth, screenHeight);
     }
 
     // ---------- BOTTOM SCREEN ----------
@@ -507,8 +503,8 @@ void Render::renderSprites() {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float yOffset = renderMode == BOTH_SCREENS ? -SCREEN_HEIGHT : 0.0f;
-                const float xOffset = renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0.0f;
+                const float yOffset = renderMode == BOTH_SCREENS ? -screenHeight : 0.0f;
+                const float xOffset = renderMode == BOTH_SCREENS ? -(screenWidth - bottomScreenWidth) * 0.5 : 0.0f;
 
                 C2D_DrawImageAt(penImage,
                                 xOffset,
@@ -531,7 +527,7 @@ void Render::renderSprites() {
                         currentSprite,
                         costume.id,
                         true,
-                        renderMode == BOTH_SCREENS ? -(SCREEN_WIDTH - BOTTOM_SCREEN_WIDTH) * 0.5 : 0,
+                        renderMode == BOTH_SCREENS ? -(screenWidth - bottomScreenWidth) * 0.5 : 0,
                         renderMode == BOTH_SCREENS ? -120 : 0);
                     break;
                 }
@@ -544,7 +540,7 @@ void Render::renderSprites() {
         }
 
         if (Render::renderMode != Render::BOTH_SCREENS) {
-            drawBlackBars(BOTTOM_SCREEN_WIDTH, SCREEN_HEIGHT);
+            drawBlackBars(bottomScreenWidth, screenHeight);
             renderVisibleVariables();
         } else {
             renderVisibleVariables(-40, -240);
