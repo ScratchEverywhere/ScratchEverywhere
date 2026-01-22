@@ -47,7 +47,7 @@ void SettingsMenu::renderSlider(const std::string &setting) {
     const float knobHeight = height - padding * 2;
     const uint16_t knobBorderWidth = 2 * menuManager->scale;
 
-    float offset = (width - (knobHeight * 1.5)) * (static_cast<float>(value) / 100.0f);
+    float offset = (width - (knobHeight * 1.6)) * (static_cast<float>(value) / 100.0f);
 
     // clang-format off
     CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
@@ -99,10 +99,10 @@ void SettingsMenu::renderSlider(const std::string &setting) {
         
         Clay_ElementData data = Clay_GetElementData(CLAY_ID_LOCAL("bar"));
 
-        if (hd.pressed && hd.pointerPos[0] >= data.boundingBox.x && hd.pointerPos[0] <= data.boundingBox.x + data.boundingBox.width &&
-            hd.pointerPos[1] >= data.boundingBox.y && hd.pointerPos[1] <= data.boundingBox.y + data.boundingBox.height) {
-
-            float val = std::clamp(static_cast<float>((hd.pointerPos[0] - data.boundingBox.x)) / ((data.boundingBox.x + data.boundingBox.width - 10) - data.boundingBox.x), 0.0f, 1.0f);
+        if (hd.pressed) {
+			const float lefty = data.boundingBox.x + 10 * menuManager->scale;
+			const float righty = data.boundingBox.x + data.boundingBox.width - 10 * menuManager->scale; 
+            float val = std::clamp(static_cast<float>((hd.pointerPos[0] - lefty)) / (righty - lefty), 0.0f, 1.0f);
 
             hd.settings[hd.key] = static_cast<int>(100 * val);
         }
