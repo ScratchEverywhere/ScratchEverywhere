@@ -5,7 +5,7 @@ FROM --platform=$BUILDPLATFORM crazymax/osxcross:13.1-alpine AS osxcross
 FROM alpine:latest AS main_builder
 WORKDIR /app
 
-RUN apk add --no-cache clang lld musl-dev fts cmake make git bash
+RUN apk add --no-cache clang lld musl-dev fts cmake make git bash patch
 
 COPY --from=osxcross /osxcross /osxcross
 ENV PATH="/osxcross/bin:$PATH"

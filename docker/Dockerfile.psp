@@ -3,6 +3,8 @@ WORKDIR /app
 
 COPY . .
 
+RUN apk add --no-cache patch
+
 RUN psp-cmake -B build/psp -S . && make -C build/psp -j $(nproc)
 
 FROM scratch AS exporter
