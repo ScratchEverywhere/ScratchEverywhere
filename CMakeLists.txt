@@ -236,7 +236,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz)
 
-if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "sdl1")
+if(NOT SE_RENDERER STREQUAL "headless")
 	CPMAddPackage(
 		NAME clay
 		GITHUB_REPOSITORY nicbarker/clay
@@ -600,8 +600,8 @@ if(NOT BUILD_SHARED_LIBS AND MINGW)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()
 
-if (SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "sdl1")
-	target_include_directories(scratch-everywhere PRIVATE "${clay_SOURCE_DIR}" "${clay_SOURCE_DIR}/renderers/SDL2")
+if (NOT SE_RENDERER STREQUAL "headless")
+	target_include_directories(scratch-everywhere PRIVATE "${clay_SOURCE_DIR}")
 endif()
 
 if(SE_RENDERER STREQUAL "sdl3")
