@@ -226,7 +226,7 @@ std::unique_ptr<Image> getControllerImage(const std::string button) {
     static const std::string controllerType = "wii"; // TODO: Nunchuck detection
 #elif defined(GAMECUBE)
     static const std::string controllerType = "gamecube";
-#elif defined(RENDERER_SDL2)
+#elif defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
     static std::string controllerType;
     if (controller == nullptr) controllerType = "xbox"; // Default to Xbox because it's the most common.
     else switch (SDL_GameControllerGetType(controller)) {
@@ -247,6 +247,8 @@ std::unique_ptr<Image> getControllerImage(const std::string button) {
             controllerType = "xbox";
             break;
         }
+#else
+    static const std::string controllerType = "xbox"; // Default to Xbox because it's the most common.
 #endif
 
     std::unordered_map<std::string, std::string> buttonMap;
