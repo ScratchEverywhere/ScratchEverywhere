@@ -211,6 +211,8 @@ void Input::getInput(MenuManager *menuManager) {
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
 
+    if (menuManager != nullptr && controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
+
 #endif
 
     if (!inputButtons.empty()) inputButtons.push_back("any");
@@ -242,9 +244,8 @@ void Input::getInput(MenuManager *menuManager) {
         mousePointer.isPressed = true;
     }
 
-    if (menuManager == nullptr) return;
-    if (controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
-    menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
+    if (menuManager != nullptr) menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
+
 #endif
 
     BlockExecutor::doSpriteClicking();
