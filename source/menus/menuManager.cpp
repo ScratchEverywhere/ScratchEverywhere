@@ -24,9 +24,6 @@
 #include <renderers/citro2d/clay_renderer.hpp>
 #include <renderers/citro2d/image.hpp>
 
-constexpr unsigned int windowWidth = 320;
-constexpr unsigned int windowHeight = 240;
-
 extern C3D_RenderTarget *bottomScreen;
 extern C3D_RenderTarget *topScreen;
 #endif
@@ -128,8 +125,13 @@ void MenuManager::render() {
     // #ifdef RENDERER_SDL2
     //     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     // #endif
+#ifdef RENDERER_CITRO2D
+    constexpr unsigned int windowWidth = 320;
+    constexpr unsigned int windowHeight = 240;
+#else
     const int windowWidth = Render::getWidth();
     const int windowHeight = Render::getHeight();
+#endif
     Clay_SetLayoutDimensions({static_cast<float>(windowWidth), static_cast<float>(windowHeight)});
     scale = std::sqrt(windowWidth * windowWidth + windowHeight * windowHeight) / 600.0f;
     if (scale > maxScale) scale = maxScale;
