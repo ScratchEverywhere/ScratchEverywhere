@@ -69,6 +69,7 @@ void MenuManager::back() {
 }
 
 MenuManager::MenuManager() {
+    Input::applyControls();
     sidebar.menuManager = this;
 }
 

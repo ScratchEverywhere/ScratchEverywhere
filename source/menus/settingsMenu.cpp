@@ -228,6 +228,16 @@ void SettingsMenu::render() {
         }
 
         animationTimers[renderOrder[selected]].start();
+    } else if ((Input::isButtonJustPressed("dpadRight") || (Input::isButtonJustPressed("LeftStickRight")) || Input::keyHeldDuration[Input::inputControls["dpadRight"]] > 30 || Input::keyHeldDuration[Input::inputControls["LeftStickRight"]] > 30) && selected != -1) {
+        if (settings[renderOrder[selected]].is_number_integer()) {
+            const int oldVal = settings[renderOrder[selected]].get<int>();
+            settings[renderOrder[selected]] = std::clamp(oldVal + 1, 0, 100);
+        }
+    } else if ((Input::isButtonJustPressed("dpadLeft") || (Input::isButtonJustPressed("LeftStickLeft")) || Input::keyHeldDuration[Input::inputControls["dpadLeft"]] > 30 || Input::keyHeldDuration[Input::inputControls["LeftStickLeft"]] > 30) && selected != -1) {
+        if (settings[renderOrder[selected]].is_number_integer()) {
+            const int oldVal = settings[renderOrder[selected]].get<int>();
+            settings[renderOrder[selected]] = std::clamp(oldVal - 1, 0, 100);
+        }
     }
 
     // clang-format off

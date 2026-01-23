@@ -143,5 +143,7 @@ class Input {
 
     static std::string openSoftwareKeyboard(const char *hintText);
 
-    static bool isButtonJustPressed(const std::string &button) { return false; } // TODO: re-implement
+    static bool isButtonJustPressed(const std::string &button) {
+        return Input::keyHeldDuration.find(Input::inputControls[button]) != Input::keyHeldDuration.end() && Input::keyHeldDuration[Input::inputControls[button]] == 1;
+    }
 };
