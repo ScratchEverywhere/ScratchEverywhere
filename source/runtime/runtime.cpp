@@ -391,50 +391,7 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
             return false;
         }
 
-        // simple AABB collision for non rotated sprites
-        if ((currentSprite->rotationStyle != currentSprite->ALL_AROUND && targetSprite->rotationStyle != targetSprite->ALL_AROUND) ||
-            (std::abs(currentSprite->rotation) == 90 && std::abs(targetSprite->rotation) == 90)) {
-
-            const bool currentSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
-            const bool targetSVG = targetSprite->costumes[targetSprite->currentCostume].isSVG;
-
-            Render::calculateRenderPosition(currentSprite, currentSVG);
-            Render::calculateRenderPosition(targetSprite, targetSVG);
-
-            const auto &currentCords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
-            float currentX = currentCords.first;
-            float currentY = currentCords.second;
-
-            const auto &targetCords = Scratch::screenToScratchCoords(targetSprite->renderInfo.renderX, targetSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
-            float targetX = targetCords.first;
-            float targetY = targetCords.second;
-
-            // put position to top left of sprite (SDL platforms already do this)
-#if !defined(RENDERER_SDL1) && !defined(RENDERER_SDL2) && !defined(RENDERER_SDL3)
-            currentX -= (currentSprite->spriteWidth / (currentSVG ? 1 : 2)) * currentSprite->size * 0.01;
-            currentY += (currentSprite->spriteHeight / (currentSVG ? 1 : 2)) * currentSprite->size * 0.01;
-            targetX -= (targetSprite->spriteWidth / (targetSVG ? 1 : 2)) * targetSprite->size * 0.01;
-            targetY += (targetSprite->spriteHeight / (targetSVG ? 1 : 2)) * targetSprite->size * 0.01;
-#endif
-
-            const float currentMinX = currentX;
-            const float currentMaxX = currentX + currentSprite->spriteWidth * (currentSVG ? 2 : 1);
-            const float currentMinY = currentY;
-            const float currentMaxY = currentY + currentSprite->spriteHeight * (currentSVG ? 2 : 1);
-
-            const float targetMinX = targetX;
-            const float targetMaxX = targetX + targetSprite->spriteWidth * (targetSVG ? 2 : 1);
-            const float targetMinY = targetY;
-            const float targetMaxY = targetY + targetSprite->spriteHeight * (targetSVG ? 2 : 1);
-
-            return (currentMinX <= targetMaxX && currentMaxX >= targetMinX) &&
-                   (currentMinY <= targetMaxY && currentMaxY >= targetMinY);
-        }
-
-        // SAT collision for rotated sprites
-
-        std::vector<std::pair<double, double>> targetSpritePoints =
-            Scratch::getCollisionPoints(targetSprite);
+        std::vector<std::pair<double, double>> targetSpritePoints = Scratch::getCollisionPoints(targetSprite);
 
         bool collision = true;
 
