@@ -11,7 +11,9 @@
 #include <renderers/sdl2/clay_renderer.h>
 #include <renderers/sdl2/render.hpp>
 
+#ifdef PLATFORM_HAS_CONTROLLER
 extern SDL_GameController *controller;
+#endif
 #endif
 
 namespace components {
@@ -123,7 +125,7 @@ void Sidebar::render() {
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
 		},
 	}) {
-#ifdef RENDERER_SDL2
+#if defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
 		if (controller != nullptr && menuManager->scale >= 1.5) {
 #else
 		if (menuManager->scale >= 1.5) {
@@ -145,7 +147,7 @@ void Sidebar::render() {
 		}) {
 			for (const auto &tab : tabs) renderItem(tab);
 		}
-#ifdef RENDERER_SDL2
+#if defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
 		if (controller != nullptr && menuManager->scale >= 1.5) {
 #else
 		if (menuManager->scale >= 1.5) {
