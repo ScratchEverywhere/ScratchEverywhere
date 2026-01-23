@@ -112,7 +112,7 @@ void ProjectsMenu::render() {
                 else scrollOffset = -((padding * 2) + (60 * menuManager->scale * selectedRow) + (10 * menuManager->scale * (selectedRow - 2)) + (24 * menuManager->scale + 10 * menuManager->scale));
             } else if (selectedBoundingBox.y + selectedBoundingBox.height > windowHeight) {
                 if (selectedRow == rows - 1) scrollOffset = -maxScrollPosition;
-                else scrollOffset = -((padding * 2) + (60 * menuManager->scale * (selectedRow + 1)) + (10 * menuManager->scale * selectedRow - 1) + (24 * menuManager->scale + 10 * menuManager->scale)) + windowHeight;
+                else scrollOffset = -((padding * 2) + (60 * menuManager->scale * (selectedRow + 1)) + (10 * menuManager->scale * (selectedRow - 1)) + (24 * menuManager->scale + 10 * menuManager->scale)) + windowHeight;
             }
         }
 
