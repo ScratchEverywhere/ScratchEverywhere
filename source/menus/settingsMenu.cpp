@@ -37,6 +37,8 @@ SettingsMenu::~SettingsMenu() {
 void SettingsMenu::renderSlider(const std::string &setting) {
     renderOrder.push_back(setting);
 
+    auto &hd = hoverData.at(setting);
+
     const int value = settings[setting].get<int>();
 
     const uint16_t fontSize = 16 * menuManager->scale;
@@ -47,7 +49,12 @@ void SettingsMenu::renderSlider(const std::string &setting) {
     const float knobHeight = height - padding * 2;
     const uint16_t knobBorderWidth = 2 * menuManager->scale;
 
-    float offset = (width - (knobHeight * 1.6)) * (static_cast<float>(value) / 100.0f);
+    const float maxOffset = (width - (knobHeight * 1.6)) * (static_cast<float>(value) / 100.0f);
+
+    const float t = std::min(animationTimers[setting].getTimeMs(), static_cast<int>(animationDuration)) / static_cast<float>(animationDuration);
+    float offset;
+    if (!hd.justPressed && startTimer.getTimeMs() > animationDuration) offset = std::lerp(hd.lastOffset, maxOffset, t);
+    else offset = maxOffset;
 
     // clang-format off
     CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
@@ -83,6 +90,10 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 
             Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto hoverData = reinterpret_cast<Settings_HoverData*>(userdata);
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+				hoverData->animationTimer.start();
+				hoverData->justPressed = true;
+			} else hoverData->justPressed = false;
 			if (pointerData.state == CLAY_POINTER_DATA_PRESSED) {
                 hoverData->pointerPos[0] = pointerData.position.x;
                 hoverData->pointerPos[1] = pointerData.position.y;
@@ -90,7 +101,6 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 			} else hoverData->pressed = false;
 		}, &hoverData.at(setting));
 		} 
-        auto &hd = hoverData.at(setting);
         hd.valueText = std::to_string(value);
         
         CLAY_TEXT(( (Clay_String){false, static_cast<int32_t>(hd.valueText.length()), hd.valueText.c_str()}),
@@ -106,6 +116,9 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 
             hd.settings[hd.key] = static_cast<int>(100 * val);
         }
+		if (hd.justPressed) {
+			hd.lastOffset = offset;
+		}
 	}
     // clang-format on
 }

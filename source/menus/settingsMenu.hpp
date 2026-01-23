@@ -12,9 +12,13 @@ struct Settings_HoverData {
     nlohmann::json &settings;
     const std::string key;
     Timer &animationTimer;
+
+    /* used in slider buttons */
     std::array<float, 2> pointerPos;
     bool pressed = false;
+    bool justPressed = false;
     std::string valueText;
+    float lastOffset = 0;
 };
 
 class SettingsMenu : public Menu {
