@@ -86,6 +86,8 @@ bool Render::Init() {
 
     setRenderScale();
 
+    speechManager = new SpeechManagerGL();
+
     debugMode = true;
 
     return true;
@@ -99,6 +101,11 @@ void Render::deInit() {
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
+
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
 
     if (globalWindow) {
         globalWindow->cleanup();
@@ -577,6 +584,10 @@ void Render::renderSprites() {
             glPopMatrix();
         }
         if (currentSprite->isStage) renderPenLayer();
+    }
+
+    if (speechManager) {
+        speechManager->render();
     }
 
     drawBlackBars(getWidth(), getHeight());
