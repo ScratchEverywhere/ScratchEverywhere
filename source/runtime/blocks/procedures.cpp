@@ -49,6 +49,7 @@ SCRATCH_BLOCK(procedures, call) {
     if (!fromRepeat) {
         // Run the custom block for the first time
         if (BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh) == BlockResult::RETURN) return BlockResult::RETURN;
+        if (sprite->toDelete) return BlockResult::RETURN;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
@@ -60,8 +61,10 @@ SCRATCH_BLOCK(procedures, call) {
         // Custom block execution is complete
         block.customBlockPtr = nullptr;
 
+        if (sprite->toDelete) {
+            return BlockResult::RETURN;
+        }
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
-
         return BlockResult::CONTINUE;
     }
 

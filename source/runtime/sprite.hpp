@@ -164,7 +164,6 @@ class Sprite {
     bool visible;
     bool isClone;
     bool toDelete;
-    bool isDeleted = false;
     bool shouldDoSpriteClick = false;
     int currentCostume;
     float xPosition;

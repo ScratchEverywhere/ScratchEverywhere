@@ -182,7 +182,7 @@ void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockCh
     bool withoutRefresh = true;
     if (sprite->blockChains.find(blockChainID) == sprite->blockChains.end()) return;
 
-    while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
+    while (!sprite->blockChains[blockChainID].blocksToRepeat.empty() && !sprite->toDelete) {
         const std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
         Block *toRun = Scratch::findBlock(toRepeat, sprite);
         if (toRun != nullptr)
@@ -213,7 +213,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             // Execute the custom block definition
             executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh, false);
 
-            if (localWithoutRefresh) BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
+            if (localWithoutRefresh && !sprite->toDelete) BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
 
             break;
         }
