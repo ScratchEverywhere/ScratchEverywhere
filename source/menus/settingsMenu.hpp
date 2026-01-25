@@ -1,33 +1,67 @@
 #pragma once
-#include "mainMenu.hpp"
-#include "menuObjects.hpp"
+
+#include "clay.h"
+#include "image.hpp"
+#include "menu.hpp"
+#include "os.hpp"
+#include <map>
+#include <nlohmann/json.hpp>
+#include <string>
+
+struct Settings_HoverData {
+    nlohmann::json &settings;
+    const std::string key;
+    Timer &animationTimer;
+
+    /* used in slider buttons */
+    std::array<float, 2> pointerPos;
+    bool pressed = false;
+    bool justPressed = false;
+    std::string valueText;
+    float lastOffset = 0;
+};
 
 class SettingsMenu : public Menu {
   private:
-    void updateButtonStates();
+    Clay_String title;
+
+    std::map<std::string, Clay_String> clayIds;
+    std::map<std::string, Settings_HoverData> hoverData;
+    const std::map<std::string, std::string> names = {
+        {"useCustomUsername", "Enable Custom Username"},
+        {"customUsername", "Set Custom Username"},
+        {"UseProjectsPath", "Enable Custom Project Path"},
+        {"ProjectsPath", "Set Project Path"},
+        {"musicVolume", "Music Volume"},
+    };
+
+    std::map<std::string, Timer> animationTimers;
+    static constexpr unsigned int animationDuration = 100;
+    Timer startTimer;
+
+    std::unique_ptr<Image> indicator;
+
+    std::vector<std::string> renderOrder;
+    int selected = -1;
+
+  protected:
+    nlohmann::json settings;
+
+    void renderToggle(const std::string &setting);
+    void renderSlider(const std::string &setting);
+    void renderInputButton(const std::string &setting);
 
   public:
-    ControlObject *settingsControl = nullptr;
-    ButtonObject *backButton = nullptr;
-    ButtonObject *Credits = nullptr;
-    ButtonObject *EnableUsername = nullptr;
-    ButtonObject *ChangeUsername = nullptr;
-    ButtonObject *EnableCustomFolderPath = nullptr;
-    ButtonObject *ChangeFolderPath = nullptr;
-    ButtonObject *EnableMenuMusic = nullptr;
-
-    bool UseCostumeUsername = false;
-    std::string username;
-
-    bool UseProjectsPath = false;
-    std::string projectsPath;
-
-    bool menuMusic = true;
-
-    SettingsMenu();
+    void init(const std::string &title = "Global Settings");
     ~SettingsMenu();
-
-    void init() override;
     void render() override;
-    void cleanup() override;
+
+    virtual void renderSettings();
+};
+
+class GlobalSettingsMenu : public SettingsMenu {
+  public:
+    GlobalSettingsMenu(void *userdata);
+    ~GlobalSettingsMenu();
+    void renderSettings() override;
 };

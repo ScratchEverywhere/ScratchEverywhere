@@ -1,8 +1,7 @@
-#ifdef ENABLE_MENU
-#include <menus/mainMenu.hpp>
-#endif
 #include <cstdlib>
-#include <menus/mainMenu.hpp>
+#include <input.hpp>
+#include <memory>
+#include <menuManager.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
@@ -21,46 +20,46 @@
 #endif
 
 static void exitApp() {
+    MenuManager::freeClay();
     Render::deInit();
 }
 
 static bool initApp() {
     Log::deleteLogFile();
     Render::debugMode = true;
-    if (!Render::Init()) {
-        return false;
-    }
-    return true;
+    const bool result = Render::Init();
+    MenuManager::initClay();
+    return result;
 }
 
 bool activateMainMenu() {
-#ifdef ENABLE_MENU
-    MainMenu *menu = new MainMenu();
-    MenuManager::changeMenu(menu);
+    MenuManager menuManager;
+
+    menuManager.changeMenu(MenuID::MainMenu);
 
     while (Render::appShouldRun()) {
-        MenuManager::render();
+        Input::getInput(&menuManager);
 
-        if (MenuManager::isProjectLoaded != 0) {
-            if (MenuManager::isProjectLoaded == -1) return false;
-            MenuManager::isProjectLoaded = 0;
-            return true;
-        }
+        menuManager.render();
+        if (Unzip::projectOpened >= 0) return true;
 
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);
 #endif
     }
-#endif
     return false;
 }
 
 void mainLoop() {
     Scratch::startScratchProject();
     if (Scratch::nextProject) {
-        Log::log(Unzip::filePath);
+        Log::log("Loading: " + Unzip::filePath);
         if (!Unzip::load()) {
             if (Unzip::projectOpened == -3) { // main menu
+                Unzip::filePath = "";
+                Unzip::projectOpened = -67; // I have no idea what the correct number.
+                Scratch::nextProject = false;
+                Scratch::dataNextProject = Value();
                 if (!activateMainMenu()) {
                     exitApp();
                     exit(0);
@@ -70,15 +69,15 @@ void mainLoop() {
                 exit(0);
             }
         }
-
-        return;
-    }
-    Unzip::filePath = "";
-    Scratch::nextProject = false;
-    Scratch::dataNextProject = Value();
-    if (OS::toExit || !activateMainMenu()) {
-        exitApp();
-        exit(0);
+    } else {
+        Unzip::filePath = "";
+        Unzip::projectOpened = -67; // I have no idea what the correct number.
+        Scratch::nextProject = false;
+        Scratch::dataNextProject = Value();
+        if (OS::toExit || !activateMainMenu()) {
+            exitApp();
+            exit(0);
+        }
     }
 }
 
@@ -131,6 +130,7 @@ int main(int argc, char **argv) {
             exitApp();
             return 0;
         }
+        if (!activateMainMenu()) return 0;
     }
 
 #ifdef __EMSCRIPTEN__
@@ -139,6 +139,6 @@ int main(int argc, char **argv) {
     while (1)
         mainLoop();
 #endif
-    exitApp();
+
     return 0;
 }

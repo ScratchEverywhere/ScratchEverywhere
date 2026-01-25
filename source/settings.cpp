@@ -12,6 +12,31 @@ void SettingsManager::migrate() {
     if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation() && OS::fileExists(OS::getScratchFolderLocation() + "Settings.json")) {
         OS::renameFile(OS::getScratchFolderLocation() + "Settings.json", OS::getConfigFolderLocation() + "Settings.json");
     }
+
+    // Global Settings
+    std::ifstream migrationIn(OS::getConfigFolderLocation() + "Settings.json");
+    if (migrationIn.good()) {
+        nlohmann::json i;
+
+        migrationIn >> i;
+        migrationIn.close();
+
+        nlohmann::json o = i;
+
+        if (i.contains("EnableUsername") && i["EnableUsername"].is_boolean()) {
+            o["useCustomUsername"] = i["EnableUsername"];
+            o.erase("EnableUsername");
+        }
+
+        if (i.contains("Username") && i["Username"].is_string()) {
+            o["customUsername"] = i["Username"];
+            o.erase("Username");
+        }
+
+        std::ofstream migrationOut(OS::getConfigFolderLocation() + "Settings.json");
+        migrationOut << o.dump(4);
+        migrationOut.close();
+    }
 }
 
 nlohmann::json SettingsManager::getConfigSettings() {

@@ -1,0 +1,29 @@
+--- a/clay.h    2026-01-22 14:54:04.382314498 -0800
++++ b/clay.h    2026-01-22 14:54:53.241299528 -0800
+@@ -28,6 +28,7 @@
+ #ifndef CLAY_HEADER
+ #define CLAY_HEADER
+ 
++/*
+ #if !( \
+     (defined(__cplusplus) && __cplusplus >= 202002L) || \
+     (defined(__STDC__) && __STDC__ == 1 && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L) || \
+@@ -36,6 +37,7 @@
+ )
+ #error "Clay requires C99, C++20, or MSVC"
+ #endif
++*/
+ 
+ #ifdef CLAY_WASM
+ #define CLAY_WASM_EXPORT(name) __attribute__((export_name(name)))
+@@ -1322,8 +1324,7 @@
+ }
+ 
+ uint32_t Clay__GetParentElementId(void) {
+-    Clay_Context* context = Clay_GetCurrentContext();
+-    return Clay_LayoutElementArray_Get(&context->layoutElements, Clay__int32_tArray_GetValue(&context->openLayoutElementStack, context->openLayoutElementStack.length - 2))->id;
++    return Clay__GetOpenLayoutElement()->id;
+ }
+ 
+ Clay_LayoutConfig * Clay__StoreLayoutConfig(Clay_LayoutConfig config) {  return Clay_GetCurrentContext()->booleanWarnings.maxElementsExceeded ? &CLAY_LAYOUT_DEFAULT : Clay__LayoutConfigArray_Add(&Clay_GetCurrentContext()
+->layoutConfigs, config); }

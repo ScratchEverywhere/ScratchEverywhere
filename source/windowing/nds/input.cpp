@@ -6,6 +6,7 @@
 // Static member initialization
 Input::Mouse Input::mousePointer = {0, 0, 0, false, false};
 Sprite *Input::draggingSprite = nullptr;
+std::vector<std::string> Input::inputKeys;
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
 std::vector<std::string> Input::inputBuffer;
@@ -33,6 +34,7 @@ std::vector<int> Input::getTouchPosition() {
 }
 
 void Input::getInput() {
+    inputKeys.clear();
     inputButtons.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
@@ -54,6 +56,7 @@ void Input::getInput() {
 
     if (kDown) {
         inputButtons.push_back("any");
+
         if (kDown & KEY_A) {
             Input::buttonPress("A");
         }

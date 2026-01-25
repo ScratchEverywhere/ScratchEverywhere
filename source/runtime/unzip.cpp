@@ -6,7 +6,6 @@
 #include <fstream>
 #include <image.hpp>
 #include <istream>
-#include <menus/loading.hpp>
 #include <random>
 #include <settings.hpp>
 #include <sys/stat.h>
@@ -173,19 +172,19 @@ bool Unzip::load() {
         Unzip::projectOpened = -3;
     }
 
-    Loading loading;
-    loading.init();
+    // Loading loading;
+    // loading.init();
 
     while (!Unzip::threadFinished) {
-        loading.render();
+        // loading.render();
     }
     threadJoin(projectThread, U64_MAX);
     threadFree(projectThread);
     if (Unzip::projectOpened != 1) {
-        loading.cleanup();
+        // loading.cleanup();
         return false;
     }
-    loading.cleanup();
+    // loading.cleanup();
     osSetSpeedupEnable(false);
 
 #elif defined(WINDOWING_SDL1) || defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(WINDOWING_SDL3) // create SDL thread for loading screen
@@ -205,14 +204,14 @@ bool Unzip::load() {
 
     if (thread != NULL && thread != nullptr) {
 
-        Loading loading;
-        loading.init();
+        // Loading loading;
+        // loading.init();
 
         while (!Unzip::threadFinished) {
-            loading.render();
+            // loading.render();
         }
         SDL_WaitThread(thread, nullptr);
-        loading.cleanup();
+        // loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 
     if (Unzip::projectOpened != 1)
@@ -220,14 +219,14 @@ bool Unzip::load() {
 #else // create thread for loading screen
     std::thread thread(projectLoaderThread, nullptr);
     if (thread.joinable()) {
-        Loading loading;
-        loading.init();
+        // Loading loading;
+        // loading.init();
 
         while (!Unzip::threadFinished) {
-            loading.render();
+            //   loading.render();
         }
         thread.join();
-        loading.cleanup();
+        // loading.cleanup();
     } else Unzip::openScratchProject(NULL);
 
     if (Unzip::projectOpened != 1)
