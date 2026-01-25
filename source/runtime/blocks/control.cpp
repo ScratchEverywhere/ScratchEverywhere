@@ -102,7 +102,9 @@ SCRATCH_BLOCK(control, delete_this_clone) {
     if (sprite->isClone) {
         sprite->toDelete = true;
         Scratch::cloneCount--;
-        sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
+        for (auto &[id, chain] : sprite->blockChains) {
+            chain.blocksToRepeat.clear();
+        }
         return BlockResult::RETURN;
     }
     return BlockResult::CONTINUE;
