@@ -259,14 +259,7 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
 
 SCRATCH_BLOCK(looks, nextbackdrop) {
     Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
-
-    for (auto &currentSprite : Scratch::sprites) {
-        for (auto &[id, spriteBlock] : currentSprite->blocks) {
-            if (spriteBlock.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(spriteBlock, "BACKDROP") == Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name) {
-                executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
-            }
-        }
-    }
+    Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
     return BlockResult::CONTINUE;
 }
 
