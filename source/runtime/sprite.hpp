@@ -67,7 +67,6 @@ struct Block {
     double glideStartX, glideStartY;
     double glideEndX, glideEndY;
     Timer waitTimer;
-    bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
     std::vector<std::pair<Block *, Sprite *>> backdropsRun;

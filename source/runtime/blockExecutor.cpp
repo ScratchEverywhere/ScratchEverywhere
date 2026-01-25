@@ -35,24 +35,20 @@ std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &BlockE
     return valueHandlers;
 }
 
-std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    std::vector<Block *> ranBlocks;
+void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Block *currentBlock = &block;
 
-    if (!sprite || sprite->toDelete) return ranBlocks;
+    if (!sprite || sprite->toDelete) return;
 
     while (currentBlock && currentBlock->id != "null") {
-        ranBlocks.push_back(currentBlock);
         BlockResult result = executeBlock(*currentBlock, sprite, withoutScreenRefresh, fromRepeat);
 
-        if (result == BlockResult::RETURN) return ranBlocks;
+        if (result == BlockResult::RETURN) return;
 
-        if (currentBlock->next.empty()) break;
+        if (currentBlock->next.empty()) return;
         currentBlock = &sprite->blocks[currentBlock->next];
         fromRepeat = false;
     }
-
-    return ranBlocks;
 }
 
 BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -593,6 +589,5 @@ void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
 
 bool BlockExecutor::hasActiveRepeats(Sprite *sprite, std::string blockChainID) {
     if (sprite->toDelete) return false;
-    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end() && !sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
-    return false;
+    return (sprite->blockChains.find(blockChainID) != sprite->blockChains.end() && !sprite->blockChains[blockChainID].blocksToRepeat.empty());
 }
