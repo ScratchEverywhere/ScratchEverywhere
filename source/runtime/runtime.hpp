@@ -1,6 +1,7 @@
 #pragma once
 #include "blockExecutor.hpp"
 #include "sprite.hpp"
+#include <image.hpp>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <time.hpp>
@@ -35,7 +36,7 @@ class Scratch {
      * @param sprite
      * @return The top level parent of the specified `block`.
      */
-    static Block *getBlockParent(const Block *block, Sprite* sprite);
+    static Block *getBlockParent(const Block *block, Sprite *sprite);
 
     /**
      * Finds a block from a sprite.
@@ -43,7 +44,7 @@ class Scratch {
      * @param sprite The sprite to limit the search to.
      * @return A `Block*` if it's found, `nullptr` otherwise.
      */
-    static Block *findBlock(std::string blockId, Sprite* sprite);
+    static Block *findBlock(std::string blockId, Sprite *sprite);
 
     /**
      * Gets the Sprite's box collision points.
@@ -63,6 +64,9 @@ class Scratch {
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
     static void sortSprites();
+
+    static std::unordered_map<std::string, std::shared_ptr<Image>> costumeImages;
+    static void loadCurrentCostumeImage(Sprite *sprite);
 
     static int projectWidth;
     static int projectHeight;

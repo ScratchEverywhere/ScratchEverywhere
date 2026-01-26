@@ -100,7 +100,7 @@ SCRATCH_BLOCK(looks, thinkforsecs) {
 
 SCRATCH_BLOCK(looks, show) {
     sprite->visible = true;
-    Image::loadImageFromProject(sprite);
+    Scratch::loadCurrentCostumeImage(sprite);
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
@@ -219,10 +219,10 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
             goto end;
         }
 
-        end:
-            BlockExecutor::addToRepeatQueue(sprite, &block);
-            Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
-            return BlockResult::RETURN;
+    end:
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+        Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
+        return BlockResult::RETURN;
     }
 
     if (block.backdropsRun.empty()) {
@@ -231,8 +231,7 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
                 if (chain.blocksToRepeat.empty()) continue;
 
                 for (auto &chainBlock : chain.blockChain) {
-                    if (chainBlock->opcode == "event_whenbackdropswitchesto"
-                    && Scratch::getFieldValue(*chainBlock, "BACKDROP") == inputValue.asString()) {
+                    if (chainBlock->opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(*chainBlock, "BACKDROP") == inputValue.asString()) {
                         block.backdropsRun.push_back({chainBlock, spr});
                         break;
                     }

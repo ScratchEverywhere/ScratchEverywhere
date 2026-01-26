@@ -5,8 +5,8 @@
 #include <runtime.hpp>
 
 SpeechManagerSDL2::SpeechManagerSDL2(SDL_Renderer *renderer) : renderer(renderer) {
-    bubbleImage = std::make_unique<Image>("gfx/ingame/speechbubble.svg");
-    speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech.svg");
+    bubbleImage = createImageFromFile("gfx/ingame/speechbubble.svg", false);
+    speechIndicatorImage = createImageFromFile("gfx/ingame/speech.svg", false);
 }
 
 SpeechManagerSDL2::~SpeechManagerSDL2() {
@@ -14,12 +14,12 @@ SpeechManagerSDL2::~SpeechManagerSDL2() {
 }
 
 void SpeechManagerSDL2::ensureImagesLoaded() {
-    if (images.find(bubbleImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/speechbubble.svg", nullptr, false);
-    }
-    if (images.find(speechIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/speech.svg", nullptr, false);
-    }
+    // if (images.find(bubbleImage->imageId) == images.end()) {
+    //     Image::loadImageFromFile("gfx/ingame/speechbubble.svg", nullptr, false);
+    // }
+    // if (images.find(speechIndicatorImage->imageId) == images.end()) {
+    //     Image::loadImageFromFile("gfx/ingame/speech.svg", nullptr, false);
+    // }
 }
 
 double SpeechManagerSDL2::getCurrentTime() {
@@ -99,42 +99,42 @@ void SpeechManagerSDL2::render() {
 }
 
 void SpeechManagerSDL2::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
-    auto styleIt = speechStyles.find(sprite);
-    if (styleIt == speechStyles.end()) return;
+    // auto styleIt = speechStyles.find(sprite);
+    // if (styleIt == speechStyles.end()) return;
 
-    std::string style = styleIt->second;
+    // std::string style = styleIt->second;
 
-    if (!speechIndicatorImage || speechIndicatorImage->imageId.empty()) return;
-    if (images.find(speechIndicatorImage->imageId) == images.end()) return;
+    // if (!speechIndicatorImage || speechIndicatorImage->imageId.empty()) return;
+    // if (images.find(speechIndicatorImage->imageId) == images.end()) return;
 
-    int cornerSize = static_cast<int>(8 * scale);
-    int indicatorSize = static_cast<int>(16 * scale);
-    int windowWidth = Render::getWidth();
-    int screenCenter = windowWidth / 2;
+    // int cornerSize = static_cast<int>(8 * scale);
+    // int indicatorSize = static_cast<int>(16 * scale);
+    // int windowWidth = Render::getWidth();
+    // int screenCenter = windowWidth / 2;
 
-    int indicatorX;
-    int indicatorY = bubbleY + bubbleHeight - (indicatorSize / 2);
+    // int indicatorX;
+    // int indicatorY = bubbleY + bubbleHeight - (indicatorSize / 2);
 
-    if (spriteCenterX < screenCenter) {
-        indicatorX = bubbleX + cornerSize;
-    } else {
-        indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
-    }
+    // if (spriteCenterX < screenCenter) {
+    //     indicatorX = bubbleX + cornerSize;
+    // } else {
+    //     indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
+    // }
 
-    // Indicator sprite sheet
-    SDL_Image *image = images[speechIndicatorImage->imageId];
-    int halfWidth = image->width / 2;
+    // // Indicator sprite sheet
+    // SDL_Image *image = images[speechIndicatorImage->imageId];
+    // int halfWidth = image->width / 2;
 
-    // Select left half (say) or right half (think)
-    int srcX = (style == "think") ? halfWidth : 0;
-    SDL_Rect sourceRect = {srcX, 0, halfWidth, image->height};
+    // // Select left half (say) or right half (think)
+    // int srcX = (style == "think") ? halfWidth : 0;
+    // SDL_Rect sourceRect = {srcX, 0, halfWidth, image->height};
 
-    Uint8 alpha = static_cast<Uint8>(speechIndicatorImage->opacity * 255);
-    SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+    // Uint8 alpha = static_cast<Uint8>(speechIndicatorImage->opacity * 255);
+    // SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
 
-    SDL_Rect destRect = {indicatorX, indicatorY, indicatorSize, indicatorSize};
-    SDL_RendererFlip flip = (spriteCenterX >= screenCenter) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-    SDL_Point center = {destRect.w / 2, destRect.h / 2};
+    // SDL_Rect destRect = {indicatorX, indicatorY, indicatorSize, indicatorSize};
+    // SDL_RendererFlip flip = (spriteCenterX >= screenCenter) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
+    // SDL_Point center = {destRect.w / 2, destRect.h / 2};
 
-    SDL_RenderCopyEx(renderer, image->spriteTexture, &sourceRect, &destRect, 0, &center, flip);
+    // SDL_RenderCopyEx(renderer, image->spriteTexture, &sourceRect, &destRect, 0, &center, flip);
 }

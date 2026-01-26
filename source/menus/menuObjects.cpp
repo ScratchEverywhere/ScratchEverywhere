@@ -129,14 +129,18 @@ void ButtonObject::render(double xPos, double yPos) {
     buttonTexture->x = xPos;
     buttonTexture->y = yPos;
     buttonTexture->scale = scale * getScaleFactor();
-    buttonTexture->image->scale = scale * getScaleFactor();
+    ImageRenderParams params;
+    params.x = scaledPos[0];
+    params.y = scaledPos[1];
+    params.scale = scale * getScaleFactor();
+    params.centered = true;
 
     if (enableNineslice) {
         buttonTexture->image->renderNineslice(scaledPos[0], scaledPos[1],
                                               std::max(text->getSize()[0], (float)buttonTexture->image->getWidth() * renderScale),
                                               std::max(text->getSize()[1], (float)buttonTexture->image->getHeight() * renderScale), 8, true);
     } else {
-        buttonTexture->image->render(scaledPos[0], scaledPos[1], true);
+        buttonTexture->image->render(params);
     }
 
     text->setScale(renderScale * textScale);
@@ -151,14 +155,14 @@ MenuImage::MenuImage(std::string filePath, int xPos, int yPos) {
     x = xPos;
     y = yPos;
     scale = 1.0;
-    image = new Image(filePath);
+    image = createImageFromFile(filePath, false);
 }
 
 void MenuImage::render(double xPos, double yPos) {
     if (xPos == 0) xPos = x;
     if (yPos == 0) yPos = y;
 
-    image->scale = scale * getScaleFactor();
+    // image->scale = scale * getScaleFactor();
     const double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
     const double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
 
@@ -173,7 +177,7 @@ void MenuImage::render(double xPos, double yPos) {
 }
 
 MenuImage::~MenuImage() {
-    delete image;
+    // delete image;
 }
 
 ControlObject::ControlObject() {

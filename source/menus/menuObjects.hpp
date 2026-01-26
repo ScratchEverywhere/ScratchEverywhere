@@ -26,7 +26,7 @@ class JollySnow {
     int oldWindowWidth, oldWindowHeight;
 
   public:
-    Image *image;
+    std::shared_ptr<Image> image;
     JollySnow() {
 #ifndef RENDERER_HEADLESS
         oldWindowWidth = Render::getWidth();
@@ -45,7 +45,13 @@ class JollySnow {
     void render(float xOffset = 0.0f, float yOffset = 0.0f) {
 #ifndef RENDERER_HEADLESS
         for (auto &ball : snow) {
-            image->render(ball.x + xOffset, ball.y + yOffset, true);
+
+            ImageRenderParams params;
+            params.x = ball.x + xOffset;
+            params.y = ball.y + yOffset;
+            params.centered = true;
+
+            image->render(params);
             ball.y += ball.fallSpeed;
             if (ball.y > Render::getHeight() + 20 - yOffset) {
                 ball.y = -20 - yOffset;
@@ -67,7 +73,7 @@ class JollySnow {
 
 class MenuImage : public MenuObject {
   public:
-    Image *image;
+    std::shared_ptr<Image> image;
     void render(double xPos = 0, double yPos = 0) override;
 
     // These override scale if they are greater than 0.

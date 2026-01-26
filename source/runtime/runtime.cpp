@@ -57,6 +57,8 @@ Value Scratch::dataNextProject;
 bool Scratch::useCustomUsername = false;
 std::string Scratch::customUsername;
 
+std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
+
 bool Scratch::startScratchProject() {
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
@@ -130,7 +132,7 @@ bool Scratch::startScratchProject() {
 
 void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
-    Image::cleanupImages();
+    // Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     Render::monitorTexts.clear();
     Render::listMonitors.clear();
@@ -492,7 +494,7 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
-    Image::loadImageFromProject(sprite);
+    loadCurrentCostumeImage(sprite);
 
     Scratch::forceRedraw = true;
 }
@@ -504,6 +506,23 @@ void Scratch::sortSprites() {
                   if (!a->isStage && b->isStage) return true;
                   return a->layer > b->layer;
               });
+}
+
+void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
+    std::shared_ptr<Image> image = nullptr;
+    const std::string costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    try {
+        if (projectType == UNZIPPED) {
+            image = createImageFromFile(costumeName, true);
+        } else {
+            image = createImageFromZip(costumeName, &Unzip::zipArchive);
+        }
+    } catch (const std::runtime_error &e) {
+        Log::logWarning(std::string("Failed to load image: ") + e.what());
+    }
+    if (image != nullptr) {
+        costumeImages[costumeName] = std::move(image);
+    }
 }
 
 Block *Scratch::findBlock(std::string blockId, Sprite *sprite) {

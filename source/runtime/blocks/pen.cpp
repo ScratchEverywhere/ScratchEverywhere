@@ -120,7 +120,7 @@ SCRATCH_BLOCK(pen, clear) {
 SCRATCH_BLOCK(pen, stamp) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
 
-    Image::loadImageFromProject(sprite);
+    Scratch::loadCurrentCostumeImage(sprite);
 
     Render::penStamp(sprite);
 
