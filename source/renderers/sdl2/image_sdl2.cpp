@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
-#include <image.hpp>
 #include <miniz.h>
 #include <os.hpp>
 #include <string>
@@ -42,17 +41,18 @@ CMRC_DECLARE(romfs);
 
 void Image_SDL2::render(ImageRenderParams &params) {
 
-    int x = params.x;
-    int y = params.y;
-    float rotation = params.rotation;
-    bool centered = params.centered;
+    int &x = params.x;
+    int &y = params.y;
+    int &brightness = params.brightness;
+    float &rotation = params.rotation;
+    float &scale = params.scale;
+    float &opacity = params.opacity;
+    bool &centered = params.centered;
+    SDL_RendererFlip flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
     SDL_Rect renderRect;
     renderRect.w = width;
     renderRect.h = height;
-
-    // image->setScale(scale);
-    // image->setRotation(rotation);
 
     if (centered) {
         renderRect.x = x - (renderRect.w / 2);
@@ -62,12 +62,37 @@ void Image_SDL2::render(ImageRenderParams &params) {
         renderRect.y = y;
     }
 
-    // Uint8 alpha = static_cast<Uint8>(opacity * 255);
-    // SDL_SetTextureAlphaMod(texture, alpha);
+    Uint8 alpha = static_cast<Uint8>(opacity * 255);
+    SDL_SetTextureAlphaMod(texture, alpha);
 
     SDL_Point center = {renderRect.w / 2, renderRect.h / 2};
 
-    SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, SDL_FLIP_NONE);
+    if (brightness != 0) {
+        float b = brightness * 0.01f;
+        if (brightness > 0.0f) {
+            // render the normal image first
+            SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, flip);
+
+            // render another, blended image on top
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
+            SDL_SetTextureAlphaMod(texture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
+            SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, flip);
+
+            // reset for next frame
+            SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+        } else {
+            Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
+            SDL_SetTextureColorMod(texture, col, col, col);
+
+            SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, flip);
+            // reset for next frame
+            SDL_SetTextureColorMod(texture, 255, 255, 255);
+        }
+    } else {
+        // if no brightness just render normal image
+        SDL_SetTextureColorMod(texture, 255, 255, 255);
+        SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, flip);
+    }
 }
 
 // I doubt you want to mess with this...
@@ -380,13 +405,15 @@ Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject) : Image(fi
     //     textureRect.x = 0;
     //     textureRect.y = 0;
 
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, getWidth(), getHeight());
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, width, height);
 
     if (!texture) {
         throw std::runtime_error("Failed to create texture: " + std::string(SDL_GetError()));
     }
 
-    if (!SDL_UpdateTexture(texture, nullptr, pixels, getWidth() * 4)) {
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+
+    if (SDL_UpdateTexture(texture, nullptr, pixels, width * 4) < 0) {
         throw std::runtime_error("Failed to update texture: " + std::string(SDL_GetError()));
     }
     free(pixels);

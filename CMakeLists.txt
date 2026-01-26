@@ -228,6 +228,18 @@ CPMAddPackage(
 	GITHUB_REPOSITORY poipole807/ryuJS
 	VERSION 3.0
 )
+CPMAddPackage(
+  NAME nanosvg
+  GITHUB_REPOSITORY memononen/nanosvg
+  GIT_TAG master
+)
+CPMAddPackage(
+  NAME stb
+  GITHUB_REPOSITORY nothings/stb
+  GIT_TAG master
+)
+
+
 include(FetchContent)
 FetchContent_Declare(
     miniz
@@ -829,6 +841,8 @@ target_link_libraries(scratch-everywhere PRIVATE ryuJS)
 target_include_directories(ryuJS PUBLIC
   ${poipole807_ryuJS_SOURCE_DIR}
 )
+target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
+target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
 if(PSP)

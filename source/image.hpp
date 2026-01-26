@@ -9,9 +9,10 @@ struct ImageRenderParams {
     int y;
     float scale;
     bool centered;
-    int opacity;
+    float opacity;
     int brightness;
     float rotation;
+    bool flip;
 };
 
 class Image {
