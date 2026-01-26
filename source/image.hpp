@@ -5,21 +5,25 @@
 #include <string>
 
 struct ImageRenderParams {
-    int x;
-    int y;
-    float scale;
-    bool centered;
-    float opacity;
-    int brightness;
-    float rotation;
-    bool flip;
+    int x = 0;
+    int y = 0;
+    float scale = 1.0f;
+    bool centered = true;
+    float opacity = 1.0f;
+    int brightness = 0;
+    float rotation = 0;
+    bool flip = false;
 };
 
 class Image {
+  private:
+    std::vector<char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
+    unsigned char *loadSVGFromMemory(const char *data, size_t size, int &width, int &height);
+    unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height);
+
   protected:
     int width, height;
     void *pixels;
-    std::string id;
 
   public:
     Image(std::string filePath, bool fromScratchProject = true);
@@ -28,7 +32,6 @@ class Image {
 
     int getWidth();
     int getHeight();
-    std::string getID();
 
     virtual void render(ImageRenderParams &params) = 0;
     virtual void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) = 0;

@@ -11,6 +11,11 @@
 #if defined(RENDERER_SDL2)
 #include <image_sdl2.hpp>
 #endif
+#ifdef USE_CMAKERC
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
+#endif
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
 
@@ -29,83 +34,132 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
 }
 
 std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip) {
-    return nullptr;
+    auto it = images.find(filePath);
+    if (it != images.end()) {
+        if (auto img = it->second.lock()) {
+            return img;
+        }
+    }
+#if defined(RENDERER_SDL2)
+    return std::make_shared<Image_SDL2>(filePath, zip);
+#else
+    return std::make_shared<Image>(filePath, zip);
+#endif
+}
+
+std::vector<char> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
+#ifdef USE_CMAKERC
+    if (!Unzip::UnpackedInSD || !fromScratchProject) {
+        auto file = cmrc::romfs::get_filesystem().open(filePath);
+        std::vector<char> buffer(file.size() + 1);
+        std::copy(file.begin(), file.end(), buffer.begin());
+        buffer[file.size()] = '\0';
+        return buffer;
+    }
+#endif
+
+    std::string path = filePath;
+
+    FILE *file = fopen(path.c_str(), "rb");
+    if (!file) throw std::runtime_error("Failed to open file: " + path);
+
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    if (size <= 0) {
+        fclose(file);
+        throw std::runtime_error("Empty file: " + path);
+    }
+
+    std::vector<char> buffer(size + 1);
+    if (fread(buffer.data(), 1, size, file) != (size_t)size) {
+        fclose(file);
+        throw std::runtime_error("Failed to read file: " + path);
+    }
+    buffer[size] = '\0';
+    fclose(file);
+    return buffer;
+}
+
+unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height) {
+    char *svg_data = const_cast<char *>(data);
+    NSVGimage *image = nsvgParse(svg_data, "px", 96.0f);
+    if (!image) throw std::runtime_error("Failed to parse SVG");
+
+    width = image->width > 0 ? (int)image->width : 32;
+    height = image->height > 0 ? (int)image->height : 32;
+
+    NSVGrasterizer *rast = nsvgCreateRasterizer();
+    if (!rast) {
+        nsvgDelete(image);
+        throw std::runtime_error("Failed to create SVG rasterizer");
+    }
+
+    unsigned char *pixels = (unsigned char *)malloc(width * height * 4);
+    if (!pixels) {
+        nsvgDeleteRasterizer(rast);
+        nsvgDelete(image);
+        throw std::runtime_error("Failed to allocate SVG pixel buffer");
+    }
+
+    nsvgRasterize(rast, image, 0, 0, 1.0f, pixels, width, height, width * 4);
+
+    nsvgDeleteRasterizer(rast);
+    nsvgDelete(image);
+
+    return pixels;
+}
+
+unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height) {
+    int channels;
+    unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
+    if (!pixels) throw std::runtime_error("Failed to decode raster image");
+    return pixels;
 }
 
 Image::Image(std::string filePath, bool fromScratchProject) {
 
-    if (fromScratchProject) filePath = "project/" + filePath;
-    if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
-
-    FILE *file = fopen(filePath.c_str(), "rb");
-
-    if (!file) {
-        throw std::runtime_error("Failed to open Texture file: " + filePath);
+    if (fromScratchProject) {
+        if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
+        else filePath = "project/" + filePath;
     }
 
-    bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
+    std::vector<char> buffer = readFileToBuffer(filePath, fromScratchProject);
+
+    bool isSVG = filePath.size() >= 4 &&
+                 (filePath.substr(filePath.size() - 4) == ".svg" ||
+                  filePath.substr(filePath.size() - 4) == ".SVG");
 
     if (isSVG) {
-        fseek(file, 0, SEEK_END);
-        long size = ftell(file);
-        fseek(file, 0, SEEK_SET);
-
-        if (size <= 0) {
-            fclose(file);
-            throw std::runtime_error("Empty SVG file: " + filePath);
-        }
-
-        std::vector<char> svg(size + 1);
-        if (fread(svg.data(), 1, size, file) != (size_t)size) {
-            fclose(file);
-            throw std::runtime_error("Failed to read SVG file: " + filePath);
-        }
-        svg[size] = '\0';
-
-        NSVGimage *image = nsvgParse(svg.data(), "px", 96.0f);
-        if (!image) {
-            fclose(file);
-            throw std::runtime_error("Failed to parse SVG: " + filePath);
-        }
-
-        width = image->width > 0 ? (int)image->width : 32;
-        height = image->height > 0 ? (int)image->height : 32;
-
-        // 3DS Clamp
-        // width  = std::clamp(width, 0, 1024);
-        // height = std::clamp(height, 0, 1024);
-
-        NSVGrasterizer *rast = nsvgCreateRasterizer();
-        if (!rast) {
-            nsvgDelete(image);
-            fclose(file);
-            throw std::runtime_error("Failed to create SVG rasterizer");
-        }
-
-        pixels = (unsigned char *)malloc(width * height * 4);
-        if (!pixels) {
-            nsvgDeleteRasterizer(rast);
-            nsvgDelete(image);
-            fclose(file);
-            throw std::runtime_error("Failed to allocate SVG pixel buffer");
-        }
-
-        nsvgRasterize(rast, image, 0, 0, 1.0f, (unsigned char *)pixels, width, height, width * 4);
-
-        nsvgDeleteRasterizer(rast);
-        nsvgDelete(image);
+        pixels = loadSVGFromMemory(buffer.data(), buffer.size(), width, height);
     } else {
-        int channels;
-        pixels = stbi_load_from_file(file, &width, &height, &channels, 4);
+        pixels = loadRasterFromMemory(reinterpret_cast<unsigned char *>(buffer.data()), buffer.size(), width, height);
     }
-    fclose(file);
 
-    if (!pixels) {
-        throw std::runtime_error("Failed to decode Texture: " + filePath);
-    }
+    if (!pixels) throw std::runtime_error("Failed to load image: " + filePath);
 }
 
 Image::Image(std::string filePath, mz_zip_archive *zip) {
+    int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
+    if (file_index < 0) throw std::runtime_error("Image not found in SB3: " + filePath);
+
+    size_t file_size;
+    void *file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
+    if (!file_data) throw std::runtime_error("Failed to extract: " + filePath);
+
+    bool isSVG = filePath.size() >= 4 &&
+                 (filePath.substr(filePath.size() - 4) == ".svg" ||
+                  filePath.substr(filePath.size() - 4) == ".SVG");
+
+    if (isSVG) {
+        pixels = loadSVGFromMemory((char *)file_data, file_size, width, height);
+    } else {
+        pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, width, height);
+    }
+
+    mz_free(file_data);
+
+    if (!pixels) throw std::runtime_error("Failed to load image from zip: " + filePath);
 }
 
 Image::~Image() {
@@ -119,8 +173,4 @@ int Image::getWidth() {
 
 int Image::getHeight() {
     return height;
-}
-
-std::string Image::getID() {
-    return id;
 }

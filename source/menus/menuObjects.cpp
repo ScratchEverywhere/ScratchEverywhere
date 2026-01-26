@@ -49,6 +49,7 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
     textScale = 1.0;
     text = createTextObject(buttonText, x, y, fontPath);
     text->setCenterAligned(true);
+    imageId = filePath;
     buttonTexture = new MenuImage(filePath);
 
 // turn off nineslice for low performance platforms

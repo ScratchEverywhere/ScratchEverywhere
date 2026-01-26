@@ -5,6 +5,9 @@
 #include <unordered_map>
 
 class Image_SDL2 : public Image {
+  private:
+    void setInitialTexture();
+
   public:
     SDL_Texture *texture;
 

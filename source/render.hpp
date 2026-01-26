@@ -117,6 +117,9 @@ class Render {
             sprite->renderInfo.oldX = sprite->xPosition;
             sprite->renderInfo.oldY = sprite->yPosition;
 
+            sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+            sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+
             float renderX;
             float renderY;
             float spriteX = static_cast<int>(sprite->xPosition);

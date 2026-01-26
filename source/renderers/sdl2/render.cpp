@@ -431,116 +431,72 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 }
 
 void Render::renderSprites() {
-    //     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    //     SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderClear(renderer);
 
-    //     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
-    //         Sprite *currentSprite = *it;
+    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
+        Sprite *currentSprite = *it;
+        auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        if (imgFind != Scratch::costumeImages.end()) {
+            Image *image = imgFind->second.get();
 
-    //         auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
-    //         if (imgFind != Scratch::costumeImages.end()) {
+            const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
+            calculateRenderPosition(currentSprite, isSVG);
 
-    //             currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
-    //             currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
-    //             currentSprite->spriteWidth = image->textureRect.w >> 1;
-    //             currentSprite->spriteHeight = image->textureRect.h >> 1;
+            ImageRenderParams params;
+            params.centered = false; // the image gets centered in calculateRenderPosition()
+            params.x = currentSprite->renderInfo.renderX;
+            params.y = currentSprite->renderInfo.renderY;
+            params.rotation = currentSprite->renderInfo.renderRotation;
+            params.scale = currentSprite->renderInfo.renderScaleY;
+            params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
+            params.opacity = 1.0f - (currentSprite->ghostEffect * 0.01f);
+            params.brightness = currentSprite->brightnessEffect;
 
-    //             if (!currentSprite->visible) continue;
+            image->render(params);
+        }
+        // Draw collision points (for debugging)
+        // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
+        // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
-    //             image->freeTimer = image->maxFreeTime;
+        // for (const auto &point : collisionPoints) {
+        //     double screenX = (point.first * renderScale) + (windowWidth / 2);
+        //     double screenY = (point.second * -renderScale) + (windowHeight / 2);
 
-    //             SDL_RendererFlip flip = SDL_FLIP_NONE;
-    //             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
-    //             calculateRenderPosition(currentSprite, isSVG);
-    //             image->renderRect.x = currentSprite->renderInfo.renderX;
-    //             image->renderRect.y = currentSprite->renderInfo.renderY;
+        //     SDL_Rect debugPointRect;
+        //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
+        //     debugPointRect.y = static_cast<int>(screenY - renderScale);
+        //     debugPointRect.w = static_cast<int>(2 * renderScale);
+        //     debugPointRect.h = static_cast<int>(2 * renderScale);
 
-    //             image->setScale(currentSprite->renderInfo.renderScaleY);
-    //             if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-    //                 flip = SDL_FLIP_HORIZONTAL;
-    //             }
+        //     SDL_RenderFillRect(renderer, &debugPointRect);
+        // }
 
-    //             // set ghost effect
-    //             float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
-    //             Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-    //             SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+        if (currentSprite->isStage) renderPenLayer();
+    }
 
-    //             // set brightness effect
-    //             if (currentSprite->brightnessEffect != 0) {
-    //                 float brightness = currentSprite->brightnessEffect * 0.01f;
-    //                 if (brightness > 0.0f) {
-    //                     // render the normal image first
-    //                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-    //                                      Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
+    if (speechManager) {
+        speechManager->render();
+    }
 
-    //                     // render another, blended image on top
-    //                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
-    //                     SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
-    //                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-    //                                      Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
+    drawBlackBars(getWidth(), getHeight());
+    renderVisibleVariables();
 
-    //                     // reset for next frame
-    //                     SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
-    //                 } else {
-    //                     Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
-    //                     SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        SDL_Rect rect;
+        rect.w = rect.h = 5;
+        rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5);
+        rect.y = (Input::mousePointer.y * -1 * renderScale) + (globalWindow->getHeight() * 0.5);
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+#endif
 
-    //                     SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-    //                                      Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-    //                     // reset for next frame
-    //                     SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-    //                 }
-    //             } else {
-    //                 // if no brightness just render normal image
-    //                 SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-    //                 SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-    //                                  Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-    //             }
-    //         }
-
-    //         // Draw collision points (for debugging)
-    //         // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
-    //         // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
-
-    //         // for (const auto &point : collisionPoints) {
-    //         //     double screenX = (point.first * renderScale) + (windowWidth / 2);
-    //         //     double screenY = (point.second * -renderScale) + (windowHeight / 2);
-
-    //         //     SDL_Rect debugPointRect;
-    //         //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
-    //         //     debugPointRect.y = static_cast<int>(screenY - renderScale);
-    //         //     debugPointRect.w = static_cast<int>(2 * renderScale);
-    //         //     debugPointRect.h = static_cast<int>(2 * renderScale);
-
-    //         //     SDL_RenderFillRect(renderer, &debugPointRect);
-    //         // }
-
-    //         if (currentSprite->isStage) renderPenLayer();
-    //     }
-
-    //     if (speechManager) {
-    //         speechManager->render();
-    //     }
-
-    //     drawBlackBars(getWidth(), getHeight());
-    //     renderVisibleVariables();
-
-    // #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-    //     if (Input::mousePointer.isMoving) {
-    //         SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-    //         SDL_Rect rect;
-    //         rect.w = rect.h = 5;
-    //         rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5);
-    //         rect.y = (Input::mousePointer.y * -1 * renderScale) + (globalWindow->getHeight() * 0.5);
-    //         Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
-    //         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
-    //         SDL_RenderDrawRect(renderer, &rect);
-    //     }
-    // #endif
-
-    //     SDL_RenderPresent(renderer);
-    //     // Image::FlushImages();
-    //     SoundPlayer::flushAudio();
+    SDL_RenderPresent(renderer);
+    SoundPlayer::flushAudio();
 }
 
 std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;

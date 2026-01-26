@@ -91,7 +91,9 @@ bool Scratch::startScratchProject() {
             if (speechManager) {
                 speechManager->update();
             }
-            if (checkFPS) Render::renderSprites();
+            if (checkFPS) {
+                Render::renderSprites();
+            }
 
 #ifdef ENABLE_MENU
 
@@ -132,7 +134,7 @@ bool Scratch::startScratchProject() {
 
 void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
-    // Image::cleanupImages();
+    costumeImages.clear();
     SoundPlayer::cleanupAudio();
     Render::monitorTexts.clear();
     Render::listMonitors.clear();
@@ -509,8 +511,17 @@ void Scratch::sortSprites() {
 }
 
 void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
-    std::shared_ptr<Image> image = nullptr;
-    const std::string costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    const std::string &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+
+    auto it = costumeImages.find(costumeName);
+    if (it != costumeImages.end()) {
+        sprite->spriteWidth = it->second->getWidth();
+        sprite->spriteHeight = it->second->getHeight();
+        return;
+    }
+
+    std::shared_ptr<Image> image;
+
     try {
         if (projectType == UNZIPPED) {
             image = createImageFromFile(costumeName, true);
@@ -518,10 +529,14 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             image = createImageFromZip(costumeName, &Unzip::zipArchive);
         }
     } catch (const std::runtime_error &e) {
-        Log::logWarning(std::string("Failed to load image: ") + e.what());
+        Log::logWarning("Failed to load image: " + std::string(e.what()));
+        return;
     }
-    if (image != nullptr) {
-        costumeImages[costumeName] = std::move(image);
+
+    if (image) {
+        sprite->spriteWidth = image->getWidth();
+        sprite->spriteHeight = image->getHeight();
+        costumeImages[costumeName] = image;
     }
 }
 

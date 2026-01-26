@@ -100,6 +100,7 @@ class ButtonObject : public MenuObject {
 
   public:
     std::unique_ptr<TextObject> text;
+    std::string imageId;
     double textScale;
     bool isSelected = false;
     bool needsToBeSelected = true;
