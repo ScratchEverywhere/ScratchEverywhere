@@ -24,13 +24,22 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
             return img;
+        } else {
+            images.erase(it);
         }
     }
+
 #if defined(RENDERER_SDL2)
-    auto img = std::make_shared<Image_SDL2>(filePath, fromScratchProject);
+    Image *rawImg = new Image_SDL2(filePath, fromScratchProject);
 #else
-    auto img = std::make_shared<Image>(filePath, fromScratchProject);
+    Image *rawImg = new Image(filePath, fromScratchProject);
 #endif
+
+    auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
+        images.erase(filePath);
+        delete p;
+    });
+
     images[filePath] = img;
     return img;
 }
@@ -40,13 +49,22 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
             return img;
+        } else {
+            images.erase(it);
         }
     }
+
 #if defined(RENDERER_SDL2)
-    auto img = std::make_shared<Image_SDL2>(filePath, zip);
+    Image *rawImg = new Image_SDL2(filePath, zip);
 #else
-    auto img = std::make_shared<Image>(filePath, zip);
+    Image *rawImg = new Image(filePath, zip);
 #endif
+
+    auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
+        images.erase(filePath);
+        delete p;
+    });
+
     images[filePath] = img;
     return img;
 }

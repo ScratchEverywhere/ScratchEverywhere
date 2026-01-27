@@ -400,7 +400,7 @@ void Render::renderSprites() {
             params.rotation = currentSprite->renderInfo.renderRotation;
             params.scale = currentSprite->renderInfo.renderScaleY;
             params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
-            params.opacity = 1.0f - (currentSprite->ghostEffect * 0.01f);
+            params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
             params.brightness = currentSprite->brightnessEffect;
 
             image->render(params);
