@@ -143,14 +143,12 @@ Image::Image(std::string filePath, bool fromScratchProject) {
 
     if (fromScratchProject) {
         if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
-        else filePath = "project/" + filePath;
-    }
+        else filePath = OS::getRomFSLocation() + "project/" + filePath;
+    } else filePath = OS::getRomFSLocation() + filePath;
+
+    bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
 
     std::vector<char> buffer = readFileToBuffer(filePath, fromScratchProject);
-
-    bool isSVG = filePath.size() >= 4 &&
-                 (filePath.substr(filePath.size() - 4) == ".svg" ||
-                  filePath.substr(filePath.size() - 4) == ".SVG");
 
     if (isSVG) {
         pixels = loadSVGFromMemory(buffer.data(), buffer.size(), width, height);
