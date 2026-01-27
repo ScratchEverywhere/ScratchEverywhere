@@ -6,13 +6,13 @@
 
 void Image_SDL2::render(ImageRenderParams &params) {
 
-    int &x = params.x;
-    int &y = params.y;
-    int &brightness = params.brightness;
-    double rotation = Math::radiansToDegrees(params.rotation);
-    float &scale = params.scale;
-    float &opacity = params.opacity;
-    bool &centered = params.centered;
+    const int &x = params.x;
+    const int &y = params.y;
+    const int &brightness = params.brightness;
+    const double rotation = Math::radiansToDegrees(params.rotation);
+    const float &scale = params.scale;
+    const float &opacity = params.opacity;
+    const bool &centered = params.centered;
     SDL_RendererFlip flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
     SDL_Rect renderRect;
