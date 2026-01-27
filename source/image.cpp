@@ -8,9 +8,13 @@
 #include <nanosvg.h>
 #define NANOSVGRAST_IMPLEMENTATION
 #include <nanosvgrast.h>
+
 #if defined(RENDERER_SDL2)
 #include <image_sdl2.hpp>
+#elif defined(RENDERER_CITRO2D)
+#include <image_c2d.hpp>
 #endif
+
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -31,8 +35,10 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
 
 #if defined(RENDERER_SDL2)
     Image *rawImg = new Image_SDL2(filePath, fromScratchProject);
+#elif defined(RENDERER_CITRO2D)
+    Image *rawImg = new Image_C2D(filePath, fromScratchProject);
 #else
-    Image *rawImg = new Image(filePath, fromScratchProject);
+    Image *rawImg = nullptr;
 #endif
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
@@ -56,8 +62,10 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
 
 #if defined(RENDERER_SDL2)
     Image *rawImg = new Image_SDL2(filePath, zip);
+#elif defined(RENDERER_CITRO2D)
+    Image *rawImg = new Image_C2D(filePath, zip);
 #else
-    Image *rawImg = new Image(filePath, zip);
+    Image *rawImg = nullptr;
 #endif
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {

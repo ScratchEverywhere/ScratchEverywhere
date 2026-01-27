@@ -128,7 +128,6 @@ class Render {
             // Handle if the sprite's image is not centered in the costume editor
             if (sprite->spriteWidth - sprite->rotationCenterX * 2 != 0 ||
                 sprite->spriteHeight - sprite->rotationCenterY * 2 != 0) {
-                const int shiftAmount = !isSVG ? 1 : 0;
                 float offsetX = (sprite->spriteWidth - sprite->rotationCenterX * 2) * 0.5f;
                 float offsetY = (sprite->spriteHeight - sprite->rotationCenterY * 2) * 0.5f;
 
@@ -160,12 +159,6 @@ class Render {
                 spriteX += offsetX;
                 spriteY -= offsetY;
             }
-
-#ifdef RENDERER_CITRO2D // TODO: move to Image_c2d
-            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-                spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
-            }
-#endif
 
             if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
