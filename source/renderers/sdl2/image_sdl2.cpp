@@ -1,16 +1,8 @@
 #include "image_sdl2.hpp"
 #include "render.hpp"
 #include <algorithm>
-#include <cctype>
-#include <cstddef>
-#include <miniz.h>
-#include <os.hpp>
+#include <stdexcept>
 #include <string>
-#include <unordered_map>
-#include <unzip.hpp>
-#include <vector>
-
-static std::vector<std::string> toDelete;
 
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
