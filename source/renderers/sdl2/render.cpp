@@ -392,6 +392,7 @@ void Render::renderSprites() {
 
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
+            if (!currentSprite->visible) continue;
 
             ImageRenderParams params;
             params.centered = false; // the image gets centered in calculateRenderPosition()
