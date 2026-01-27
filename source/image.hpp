@@ -34,6 +34,9 @@ class Image {
     void *pixels;
 
   public:
+    const unsigned int maxFreeTimer = 540;
+    unsigned int freeTimer = maxFreeTimer;
+
     Image(std::string filePath, bool fromScratchProject = true);
     Image(std::string filePath, mz_zip_archive *zip);
     virtual ~Image();

@@ -73,6 +73,7 @@ void Image_SDL2::render(ImageRenderParams &params) {
         SDL_SetTextureColorMod(texture, 255, 255, 255);
         SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
     }
+    freeTimer = maxFreeTimer;
 }
 
 // I doubt you want to mess with this...
@@ -127,10 +128,11 @@ void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double 
     SDL_RenderCopy(renderer, originalTexture, &srcBottomRight, &dstBottomRight);
 
     SDL_SetTextureScaleMode(originalTexture, originalScaleMode);
+    freeTimer = maxFreeTimer;
 }
 
 void Image_SDL2::setInitialTexture() {
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, width, height);
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, width, height);
 
     if (!texture) {
         throw std::runtime_error("Failed to create texture: " + std::string(SDL_GetError()));
@@ -141,6 +143,8 @@ void Image_SDL2::setInitialTexture() {
     if (SDL_UpdateTexture(texture, nullptr, pixels, width * 4) < 0) {
         throw std::runtime_error("Failed to update texture: " + std::string(SDL_GetError()));
     }
+    free(pixels);
+    pixels = nullptr;
 }
 
 Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip) : Image(filePath, zip) {

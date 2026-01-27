@@ -93,6 +93,7 @@ bool Scratch::startScratchProject() {
             }
             if (checkFPS) {
                 Render::renderSprites();
+                Scratch::flushCostumeImages();
             }
 
 #ifdef ENABLE_MENU
@@ -528,6 +529,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         }
     } catch (const std::runtime_error &e) {
         Log::logWarning("Failed to load image: " + std::string(e.what()));
+        freeUnusedCostumeImages();
         return;
     }
 
@@ -535,6 +537,29 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         sprite->spriteWidth = image->getWidth();
         sprite->spriteHeight = image->getHeight();
         costumeImages[costumeName] = image;
+    }
+}
+
+void Scratch::flushCostumeImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, img] : costumeImages) {
+        img->freeTimer--;
+        if (img->freeTimer <= 0) toDelete.push_back(id);
+    }
+
+    for (const std::string &id : toDelete) {
+        costumeImages.erase(id);
+    }
+}
+
+void Scratch::freeUnusedCostumeImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, img] : costumeImages) {
+        if (img->freeTimer < img->maxFreeTimer - 2) toDelete.push_back(id);
+    }
+
+    for (const std::string &id : toDelete) {
+        costumeImages.erase(id);
     }
 }
 

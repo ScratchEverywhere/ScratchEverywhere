@@ -67,6 +67,8 @@ class Scratch {
 
     static std::unordered_map<std::string, std::shared_ptr<Image>> costumeImages;
     static void loadCurrentCostumeImage(Sprite *sprite);
+    static void flushCostumeImages();
+    static void freeUnusedCostumeImages();
 
     static int projectWidth;
     static int projectHeight;
