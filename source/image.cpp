@@ -210,7 +210,11 @@ Image::Image(std::string filePath, mz_zip_archive *zip) {
                   filePath.substr(filePath.size() - 4) == ".SVG");
 
     if (isSVG) {
-        pixels = loadSVGFromMemory((char *)file_data, file_size, width, height);
+        std::vector<char> svgBuffer(file_size + 1);
+        memcpy(svgBuffer.data(), file_data, file_size);
+        svgBuffer[file_size] = '\0';
+
+        pixels = loadSVGFromMemory(svgBuffer.data(), file_size, width, height);
     } else {
         pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, width, height);
     }
