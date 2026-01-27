@@ -99,42 +99,40 @@ void SpeechManagerSDL2::render() {
 }
 
 void SpeechManagerSDL2::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
-    // auto styleIt = speechStyles.find(sprite);
-    // if (styleIt == speechStyles.end()) return;
+    auto styleIt = speechStyles.find(sprite);
+    if (styleIt == speechStyles.end()) return;
 
-    // std::string style = styleIt->second;
+    std::string style = styleIt->second;
 
-    // if (!speechIndicatorImage || speechIndicatorImage->imageId.empty()) return;
-    // if (images.find(speechIndicatorImage->imageId) == images.end()) return;
+    int cornerSize = static_cast<int>(8 * scale);
+    int indicatorSize = static_cast<int>(16 * scale);
+    int windowWidth = Render::getWidth();
+    int screenCenter = windowWidth / 2;
 
-    // int cornerSize = static_cast<int>(8 * scale);
-    // int indicatorSize = static_cast<int>(16 * scale);
-    // int windowWidth = Render::getWidth();
-    // int screenCenter = windowWidth / 2;
+    int indicatorX;
+    int indicatorY = bubbleY + bubbleHeight - (indicatorSize / 2);
 
-    // int indicatorX;
-    // int indicatorY = bubbleY + bubbleHeight - (indicatorSize / 2);
+    if (spriteCenterX < screenCenter) {
+        indicatorX = bubbleX + cornerSize;
+    } else {
+        indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
+    }
 
-    // if (spriteCenterX < screenCenter) {
-    //     indicatorX = bubbleX + cornerSize;
-    // } else {
-    //     indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
-    // }
+    ImageRenderParams params;
+    params.x = indicatorX;
+    params.y = indicatorY;
+    params.scale = static_cast<float>(indicatorSize) / (speechIndicatorImage->getWidth() / 2.0f);
+    params.opacity = 1.0f;
+    params.centered = false;
+    params.flip = (spriteCenterX >= screenCenter);
 
-    // // Indicator sprite sheet
-    // SDL_Image *image = images[speechIndicatorImage->imageId];
-    // int halfWidth = image->width / 2;
+    int halfWidth = speechIndicatorImage->getWidth() / 2;
+    ImageSubrect subrect = {
+        .x = (style == "think") ? halfWidth : 0,
+        .y = 0,
+        .w = halfWidth,
+        .h = speechIndicatorImage->getHeight()};
+    params.subrect = &subrect;
 
-    // // Select left half (say) or right half (think)
-    // int srcX = (style == "think") ? halfWidth : 0;
-    // SDL_Rect sourceRect = {srcX, 0, halfWidth, image->height};
-
-    // Uint8 alpha = static_cast<Uint8>(speechIndicatorImage->opacity * 255);
-    // SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
-
-    // SDL_Rect destRect = {indicatorX, indicatorY, indicatorSize, indicatorSize};
-    // SDL_RendererFlip flip = (spriteCenterX >= screenCenter) ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
-    // SDL_Point center = {destRect.w / 2, destRect.h / 2};
-
-    // SDL_RenderCopyEx(renderer, image->spriteTexture, &sourceRect, &destRect, 0, &center, flip);
+    speechIndicatorImage->render(params);
 }

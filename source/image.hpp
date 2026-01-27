@@ -4,6 +4,13 @@
 #include <sprite.hpp>
 #include <string>
 
+struct ImageSubrect {
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+};
+
 struct ImageRenderParams {
     int x = 0;
     int y = 0;
@@ -13,6 +20,7 @@ struct ImageRenderParams {
     int brightness = 0;
     float rotation = 0;
     bool flip = false;
+    ImageSubrect *subrect = nullptr;
 };
 
 class Image {

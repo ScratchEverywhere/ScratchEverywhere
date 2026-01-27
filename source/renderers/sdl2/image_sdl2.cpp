@@ -33,6 +33,21 @@ void Image_SDL2::render(ImageRenderParams &params) {
     renderRect.w = static_cast<int>(width * scale);
     renderRect.h = static_cast<int>(height * scale);
 
+    SDL_Rect subRect;
+    if (params.subrect != nullptr) {
+        subRect = {
+            .x = params.subrect->x,
+            .y = params.subrect->y,
+            .w = params.subrect->w,
+            .h = params.subrect->h};
+    } else {
+        subRect = {
+            .x = 0,
+            .y = 0,
+            .w = width,
+            .h = height};
+    }
+
     if (centered) {
         renderRect.x = x - (renderRect.w / 2);
         renderRect.y = y - (renderRect.h / 2);
@@ -44,18 +59,18 @@ void Image_SDL2::render(ImageRenderParams &params) {
     Uint8 alpha = static_cast<Uint8>(opacity * 255);
     SDL_SetTextureAlphaMod(texture, alpha);
 
-    SDL_Point center = {renderRect.w / 2, renderRect.h / 2};
+    const SDL_Point center = {renderRect.w / 2, renderRect.h / 2};
 
     if (brightness != 0) {
         float b = brightness * 0.01f;
         if (brightness > 0.0f) {
             // render the normal image first
-            SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
 
             // render another, blended image on top
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
             SDL_SetTextureAlphaMod(texture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
-            SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
 
             // reset for next frame
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
@@ -63,14 +78,14 @@ void Image_SDL2::render(ImageRenderParams &params) {
             Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
             SDL_SetTextureColorMod(texture, col, col, col);
 
-            SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, flip);
+            SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
             // reset for next frame
             SDL_SetTextureColorMod(texture, 255, 255, 255);
         }
     } else {
         // if no brightness just render normal image
         SDL_SetTextureColorMod(texture, 255, 255, 255);
-        SDL_RenderCopyEx(renderer, texture, NULL, &renderRect, rotation, &center, flip);
+        SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
     }
 }
 
@@ -81,20 +96,20 @@ void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double 
     const int iDestY = static_cast<int>(yPos - (centered ? height / 2 : 0));
     const int iWidth = static_cast<int>(width);
     const int iHeight = static_cast<int>(height);
-    const int iSrcPadding = std::max(1, static_cast<int>(std::min(std::min(padding, static_cast<double>(width) / 2), static_cast<double>(height) / 2)));
+    const int iSrcPadding = std::max(1, static_cast<int>(std::min(std::min(padding, static_cast<double>(getWidth()) / 2), static_cast<double>(getHeight()) / 2)));
 
-    const int srcCenterWidth = std::max(0.0, width - 2 * iSrcPadding);
-    const int srcCenterHeight = std::max(0.0, height - 2 * iSrcPadding);
+    const int srcCenterWidth = std::max(0, getWidth() - 2 * iSrcPadding);
+    const int srcCenterHeight = std::max(0, getHeight() - 2 * iSrcPadding);
 
     const SDL_Rect srcTopLeft = {0, 0, iSrcPadding, iSrcPadding};
     const SDL_Rect srcTop = {iSrcPadding, 0, srcCenterWidth, iSrcPadding};
-    const SDL_Rect srcTopRight = {iWidth - iSrcPadding, 0, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcTopRight = {getWidth() - iSrcPadding, 0, iSrcPadding, iSrcPadding};
     const SDL_Rect srcLeft = {0, iSrcPadding, iSrcPadding, srcCenterHeight};
     const SDL_Rect srcCenter = {iSrcPadding, iSrcPadding, srcCenterWidth, srcCenterHeight};
-    const SDL_Rect srcRight = {iWidth - iSrcPadding, iSrcPadding, iSrcPadding, srcCenterHeight};
-    const SDL_Rect srcBottomLeft = {0, iHeight - iSrcPadding, iSrcPadding, iSrcPadding};
-    const SDL_Rect srcBottom = {iSrcPadding, iHeight - iSrcPadding, srcCenterWidth, iSrcPadding};
-    const SDL_Rect srcBottomRight = {iWidth - iSrcPadding, iHeight - iSrcPadding, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcRight = {getWidth() - iSrcPadding, iSrcPadding, iSrcPadding, srcCenterHeight};
+    const SDL_Rect srcBottomLeft = {0, getHeight() - iSrcPadding, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcBottom = {iSrcPadding, getHeight() - iSrcPadding, srcCenterWidth, iSrcPadding};
+    const SDL_Rect srcBottomRight = {getWidth() - iSrcPadding, getHeight() - iSrcPadding, iSrcPadding, iSrcPadding};
 
     const int dstCenterWidth = std::max(0, iWidth - 2 * iSrcPadding);
     const int dstCenterHeight = std::max(0, iHeight - 2 * iSrcPadding);
