@@ -11,6 +11,13 @@ static float guiScale = 1.3f;
 static float guiScale = 1.0f;
 #endif
 
+// turn off nineslice for low performance platforms
+#if defined(__NDS__) || defined(__PSP__) || defined(RENDERER_SDL1) /* sdl1 just doesnt support it currently */
+static bool enableNineslice = false;
+#else
+static bool enableNineslice = true;
+#endif
+
 double MenuObject::getScaleFactor() {
     double WindowScale = Render::getWidth() + Render::getHeight();
 
@@ -51,11 +58,6 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
     text->setCenterAligned(true);
     imageId = filePath;
     buttonTexture = new MenuImage(filePath);
-
-// turn off nineslice for low performance platforms
-#if defined(__NDS__) || defined(__PSP__)
-    enableNineslice = false;
-#endif
 }
 
 bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
@@ -170,11 +172,20 @@ void MenuImage::render(double xPos, double yPos) {
     renderX = proportionX * Render::getWidth();
     renderY = proportionY * Render::getHeight();
 
-    if (width <= 0 && height <= 0) {
-        image->renderNineslice(renderX, renderY, image->getWidth() * scale, image->getHeight() * scale, 8 /* TODO: make this customizable */, true);
-        return;
+    if (enableNineslice) {
+        if (width <= 0 && height <= 0) {
+            image->renderNineslice(renderX, renderY, image->getWidth() * scale, image->getHeight() * scale, 8 /* TODO: make this customizable */, true);
+            return;
+        }
+        image->renderNineslice(renderX, renderY, width * scale, height * scale, 8 /* TODO: make this customizable */, true);
+    } else {
+        ImageRenderParams params;
+        params.x = renderX;
+        params.y = renderY;
+        params.scale = scale;
+        params.centered = true;
+        image->render(params);
     }
-    image->renderNineslice(renderX, renderY, width * scale, height * scale, 8 /* TODO: make this customizable */, true);
 }
 
 MenuImage::~MenuImage() {
@@ -309,7 +320,7 @@ void ControlObject::render(double xPos, double yPos) {
     double scaledWidth;
     double scaledHeight;
 
-    if (selectedObject->enableNineslice) {
+    if (enableNineslice) {
         scaledWidth = std::max(selectedObject->text->getSize()[0], (float)selectedObject->buttonTexture->image->getWidth() * renderScale);
         scaledHeight = std::max(selectedObject->text->getSize()[1], (float)selectedObject->buttonTexture->image->getHeight() * renderScale);
     } else {

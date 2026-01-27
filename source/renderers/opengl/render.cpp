@@ -284,7 +284,7 @@ void Render::penDot(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {
-    const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].id);
+    const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;

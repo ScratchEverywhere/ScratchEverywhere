@@ -1,5 +1,4 @@
 #include "render.hpp"
-#include "image.hpp"
 #include "speech_manager_sdl1.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_gfxBlitFunc.h>
@@ -12,6 +11,7 @@
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
+#include <image_sdl1.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
@@ -51,8 +51,6 @@ bool Render::Init() {
         return false;
     }
 
-    speechManager = new SpeechManagerSDL1(static_cast<SDL_Surface *>(globalWindow->getHandle()));
-
     debugMode = true;
 
     return true;
@@ -65,7 +63,6 @@ void Render::deInit() {
 
     SDL_FreeSurface(penSurface);
 
-    Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
 
@@ -86,6 +83,7 @@ void *Render::getRenderer() {
 }
 
 SpeechManager *Render::getSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL1(static_cast<SDL_Surface *>(globalWindow->getHandle()));
     return speechManager;
 }
 
@@ -171,56 +169,50 @@ void Render::penDot(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {
-    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
-    if (imgFind == images.end()) {
+    const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
-    imgFind->second->freeTimer = imgFind->second->maxFreeTime;
-
-    // IDK if these are needed
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-
     // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
-    SDL_Image *image = imgFind->second;
-    image->freeTimer = image->maxFreeTime;
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-    sprite->spriteWidth = image->textureRect.w >> 1;
-    sprite->spriteHeight = image->textureRect.h >> 1;
+    Image_SDL1 *image = reinterpret_cast<Image_SDL1 *>(imgFind->second.get());
     bool flip = false;
     const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
     Render::calculateRenderPosition(sprite, isSVG);
-    image->renderRect.x = sprite->renderInfo.renderX;
-    image->renderRect.y = sprite->renderInfo.renderY;
+    int renderX = sprite->renderInfo.renderX;
+    int renderY = sprite->renderInfo.renderY;
+    float renderScale = 1.0f;
 
     if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
         flip = true;
     }
 
     // Pen mapping stuff
-    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, getWidth(), getHeight());
-    image->renderRect.x = cords.first + Scratch::projectWidth / 2;
-    image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
+    const auto &cords = Scratch::screenToScratchCoords(renderX, renderY, getWidth(), getHeight());
+    renderX = cords.first + Scratch::projectWidth / 2;
+    renderY = -cords.second + Scratch::projectHeight / 2;
 
     if (Scratch::hqpen) {
-        image->setScale(sprite->renderInfo.renderScaleY);
+        renderScale = sprite->renderInfo.renderScaleY;
 
         const double scale = (penSurface->h / static_cast<double>(Scratch::projectHeight));
 
-        image->renderRect.x *= scale;
-        image->renderRect.y *= scale;
+        renderX *= scale;
+        renderY *= scale;
     } else {
-        image->setScale(sprite->size / (isSVG ? 100.0f : 200.0f));
+        renderScale = sprite->size / (isSVG ? 100.0f : 200.0f);
     }
 
     // set ghost effect
     float ghost = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
     Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-    SDL_SetAlpha(image->spriteTexture, SDL_SRCALPHA, alpha);
+    SDL_SetAlpha(image->texture, SDL_SRCALPHA, alpha);
 
-    SDL_Surface *finalSurface = rotozoomSurfaceXY(image->spriteTexture, -Math::radiansToDegrees(sprite->renderInfo.renderRotation), sprite->renderInfo.renderScaleX, sprite->renderInfo.renderScaleY, SMOOTHING_OFF);
+    SDL_Surface *finalSurface = rotozoomSurfaceXY(image->texture,
+                                                  -Math::radiansToDegrees(sprite->renderInfo.renderRotation),
+                                                  renderScale,
+                                                  renderScale,
+                                                  SMOOTHING_OFF);
 
     if (flip) {
         SDL_Surface *flipped = zoomSurface(finalSurface, -1, 1, 0);
@@ -229,8 +221,8 @@ void Render::penStamp(Sprite *sprite) {
     }
 
     SDL_Rect dest;
-    dest.x = sprite->renderInfo.renderX + (image->spriteTexture->w * sprite->renderInfo.renderScaleX / 2) - (finalSurface->w / 2);
-    dest.y = sprite->renderInfo.renderY + (image->spriteTexture->h * sprite->renderInfo.renderScaleY / 2) - (finalSurface->h / 2);
+    dest.x = renderX - (finalSurface->w * sprite->renderInfo.renderScaleX / 2);
+    dest.y = renderY - (finalSurface->h * sprite->renderInfo.renderScaleY / 2);
 
     SDL_gfxBlitRGBA(finalSurface, NULL, penSurface, &dest);
     SDL_FreeSurface(finalSurface);
@@ -251,7 +243,6 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Render::endFrame(bool shouldFlush) {
     SDL_Flip(static_cast<SDL_Surface *>(getRenderer()));
     SDL_Delay(16);
-    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
@@ -297,52 +288,25 @@ void Render::renderSprites() {
 
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
+        auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        if (imgFind != Scratch::costumeImages.end()) {
+            Image *image = imgFind->second.get();
 
-        auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
-        if (imgFind != images.end()) {
-            SDL_Image *image = imgFind->second;
-
-            currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
-            currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
-            currentSprite->spriteWidth = image->textureRect.w >> 1;
-            currentSprite->spriteHeight = image->textureRect.h >> 1;
-
-            if (!currentSprite->visible) continue;
-
-            image->freeTimer = image->maxFreeTime;
-
-            bool flip = false;
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
-            image->renderRect.x = currentSprite->renderInfo.renderX;
-            image->renderRect.y = currentSprite->renderInfo.renderY;
+            if (!currentSprite->visible) continue;
 
-            image->setScale(currentSprite->renderInfo.renderScaleY);
-            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-                flip = true;
-            }
+            ImageRenderParams params;
+            params.centered = true;
+            params.x = currentSprite->renderInfo.renderX;
+            params.y = currentSprite->renderInfo.renderY;
+            params.rotation = currentSprite->renderInfo.renderRotation;
+            params.scale = currentSprite->renderInfo.renderScaleY;
+            params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
+            params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+            params.brightness = currentSprite->brightnessEffect;
 
-            // set ghost effect
-            float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
-            Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-            SDL_SetAlpha(image->spriteTexture, SDL_SRCALPHA, alpha);
-
-            // TODO: implement brightness effect
-
-            SDL_Surface *finalSurface = rotozoomSurfaceXY(image->spriteTexture, -Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), currentSprite->renderInfo.renderScaleX, currentSprite->renderInfo.renderScaleY, SMOOTHING_OFF);
-
-            if (flip) {
-                SDL_Surface *flipped = zoomSurface(finalSurface, -1, 1, 0);
-                SDL_FreeSurface(finalSurface);
-                finalSurface = flipped;
-            }
-
-            SDL_Rect dest;
-            dest.x = currentSprite->renderInfo.renderX + (image->spriteTexture->w * currentSprite->renderInfo.renderScaleX / 2) - (finalSurface->w / 2);
-            dest.y = currentSprite->renderInfo.renderY + (image->spriteTexture->h * currentSprite->renderInfo.renderScaleY / 2) - (finalSurface->h / 2);
-
-            SDL_BlitSurface(finalSurface, NULL, window, &dest);
-            SDL_FreeSurface(finalSurface);
+            image->render(params);
         }
 
         // Draw collision points (for debugging)
@@ -374,7 +338,6 @@ void Render::renderSprites() {
 
     SDL_Flip(window);
     if (globalWindow) globalWindow->swapBuffers();
-    Image::FlushImages();
     SoundPlayer::flushAudio();
 }
 

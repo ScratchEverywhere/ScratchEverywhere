@@ -105,7 +105,6 @@ class ButtonObject : public MenuObject {
     bool isSelected = false;
     bool needsToBeSelected = true;
     bool canBeClicked = true;
-    bool enableNineslice = true;
     MenuImage *buttonTexture;
     ButtonObject *buttonUp = nullptr;
     ButtonObject *buttonDown = nullptr;
