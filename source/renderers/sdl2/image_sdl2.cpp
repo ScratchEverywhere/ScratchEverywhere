@@ -4,12 +4,6 @@
 #include <stdexcept>
 #include <string>
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
-#endif
-
 void Image_SDL2::render(ImageRenderParams &params) {
 
     int &x = params.x;

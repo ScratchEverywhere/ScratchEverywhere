@@ -27,10 +27,12 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
         }
     }
 #if defined(RENDERER_SDL2)
-    return std::make_shared<Image_SDL2>(filePath, fromScratchProject);
+    auto img = std::make_shared<Image_SDL2>(filePath, fromScratchProject);
 #else
-    return std::make_shared<Image>(filePath, fromScratchProject);
+    auto img = std::make_shared<Image>(filePath, fromScratchProject);
 #endif
+    images[filePath] = img;
+    return img;
 }
 
 std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip) {
@@ -41,10 +43,12 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
         }
     }
 #if defined(RENDERER_SDL2)
-    return std::make_shared<Image_SDL2>(filePath, zip);
+    auto img = std::make_shared<Image_SDL2>(filePath, zip);
 #else
-    return std::make_shared<Image>(filePath, zip);
+    auto img = std::make_shared<Image>(filePath, zip);
 #endif
+    images[filePath] = img;
+    return img;
 }
 
 std::vector<char> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
