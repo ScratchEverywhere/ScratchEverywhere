@@ -55,13 +55,13 @@ void Image_SDL2::render(ImageRenderParams &params) {
 
             // render another, blended image on top
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_ADD);
-            SDL_SetTextureAlphaMod(texture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
+            SDL_SetTextureAlphaMod(texture, Uint8(255 * b * opacity));
             SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
 
             // reset for next frame
             SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
         } else {
-            Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
+            Uint8 col = Uint8(255 * std::clamp(1.0f + b, 0.0f, 1.0f));
             SDL_SetTextureColorMod(texture, col, col, col);
 
             SDL_RenderCopyEx(renderer, texture, &subRect, &renderRect, rotation, &center, flip);
