@@ -134,8 +134,6 @@ bool Render::Init() {
         return false;
     }
 
-    speechManager = new SpeechManagerSDL2(renderer);
-
     debugMode = true;
 
     return true;
@@ -169,6 +167,7 @@ void *Render::getRenderer() {
 }
 
 SpeechManager *Render::getSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL2(renderer);
     return speechManager;
 }
 
