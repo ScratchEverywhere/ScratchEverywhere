@@ -9,7 +9,7 @@ void Image_SDL2::render(ImageRenderParams &params) {
     int &x = params.x;
     int &y = params.y;
     int &brightness = params.brightness;
-    float &rotation = params.rotation;
+    double rotation = Math::radiansToDegrees(params.rotation);
     float &scale = params.scale;
     float &opacity = params.opacity;
     bool &centered = params.centered;

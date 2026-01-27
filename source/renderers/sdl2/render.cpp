@@ -308,7 +308,7 @@ void Render::penStamp(Sprite *sprite) {
     }
 
     ImageRenderParams params;
-    params.centered = false; // the image gets centered in calculateRenderPosition()
+    params.centered = true;
     params.x = penX;
     params.y = penY;
     params.rotation = sprite->renderInfo.renderRotation;
@@ -395,7 +395,7 @@ void Render::renderSprites() {
             if (!currentSprite->visible) continue;
 
             ImageRenderParams params;
-            params.centered = false; // the image gets centered in calculateRenderPosition()
+            params.centered = true;
             params.x = currentSprite->renderInfo.renderX;
             params.y = currentSprite->renderInfo.renderY;
             params.rotation = currentSprite->renderInfo.renderRotation;
@@ -411,8 +411,8 @@ void Render::renderSprites() {
         // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
         // for (const auto &point : collisionPoints) {
-        //     double screenX = (point.first * renderScale) + (windowWidth / 2);
-        //     double screenY = (point.second * -renderScale) + (windowHeight / 2);
+        //     double screenX = (point.first * renderScale) + (getWidth() / 2);
+        //     double screenY = (point.second * -renderScale) + (getHeight() / 2);
 
         //     SDL_Rect debugPointRect;
         //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit

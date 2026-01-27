@@ -249,8 +249,8 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
     const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
     Render::calculateRenderPosition(currentSprite, isSVG);
-    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
-    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
+    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 1 : 0.5)) * (currentSprite->size * 0.01);
+    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 1 : 0.5)) * (currentSprite->size * 0.01);
 
     const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
     float x = cords.first;
@@ -267,11 +267,9 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
 #endif
     } else rotation = 0;
 
-// put position to top left of sprite (SDL platforms already do this)
-#if !defined(RENDERER_SDL1) && !defined(RENDERER_SDL2) && !defined(RENDERER_SDL3)
-    x -= (currentSprite->spriteWidth / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
-    y += (currentSprite->spriteHeight / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
-#endif
+    // put position to top left of sprite
+    x -= spriteWidth / 2;
+    y += spriteHeight / 2;
 
     std::vector<std::pair<double, double>> corners = {
         {x, y},                              // Top-left

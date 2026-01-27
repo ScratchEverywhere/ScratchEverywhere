@@ -71,6 +71,9 @@ class Render {
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
 
+        sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+        sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+
         // If the window size changed, or if the sprite changed costumes
         if (sprite->renderInfo.forceUpdate || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
             // change all renderinfo a bit to update position for all
@@ -87,7 +90,7 @@ class Render {
             sprite->renderInfo.oldRotation++;
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
-#ifdef RENDERER_GL2D
+#ifdef RENDERER_GL2D // TODO: move to Image_gl2d
             sprite->renderInfo.renderScaleX = sprite->size * 0.005;
 #else
             sprite->renderInfo.renderScaleX = sprite->size * (isSVG ? 0.01 : 0.005);
@@ -117,48 +120,48 @@ class Render {
             sprite->renderInfo.oldX = sprite->xPosition;
             sprite->renderInfo.oldY = sprite->yPosition;
 
-            sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-            sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-
             float renderX;
             float renderY;
             float spriteX = static_cast<int>(sprite->xPosition);
             float spriteY = static_cast<int>(sprite->yPosition);
 
             // Handle if the sprite's image is not centered in the costume editor
-            if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
-                sprite->spriteHeight - sprite->rotationCenterY != 0) {
+            if (sprite->spriteWidth - sprite->rotationCenterX * 2 != 0 ||
+                sprite->spriteHeight - sprite->rotationCenterY * 2 != 0) {
                 const int shiftAmount = !isSVG ? 1 : 0;
-                int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> shiftAmount;
-                const int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> shiftAmount;
+                float offsetX = (sprite->spriteWidth - sprite->rotationCenterX * 2) * 0.5f;
+                float offsetY = (sprite->spriteHeight - sprite->rotationCenterY * 2) * 0.5f;
+
+                if (!isSVG) {
+                    offsetX *= 0.5f;
+                    offsetY *= 0.5f;
+                }
 
                 if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0)
                     offsetX *= -1;
 
                 // Offset based on size
-                if (sprite->size != 100.0f) {
-                    const float scale = sprite->size * 0.01;
-                    const float scaledX = offsetX * scale;
-                    const float scaledY = offsetY * scale;
-
-                    spriteX += scaledX - offsetX;
-                    spriteY -= scaledY - offsetY;
-                }
+                float scale = sprite->size * 0.01f;
+                offsetX *= scale;
+                offsetY *= scale;
 
                 // Offset based on rotation
-                if (sprite->renderInfo.renderRotation != 0) {
-                    float rot = sprite->renderInfo.renderRotation;
-                    float rotatedX = -offsetX * std::cos(rot) + offsetY * std::sin(rot);
-                    float rotatedY = -offsetX * std::sin(rot) - offsetY * std::cos(rot);
-                    spriteX += rotatedX;
-                    spriteY -= rotatedY;
-                } else {
-                    spriteX += offsetX;
-                    spriteY -= offsetY;
+                if (sprite->renderInfo.renderRotation != 0.0f) {
+                    float rotCos = cos(sprite->renderInfo.renderRotation);
+                    float rotSin = sin(sprite->renderInfo.renderRotation);
+
+                    float rotX = offsetX * rotCos - offsetY * rotSin;
+                    float rotY = offsetX * rotSin + offsetY * rotCos;
+
+                    offsetX = rotX;
+                    offsetY = rotY;
                 }
+
+                spriteX += offsetX;
+                spriteY -= offsetY;
             }
 
-#ifdef RENDERER_CITRO2D
+#ifdef RENDERER_CITRO2D // TODO: move to Image_c2d
             if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
                 spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
             }
@@ -171,11 +174,6 @@ class Render {
                 renderX = static_cast<int>(spriteX + (screenWidth >> 1));
                 renderY = static_cast<int>(-spriteY + (screenHeight >> 1));
             }
-
-#if defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-            renderX -= (sprite->spriteWidth * sprite->renderInfo.renderScaleY);
-            renderY -= (sprite->spriteHeight * sprite->renderInfo.renderScaleY);
-#endif
 
             sprite->renderInfo.renderX = renderX;
             sprite->renderInfo.renderY = renderY;
