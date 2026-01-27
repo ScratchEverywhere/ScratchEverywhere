@@ -41,8 +41,6 @@ bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
 std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 

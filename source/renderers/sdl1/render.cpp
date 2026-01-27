@@ -37,8 +37,6 @@ SpeechManagerSDL1 *speechManager = nullptr;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
-std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 

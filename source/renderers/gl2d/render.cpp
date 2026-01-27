@@ -12,8 +12,6 @@
 #include <windowing/nds/window.hpp>
 
 // Static member initialization
-std::chrono::_V2::system_clock::time_point Render::startTime;
-std::chrono::_V2::system_clock::time_point Render::endTime;
 bool Render::debugMode = false;
 bool Render::hasFrameBegan = false;
 float Render::renderScale = 1.0f;

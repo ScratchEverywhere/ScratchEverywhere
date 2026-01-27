@@ -9,10 +9,20 @@
 #define NANOSVGRAST_IMPLEMENTATION
 #include <nanosvgrast.h>
 
-#if defined(RENDERER_SDL2)
+#if defined(RENDERER_SDL1)
+#include <image_sdl1.hpp>
+#elif defined(RENDERER_SDL2)
 #include <image_sdl2.hpp>
+#elif defined(RENDERER_SDL3)
+#include <image_sdl3.hpp>
+#elif defined(RENDERER_OPENGL)
+#include <image_gl.hpp>
 #elif defined(RENDERER_CITRO2D)
 #include <image_c2d.hpp>
+#elif defined(RENDERER_GL2D)
+#include <image_gl2d.hpp>
+#elif defined(RENDERER_HEADLESS)
+#include <image_headless.hpp>
 #endif
 
 #ifdef USE_CMAKERC
@@ -33,12 +43,22 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
         }
     }
 
-#if defined(RENDERER_SDL2)
+#if defined(RENDERER_SDL1)
+    Image *rawImg = new Image_SDL1(filePath, fromScratchProject);
+#elif defined(RENDERER_SDL2)
     Image *rawImg = new Image_SDL2(filePath, fromScratchProject);
+#elif defined(RENDERER_SDL3)
+    Image *rawImg = new Image_SDL3(filePath, fromScratchProject);
 #elif defined(RENDERER_CITRO2D)
     Image *rawImg = new Image_C2D(filePath, fromScratchProject);
+#elif defined(RENDERER_OPENGL)
+    Image *rawImg = new Image_GL(filePath, fromScratchProject);
+#elif defined(RENDERER_GL2D)
+    Image *rawImg = new Image_GL2D(filePath, fromScratchProject);
+#elif defined(RENDERER_HEADLESS)
+    Image *rawImg = new Image_Headless(filePath, fromScratchProject);
 #else
-    Image *rawImg = nullptr;
+    throw std::runtime_error("Image backend not defined,");
 #endif
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
@@ -60,12 +80,22 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
         }
     }
 
-#if defined(RENDERER_SDL2)
+#if defined(RENDERER_SDL1)
+    Image *rawImg = new Image_SDL1(filePath, zip);
+#elif defined(RENDERER_SDL2)
     Image *rawImg = new Image_SDL2(filePath, zip);
+#elif defined(RENDERER_SDL3)
+    Image *rawImg = new Image_SDL3(filePath, zip);
 #elif defined(RENDERER_CITRO2D)
     Image *rawImg = new Image_C2D(filePath, zip);
+#elif defined(RENDERER_OPENGL)
+    Image *rawImg = new Image_GL(filePath, zip);
+#elif defined(RENDERER_GL2D)
+    Image *rawImg = new Image_GL2D(filePath, zip);
+#elif defined(RENDERER_HEADLESS)
+    Image *rawImg = new Image_Headless(filePath, zip);
 #else
-    Image *rawImg = nullptr;
+    throw std::runtime_error("Image backend not defined,");
 #endif
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
