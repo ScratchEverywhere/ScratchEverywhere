@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cmath>
 #include <image.hpp>
+#include <input.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <string>
