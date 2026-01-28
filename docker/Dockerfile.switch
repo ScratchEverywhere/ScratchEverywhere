@@ -2,7 +2,7 @@ FROM devkitpro/devkita64:latest AS main_builder
 WORKDIR /app
 COPY . .
 
-RUN cmake -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake -B build-nx && cmake --build build-nx -j $(nproc)
+RUN cmake -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake -B build-nx && cmake --build build-nx -j 2
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build-nx/scratch-nx.nro /
