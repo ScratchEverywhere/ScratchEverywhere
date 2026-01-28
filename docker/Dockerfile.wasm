@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=wasm release TARGET=index -j ${nproc}
+RUN make PLATFORM=wasm release TARGET=index -j 2
 
 FROM scratch AS exporter
 

@@ -30,7 +30,7 @@ RUN cmake -B build/webos -S . -DCMAKE_TOOLCHAIN_FILE=arm-webos-linux-gnueabi_sdk
         -DSE_CLOUDVARS=ON \
         -DWEBOS=ON \
         -DSE_RENDERER=sdl2 && \
-    make -C build/webos -j$(nproc) all package && \
+    make -C build/webos -j 2 all package && \
     mv build/webos/*.ipk build/webos/scratch-webos.ipk
 
 FROM scratch AS exporter
