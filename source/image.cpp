@@ -177,6 +177,10 @@ unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t siz
     if (!pixels) throw std::runtime_error("Failed to decode raster image");
     imgData.pitch = width * 4;
 
+#ifdef __OGC__ // may break getPixels()
+    stbi__vertical_flip(pixels, width, height, 4);
+#endif
+
     return pixels;
 }
 
