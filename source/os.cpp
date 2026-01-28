@@ -86,13 +86,13 @@ void Log::log(std::string message, bool printToScreen) {
 
 void Log::logWarning(std::string message, bool printToScreen) {
     if (printToScreen)
-        printf("Warning: %s", message);
+        printf("Warning: %s", message.c_str());
     writeToFile("Warning: " + message);
 }
 
 void Log::logError(std::string message, bool printToScreen) {
     if (printToScreen)
-        printf("Error: %s", message);
+        printf("Error: %s", message.c_str());
 
     writeToFile("Error: " + message);
 }
