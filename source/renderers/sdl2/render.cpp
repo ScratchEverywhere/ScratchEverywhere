@@ -114,7 +114,6 @@ bool Render::Init() {
     int windowHeight = 405;
 #endif
 
-    //  IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
 
     globalWindow = new WindowSDL2();
@@ -146,7 +145,6 @@ void Render::deInit() {
 
     SDL_DestroyTexture(penTexture);
 
-    // Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SDL_DestroyRenderer(renderer);
@@ -158,7 +156,6 @@ void Render::deInit() {
     }
 
     SoundPlayer::deinit();
-    // IMG_Quit();
     SDL_Quit();
 }
 

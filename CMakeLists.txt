@@ -251,7 +251,6 @@ FetchContent_MakeAvailable(miniz)
 if(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
-		pkg_check_modules(SDL_IMAGE REQUIRED SDL_image>=1.2.0)
 		pkg_check_modules(SDL_TTF REQUIRED SDL_ttf>=1.2.0)
 		pkg_check_modules(SDL_GFX REQUIRED SDL_gfx>=1.0.0)
 	else()
@@ -324,7 +323,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 elseif(SE_RENDERER STREQUAL "sdl3")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
-		pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image>=3.0.0)
 		pkg_check_modules(SDL3_TTF REQUIRED sdl3-ttf>=3.0.0)
 		pkg_check_modules(SDL3_GFX REQUIRED sdl3-gfx>=1.0.0)
 	else()
@@ -334,12 +332,6 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 			GITHUB_REPOSITORY libsdl-org/SDL
 			GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
 			OPTIONS "SDL_TEST_LIBRARY OFF"
-		)
-		CPMAddPackage(
-			NAME SDL3_image
-			VERSION 3.2.4
-			GITHUB_REPOSITORY libsdl-org/SDL_image
-			GIT_TAG release-3.2.4
 		)
 		CPMAddPackage(
 			NAME SDL3_ttf
@@ -601,16 +593,12 @@ if(SE_RENDERER STREQUAL "sdl3")
 	endif()
 
 	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
+		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
 	elseif(BUILD_SHARED_LIBS)
-		list(APPEND SDL_LINK_LIBS SDL3_image::SDL3_image)
 		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
 		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
 	else()
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_image::SDL3_image-static>,
-			SDL3_image::SDL3_image-static,
-			SDL3_image::SDL3_image>)
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_ttf::SDL3_ttf-static>,
 			SDL3_ttf::SDL3_ttf-static,
 			SDL3_ttf::SDL3_ttf>)
@@ -661,17 +649,13 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 	endif()
 
 	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_IMAGE_LIBRARIES} ${SDL_TTF_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_IMAGE_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
+		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_TTF_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
 
 	elseif(BUILD_SHARED_LIBS)
-		list(APPEND SDL_LINK_LIBS SDL_image::SDL_image)
 		list(APPEND SDL_LINK_LIBS SDL_ttf::SDL_ttf)
 
 	else()
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_image::SDL_image-static>,
-			SDL_image::SDL_image-static,
-			SDL_image::SDL_image>)
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_ttf::SDL_ttf-static>,
 			SDL_ttf::SDL_ttf-static,
 			SDL_ttf::SDL_ttf>)

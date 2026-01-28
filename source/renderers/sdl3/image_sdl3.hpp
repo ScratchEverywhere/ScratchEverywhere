@@ -1,6 +1,6 @@
 #pragma once
 
-#include <SDL3_image/SDL_image.h>
+#include <SDL3/SDL.h>
 #include <image.hpp>
 #include <string>
 #include <unordered_map>
