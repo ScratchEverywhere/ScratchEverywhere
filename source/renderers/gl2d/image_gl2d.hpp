@@ -27,6 +27,8 @@ class Image_GL2D : public Image {
 
     ~Image_GL2D() override;
 
+    ImageData getPixels(ImageSubrect rect) override;
+
     void render(ImageRenderParams &params) override;
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;
 };

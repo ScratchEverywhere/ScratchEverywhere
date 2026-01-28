@@ -23,6 +23,19 @@ struct ImageRenderParams {
     ImageSubrect *subrect = nullptr;
 };
 
+enum ImageFormat {
+    IMAGE_FORMAT_NONE,
+    IMAGE_FORMAT_RGBA32, // most platforms use this
+    IMAGE_FORMAT_PAL8,   // used by GL2D (NDS)
+};
+
+struct ImageData {
+    int width, height;
+    ImageFormat format;
+    int pitch;
+    void *pixels;
+};
+
 class Image {
   private:
     std::vector<char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
@@ -30,8 +43,7 @@ class Image {
     unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height);
 
   protected:
-    int width, height;
-    void *pixels;
+    ImageData imgData;
 
   public:
     const unsigned int maxFreeTimer = 540;
@@ -40,6 +52,8 @@ class Image {
     Image(std::string filePath, bool fromScratchProject = true);
     Image(std::string filePath, mz_zip_archive *zip);
     virtual ~Image();
+
+    virtual ImageData getPixels(ImageSubrect rect);
 
     int getWidth();
     int getHeight();

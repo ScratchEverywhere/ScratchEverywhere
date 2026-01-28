@@ -23,8 +23,8 @@ void Image_SDL3::render(ImageRenderParams &params) {
     SDL_FlipMode flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
     SDL_FRect renderRect;
-    renderRect.w = static_cast<int>(width * scale);
-    renderRect.h = static_cast<int>(height * scale);
+    renderRect.w = static_cast<int>(imgData.width * scale);
+    renderRect.h = static_cast<int>(imgData.height * scale);
 
     SDL_FRect subRect;
     if (params.subrect != nullptr) {
@@ -37,8 +37,8 @@ void Image_SDL3::render(ImageRenderParams &params) {
         subRect = {
             .x = 0.0f,
             .y = 0.0f,
-            .w = static_cast<float>(width),
-            .h = static_cast<float>(height)};
+            .w = static_cast<float>(imgData.width),
+            .h = static_cast<float>(imgData.height)};
     }
 
     if (centered) {
@@ -136,7 +136,7 @@ void Image_SDL3::renderNineslice(double xPos, double yPos, double width, double 
 }
 
 void Image_SDL3::setInitialTexture() {
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, width, height);
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
     if (!texture) {
         throw std::runtime_error("Failed to create texture: " + std::string(SDL_GetError()));
@@ -144,11 +144,9 @@ void Image_SDL3::setInitialTexture() {
 
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
-    if (!SDL_UpdateTexture(texture, nullptr, pixels, width * 4)) {
+    if (!SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch)) {
         throw std::runtime_error("Failed to update texture: " + std::string(SDL_GetError()));
     }
-    free(pixels);
-    pixels = nullptr;
 }
 
 Image_SDL3::Image_SDL3(std::string filePath, mz_zip_archive *zip) : Image(filePath, zip) {

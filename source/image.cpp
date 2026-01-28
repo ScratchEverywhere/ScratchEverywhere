@@ -58,7 +58,7 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
 #elif defined(RENDERER_HEADLESS)
     Image *rawImg = new Image_Headless(filePath, fromScratchProject);
 #else
-    throw std::runtime_error("Image backend not defined,");
+#error "Image backend not defined."
 #endif
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
@@ -95,7 +95,7 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
 #elif defined(RENDERER_HEADLESS)
     Image *rawImg = new Image_Headless(filePath, zip);
 #else
-    throw std::runtime_error("Image backend not defined,");
+#error "Image backend not defined."
 #endif
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
@@ -148,6 +148,7 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
 
     width = image->width > 0 ? (int)image->width : 32;
     height = image->height > 0 ? (int)image->height : 32;
+    imgData.pitch = width * 4;
 
     NSVGrasterizer *rast = nsvgCreateRasterizer();
     if (!rast) {
@@ -162,7 +163,7 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
         throw std::runtime_error("Failed to allocate SVG pixel buffer");
     }
 
-    nsvgRasterize(rast, image, 0, 0, 1.0f, pixels, width, height, width * 4);
+    nsvgRasterize(rast, image, 0, 0, 1.0f, pixels, width, height, imgData.pitch);
 
     nsvgDeleteRasterizer(rast);
     nsvgDelete(image);
@@ -174,6 +175,8 @@ unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t siz
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
     if (!pixels) throw std::runtime_error("Failed to decode raster image");
+    imgData.pitch = width * 4;
+
     return pixels;
 }
 
@@ -189,12 +192,12 @@ Image::Image(std::string filePath, bool fromScratchProject) {
     std::vector<char> buffer = readFileToBuffer(filePath, fromScratchProject);
 
     if (isSVG) {
-        pixels = loadSVGFromMemory(buffer.data(), buffer.size(), width, height);
+        imgData.pixels = loadSVGFromMemory(buffer.data(), buffer.size(), imgData.width, imgData.height);
     } else {
-        pixels = loadRasterFromMemory(reinterpret_cast<unsigned char *>(buffer.data()), buffer.size(), width, height);
+        imgData.pixels = loadRasterFromMemory(reinterpret_cast<unsigned char *>(buffer.data()), buffer.size(), imgData.width, imgData.height);
     }
 
-    if (!pixels) throw std::runtime_error("Failed to load image: " + filePath);
+    if (!imgData.pixels) throw std::runtime_error("Failed to load image: " + filePath);
 }
 
 Image::Image(std::string filePath, mz_zip_archive *zip) {
@@ -214,25 +217,64 @@ Image::Image(std::string filePath, mz_zip_archive *zip) {
         memcpy(svgBuffer.data(), file_data, file_size);
         svgBuffer[file_size] = '\0';
 
-        pixels = loadSVGFromMemory(svgBuffer.data(), file_size, width, height);
+        imgData.pixels = loadSVGFromMemory(svgBuffer.data(), file_size, imgData.width, imgData.height);
     } else {
-        pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, width, height);
+        imgData.pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, imgData.width, imgData.height);
     }
 
     mz_free(file_data);
 
-    if (!pixels) throw std::runtime_error("Failed to load image from zip: " + filePath);
+    if (!imgData.pixels) throw std::runtime_error("Failed to load image from zip: " + filePath);
 }
 
 Image::~Image() {
-    if (pixels)
-        stbi_image_free(pixels);
+    if (imgData.pixels)
+        stbi_image_free(imgData.pixels);
 }
 
 int Image::getWidth() {
-    return width;
+    return imgData.width;
 }
 
 int Image::getHeight() {
-    return height;
+    return imgData.height;
+}
+
+ImageData Image::getPixels(ImageSubrect rect) {
+
+    ImageData out{};
+
+    if (rect.x < 0) rect.x = 0;
+    if (rect.y < 0) rect.y = 0;
+    if (rect.x + rect.w > imgData.width) rect.w = imgData.width - rect.x;
+    if (rect.y + rect.h > imgData.height) rect.h = imgData.height - rect.y;
+
+    if (rect.w <= 0 || rect.h <= 0 || !imgData.pixels || imgData.pixels == nullptr) {
+        out.format = IMAGE_FORMAT_NONE;
+        return out;
+    }
+
+    const int bytesPerPixel = 4;
+    const int srcPitch = imgData.pitch;
+    const int dstPitch = rect.w * bytesPerPixel;
+
+    unsigned char *dstPixels = new unsigned char[rect.w * rect.h * bytesPerPixel];
+
+    unsigned char *srcPixels = static_cast<unsigned char *>(imgData.pixels);
+
+    for (int row = 0; row < rect.h; ++row) {
+        unsigned char *srcRow = srcPixels + (rect.y + row) * srcPitch + rect.x * bytesPerPixel;
+
+        unsigned char *dstRow = dstPixels + row * dstPitch;
+
+        std::memcpy(dstRow, srcRow, dstPitch);
+    }
+
+    out.width = rect.w;
+    out.height = rect.h;
+    out.format = IMAGE_FORMAT_RGBA32;
+    out.pitch = dstPitch;
+    out.pixels = dstPixels;
+
+    return out;
 }

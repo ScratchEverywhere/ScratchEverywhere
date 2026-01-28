@@ -6,13 +6,13 @@ void Image_GL2D::setInitialTexture() {
 
     RGBAToPAL8();
 
-    const int pow2Width = Math::next_pow2(width);
-    const int pow2Height = Math::next_pow2(height);
+    const int pow2Width = Math::next_pow2(imgData.width);
+    const int pow2Height = Math::next_pow2(imgData.height);
 
     int texID = glLoadTileSet(
         &texture,
-        width,
-        height,
+        imgData.width,
+        imgData.height,
         pow2Width,
         pow2Height,
         GL_RGB256,
@@ -92,6 +92,17 @@ void Image_GL2D::renderNineslice(double xPos, double yPos, double width, double 
     render(params);
 }
 
+ImageData Image_GL2D::getPixels(ImageSubrect rect) {
+    // currently unsupported
+    ImageData data;
+    data.format = IMAGE_FORMAT_NONE;
+    data.width = 0;
+    data.height = 0;
+    data.pitch = 0;
+    data.pixels = nullptr;
+    return data;
+}
+
 void *Image_GL2D::resizeRGBAImage(uint16_t newWidth, uint16_t newHeight) {
     unsigned char *resizedData = new unsigned char[newWidth * newHeight * 4];
 
@@ -110,18 +121,20 @@ void *Image_GL2D::resizeRGBAImage(uint16_t newWidth, uint16_t newHeight) {
         }
     }
 
-    free(pixels);
-    pixels = nullptr;
+    free(imgData.pixels);
+    imgData.pixels = nullptr;
 
     return reinterpret_cast<void *>(resizedData);
 }
 
 void Image_GL2D::RGBAToPAL8() {
-    const int imgW = width;
-    const int imgH = height;
+    const int imgW = imgData.width;
+    const int imgH = imgData.height;
     const int texW = Math::next_pow2(width);
     const int texH = Math::next_pow2(height);
     const int totalPixels = texW * texH;
+    imgData.format = IMAGE_FORMAT_PAL8;
+    imgData.pitch = imgData.width;
 
     textureData = new unsigned char[totalPixels];
 
@@ -221,8 +234,8 @@ void Image_GL2D::RGBAToPAL8() {
     for (size_t i = palette.size(); i < 256; ++i)
         paletteData[i] = 0x0000;
 
-    free(pixels);
-    pixels = nullptr;
+    free(imgData.pixels);
+    imgData.pixels = nullptr;
 
     // ds.textureMemSize = totalPixels + (256 * 2); // texture bytes + palette bytes
     // Log::log("Tex converted! Size: " + std::to_string(ds.textureMemSize / 1000) + " KB");

@@ -64,11 +64,11 @@ void Image_GL::render(ImageRenderParams &params) {
         glTexCoord2f(0.0f, 0.0f);
         glVertex2f(0.0f, 0.0f);
         glTexCoord2f(1.0f, 0.0f);
-        glVertex2f(width, 0.0f);
+        glVertex2f(imgData.width, 0.0f);
         glTexCoord2f(1.0f, 1.0f);
-        glVertex2f(width, height);
+        glVertex2f(imgData.width, imgData.height);
         glTexCoord2f(0.0f, 1.0f);
-        glVertex2f(0.0f, height);
+        glVertex2f(0.0f, imgData.height);
     }
 
     glEnd();
@@ -145,9 +145,13 @@ void Image_GL::setInitialTexture() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, getWidth(), getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    free(pixels);
-    pixels = nullptr;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, getWidth(), getHeight(), 0, GL_RGBA, GL_UNSIGNED_BYTE, imgData.pixels);
+
+    /** some platforms may need this to be freed due to RAM limits,
+     *  but they then wont be able to support Image::getPixels()
+     *  */
+    // free(imgData.pixels);
+    // imgData.pixels = nullptr;
 }
 
 Image_GL::Image_GL(std::string filePath, bool fromScratchProject) : Image(filePath, fromScratchProject) {

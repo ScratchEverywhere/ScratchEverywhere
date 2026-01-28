@@ -123,21 +123,21 @@ void Image_C2D::renderNineslice(double xPos, double yPos, double width, double h
     }
 
     // To anyone who needs to edit this, I hope you have an ultra-wide monitor
-    renderSubrect(texture, 0, 0, padding, padding, renderPositionX, renderPositionY, padding, padding, nullptr);                                                                                               // Top Left
-    renderSubrect(texture, padding, 0, this->width - padding * 2, padding, renderPositionX + padding, renderPositionY, width - padding * 2, padding, nullptr);                                                 // Top
-    renderSubrect(texture, this->width - padding, 0, padding, padding, renderPositionX + width - padding, renderPositionY, padding, padding, nullptr);                                                         // Top Right
-    renderSubrect(texture, 0, padding, padding, this->height - padding * 2, renderPositionX, renderPositionY + padding, padding, height - padding * 2, nullptr);                                               // Left
-    renderSubrect(texture, padding, padding, this->width - padding * 2, this->height - padding * 2, renderPositionX + padding, renderPositionY + padding, width - padding * 2, height - padding * 2, nullptr); // Center
-    renderSubrect(texture, this->width - padding, padding, padding, this->height - padding * 2, renderPositionX + width - padding, renderPositionY + padding, padding, height - padding * 2, nullptr);         // Right
-    renderSubrect(texture, 0, this->height - padding, padding, padding, renderPositionX, renderPositionY + height - padding, padding, padding, nullptr);                                                       // Bottom Left
-    renderSubrect(texture, padding, this->height - padding, this->width - padding * 2, padding, renderPositionX + padding, renderPositionY + height - padding, width - padding * 2, padding, nullptr);         // Bottom
-    renderSubrect(texture, this->width - padding, this->height - padding, padding, padding, renderPositionX + width - padding, renderPositionY + height - padding, padding, padding, nullptr);                 // Bottom Right
+    renderSubrect(texture, 0, 0, padding, padding, renderPositionX, renderPositionY, padding, padding, nullptr);                                                                                                               // Top Left
+    renderSubrect(texture, padding, 0, this->imgData.width - padding * 2, padding, renderPositionX + padding, renderPositionY, width - padding * 2, padding, nullptr);                                                         // Top
+    renderSubrect(texture, this->imgData.width - padding, 0, padding, padding, renderPositionX + width - padding, renderPositionY, padding, padding, nullptr);                                                                 // Top Right
+    renderSubrect(texture, 0, padding, padding, this->imgData.height - padding * 2, renderPositionX, renderPositionY + padding, padding, height - padding * 2, nullptr);                                                       // Left
+    renderSubrect(texture, padding, padding, this->imgData.width - padding * 2, this->imgData.height - padding * 2, renderPositionX + padding, renderPositionY + padding, width - padding * 2, height - padding * 2, nullptr); // Center
+    renderSubrect(texture, this->imgData.width - padding, padding, padding, this->imgData.height - padding * 2, renderPositionX + width - padding, renderPositionY + padding, padding, height - padding * 2, nullptr);         // Right
+    renderSubrect(texture, 0, this->imgData.height - padding, padding, padding, renderPositionX, renderPositionY + height - padding, padding, padding, nullptr);                                                               // Bottom Left
+    renderSubrect(texture, padding, this->imgData.height - padding, this->imgData.width - padding * 2, padding, renderPositionX + padding, renderPositionY + height - padding, width - padding * 2, padding, nullptr);         // Bottom
+    renderSubrect(texture, this->imgData.width - padding, this->imgData.height - padding, padding, padding, renderPositionX + width - padding, renderPositionY + height - padding, padding, padding, nullptr);                 // Bottom Right
     freeTimer = maxFreeTimer;
 }
 
 void Image_C2D::setInitialTexture() {
 
-    uint32_t *rgba_raw = reinterpret_cast<uint32_t *>(pixels);
+    uint32_t *rgba_raw = reinterpret_cast<uint32_t *>(imgData.pixels);
     const int texWidth = getWidth();
     const int texHeight = getHeight();
 
@@ -190,10 +190,80 @@ void Image_C2D::setInitialTexture() {
 
     texture.tex = tex;
     texture.subtex = subtex;
-    free(pixels);
+    free(imgData.pixels);
 
     // errr this MIGHT be risky but it seems to be fine
-    pixels = texture.tex->data;
+    imgData.pixels = texture.tex->data;
+}
+
+static inline uint32_t unswizzleRGBA8(const uint32_t *swizzled, int texWidth, int x, int y) {
+    int tileX = x >> 3;
+    int tileY = y >> 3;
+    int tilesPerRow = texWidth >> 3;
+
+    int tileIndex = tileY * tilesPerRow + tileX;
+    int tileBase = tileIndex << 6; // * 64 pixels
+
+    int inX = x & 7;
+    int inY = y & 7;
+
+    int pixelIndex =
+        ((inX & 1)) |
+        ((inY & 1) << 1) |
+        ((inX & 2) << 1) |
+        ((inY & 2) << 2) |
+        ((inX & 4) << 2) |
+        ((inY & 4) << 3);
+
+    return swizzled[tileBase + pixelIndex];
+}
+
+// this function may be expensive since the data needs to be un-Swizzle Magic'ed.
+ImageData Image_C2D::getPixels(ImageSubrect rect) {
+    ImageData out{};
+
+    if (!texture.tex || !texture.tex->data) {
+        out.format = IMAGE_FORMAT_NONE;
+        return out;
+    }
+
+    if (rect.x < 0) rect.x = 0;
+    if (rect.y < 0) rect.y = 0;
+    if (rect.x + rect.w > imgData.width) rect.w = imgData.width - rect.x;
+    if (rect.y + rect.h > imgData.height) rect.h = imgData.height - rect.y;
+
+    if (rect.w <= 0 || rect.h <= 0) {
+        out.format = IMAGE_FORMAT_NONE;
+        return out;
+    }
+
+    const int bytesPerPixel = 4;
+    const int dstPitch = rect.w * bytesPerPixel;
+
+    uint32_t *dstPixels = new uint32_t[rect.w * rect.h];
+    const uint32_t *src = (const uint32_t *)texture.tex->data;
+
+    int texWidth = texture.tex->width;
+
+    for (int y = 0; y < rect.h; ++y) {
+        for (int x = 0; x < rect.w; ++x) {
+            int sx = rect.x + x;
+            int sy = rect.y + y;
+
+            uint32_t abgr = unswizzleRGBA8(src, texWidth, sx, sy);
+            uint32_t rgba = rgbaToAgbr(abgr);
+
+            dstPixels[y * rect.w + x] = rgba;
+        }
+    }
+
+    out.width = rect.w;
+    out.height = rect.h;
+    out.format = IMAGE_FORMAT_RGBA32;
+    out.pitch = dstPitch;
+    out.pixels = (unsigned char *)dstPixels;
+
+    return out;
 }
 
 Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject) : Image(filePath, fromScratchProject) {
@@ -206,7 +276,7 @@ Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip) : Image(filePath
 
 Image_C2D::~Image_C2D() {
     if (texture.tex) {
-        pixels = nullptr;
+        imgData.pixels = nullptr;
         C3D_TexDelete(texture.tex);
         delete texture.tex;
         texture.tex = nullptr;

@@ -157,7 +157,7 @@ void Image_SDL1::renderNineslice(double xPos, double yPos, double width, double 
 
 void Image_SDL1::setInitialTexture() {
 
-    texture = SDL_CreateRGBSurfaceFrom(pixels, width, height, 32, width * 4, RMASK, GMASK, BMASK, AMASK);
+    texture = SDL_CreateRGBSurfaceFrom(imgData.pixels, imgData.width, imgData.height, 32, imgData.pitch, RMASK, GMASK, BMASK, AMASK);
 
     if (!texture) {
         throw std::runtime_error(std::string("Texture creation failed: ") + SDL_GetError());
