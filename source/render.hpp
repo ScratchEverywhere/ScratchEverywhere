@@ -88,11 +88,7 @@ class Render {
             sprite->renderInfo.oldRotation++;
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
-#ifdef RENDERER_GL2D // TODO: move to Image_gl2d
-            sprite->renderInfo.renderScaleX = sprite->size * 0.005;
-#else
             sprite->renderInfo.renderScaleX = sprite->size * (isSVG ? 0.01 : 0.005);
-#endif
 
             if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
                 float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,

@@ -492,6 +492,8 @@ void Scratch::setDirection(Sprite *sprite, double direction) {
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
 
+    if (std::floor(costumeIndex) == sprite->currentCostume) return;
+
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 

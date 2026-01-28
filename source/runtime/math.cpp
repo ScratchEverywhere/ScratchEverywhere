@@ -131,6 +131,10 @@ double Math::radiansToDegrees(double radians) {
     return radians * (180.0 / M_PI);
 }
 
+int16_t Math::radiansToAngle16(float radians) {
+    return (int16_t)(radians * (32768.0f / (2.0f * M_PI)));
+}
+
 std::string Math::generateRandomString(int length) {
     const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-=[];',./_+{}|:<>?~`";
     std::string result;

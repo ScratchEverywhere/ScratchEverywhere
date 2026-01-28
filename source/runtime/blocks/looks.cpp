@@ -99,8 +99,8 @@ SCRATCH_BLOCK(looks, thinkforsecs) {
 }
 
 SCRATCH_BLOCK(looks, show) {
+    if (!sprite->visible) Scratch::loadCurrentCostumeImage(sprite);
     sprite->visible = true;
-    Scratch::loadCurrentCostumeImage(sprite);
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }

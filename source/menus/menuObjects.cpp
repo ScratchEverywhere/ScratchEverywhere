@@ -33,9 +33,12 @@ double MenuObject::getScaleFactor() {
         guiScale = 1.5f;
     else if (WindowScale > 1000)
         guiScale = 1.3f;
+    else if (WindowScale < 500)
+        guiScale = 0.5f;
     else if (WindowScale < 780)
         guiScale = 0.7f;
-    else guiScale = 1.0f;
+    else
+        guiScale = 1.0f;
 
     return guiScale;
 }
