@@ -34,6 +34,9 @@
 #include <diskio/ata.h>
 #include <libfat/fat.h>
 #include <usb/usbmain.h>
+#include <xenon_soc/xenon_power.h>
+#include <xenon_sound/sound.h>
+#include <xenos/edram.h>
 #include <xenos/xe.h>
 #include <xenos/xenos.h>
 #endif
@@ -55,11 +58,11 @@ bool Render::Init() {
 #ifdef __XBOX360__
     xenos_init(VIDEO_MODE_AUTO);
     xenon_make_it_faster(XENON_SPEED_FULL);
-
+    xenon_sound_init();
     // console_init();
+
     usb_init();
     usb_do_poll();
-
     xenon_ata_init();
     xenon_atapi_init();
     fatInitDefault();
