@@ -62,8 +62,8 @@ void Image_GL2D::render(ImageRenderParams &params) {
     glBindTexture(GL_TEXTURE_2D, textureID);
 
     if (!centered) {
-        x += width / 2;
-        y += height / 2;
+        x += imgData.width / 2;
+        y += imgData.height / 2;
     }
 
     int renderScale = static_cast<int>(std::round(scale * (1 << 12)));
@@ -108,10 +108,10 @@ void *Image_GL2D::resizeRGBAImage(uint16_t newWidth, uint16_t newHeight) {
 
     for (int y = 0; y < newHeight; y++) {
         for (int x = 0; x < newWidth; x++) {
-            int srcX = x * width / newWidth;
-            int srcY = y * height / newHeight;
+            int srcX = x * imgData.width / newWidth;
+            int srcY = y * imgData.height / newHeight;
 
-            unsigned char *srcPixel = &reinterpret_cast<unsigned char *>(pixels)[(srcY * width + srcX) * 4];
+            unsigned char *srcPixel = &reinterpret_cast<unsigned char *>(imgData.pixels)[(srcY * imgData.width + srcX) * 4];
             unsigned char *dstPixel = &resizedData[(y * newWidth + x) * 4];
 
             dstPixel[0] = srcPixel[0]; // R
@@ -130,8 +130,8 @@ void *Image_GL2D::resizeRGBAImage(uint16_t newWidth, uint16_t newHeight) {
 void Image_GL2D::RGBAToPAL8() {
     const int imgW = imgData.width;
     const int imgH = imgData.height;
-    const int texW = Math::next_pow2(width);
-    const int texH = Math::next_pow2(height);
+    const int texW = Math::next_pow2(imgData.width);
+    const int texH = Math::next_pow2(imgData.height);
     const int totalPixels = texW * texH;
     imgData.format = IMAGE_FORMAT_PAL8;
     imgData.pitch = imgData.width;
@@ -190,10 +190,10 @@ void Image_GL2D::RGBAToPAL8() {
             }
 
             int srcIndex = (y * imgW + x) * 4;
-            unsigned char r = static_cast<unsigned char *>(pixels)[srcIndex + 0];
-            unsigned char g = static_cast<unsigned char *>(pixels)[srcIndex + 1];
-            unsigned char b = static_cast<unsigned char *>(pixels)[srcIndex + 2];
-            unsigned char a = static_cast<unsigned char *>(pixels)[srcIndex + 3];
+            unsigned char r = static_cast<unsigned char *>(imgData.pixels)[srcIndex + 0];
+            unsigned char g = static_cast<unsigned char *>(imgData.pixels)[srcIndex + 1];
+            unsigned char b = static_cast<unsigned char *>(imgData.pixels)[srcIndex + 2];
+            unsigned char a = static_cast<unsigned char *>(imgData.pixels)[srcIndex + 3];
 
             // get transparency from alpha
             if (a <= 127) {
