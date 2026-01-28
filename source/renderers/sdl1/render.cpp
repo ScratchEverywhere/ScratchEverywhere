@@ -41,7 +41,6 @@ bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
 bool Render::Init() {
-    IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
 
     globalWindow = new WindowSDL1();
@@ -73,7 +72,6 @@ void Render::deInit() {
     }
 
     SoundPlayer::deinit();
-    IMG_Quit();
     SDL_Quit();
 }
 
