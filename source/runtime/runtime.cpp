@@ -57,6 +57,8 @@ Value Scratch::dataNextProject;
 bool Scratch::useCustomUsername = false;
 std::string Scratch::customUsername;
 
+std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
+
 bool Scratch::startScratchProject() {
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
@@ -89,7 +91,10 @@ bool Scratch::startScratchProject() {
             if (speechManager) {
                 speechManager->update();
             }
-            if (checkFPS) Render::renderSprites();
+            if (checkFPS) {
+                Render::renderSprites();
+                Scratch::flushCostumeImages();
+            }
 
 #ifdef ENABLE_MENU
 
@@ -130,7 +135,7 @@ bool Scratch::startScratchProject() {
 
 void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
-    Image::cleanupImages();
+    costumeImages.clear();
     SoundPlayer::cleanupAudio();
     Render::monitorTexts.clear();
     Render::listMonitors.clear();
@@ -245,8 +250,8 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
     const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
     Render::calculateRenderPosition(currentSprite, isSVG);
-    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
-    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
+    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 1 : 0.5)) * (currentSprite->size * 0.01);
+    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 1 : 0.5)) * (currentSprite->size * 0.01);
 
     const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
     float x = cords.first;
@@ -263,11 +268,9 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
 #endif
     } else rotation = 0;
 
-// put position to top left of sprite (SDL platforms already do this)
-#if !defined(RENDERER_SDL1) && !defined(RENDERER_SDL2) && !defined(RENDERER_SDL3)
-    x -= (currentSprite->spriteWidth / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
-    y += (currentSprite->spriteHeight / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
-#endif
+    // put position to top left of sprite
+    x -= spriteWidth / 2;
+    y += spriteHeight / 2;
 
     std::vector<std::pair<double, double>> corners = {
         {x, y},                              // Top-left
@@ -492,7 +495,7 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
-    Image::loadImageFromProject(sprite);
+    loadCurrentCostumeImage(sprite);
 
     Scratch::forceRedraw = true;
 }
@@ -504,6 +507,60 @@ void Scratch::sortSprites() {
                   if (!a->isStage && b->isStage) return true;
                   return a->layer > b->layer;
               });
+}
+
+void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
+    const std::string &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+
+    auto it = costumeImages.find(costumeName);
+    if (it != costumeImages.end()) {
+        sprite->spriteWidth = it->second->getWidth();
+        sprite->spriteHeight = it->second->getHeight();
+        return;
+    }
+
+    std::shared_ptr<Image> image;
+
+    try {
+        if (projectType == UNZIPPED) {
+            image = createImageFromFile(costumeName, true);
+        } else {
+            image = createImageFromZip(costumeName, &Unzip::zipArchive);
+        }
+    } catch (const std::runtime_error &e) {
+        Log::logWarning("Failed to load image: " + std::string(e.what()));
+        freeUnusedCostumeImages();
+        return;
+    }
+
+    if (image) {
+        sprite->spriteWidth = image->getWidth();
+        sprite->spriteHeight = image->getHeight();
+        costumeImages[costumeName] = image;
+    }
+}
+
+void Scratch::flushCostumeImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, img] : costumeImages) {
+        img->freeTimer--;
+        if (img->freeTimer <= 0) toDelete.push_back(id);
+    }
+
+    for (const std::string &id : toDelete) {
+        costumeImages.erase(id);
+    }
+}
+
+void Scratch::freeUnusedCostumeImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, img] : costumeImages) {
+        if (img->freeTimer < img->maxFreeTimer - 2) toDelete.push_back(id);
+    }
+
+    for (const std::string &id : toDelete) {
+        costumeImages.erase(id);
+    }
 }
 
 Block *Scratch::findBlock(std::string blockId, Sprite *sprite) {

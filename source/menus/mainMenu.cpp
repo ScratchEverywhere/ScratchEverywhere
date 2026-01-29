@@ -43,7 +43,7 @@ void MenuManager::render() {
 
 bool MenuManager::loadProject() {
     cleanup();
-    Image::cleanupImages();
+    // Image::cleanupImages();
     SoundPlayer::cleanupAudio();
 
     if (!Unzip::load()) {

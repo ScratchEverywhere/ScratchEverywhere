@@ -34,7 +34,7 @@ ENABLE_MENU		?=	1
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DGAMECUBE -D__OGC__ -DRENDERER_SDL2 -DPLATFORM_HAS_CONTROLLER -DCONSOLE
+CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_gfx freetype2` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DGAMECUBE -D__OGC__ -DRENDERER_SDL2 -DPLATFORM_HAS_CONTROLLER -DCONSOLE
 
 
 ASFLAGS	:=	-g $(ARCH)
@@ -43,10 +43,10 @@ LDFLAGS	:=	-g $(MACHDEP) -Wl,-Map,$(notdir $*.map) \
 		-Wl,--gc-sections
 
 ifeq ($(ENABLE_AUDIO),1)
-LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image SDL2_gfx freetype2`
+LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_gfx freetype2`
 CFLAGS	+=	-DENABLE_AUDIO `$(PREFIX)pkg-config --cflags SDL2_mixer`
 else
-LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2`
+LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_gfx freetype2`
 endif
 
 ifeq ($(ENABLE_MENU),1)

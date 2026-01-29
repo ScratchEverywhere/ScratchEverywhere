@@ -1,6 +1,6 @@
 #pragma once
-#include <ryu/d2s.h>
 #include <cstdint>
+#include <ryu/d2s.h>
 #include <string>
 #ifndef M_PI
 #define M_PI 3.1415926535897932
@@ -18,6 +18,8 @@ int color(int r, int g, int b, int a);
 double degreesToRadians(double degrees);
 
 double radiansToDegrees(double radians);
+
+int16_t radiansToAngle16(float radians);
 
 std::string generateRandomString(int length);
 

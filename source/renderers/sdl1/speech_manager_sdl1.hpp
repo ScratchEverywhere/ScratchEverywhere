@@ -10,7 +10,7 @@ class Image;
 class SpeechManagerSDL1 : public SpeechManager {
   private:
     SDL_Surface *window;
-    std::unique_ptr<Image> speechIndicatorImage;
+    std::shared_ptr<Image> speechIndicatorImage;
 
   protected:
     double getCurrentTime() override;

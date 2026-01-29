@@ -3,13 +3,10 @@
 #include <unzip.hpp>
 
 void Loading::init() {
-    block1 = new Image("gfx/menu/block1.svg");
-    block2 = new Image("gfx/menu/block2.svg");
-    block3 = new Image("gfx/menu/block3.svg");
+    block1 = createImageFromFile("gfx/menu/block1.svg", false);
+    block2 = createImageFromFile("gfx/menu/block2.svg", false);
+    block3 = createImageFromFile("gfx/menu/block3.svg", false);
     loadingStateText = createTextObject("", 0, 0);
-    block1->scale = 0.5;
-    block2->scale = 0.5;
-    block3->scale = 0.5;
     block1Y = Render::getHeight() * 2;
     block2Y = Render::getHeight() * 2;
     block3Y = Render::getHeight() * 2;
@@ -41,9 +38,25 @@ void Loading::render() {
         Render::beginFrame(0, 0, 0, 0);
     else Render::beginFrame(1, 0, 0, 0);
 
-    block1->render((Render::getWidth() / 2), block1Y, true);
-    block2->render((Render::getWidth() / 2) - 25, block2Y, true);
-    block3->render((Render::getWidth() / 2) - 10, block3Y, true);
+    ImageRenderParams p1 = {
+        .x = Render::getWidth() / 2,
+        .y = static_cast<int>(block1Y),
+        .scale = 0.5f,
+        .centered = true};
+    ImageRenderParams p2 = {
+        .x = Render::getWidth() / 2,
+        .y = static_cast<int>(block2Y),
+        .scale = 0.5f,
+        .centered = true};
+    ImageRenderParams p3 = {
+        .x = Render::getWidth() / 2,
+        .y = static_cast<int>(block3Y),
+        .scale = 0.5f,
+        .centered = true};
+
+    block1->render(p1);
+    block2->render(p2);
+    block3->render(p3);
 
     loadingStateText->setText(Unzip::loadingState);
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);
@@ -67,7 +80,4 @@ void Loading::cleanup() {
     else Render::beginFrame(0, 0, 0, 0);
 
     Render::endFrame();
-    delete block1;
-    delete block2;
-    delete block3;
 }

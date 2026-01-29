@@ -8,8 +8,8 @@ class Image;
 
 class SpeechManagerGL : public SpeechManager {
   private:
-    std::unique_ptr<Image> bubbleImage;
-    std::unique_ptr<Image> speechIndicatorImage;
+    std::shared_ptr<Image> bubbleImage;
+    std::shared_ptr<Image> speechIndicatorImage;
 
   protected:
     double getCurrentTime() override;

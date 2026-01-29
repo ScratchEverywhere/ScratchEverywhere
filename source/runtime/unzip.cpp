@@ -131,21 +131,9 @@ int projectLoaderThread(void *data) {
 
 void loadInitialImages() {
     Unzip::loadingState = "Loading images";
-    int sprIndex = 1;
-    if (Scratch::projectType == UNZIPPED) {
-        for (auto &currentSprite : Scratch::sprites) {
-            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(Scratch::sprites.size());
-            Image::loadImageFromFile(currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
-            sprIndex++;
-        }
-    } else {
-        for (auto &currentSprite : Scratch::sprites) {
-            if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
-            Unzip::loadingState = "Loading image " + std::to_string(sprIndex) + " / " + std::to_string(Scratch::sprites.size());
-            Image::loadImageFromSB3(&Unzip::zipArchive, currentSprite->costumes[currentSprite->currentCostume].fullName, currentSprite);
-            sprIndex++;
-        }
+    for (auto &currentSprite : Scratch::sprites) {
+        if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
+        Scratch::loadCurrentCostumeImage(currentSprite);
     }
 }
 
