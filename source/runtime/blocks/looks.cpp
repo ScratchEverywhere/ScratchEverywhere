@@ -340,9 +340,12 @@ SCRATCH_BLOCK(looks, setsizeto) {
     if (value.isNumeric()) {
         const double inputSizePercent = value.asDouble();
 
-        const double minScale = std::min(1.0, std::max(5.0 / sprite->spriteWidth, 5.0 / sprite->spriteHeight));
+        const int sprWidth = sprite->costumes[sprite->currentCostume].isSVG ? sprite->spriteWidth : sprite->spriteWidth / 2;
+        const int sprHeight = sprite->costumes[sprite->currentCostume].isSVG ? sprite->spriteHeight : sprite->spriteHeight / 2;
 
-        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprite->spriteWidth, (1.5 * Scratch::projectHeight) / sprite->spriteHeight);
+        const double minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight));
+
+        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight);
 
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
@@ -363,9 +366,12 @@ SCRATCH_BLOCK(looks, changesizeby) {
     if (value.isNumeric()) {
         sprite->size += value.asDouble();
 
-        const double minScale = std::min(1.0, std::max(5.0 / sprite->spriteWidth, 5.0 / sprite->spriteHeight)) * 100.0;
+        const int sprWidth = sprite->costumes[sprite->currentCostume].isSVG ? sprite->spriteWidth : sprite->spriteWidth / 2;
+        const int sprHeight = sprite->costumes[sprite->currentCostume].isSVG ? sprite->spriteHeight : sprite->spriteHeight / 2;
 
-        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprite->spriteWidth, (1.5 * Scratch::projectHeight) / sprite->spriteHeight) * 100.0;
+        const double minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
+
+        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
 
         sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
     }
