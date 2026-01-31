@@ -61,14 +61,11 @@ SCRATCH_REPORTER_BLOCK(operator, length) {
 }
 
 SCRATCH_REPORTER_BLOCK(operator, mod) {
-    const Value value1 = Scratch::getInputValue(block, "NUM1", sprite);
-    const Value value2 = Scratch::getInputValue(block, "NUM2", sprite);
+    const double a = Scratch::getInputValue(block, "NUM1", sprite).asDouble();
+    const double b = Scratch::getInputValue(block, "NUM2", sprite).asDouble();
 
-    if (!value1.isNumeric() || !value2.isNumeric() || value2.asDouble() == 0.0)
-        return Value(0);
-
-    const double a = value1.asDouble();
-    const double b = value2.asDouble();
+    if (b == 0.0)
+        return Value(std::numeric_limits<double>::quiet_NaN());
 
     double res = std::fmod(a, b);
     if ((res < 0 && b > 0) || (res > 0 && b < 0))
