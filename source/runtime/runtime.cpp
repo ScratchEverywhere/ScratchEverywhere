@@ -504,6 +504,10 @@ void Scratch::sortSprites() {
                   if (!a->isStage && b->isStage) return true;
                   return a->layer > b->layer;
               });
+
+    unsigned int currentLayer = sprites.size() - 1;
+    for (auto *sprite : sprites)
+        sprite->layer = currentLayer--;
 }
 
 Block *Scratch::findBlock(std::string blockId, Sprite *sprite) {
