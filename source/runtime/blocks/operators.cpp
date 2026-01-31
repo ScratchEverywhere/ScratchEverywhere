@@ -136,5 +136,13 @@ SCRATCH_REPORTER_BLOCK(operator, not) {
 }
 
 SCRATCH_REPORTER_BLOCK(operator, contains) {
-    return Value(Scratch::getInputValue(block, "STRING1", sprite).asString().find(Scratch::getInputValue(block, "STRING2", sprite).asString()) != std::string::npos);
+    std::string string1 = Scratch::getInputValue(block, "STRING1", sprite).asString();
+    std::string string2 = Scratch::getInputValue(block, "STRING2", sprite).asString();
+
+    if (string2.empty()) return Value(true);
+
+    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
+    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+
+    return Value(string1.find(string2) != std::string::npos);
 }
