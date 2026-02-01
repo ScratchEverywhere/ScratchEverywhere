@@ -212,7 +212,11 @@ postAccount:
     resize(dw, dh);
 #else
     int dw, dh;
+#ifdef __PS4__
+    SDL_GetWindowSize(window, &dw, &dh);
+#else
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
+#endif
     resize(dw, dh);
 #endif
 
