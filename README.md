@@ -76,6 +76,12 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 ### Special Custom Blocks
 
+- `is Scratch Everywhere!?` (variable)
+- `is New 3DS?` (variable)
+- `Scratch Everywhere! platform` (variable)
+- `is DSi?` (variable)
+- `Scratch Everywhere! controller` (variable)
+
 Like TurboWarp, we have special custom blocks that only work on SE!. You can find a project containing and explaining them here: https://scratchbox.dev/project/K26OtTN2WDJ9
 
 **Project Linking Blocks**
