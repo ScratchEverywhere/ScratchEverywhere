@@ -79,13 +79,16 @@ SCRATCH_BLOCK(control, create_clone_of) {
     } else {
         for (Sprite *currentSprite : Scratch::sprites) {
             if (!currentSprite->isClone && !currentSprite->isStage && currentSprite->name == inputValue.asString()) {
-                targetSprite = sprite;
+                targetSprite = currentSprite;
                 break;
             }
         }
     }
 
-    if (targetSprite == nullptr) return BlockResult::CONTINUE;
+    if (targetSprite == nullptr) {
+        delete clonedSprite;
+        return BlockResult::CONTINUE;
+    }
 
     *clonedSprite = *targetSprite;
     clonedSprite->blockChains.clear();

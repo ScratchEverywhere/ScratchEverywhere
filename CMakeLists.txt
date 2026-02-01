@@ -756,7 +756,7 @@ endif()
 if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
 endif()
-if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING) ) # joystick doesn't work on MacOS with current Dockerfile
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) ) # joystick doesn't work on MacOS with current Dockerfile
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
 endif()
 
