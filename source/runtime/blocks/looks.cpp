@@ -153,37 +153,38 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
 
     if (inputValue.isDouble()) {
         Scratch::switchCostume(Scratch::stageSprite, inputValue.isNaN() ? 0 : inputValue.asDouble() - 1);
-        return BlockResult::CONTINUE;
+        goto end;
     }
 
     for (size_t i = 0; i < Scratch::stageSprite->costumes.size(); i++) {
         if (Scratch::stageSprite->costumes[i].name == inputValue.asString()) {
             Scratch::switchCostume(Scratch::stageSprite, i);
-            return BlockResult::CONTINUE;
+            goto end;
         }
     }
 
     if (inputValue.asString() == "next backdrop") {
         Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
-        return BlockResult::CONTINUE;
+        goto end;
     } else if (inputValue.asString() == "previous backdrop") {
         Scratch::switchCostume(Scratch::stageSprite, --Scratch::stageSprite->currentCostume);
-        return BlockResult::CONTINUE;
+        goto end;
     } else if (inputValue.asString() == "random backdrop") {
-        if (Scratch::stageSprite->costumes.size() == 1) return BlockResult::CONTINUE;
+        if (Scratch::stageSprite->costumes.size() == 1) goto end;
         int randomIndex = std::rand() % (Scratch::stageSprite->costumes.size() - 1);
         if (randomIndex >= Scratch::stageSprite->currentCostume) randomIndex++;
         Scratch::switchCostume(Scratch::stageSprite, randomIndex);
-        return BlockResult::CONTINUE;
+        goto end;
     }
 
     if (inputValue.isNumeric()) {
         Scratch::switchCostume(Scratch::stageSprite, inputValue.asDouble() - 1);
-        return BlockResult::CONTINUE;
+        goto end;
     }
 
-    Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
-    return BlockResult::CONTINUE;
+    end:
+        Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
+        return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
@@ -222,9 +223,17 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
         }
 
     end:
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-        Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
-        return BlockResult::RETURN;
+        const std::string finalBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
+        for (Sprite *spr : Scratch::sprites) {
+            for (auto &[id, hat_block] : spr->blocks) {
+                if (hat_block.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(hat_block, "BACKDROP") == finalBackdrop) {
+                    Scratch::backdropQueue.push_back(finalBackdrop);
+                    BlockExecutor::addToRepeatQueue(sprite, &block);
+                    return BlockResult::RETURN;
+                }
+            }
+        }
+        return BlockResult::CONTINUE;
     }
 
     if (block.backdropsRun.empty()) {
