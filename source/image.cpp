@@ -1,7 +1,9 @@
 #include "image.hpp"
 #include <stdexcept>
 #include <unzip.hpp>
-#define STBI_NO_GIF
+#ifdef __WIIU__
+#define STBI_NO_THREAD_LOCALS
+#endif
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #define NANOSVG_IMPLEMENTATION

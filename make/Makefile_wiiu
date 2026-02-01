@@ -61,9 +61,9 @@ endif
 
 ifeq ($(ENABLE_AUDIO),1)
 CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF_WIIU) --cflags SDL2_mixer`
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_ttf SDL2_mixer SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_ttf SDL2_mixer SDL2_gfx sdl2` `$(PKGCONF) --libs zlib`
 else
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_ttf SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_ttf SDL2_gfx sdl2` `$(PKGCONF) --libs zlib`
 endif
 
 LIBS	+=	-lharfbuzz -lfreetype
