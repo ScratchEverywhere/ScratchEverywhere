@@ -239,6 +239,7 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::penClear() {
+    if (!penSurface || penSurface == nullptr) return;
     SDL_FillRect(penSurface, NULL, SDL_MapRGBA(penSurface->format, 0, 0, 0, 0));
 }
 

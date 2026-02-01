@@ -233,7 +233,8 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::penClear() {
-    C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
+    if (penRenderTarget && penRenderTarget != nullptr)
+        C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
