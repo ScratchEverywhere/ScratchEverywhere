@@ -313,7 +313,7 @@ void Render::penStamp(Sprite *sprite) {
         penY *= scale;
     }
 
-    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / (isSVG ? 100.0f : 200.0f);
+    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / 100.0f;
 
     ImageRenderParams params;
     params.centered = true;

@@ -198,7 +198,7 @@ void Render::penStamp(Sprite *sprite) {
         renderX *= scale;
         renderY *= scale;
     } else {
-        renderScale = sprite->size / (isSVG ? 100.0f : 200.0f);
+        renderScale = sprite->size / 100.0f;
     }
 
     // set ghost effect

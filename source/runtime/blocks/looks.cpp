@@ -342,8 +342,8 @@ SCRATCH_BLOCK(looks, setsizeto) {
     if (value.isNumeric()) {
         const double inputSizePercent = value.asDouble();
 
-        const int sprWidth = sprite->costumes[sprite->currentCostume].isSVG ? sprite->spriteWidth : sprite->spriteWidth / 2;
-        const int sprHeight = sprite->costumes[sprite->currentCostume].isSVG ? sprite->spriteHeight : sprite->spriteHeight / 2;
+        const int sprWidth = sprite->spriteWidth;
+        const int sprHeight = sprite->spriteHeight;
 
         const double minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight));
 
@@ -368,8 +368,8 @@ SCRATCH_BLOCK(looks, changesizeby) {
     if (value.isNumeric()) {
         sprite->size += value.asDouble();
 
-        const int sprWidth = sprite->costumes[sprite->currentCostume].isSVG ? sprite->spriteWidth : sprite->spriteWidth / 2;
-        const int sprHeight = sprite->costumes[sprite->currentCostume].isSVG ? sprite->spriteHeight : sprite->spriteHeight / 2;
+        const int sprWidth = sprite->spriteWidth;
+        const int sprHeight = sprite->spriteHeight;
 
         const double minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
 

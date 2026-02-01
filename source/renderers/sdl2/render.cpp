@@ -299,7 +299,7 @@ void Render::penStamp(Sprite *sprite) {
         penY *= scale;
         penScale = sprite->renderInfo.renderScaleY;
     } else {
-        penScale = sprite->size / (isSVG ? 100.0f : 200.0f);
+        penScale = sprite->size / 100.0f;
     }
 
     ImageRenderParams params;

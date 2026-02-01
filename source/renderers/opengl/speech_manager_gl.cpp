@@ -47,7 +47,7 @@ void SpeechManagerGL::render() {
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));
 
             // Calculate actual rendered sprite dimensions
-            double divisionAmount = sprite->costumes[sprite->currentCostume].isSVG ? 1.0 : 2.0;
+            double divisionAmount = 1.0;
             int spriteWidth = static_cast<int>((sprite->spriteWidth * sprite->size / 100.0) / divisionAmount * scale);
             int spriteHeight = static_cast<int>((sprite->spriteHeight * sprite->size / 100.0) / divisionAmount * scale);
 

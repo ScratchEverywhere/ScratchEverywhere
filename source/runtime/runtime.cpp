@@ -452,7 +452,7 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     double halfWidth = Scratch::projectWidth / 2.0;
     double halfHeight = Scratch::projectHeight / 2.0;
-    double scale = sprite->size / (sprite->costumes[sprite->currentCostume].isSVG ? 100.0 : 200.0);
+    double scale = sprite->size / 100.0;
     double spriteHalfWidth = sprite->spriteWidth * scale;
     double spriteHalfHeight = sprite->spriteHeight * scale;
 
