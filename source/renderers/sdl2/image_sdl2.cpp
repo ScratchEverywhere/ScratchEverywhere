@@ -132,7 +132,14 @@ void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double 
 }
 
 void Image_SDL2::setInitialTexture() {
-    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+    SDL_PixelFormatEnum format;
+#ifdef __PS4__
+    format = SDL_PIXELFORMAT_RGBA8888;
+#else
+    format = SDL_PIXELFORMAT_RGBA32;
+#endif
+
+    texture = SDL_CreateTexture(renderer, format, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
     if (!texture) {
         throw std::runtime_error("Failed to create texture: " + std::string(SDL_GetError()));

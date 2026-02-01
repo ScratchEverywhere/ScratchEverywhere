@@ -161,7 +161,11 @@ MenuImage::MenuImage(std::string filePath, int xPos, int yPos) {
     x = xPos;
     y = yPos;
     scale = 1.0;
-    image = createImageFromFile(filePath, false);
+    try {
+        image = createImageFromFile(filePath, false);
+    } catch (std::runtime_error c) {
+        Log::logError("Failed to load Menu Image: " + std::string(c.what()));
+    }
 }
 
 void MenuImage::render(double xPos, double yPos) {
