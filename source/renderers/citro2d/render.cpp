@@ -482,7 +482,7 @@ void Render::renderSprites() {
                         currentSprite,
                         costume.fullName,
                         true,
-                        renderMode == BOTH_SCREENS ? -(screenWidth - bottomScreenWidth) * 0.5 : 0,
+                        renderMode == BOTH_SCREENS ? -40 : 0,
                         renderMode == BOTH_SCREENS ? -120 : 0);
                     break;
                 }
