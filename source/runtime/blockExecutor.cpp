@@ -56,7 +56,8 @@ BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *with
     const auto iterator = h.find(block.opcode);
     if (iterator != h.end()) return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
 
-    Log::logWarning("Unknown block: " + block.opcode);
+    if (!block.opcode.empty())
+        Log::logWarning("Unknown block: " + block.opcode);
 
     return BlockResult::CONTINUE;
 }
