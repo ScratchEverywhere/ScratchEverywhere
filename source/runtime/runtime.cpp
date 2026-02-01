@@ -137,6 +137,7 @@ void Scratch::cleanupScratchProject() {
 
     TextObject::cleanupText();
     Render::visibleVariables.clear();
+    Render::penClear();
 
     // Clean up ZIP archive if it was initialized
     if (projectType != UNZIPPED) {
