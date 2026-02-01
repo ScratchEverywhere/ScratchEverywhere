@@ -6,7 +6,7 @@
 #include <value.hpp>
 
 SCRATCH_BLOCK(sound, playuntildone) {
-    #ifdef ENABLE_AUDIO
+#ifdef ENABLE_AUDIO
     Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
     if (!fromRepeat) {
 
@@ -60,12 +60,12 @@ SCRATCH_BLOCK(sound, playuntildone) {
     if (!checkSoundName.empty() && SoundPlayer::isSoundPlaying(checkSoundName)) return BlockResult::RETURN;
 
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
-    #endif
+#endif
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(sound, play) {
-    #ifdef ENABLE_AUDIO
+#ifdef ENABLE_AUDIO
     const Value inputValue = Scratch::getInputValue(block, "SOUND_MENU", sprite);
 
     // Find sound by name first
@@ -97,18 +97,18 @@ SCRATCH_BLOCK(sound, play) {
         else
             SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, soundFullName);
     }
-    #endif
+#endif
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(sound, stopallsounds) {
-    #ifdef ENABLE_AUDIO
+#ifdef ENABLE_AUDIO
     for (auto &currentSprite : Scratch::sprites) {
         for (Sound sound : currentSprite->sounds) {
             SoundPlayer::stopSound(sound.fullName);
         }
     }
-    #endif
+#endif
     return BlockResult::CONTINUE;
 }
 
@@ -169,6 +169,7 @@ SCRATCH_BLOCK(sound, cleareffects) {
         SoundPlayer::setPitch(sound.fullName, sprite->pitch - 100.0f);
         SoundPlayer::setPan(sound.fullName, sprite->pan - 100.0f);
     }
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(sound, changevolumeby) {
