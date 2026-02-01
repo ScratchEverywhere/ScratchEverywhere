@@ -161,20 +161,21 @@ void BlockExecutor::runRepeatBlocks() {
         }
     }
     // delete sprites ready for deletion
-    std::vector<Sprite *> toDelete;
-    for (auto &spr : Scratch::sprites) {
-        if (!spr->toDelete) continue;
-        toDelete.push_back(spr);
-    }
-
     SpeechManager *speechManager = Render::getSpeechManager();
-    for (auto *spr : toDelete) {
+    for (auto *&spr : Scratch::sprites) {
+        if (!spr->toDelete) continue;
+
         if (speechManager) {
             speechManager->clearSpeech(spr);
         }
         delete spr;
-        Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
-                               Scratch::sprites.end());
+        spr = nullptr;
+    }
+
+    Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), nullptr), Scratch::sprites.end());
+
+    for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
+        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
 }
 
