@@ -1,4 +1,5 @@
 #include "blockUtils.hpp"
+#include "runtime.hpp"
 #include "runtime/blockExecutor.hpp"
 #include <audio.hpp>
 #include <blockExecutor.hpp>
@@ -71,30 +72,38 @@ SCRATCH_BLOCK(control, create_clone_of) {
     if (Scratch::cloneCount >= Scratch::maxClones) return BlockResult::CONTINUE;
     const Value inputValue = Scratch::getInputValue(block, "CLONE_OPTION", sprite);
 
-    Sprite *const spriteToClone = new Sprite();
+    Sprite *clonedSprite = new Sprite();
+    Sprite *targetSprite = nullptr;
     if (inputValue.asString() == "_myself_") {
-        *spriteToClone = *sprite;
+        targetSprite = sprite;
     } else {
         for (Sprite *currentSprite : Scratch::sprites) {
-            if (!currentSprite->isClone && !currentSprite->isStage && currentSprite->name == inputValue.asString()) *spriteToClone = *currentSprite;
+            if (!currentSprite->isClone && !currentSprite->isStage && currentSprite->name == inputValue.asString()) {
+                targetSprite = sprite;
+                break;
+            }
         }
     }
-    spriteToClone->blockChains.clear();
 
-    if (spriteToClone == nullptr || spriteToClone->name.empty()) return BlockResult::CONTINUE;
+    if (targetSprite == nullptr) return BlockResult::CONTINUE;
 
-    spriteToClone->isClone = true;
-    spriteToClone->isStage = false;
-    spriteToClone->toDelete = false;
-    spriteToClone->renderInfo.forceUpdate = true;
-    spriteToClone->id = Math::generateRandomString(15);
-    Scratch::sprites.push_back(spriteToClone);
-    Sprite *addedSprite = Scratch::sprites.back();
+    *clonedSprite = *targetSprite;
+    clonedSprite->blockChains.clear();
+    clonedSprite->isClone = true;
+    clonedSprite->toDelete = false;
+    clonedSprite->renderInfo.forceUpdate = true;
+    clonedSprite->id = Math::generateRandomString(15);
 
-    Scratch::cloneQueue.push_back(addedSprite);
+    const int sourceIndex = (Scratch::sprites.size() - 1) - targetSprite->layer;
+    auto it = Scratch::sprites.insert(Scratch::sprites.begin() + sourceIndex + 1, clonedSprite);
+
+    for (int i = sourceIndex + 1; i < Scratch::sprites.size(); i++) {
+        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
+    }
+
+    Scratch::cloneQueue.push_back(*it);
     Scratch::cloneCount++;
 
-    Scratch::sortSprites();
     return BlockResult::CONTINUE;
 }
 
