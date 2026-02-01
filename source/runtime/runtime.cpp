@@ -530,7 +530,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             image = createImageFromZip(costumeName, &Unzip::zipArchive, 0.5f);
         }
     } catch (const std::runtime_error &e) {
-        Log::logWarning("Failed to load image: " + std::string(e.what()));
+        Log::logWarning("Failed to load image: " + costumeName + ": " + std::string(e.what()));
         freeUnusedCostumeImages();
         return;
     }

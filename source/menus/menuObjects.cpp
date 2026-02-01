@@ -163,8 +163,8 @@ MenuImage::MenuImage(std::string filePath, int xPos, int yPos) {
     scale = 1.0;
     try {
         image = createImageFromFile(filePath, false);
-    } catch (std::runtime_error c) {
-        Log::logError("Failed to load Menu Image: " + std::string(c.what()));
+    } catch (const std::runtime_error &e) {
+        Log::logError("Failed to load Menu Image: " + std::string(e.what()));
     }
 }
 

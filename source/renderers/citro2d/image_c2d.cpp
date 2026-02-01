@@ -144,8 +144,8 @@ void Image_C2D::setInitialTexture() {
     C3D_Tex *tex = new C3D_Tex();
 
     // Texture dimensions must be square powers of two between 64x64 and 1024x1024
-    tex->width = Math::next_pow2(texWidth);
-    tex->height = Math::next_pow2(texHeight);
+    tex->width = std::clamp(Math::next_pow2(texWidth), static_cast<uint32_t>(64), static_cast<uint32_t>(1024));
+    tex->height = std::clamp(Math::next_pow2(texHeight), static_cast<uint32_t>(64), static_cast<uint32_t>(1024));
 
     // Subtexture
     Tex3DS_SubTexture *subtex = new Tex3DS_SubTexture();
