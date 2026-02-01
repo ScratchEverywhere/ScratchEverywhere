@@ -211,7 +211,9 @@ postAccount:
     SDL_GL_GetDrawableSize(window, &dw, &dh);
     resize(dw, dh);
 #else
-    SDL_GetWindowSize(window, &this->width, &this->height);
+    int dw, dh;
+    SDL_GetWindowSizeInPixels(window, &dw, &dh);
+    resize(dw, dh);
 #endif
 
     // Print SDL version number. could be useful for debugging
