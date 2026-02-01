@@ -154,11 +154,11 @@ void Image_GL::setInitialTexture() {
     // imgData.pixels = nullptr;
 }
 
-Image_GL::Image_GL(std::string filePath, bool fromScratchProject) : Image(filePath, fromScratchProject) {
+Image_GL::Image_GL(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
     setInitialTexture();
 }
 
-Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip) : Image(filePath, zip) {
+Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
     setInitialTexture();
 }
 

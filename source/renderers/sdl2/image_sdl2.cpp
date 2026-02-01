@@ -158,11 +158,11 @@ void Image_SDL2::setInitialTexture() {
     // pixels = nullptr;
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip) : Image(filePath, zip) {
+Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
     setInitialTexture();
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject) : Image(filePath, fromScratchProject) {
+Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
     setInitialTexture();
 }
 

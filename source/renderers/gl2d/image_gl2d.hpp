@@ -21,9 +21,9 @@ class Image_GL2D : public Image {
     int textureID;
     glImage texture;
 
-    Image_GL2D(std::string filePath, bool fromScratchProject = true);
+    Image_GL2D(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
 
-    Image_GL2D(std::string filePath, mz_zip_archive *zip);
+    Image_GL2D(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
 
     ~Image_GL2D() override;
 

@@ -40,7 +40,7 @@ class Image {
   private:
     std::vector<char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
     unsigned char *loadSVGFromMemory(const char *data, size_t size, int &width, int &height);
-    unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height);
+    unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, float bitmapQuality = 1.0f);
 
   protected:
     ImageData imgData;
@@ -49,8 +49,8 @@ class Image {
     const unsigned int maxFreeTimer = 540;
     unsigned int freeTimer = maxFreeTimer;
 
-    Image(std::string filePath, bool fromScratchProject = true);
-    Image(std::string filePath, mz_zip_archive *zip);
+    Image(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
+    Image(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
     virtual ~Image();
 
     virtual ImageData getPixels(ImageSubrect rect);
@@ -62,5 +62,6 @@ class Image {
     virtual void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) = 0;
 };
 
-std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject = true);
-std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip);
+std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
+
+std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);

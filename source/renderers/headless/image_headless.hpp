@@ -3,9 +3,9 @@
 
 class Image_Headless : public Image {
   public:
-    Image_Headless(std::string filePath, bool fromScratchProject = true);
+    Image_Headless(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
 
-    Image_Headless(std::string filePath, mz_zip_archive *zip);
+    Image_Headless(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
 
     ~Image_Headless() override;
 

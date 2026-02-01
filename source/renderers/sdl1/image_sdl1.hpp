@@ -12,9 +12,9 @@ class Image_SDL1 : public Image {
   public:
     SDL_Surface *texture;
 
-    Image_SDL1(std::string filePath, bool fromScratchProject = true);
+    Image_SDL1(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
 
-    Image_SDL1(std::string filePath, mz_zip_archive *zip);
+    Image_SDL1(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
 
     ~Image_SDL1() override;
 

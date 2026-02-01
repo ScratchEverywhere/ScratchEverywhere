@@ -10,9 +10,9 @@ class Image_GL : public Image {
 
   public:
     unsigned int textureID;
-    Image_GL(std::string filePath, bool fromScratchProject = true);
+    Image_GL(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
 
-    Image_GL(std::string filePath, mz_zip_archive *zip);
+    Image_GL(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
 
     ~Image_GL() override;
 

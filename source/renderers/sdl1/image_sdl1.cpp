@@ -165,11 +165,11 @@ void Image_SDL1::setInitialTexture() {
     SDL_SetAlpha(texture, SDL_SRCALPHA, 255);
 }
 
-Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject) : Image(filePath, fromScratchProject) {
+Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
     setInitialTexture();
 }
 
-Image_SDL1::Image_SDL1(std::string filePath, mz_zip_archive *zip) : Image(filePath, zip) {
+Image_SDL1::Image_SDL1(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
     setInitialTexture();
 }
 

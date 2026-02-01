@@ -1,11 +1,11 @@
 #include "image_headless.hpp"
 
-Image_Headless::Image_Headless(std::string filePath, bool fromScratchProject) : Image(filePath, fromScratchProject) {
+Image_Headless::Image_Headless(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
     free(imgData.pixels);
     imgData.pixels = nullptr;
 }
 
-Image_Headless::Image_Headless(std::string filePath, mz_zip_archive *zip) : Image(filePath, zip) {
+Image_Headless::Image_Headless(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
     free(imgData.pixels);
     imgData.pixels = nullptr;
 }

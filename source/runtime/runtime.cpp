@@ -247,11 +247,9 @@ void Scratch::cleanupSprites() {
 std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *currentSprite) {
     std::vector<std::pair<double, double>> collisionPoints;
 
-    const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
-
-    Render::calculateRenderPosition(currentSprite, isSVG);
-    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 1 : 0.5)) * (currentSprite->size * 0.01);
-    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 1 : 0.5)) * (currentSprite->size * 0.01);
+    Render::calculateRenderPosition(currentSprite, currentSprite->costumes[currentSprite->currentCostume].isSVG);
+    const float spriteWidth = (currentSprite->spriteWidth) * (currentSprite->size * 0.01);
+    const float spriteHeight = (currentSprite->spriteHeight) * (currentSprite->size * 0.01);
 
     const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
     float x = cords.first;
@@ -264,7 +262,7 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
     } else if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
         rotation = Math::degreesToRadians(-180);
 #ifdef RENDERER_CITRO2D
-        x += currentSprite->spriteWidth * (isSVG ? 2 : 1);
+        x += currentSprite->spriteWidth;
 #endif
     } else rotation = 0;
 
@@ -527,9 +525,9 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     try {
         if (projectType == UNZIPPED) {
-            image = createImageFromFile(costumeName, true);
+            image = createImageFromFile(costumeName, true, 0.5f);
         } else {
-            image = createImageFromZip(costumeName, &Unzip::zipArchive);
+            image = createImageFromZip(costumeName, &Unzip::zipArchive, 0.5f);
         }
     } catch (const std::runtime_error &e) {
         Log::logWarning("Failed to load image: " + std::string(e.what()));

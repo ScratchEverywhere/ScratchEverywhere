@@ -88,7 +88,7 @@ class Render {
             sprite->renderInfo.oldRotation++;
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
-            sprite->renderInfo.renderScaleX = sprite->size * (isSVG ? 0.01 : 0.005);
+            sprite->renderInfo.renderScaleX = sprite->size * 0.01;
 
             if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
                 float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
@@ -119,16 +119,20 @@ class Render {
             float spriteX = static_cast<int>(sprite->xPosition);
             float spriteY = static_cast<int>(sprite->yPosition);
 
-            // Handle if the sprite's image is not centered in the costume editor
-            if (sprite->spriteWidth - sprite->rotationCenterX * 2 != 0 ||
-                sprite->spriteHeight - sprite->rotationCenterY * 2 != 0) {
-                float offsetX = (sprite->spriteWidth - sprite->rotationCenterX * 2) * 0.5f;
-                float offsetY = (sprite->spriteHeight - sprite->rotationCenterY * 2) * 0.5f;
+            int rotCenterX = sprite->rotationCenterX;
+            int rotCenterY = sprite->rotationCenterY;
 
-                if (!isSVG) {
-                    offsetX *= 0.5f;
-                    offsetY *= 0.5f;
-                }
+            if (isSVG) {
+                rotCenterX *= 2;
+                rotCenterY *= 2;
+            }
+
+            // Handle if the sprite's image is not centered in the costume editor
+            if (sprite->spriteWidth - rotCenterX != 0 ||
+                sprite->spriteHeight - rotCenterY != 0) {
+
+                float offsetX = (sprite->spriteWidth - rotCenterX) * 0.5f;
+                float offsetY = (sprite->spriteHeight - rotCenterY) * 0.5f;
 
                 if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0)
                     offsetX *= -1;

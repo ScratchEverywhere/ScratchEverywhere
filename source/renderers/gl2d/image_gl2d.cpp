@@ -38,11 +38,11 @@ void Image_GL2D::setInitialTexture() {
     textureID = texID;
 }
 
-Image_GL2D::Image_GL2D(std::string filePath, bool fromScratchProject) : Image(filePath, fromScratchProject) {
+Image_GL2D::Image_GL2D(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
     setInitialTexture();
 }
 
-Image_GL2D::Image_GL2D(std::string filePath, mz_zip_archive *zip) : Image(filePath, zip) {
+Image_GL2D::Image_GL2D(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
     setInitialTexture();
 }
 

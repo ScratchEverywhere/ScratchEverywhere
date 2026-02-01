@@ -14,9 +14,9 @@ class Image_C2D : public Image {
   public:
     C2D_Image texture;
 
-    Image_C2D(std::string filePath, bool fromScratchProject = true);
+    Image_C2D(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
 
-    Image_C2D(std::string filePath, mz_zip_archive *zip);
+    Image_C2D(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
 
     ~Image_C2D() override;
 
