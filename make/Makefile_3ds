@@ -90,6 +90,12 @@ CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D -DPLATFOR
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
+ifneq ($(wildcard $(ROMFS)/project*),)
+    ENABLE_MENU = 0
+	ENABLE_LOADSCREEN = 0
+endif
+
+
 ifeq ($(ENABLE_MENU),1)
 SOURCES += source/scratch/menus
 INCLUDES += source/scratch/menus

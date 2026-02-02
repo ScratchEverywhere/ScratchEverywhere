@@ -51,6 +51,11 @@ CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
+ifneq ($(wildcard $(ROMFS)/project*),)
+    ENABLE_MENU = 0
+	ENABLE_LOADSCREEN = 0
+endif
+
 ifeq ($(ENABLE_MENU),1)
 SOURCES += source/scratch/menus
 INCLUDES += source/scratch/menus

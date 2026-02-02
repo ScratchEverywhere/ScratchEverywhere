@@ -25,6 +25,12 @@ endif()
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
+#  disable menu if a project is in RomFS
+if (EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/romfs/project.sb3")
+	set(SE_MENU OFF)
+	set(SE_LOADSCREEN OFF)
+endif()
+
 if(SE_MENU)
 	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 endif()

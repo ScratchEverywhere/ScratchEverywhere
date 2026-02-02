@@ -46,6 +46,11 @@ ENABLE_MENU		?=	1
 #---------------------------------------------------------------------------------
 CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_image SDL2_gfx freetype2` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DWII -D__OGC__ -DRENDERER_SDL2 -DCONSOLE -DPLATFORM_HAS_MOUSE -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 
+ifneq ($(wildcard $(ROMFS)/project*),)
+    ENABLE_MENU = 0
+	ENABLE_LOADSCREEN = 0
+endif
+
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_image SDL2_gfx freetype2`
 CFLAGS	+=	-DENABLE_AUDIO `$(PREFIX)pkg-config --cflags SDL2_mixer`
