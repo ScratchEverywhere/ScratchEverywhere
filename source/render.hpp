@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <input.hpp>
 #include <math.hpp>
 #include <runtime.hpp>
 #include <sprite.hpp>
@@ -386,6 +387,84 @@ class Render {
 
                         float valueCenterX = baseRenderX + (valueWidth / 2) - (valueSizeBox[0] / 2);
                         valueObj->render(valueCenterX, baseRenderY + (3 * scale));
+                    } else if (var.mode == "slider") {
+                        nameObj->setColor(Math::color(0, 0, 0, 255));
+                        nameObj->setScale(1.0f * (scale / 2.0f));
+                        valueObj->setColor(Math::color(255, 255, 255, 255));
+                        valueObj->setScale(1.0f * (scale / 2.0f));
+
+                        float monitorWidth = 8 * scale;
+                        float valueWidth = std::max(40 * scale, valueSizeBox[0] + (8 * scale));
+
+                        // Draw name background
+                        float nameBackgroundX = baseRenderX + monitorWidth;
+                        float nameBackgroundY = baseRenderY + 4 * scale;
+                        float nameBackgroundWidth = nameSizeBox[0] + valueWidth;
+                        float nameBackgroundHeight = std::max(nameSizeBox[1], valueSizeBox[1]) * 2;
+                        drawBox(nameBackgroundWidth + (14 * scale), nameBackgroundHeight + (6 * scale),
+                                nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
+                                194, 204, 217);
+                        drawBox(nameBackgroundWidth + (12 * scale), nameBackgroundHeight + (4 * scale),
+                                nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
+                                229, 240, 255);
+
+                        monitorWidth += nameSizeBox[0] + (4 * scale);
+
+                        // Draw value background
+                        float valueBackgroundX = baseRenderX + monitorWidth;
+                        float valueBackgroundY = baseRenderY + 4 * scale;
+                        drawBox(valueWidth, valueSizeBox[1],
+                                valueBackgroundX + valueWidth / 2, valueBackgroundY + valueSizeBox[1] / 2,
+                                valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
+
+                        nameObj->render(nameBackgroundX, nameBackgroundY + (2 * scale));
+                        valueObj->render(valueBackgroundX + (valueWidth / 2) - (valueSizeBox[0] / 2), valueBackgroundY + (2 * scale));
+
+                        // draw slider
+                        drawBox(nameBackgroundWidth * 0.97, 9 * scale, nameBackgroundX + nameBackgroundWidth / 2, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 178, 178, 178, 255);
+                        drawBox(nameBackgroundWidth * 0.95, 7 * scale, nameBackgroundX + nameBackgroundWidth / 2, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 239, 239, 239, 255);
+
+                        const int minPos = nameBackgroundX + 4 * scale;
+                        const int maxPos = nameBackgroundX + nameBackgroundWidth;
+                        const double sliderMin = var.sliderMin;
+                        const double sliderMax = var.sliderMax;
+                        const double value = var.value.asDouble();
+                        const int sliderPos = std::clamp(static_cast<int>(minPos + (value - sliderMin) * (maxPos - minPos) / (sliderMax - sliderMin)), minPos, maxPos);
+
+                        drawBox(13 * scale, 13 * scale, sliderPos, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 0, 115, 252, 255);
+
+                        std::vector<int> touchPos = Input::getTouchPosition();
+
+                        if (Input::mousePointer.isPressed && touchPos[0] > nameBackgroundX && touchPos[0] < nameBackgroundX + nameBackgroundWidth &&
+                            touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3) {
+
+                            const int clampedX = std::clamp(touchPos[0], minPos, maxPos);
+
+                            const double normalized = static_cast<double>(clampedX - minPos) / static_cast<double>(maxPos - minPos);
+
+                            double newValue = sliderMin + normalized * (sliderMax - sliderMin);
+
+                            if (var.isDiscrete) {
+                                newValue = static_cast<int>(newValue);
+                            } else newValue = std::round(newValue * 100.0) / 100.0;
+
+                            // snap to edges
+                            if (clampedX <= minPos + 5 * scale) {
+                                newValue = sliderMin;
+                            } else if (clampedX >= maxPos - 5 * scale) {
+                                newValue = sliderMax;
+                            }
+
+                            // not sure if any other monitor types can be sliders, but juuuust in case
+                            if (var.opcode == "data_variable") {
+                                var.value = Value(newValue);
+                                for (auto &spr : Scratch::sprites) {
+                                    if (spr->variables.find(var.id) != spr->variables.end())
+                                        BlockExecutor::setVariableValue(var.id, Value(newValue), spr);
+                                }
+                            }
+                        }
+
                     } else {
                         nameObj->setColor(Math::color(0, 0, 0, 255));
                         nameObj->setScale(1.0f * (scale / 2.0f));
