@@ -270,7 +270,7 @@ class Render {
                     float monitorW = var.width * scale;
                     float monitorH = var.height * scale;
 
-                    const size_t itemsPerPage = std::floor(((monitorH * 0.75) / boxHeight + (4 * scale)) / 2);
+                    const size_t itemsPerPage = std::floor(((monitorH * 0.75) / boxHeight + 4) / 2);
                     const size_t start = var.listPage * itemsPerPage;
                     const size_t end = start + itemsPerPage;
                     const size_t maxPages = var.list.size() / itemsPerPage;
