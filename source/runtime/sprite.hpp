@@ -149,6 +149,7 @@ struct Monitor {
     int y;
     int width;
     int height;
+    int listPage = 0;
     bool visible;
     double sliderMin;
     double sliderMax;

@@ -268,7 +268,12 @@ class Render {
                     const float boxHeight = monitorGfx.name->getSize()[1] + (2 * scale);
 
                     float monitorW = var.width * scale;
-                    float monitorH = std::max(static_cast<float>(var.height * scale), (boxHeight * 2 + (8 * scale)) + var.list.size() * (boxHeight + 2 * scale));
+                    float monitorH = var.height * scale;
+
+                    const size_t itemsPerPage = std::floor(((monitorH * 0.75) / boxHeight + (4 * scale)) / 2);
+                    const size_t start = var.listPage * itemsPerPage;
+                    const size_t end = start + itemsPerPage;
+                    const size_t maxPages = var.list.size() / itemsPerPage;
 
                     // Draw background
                     drawBox(monitorW + (2 * scale), monitorH + (2 * scale), monitorX + (monitorW / 2), monitorY + (monitorH / 2), 194, 204, 217);
@@ -287,7 +292,8 @@ class Render {
 
                         monitorGfx.items.reserve(var.list.size());
                         monitorGfx.indices.reserve(var.list.size());
-                        for (size_t i = 0; i < var.list.size(); ++i) {
+
+                        for (size_t i = start; i < end && i < var.list.size(); ++i) {
                             monitorGfx.items.push_back(createTextObject("", 0, 0));
                             monitorGfx.indices.push_back(createTextObject("", 0, 0));
                         }
@@ -295,19 +301,20 @@ class Render {
 
                     if (!var.list.empty()) {
                         float item_y = 4 * scale;
-                        int index = 1;
+                        int index = 0;
 
-                        for (const auto &s : var.list) {
+                        for (size_t i = start; i < end && i < var.list.size(); ++i) {
+                            const Value &s = var.list[i];
                             drawBox(monitorW - (24 * scale), boxHeight, monitorX + (22 * scale) + (monitorW - (28 * scale)) / 2, monitorY + boxHeight + item_y + (boxHeight / 2), 252, 102, 44);
 
-                            std::unique_ptr<TextObject> &itemText = monitorGfx.items[index - 1];
+                            std::unique_ptr<TextObject> &itemText = monitorGfx.items[index];
                             itemText->setText(s.asString());
                             itemText->setColor(Math::color(255, 255, 255, 255));
                             itemText->setScale(1.0f * (scale / 2.0f));
                             itemText->setCenterAligned(false);
 
-                            std::unique_ptr<TextObject> &itemIndexText = monitorGfx.indices[index - 1];
-                            itemIndexText->setText(std::to_string(index));
+                            std::unique_ptr<TextObject> &itemIndexText = monitorGfx.indices[index];
+                            itemIndexText->setText(std::to_string(i + 1));
                             itemIndexText->setColor(Math::color(0, 0, 0, 255));
                             itemIndexText->setScale(1.0f * (scale / 2.0f));
                             itemIndexText->setCenterAligned(true);
@@ -336,16 +343,60 @@ class Render {
                     monitorGfx.length->setColor(Math::color(0, 0, 0, 255));
                     monitorGfx.length->render(monitorX + (monitorW / 2), monitorY + monitorH - (6 * scale));
 
-                    // what the hell, sure
+                    std::vector<int> touchPos = Input::getTouchPosition();
+
+                    // plus button
                     std::unique_ptr<TextObject> plus = createTextObject("+", 0, 0);
+                    const int plusPosX = monitorX + (8 * scale);
+                    const int plusPosY = monitorY + monitorH - (14 * scale);
+                    plus->setCenterAligned(false);
                     plus->setColor(Math::color(0, 0, 0, 255));
                     plus->setScale(1.0f * (scale / 2.0f));
-                    plus->render(monitorX + (8 * scale), monitorY + monitorH - (6 * scale));
+                    plus->render(plusPosX, plusPosY);
+                    if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
+                        touchPos[0] > plusPosX && touchPos[0] < plusPosX + plus->getSize()[0] &&
+                        touchPos[1] > plusPosY && touchPos[1] < plusPosY + plus->getSize()[1]) {
+                        std::string varValue = Input::openSoftwareKeyboard("Enter new Variable value.");
+                        if (varValue.empty()) continue;
+                        for (auto &spr : Scratch::sprites) {
+                            if (spr->lists.find(var.id) != spr->lists.end()) {
+                                spr->lists[var.id].items.push_back(Value(varValue));
+                            }
+                        }
+                        var.listPage = static_cast<int>(maxPages);
+                    }
 
-                    std::unique_ptr<TextObject> equal = createTextObject("=", 0, 0);
-                    equal->setColor(Math::color(0, 0, 0, 255));
-                    equal->setScale(1.0f * (scale / 2.0f));
-                    equal->render(monitorX + monitorW - (8 * scale), monitorY + monitorH - (6 * scale));
+                    // page buttons
+                    if (var.listPage < maxPages) {
+                        std::unique_ptr<TextObject> down = createTextObject("\\/", 0, 0);
+                        const int downPosX = static_cast<int>(monitorX + monitorW - (18 * scale));
+                        const int downPosY = static_cast<int>(monitorY + monitorH - (14 * scale));
+                        down->setCenterAligned(false);
+                        down->setColor(Math::color(0, 0, 0, 255));
+                        down->setScale(1.0f * (scale / 2.0f));
+                        down->render(downPosX, downPosY);
+                        if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
+                            touchPos[0] > downPosX && touchPos[0] < downPosX + down->getSize()[0] &&
+                            touchPos[1] > downPosY && touchPos[1] < downPosY + down->getSize()[1]) {
+                            var.listPage = std::clamp(var.listPage + 1, 0, static_cast<int>(maxPages));
+                        }
+                    }
+
+                    if (var.listPage > 0) {
+                        std::unique_ptr<TextObject> up = createTextObject("/\\", 0, 0);
+                        const int upPosX = static_cast<int>(monitorX + monitorW - (8 * scale));
+                        const int upPosY = static_cast<int>(monitorY + monitorH - (14 * scale));
+                        up->setCenterAligned(false);
+                        up->setColor(Math::color(0, 0, 0, 255));
+                        up->setScale(1.0f * (scale / 2.0f));
+                        up->render(upPosX, upPosY);
+                        if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
+                            touchPos[0] > upPosX && touchPos[0] < upPosX + up->getSize()[0] &&
+                            touchPos[1] > upPosY && touchPos[1] < upPosY + up->getSize()[1]) {
+                            var.listPage = std::clamp(var.listPage - 1, 0, static_cast<int>(maxPages));
+                        }
+                    }
+
                 } else {
                     std::string renderText = var.value.asString();
                     if (monitorTexts.find(var.id) == monitorTexts.end()) {
