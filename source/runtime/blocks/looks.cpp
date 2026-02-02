@@ -182,9 +182,9 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
         goto end;
     }
 
-    end:
-        Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
-        return BlockResult::CONTINUE;
+end:
+    Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
@@ -295,7 +295,7 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
         std::rotate(Scratch::sprites.begin() + currentIndex, Scratch::sprites.begin() + currentIndex + 1, Scratch::sprites.begin() + targetIndex + 1);
     }
 
-    for (unsigned int i = std::min(currentIndex, targetIndex); i <= std::max(currentIndex, targetIndex); i++) {
+    for (int i = std::min(currentIndex, targetIndex); i <= std::max(currentIndex, targetIndex); i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
 

@@ -421,7 +421,6 @@ void OS::removeDirectory(const std::string &path) {
     }
 
     struct dirent *entry;
-    bool success = true;
     while ((entry = readdir(dir)) != nullptr) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;

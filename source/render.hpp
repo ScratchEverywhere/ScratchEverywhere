@@ -367,7 +367,7 @@ class Render {
                     }
 
                     // page buttons
-                    if (var.listPage < maxPages) {
+                    if (var.listPage < static_cast<int>(maxPages)) {
                         std::unique_ptr<TextObject> down = createTextObject("\\/", 0, 0);
                         const int downPosX = static_cast<int>(monitorX + monitorW - (18 * scale));
                         const int downPosY = static_cast<int>(monitorY + monitorH - (14 * scale));
