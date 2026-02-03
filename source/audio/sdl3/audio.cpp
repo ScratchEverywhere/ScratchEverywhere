@@ -6,9 +6,7 @@
 #include <sprite.hpp>
 #include <string>
 #include <unordered_map>
-#ifdef __3DS__
-#include <3ds.h>
-#endif
+#include <unzip.hpp>
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -92,8 +90,14 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
 
     if (Scratch::projectType != UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
-    else
-        loadSoundFromFile(params.sprite, (fromProject && !fromCache ? "project/" : "") + params.soundId, params.streamed, fromCache);
+    else {
+        std::string filePrefix = "";
+        if (fromProject && !fromCache) {
+            if (Unzip::UnpackedInSD) filePrefix = Unzip::filePath;
+            else filePrefix = "project/";
+        }
+        loadSoundFromFile(params.sprite, filePrefix + params.soundId, params.streamed, fromCache);
+    }
 
 #endif
 }
@@ -186,7 +190,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     MIX_Audio *sound;
 #ifdef USE_CMAKERC
-    if (fromCache)
+    if (fromCache || Unzip::UnpackedInSD)
         sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
     else {
         const auto &file = cmrc::romfs::get_filesystem().open(fileName);
@@ -206,6 +210,9 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         const std::string prefix = "project/";
         if (fileName.rfind(prefix, 0) == 0) {
             fileName = fileName.substr(prefix.length());
+        }
+        if (Unzip::UnpackedInSD) {
+            fileName = fileName.substr(Unzip::filePath.length());
         }
     }
 

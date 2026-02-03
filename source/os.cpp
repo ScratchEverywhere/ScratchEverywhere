@@ -287,7 +287,9 @@ std::string OS::getConfigFolderLocation() {
     }
 #elif defined(__APPLE__)
     const char *home = std::getenv("HOME");
-    if (home) path = (std::filesystem::path(home) / "Library" / "Application Support" / "scratch-everywhere" / "").string();
+    if (home) {
+        path = std::string(home) + "/Library/Application Support/scratch-everywhere/";
+    }
 #elif defined(__HAIKU__)
     BPath bpath;
     if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
@@ -453,7 +455,6 @@ void OS::removeDirectory(const std::string &path) {
     }
 
     struct dirent *entry;
-    bool success = true;
     while ((entry = readdir(dir)) != nullptr) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;

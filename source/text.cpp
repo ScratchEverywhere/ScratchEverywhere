@@ -1,6 +1,6 @@
 #include <string>
 #include <text.hpp>
-#ifdef __3DS__
+#ifdef RENDERER_CITRO2D
 #include <renderers/citro2d/text_c2d.hpp>
 #elif defined(RENDERER_SDL2)
 #include <renderers/sdl2/text_sdl2.hpp>
@@ -10,7 +10,7 @@
 #include <renderers/sdl1/text_sdl1.hpp>
 #elif defined(RENDERER_OPENGL)
 #include <renderers/opengl/text_gl.hpp>
-#elif defined(__NDS__)
+#elif defined(RENDERER_GL2D)
 #include <renderers/gl2d/text_gl2d.hpp>
 #elif defined(RENDERER_HEADLESS)
 #include <renderers/headless/text_headless.hpp>

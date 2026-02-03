@@ -535,6 +535,13 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     try {
         Scratch::FPS = config["framerate"].get<int>();
+        if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
+#if defined(RENDERER_SDL2)
+            Scratch::FPS = 255; // SDL2's vsync will figure it out
+#else
+            Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
+#endif
+        }
         Log::log("Set FPS to: " + std::to_string(Scratch::FPS));
     } catch (...) {
 #ifdef DEBUG
@@ -596,7 +603,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         Log::logWarning("No Max clones property.");
 #endif
     }
-#ifdef __3DS__
+#ifdef RENDERER_CITRO2D
     if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
     else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
@@ -608,7 +615,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
     }
-#elif defined(__NDS__)
+#elif defined(RENDERER_GL2D)
     auto bottomScreen = Unzip::getSetting("bottomScreen");
     if (!bottomScreen.is_null() && bottomScreen.get<bool>())
         Render::renderMode = Render::BOTTOM_SCREEN_ONLY;

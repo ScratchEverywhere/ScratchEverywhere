@@ -33,28 +33,6 @@ class Input {
     static void applyControls(std::string controlsFilePath = "") {
         Input::inputControls.clear();
 
-        if (controlsFilePath != "" && Scratch::projectType == UNEMBEDDED) {
-            // load controls from file
-            std::ifstream file(controlsFilePath);
-            if (file.is_open()) {
-                Log::log("Loading controls from file: " + controlsFilePath);
-                nlohmann::json controlsJson;
-                file >> controlsJson;
-
-                // Access the "controls" object specifically
-                if (controlsJson.contains("controls")) {
-                    for (auto &[key, value] : controlsJson["controls"].items()) {
-                        Input::inputControls[value.get<std::string>()] = key;
-                        Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
-                    }
-                }
-                file.close();
-                return;
-            } else {
-                Log::logWarning("Failed to open controls file: " + controlsFilePath);
-            }
-        }
-
         // default controls
         Input::inputControls["dpadUp"] = "u";
         Input::inputControls["dpadDown"] = "h";
@@ -80,6 +58,29 @@ class Input {
         Input::inputControls["RightStickPressed"] = "v";
         Input::inputControls["LT"] = "z";
         Input::inputControls["RT"] = "f";
+
+        if (controlsFilePath != "" && Scratch::projectType == UNEMBEDDED) {
+            // load controls from file
+            std::ifstream file(controlsFilePath);
+            if (file.is_open()) {
+                Log::log("Loading controls from file: " + controlsFilePath);
+                nlohmann::json controlsJson;
+                file >> controlsJson;
+
+                // Access the "controls" object specifically
+                if (controlsJson.contains("controls")) {
+                    for (auto &[key, value] : controlsJson["controls"].items()) {
+                        if (key.empty() || value.empty()) continue;
+                        Input::inputControls[value.get<std::string>()] = key;
+                        Log::log("Loaded control: " + key + " -> " + value.get<std::string>());
+                    }
+                }
+                file.close();
+                return;
+            } else {
+                Log::logWarning("Failed to open controls file: " + controlsFilePath);
+            }
+        }
     }
 
     static void buttonPress(std::string button) {

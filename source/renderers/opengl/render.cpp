@@ -86,6 +86,8 @@ bool Render::Init() {
 
     setRenderScale();
 
+    speechManager = new SpeechManagerGL();
+
     debugMode = true;
 
     return true;
@@ -99,6 +101,11 @@ void Render::deInit() {
     Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
+
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
 
     if (globalWindow) {
         globalWindow->cleanup();
@@ -155,6 +162,7 @@ bool Render::initPen() {
 }
 
 void Render::penClear() {
+    if (penTexture == 0) return;
     std::vector<uint8_t> emptyData(penWidth * penHeight * 4, 0);
     glBindTexture(GL_TEXTURE_2D, penTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, emptyData.data());
@@ -577,6 +585,10 @@ void Render::renderSprites() {
             glPopMatrix();
         }
         if (currentSprite->isStage) renderPenLayer();
+    }
+
+    if (speechManager) {
+        speechManager->render();
     }
 
     drawBlackBars(getWidth(), getHeight());

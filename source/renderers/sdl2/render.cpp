@@ -372,6 +372,7 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::penClear() {
+    if (!penTexture || penTexture == nullptr) return;
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);

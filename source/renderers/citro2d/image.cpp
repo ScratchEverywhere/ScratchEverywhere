@@ -37,7 +37,6 @@ const u32 rgba_to_abgr(u32 px) {
 Image::Image(std::string filePath) {
     if (!loadImageFromFile(filePath, nullptr, false)) return;
 
-    // Find the matching RGBA data in the vector
     std::string filename = filePath.substr(filePath.find_last_of('/') + 1);
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
     ImageData &image = images[path2];
@@ -138,7 +137,6 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
     std::string path2 = filename.substr(0, filename.find_last_of('.'));
 
     if (images.find(path2) != images.end()) return true;
-    if (getImageFromT3x("romfs:/gfx/" + path2 + ".t3x")) return true;
 
     std::string fullPath;
     if (fromScratchProject) fullPath = "romfs:/project/" + filePath;
@@ -153,9 +151,7 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
     int width, height;
     unsigned char *rgba_data = nullptr;
 
-    bool isSVG = filePath.size() >= 4 &&
-                 (filePath.substr(filePath.size() - 4) == ".svg" ||
-                  filePath.substr(filePath.size() - 4) == ".SVG");
+    bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
 
     imageRGBA newRGBA;
 
@@ -205,7 +201,6 @@ bool Image::loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScr
     newRGBA.height = height;
     newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
     newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
-    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
     if (sprite != nullptr) {
@@ -229,37 +224,14 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
 
     if (images.find(imageId) != images.end()) return;
 
-    // Find the file in the zip
     int file_index = mz_zip_reader_locate_file(zip, costumeId.c_str(), nullptr, 0);
     if (file_index < 0) {
         Log::logWarning("Image file not found in zip: " + costumeId);
         return;
     }
 
-    // Get file stats
-    mz_zip_archive_file_stat file_stat;
-    if (!mz_zip_reader_file_stat(zip, file_index, &file_stat)) {
-        Log::logWarning("Failed to get file stats for: " + costumeId);
-        return;
-    }
+    bool isSVG = costumeId.size() >= 4 && (costumeId.substr(costumeId.size() - 4) == ".svg" || costumeId.substr(costumeId.size() - 4) == ".SVG");
 
-    // Check if file is bitmap or SVG
-    bool isBitmap = costumeId.size() > 4 && ([](std::string ext) {
-                        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                        return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga" ||
-                               ext == ".bmp" || ext == ".psd" || ext == ".gif" || ext == ".hdr" ||
-                               ext == ".pic" || ext == ".ppm" || ext == ".pgm";
-                    }(costumeId.substr(costumeId.find_last_of('.'))));
-    bool isSVG = costumeId.size() >= 4 &&
-                 (costumeId.substr(costumeId.size() - 4) == ".svg" ||
-                  costumeId.substr(costumeId.size() - 4) == ".SVG");
-
-    if (!isBitmap && !isSVG) {
-        Log::logWarning("File is not a supported image format: " + costumeId);
-        return;
-    }
-
-    // Extract file data
     size_t file_size;
     void *file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
     if (!file_data) {
@@ -282,11 +254,8 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
             return;
         }
     } else {
-        // Handle bitmap files (PNG, JPG)
         int channels;
-        rgba_data = stbi_load_from_memory(
-            (unsigned char *)file_data, file_size,
-            &width, &height, &channels, 4);
+        rgba_data = stbi_load_from_memory((unsigned char *)file_data, file_size, &width, &height, &channels, 4);
 
         if (!rgba_data) {
             Log::logWarning("Failed to decode image: " + costumeId);
@@ -296,14 +265,12 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
         }
     }
 
-    // Set up the image data structure
     newRGBA.name = imageId;
     newRGBA.fullName = costumeId;
     newRGBA.width = width;
     newRGBA.height = height;
     newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
     newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
-    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = rgba_data;
 
     if (sprite != nullptr) {
@@ -320,7 +287,6 @@ void Image::loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, 
  * Loads SVG data and converts it to RGBA pixel data
  */
 unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int &height) {
-    // Create a null-terminated string from the SVG data
     char *svg_string = (char *)malloc(svg_size + 1);
     if (!svg_string) {
         Log::logWarning("Failed to allocate memory for SVG string");
@@ -329,7 +295,6 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
     memcpy(svg_string, svg_data, svg_size);
     svg_string[svg_size] = '\0';
 
-    // Parse SVG
     NSVGimage *image = nsvgParse(svg_string, "px", 96.0f);
     free(svg_string);
 
@@ -338,7 +303,6 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
         return nullptr;
     }
 
-    // Determine render size
     if (image->width > 0 && image->height > 0) {
         width = (int)image->width;
         height = (int)image->height;
@@ -351,7 +315,6 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
     width = clamp(width, 0, 1024);
     height = clamp(height, 0, 1024);
 
-    // Create rasterizer
     NSVGrasterizer *rast = nsvgCreateRasterizer();
     if (!rast) {
         Log::logWarning("Failed to create SVG rasterizer");
@@ -359,7 +322,6 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
         return nullptr;
     }
 
-    // Allocate RGBA buffer
     unsigned char *rgba_data = (unsigned char *)malloc(width * height * 4);
     if (!rgba_data) {
         Log::logWarning("Failed to allocate RGBA buffer for SVG");
@@ -368,7 +330,6 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
         return nullptr;
     }
 
-    // Calculate scale
     float scale = 1.0f;
     if (image->width > 0 && image->height > 0) {
         float scaleX = (float)width / image->width;
@@ -376,10 +337,8 @@ unsigned char *SVGToRGBA(const void *svg_data, size_t svg_size, int &width, int 
         scale = std::min(scaleX, scaleY);
     }
 
-    // Rasterize SVG
     nsvgRasterize(rast, image, 0, 0, scale, rgba_data, width, height, width * 4);
 
-    // Clean up
     nsvgDeleteRasterizer(rast);
     nsvgDelete(image);
 
@@ -407,7 +366,6 @@ bool getImageFromT3x(const std::string &filePath) {
     newRGBA.isSVG = false;
     newRGBA.textureWidth = clamp(Math::next_pow2(newRGBA.width), 64, 1024);
     newRGBA.textureHeight = clamp(Math::next_pow2(newRGBA.height), 64, 1024);
-    newRGBA.textureMemSize = newRGBA.textureWidth * newRGBA.textureHeight * 4;
     newRGBA.data = nullptr;
 
     images[newRGBA.name] = {image, 240, sheet};
@@ -432,15 +390,12 @@ bool get_C2D_Image(imageRGBA &rgba) {
     tex->width = rgba.textureWidth;
     tex->height = rgba.textureHeight;
 
-    size_t textureSize = rgba.textureMemSize;
-
     // Subtexture
     Tex3DS_SubTexture *subtex = new Tex3DS_SubTexture();
 
     subtex->width = rgba.width;
     subtex->height = rgba.height;
 
-    // (U, V) coordinates
     subtex->left = 0.0f;
     subtex->top = 1.0f;
     subtex->right = (float)rgba.width / (float)tex->width;
@@ -463,6 +418,7 @@ bool get_C2D_Image(imageRGBA &rgba) {
         return false;
     }
 
+    size_t textureSize = rgba.textureWidth * rgba.textureHeight * 4;
     memset(tex->data, 0, textureSize);
     for (u32 i = 0; i < (u32)rgba.width; i++) {
         for (u32 j = 0; j < (u32)rgba.height; j++) {
@@ -486,7 +442,6 @@ bool get_C2D_Image(imageRGBA &rgba) {
     images[rgba.name].width = rgba.width;
     images[rgba.name].height = rgba.height;
     images[rgba.name].isSVG = rgba.isSVG;
-    C3D_FrameSync();
     return true;
 }
 
@@ -545,11 +500,8 @@ void Image::cleanupImages() {
         freeImage(id);
     }
 
-    // Clear maps & queues to prevent dangling references
     images.clear();
     toDelete.clear();
-
-    // Log::log("Image cleanup completed.");
 }
 
 /**
@@ -568,7 +520,6 @@ void Image::queueFreeImage(const std::string &costumeId) {
 void Image::FlushImages() {
     std::vector<std::string> keysToDelete;
 
-    // timer based freeing
     for (auto &[id, data] : images) {
         if (data.freeTimer <= 0) {
             keysToDelete.push_back(id);

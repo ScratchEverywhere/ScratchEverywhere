@@ -47,12 +47,9 @@ SCRATCH_REPORTER_BLOCK_OPCODE(argument_reporter_boolean) {
 
 SCRATCH_BLOCK(procedures, call) {
     if (!fromRepeat) {
-        block.customBlockExecuted = false;
-
         // Run the custom block for the first time
         if (BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh) == BlockResult::RETURN) return BlockResult::RETURN;
-        block.customBlockExecuted = true;
-
+        if (sprite->toDelete) return BlockResult::RETURN;
         BlockExecutor::addToRepeatQueue(sprite, &block);
     }
 
@@ -62,11 +59,12 @@ SCRATCH_BLOCK(procedures, call) {
         // std::cout << "done with custom!" << std::endl;
 
         // Custom block execution is complete
-        block.customBlockExecuted = false;
         block.customBlockPtr = nullptr;
 
+        if (sprite->toDelete) {
+            return BlockResult::RETURN;
+        }
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
-
         return BlockResult::CONTINUE;
     }
 

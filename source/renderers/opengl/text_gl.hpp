@@ -23,13 +23,15 @@ struct FontData {
 class TextObjectGL : public TextObject {
   private:
     static std::unordered_map<std::string, FontData *> fonts;
-    FontData *font = nullptr;
     float width = 0;
     float height = 0;
     float minY = 0;
 
     void setDimensions();
     bool loadFont(std::string fontPath);
+
+  protected:
+    FontData *font = nullptr;
 
   public:
     TextObjectGL(std::string txt, double posX, double posY, std::string fontPath = "");

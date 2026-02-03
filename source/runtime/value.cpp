@@ -183,8 +183,7 @@ bool Value::isScratchInt() {
 }
 
 Value Value::fromJson(const nlohmann::json &jsonVal) {
-    if (jsonVal.is_number_integer()) return Value(jsonVal.get<int>());
-    if (jsonVal.is_number_float()) return Value(jsonVal.get<double>());
+    if (jsonVal.is_number()) return Value(jsonVal.get<double>());
     if (jsonVal.is_string()) return Value(jsonVal.get<std::string>());
     if (jsonVal.is_boolean()) return Value(jsonVal.get<bool>());
     if (jsonVal.is_array()) {

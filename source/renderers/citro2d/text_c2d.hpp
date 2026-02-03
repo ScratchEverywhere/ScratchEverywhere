@@ -7,7 +7,6 @@
 class TextObjectC2D : public TextObject {
   private:
     void updateText();
-    bool textPosCorrection = false;
 
   protected:
     static std::unordered_map<std::string, C2D_Font> fonts;

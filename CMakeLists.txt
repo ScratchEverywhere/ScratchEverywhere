@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.33 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.34 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -24,6 +24,12 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT XBOX360)
 endif()
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
+
+#  disable menu if a project is in RomFS
+if (EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/romfs/project.sb3")
+	set(SE_MENU OFF)
+	set(SE_LOADSCREEN OFF)
+endif()
 
 if(SE_MENU)
 	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
@@ -289,6 +295,8 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 		if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
 			message(STATUS "Test!")
 			set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF") # TODO: Fix compiler-rt issues
+		elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)
+			set(SDL2_OPTIONS "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
 		else()
 			set(SDL2_OPTIONS "")
 		endif()
@@ -654,6 +662,7 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM AND NOT WEBOS)
 		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
+		target_link_directories(scratch-everywhere PRIVATE ${SDL2_GFX_LIBRARY_DIRS})
 	else()
 		list(APPEND SDL_LINK_LIBS SDL2_image)
 		list(APPEND SDL_LINK_LIBS SDL2_gfx)
@@ -828,10 +837,9 @@ endif()
 if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT XBOX360)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
 endif()
-if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING) ) # joystick doesn't work on MacOS with current Dockerfile
+if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) ) # joystick doesn't work on MacOS with current Dockerfile
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
 endif()
-
 
 
 if(SE_AUDIO)
@@ -860,6 +868,7 @@ if(SE_AUDIO)
 			target_link_libraries(scratch-everywhere PRIVATE ${SDL2_MIXER_LIBRARIES})
 			target_include_directories(scratch-everywhere PRIVATE ${SDL2_MIXER_INCLUDE_DIRS})
 		else()
+			target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2)
 			if(WEBOS)
 				target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer)
 			elseif(BUILD_SHARED_LIBS)
@@ -870,9 +879,12 @@ if(SE_AUDIO)
 		endif()
 	elseif(SE_AUDIO_ENGINE STREQUAL "sdl3")
 		if(SE_SYSTEM)
+			target_link_libraries(scratch-everywhere PRIVATE ${SDL3_LIBRARIES})
+			target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS})
 			target_link_libraries(scratch-everywhere PRIVATE ${SDL3_MIXER_LIBRARIES})
 			target_include_directories(scratch-everywhere PRIVATE ${SDL3_MIXER_INCLUDE_DIRS})
 		else()
+			target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
 			if(BUILD_SHARED_LIBS)
 				target_link_libraries(scratch-everywhere PRIVATE SDL3_mixer::SDL3_mixer)
 			else()

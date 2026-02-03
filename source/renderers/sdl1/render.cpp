@@ -267,6 +267,7 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::penClear() {
+    if (!penSurface || penSurface == nullptr) return;
     SDL_FillRect(penSurface, NULL, SDL_MapRGBA(penSurface->format, 0, 0, 0, 0));
 }
 
@@ -402,6 +403,7 @@ void Render::renderSprites() {
     drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
 
+    SDL_Flip(window);
     if (globalWindow) globalWindow->swapBuffers();
     Image::FlushImages();
     SoundPlayer::flushAudio();

@@ -67,7 +67,6 @@ struct Block {
     double glideStartX, glideStartY;
     double glideEndX, glideEndY;
     Timer waitTimer;
-    bool customBlockExecuted = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
     std::vector<std::pair<Block *, Sprite *>> backdropsRun;
@@ -150,6 +149,7 @@ struct Monitor {
     int y;
     int width;
     int height;
+    int listPage = 0;
     bool visible;
     double sliderMin;
     double sliderMax;
@@ -165,7 +165,6 @@ class Sprite {
     bool visible;
     bool isClone;
     bool toDelete;
-    bool isDeleted = false;
     bool shouldDoSpriteClick = false;
     int currentCostume;
     float xPosition;
