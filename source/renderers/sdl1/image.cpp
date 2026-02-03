@@ -330,8 +330,14 @@ SDL_Surface *SVGToSurface(const char *svg_data, size_t svg_size) {
     // Rasterize SVG
     nsvgRasterize(rast, image, 0, 0, scale, rgba_data, width, height, width * 4);
 
+#ifdef __XBOX360__
+    // Xbox 360 expects ABGR
+    SDL_Surface *temp_surface = SDL_CreateRGBSurfaceFrom(rgba_data, width, height, 32, width * 4, 0xff000000, 0x00ff0000, 0x0000ff00, 0x000000ff);
+#else
     // Create surface
     SDL_Surface *temp_surface = SDL_CreateRGBSurfaceFrom(rgba_data, width, height, 32, width * 4, 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
+#endif
+
     if (!temp_surface) {
         free(rgba_data);
         return nullptr;
