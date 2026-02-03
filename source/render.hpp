@@ -353,6 +353,9 @@ class Render {
                     plus->setColor(Math::color(0, 0, 0, 255));
                     plus->setScale(1.0f * (scale / 2.0f));
                     plus->render(plusPosX, plusPosY);
+#if 1 // adding to lists is an editor only feature
+
+#else
                     if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
                         touchPos[0] > plusPosX && touchPos[0] < plusPosX + plus->getSize()[0] &&
                         touchPos[1] > plusPosY && touchPos[1] < plusPosY + plus->getSize()[1]) {
@@ -365,6 +368,7 @@ class Render {
                         }
                         var.listPage = static_cast<int>(maxPages);
                     }
+#endif
 
                     // page buttons
                     if (var.listPage < static_cast<int>(maxPages)) {
