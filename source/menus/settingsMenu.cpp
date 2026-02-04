@@ -68,7 +68,7 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 		
 
 		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
-		CLAY(CLAY_ID_LOCAL("bar"), (Clay_ElementDeclaration){
+		CLAY(CLAY_IDI_LOCAL("bar",renderOrder.size()), (Clay_ElementDeclaration){
 			.layout = {
 				.sizing = { .width = CLAY_SIZING_FIXED(width), .height = CLAY_SIZING_FIXED(height) },
 				.padding = { padding, padding, padding, padding }
@@ -78,7 +78,7 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 			.clip = { .horizontal = true, .childOffset = { .x = offset } },
 			.border = { .color = { 200, 100, 0, 255 }, .width = { borderWidth, borderWidth, borderWidth, borderWidth } },
 		}) {
-			CLAY(CLAY_ID_LOCAL("dial"), (Clay_ElementDeclaration){
+			CLAY(CLAY_IDI_LOCAL("dial",renderOrder.size()), (Clay_ElementDeclaration){
 				.layout = {
 					.sizing = { .height = CLAY_SIZING_FIXED(knobHeight) }
 				},
@@ -107,7 +107,7 @@ void SettingsMenu::renderSlider(const std::string &setting) {
                     CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255},.fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
 
         
-        Clay_ElementData data = Clay_GetElementData(CLAY_ID_LOCAL("bar"));
+        Clay_ElementData data = Clay_GetElementData(CLAY_IDI_LOCAL("bar",renderOrder.size()));
 
         if (hd.pressed) {
 			const float lefty = data.boundingBox.x + 10 * menuManager->scale;
@@ -156,7 +156,7 @@ void SettingsMenu::renderToggle(const std::string &setting) {
 		}, &hoverData.at(setting));
 
 		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
-		CLAY(CLAY_ID_LOCAL("toggle"), (Clay_ElementDeclaration){
+		CLAY(CLAY_IDI_LOCAL("toggle",renderOrder.size()), (Clay_ElementDeclaration){
 			.layout = {
 				.sizing = { .width = CLAY_SIZING_FIXED(height * 2), .height = CLAY_SIZING_FIXED(height) },
 				.padding = { padding, padding, padding, padding }
@@ -166,7 +166,7 @@ void SettingsMenu::renderToggle(const std::string &setting) {
 			.clip = { .horizontal = true, .childOffset = { .x = offset } },
 			.border = { .color = { 200, 100, 0, 255 }, .width = { borderWidth, borderWidth, borderWidth, borderWidth } },
 		}) {
-			CLAY(CLAY_ID_LOCAL("knob"), (Clay_ElementDeclaration){
+			CLAY(CLAY_IDI_LOCAL("knob",renderOrder.size()), (Clay_ElementDeclaration){
 				.layout = {
 					.sizing = { .height = CLAY_SIZING_FIXED(knobHeight) }
 				},
