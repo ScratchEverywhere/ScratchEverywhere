@@ -15,9 +15,16 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     std::string broadcastName = Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString();
 
     if (!fromRepeat) {
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-        Scratch::broadcastQueue.push_back(broadcastName);
-        return BlockResult::RETURN;
+        for (Sprite *spr : Scratch::sprites) {
+            for (auto &[id, hat_block] : spr->blocks) {
+                if (hat_block.opcode == "event_whenbroadcastreceived" && Scratch::getFieldValue(hat_block, "BROADCAST_OPTION") == broadcastName) {
+                    Scratch::broadcastQueue.push_back(broadcastName);
+                    BlockExecutor::addToRepeatQueue(sprite, &block);
+                    return BlockResult::RETURN;
+                }
+            }
+        }
+        return BlockResult::CONTINUE;
     }
 
     if (block.broadcastsRun.empty()) {
