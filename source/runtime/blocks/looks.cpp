@@ -274,7 +274,6 @@ SCRATCH_BLOCK(looks, nextbackdrop) {
 }
 
 SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
-    Scratch::forceRedraw = true;
     if (sprite->isStage) return BlockResult::CONTINUE;
 
     const Value value = Scratch::getInputValue(block, "NUM", sprite);
@@ -303,7 +302,6 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
 }
 
 SCRATCH_BLOCK(looks, gotofrontback) {
-    Scratch::forceRedraw = true;
     if (sprite->isStage) return BlockResult::CONTINUE;
 
     const std::string value = Scratch::getFieldValue(block, "FRONT_BACK");
