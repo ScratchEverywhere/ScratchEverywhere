@@ -138,6 +138,10 @@ void Image_GL::renderNineslice(double xPos, double yPos, double width, double he
     freeTimer = maxFreeTimer;
 }
 
+void *Image_GL::getNativeTexture() {
+    return reinterpret_cast<void *>(static_cast<uintptr_t>(textureID));
+}
+
 void Image_GL::setInitialTexture() {
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
@@ -154,11 +158,11 @@ void Image_GL::setInitialTexture() {
     // imgData.pixels = nullptr;
 }
 
-Image_GL::Image_GL(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
+Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
     setInitialTexture();
 }
 
-Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
+Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
     setInitialTexture();
 }
 

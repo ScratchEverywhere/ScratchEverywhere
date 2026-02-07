@@ -12,12 +12,14 @@ class Image_SDL1 : public Image {
   public:
     SDL_Surface *texture;
 
-    Image_SDL1(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
+    Image_SDL1(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false);
 
-    Image_SDL1(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
+    Image_SDL1(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false);
 
     ~Image_SDL1() override;
 
     void render(ImageRenderParams &params) override;
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;
+
+    void getNativeTexture() override;
 };

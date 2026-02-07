@@ -38,9 +38,11 @@ struct ImageData {
 
 class Image {
   private:
-    std::vector<char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
-    unsigned char *loadSVGFromMemory(const char *data, size_t size, int &width, int &height);
-    unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, float bitmapQuality = 1.0f);
+    inline std::vector<char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
+    inline unsigned char *loadSVGFromMemory(const char *data, size_t size, int &width, int &height);
+    inline unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
+    inline void rgbaToAgbr(unsigned char *pixels, int width, int height, int pitch);
+    inline unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
 
   protected:
     ImageData imgData;
@@ -49,8 +51,8 @@ class Image {
     const unsigned int maxFreeTimer = 540;
     unsigned int freeTimer = maxFreeTimer;
 
-    Image(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
-    Image(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
+    Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false);
+    Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false);
     virtual ~Image();
 
     virtual ImageData getPixels(ImageSubrect rect);
@@ -58,10 +60,12 @@ class Image {
     int getWidth();
     int getHeight();
 
+    virtual void *getNativeTexture() = 0;
+
     virtual void render(ImageRenderParams &params) = 0;
     virtual void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) = 0;
 };
 
-std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject = true, float bitmapQuality = 1.0f);
+std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false);
 
-std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, float bitmapQuality = 1.0f);
+std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false);

@@ -266,11 +266,15 @@ ImageData Image_C2D::getPixels(ImageSubrect rect) {
     return out;
 }
 
-Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
+void *Image_C2D::getNativeTexture() {
+    return &texture;
+}
+
+Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
     setInitialTexture();
 }
 
-Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
+Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
     setInitialTexture();
 }
 

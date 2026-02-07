@@ -35,7 +35,7 @@ CMRC_DECLARE(romfs);
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
 
-std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject, float bitmapQuality) {
+std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) {
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -46,19 +46,19 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
     }
 
 #if defined(RENDERER_SDL1)
-    Image *rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapQuality);
+    Image *rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapHalfQuality);
 #elif defined(RENDERER_SDL2)
-    Image *rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapQuality);
+    Image *rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality);
 #elif defined(RENDERER_SDL3)
-    Image *rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapQuality);
+    Image *rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality);
 #elif defined(RENDERER_CITRO2D)
-    Image *rawImg = new Image_C2D(filePath, fromScratchProject, bitmapQuality);
+    Image *rawImg = new Image_C2D(filePath, fromScratchProject, bitmapHalfQuality);
 #elif defined(RENDERER_OPENGL)
-    Image *rawImg = new Image_GL(filePath, fromScratchProject, bitmapQuality);
+    Image *rawImg = new Image_GL(filePath, fromScratchProject, bitmapHalfQuality);
 #elif defined(RENDERER_GL2D)
-    Image *rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapQuality);
+    Image *rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality);
 #elif defined(RENDERER_HEADLESS)
-    Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapQuality);
+    Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality);
 #else
 #error "Image backend not defined."
 #endif
@@ -72,7 +72,7 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
     return img;
 }
 
-std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, float bitmapQuality) {
+std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) {
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -83,19 +83,19 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
     }
 
 #if defined(RENDERER_SDL1)
-    Image *rawImg = new Image_SDL1(filePath, zip, bitmapQuality);
+    Image *rawImg = new Image_SDL1(filePath, zip, bitmapHalfQuality);
 #elif defined(RENDERER_SDL2)
-    Image *rawImg = new Image_SDL2(filePath, zip, bitmapQuality);
+    Image *rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality);
 #elif defined(RENDERER_SDL3)
-    Image *rawImg = new Image_SDL3(filePath, zip, bitmapQuality);
+    Image *rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality);
 #elif defined(RENDERER_CITRO2D)
-    Image *rawImg = new Image_C2D(filePath, zip, bitmapQuality);
+    Image *rawImg = new Image_C2D(filePath, zip, bitmapHalfQuality);
 #elif defined(RENDERER_OPENGL)
-    Image *rawImg = new Image_GL(filePath, zip, bitmapQuality);
+    Image *rawImg = new Image_GL(filePath, zip, bitmapHalfQuality);
 #elif defined(RENDERER_GL2D)
-    Image *rawImg = new Image_GL2D(filePath, zip, bitmapQuality);
+    Image *rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality);
 #elif defined(RENDERER_HEADLESS)
-    Image *rawImg = new Image_Headless(filePath, zip, bitmapQuality);
+    Image *rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality);
 #else
 #error "Image backend not defined."
 #endif
@@ -173,45 +173,55 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     return pixels;
 }
 
-unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, float quality, int &outW, int &outH) {
+void Image::rgbaToAgbr(unsigned char *pixels, int width, int height, int pitch) {
+    for (int y = 0; y < height; ++y) {
+        unsigned char *p = pixels + y * pitch;
 
-    outW = std::max(1, int(srcW * quality));
-    outH = std::max(1, int(srcH * quality));
+        for (int x = 0; x < width; ++x) {
+            unsigned char r = p[0];
+            unsigned char g = p[1];
+            unsigned char b = p[2];
+            unsigned char a = p[3];
 
-    unsigned char *dstPixels = new unsigned char[outW * outH * 4];
+            p[0] = a;
+            p[1] = g;
+            p[2] = b;
+            p[3] = r;
+
+            p += 4;
+        }
+    }
+}
+
+unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {
+    outW = srcW >> 1;
+    outH = srcH >> 1;
+
+    if (outW <= 0) outW = 1;
+    if (outH <= 0) outH = 1;
+
+    unsigned char *dst = (unsigned char *)malloc(outW * outH * 4);
+
+    const int srcStride = srcW * 4;
+    const int dstStride = outW * 4;
 
     for (int y = 0; y < outH; ++y) {
-        float srcY = (y + 0.5f) * (float)srcH / outH - 0.5f;
-        int y0 = std::clamp(int(srcY), 0, srcH - 1);
-        int y1 = std::clamp(y0 + 1, 0, srcH - 1);
-        float fy = srcY - y0;
+        const unsigned char *srcRow = srcPixels + (y << 1) * srcStride;
+        unsigned char *dstRow = dst + y * dstStride;
 
         for (int x = 0; x < outW; ++x) {
-            float srcX = (x + 0.5f) * (float)srcW / outW - 0.5f;
-            int x0 = std::clamp(int(srcX), 0, srcW - 1);
-            int x1 = std::clamp(x0 + 1, 0, srcW - 1);
-            float fx = srcX - x0;
+            const unsigned char *p = srcRow + (x << 1) * 4;
 
-            for (int c = 0; c < 4; ++c) {
-                float v00 = srcPixels[(y0 * srcW + x0) * 4 + c];
-                float v01 = srcPixels[(y0 * srcW + x1) * 4 + c];
-                float v10 = srcPixels[(y1 * srcW + x0) * 4 + c];
-                float v11 = srcPixels[(y1 * srcW + x1) * 4 + c];
+            *(uint32_t *)dstRow = *(const uint32_t *)p;
 
-                float val = (1 - fx) * (1 - fy) * v00 +
-                            fx * (1 - fy) * v01 +
-                            (1 - fx) * fy * v10 +
-                            fx * fy * v11;
-
-                dstPixels[(y * outW + x) * 4 + c] = (unsigned char)std::clamp(int(val + 0.5f), 0, 255);
-            }
+            dstRow += 4;
         }
     }
 
-    return dstPixels;
+    return dst;
 }
 
-unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, float bitmapQuality) {
+unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality) {
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
     if (!pixels) throw std::runtime_error("Failed to decode raster image");
@@ -221,9 +231,9 @@ unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t siz
     stbi__vertical_flip(pixels, width, height, 4);
 #endif
 
-    if (bitmapQuality != 1.0f) {
+    if (bitmapHalfQuality) {
         int resizedW, resizedH;
-        unsigned char *resizedPixels = resizeRaster(pixels, width, height, bitmapQuality, resizedW, resizedH);
+        unsigned char *resizedPixels = resizeRaster(pixels, width, height, resizedW, resizedH);
 
         imgData.pitch = resizedW * 4;
         width = resizedW;
@@ -237,7 +247,7 @@ unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t siz
     }
 }
 
-Image::Image(std::string filePath, bool fromScratchProject, float bitmapQuality) {
+Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) {
 
     if (fromScratchProject) {
         if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
@@ -251,13 +261,17 @@ Image::Image(std::string filePath, bool fromScratchProject, float bitmapQuality)
     if (isSVG) {
         imgData.pixels = loadSVGFromMemory(buffer.data(), buffer.size(), imgData.width, imgData.height);
     } else {
-        imgData.pixels = loadRasterFromMemory(reinterpret_cast<unsigned char *>(buffer.data()), buffer.size(), imgData.width, imgData.height, bitmapQuality);
+        imgData.pixels = loadRasterFromMemory(reinterpret_cast<unsigned char *>(buffer.data()), buffer.size(), imgData.width, imgData.height, bitmapHalfQuality);
     }
 
     if (!imgData.pixels) throw std::runtime_error("Failed to load image: " + filePath);
+
+#ifdef __PS4__
+    rgbaToAgbr(static_cast<unsigned char *>(imgData.pixels), imgData.width, imgData.height, imgData.pitch);
+#endif
 }
 
-Image::Image(std::string filePath, mz_zip_archive *zip, float bitmapQuality) {
+Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) {
     int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
     if (file_index < 0) throw std::runtime_error("Image not found in SB3: " + filePath);
 
@@ -276,12 +290,16 @@ Image::Image(std::string filePath, mz_zip_archive *zip, float bitmapQuality) {
 
         imgData.pixels = loadSVGFromMemory(svgBuffer.data(), file_size, imgData.width, imgData.height);
     } else {
-        imgData.pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, imgData.width, imgData.height, bitmapQuality);
+        imgData.pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
     }
 
     mz_free(file_data);
 
     if (!imgData.pixels) throw std::runtime_error("Failed to load image from zip: " + filePath);
+
+#ifdef __PS4__
+    rgbaToAgbr(static_cast<unsigned char *>(imgData.pixels), imgData.width, imgData.height, imgData.pitch);
+#endif
 }
 
 Image::~Image() {
@@ -298,7 +316,6 @@ int Image::getHeight() {
 }
 
 ImageData Image::getPixels(ImageSubrect rect) {
-
     ImageData out{};
 
     if (rect.x < 0) rect.x = 0;
@@ -306,32 +323,22 @@ ImageData Image::getPixels(ImageSubrect rect) {
     if (rect.x + rect.w > imgData.width) rect.w = imgData.width - rect.x;
     if (rect.y + rect.h > imgData.height) rect.h = imgData.height - rect.y;
 
-    if (rect.w <= 0 || rect.h <= 0 || !imgData.pixels || imgData.pixels == nullptr) {
+    if (rect.w <= 0 || rect.h <= 0 || !imgData.pixels) {
         out.format = IMAGE_FORMAT_NONE;
         return out;
     }
 
     const int bytesPerPixel = 4;
-    const int srcPitch = imgData.pitch;
-    const int dstPitch = rect.w * bytesPerPixel;
-
-    unsigned char *dstPixels = new unsigned char[rect.w * rect.h * bytesPerPixel];
-
-    unsigned char *srcPixels = static_cast<unsigned char *>(imgData.pixels);
-
-    for (int row = 0; row < rect.h; ++row) {
-        unsigned char *srcRow = srcPixels + (rect.y + row) * srcPitch + rect.x * bytesPerPixel;
-
-        unsigned char *dstRow = dstPixels + row * dstPitch;
-
-        std::memcpy(dstRow, srcRow, dstPitch);
-    }
+    unsigned char *base =
+        static_cast<unsigned char *>(imgData.pixels) +
+        rect.y * imgData.pitch +
+        rect.x * bytesPerPixel;
 
     out.width = rect.w;
     out.height = rect.h;
     out.format = IMAGE_FORMAT_RGBA32;
-    out.pitch = dstPitch;
-    out.pixels = dstPixels;
+    out.pitch = imgData.pitch;
+    out.pixels = base;
 
     return out;
 }

@@ -135,6 +135,10 @@ void Image_SDL3::renderNineslice(double xPos, double yPos, double width, double 
     freeTimer = maxFreeTimer;
 }
 
+void *Image_SDL3::getNativeTexture() {
+    return texture;
+}
+
 void Image_SDL3::setInitialTexture() {
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
@@ -149,11 +153,11 @@ void Image_SDL3::setInitialTexture() {
     }
 }
 
-Image_SDL3::Image_SDL3(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
+Image_SDL3::Image_SDL3(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
     setInitialTexture();
 }
 
-Image_SDL3::Image_SDL3(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
+Image_SDL3::Image_SDL3(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
     setInitialTexture();
 }
 

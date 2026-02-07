@@ -155,6 +155,10 @@ void Image_SDL1::renderNineslice(double xPos, double yPos, double width, double 
 #endif
 }
 
+void *Image_SDL1::getNativeTexture() {
+    return texture;
+}
+
 void Image_SDL1::setInitialTexture() {
 
     texture = SDL_CreateRGBSurfaceFrom(imgData.pixels, imgData.width, imgData.height, 32, imgData.pitch, RMASK, GMASK, BMASK, AMASK);
@@ -165,11 +169,11 @@ void Image_SDL1::setInitialTexture() {
     SDL_SetAlpha(texture, SDL_SRCALPHA, 255);
 }
 
-Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
+Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
     setInitialTexture();
 }
 
-Image_SDL1::Image_SDL1(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
+Image_SDL1::Image_SDL1(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
     setInitialTexture();
 }
 

@@ -131,13 +131,13 @@ void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double 
     freeTimer = maxFreeTimer;
 }
 
+void *Image_SDL2::getNativeTexture() {
+    return texture;
+}
+
 void Image_SDL2::setInitialTexture() {
     SDL_PixelFormatEnum format;
-#ifdef __PS4__
-    format = SDL_PIXELFORMAT_RGBA8888;
-#else
     format = SDL_PIXELFORMAT_RGBA32;
-#endif
 
     texture = SDL_CreateTexture(renderer, format, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
@@ -158,11 +158,11 @@ void Image_SDL2::setInitialTexture() {
     // pixels = nullptr;
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
+Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
     setInitialTexture();
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
+Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
     setInitialTexture();
 }
 

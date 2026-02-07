@@ -38,16 +38,20 @@ void Image_GL2D::setInitialTexture() {
     textureID = texID;
 }
 
-Image_GL2D::Image_GL2D(std::string filePath, bool fromScratchProject, float bitmapQuality) : Image(filePath, fromScratchProject, bitmapQuality) {
+Image_GL2D::Image_GL2D(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
     setInitialTexture();
 }
 
-Image_GL2D::Image_GL2D(std::string filePath, mz_zip_archive *zip, float bitmapQuality) : Image(filePath, zip, bitmapQuality) {
+Image_GL2D::Image_GL2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
     setInitialTexture();
 }
 
 Image_GL2D::~Image_GL2D() {
     glDeleteTextures(1, &textureID);
+}
+
+void *Image_GL2D::getNativeTexture() {
+    return &texture;
 }
 
 void Image_GL2D::render(ImageRenderParams &params) {
