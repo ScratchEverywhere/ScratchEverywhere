@@ -76,7 +76,13 @@ A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects ov
 
 ### Special Custom Blocks
 
-Like TurboWarp, we have special custom blocks that only work on SE!. You can find a project containing and explaining them here: https://scratchbox.grady.link/project/K26OtTN2WDJ9
+- `is Scratch Everywhere!?` (variable)
+- `is New 3DS?` (variable)
+- `Scratch Everywhere! platform` (variable)
+- `is DSi?` (variable)
+- `Scratch Everywhere! controller` (variable)
+
+Like TurboWarp, we have special custom blocks that only work on SE!. You can find a project containing and explaining them here: https://scratchbox.dev/project/K26OtTN2WDJ9
 
 **Project Linking Blocks**
 
@@ -88,7 +94,7 @@ These blocks make it possible to split a big game into smaller parts (e.g. a mai
 This helps avoid memory issues, keep projects modular, and makes it easier to manage large
 games.
 
-You can find the blocks in this project: https://scratchbox.grady.link/project/twStEkSKjQaH
+You can find the blocks in this project: https://scratchbox.dev/project/twStEkSKjQaH
 
 > [!NOTE]
 > In the future, this feature may be replaced by a dedicated extension once extension support is available.

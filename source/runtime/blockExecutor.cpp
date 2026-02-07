@@ -35,24 +35,20 @@ std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &BlockE
     return valueHandlers;
 }
 
-std::vector<Block *> BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    std::vector<Block *> ranBlocks;
+void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Block *currentBlock = &block;
 
-    if (!sprite || sprite->toDelete) return ranBlocks;
+    if (!sprite || sprite->toDelete) return;
 
     while (currentBlock && currentBlock->id != "null") {
-        ranBlocks.push_back(currentBlock);
         BlockResult result = executeBlock(*currentBlock, sprite, withoutScreenRefresh, fromRepeat);
 
-        if (result == BlockResult::RETURN) return ranBlocks;
+        if (result == BlockResult::RETURN) return;
 
-        if (currentBlock->next.empty()) break;
+        if (currentBlock->next.empty()) return;
         currentBlock = &sprite->blocks[currentBlock->next];
         fromRepeat = false;
     }
-
-    return ranBlocks;
 }
 
 BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -60,7 +56,8 @@ BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *with
     const auto iterator = h.find(block.opcode);
     if (iterator != h.end()) return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
 
-    Log::logWarning("Unknown block: " + block.opcode);
+    if (!block.opcode.empty())
+        Log::logWarning("Unknown block: " + block.opcode);
 
     return BlockResult::CONTINUE;
 }
@@ -165,20 +162,21 @@ void BlockExecutor::runRepeatBlocks() {
         }
     }
     // delete sprites ready for deletion
-    std::vector<Sprite *> toDelete;
-    for (auto &spr : Scratch::sprites) {
-        if (!spr->toDelete) continue;
-        toDelete.push_back(spr);
-    }
-
     SpeechManager *speechManager = Render::getSpeechManager();
-    for (auto *spr : toDelete) {
+    for (auto *&spr : Scratch::sprites) {
+        if (!spr->toDelete) continue;
+
         if (speechManager) {
             speechManager->clearSpeech(spr);
         }
         delete spr;
-        Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
-                               Scratch::sprites.end());
+        spr = nullptr;
+    }
+
+    Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), nullptr), Scratch::sprites.end());
+
+    for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
+        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
 }
 
@@ -186,7 +184,7 @@ void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockCh
     bool withoutRefresh = true;
     if (sprite->blockChains.find(blockChainID) == sprite->blockChains.end()) return;
 
-    while (!sprite->blockChains[blockChainID].blocksToRepeat.empty()) {
+    while (!sprite->blockChains[blockChainID].blocksToRepeat.empty() && !sprite->toDelete) {
         const std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
         Block *toRun = Scratch::findBlock(toRepeat, sprite);
         if (toRun != nullptr)
@@ -217,7 +215,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             // Execute the custom block definition
             executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh, false);
 
-            if (localWithoutRefresh) BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
+            if (localWithoutRefresh && !sprite->toDelete) BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
 
             break;
         }
@@ -593,6 +591,5 @@ void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
 
 bool BlockExecutor::hasActiveRepeats(Sprite *sprite, std::string blockChainID) {
     if (sprite->toDelete) return false;
-    if (sprite->blockChains.find(blockChainID) != sprite->blockChains.end() && !sprite->blockChains[blockChainID].blocksToRepeat.empty()) return true;
-    return false;
+    return (sprite->blockChains.find(blockChainID) != sprite->blockChains.end() && !sprite->blockChains[blockChainID].blocksToRepeat.empty());
 }

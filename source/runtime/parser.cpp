@@ -535,6 +535,13 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     try {
         Scratch::FPS = config["framerate"].get<int>();
+        if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
+#if defined(RENDERER_SDL2)
+            Scratch::FPS = 255; // SDL2's vsync will figure it out
+#else
+            Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
+#endif
+        }
         Log::log("Set FPS to: " + std::to_string(Scratch::FPS));
     } catch (...) {
 #ifdef DEBUG

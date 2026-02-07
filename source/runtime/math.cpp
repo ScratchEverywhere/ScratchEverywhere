@@ -74,12 +74,13 @@ double Math::parseNumber(std::string str) {
             throw std::invalid_argument("");
         }
         if (base == 0) {
-            if (str[i] == 'e' && i == str.length() - 1) {
+            if (i == str.length() - 1 && (str[i] == '+' || str[i] == '-' || str[i] == 'e' || str[i] == 'E')) {
                 // implementation differece, "1e" doesn't work in Scratch but works
                 // with std::stod()
+                // signs (+, -) should also not be at the end
                 throw std::invalid_argument("");
             }
-            if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) {
+            if ((str[i] == 'e' || str[i] == 'E') && str.find('.', i + 1) != std::string::npos) {
                 // implementation differece, decimal point after e doesn't work in
                 // Scratch but works with std::stod()
                 throw std::invalid_argument("");

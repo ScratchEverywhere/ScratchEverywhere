@@ -75,7 +75,7 @@ class BlockExecutor {
      * @param withoutScreenRefresh Whether or not the block is running without screen refresh.
      * @param fromRepeat whether or not the block is repeating
      */
-    std::vector<Block *> runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh = nullptr, bool fromRepeat = false);
+    void runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh = nullptr, bool fromRepeat = false);
 
     /**
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.

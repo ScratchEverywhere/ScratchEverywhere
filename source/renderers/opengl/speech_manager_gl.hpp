@@ -8,6 +8,7 @@ class Image;
 
 class SpeechManagerGL : public SpeechManager {
   private:
+    std::unique_ptr<Image> bubbleImage;
     std::unique_ptr<Image> speechIndicatorImage;
 
   protected:
@@ -19,7 +20,7 @@ class SpeechManagerGL : public SpeechManager {
     void ensureImagesLoaded();
 
   public:
-    SpeechManagerGL(/* some opengl window idk */);
+    SpeechManagerGL();
     ~SpeechManagerGL();
 
     void render() override;

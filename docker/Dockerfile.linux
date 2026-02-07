@@ -22,7 +22,7 @@ RUN if [ "$RENDERER" = "opengl" ]; then \
 COPY . .
 
 # TODO: Fix SDL3 compatability in Dockerfile
-RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} ${EXT_ARGS} && cmake --build . -j $(nproc)
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} ${EXT_ARGS} && cmake --build . -j 2
 
 FROM scratch AS exporter
 

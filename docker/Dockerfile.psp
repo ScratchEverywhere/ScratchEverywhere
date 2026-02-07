@@ -5,7 +5,7 @@ COPY . .
 
 RUN apk add --no-cache patch
 
-RUN psp-cmake -B build/psp -S . && make -C build/psp -j $(nproc)
+RUN psp-cmake -B build/psp -S . && make -C build/psp -j 2
 
 FROM scratch AS exporter
 
