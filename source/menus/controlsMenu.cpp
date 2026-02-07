@@ -219,7 +219,7 @@ void ControlsMenu::renderSettings() {
     }
 
     if (Input::isButtonJustPressed("B") && menuManager->canChangeMenus) {
-        menuManager->changeMenu(MenuID::ProjectsMenu);
+        menuManager->queueChangeMenu(MenuID::ProjectsMenu);
         return;
     }
 }

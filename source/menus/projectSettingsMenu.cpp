@@ -37,28 +37,25 @@ void ProjectSettingsMenu::renderSettings() {
     if (Input::isControllerConnected()) {
         renderButton("changeControls");
         if (isButtonJustPressed("changeControls")) {
-            menuManager->changeMenu(MenuID::ControlsMenu, const_cast<void *>(static_cast<const void *>(projectName.c_str())));
-            return;
+            menuManager->queueChangeMenu(MenuID::ControlsMenu, const_cast<void *>(static_cast<const void *>(projectName.c_str())));
         }
     }
 
     if (unpackedExists) {
         renderButton("deleteUnpacked");
         if (isButtonJustPressed("deleteUnpacked")) {
-            UnpackParams params;
-            params.projectName = projectName;
-            params.deletingProject = true;
-            menuManager->changeMenu(MenuID::UnpackMenu, &params);
-            return;
+            UnpackParams *params = new UnpackParams;
+            params->projectName = projectName;
+            params->deletingProject = true;
+            menuManager->queueChangeMenu(MenuID::UnpackMenu, params);
         }
     } else {
         renderButton("unpackProject");
         if (isButtonJustPressed("unpackProject")) {
-            UnpackParams params;
-            params.projectName = projectName;
-            params.deletingProject = false;
-            menuManager->changeMenu(MenuID::UnpackMenu, &params);
-            return;
+            UnpackParams *params = new UnpackParams;
+            params->projectName = projectName;
+            params->deletingProject = false;
+            menuManager->queueChangeMenu(MenuID::UnpackMenu, params);
         }
     }
 }

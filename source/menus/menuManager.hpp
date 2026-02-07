@@ -40,12 +40,15 @@ class MenuManager {
 
     MenuID currentMenuID = MenuID::None;
 
+    std::pair<MenuID, void *> menuQueue = {MenuID::None, nullptr};
+
     static void initClay();
     static void freeClay();
 
     MenuManager();
 
     void changeMenu(MenuID id, void *userdata = nullptr);
+    void queueChangeMenu(MenuID id, void *userdata = nullptr);
     bool launchProject(const std::string path);
     void render();
     void back(void *userdata = nullptr);

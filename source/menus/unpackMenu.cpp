@@ -31,8 +31,11 @@ void UnpackMenu::unpack(UnpackParams params) {
 
 UnpackMenu::UnpackMenu(void *userdata, const std::string &title) {
 
+    // there's definitely better ways of doing this..
     UnpackParams *paramsPtr = static_cast<UnpackParams *>(userdata);
     UnpackParams params = {.projectName = paramsPtr->projectName, .deletingProject = paramsPtr->deletingProject};
+    free(paramsPtr);
+
     projectName = params.projectName;
     deletingProject = params.deletingProject;
 
@@ -148,7 +151,7 @@ void UnpackMenu::render() {
 
     if (threadFinished) {
         menuManager->canChangeMenus = true;
-        menuManager->changeMenu(MenuID::ProjectsMenu);
+        menuManager->queueChangeMenu(MenuID::ProjectsMenu);
         return;
     }
 }

@@ -52,6 +52,10 @@ std::unique_ptr<Menu> MenuManager::createMenu(MenuID id, void *userdata) {
     }
 }
 
+void MenuManager::queueChangeMenu(MenuID id, void *userdata) {
+    menuQueue = {id, userdata};
+}
+
 void MenuManager::changeMenu(MenuID id, void *userdata) {
     if (id == MenuID::None) return;
     if (currentMenuID != MenuID::None) history.push(currentMenuID);
@@ -175,6 +179,11 @@ void MenuManager::render() {
     Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
     C3D_FrameEnd(0);
 #endif
+
+    if (menuQueue.first != MenuID::None) {
+        changeMenu(menuQueue.first, menuQueue.second);
+        menuQueue = {MenuID::None, nullptr};
+    }
 }
 
 void MenuManager::handleInput(float mouseX, float mouseY, bool mouseDown) {
