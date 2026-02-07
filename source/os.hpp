@@ -187,6 +187,8 @@ inline bool isNew3DS() {
     return false;
 }
 
+bool isOnline();
+
 /**
  * Initializes the internet.
  */
