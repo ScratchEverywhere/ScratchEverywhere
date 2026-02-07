@@ -92,8 +92,7 @@ CFLAGS	+=	-DENABLE_DOWNLOAD
 LIBS +=	`$(PKGCONF_WIIU) --libs libcurl`
 endif
 
-
-CXXFLAGS	:=	$(CFLAGS) -std=c++17 -Wall -fexceptions
+CXXFLAGS	:=	$(CFLAGS) -std=c++20 -Wall -fexceptions
 
 LIBDIRS	:=	$(PORTLIBS) $(WUT_ROOT)
 

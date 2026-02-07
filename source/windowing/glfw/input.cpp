@@ -25,6 +25,10 @@ extern std::string customUsername;
 static bool g_inputActive = false;
 static std::string g_inputText = "";
 
+bool Input::isControllerConnected() {
+    retrun glfwJoystickPresent(GLFW_JOYSTICK_1) && glfwJoystickIsGamepad(GLFW_JOYSTICK_1);
+}
+
 std::vector<int> Input::getTouchPosition() {
     double x, y;
     glfwGetCursorPos((GLFWwindow *)globalWindow->getHandle(), &x, &y);

@@ -1,4 +1,5 @@
 #pragma once
+#include "menus/menuManager.hpp"
 #include <algorithm>
 #include <fstream>
 #include <map>
@@ -22,13 +23,16 @@ class Input {
     static Sprite *draggingSprite;
 
     static std::vector<std::string> inputButtons;
+    static std::vector<std::string> inputKeys;
     static std::map<std::string, std::string> inputControls;
     static std::vector<std::string> inputBuffer;
+    static std::array<float, 2> scrollDelta;
     static std::unordered_map<std::string, int> keyHeldDuration;
     static std::unordered_set<std::string> codePressedBlockOpcodes;
 
     static std::vector<int> getTouchPosition();
-    static void getInput();
+    static void getInput(MenuManager *menuManager = nullptr);
+    static bool isControllerConnected();
 
     static void applyControls(std::string controlsFilePath = "") {
         Input::inputControls.clear();
@@ -140,4 +144,8 @@ class Input {
     }
 
     static std::string openSoftwareKeyboard(const char *hintText);
+
+    static bool isButtonJustPressed(const std::string &button) {
+        return Input::keyHeldDuration.find(Input::inputControls[button]) != Input::keyHeldDuration.end() && Input::keyHeldDuration[Input::inputControls[button]] == 1;
+    }
 };

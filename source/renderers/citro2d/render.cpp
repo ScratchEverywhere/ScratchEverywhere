@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "menus/menuManager.hpp"
 #include "speech_manager_c2d.hpp"
 #include <audio.hpp>
 #include <downloader.hpp>
@@ -49,7 +50,7 @@ bool Render::Init() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
     if (kDown & KEY_SELECT) {
-        consoleInit(GFX_BOTTOM, NULL);
+        consoleInit(GFX_TOP, NULL);
         debugMode = true;
         isConsoleInit = true;
     } else debugMode = false;
@@ -66,6 +67,8 @@ bool Render::Init() {
 
     return true;
 }
+
+static touchPosition touch;
 
 bool Render::appShouldRun() {
     if (OS::toExit) return false;
@@ -373,8 +376,9 @@ void Render::renderSprites() {
     const float depthScale = 8.0f / Scratch::sprites.size();
 
     // ---------- LEFT EYE ----------
+    C2D_TargetClear(topScreen, clrWhite);
+    C2D_SceneBegin(topScreen);
     if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_TargetClear(topScreen, clrWhite);
         currentScreen = 0;
 
         size_t i = 0;
@@ -433,9 +437,9 @@ void Render::renderSprites() {
         drawBlackBars(screenWidth, screenHeight);
 
     // ---------- RIGHT EYE ----------
+    C2D_TargetClear(topScreenRightEye, clrWhite);
+    C2D_SceneBegin(topScreenRightEye);
     if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(topScreenRightEye);
-        C2D_TargetClear(topScreenRightEye, clrWhite);
         currentScreen = 0;
 
         size_t i = 0;
@@ -487,9 +491,9 @@ void Render::renderSprites() {
     }
 
     // ---------- BOTTOM SCREEN ----------
+    C2D_TargetClear(bottomScreen, clrWhite);
+    C2D_SceneBegin(bottomScreen);
     if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
-        C2D_SceneBegin(bottomScreen);
-        C2D_TargetClear(bottomScreen, clrWhite);
 
         if (Render::renderMode != Render::BOTH_SCREENS)
             currentScreen = 1;

@@ -225,6 +225,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 #else
         chunk = Mix_LoadWAV(fileName.c_str());
 #endif
+        if (chunk == nullptr) chunk = Mix_LoadWAV(fileName.c_str());
         if (!chunk) {
             Log::logWarning("Failed to load audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;
@@ -240,6 +241,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 #else
         music = Mix_LoadMUS(fileName.c_str());
 #endif
+        if (music == nullptr) music = Mix_LoadMUS(fileName.c_str());
         if (!music) {
             Log::logWarning("Failed to load streamed audio file: " + fileName + " - SDL_mixer Error: " + Mix_GetError());
             return false;

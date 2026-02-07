@@ -1,5 +1,8 @@
 #include "render.hpp"
-#include "image.hpp"
+#include "audio.hpp"
+#include "downloader.hpp"
+#include "math.hpp"
+#include "menus/menuManager.hpp"
 #include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
 #include <SDL2/SDL.h>

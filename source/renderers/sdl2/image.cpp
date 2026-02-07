@@ -336,6 +336,7 @@ SDL_Image::SDL_Image(std::string filePath, bool fromScratchProject) {
 #else
     spriteSurface = IMG_Load(filePath.c_str());
 #endif
+    if (spriteSurface == nullptr) spriteSurface = IMG_Load(filePath.c_str());
     if (spriteSurface == NULL) {
         const std::string error = std::string(IMG_GetError());
         Log::logWarning("Error loading image '" + filePath + "': " + error);

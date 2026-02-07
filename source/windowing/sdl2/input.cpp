@@ -1,3 +1,4 @@
+#include "menuManager.hpp"
 #include "window.hpp"
 #ifdef __SWITCH__
 #include <switch.h>
@@ -37,8 +38,10 @@ extern char nickname[0x21];
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 
+std::vector<std::string> Input::inputKeys;
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
+std::array<float, 2> Input::scrollDelta;
 std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<std::string> Input::codePressedBlockOpcodes;
@@ -62,6 +65,13 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
+bool Input::isControllerConnected() {
+#ifdef PLATFORM_HAS_CONTROLLER
+    return controller && controller != nullptr;
+#endif
+    return false;
+}
+
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos = {0, 0};
     int rawMouseX, rawMouseY;
@@ -81,7 +91,8 @@ std::vector<int> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
+    inputKeys.clear();
     inputButtons.clear();
     mousePointer.isPressed = false;
 
@@ -190,12 +201,14 @@ void Input::getInput() {
     }
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSTICK)) Input::buttonPress("LeftStickPressed");
     if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSTICK)) Input::buttonPress("RightStickPressed");
+
     float joyLeftX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX);
     float joyLeftY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY);
     if (joyLeftX > CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickRight");
     if (joyLeftX < -CONTROLLER_DEADZONE_X) Input::buttonPress("LeftStickLeft");
     if (joyLeftY > CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickDown");
     if (joyLeftY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("LeftStickUp");
+
     float joyRightX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX);
     float joyRightY = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY);
     if (joyRightX > CONTROLLER_DEADZONE_X) Input::buttonPress("RightStickRight");
@@ -204,6 +217,8 @@ void Input::getInput() {
     if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+
+    if (menuManager != nullptr && controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
 
 #endif
 
@@ -218,12 +233,13 @@ void Input::getInput() {
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
         BlockExecutor::doSpriteClicking();
+
+        if (menuManager != nullptr) menuManager->handleInput(touchPosition.x, touchPosition.y, touchActive);
         return;
     }
 #endif
 
 #ifdef PLATFORM_HAS_MOUSE
-
     std::vector<int> rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
@@ -234,6 +250,8 @@ void Input::getInput() {
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.isPressed = true;
     }
+
+    if (menuManager != nullptr) menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
 
 #endif
 

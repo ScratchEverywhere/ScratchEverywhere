@@ -1,0 +1,7 @@
+CompileFlags:
+  Add:
+    - -std=c++20
+    - -I/home/grady.link/ScratchEverywhere/source/scratch
+    - -I/home/grady.link/ScratchEverywhere/include
+    - -DSDL_BUILD
+    - -I/opt/devkitpro/libctru/include
