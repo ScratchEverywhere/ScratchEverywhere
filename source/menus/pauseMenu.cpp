@@ -81,6 +81,7 @@ void PauseMenu::render() {
             Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
         }
 
+        BlockExecutor::timer.start();
         BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
         shouldUnpause = true;
         return;
