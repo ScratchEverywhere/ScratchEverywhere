@@ -20,5 +20,5 @@ class Image_GL : public Image {
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;
 
     // this just returns the TextureID as a void*
-    void getNativeTexture() override;
+    void *getNativeTexture() override;
 };

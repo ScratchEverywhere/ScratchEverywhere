@@ -21,5 +21,5 @@ class Image_SDL1 : public Image {
     void render(ImageRenderParams &params) override;
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;
 
-    void getNativeTexture() override;
+    void *getNativeTexture() override;
 };
