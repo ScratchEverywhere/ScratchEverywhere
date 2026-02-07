@@ -84,6 +84,10 @@ void ProjectsMenu::render() {
         else if (selectedProject >= columns) selectedProject -= columns;
         selectedMoved = true;
     } else if (Input::isButtonJustPressed("A") && selectedProject >= 0) menuManager->launchProject(projects[selectedProject].path);
+    else if (Input::isButtonJustPressed("X") && selectedProject >= 0) {
+        menuManager->changeMenu(MenuID::ProjectSettingsMenu, const_cast<void *>(static_cast<const void *>(projects[selectedProject].name.c_str())));
+        return;
+    }
     if (selectedProject == 0 && projects.empty()) selectedProject = -1;
 
     if (!projects.empty()) {

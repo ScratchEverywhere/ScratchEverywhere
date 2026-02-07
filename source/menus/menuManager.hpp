@@ -16,6 +16,9 @@ enum class MenuID {
     MainMenu,
     ProjectsMenu,
     GlobalSettingsMenu,
+    ProjectSettingsMenu,
+    ControlsMenu,
+    UnpackMenu,
     None
 };
 
@@ -29,6 +32,8 @@ class MenuManager {
     std::unique_ptr<Menu> createMenu(MenuID id, void *userdata = nullptr);
 
   public:
+    bool canChangeMenus = true;
+
     float scale;
 
     components::Sidebar sidebar;
@@ -43,7 +48,7 @@ class MenuManager {
     void changeMenu(MenuID id, void *userdata = nullptr);
     bool launchProject(const std::string path);
     void render();
-    void back();
+    void back(void *userdata = nullptr);
 
     void handleInput(float mouseX, float mouseY, bool mouseDown);
 

@@ -65,6 +65,13 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
+bool Input::isControllerConnected() {
+#ifdef PLATFORM_HAS_CONTROLLER
+    return controller && controller != nullptr;
+#endif
+    return false;
+}
+
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos = {0, 0};
     int rawMouseX, rawMouseY;

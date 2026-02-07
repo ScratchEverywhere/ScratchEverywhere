@@ -36,6 +36,10 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
+bool Input::isControllerConnected() {
+    return true;
+}
+
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
 

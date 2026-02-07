@@ -93,7 +93,7 @@ void Sidebar::renderItem(const std::string tab) {
 	}) {
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto hoverData = *(const HoverData*)userdata;
-			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && hoverData.menuManager->currentMenuID != tabToMenuID(hoverData.tab)) hoverData.menuManager->changeMenu(tabToMenuID(hoverData.tab));
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && hoverData.menuManager->currentMenuID != tabToMenuID(hoverData.tab) && hoverData.menuManager->canChangeMenus) hoverData.menuManager->changeMenu(tabToMenuID(hoverData.tab));
 		}, &hoverData[tab]);
 
 		if (images.contains(tab) && images[tab]) CLAY(CLAY_SID(clayImageId), (Clay_ElementDeclaration){
@@ -108,8 +108,8 @@ void Sidebar::renderItem(const std::string tab) {
 }
 
 void Sidebar::render() {
-    if (Input::isButtonJustPressed("shoulderR") || Input::isButtonJustPressed("RT")) menuManager->changeMenu(tabToMenuID(tabs[(std::distance(tabs.begin(), std::find(tabs.begin(), tabs.end(), selected)) + 1) % tabs.size()]));
-    if (Input::isButtonJustPressed("shoulderL") || Input::isButtonJustPressed("LT")) {
+    if (menuManager->canChangeMenus && (Input::isButtonJustPressed("shoulderR") || Input::isButtonJustPressed("RT"))) menuManager->changeMenu(tabToMenuID(tabs[(std::distance(tabs.begin(), std::find(tabs.begin(), tabs.end(), selected)) + 1) % tabs.size()]));
+    if (menuManager->canChangeMenus && (Input::isButtonJustPressed("shoulderL") || Input::isButtonJustPressed("LT"))) {
         int newTab = std::distance(tabs.begin(), std::find(tabs.begin(), tabs.end(), selected)) - 1;
         if (newTab < 0) newTab = tabs.size() - 1;
         menuManager->changeMenu(tabToMenuID(tabs[newTab]));

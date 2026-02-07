@@ -10,6 +10,10 @@ std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
 std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 
+bool Input::isControllerConnected() {
+    return false;
+}
+
 std::vector<int> Input::getTouchPosition() {
     return {0, 0};
 }

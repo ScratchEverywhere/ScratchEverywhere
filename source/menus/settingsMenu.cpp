@@ -9,7 +9,7 @@
 #include <settings.hpp>
 
 void SettingsMenu::init(const std::string &title) {
-    for (const auto &[setting, _] : settings.items()) {
+    for (const auto &[setting, _] : names) {
         clayIds[setting] = {false, static_cast<int32_t>(("setting-" + setting).length()), nullptr};
         void *chars = malloc(clayIds[setting].length);
         memcpy(chars, ("setting-" + setting).c_str(), clayIds[setting].length);
@@ -29,7 +29,7 @@ void SettingsMenu::init(const std::string &title) {
 SettingsMenu::~SettingsMenu() {
     free(const_cast<char *>(title.chars));
 
-    for (const auto &[setting, _] : settings.items()) {
+    for (const auto &[setting, _] : names) {
         free(const_cast<char *>(clayIds[setting].chars));
     }
 }
@@ -208,6 +208,48 @@ void SettingsMenu::renderInputButton(const std::string &setting) {
     // clang-format on
 }
 
+void SettingsMenu::renderButton(const std::string &setting) {
+    renderOrder.push_back(setting);
+
+    const uint16_t hPadding = 10 * menuManager->scale;
+    const uint16_t vPadding = 5 * menuManager->scale;
+
+    // clang-format off
+    CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = { .width = CLAY_SIZING_FIT(), .height = CLAY_SIZING_FIT() },
+			.padding = {hPadding, hPadding, vPadding, vPadding}
+		},
+		.backgroundColor = {90, 60, 90, 255},
+		.cornerRadius = {5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale}
+	}) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
+			const auto hoverData = reinterpret_cast<Settings_HoverData*>(userdata);
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+				hoverData->justPressed = true;
+			} else hoverData->justPressed = false;
+			if(pointerData.state == CLAY_POINTER_DATA_PRESSED) {
+				hoverData->pressed = true;
+			} else hoverData->pressed = false;
+		}, &hoverData.at(setting));
+
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+	}
+    // clang-format on
+}
+
+bool SettingsMenu::isButtonPressed(const std::string &buttonName) {
+    if (hoverData.find(buttonName) == hoverData.end()) return false;
+
+    return hoverData.at(buttonName).pressed;
+}
+
+bool SettingsMenu::isButtonJustPressed(const std::string &buttonName) {
+    if (hoverData.find(buttonName) == hoverData.end()) return false;
+
+    return hoverData.at(buttonName).justPressed;
+}
+
 void SettingsMenu::renderSettings() {}
 
 // TODO: Steal scrolling from projects menu
@@ -221,6 +263,8 @@ void SettingsMenu::render() {
         if (selected == -1) selected = 0;
         else if (selected != 0) selected--;
     } else if (Input::isButtonJustPressed("A") && selected != -1) {
+        if (hoverData.find(renderOrder[selected]) != hoverData.end()) hoverData.at(renderOrder[selected]).justPressed = true;
+
         if (settings[renderOrder[selected]].is_boolean()) settings[renderOrder[selected]] = !settings[renderOrder[selected]];
         else if (settings[renderOrder[selected]].is_string()) {
             const std::string newContent = Input::openSoftwareKeyboard(settings[renderOrder[selected]].get<std::string>().c_str());
@@ -297,7 +341,7 @@ GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
 
     if (!settings.contains("musicVolume")) settings["musicVolume"] = static_cast<int>(100);
 
-    SettingsMenu::init();
+    SettingsMenu::init("Global Settings");
 }
 
 GlobalSettingsMenu::~GlobalSettingsMenu() {

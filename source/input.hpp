@@ -32,6 +32,7 @@ class Input {
 
     static std::vector<int> getTouchPosition();
     static void getInput(MenuManager *menuManager = nullptr);
+    static bool isControllerConnected();
 
     static void applyControls(std::string controlsFilePath = "") {
         Input::inputControls.clear();

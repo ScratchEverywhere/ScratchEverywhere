@@ -1,12 +1,15 @@
 #include "menuManager.hpp"
 #include "../unzip.hpp"
 #include "components.hpp"
+#include "controlsMenu.hpp"
 #include "input.hpp"
 #include "mainMenu.hpp"
 #include "menu.hpp"
 #include "os.hpp"
+#include "projectSettingsMenu.hpp"
 #include "projectsMenu.hpp"
 #include "settingsMenu.hpp"
+#include "unpackMenu.hpp"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -38,6 +41,12 @@ std::unique_ptr<Menu> MenuManager::createMenu(MenuID id, void *userdata) {
         return std::make_unique<ProjectsMenu>(userdata);
     case MenuID::GlobalSettingsMenu:
         return std::make_unique<GlobalSettingsMenu>(userdata);
+    case MenuID::ProjectSettingsMenu:
+        return std::make_unique<ProjectSettingsMenu>(userdata);
+    case MenuID::ControlsMenu:
+        return std::make_unique<ControlsMenu>(userdata);
+    case MenuID::UnpackMenu:
+        return std::make_unique<UnpackMenu>(userdata);
     default:
         return nullptr;
     }
@@ -60,9 +69,9 @@ bool MenuManager::launchProject(const std::string path) {
     return true;
 }
 
-void MenuManager::back() {
+void MenuManager::back(void *userdata) {
     if (history.empty()) return;
-    currentMenu = std::move(createMenu(history.top()));
+    currentMenu = std::move(createMenu(history.top(), userdata));
     currentMenu->menuManager = this;
     currentMenuID = history.top();
     history.pop();

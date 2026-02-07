@@ -20,6 +20,10 @@ static touchPosition touch;
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
 
+bool Input::isControllerConnected() {
+    return true;
+}
+
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
 
