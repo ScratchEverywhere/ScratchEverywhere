@@ -20,8 +20,6 @@ constexpr unsigned int windowHeight = 240;
 #endif
 
 ProjectsMenu::ProjectsMenu(void *userdata) {
-    components::projectHoverData.clear();
-
     missingIcon = std::make_unique<Image>("gfx/menu/noicon.svg");
 
     const std::string path = OS::getScratchFolderLocation();

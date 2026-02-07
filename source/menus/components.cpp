@@ -47,8 +47,6 @@ constexpr Clay_Color unfocusedTabColor = {90, 60, 90, 255};
 constexpr Clay_Color focusedTabColor = {115, 75, 115, 255};
 
 void Sidebar::renderItem(const std::string tab) {
-    if (!hoverData.contains(tab)) hoverData[tab] = {menuManager, tab};
-
     const std::string id = "sidebar_" + tab;
     Clay_String clayId = (Clay_String){false, static_cast<int32_t>(id.length()), id.c_str()};
 
@@ -91,10 +89,12 @@ void Sidebar::renderItem(const std::string tab) {
 		.backgroundColor = bgColor,
 		.cornerRadius = {16 * menuManager->scale, 0, 16 * menuManager->scale, 0},
 	}) {
+		HoverData *hoverData = new HoverData{menuManager, tab};
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
-			const auto hoverData = *(const HoverData*)userdata;
-			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && hoverData.menuManager->currentMenuID != tabToMenuID(hoverData.tab) && hoverData.menuManager->canChangeMenus) hoverData.menuManager->changeMenu(tabToMenuID(hoverData.tab));
-		}, &hoverData[tab]);
+			const auto hoverData = (const HoverData*)userdata;
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && hoverData->menuManager->currentMenuID != tabToMenuID(hoverData->tab) && hoverData->menuManager->canChangeMenus) hoverData->menuManager->changeMenu(tabToMenuID(hoverData->tab));
+			delete hoverData;
+		}, hoverData);
 
 		if (images.contains(tab) && images[tab]) CLAY(CLAY_SID(clayImageId), (Clay_ElementDeclaration){
 			.layout = {
@@ -164,8 +164,6 @@ void Sidebar::render() {
     // clang-format on
 }
 
-std::vector<ProjectHoverData> projectHoverData;
-
 void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected) {
     const uint16_t padding = 10 * menuManager->scale;
     selected = selected || Clay_PointerOver(CLAY_IDI("project-list-item", i));
@@ -189,12 +187,16 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 		.cornerRadius = {10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale},
 		.border = { .color = borderColor, .width = {static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale)} }
 	}) {
-		if (i <= projectHoverData.size()) projectHoverData.push_back({ menuManager, &projectInfo });
+		ProjectHoverData *hoverData = new ProjectHoverData{menuManager, &projectInfo};
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
-			if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME) return;
 			const auto projectHoverData = (const ProjectHoverData*)userdata;
+			if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+				delete projectHoverData;
+				return;
+			}
 			projectHoverData->menuManager->launchProject(projectHoverData->projectInfo->path);
-		}, &projectHoverData[i]);
+			delete projectHoverData;
+		}, hoverData);
 
 		if (image) {
 			CLAY(CLAY_IDI("project-list-item-img", i), (Clay_ElementDeclaration){

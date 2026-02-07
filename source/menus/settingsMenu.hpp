@@ -8,8 +8,6 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-class SettingsMenu;
-
 struct Settings_HoverData {
     nlohmann::json &settings;
     const std::string key;

@@ -2,8 +2,6 @@
 #include "menuManager.hpp"
 #include "unpackMenu.hpp"
 #include <clay.h>
-#include <cstring>
-#include <fstream>
 #include <input.hpp>
 #include <settings.hpp>
 
@@ -24,7 +22,6 @@ ProjectSettingsMenu::~ProjectSettingsMenu() {
 }
 
 void ProjectSettingsMenu::renderSettings() {
-
     if (Input::isButtonJustPressed("B") && menuManager->canChangeMenus) {
         menuManager->back();
         return;

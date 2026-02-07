@@ -1,11 +1,7 @@
 #pragma once
 
 #include "clay.h"
-#include "image.hpp"
-#include "menu.hpp"
-#include "os.hpp"
 #include "settingsMenu.hpp"
-#include <map>
 #include <nlohmann/json.hpp>
 #include <string>
 

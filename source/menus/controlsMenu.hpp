@@ -8,12 +8,6 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-class ControlsMenu;
-
-// struct Controls_HoverData {
-//     uint8_t controlSetState = 0;
-// };
-
 class ControlsMenu : public SettingsMenu {
   private:
     std::unordered_map<std::string, std::string> controls;

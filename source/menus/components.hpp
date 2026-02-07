@@ -41,7 +41,6 @@ class Sidebar {
         MenuManager *menuManager;
         std::string tab;
     };
-    std::map<std::string, HoverData> hoverData;
 
     static constexpr unsigned int animationDuration = 150; // ms
     std::string selected = "";
@@ -65,8 +64,6 @@ struct ProjectHoverData {
     MenuManager *menuManager;
     const ProjectInfo *projectInfo;
 };
-
-extern std::vector<ProjectHoverData> projectHoverData;
 
 void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected);
 
