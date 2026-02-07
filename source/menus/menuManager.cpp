@@ -136,6 +136,16 @@ void MenuManager::freeClay() {
 void MenuManager::render() {
     static constexpr float maxScale = 2;
 
+    if (menuQueue.first != MenuID::None) {
+        if (Input::mousePointer.isPressed) {
+            waitForRelease = true;
+        }
+
+        Clay_SetPointerState({-9999, -9999}, false);
+        changeMenu(menuQueue.first, menuQueue.second);
+        menuQueue = {MenuID::None, nullptr};
+    }
+
     // #ifdef RENDERER_SDL2
     //     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
     // #endif
@@ -179,15 +189,19 @@ void MenuManager::render() {
     Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
     C3D_FrameEnd(0);
 #endif
-
-    if (menuQueue.first != MenuID::None) {
-        changeMenu(menuQueue.first, menuQueue.second);
-        menuQueue = {MenuID::None, nullptr};
-    }
 }
 
 void MenuManager::handleInput(float mouseX, float mouseY, bool mouseDown) {
     static Timer frameTimer;
+
+    if (waitForRelease) {
+        if (!mouseDown) {
+            waitForRelease = false;
+        }
+
+        Clay_SetPointerState({-9999, -9999}, false);
+        return;
+    }
 
     Clay_SetPointerState({mouseX, mouseY}, mouseDown);
     Clay_UpdateScrollContainers(true, {Input::scrollDelta[0], Input::scrollDelta[1]}, frameTimer.getTimeMs() / 1000.0f);

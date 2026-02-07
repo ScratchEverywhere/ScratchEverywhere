@@ -29,6 +29,8 @@ class MenuManager {
 
     static Clay_Arena clayMemory;
 
+    bool waitForRelease = false;
+
     std::unique_ptr<Menu> createMenu(MenuID id, void *userdata = nullptr);
 
   public:

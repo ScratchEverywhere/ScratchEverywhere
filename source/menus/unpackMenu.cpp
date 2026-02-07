@@ -4,7 +4,6 @@
 #include <cstring>
 #include <fstream>
 #include <input.hpp>
-#include <regex>
 #include <runtime.hpp>
 #include <settings.hpp>
 
@@ -30,11 +29,10 @@ void UnpackMenu::unpack(UnpackParams params) {
 }
 
 UnpackMenu::UnpackMenu(void *userdata, const std::string &title) {
-
     // there's definitely better ways of doing this..
     UnpackParams *paramsPtr = static_cast<UnpackParams *>(userdata);
     UnpackParams params = {.projectName = paramsPtr->projectName, .deletingProject = paramsPtr->deletingProject};
-    free(paramsPtr);
+    delete paramsPtr;
 
     projectName = params.projectName;
     deletingProject = params.deletingProject;
