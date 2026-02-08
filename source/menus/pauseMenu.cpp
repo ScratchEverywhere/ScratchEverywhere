@@ -19,16 +19,20 @@ void PauseMenu::init() {
     exitProjectButton = new ButtonObject("Exit Project", "gfx/menu/projectBox.svg", 200, 60, "gfx/menu/Ubuntu-Bold");
     exitProjectButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    flagButton = new ButtonObject("Run Green Flag", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
+    flagButton = new ButtonObject("Click Green Flag", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
     flagButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    turboButton = new ButtonObject((Scratch::turbo ? "Turbo Mode: ON" : "Turbo Mode: OFF"), "gfx/menu/projectBox.svg", 200, 140, "gfx/menu/Ubuntu-Bold");
+    stopButton = new ButtonObject("Click Stop Button", "gfx/menu/projectBox.svg", 200, 140, "gfx/menu/Ubuntu-Bold");
+    stopButton->text->setColor(Math::color(0, 0, 0, 255));
+
+    turboButton = new ButtonObject((Scratch::turbo ? "Turbo Mode: ON" : "Turbo Mode: OFF"), "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
     turboButton->text->setColor(Math::color(0, 0, 0, 255));
 
     backButton->needsToBeSelected = false;
 
     pauseControl->buttonObjects.push_back(exitProjectButton);
     pauseControl->buttonObjects.push_back(flagButton);
+    pauseControl->buttonObjects.push_back(stopButton);
     pauseControl->buttonObjects.push_back(turboButton);
     pauseControl->selectedObject = exitProjectButton;
     exitProjectButton->isSelected = true;
@@ -36,8 +40,11 @@ void PauseMenu::init() {
     exitProjectButton->buttonDown = flagButton;
     flagButton->buttonUp = exitProjectButton;
 
-    flagButton->buttonDown = turboButton;
-    turboButton->buttonUp = flagButton;
+    flagButton->buttonDown = stopButton;
+    stopButton->buttonUp = flagButton;
+    
+    stopButton->buttonDown = turboButton;
+    turboButton->buttonUp = stopButton;
 }
 
 void PauseMenu::render() {
@@ -56,33 +63,13 @@ void PauseMenu::render() {
     }
 
     if (flagButton->isPressed()) {
+        Scratch::greenFlagClicked();
+        shouldUnpause = true;
+        return;
+    }
 
-        // delete all clones first
-        std::vector<Sprite *> toDelete;
-        for (auto &spr : Scratch::sprites) {
-            if (spr->isClone) {
-                toDelete.push_back(spr);
-                continue;
-            }
-            spr->blockChains.clear();
-        }
-
-        SpeechManager *speechManager = Render::getSpeechManager();
-        for (auto *spr : toDelete) {
-            if (speechManager) {
-                speechManager->clearSpeech(spr);
-            }
-            delete spr;
-            Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
-                                   Scratch::sprites.end());
-        }
-
-        for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
-            Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
-        }
-
-        BlockExecutor::timer.start();
-        BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
+    if (stopButton->isPressed()) {
+        Scratch::stopClicked();
         shouldUnpause = true;
         return;
     }
@@ -120,6 +107,10 @@ void PauseMenu::cleanup() {
     if (flagButton != nullptr) {
         delete flagButton;
         flagButton = nullptr;
+    }
+    if (stopButton != nullptr) {
+        delete stopButton;
+        stopButton = nullptr;
     }
     if (pauseControl != nullptr) {
         delete pauseControl;

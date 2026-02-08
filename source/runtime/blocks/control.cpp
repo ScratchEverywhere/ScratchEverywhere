@@ -125,7 +125,7 @@ SCRATCH_BLOCK(control, delete_this_clone) {
 SCRATCH_BLOCK(control, stop) {
     const std::string stopType = Scratch::getFieldValue(block, "STOP_OPTION");
     if (stopType == "all") {
-        Scratch::shouldStop = true;
+        Scratch::stopClicked();
         return BlockResult::RETURN;
     }
     if (stopType == "this script") {
