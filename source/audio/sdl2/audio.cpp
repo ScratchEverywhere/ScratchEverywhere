@@ -172,7 +172,6 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             }
             SDL_Sounds[soundId]->audioId = soundId;
 
-            Log::log("Successfully loaded audio!");
             SDL_Sounds[soundId]->isLoaded = true;
             SDL_Sounds[soundId]->file_data = file_data;
             SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
@@ -289,7 +288,7 @@ int SoundPlayer::playSound(const std::string &soundId) {
 
         if (!currentStreamedSound.empty() && it->second->isStreaming) {
             stopStreamedSound();
-        }
+        } else if (it->second->isPlaying) Mix_HaltChannel(it->second->channelId);
 
         it->second->isPlaying = true;
 
