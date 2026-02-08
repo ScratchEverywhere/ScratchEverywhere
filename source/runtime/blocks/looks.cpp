@@ -438,7 +438,7 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
 }
 
 SCRATCH_REPORTER_BLOCK(looks, size) {
-    return Value(sprite->size);
+    return Value(std::round(sprite->size));
 }
 
 SCRATCH_REPORTER_BLOCK(looks, costumenumbername) {
