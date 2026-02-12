@@ -396,7 +396,7 @@ Thank you to all the people who have helped with the development (and other aspe
 	  <img src="https://contrib.rocks/image?repo=ScratchEverywhere/ScratchEverywhere" />
 	</a>
 	<br>
-	<sub>Made with [contrib.rocks](https://contrib.rocks).</sub>
+	<sub>(Made with <a href="https://contrib.rocks">contrib.rocks</a>)</sub>
 </p>
 
 ## Disclaimer
