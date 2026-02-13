@@ -261,9 +261,6 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
         rotation = Math::degreesToRadians(currentSprite->rotation - 90);
     } else if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
         rotation = Math::degreesToRadians(-180);
-#ifdef RENDERER_CITRO2D
-        x += currentSprite->spriteWidth;
-#endif
     } else rotation = 0;
 
     // put position to top left of sprite

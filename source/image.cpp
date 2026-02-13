@@ -173,26 +173,6 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     return pixels;
 }
 
-void Image::rgbaToAgbr(unsigned char *pixels, int width, int height, int pitch) {
-    for (int y = 0; y < height; ++y) {
-        unsigned char *p = pixels + y * pitch;
-
-        for (int x = 0; x < width; ++x) {
-            unsigned char r = p[0];
-            unsigned char g = p[1];
-            unsigned char b = p[2];
-            unsigned char a = p[3];
-
-            p[0] = a;
-            p[1] = g;
-            p[2] = b;
-            p[3] = r;
-
-            p += 4;
-        }
-    }
-}
-
 unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {
     outW = srcW >> 1;
     outH = srcH >> 1;
@@ -265,10 +245,6 @@ Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuali
     }
 
     if (!imgData.pixels) throw std::runtime_error("Failed to load image: " + filePath);
-
-#ifdef __PS4__
-    rgbaToAgbr(static_cast<unsigned char *>(imgData.pixels), imgData.width, imgData.height, imgData.pitch);
-#endif
 }
 
 Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) {
@@ -296,10 +272,6 @@ Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) 
     mz_free(file_data);
 
     if (!imgData.pixels) throw std::runtime_error("Failed to load image from zip: " + filePath);
-
-#ifdef __PS4__
-    rgbaToAgbr(static_cast<unsigned char *>(imgData.pixels), imgData.width, imgData.height, imgData.pitch);
-#endif
 }
 
 Image::~Image() {

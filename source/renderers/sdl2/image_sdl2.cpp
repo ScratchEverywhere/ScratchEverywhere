@@ -136,20 +136,39 @@ void *Image_SDL2::getNativeTexture() {
 }
 
 void Image_SDL2::setInitialTexture() {
-    SDL_PixelFormatEnum format;
-    format = SDL_PIXELFORMAT_RGBA32;
 
-    texture = SDL_CreateTexture(renderer, format, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+#ifdef __PS4__ // PS4 magic to prevent white everywhere
+    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(imgData.pixels, imgData.width, imgData.height, 32, imgData.pitch, SDL_PIXELFORMAT_RGBA32);
 
+    if (!surface) {
+        throw std::runtime_error("Failed to create surface: " + std::string(SDL_GetError()));
+    }
+
+    SDL_Surface *convert = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA8888, 0);
+    if (convert == NULL) {
+        SDL_FreeSurface(convert);
+        throw std::runtime_error("Error converting image surface: " + std::string(SDL_GetError()));
+    }
+
+    SDL_FreeSurface(surface);
+    surface = convert;
+
+    texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);
+#else
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
+#endif
     if (!texture) {
         throw std::runtime_error("Failed to create texture: " + std::string(SDL_GetError()));
     }
 
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
+#ifndef __PS4__
     if (SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch) < 0) {
         throw std::runtime_error("Failed to update texture: " + std::string(SDL_GetError()));
     }
+#endif
 
     /** some platforms may need this to be freed due to RAM limits,
      *  but they then wont be able to support Image::getPixels()

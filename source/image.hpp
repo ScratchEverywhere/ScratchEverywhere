@@ -41,7 +41,6 @@ class Image {
     inline std::vector<char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
     inline unsigned char *loadSVGFromMemory(const char *data, size_t size, int &width, int &height);
     inline unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
-    inline void rgbaToAgbr(unsigned char *pixels, int width, int height, int pitch);
     inline unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
 
   protected:

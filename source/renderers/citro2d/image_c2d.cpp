@@ -62,13 +62,7 @@ void Image_C2D::render(ImageRenderParams &params) {
             .right = (x + w) / texWidth,
             .bottom = bottom};
     } else {
-        subtex = {
-            .width = static_cast<uint16_t>(getWidth()),
-            .height = static_cast<uint16_t>(getHeight()),
-            .left = 0.0f,
-            .top = 1.0f,
-            .right = (float)getWidth() / (float)texture.tex->width,
-            .bottom = 1.0f - ((float)getHeight() / (float)texture.tex->height)};
+        subtex = *texture.subtex;
     }
 
     C2D_ImageTint tinty;
