@@ -402,3 +402,5 @@ Thank you to all the people who have helped with the development (and other aspe
 ## Disclaimer
 
 This project is not affiliated with Scratch, the Scratch Team, or any of the supported platforms' parent companies or organizations.
+
+eggsbox.
