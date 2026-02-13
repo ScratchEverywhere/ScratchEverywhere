@@ -469,15 +469,6 @@ void Parser::loadSprites(const nlohmann::json &json) {
         Render::visibleVariables.push_back(newMonitor);
     }
 
-    // setup top level blocks
-    for (Sprite *currentSprite : Scratch::sprites) {
-        for (auto &[id, block] : currentSprite->blocks) {
-            if (block.topLevel) continue;                                                   // skip top level blocks
-            block.topLevelParentBlock = Scratch::getBlockParent(&block, currentSprite)->id; // get parent block id
-            // std::cout<<"block id = "<< block.topLevelParentBlock << std::endl;
-        }
-    }
-
     // try to find the advanced project settings comment
     nlohmann::json config;
     for (auto &[id, comment] : Scratch::stageSprite->comments) {

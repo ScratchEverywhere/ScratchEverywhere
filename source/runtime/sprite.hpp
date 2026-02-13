@@ -59,7 +59,6 @@ struct Block {
     std::shared_ptr<std::map<std::string, ParsedField>> parsedFields;
     bool shadow;
     bool topLevel;
-    std::string topLevelParentBlock;
 
     /* variables that some blocks need*/
     double repeatTimes;
