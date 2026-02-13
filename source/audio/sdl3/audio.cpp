@@ -63,6 +63,9 @@ SDL_Audio::SDL_Audio() {}
 
 SDL_Audio::~SDL_Audio() {
 #ifdef ENABLE_AUDIO
+    if (track != nullptr) {
+        MIX_DestroyTrack(track);
+    }
     if (sound != nullptr) {
         MIX_DestroyAudio(sound);
         sound = nullptr;

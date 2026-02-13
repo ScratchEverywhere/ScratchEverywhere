@@ -42,6 +42,11 @@ ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	:=	-g $(MACHDEP) -Wl,-Map,$(notdir $*.map) \
 		-Wl,--gc-sections
 
+ifneq ($(wildcard $(ROMFS)/project*),)
+    ENABLE_MENU = 0
+	ENABLE_LOADSCREEN = 0
+endif
+
 ifeq ($(ENABLE_AUDIO),1)
 LIBS	:=	`$(PREFIX)pkg-config --libs sdl2 SDL2_ttf SDL2_mixer SDL2_gfx freetype2`
 CFLAGS	+=	-DENABLE_AUDIO `$(PREFIX)pkg-config --cflags SDL2_mixer`

@@ -274,7 +274,6 @@ SCRATCH_BLOCK(looks, nextbackdrop) {
 }
 
 SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
-    Scratch::forceRedraw = true;
     if (sprite->isStage) return BlockResult::CONTINUE;
 
     const Value value = Scratch::getInputValue(block, "NUM", sprite);
@@ -295,7 +294,7 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
         std::rotate(Scratch::sprites.begin() + currentIndex, Scratch::sprites.begin() + currentIndex + 1, Scratch::sprites.begin() + targetIndex + 1);
     }
 
-    for (unsigned int i = std::min(currentIndex, targetIndex); i <= std::max(currentIndex, targetIndex); i++) {
+    for (int i = std::min(currentIndex, targetIndex); i <= std::max(currentIndex, targetIndex); i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
 
@@ -303,7 +302,6 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
 }
 
 SCRATCH_BLOCK(looks, gotofrontback) {
-    Scratch::forceRedraw = true;
     if (sprite->isStage) return BlockResult::CONTINUE;
 
     const std::string value = Scratch::getFieldValue(block, "FRONT_BACK");
@@ -446,7 +444,7 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
 }
 
 SCRATCH_REPORTER_BLOCK(looks, size) {
-    return Value(sprite->size);
+    return Value(std::round(sprite->size));
 }
 
 SCRATCH_REPORTER_BLOCK(looks, costumenumbername) {

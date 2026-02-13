@@ -277,6 +277,22 @@ std::string OS::getConfigFolderLocation() {
     return path;
 }
 
+bool OS::isOnline() {
+#if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
+
+#if defined(__3DS__)
+    u32 wifiEnabled = 0;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled == AC_AP_TYPE_NONE) return false;
+    return true;
+#else
+    return true;
+#endif
+
+#endif
+    return false;
+}
+
 bool OS::initWifi() {
 #ifdef __3DS__
     u32 wifiEnabled = false;
@@ -421,7 +437,6 @@ void OS::removeDirectory(const std::string &path) {
     }
 
     struct dirent *entry;
-    bool success = true;
     while ((entry = readdir(dir)) != nullptr) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;

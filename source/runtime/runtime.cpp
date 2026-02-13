@@ -39,7 +39,7 @@ BlockExecutor executor;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
-int Scratch::cloneCount = 0;
+int Scratch::cloneCount;
 int Scratch::maxClones = 300;
 int Scratch::FPS = 30;
 bool Scratch::turbo = false;
@@ -72,8 +72,7 @@ bool Scratch::startScratchProject() {
     Render::renderSprites();
 #endif
 
-    BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
-    BlockExecutor::timer.start();
+    Scratch::greenFlagClicked();
 
     while (Render::appShouldRun()) {
         const bool checkFPS = Render::checkFramerate();
@@ -142,6 +141,7 @@ void Scratch::cleanupScratchProject() {
 
     TextObject::cleanupText();
     Render::visibleVariables.clear();
+    Render::penClear();
 
     // Clean up ZIP archive if it was initialized
     if (projectType != UNZIPPED) {
@@ -178,6 +178,46 @@ void Scratch::cleanupScratchProject() {
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 
     Log::log("Cleaned up Scratch project.");
+}
+
+void Scratch::greenFlagClicked() {
+    stopClicked();
+    answer.clear();
+    BlockExecutor::timer.start();
+    BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
+}
+
+void Scratch::stopClicked() {
+    Scratch::cloneCount = 0;
+    backdropQueue.clear();
+    broadcastQueue.clear();
+    cloneQueue.clear();
+    std::vector<Sprite *> toDelete;
+    for (Sprite *currentSprite : Scratch::sprites) {
+        for (auto &[id, chain] : currentSprite->blockChains) {
+            chain.blocksToRepeat.clear();
+        }
+        if (Render::getSpeechManager()) {
+            Render::getSpeechManager()->clearSpeech(currentSprite);
+        }
+        if (currentSprite->isClone) {
+            toDelete.push_back(currentSprite);
+            continue;
+        }
+        currentSprite->ghostEffect = 0.0f;
+        currentSprite->brightnessEffect = 0.0f;
+        currentSprite->colorEffect = 0.0f;
+        for (Sound sound : currentSprite->sounds)
+            SoundPlayer::stopSound(sound.fullName);
+    }
+    for (auto *spr : toDelete) {
+        delete spr;
+        Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
+                                   Scratch::sprites.end());
+    }
+    for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
+        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
+    }
 }
 
 std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {

@@ -100,7 +100,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     const int sourceIndex = (Scratch::sprites.size() - 1) - targetSprite->layer;
     auto it = Scratch::sprites.insert(Scratch::sprites.begin() + sourceIndex + 1, clonedSprite);
 
-    for (int i = sourceIndex + 1; i < Scratch::sprites.size(); i++) {
+    for (size_t i = 0; i < sourceIndex + 1; i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
 
@@ -125,7 +125,7 @@ SCRATCH_BLOCK(control, delete_this_clone) {
 SCRATCH_BLOCK(control, stop) {
     const std::string stopType = Scratch::getFieldValue(block, "STOP_OPTION");
     if (stopType == "all") {
-        Scratch::shouldStop = true;
+        Scratch::stopClicked();
         return BlockResult::RETURN;
     }
     if (stopType == "this script") {

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.34 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.35 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -24,6 +24,12 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
 endif()
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
+
+#  disable menu if a project is in RomFS
+if (EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/romfs/project.sb3")
+	set(SE_MENU OFF)
+	set(SE_LOADSCREEN OFF)
+endif()
 
 if(SE_MENU)
 	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
@@ -614,6 +620,7 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM AND NOT WEBOS)
 		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
+		target_link_directories(scratch-everywhere PRIVATE ${SDL2_GFX_LIBRARY_DIRS})
 	else()
 		list(APPEND SDL_LINK_LIBS SDL2_gfx)
 	endif()

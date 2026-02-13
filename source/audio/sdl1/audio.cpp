@@ -287,7 +287,7 @@ int SoundPlayer::playSound(const std::string &soundId) {
 
         if (!currentStreamedSound.empty() && it->second->isStreaming) {
             stopStreamedSound();
-        }
+        } else if (it->second->isPlaying) stopSound(soundId);
 
         it->second->isPlaying = true;
 

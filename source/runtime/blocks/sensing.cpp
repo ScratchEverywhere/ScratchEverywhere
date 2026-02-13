@@ -158,3 +158,7 @@ SCRATCH_REPORTER_BLOCK(sensing, username) {
     if (Scratch::useCustomUsername) return Value(Scratch::customUsername);
     return Value(OS::getUsername());
 }
+
+SCRATCH_REPORTER_BLOCK(sensing, online) {
+    return Value(OS::isOnline());
+}

@@ -158,6 +158,7 @@ bool Render::initPen() {
 }
 
 void Render::penClear() {
+    if (penTexture == 0) return;
     std::vector<uint8_t> emptyData(penWidth * penHeight * 4, 0);
     glBindTexture(GL_TEXTURE_2D, penTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, emptyData.data());
