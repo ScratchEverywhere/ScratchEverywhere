@@ -29,6 +29,17 @@
 #define filledPolygonRGBA GFX_filledPolygonRGBA
 #endif
 
+#ifdef __XBOX360__
+#include <console/console.h>
+#include <diskio/ata.h>
+#include <libfat/fat.h>
+#include <usb/usbmain.h>
+#include <xenon_soc/xenon_power.h>
+#include <xenon_sound/sound.h>
+#include <xenos/xe.h>
+#include <xenos/xenos.h>
+#endif
+
 Window *globalWindow = nullptr;
 SDL_Surface *penSurface = nullptr;
 
@@ -43,11 +54,28 @@ bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
 bool Render::Init() {
+#ifdef __XBOX360__
+    xenon_make_it_faster(XENON_SPEED_FULL);
+    xenos_init(VIDEO_MODE_AUTO);
+    xenon_sound_init();
+    console_init();
+	usb_init();
+	usb_do_poll();
+    xenon_ata_init();
+    xenon_atapi_init();
+    fatInitDefault();
+
+    int windowWidth = 640;
+    int windowHeight = 480;
+#else
+    int windowWidth = 540;
+    int windowHeight = 405;
+#endif
     IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
 
     globalWindow = new WindowSDL1();
-    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;

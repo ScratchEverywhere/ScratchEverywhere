@@ -9,6 +9,9 @@
 #else
 #include <renderers/sdl1/render.hpp>
 #endif
+#ifdef __XBOX360__
+#include <console/console.h>
+#endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
 SDL_Joystick *controller = nullptr;
@@ -27,12 +30,14 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     SDL_EnableUNICODE(1);
     SDL_WM_SetCaption(title.c_str(), NULL);
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL)
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
     window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+#elif defined(__XBOX360__)
+    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_FULLSCREEN);
 #else
     window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
 #endif
@@ -56,6 +61,9 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     SDL_VERSION(&ver);
     Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
 
+#ifdef __XBOX360__
+    console_close();
+#endif
     return true;
 }
 

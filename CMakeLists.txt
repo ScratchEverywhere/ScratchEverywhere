@@ -14,12 +14,12 @@ option(SE_AUDIO "Enables audio in SE!" ON)
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT XBOX360)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT XBOX360)
 	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
 endif()
 
@@ -35,9 +35,19 @@ if(SE_MENU)
 	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 endif()
 
-list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
+# Xbox 360 uses the SDL1 renderer
+if(XBOX360)
+	list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl1")
+else()
+	list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
+endif()
+
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
-	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
+	if(XBOX360)
+		list(APPEND SE_RENDERER_VALID_OPTIONS "sdl2" "sdl3" "opengl")
+	elseif()
+		list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
+	endif()
 endif()
 
 if("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS)
@@ -89,8 +99,15 @@ if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	if(SE_RENDERER STREQUAL "sdl3" OR SE_RENDERER STREQUAL "opengl")
 		list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl3")
 	endif()
-	if(SE_RENDERER STREQUAL "sdl1" OR SE_RENDERER STREQUAL "opengl")
-		list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl1")
+
+	if(XBOX360)
+		if(SE_RENDERER STREQUAL "sdl1" OR SE_RENDERER STREQUAL "opengl")
+			list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl1")
+		endif()
+	else()
+		if(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
+			list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
+		endif()
 	endif()
 endif()
 
@@ -132,9 +149,16 @@ if(NOT SE_WINDOWING IN_LIST SE_WINDOWING_VALID_OPTIONS)
     )
 endif()
 
-list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl2")
+if(XBOX360)
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl1")
+else()
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl2")
+endif()
+
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
+elseif(NOT XBOX360)
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
 endif()
 
 if(SE_RENDERER STREQUAL "sdl3" OR SE_WINDOWING STREQUAL "sdl3")
@@ -168,7 +192,7 @@ if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
     )
 endif()
 
-if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS)
+if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS OR XBOX360)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -237,19 +261,21 @@ CPMAddPackage(
 include(FetchContent)
 FetchContent_Declare(
     miniz
-    URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
 )
 FetchContent_MakeAvailable(miniz)
 
 if(SE_RENDERER STREQUAL "sdl1")
-	if(SE_SYSTEM)
-		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
-		pkg_check_modules(SDL_IMAGE REQUIRED SDL_image>=1.2.0)
-		pkg_check_modules(SDL_TTF REQUIRED SDL_ttf>=1.2.0)
-		pkg_check_modules(SDL_GFX REQUIRED SDL_gfx>=1.0.0)
-	else()
-		error("SDL1 is currently not supported without system libraries")
+	if(NOT XBOX360)
+		if(SE_SYSTEM)
+			pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
+			pkg_check_modules(SDL_IMAGE REQUIRED SDL_image>=1.2.0)
+			pkg_check_modules(SDL_TTF REQUIRED SDL_ttf>=1.2.0)
+			pkg_check_modules(SDL_GFX REQUIRED SDL_gfx>=1.0.0)
+		else()
+			error("SDL1 is currently not supported without system libraries")
+		endif()
 	endif()
 	CPMAddPackage(
 		NAME nanosvg
@@ -380,10 +406,12 @@ if(SE_WINDOWING STREQUAL "glfw")
 		)
 	endif()
 elseif(SE_WINDOWING STREQUAL "sdl1")
-	if(SE_SYSTEM)
-		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
-	else()
-		error("SDL1 is currently not supported without system libraries")
+	if(NOT XBOX360)
+		if(SE_SYSTEM)
+			pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
+		else()
+			error("SDL1 is currently not supported without system libraries")
+		endif()
 	endif()
 elseif(SE_WINDOWING STREQUAL "sdl2")
 	if(SE_SYSTEM)
@@ -422,10 +450,12 @@ endif()
 
 if(SE_AUDIO)
 	if(SE_AUDIO_ENGINE STREQUAL "sdl1")
-		if(SE_SYSTEM)
-			pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
-		else()
-			message(FATAL_ERROR "SDL1 Audio is currently not supported without system libraries")
+		if(NOT XBOX360)
+			if(SE_SYSTEM)
+				pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
+			else()
+				message(FATAL_ERROR "SDL1 Audio is currently not supported without system libraries")
+			endif()
 		endif()
 	elseif(SE_AUDIO_ENGINE STREQUAL "sdl2")
 		if(NOT SE_SYSTEM OR WEBOS)
@@ -562,6 +592,9 @@ elseif(VITA)
 elseif(WEBOS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
+elseif(XBOX360)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-xbox360)
+	target_compile_definitions(scratch-everywhere PRIVATE __XBOX360__ MINIZ_NO_TIME)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# set_target_properties(scratch-everywhere PROPERTIES
 	# 	MACOSX_BUNDLE True
@@ -576,8 +609,8 @@ if(SE_CMAKERC)
 	include(FetchContent)
 	FetchContent_Declare(
 	  cmrc
-	  URL https://github.com/vector-of-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
 	  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+	  URL https://github.com/vector-of-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
 	)
 	FetchContent_MakeAvailable(cmrc)
 	include(${cmrc_SOURCE_DIR}/CMakeRC.cmake)
@@ -664,10 +697,17 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 elseif(SE_RENDERER STREQUAL "sdl1")
 	set(SDL_LINK_LIBS)
 
-	if(SE_SYSTEM)
+	if(SE_SYSTEM AND NOT XBOX360)
 		list(APPEND SDL_LINK_LIBS ${SDL_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL_GFX_INCLUDE_DIRS})
 	else()
+		if(XBOX360)
+			add_library(SDL::SDL STATIC IMPORTED)
+			set_target_properties(SDL::SDL PROPERTIES
+				IMPORTED_LOCATION ${DEVKITXENON}/usr/lib/libSDL.a
+				INCLUDE_DIRECTORIES ${DEVKITXENON}/usr/include/SDL
+			)
+		endif()
 		list(APPEND SDL_LINK_LIBS SDL_gfx SDL::SDL)
 	endif()
 
@@ -675,7 +715,23 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_IMAGE_LIBRARIES} ${SDL_TTF_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_IMAGE_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
 
-	elseif(BUILD_SHARED_LIBS)
+	elseif(BUILD_SHARED_LIBS OR XBOX360)
+		if(XBOX360)
+			add_library(SDL_image::SDL_image STATIC IMPORTED)
+			set_target_properties(SDL_image::SDL_image PROPERTIES
+				IMPORTED_LOCATION ${DEVKITXENON}/usr/lib/libSDL_image.a
+				INCLUDE_DIRECTORIES ${DEVKITXENON}/usr/include/SDL
+			)
+			target_link_libraries(SDL_image::SDL_image INTERFACE SDL png z)
+
+			add_library(SDL_ttf::SDL_ttf STATIC IMPORTED)
+			set_target_properties(SDL_ttf::SDL_ttf PROPERTIES
+				IMPORTED_LOCATION ${DEVKITXENON}/usr/lib/libSDL_ttf.a
+				INCLUDE_DIRECTORIES ${DEVKITXENON}/usr/include/SDL
+			)
+			target_link_libraries(SDL_ttf::SDL_ttf INTERFACE SDL freetype bz2)
+		endif()
+
 		list(APPEND SDL_LINK_LIBS SDL_image::SDL_image)
 		list(APPEND SDL_LINK_LIBS SDL_ttf::SDL_ttf)
 
@@ -735,7 +791,7 @@ if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT XBOX360)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -772,13 +828,13 @@ if(SE_CLOUDVARS)
 endif()
 
 
-if(NOT PSP AND NOT WEBOS)
+if(NOT PSP AND NOT WEBOS AND NOT XBOX360)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT XBOX360)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT XBOX360)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
 endif()
 if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) ) # joystick doesn't work on MacOS with current Dockerfile
@@ -791,8 +847,17 @@ if(SE_AUDIO)
 		if(SE_SYSTEM)
 			target_link_libraries(scratch-everywhere PRIVATE ${SDL_MIXER_LIBRARIES})
 			target_include_directories(scratch-everywhere PRIVATE ${SDL_MIXER_INCLUDE_DIRS})
-		else()
-			if(BUILD_SHARED_LIBS)
+		else()	
+			if(BUILD_SHARED_LIBS OR XBOX360)
+				if(XBOX360)
+					add_library(SDL_mixer::SDL_mixer STATIC IMPORTED)
+					set_target_properties(SDL_mixer::SDL_mixer PROPERTIES
+						IMPORTED_LOCATION ${DEVKITXENON}/usr/lib/libSDL_mixer.a
+						INCLUDE_DIRECTORIES ${DEVKITXENON}/usr/include/SDL
+					)
+					target_link_libraries(SDL_mixer::SDL_mixer INTERFACE SDL::SDL)
+				endif()
+
 				target_link_libraries(scratch-everywhere PRIVATE SDL_mixer::SDL_mixer)
 			else()
 				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL_mixer::SDL_mixer-static>,SDL_mixer::SDL_mixer-static,SDL_mixer::SDL_mixer>)
@@ -908,4 +973,22 @@ elseif(WEBOS)
     set(CPACK_MONOLITHIC_INSTALL TRUE)
 
     include(CPack)
+elseif(XBOX360)
+	# Built in dependencies
+	target_link_libraries(scratch-everywhere PRIVATE xenon fat)
+	target_link_directories(scratch-everywhere PRIVATE 
+		${DEVKITXENON}/usr/lib
+		${DEVKITXENON}/xenon/lib/32
+	)
+
+	include_directories(${DEVKITXENON}/usr/include ${DEVKITXENON}/usr/include/SDL)
+    link_directories(${DEVKITXENON}/usr/lib)
+
+    # ELF -> ELF32
+    add_custom_command(TARGET scratch-everywhere POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -O elf32-powerpc --adjust-vma 0x80000000 
+                $<TARGET_FILE:scratch-everywhere> ${CMAKE_BINARY_DIR}/scratch-xbox360.elf32
+        COMMAND ${CMAKE_STRIP} ${CMAKE_BINARY_DIR}/scratch-xbox360.elf32
+        COMMENT "Converting to elf32 and stripping..."
+    )
 endif()

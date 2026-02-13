@@ -51,7 +51,7 @@ extern char nickname[0x21];
 #endif
 
 // PS4 implementation of logging
-#ifdef __PS4__
+#if defined(__PS4__)
 char logBuffer[1024];
 
 void Log::log(std::string message, bool printToScreen) {
@@ -77,7 +77,39 @@ void Log::writeToFile(std::string message) {
 
 void Log::deleteLogFile() {
 }
+// printf implementation
+#elif defined(__XBOX360__)
+void Log::log(std::string message, bool printToScreen) {
+    if (printToScreen) printf(message.c_str());
+    writeToFile(message);
+}
 
+void Log::logWarning(std::string message, bool printToScreen) {
+    if (printToScreen)
+        printf("Warning: %s", message.c_str());
+    writeToFile("Warning: " + message);
+}
+
+void Log::logError(std::string message, bool printToScreen) {
+    if (printToScreen)
+        printf("Error: %s", message.c_str());
+
+    writeToFile("Error: " + message);
+}
+void Log::writeToFile(std::string message) {
+    // not sure if this is causing errors
+    // if (Render::debugMode) {
+    //     std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+    //     std::ofstream logFile;
+    //     logFile.open(filePath, std::ios::app);
+    //     if (logFile.is_open()) {
+    //         logFile << message << std::endl;
+    //         logFile.close();
+    //     } else {
+    //         std::cerr << "Could not open log file: " << filePath << std::endl;
+    //     }
+    // }
+}
 #else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
@@ -233,6 +265,8 @@ std::string OS::getScratchFolderLocation() {
     return "/scratch-everywhere/";
 #elif defined(__NDS__)
     return prefix + "/scratch-ds/";
+#elif defined(__XBOX360__)
+    return prefix + "/scratch-xbox360/";
 #elif defined(WEBOS)
     return prefix + "projects/";
 #else
@@ -458,9 +492,11 @@ void OS::removeDirectory(const std::string &path) {
 
     closedir(dir);
 
+#ifndef __XBOX360__ // temporary
     if (rmdir(path.c_str()) != 0) {
         throw OS::DirectoryRemovalFailed(path, errno);
     }
+#endif
 #endif
 }
 

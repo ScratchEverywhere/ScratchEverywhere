@@ -102,6 +102,8 @@ inline std::string getFilesystemRootPrefix() {
     return isDSi() ? "sd:" : "fat:";
 #elif defined(WEBOS)
     return "apps/usr/palm/applications/io.github.scratcheverywhere/";
+#elif defined(__XBOX360__)
+    return "uda0:";
 #elif defined(_WIN32) || defined(_WIN64)
     return std::filesystem::path(std::getenv("SystemDrive")).string();
 #else
@@ -167,6 +169,8 @@ inline std::string getPlatform() {
     return "PS4";
 #elif defined(__PSP__)
     return "PSP";
+#elif defined(__XBOX360__)
+    return "Xbox 360";
 #elif defined(WEBOS)
     return "webOS TV";
 #else

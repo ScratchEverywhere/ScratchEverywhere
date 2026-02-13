@@ -5,7 +5,6 @@
 out/
 build/
 build-*/
-cmake/
 romfs/project/
 romfs/gfx
 scratch-everywhere/
@@ -57,6 +56,7 @@ main.code-workspace
 *.nro
 *.nso
 *.elf
+*.elf32
 *.oelf
 *.smdh
 *.cia
@@ -86,4 +86,6 @@ cloud-username.txt
 # fockerdile
 !docker/Dockerfile.nds
 
+# CMake
 CMakeSettings.json
+CPM.cmake

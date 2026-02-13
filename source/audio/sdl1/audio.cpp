@@ -44,10 +44,12 @@ bool SoundPlayer::init() {
         Log::logWarning(std::string("SDL_Mixer could not initialize! ") + Mix_GetError());
         return false;
     }
+
     int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
     if (Mix_Init(flags) != flags) {
         Log::logWarning(std::string("SDL_Mixer could not initialize MP3/OGG Support! ") + Mix_GetError());
     }
+
     isInit = true;
     return true;
 #endif

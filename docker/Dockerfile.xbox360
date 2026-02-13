@@ -1,0 +1,51 @@
+FROM free60/toolchain:latest AS sdl_builder
+WORKDIR /sdl
+
+RUN git clone --recursive https://github.com/LibXenonProject/libSDLXenon.git .
+RUN make -f Makefile.xenon install
+
+FROM free60/toolchain:latest AS sdl_image_builder
+WORKDIR /sdl_image
+COPY --from=sdl_builder /usr/local/xenon /usr/local/xenon
+
+RUN git clone https://github.com/LibXenonProject/SDL_Image.git .
+RUN make -f Makefile.xenon install
+
+FROM free60/toolchain:latest AS sdl_mixer_builder
+WORKDIR /sdl_mixer
+COPY --from=sdl_image_builder /usr/local/xenon /usr/local/xenon
+
+RUN git clone --branch SDL-1.2 https://github.com/libsdl-org/SDL_mixer.git .
+RUN wget -O Makefile.xenon https://raw.githubusercontent.com/LibXenonProject/SDL_Mixer/refs/heads/master/Makefile.xenon
+RUN sed -i 's/src//g;s/-DMOD_MUSIC//g' Makefile.xenon
+RUN make -f Makefile.xenon install
+
+FROM free60/toolchain:latest AS sdl_ttf_builder
+WORKDIR /sdl_mixer
+COPY --from=sdl_mixer_builder /usr/local/xenon /usr/local/xenon
+
+RUN git clone https://github.com/LibXenonProject/SDL_ttf.git .
+RUN make install
+
+FROM free60/toolchain:latest AS sdl_gfx_builder
+WORKDIR /sdl_gfx
+COPY --from=sdl_ttf_builder /usr/local/xenon /usr/local/xenon
+
+RUN git clone https://github.com/ferzkopp/SDL_gfx.git .
+RUN wget -O Makefile.xenon https://raw.githubusercontent.com/LibXenonProject/SDL_Image/refs/heads/master/Makefile.xenon
+RUN sed -i 's/libSDL_image.a\.a/libSDL_gfx.a/g' Makefile.xenon
+RUN make -f Makefile.xenon install
+
+FROM free60/toolchain:latest AS main_builder
+WORKDIR /app
+
+COPY --from=sdl_gfx_builder /usr/local/xenon /usr/local/xenon
+COPY . .
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake
+RUN cmake -B build/xbox360 -S . -DCMAKE_TOOLCHAIN_FILE="./cmake/xbox360-toolchain.cmake" \
+    -DSE_RENDERER=sdl1 -DSE_AUDIO=ON -DSE_SYSTEM=OFF -DSE_CMAKERC=ON && \
+    make -C build/xbox360 -j$(nproc) all
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/build/xbox360/scratch-xbox360.elf32 /
