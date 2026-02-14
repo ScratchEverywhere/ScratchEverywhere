@@ -147,6 +147,7 @@ void Image_SDL3::setInitialTexture() {
     }
 
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
 
     if (!SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch)) {
         throw std::runtime_error("Failed to update texture: " + std::string(SDL_GetError()));
