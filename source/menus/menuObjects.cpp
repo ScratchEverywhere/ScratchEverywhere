@@ -13,9 +13,9 @@ static float guiScale = 1.0f;
 
 // turn off nineslice for low performance platforms
 #if defined(__NDS__) || defined(__PSP__) || defined(RENDERER_SDL1) /* sdl1 just doesnt support it currently */
-static bool enableNineslice = false;
+constexpr bool enableNineslice = false;
 #else
-static bool enableNineslice = true;
+constexpr bool enableNineslice = true;
 #endif
 
 double MenuObject::getScaleFactor() {
