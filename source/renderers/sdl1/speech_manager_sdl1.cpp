@@ -1,15 +1,15 @@
 #include "speech_manager_sdl1.hpp"
-#include "image.hpp"
 #include "render.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_gfxBlitFunc.h>
 #include <SDL/SDL_rotozoom.h>
 #include <image.hpp>
+#include <image_sdl1.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 
 SpeechManagerSDL1::SpeechManagerSDL1(SDL_Surface *window) : window(window) {
-    speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");
+    speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false);
 }
 
 SpeechManagerSDL1::~SpeechManagerSDL1() {
@@ -17,9 +17,6 @@ SpeechManagerSDL1::~SpeechManagerSDL1() {
 }
 
 void SpeechManagerSDL1::ensureImagesLoaded() {
-    if (images.find(speechIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/speech_simple.svg", nullptr, false);
-    }
 }
 
 double SpeechManagerSDL1::getCurrentTime() {
@@ -50,7 +47,7 @@ void SpeechManagerSDL1::render() {
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));
 
             // Calculate actual rendered sprite dimensions
-            double divisionAmount = sprite->costumes[sprite->currentCostume].isSVG ? 1.0 : 2.0;
+            double divisionAmount = 1.0;
             int spriteWidth = static_cast<int>((sprite->spriteWidth * sprite->size / 100.0) / divisionAmount * scale);
             int spriteHeight = static_cast<int>((sprite->spriteHeight * sprite->size / 100.0) / divisionAmount * scale);
 
@@ -114,12 +111,8 @@ void SpeechManagerSDL1::renderSpeechIndicator(Sprite *sprite, int spriteCenterX,
 
     std::string style = styleIt->second;
 
-    if (!speechIndicatorImage || speechIndicatorImage->imageId.empty()) return;
-    if (images.find(speechIndicatorImage->imageId) == images.end()) return;
-
     // Indicator sprite sheet
-    SDL_Image *sdlImage = images[speechIndicatorImage->imageId];
-    if (!sdlImage || !sdlImage->spriteTexture) return;
+    Image_SDL1 *sdlImage = reinterpret_cast<Image_SDL1 *>(speechIndicatorImage.get());
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(16 * scale);
@@ -135,7 +128,7 @@ void SpeechManagerSDL1::renderSpeechIndicator(Sprite *sprite, int spriteCenterX,
         indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
     }
 
-    int adjustedY = indicatorY + (sdlImage->height / 2) - (indicatorSize / 2) + static_cast<int>(4 * scale);
+    int adjustedY = indicatorY + (sdlImage->getHeight() / 2) - (indicatorSize / 2) + static_cast<int>(4 * scale);
 
     if (spriteCenterX < screenCenter) {
         indicatorX -= static_cast<int>(4 * scale);
@@ -143,29 +136,26 @@ void SpeechManagerSDL1::renderSpeechIndicator(Sprite *sprite, int spriteCenterX,
         indicatorX += static_cast<int>(4 * scale);
     }
 
-    Uint8 alpha = static_cast<Uint8>(speechIndicatorImage->opacity * 255);
-    SDL_SetAlpha(sdlImage->spriteTexture, SDL_SRCALPHA, alpha);
-
-    int halfWidth = sdlImage->width / 2;
+    int halfWidth = sdlImage->getWidth() / 2;
     if (halfWidth <= 0) return;
 
     // Select left half (say) or right half (think)
     int srcX = (style == "think") ? halfWidth : 0;
-    SDL_Rect sourceRect = {static_cast<Sint16>(srcX), 0, static_cast<Uint16>(halfWidth), static_cast<Uint16>(sdlImage->height)};
+    SDL_Rect sourceRect = {static_cast<Sint16>(srcX), 0, static_cast<Uint16>(halfWidth), static_cast<Uint16>(sdlImage->getHeight())};
 
     SDL_Surface *halfSurface = SDL_CreateRGBSurface(
-        SDL_SWSURFACE, halfWidth, sdlImage->height, 32, RMASK, GMASK, BMASK, AMASK);
+        SDL_SWSURFACE, halfWidth, sdlImage->getHeight(), 32, RMASK, GMASK, BMASK, AMASK);
     if (!halfSurface) return;
 
-    SDL_Rect destRectBlit = {0, 0, static_cast<Uint16>(halfWidth), static_cast<Uint16>(sdlImage->height)};
-    SDL_gfxBlitRGBA(sdlImage->spriteTexture, &sourceRect, halfSurface, &destRectBlit);
+    SDL_Rect destRectBlit = {0, 0, static_cast<Uint16>(halfWidth), static_cast<Uint16>(sdlImage->getHeight())};
+    SDL_gfxBlitRGBA(sdlImage->texture, &sourceRect, halfSurface, &destRectBlit);
 
     SDL_Surface *formattedSurface = SDL_DisplayFormatAlpha(halfSurface);
     SDL_FreeSurface(halfSurface);
     if (!formattedSurface) return;
 
     double scaleX = static_cast<double>(indicatorSize) / halfWidth;
-    double scaleY = static_cast<double>(indicatorSize) / sdlImage->height;
+    double scaleY = static_cast<double>(indicatorSize) / sdlImage->getHeight();
 
     SDL_Surface *scaledSurface = rotozoomSurfaceXY(formattedSurface, 0.0, scaleX, scaleY, SMOOTHING_OFF);
     SDL_FreeSurface(formattedSurface);
@@ -178,8 +168,6 @@ void SpeechManagerSDL1::renderSpeechIndicator(Sprite *sprite, int spriteCenterX,
         if (!flipped) return;
         finalSurface = flipped;
     }
-
-    SDL_SetAlpha(finalSurface, SDL_SRCALPHA, alpha);
 
     SDL_Rect destRect = {static_cast<Sint16>(indicatorX), static_cast<Sint16>(adjustedY), 0, 0};
     SDL_BlitSurface(finalSurface, NULL, window, &destRect);

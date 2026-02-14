@@ -5,7 +5,7 @@
 #include <3ds.h>
 
 SpeechManagerC2D::SpeechManagerC2D() {
-    speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech_simple.svg");
+    speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false);
 }
 
 SpeechManagerC2D::~SpeechManagerC2D() {
@@ -13,10 +13,6 @@ SpeechManagerC2D::~SpeechManagerC2D() {
 }
 
 void SpeechManagerC2D::ensureImagesLoaded() {
-    // Check if images were cleaned up and reload them if necessary
-    if (images.find(speechIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/speech_simple.svg", nullptr, false);
-    }
 }
 
 double SpeechManagerC2D::getCurrentTime() {
@@ -45,9 +41,8 @@ void SpeechManagerC2D::render() {
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (SCREEN_HEIGHT / 2));
 
             // Calculate actual rendered sprite dimensions
-            double divisionAmount = sprite->costumes[sprite->currentCostume].isSVG ? 1.0 : 2.0;
-            int spriteWidth = static_cast<int>((sprite->spriteWidth * sprite->size / 100.0) / divisionAmount * scale);
-            int spriteHeight = static_cast<int>((sprite->spriteHeight * sprite->size / 100.0) / divisionAmount * scale);
+            int spriteWidth = static_cast<int>((sprite->spriteWidth * sprite->size / 100.0) * scale);
+            int spriteHeight = static_cast<int>((sprite->spriteHeight * sprite->size / 100.0) * scale);
 
             // Calculate top corners of sprite
             int spriteTop = spriteCenterY - (spriteHeight / 2);
@@ -102,14 +97,15 @@ void SpeechManagerC2D::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
     auto styleIt = speechStyles.find(sprite);
     if (styleIt == speechStyles.end()) return;
 
-    std::string style = styleIt->second;
+    if (!speechIndicatorImage) return;
 
-    if (!speechIndicatorImage || speechIndicatorImage->imageId.empty()) return;
-    if (images.find(speechIndicatorImage->imageId) == images.end()) return;
+    std::string style = styleIt->second;
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(16 * scale);
-    int screenCenter = Render::getWidth() / 2;
+
+    int windowWidth = Render::getWidth();
+    int screenCenter = windowWidth / 2;
 
     // Position indicator at bottom edge, on first non-corner tile closest to sprite
     int indicatorX;
@@ -121,44 +117,24 @@ void SpeechManagerC2D::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, 
         indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
     }
 
-    // Indicator sprite sheet
-    C2D_Image image = images[speechIndicatorImage->imageId].image;
+    int imageWidth = speechIndicatorImage->getWidth();
+    int imageHeight = speechIndicatorImage->getHeight();
+    int halfWidth = imageWidth / 2;
 
-    float origLeft = image.subtex->left;
-    float origTop = image.subtex->top;
-    float origRight = image.subtex->right;
-    float origBottom = image.subtex->bottom;
+    ImageSubrect subrect = {
+        .x = (style == "think") ? halfWidth : 0,
+        .y = 0,
+        .w = halfWidth,
+        .h = imageHeight};
 
-    float uvWidth = origRight - origLeft;
+    ImageRenderParams params;
+    params.x = indicatorX;
+    params.y = indicatorY;
+    params.scale = static_cast<float>(indicatorSize) / static_cast<float>(halfWidth);
+    params.opacity = 1.0f;
+    params.centered = false;
+    params.flip = false;
+    params.subrect = &subrect;
 
-    // Calculate UV coordinates for left half (say) or right half (think)
-    float uvLeft, uvRight;
-    if (style == "think") {
-        uvLeft = origLeft + (uvWidth / 2.0f);
-        uvRight = origRight;
-    } else {
-        uvLeft = origLeft;
-        uvRight = origLeft + (uvWidth / 2.0f);
-    }
-
-    // Create a new subtexture with the clipped UV coordinates
-    uint16_t halfWidth = image.subtex->width / 2;
-    uint16_t fullHeight = image.subtex->height;
-
-    Tex3DS_SubTexture clippedSubtex = {
-        halfWidth,
-        fullHeight,
-        uvLeft,
-        origTop,
-        uvRight,
-        origBottom};
-
-    C2D_ImageTint tinty;
-    C2D_AlphaImageTint(&tinty, speechIndicatorImage->opacity);
-
-    // Render using the clipped subtexture
-    float scaleX = static_cast<float>(indicatorSize) / static_cast<float>(halfWidth);
-    float scaleY = static_cast<float>(indicatorSize) / static_cast<float>(fullHeight);
-    float adjustedY = static_cast<float>(indicatorY) + (static_cast<float>(fullHeight) / 2.0f) - (static_cast<float>(indicatorSize) / 2.0f);
-    C2D_DrawImageAt({image.tex, &clippedSubtex}, static_cast<float>(indicatorX), adjustedY, 1, &tinty, scaleX, scaleY);
+    speechIndicatorImage->render(params);
 }

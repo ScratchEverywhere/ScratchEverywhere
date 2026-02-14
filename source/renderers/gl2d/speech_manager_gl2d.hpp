@@ -7,7 +7,7 @@ class Image;
 
 class SpeechManagerGL2D : public SpeechManager {
   private:
-    std::unique_ptr<Image> speechIndicatorImage;
+    std::shared_ptr<Image> speechIndicatorImage;
 
   protected:
     double getCurrentTime() override;

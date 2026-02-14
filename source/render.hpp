@@ -11,8 +11,6 @@ class SpeechManager;
 
 class Render {
   public:
-    static std::chrono::system_clock::time_point startTime;
-    static std::chrono::system_clock::time_point endTime;
     static bool debugMode;
     static float renderScale;
 
@@ -72,6 +70,9 @@ class Render {
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
 
+        sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+        sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+
         // If the window size changed, or if the sprite changed costumes
         if (sprite->renderInfo.forceUpdate || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
             // change all renderinfo a bit to update position for all
@@ -88,11 +89,7 @@ class Render {
             sprite->renderInfo.oldRotation++;
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
-#ifdef RENDERER_GL2D
-            sprite->renderInfo.renderScaleX = sprite->size * 0.005;
-#else
-            sprite->renderInfo.renderScaleX = sprite->size * (isSVG ? 0.01 : 0.005);
-#endif
+            sprite->renderInfo.renderScaleX = sprite->size * 0.01;
 
             if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
                 float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
@@ -123,44 +120,44 @@ class Render {
             float spriteX = static_cast<int>(sprite->xPosition);
             float spriteY = static_cast<int>(sprite->yPosition);
 
+            int rotCenterX = sprite->rotationCenterX;
+            int rotCenterY = sprite->rotationCenterY;
+
+            if (isSVG) {
+                rotCenterX *= 2;
+                rotCenterY *= 2;
+            }
+
             // Handle if the sprite's image is not centered in the costume editor
-            if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
-                sprite->spriteHeight - sprite->rotationCenterY != 0) {
-                const int shiftAmount = !isSVG ? 1 : 0;
-                int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> shiftAmount;
-                const int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> shiftAmount;
+            if (sprite->spriteWidth - rotCenterX != 0 ||
+                sprite->spriteHeight - rotCenterY != 0) {
+
+                float offsetX = (sprite->spriteWidth - rotCenterX) * 0.5f;
+                float offsetY = (sprite->spriteHeight - rotCenterY) * 0.5f;
 
                 if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0)
                     offsetX *= -1;
 
                 // Offset based on size
-                if (sprite->size != 100.0f) {
-                    const float scale = sprite->size * 0.01;
-                    const float scaledX = offsetX * scale;
-                    const float scaledY = offsetY * scale;
-
-                    spriteX += scaledX - offsetX;
-                    spriteY -= scaledY - offsetY;
-                }
+                float scale = sprite->size * 0.01f;
+                offsetX *= scale;
+                offsetY *= scale;
 
                 // Offset based on rotation
-                if (sprite->renderInfo.renderRotation != 0) {
-                    float rot = sprite->renderInfo.renderRotation;
-                    float rotatedX = -offsetX * std::cos(rot) + offsetY * std::sin(rot);
-                    float rotatedY = -offsetX * std::sin(rot) - offsetY * std::cos(rot);
-                    spriteX += rotatedX;
-                    spriteY -= rotatedY;
-                } else {
-                    spriteX += offsetX;
-                    spriteY -= offsetY;
-                }
-            }
+                if (sprite->renderInfo.renderRotation != 0.0f) {
+                    float rotCos = cos(sprite->renderInfo.renderRotation);
+                    float rotSin = sin(sprite->renderInfo.renderRotation);
 
-#ifdef RENDERER_CITRO2D
-            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-                spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
+                    float rotX = offsetX * rotCos - offsetY * rotSin;
+                    float rotY = offsetX * rotSin + offsetY * rotCos;
+
+                    offsetX = rotX;
+                    offsetY = rotY;
+                }
+
+                spriteX += offsetX;
+                spriteY -= offsetY;
             }
-#endif
 
             if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
@@ -169,11 +166,6 @@ class Render {
                 renderX = static_cast<int>(spriteX + (screenWidth >> 1));
                 renderY = static_cast<int>(-spriteY + (screenHeight >> 1));
             }
-
-#if defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-            renderX -= (sprite->spriteWidth * sprite->renderInfo.renderScaleY);
-            renderY -= (sprite->spriteHeight * sprite->renderInfo.renderScaleY);
-#endif
 
             sprite->renderInfo.renderX = renderX;
             sprite->renderInfo.renderY = renderY;

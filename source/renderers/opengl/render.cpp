@@ -1,6 +1,6 @@
 #include "render.hpp"
-#include "image.hpp"
 #include "speech_manager_gl.hpp"
+#include <image_gl.hpp>
 #include <window.hpp>
 #if defined(WINDOWING_GLFW)
 #include <windowing/glfw/window.hpp>
@@ -41,8 +41,6 @@ bool Render::hasFrameBegan;
 std::vector<Monitor> Render::visibleVariables;
 std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
@@ -86,8 +84,6 @@ bool Render::Init() {
 
     setRenderScale();
 
-    speechManager = new SpeechManagerGL();
-
     debugMode = true;
 
     return true;
@@ -98,7 +94,6 @@ void Render::deInit() {
         glDeleteTextures(1, &penTexture);
         penTexture = 0;
     }
-    Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
 
@@ -119,6 +114,7 @@ void *Render::getRenderer() {
 }
 
 SpeechManager *Render::getSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerGL();
     return speechManager;
 }
 
@@ -289,23 +285,18 @@ void Render::penDot(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {
-    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
-    if (imgFind == images.end()) {
+    const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
-    imgFind->second.freeTimer = imgFind->second.maxFreeTime;
+
+    Image_GL *image = reinterpret_cast<Image_GL *>(imgFind->second.get());
 
     preparePenDrawing();
     glEnable(GL_TEXTURE_2D);
 
-    ImageData &image = imgFind->second;
-    image.freeTimer = image.maxFreeTime;
-    glBindTexture(GL_TEXTURE_2D, image.textureID);
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-    sprite->spriteWidth = image.width >> 1;
-    sprite->spriteHeight = image.height >> 1;
+    glBindTexture(GL_TEXTURE_2D, image->textureID);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -323,53 +314,19 @@ void Render::penStamp(Sprite *sprite) {
         penY *= scale;
     }
 
-    float renderScaleX = Scratch::hqpen ? sprite->renderInfo.renderScaleX : sprite->size / (isSVG ? 100.0f : 200.0f);
-    float renderScaleY = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / (isSVG ? 100.0f : 200.0f);
-    if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-        renderScaleX = -std::abs(renderScaleX);
-    } else {
-        renderScaleX = std::abs(renderScaleX);
-    }
+    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / 100.0f;
 
-    // set ghost effect
-    float ghost = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
-    uint8_t alpha = static_cast<uint8_t>(255 * (1.0f - ghost / 100.0f));
-    float brightness = std::clamp(sprite->brightnessEffect, -100.0f, 100.0f) / 100.0f;
+    ImageRenderParams params;
+    params.centered = true;
+    params.x = penX;
+    params.y = penY;
+    params.scale = renderScale;
+    params.rotation = sprite->renderInfo.renderRotation;
+    params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
+    params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+    params.brightness = sprite->brightnessEffect;
 
-    auto drawQuad = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-        glColor4ub(r, g, b, a);
-        glBegin(GL_QUADS);
-        glTexCoord2f(0.0f, 0.0f);
-        glVertex2f(0.0f, 0.0f);
-        glTexCoord2f(1.0f, 0.0f);
-        glVertex2f((float)image.width, 0.0f);
-        glTexCoord2f(1.0f, 1.0f);
-        glVertex2f((float)image.width, (float)image.height);
-        glTexCoord2f(0.0f, 1.0f);
-        glVertex2f(0.0f, (float)image.height);
-        glEnd();
-    };
-
-    glPushMatrix();
-    glTranslatef(penX, penY, 0.0f);
-    glRotatef(Math::radiansToDegrees(sprite->renderInfo.renderRotation), 0.0f, 0.0f, 1.0f);
-    glScalef(renderScaleX, renderScaleY, 1.0f);
-    glTranslatef(-image.width / 2.0f, -image.height / 2.0f, 0.0f);
-
-    // set brightness effect
-    if (brightness >= 0) {
-        drawQuad(255, 255, 255, alpha);
-        if (brightness > 0) {
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-            drawQuad(255, 255, 255, (uint8_t)(255 * brightness * (alpha / 255.0f)));
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        }
-    } else {
-        uint8_t col = (uint8_t)(255 * (1.0f + brightness));
-        drawQuad(col, col, col, alpha);
-    }
-
-    glPopMatrix();
+    image->render(params);
 
     finishPenDrawing();
 }
@@ -391,7 +348,6 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 
 void Render::endFrame(bool shouldFlush) {
     if (globalWindow) globalWindow->swapBuffers();
-    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
@@ -514,76 +470,28 @@ void Render::renderSprites() {
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
 
-        auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
-        if (imgFind != images.end()) {
-            ImageData &image = imgFind->second;
-            glBindTexture(GL_TEXTURE_2D, image.textureID);
-
-            currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
-            currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
-            currentSprite->spriteWidth = image.width >> 1;
-            currentSprite->spriteHeight = image.height >> 1;
-
-            if (!currentSprite->visible) continue;
-
-            image.freeTimer = image.maxFreeTime;
+        auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        if (imgFind != Scratch::costumeImages.end()) {
+            Image_GL *image = reinterpret_cast<Image_GL *>(imgFind->second.get());
+            glBindTexture(GL_TEXTURE_2D, image->textureID);
 
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
-            int renderX = currentSprite->renderInfo.renderX;
-            int renderY = currentSprite->renderInfo.renderY;
+            if (!currentSprite->visible) continue;
 
-            float renderScaleX = currentSprite->renderInfo.renderScaleX;
-            float renderScaleY = currentSprite->renderInfo.renderScaleY;
+            ImageRenderParams params;
+            params.centered = true;
+            params.x = currentSprite->renderInfo.renderX;
+            params.y = currentSprite->renderInfo.renderY;
+            params.rotation = currentSprite->renderInfo.renderRotation;
+            params.scale = currentSprite->renderInfo.renderScaleY;
+            params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
+            params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+            params.brightness = currentSprite->brightnessEffect;
 
-            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-                renderScaleX = -std::abs(renderScaleX);
-            } else {
-                renderScaleX = std::abs(renderScaleX);
-            }
-
-            // set ghost effect
-            float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
-            uint8_t alpha = static_cast<uint8_t>(255 * (1.0f - ghost / 100.0f));
-            float brightness = std::clamp(currentSprite->brightnessEffect, -100.0f, 100.0f) / 100.0f;
-
-            auto drawQuad = [&](uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-                glColor4ub(r, g, b, a);
-                float w = (float)image.width;
-                float h = (float)image.height;
-                glBegin(GL_QUADS);
-                glTexCoord2f(0.0f, 0.0f);
-                glVertex2f(0.0f, 0.0f);
-                glTexCoord2f(1.0f, 0.0f);
-                glVertex2f(w, 0.0f);
-                glTexCoord2f(1.0f, 1.0f);
-                glVertex2f(w, h);
-                glTexCoord2f(0.0f, 1.0f);
-                glVertex2f(0.0f, h);
-                glEnd();
-            };
-
-            glPushMatrix();
-            glTranslatef((float)renderX, (float)renderY, 0.0f);
-            glRotatef((float)Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), 0.0f, 0.0f, 1.0f);
-            glScalef(renderScaleX, renderScaleY, 1.0f);
-            glTranslatef(-image.width / 2.0f, -image.height / 2.0f, 0.0f);
-
-            // set brightness effect
-            if (brightness >= 0) {
-                drawQuad(255, 255, 255, alpha);
-                if (brightness > 0) {
-                    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-                    drawQuad(255, 255, 255, (uint8_t)(255 * brightness * (alpha / 255.0f)));
-                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                }
-            } else {
-                uint8_t col = (uint8_t)(255 * (1.0f + brightness));
-                drawQuad(col, col, col, alpha);
-            }
-
-            glPopMatrix();
+            image->render(params);
         }
+
         if (currentSprite->isStage) renderPenLayer();
     }
 

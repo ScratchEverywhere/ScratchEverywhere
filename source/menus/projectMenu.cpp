@@ -162,12 +162,12 @@ void ProjectMenu::render() {
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"})) {
 
-            if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBoxFast") != std::string::npos) {
+            if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
                 // Unpacked sb3
                 Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
                 MenuManager::loadProject();
                 return;
-            } else if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBox") != std::string::npos) {
+            } else if (projectControl->selectedObject->imageId.find("projectBox") != std::string::npos) {
                 // normal sb3
                 Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
                 MenuManager::loadProject();
