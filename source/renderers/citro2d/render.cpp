@@ -459,8 +459,8 @@ void Render::renderSprites() {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float yOffset = renderMode == BOTH_SCREENS ? -screenHeight : 0.0f;
-                const float xOffset = renderMode == BOTH_SCREENS ? -(screenWidth - bottomScreenWidth) * 0.5 : 0.0f;
+                const float yOffset = renderMode == BOTH_SCREENS ? -240 : 0.0f;
+                const float xOffset = renderMode == BOTH_SCREENS ? -40 : 0.0f;
 
                 C2D_DrawImageAt(penImage,
                                 xOffset,
