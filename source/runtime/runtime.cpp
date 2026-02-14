@@ -213,7 +213,7 @@ void Scratch::stopClicked() {
     for (auto *spr : toDelete) {
         delete spr;
         Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
-                                   Scratch::sprites.end());
+                               Scratch::sprites.end());
     }
     for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
@@ -487,31 +487,53 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
-    double halfWidth = Scratch::projectWidth / 2.0;
-    double halfHeight = Scratch::projectHeight / 2.0;
-    double scale = sprite->size / 100.0;
-    double spriteHalfWidth = sprite->spriteWidth * scale;
-    double spriteHalfHeight = sprite->spriteHeight * scale;
 
-    // how much of the sprite remains visible when fenced
-    const double sliverSize = 15.0;
+    if (sprite->spriteWidth == 0 || sprite->spriteHeight == 0) loadCurrentCostumeImage(sprite);
 
-    const double inset = std::floor(std::min(spriteHalfWidth, spriteHalfHeight));
+    std::vector<std::pair<double, double>> points = Scratch::getCollisionPoints(sprite);
 
-    double maxX = halfWidth - std::min(inset, sliverSize);
-    double maxY = halfHeight - std::min(inset, sliverSize);
+    double rawMinX = std::numeric_limits<double>::max();
+    double rawMaxX = std::numeric_limits<double>::lowest();
+    double rawMinY = std::numeric_limits<double>::max();
+    double rawMaxY = std::numeric_limits<double>::lowest();
 
-    if (sprite->xPosition - spriteHalfWidth > maxX) {
-        sprite->xPosition = maxX + spriteHalfWidth;
+    for (const auto &p : points) {
+        rawMinX = std::min(rawMinX, p.first);
+        rawMaxX = std::max(rawMaxX, p.first);
+        rawMinY = std::min(rawMinY, p.second);
+        rawMaxY = std::max(rawMaxY, p.second);
     }
-    if (sprite->xPosition + spriteHalfWidth < -maxX) {
-        sprite->xPosition = (-maxX) - spriteHalfWidth;
+
+    const float minX = std::floor(rawMinX);
+    const float maxX = std::ceil(rawMaxX);
+    const float minY = std::floor(rawMinY);
+    const float maxY = std::ceil(rawMaxY);
+
+    const float sprWidth = maxX - minX;
+    const float sprHeight = maxY - minY;
+
+    const float inset = std::floor(std::min(15.0, std::min(sprWidth, sprHeight) / 2.0));
+
+    const float distToLeft = std::floor((sprWidth - 1.0) / 2.0);
+    const float distToRight = std::floor((sprWidth - 1.0) / 2.0);
+    const float distToBottom = std::floor((sprHeight - 1.0) / 2.0);
+    const float distToTop = std::floor((sprHeight - 1.0) / 2.0);
+
+    const float stageRight = Scratch::projectWidth / 2.0;
+    const float stageLeft = -stageRight;
+    const float stageTop = Scratch::projectHeight / 2.0;
+    const float stageBottom = -stageTop;
+
+    if (minX > stageRight - inset) {
+        sprite->xPosition = (stageRight - inset) + distToLeft;
+    } else if (maxX < stageLeft + inset) {
+        sprite->xPosition = (stageLeft + inset) - distToRight;
     }
-    if (sprite->yPosition - spriteHalfHeight > maxY) {
-        sprite->yPosition = maxY + spriteHalfHeight;
-    }
-    if (sprite->yPosition + spriteHalfHeight < -maxY) {
-        sprite->yPosition = (-maxY) - spriteHalfHeight;
+
+    if (minY > stageTop - inset) {
+        sprite->yPosition = (stageTop - inset) + distToBottom;
+    } else if (maxY < stageBottom + inset) {
+        sprite->yPosition = (stageBottom + inset) - distToTop;
     }
 }
 

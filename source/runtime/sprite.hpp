@@ -193,8 +193,8 @@ class Sprite {
 
     RotationStyle rotationStyle;
     std::vector<std::pair<double, double>> collisionPoints;
-    int spriteWidth;
-    int spriteHeight;
+    int spriteWidth = 0;
+    int spriteHeight = 0;
 
     struct {
         bool down = false;
