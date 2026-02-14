@@ -179,17 +179,19 @@ void MenuImage::render(double xPos, double yPos) {
     renderX = proportionX * Render::getWidth();
     renderY = proportionY * Render::getHeight();
 
+    const float renderScale = scale * getScaleFactor();
+
     if (enableNineslice) {
         if (width <= 0 && height <= 0) {
-            image->renderNineslice(renderX, renderY, image->getWidth() * scale, image->getHeight() * scale, 8 /* TODO: make this customizable */, true);
+            image->renderNineslice(renderX, renderY, image->getWidth() * renderScale, image->getHeight() * renderScale, 8 /* TODO: make this customizable */, true);
             return;
         }
-        image->renderNineslice(renderX, renderY, width * scale, height * scale, 8 /* TODO: make this customizable */, true);
+        image->renderNineslice(renderX, renderY, width * renderScale, height * renderScale, 8 /* TODO: make this customizable */, true);
     } else {
         ImageRenderParams params;
         params.x = renderX;
         params.y = renderY;
-        params.scale = scale;
+        params.scale = renderScale;
         params.centered = true;
         image->render(params);
     }
