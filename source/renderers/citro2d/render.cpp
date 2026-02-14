@@ -294,8 +294,8 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
 
     ImageRenderParams params;
     params.centered = true;
-    params.x = currentSprite->renderInfo.renderX;
-    params.y = currentSprite->renderInfo.renderY;
+    params.x = currentSprite->renderInfo.renderX + xOffset;
+    params.y = currentSprite->renderInfo.renderY + yOffset;
     params.rotation = currentSprite->renderInfo.renderRotation;
     params.scale = currentSprite->renderInfo.renderScaleY;
     params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
