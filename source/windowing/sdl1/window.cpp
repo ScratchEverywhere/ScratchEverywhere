@@ -14,6 +14,10 @@
 SDL_Joystick *controller = nullptr;
 #endif
 
+#ifdef __PC__
+bool isFullscreen = false;
+#endif
+
 #ifdef RENDERER_OPENGL
 static auto lastFrameTime = std::chrono::high_resolution_clock::now();
 static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-like behavior
@@ -59,6 +63,35 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     return true;
 }
 
+#ifdef __PC__
+void WindowSDL1::toggleFullscreen()
+{
+    isFullscreen = !isFullscreen;
+
+    Uint32 flags = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE;
+#ifdef RENDERER_OPENGL
+    flags |= SDL_OPENGL;
+#endif
+
+    if (isFullscreen) {
+        flags |= SDL_FULLSCREEN;
+    }
+
+    window = SDL_SetVideoMode(width, height, 32, flags);
+
+    if (!window) {
+        Log::logError("<SDL> Cannot toggle fullscreen.");
+        return;
+    }
+
+#ifdef RENDERER_OPENGL
+    glViewport(0, 0, width, height);
+#endif
+
+    resize(width, height);
+}
+#endif
+
 void WindowSDL1::cleanup() {
 #ifdef PLATFORM_HAS_CONTROLLER
     if (controller) SDL_JoystickClose(controller);
@@ -78,6 +111,13 @@ void WindowSDL1::pollEvents() {
             OS::toExit = true;
             shouldCloseFlag = true;
             break;
+#ifdef __PC__
+        case SDL_KEYDOWN:
+            if (event.key.keysym.sym == SDLK_F11) {
+                toggleFullscreen();
+            }
+            break;
+#endif
         case SDL_VIDEORESIZE:
             resize(event.resize.w, event.resize.h);
             break;

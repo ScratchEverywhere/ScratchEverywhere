@@ -53,6 +53,9 @@ SDL_GameController *controller = nullptr;
 
 #ifdef PLATFORM_HAS_TOUCH
 bool touchActive = false;
+#ifdef __PC__
+bool isFullscreen = false;
+#endif
 SDL_Point touchPosition;
 #endif
 
@@ -228,6 +231,26 @@ postAccount:
     return true;
 }
 
+#ifdef __PC__
+void WindowSDL2::toggleFullscreen() {
+    isFullscreen = !isFullscreen;
+
+    if (isFullscreen) {
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    } else {
+        SDL_SetWindowFullscreen(window, 0);
+    }
+
+    int w, h;
+#ifdef RENDERER_OPENGL
+    SDL_GL_GetDrawableSize(window, &w, &h);
+#else
+    SDL_GetWindowSizeInPixels(window, &w, &h);
+#endif
+    resize(w, h);
+}
+#endif
+
 void WindowSDL2::cleanup() {
 #ifdef PLATFORM_HAS_CONTROLLER
     if (controller) SDL_GameControllerClose(controller);
@@ -259,6 +282,13 @@ void WindowSDL2::pollEvents() {
             OS::toExit = true;
             shouldCloseFlag = true;
             break;
+#ifdef __PC__
+        case SDL_KEYDOWN:
+            if (event.key.repeat == 0 && event.key.keysym.sym == SDLK_F11) {
+                toggleFullscreen();
+            }
+        break;
+#endif
         case SDL_WINDOWEVENT:
             if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 int w, h;
