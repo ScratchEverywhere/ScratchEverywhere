@@ -357,7 +357,6 @@ inline bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
 
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
     // Get collision points of the current sprite
-    std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
 
     if (collisionType == "mouse") {
         // Define a small square centered on the mouse pointer
@@ -372,6 +371,8 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
         };
 
         bool collision = true;
+
+        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
 
         for (int i = 0; i < 4; i++) {
             auto edge1 = std::pair{
@@ -407,6 +408,8 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
         double halfWidth = Scratch::projectWidth / 2.0;
         double halfHeight = Scratch::projectHeight / 2.0;
 
+        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
+
         for (const auto &point : currentSpritePoints) {
             if (point.first <= -halfWidth || point.first >= halfWidth ||
                 point.second <= -halfHeight || point.second >= halfHeight)
@@ -429,6 +432,42 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
             return false;
         }
 
+        // non rotated Sprite collision
+        if ((currentSprite->rotationStyle != currentSprite->ALL_AROUND || std::abs(currentSprite->rotation) == 90.0f) &&
+            (targetSprite->rotationStyle != currentSprite->ALL_AROUND || std::abs(targetSprite->rotation) == 90.0f)) {
+
+            const float currentSize = currentSprite->size * 0.01f;
+            const float targetSize = targetSprite->size * 0.01f;
+
+            const float currentLeft = (currentSprite->xPosition - currentSprite->spriteWidth / 2) * currentSize;
+            const float currentRight = (currentSprite->xPosition + currentSprite->spriteWidth / 2) * currentSize;
+            const float currentTop = (currentSprite->yPosition - currentSprite->spriteHeight / 2) * currentSize;
+            const float currentBottom = (currentSprite->yPosition + currentSprite->spriteHeight / 2) * currentSize;
+
+            const float targetLeft = (targetSprite->xPosition - targetSprite->spriteWidth / 2) * targetSize;
+            const float targetRight = (targetSprite->xPosition + targetSprite->spriteWidth / 2) * targetSize;
+            const float targetTop = (targetSprite->yPosition - targetSprite->spriteHeight / 2) * targetSize;
+            const float targetBottom = (targetSprite->yPosition + targetSprite->spriteHeight / 2) * targetSize;
+
+            if (currentRight < targetLeft || currentLeft > targetRight || currentBottom < targetTop || currentTop > targetBottom)
+                return false;
+
+            return true;
+        }
+
+        // rotated Sprite collision
+
+        // quick aabb first to save on performance
+        const int currentSize = std::max(currentSprite->spriteWidth, currentSprite->spriteHeight) * currentSprite->size * 0.01;
+        const int targetSize = std::max(targetSprite->spriteWidth, targetSprite->spriteHeight) * targetSprite->size * 0.01;
+        if (currentSprite->xPosition + currentSize < targetSprite->xPosition - targetSize ||
+            currentSprite->xPosition - currentSize > targetSprite->xPosition + targetSize ||
+            currentSprite->yPosition + currentSize < targetSprite->yPosition - targetSize ||
+            currentSprite->yPosition - currentSize > targetSprite->yPosition + targetSize) {
+            return false;
+        }
+
+        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
         std::vector<std::pair<double, double>> targetSpritePoints = Scratch::getCollisionPoints(targetSprite);
 
         bool collision = true;
@@ -487,6 +526,9 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
+
+    if (std::abs(sprite->xPosition) < Scratch::projectWidth * 0.3 && std::abs(sprite->yPosition) < Scratch::projectHeight * 0.3)
+        return;
 
     if (sprite->spriteWidth == 0 || sprite->spriteHeight == 0) loadCurrentCostumeImage(sprite);
 
