@@ -31,16 +31,17 @@ bool SoundPlayer::init() {
         Log::logError("Could not init SDL Mixer! " + std::string(SDL_GetError()));
         return false;
     }
-    SDL_AudioDeviceID device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
-    if (!device) {
-        Log::logWarning("Failed to open audio device: " + std::string(SDL_GetError()));
-        return false;
-    }
 
     SDL_AudioSpec spac;
     spac.channels = 2;
     spac.format = SDL_AUDIO_S16LE;
     spac.freq = 44100;
+
+    SDL_AudioDeviceID device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spac);
+    if (!device) {
+        Log::logWarning("Failed to open audio device: " + std::string(SDL_GetError()));
+        return false;
+    }
 
     // Create the mixer
     mixer = MIX_CreateMixerDevice(device, &spac);

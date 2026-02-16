@@ -71,6 +71,7 @@ bool Scratch::startScratchProject() {
     BlockExecutor::updateMonitors();
     Render::renderSprites();
 #endif
+    Render::setRenderScale();
 
     Scratch::greenFlagClicked();
 
