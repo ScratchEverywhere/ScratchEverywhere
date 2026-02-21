@@ -12,6 +12,8 @@ Value::Value(std::string val) : value(std::move(val)) {}
 
 Value::Value(bool val) : value(val) {}
 
+Value::Value(Undefined val) : value(val) {}
+
 double Value::asDouble() const {
     if (isDouble()) {
         if (isNaN()) return 0.0;
@@ -40,6 +42,8 @@ std::string Value::asString() const {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
         return std::get<bool>(value) ? "true" : "false";
+    } else if (isUndefined()) {
+        return "undefined";
     } else if (isColor()) {
         const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         const char hex_chars[] = "0123456789abcdef";
