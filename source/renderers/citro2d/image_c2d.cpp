@@ -158,7 +158,7 @@ void Image_C2D::setInitialTexture() {
         throw std::runtime_error("Texture initializing failed!");
     }
 
-    C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
+    C3D_TexSetFilter(tex, GPU_NEAREST, GPU_LINEAR);
 
     if (!tex->data) {
         C3D_TexDelete(tex);
