@@ -310,3 +310,11 @@ SCRATCH_REPORTER_BLOCK(motion, yposition) {
 SCRATCH_REPORTER_BLOCK(motion, direction) {
     return Value(sprite->rotation);
 }
+
+SCRATCH_REPORTER_BLOCK(motion, xscroll) {
+    return Value(Undefined{});
+}
+
+SCRATCH_REPORTER_BLOCK(motion, yscroll) {
+    return Value(Undefined{});
+}

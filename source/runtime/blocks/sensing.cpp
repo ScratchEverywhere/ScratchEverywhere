@@ -162,3 +162,7 @@ SCRATCH_REPORTER_BLOCK(sensing, username) {
 SCRATCH_REPORTER_BLOCK(sensing, online) {
     return Value(OS::isOnline());
 }
+
+SCRATCH_REPORTER_BLOCK(sensing, userid) {
+    return Value(Undefined{});
+}

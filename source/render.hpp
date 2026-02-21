@@ -195,6 +195,30 @@ class Render {
     }
 
     /**
+     * Gets a variable value as a string for display
+     */
+    static std::string getVariableValueString(Value value) {
+        if (value.isDouble()) {
+            return Math::toString(std::round(value.asDouble() * 1e6) / 1e6); // js Number(value.toFixed(6))
+        } else if (value.isUndefined()) {
+            return ""; // Scratch keeps the original value, leave blank for now
+        } else {
+            return value.asString();
+        }
+    }
+
+    /**
+     * Gets a list value as a string for display
+     */
+    static std::string getListValueString(Value value) {
+        if (value.isUndefined()) {
+            return ""; // Scratch crashes, TurboWarp shows empty string
+        } else {
+            return value.asString();
+        }
+    }
+
+    /**
      * Gets the color for a monitor value background based on opcode
      */
     static ColorRGBA getMonitorValueColor(const std::string &opcode) {
@@ -300,7 +324,7 @@ class Render {
                             drawBox(monitorW - (24 * scale), boxHeight, monitorX + (22 * scale) + (monitorW - (28 * scale)) / 2, monitorY + boxHeight + item_y + (boxHeight / 2), 252, 102, 44);
 
                             std::unique_ptr<TextObject> &itemText = monitorGfx.items[index];
-                            itemText->setText(s.asString());
+                            itemText->setText(getListValueString(s));
                             itemText->setColor(Math::color(255, 255, 255, 255));
                             itemText->setScale(1.0f * (scale / 2.0f));
                             itemText->setCenterAligned(false);
@@ -394,7 +418,7 @@ class Render {
                     }
 
                 } else {
-                    std::string renderText = var.value.asString();
+                    std::string renderText = getVariableValueString(var.value);
                     if (monitorTexts.find(var.id) == monitorTexts.end()) {
                         monitorTexts[var.id].first = createTextObject(var.displayName.empty() ? " " : var.displayName, var.x, var.y);
                         monitorTexts[var.id].second = createTextObject(renderText.empty() ? " " : renderText, var.x, var.y);
