@@ -23,7 +23,7 @@ over to 6-8th-generation console and handheld platforms (and more)!
 <p align="center">
 	<img alt="Runtime running a Scratch project on Wii U, Wii, and 3DS" src="docs/demo.gif" />
 	<br>
-	<sub>(Game shown is [Hopper Heros](https://scratch.mit.edu/projects/1184969400/) by pepper-prepper)</sub>
+	<sub>(Game shown is <a href="https://scratch.mit.edu/projects/1184969400">Hopper Heros</a> by pepper-prepper)</sub>
 </p>
 
 ## Controls
