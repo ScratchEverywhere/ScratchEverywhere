@@ -56,7 +56,7 @@ COPY --from=makerom_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portli
 
 RUN apt update && apt install -y --no-install-recommends build-essential git ca-certificates cmake
 
-RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build && cp build/bannertool /opt/devkitpro/portlibs/3ds/bin/
+RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && git checkout 3767e03b0492654bdff7be7beacf32b5b6a60415 && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build && cp build/bannertool /opt/devkitpro/portlibs/3ds/bin/
 
 FROM devkitpro/devkitarm:latest AS main_builder
 WORKDIR /app
