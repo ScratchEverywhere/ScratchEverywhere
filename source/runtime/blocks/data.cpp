@@ -6,13 +6,13 @@
 constexpr unsigned int MAX_LIST_ITEMS = 200000;
 
 SCRATCH_BLOCK(data, setvariableto) {
-    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Scratch::getInputValue(block, "VALUE", sprite), sprite);
+    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Scratch::getInputValue(block, "VALUE", sprite), sprite, &block);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(data, changevariableby) {
     const std::string varId = Scratch::getFieldId(block, "VARIABLE");
-    BlockExecutor::setVariableValue(varId, Value(Scratch::getInputValue(block, "VALUE", sprite) + BlockExecutor::getVariableValue(varId, sprite)), sprite);
+    BlockExecutor::setVariableValue(varId, Value(Scratch::getInputValue(block, "VALUE", sprite) + BlockExecutor::getVariableValue(varId, sprite, &block)), sprite, &block);
     return BlockResult::CONTINUE;
 }
 

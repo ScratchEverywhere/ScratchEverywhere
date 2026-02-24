@@ -47,6 +47,20 @@ void BlockExecutor::linkBlocks(Sprite *sprite) {
             auto vit = vh.find(block.opcode);
             if (vit != vh.end()) block.valueHandler = vit->second;
         }
+
+        auto variableId = Scratch::getFieldId(block, "VARIABLE");
+        if (variableId != "") {
+            auto it = sprite->variables.find(variableId);
+            if (it != sprite->variables.end()) {
+                block.variable = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->variables.find(variableId);
+            if (globalIt != Scratch::stageSprite->variables.end()) {
+                block.variable = &globalIt->second;
+            }
+        }
     }
 }
 
@@ -393,7 +407,15 @@ Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
     return Value();
 }
 
-void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
+void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite, Block *block) {
+    if (block != nullptr && block->variable != nullptr) {
+        block->variable->value = newValue;
+#ifdef ENABLE_CLOUDVARS
+        if (block->variable->cloud) cloudConnection->set(block->variable->name, block->variable->value.asString());
+#endif
+        return;
+    }
+
     // Set sprite variable
     const auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
@@ -476,7 +498,9 @@ void BlockExecutor::updateMonitors() {
     }
 }
 
-Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
+Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *sprite, Block *block) {
+    if (block != nullptr && block->variable != nullptr) return block->variable->value;
+
     // Check sprite variables
     const auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) return it->second.value;
@@ -500,12 +524,8 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     }
 
     // Check global variables
-    for (const auto &currentSprite : Scratch::sprites) {
-        if (currentSprite->isStage) {
-            const auto globalIt = currentSprite->variables.find(variableId);
-            if (globalIt != currentSprite->variables.end()) return globalIt->second.value;
-        }
-    }
+    const auto globalIt = Scratch::stageSprite->variables.find(variableId);
+    if (globalIt != Scratch::stageSprite->variables.end()) return globalIt->second.value;
 
     // Check global lists
     for (const auto &currentSprite : Scratch::sprites) {

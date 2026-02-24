@@ -66,6 +66,8 @@ struct Block {
     BlockResult (*handler)(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) = nullptr;
     Value (*valueHandler)(Block &block, Sprite *sprite) = nullptr;
 
+    Variable *variable = nullptr;
+
     /* variables that some blocks need*/
     double repeatTimes;
     double waitDuration;

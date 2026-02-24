@@ -145,7 +145,7 @@ class BlockExecutor {
      * @param sprite Pointer to the sprite the variable is inside. If the variable is global, it would be in the Stage Sprite.
      * @return The Value of the Variable.
      */
-    static Value getVariableValue(std::string variableId, Sprite *sprite);
+    static Value getVariableValue(const std::string &variableId, Sprite *sprite, Block *block = nullptr);
 
     /**
      * Updates the values of all visible Monitors.
@@ -167,7 +167,7 @@ class BlockExecutor {
      * @param newValue the new Value to set.
      * @param sprite Pointer to the sprite the variable is inside. If the variable is global, it would be in the Stage Sprite.
      */
-    static void setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite);
+    static void setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite, Block *block = nullptr);
 
 #ifdef ENABLE_CLOUDVARS
     /**
