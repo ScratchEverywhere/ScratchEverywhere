@@ -48,6 +48,7 @@ bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
 bool Scratch::forceRedraw = false;
+bool Scratch::accuratePen = false;
 
 double Scratch::counter = 0;
 
@@ -522,7 +523,10 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 
     if (Scratch::fencing) fenceSpriteWithinBounds(sprite);
 
-    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) {
+        if (accuratePen) Render::penMoveAccurate(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+        else Render::penMoveFast(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    }
     Scratch::forceRedraw = true;
 }
 

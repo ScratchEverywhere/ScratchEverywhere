@@ -223,7 +223,15 @@ static void finishPenDrawing() {
     glPopAttrib();
 }
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penMoveAccurate(x1, y1, x2, y2, sprite);
+}
+
+void Render::penDotFast(Sprite *sprite) {
+    penDotAccurate(sprite);
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
 
@@ -264,7 +272,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     finishPenDrawing();
 }
 
-void Render::penDot(Sprite *sprite) {
+void Render::penDotAccurate(Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
 

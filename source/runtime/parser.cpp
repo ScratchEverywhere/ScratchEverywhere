@@ -616,6 +616,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 #endif
 
+    auto accuratePen = Unzip::getSetting("accuratePen");
+    if (!accuratePen.is_null() && accuratePen.get<bool>())
+        Scratch::accuratePen = true;
+    else Scratch::accuratePen = false;
+
     if (infClones) Scratch::maxClones = std::numeric_limits<int>::max();
     else Scratch::maxClones = 300;
 
