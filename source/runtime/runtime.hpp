@@ -81,6 +81,7 @@ class Scratch {
     static bool turbo;
     static bool fencing;
     static bool hqpen;
+    static bool accuratePen;
     static bool miscellaneousLimits;
     static bool shouldStop;
     static bool forceRedraw;

@@ -271,6 +271,10 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
 		pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
+
+		if(NOT WEBOS)
+			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
+		endif()
 	else()
 		if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
 			message(STATUS "Test!")
@@ -295,10 +299,40 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 			OPTIONS "SDL2TTF_VENDORED ON"
 		)
 	endif()
+
+	if(NOT SE_SYSTEM OR WEBOS)
+		CPMAddPackage(
+			NAME SDL2_gfx
+			VERSION 1.0.4
+			GITHUB_REPOSITORY giroletm/SDL2_gfx
+			GIT_TAG release-1.0.4
+			DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
+		)
+		file(GLOB SDL2_GFX_SOURCES
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
+			"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
+		)
+		add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
+		target_include_directories(SDL2_gfx PUBLIC
+			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
+		)
+		if(WEBOS)
+			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
+			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
+		else()
+			target_link_libraries(SDL2_gfx PUBLIC
+				SDL2::SDL2
+			)
+		endif()
+	endif()
 elseif(SE_RENDERER STREQUAL "sdl3")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
 		pkg_check_modules(SDL3_TTF REQUIRED sdl3-ttf>=3.0.0)
+		pkg_check_modules(SDL3_GFX REQUIRED sdl3-gfx>=1.0.0)
 	else()
 		CPMAddPackage(
 			NAME SDL3
@@ -313,6 +347,11 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 			GITHUB_REPOSITORY libsdl-org/SDL_ttf
 			GIT_TAG release-3.2.2
 			OPTIONS "SDLTTF_VENDORED ON"
+		)
+		CPMAddPackage(
+			NAME SDL3_gfx
+			VERSION 1.0.1
+			GITHUB_REPOSITORY sabdul-khabir/SDL3_gfx
 		)
 	endif()
 elseif(SE_RENDERER STREQUAL "opengl")
@@ -558,22 +597,33 @@ if(SE_RENDERER STREQUAL "sdl3")
 
 	if(NOT SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS SDL3::SDL3)
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_gfx_SOURCE_DIR})
 	endif()
 
 	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_TTF_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS})
+		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
+		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
 	else()
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_ttf::SDL3_ttf-static>,
 			SDL3_ttf::SDL3_ttf-static,
 			SDL3_ttf::SDL3_ttf>)
+		list(APPEND SDL_LINK_LIBS SDL3_gfx_Static)
 	endif()
 
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 elseif(SE_RENDERER STREQUAL "sdl2")
 	set(SDL_LINK_LIBS)
+
+	if(SE_SYSTEM AND NOT WEBOS)
+		list(APPEND SDL_LINK_LIBS ${SDL2_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
+		target_link_directories(scratch-everywhere PRIVATE ${SDL2_GFX_LIBRARY_DIRS})
+	else()
+		list(APPEND SDL_LINK_LIBS SDL2_gfx)
+	endif()
 
 	if (NOT SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS SDL2::SDL2)
@@ -582,7 +632,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS ${SDL2_LIBRARIES} ${SDL2_TTF_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
-		target_link_directories(scratch-everywhere PRIVATE ${SDL2_LIBRARY_DIRS}${SDL2_TTF_LIBRARY_DIRS})
 
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)

@@ -127,8 +127,18 @@ bool Render::initPen() {
     return true;
 }
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penMoveAccurate(x1, y1, x2, y2, sprite);
+}
+
+void Render::penDotFast(Sprite *sprite) {
+    penDotAccurate(sprite);
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    uint8_t alpha = static_cast<uint8_t>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
@@ -142,7 +152,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (screenHeight * 0.5) + 32;
 
     const float heightMultiplier = 0.5f;
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, alpha);
     const float thickness = sprite->penData.size * renderScale;
 
     const float x1_scaled = (x1 * renderScale) + (width / 2);
@@ -162,7 +172,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     C2D_DrawCircleSolid(x2_scaled, y2_scaled, 0, radius, color);
 }
 
-void Render::penDot(Sprite *sprite) {
+void Render::penDotAccurate(Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);

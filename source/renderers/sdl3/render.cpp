@@ -21,6 +21,12 @@
 #include <window.hpp>
 #include <windowing/sdl3/window.hpp>
 
+#ifdef SYSTEM_LIBS
+#include <SDL3_gfx/SDL3_gfxPrimitives.h>
+#else
+#include <SDL3_gfxPrimitives.h>
+#endif
+
 #ifdef __SWITCH__
 #include <switch.h>
 
@@ -140,74 +146,74 @@ bool Render::initPen() {
     return true;
 }
 
-// void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
-//     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
 
-//     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penTexture->w, penTexture->h);
-//     SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-//     SDL_SetTextureScaleMode(tempTexture, SDL_SCALEMODE_NEAREST);
-//     SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
-//     SDL_SetRenderTarget(renderer, tempTexture);
-//     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-//     SDL_RenderClear(renderer);
+    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penTexture->w, penTexture->h);
+    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(tempTexture, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
+    SDL_SetRenderTarget(renderer, tempTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
 
-//     const double scale = (penTexture->h / static_cast<double>(Scratch::projectHeight));
+    const double scale = (penTexture->h / static_cast<double>(Scratch::projectHeight));
 
-//     const double dx = x2 * scale - x1 * scale;
-//     const double dy = y2 * scale - y1 * scale;
+    const double dx = x2 * scale - x1 * scale;
+    const double dy = y2 * scale - y1 * scale;
 
-//     const double length = sqrt(dx * dx + dy * dy);
-//     const double drawWidth = (sprite->penData.size / 2.0f) * scale;
+    const double length = sqrt(dx * dx + dy * dy);
+    const double drawWidth = (sprite->penData.size / 2.0f) * scale;
 
-//     if (length > 0) {
-//         const double nx = dx / length;
-//         const double ny = dy / length;
+    if (length > 0) {
+        const double nx = dx / length;
+        const double ny = dy / length;
 
-//         int16_t vx[4], vy[4];
-//         vx[0] = static_cast<int16_t>(x1 * scale + penTexture->w / 2.0f - ny * drawWidth);
-//         vy[0] = static_cast<int16_t>(-y1 * scale + penTexture->h / 2.0f + nx * drawWidth);
-//         vx[1] = static_cast<int16_t>(x1 * scale + penTexture->w / 2.0f + ny * drawWidth);
-//         vy[1] = static_cast<int16_t>(-y1 * scale + penTexture->h / 2.0f - nx * drawWidth);
-//         vx[2] = static_cast<int16_t>(x2 * scale + penTexture->w / 2.0f + ny * drawWidth);
-//         vy[2] = static_cast<int16_t>(-y2 * scale + penTexture->h / 2.0f - nx * drawWidth);
-//         vx[3] = static_cast<int16_t>(x2 * scale + penTexture->w / 2.0 - ny * drawWidth);
-//         vy[3] = static_cast<int16_t>(-y2 * scale + penTexture->h / 2.0f + nx * drawWidth);
+        int16_t vx[4], vy[4];
+        vx[0] = static_cast<int16_t>(x1 * scale + penTexture->w / 2.0f - ny * drawWidth);
+        vy[0] = static_cast<int16_t>(-y1 * scale + penTexture->h / 2.0f + nx * drawWidth);
+        vx[1] = static_cast<int16_t>(x1 * scale + penTexture->w / 2.0f + ny * drawWidth);
+        vy[1] = static_cast<int16_t>(-y1 * scale + penTexture->h / 2.0f - nx * drawWidth);
+        vx[2] = static_cast<int16_t>(x2 * scale + penTexture->w / 2.0f + ny * drawWidth);
+        vy[2] = static_cast<int16_t>(-y2 * scale + penTexture->h / 2.0f - nx * drawWidth);
+        vx[3] = static_cast<int16_t>(x2 * scale + penTexture->w / 2.0 - ny * drawWidth);
+        vy[3] = static_cast<int16_t>(-y2 * scale + penTexture->h / 2.0f + nx * drawWidth);
 
-//         filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
-//     }
+        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    }
 
-//     filledCircleRGBA(renderer, x1 * scale + penTexture->w / 2.0f, -y1 * scale + penTexture->h / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
-//     filledCircleRGBA(renderer, x2 * scale + penTexture->w / 2.0f, -y2 * scale + penTexture->h / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, x1 * scale + penTexture->w / 2.0f, -y1 * scale + penTexture->h / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    filledCircleRGBA(renderer, x2 * scale + penTexture->w / 2.0f, -y2 * scale + penTexture->h / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
-//     SDL_SetRenderTarget(renderer, penTexture);
-//     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-//     SDL_RenderTexture(renderer, tempTexture, NULL, NULL);
-//     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-//     SDL_SetRenderTarget(renderer, nullptr);
-//     SDL_DestroyTexture(tempTexture);
-// }
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_RenderTexture(renderer, tempTexture, NULL, NULL);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_DestroyTexture(tempTexture);
+}
 
-// void Render::penDot(Sprite *sprite) {
-//     SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penTexture->w, penTexture->h);
-//     SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-//     SDL_SetTextureScaleMode(tempTexture, SDL_SCALEMODE_NEAREST);
-//     SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
-//     SDL_SetRenderTarget(renderer, tempTexture);
-//     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-//     SDL_RenderClear(renderer);
+void Render::penDotAccurate(Sprite *sprite) {
+    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penTexture->w, penTexture->h);
+    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(tempTexture, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
+    SDL_SetRenderTarget(renderer, tempTexture);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_RenderClear(renderer);
 
-//     const double scale = (penTexture->h / static_cast<double>(Scratch::projectHeight));
+    const double scale = (penTexture->h / static_cast<double>(Scratch::projectHeight));
 
-//     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-//     filledCircleRGBA(renderer, sprite->xPosition * scale + penTexture->w / 2.0f, -sprite->yPosition * scale + penTexture->h / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    filledCircleRGBA(renderer, sprite->xPosition * scale + penTexture->w / 2.0f, -sprite->yPosition * scale + penTexture->h / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
 
-//     SDL_SetRenderTarget(renderer, penTexture);
-//     SDL_RenderTexture(renderer, tempTexture, NULL, NULL);
-//     SDL_SetRenderTarget(renderer, nullptr);
-//     SDL_DestroyTexture(tempTexture);
-// }
+    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_RenderTexture(renderer, tempTexture, NULL, NULL);
+    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_DestroyTexture(tempTexture);
+}
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0);
 
@@ -254,7 +260,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     }
 }
 
-void Render::penDot(Sprite *sprite) {
+void Render::penDotFast(Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0);
 

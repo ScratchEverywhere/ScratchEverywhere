@@ -107,7 +107,15 @@ bool Render::initPen() {
     return true;
 }
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penMoveAccurate(x1, y1, x2, y2, sprite);
+}
+
+void Render::penDotFast(Sprite *sprite) {
+    penDotAccurate(sprite);
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
 
     int penWidth = penSurface->w;
@@ -149,7 +157,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     SDL_FreeSurface(tempSurface);
 }
 
-void Render::penDot(Sprite *sprite) {
+void Render::penDotAccurate(Sprite *sprite) {
     int penWidth = penSurface->w;
     int penHeight = penSurface->h;
 
