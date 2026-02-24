@@ -5,6 +5,8 @@
 #include <string>
 #include <unordered_map>
 
+enum class BlockResult : uint8_t;
+
 class Sprite;
 
 struct RenderInfo {
@@ -59,6 +61,10 @@ struct Block {
     std::shared_ptr<std::map<std::string, ParsedField>> parsedFields;
     bool shadow;
     bool topLevel;
+
+    // Caching
+    BlockResult (*handler)(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) = nullptr;
+    Value (*valueHandler)(Block &block, Sprite *sprite) = nullptr;
 
     /* variables that some blocks need*/
     double repeatTimes;

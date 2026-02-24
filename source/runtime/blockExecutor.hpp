@@ -52,7 +52,7 @@ inline std::string_view getCurrentMenuMonitorName(std::string_view menuValue) {
 }
 } // namespace MonitorDisplayNames
 
-enum class BlockResult {
+enum class BlockResult : uint8_t {
     // Goes to the block below.
     CONTINUE,
 
@@ -60,10 +60,15 @@ enum class BlockResult {
     RETURN,
 };
 
+using BlockHandlerPtr = BlockResult (*)(Block &, Sprite *, bool *, bool);
+using ValueHandlerPtr = Value (*)(Block &, Sprite *);
+
 class BlockExecutor {
   public:
-    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> &getHandlers();
-    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &getValueHandlers();
+    static std::unordered_map<std::string, BlockHandlerPtr> &getHandlers();
+    static std::unordered_map<std::string, ValueHandlerPtr> &getValueHandlers();
+
+    static void linkBlocks(Sprite *sprite);
 
     static void executeKeyHats();
     static void doSpriteClicking();

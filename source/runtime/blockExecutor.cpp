@@ -25,14 +25,29 @@ Timer BlockExecutor::timer;
 int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
 
-std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> &BlockExecutor::getHandlers() {
-    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
+std::unordered_map<std::string, BlockHandlerPtr> &BlockExecutor::getHandlers() {
+    static std::unordered_map<std::string, BlockHandlerPtr> handlers;
     return handlers;
 }
 
-std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &BlockExecutor::getValueHandlers() {
-    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
+std::unordered_map<std::string, ValueHandlerPtr> &BlockExecutor::getValueHandlers() {
+    static std::unordered_map<std::string, ValueHandlerPtr> valueHandlers;
     return valueHandlers;
+}
+
+void BlockExecutor::linkBlocks(Sprite *sprite) {
+    auto &h = getHandlers();
+    auto &vh = getValueHandlers();
+
+    for (auto &[id, block] : sprite->blocks) {
+        auto it = h.find(block.opcode);
+        if (it != h.end()) {
+            block.handler = it->second;
+        } else {
+            auto vit = vh.find(block.opcode);
+            if (vit != vh.end()) block.valueHandler = vit->second;
+        }
+    }
 }
 
 void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
@@ -52,9 +67,7 @@ void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRe
 }
 
 BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    auto &h = getHandlers();
-    const auto iterator = h.find(block.opcode);
-    if (iterator != h.end()) return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
+    if (block.handler != nullptr) return block.handler(block, sprite, withoutScreenRefresh, fromRepeat);
 
     if (!block.opcode.empty())
         Log::logWarning("Unknown block: " + block.opcode);
@@ -373,9 +386,7 @@ void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
 }
 
 Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
-    auto &vh = getValueHandlers();
-    const auto iterator = vh.find(block.opcode);
-    if (iterator != vh.end()) return iterator->second(block, sprite);
+    if (block.valueHandler != nullptr) return block.valueHandler(block, sprite);
 
     Log::logWarning("Unknown block: " + block.opcode);
 

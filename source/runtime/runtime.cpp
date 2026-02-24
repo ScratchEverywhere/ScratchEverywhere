@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "blockExecutor.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
@@ -65,6 +66,10 @@ bool Scratch::startScratchProject() {
     if (cloudProject) Parser::initMist();
 #endif
     Scratch::nextProject = false;
+
+    for (auto &sprite : sprites) {
+        BlockExecutor::linkBlocks(sprite);
+    }
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird
