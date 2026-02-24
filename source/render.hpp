@@ -600,12 +600,22 @@ class Render {
     /**
      * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
      */
-    static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite);
+    static void penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite);
+
+    /**
+     * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
+     */
+    static void penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite);
 
     /**
      * Called on pen down to place a singular dot at the position of the sprite.
      */
-    static void penDot(Sprite *sprite);
+    static void penDotFast(Sprite *sprite);
+
+    /**
+     * Called on pen down to place a singular dot at the position of the sprite.
+     */
+    static void penDotAccurate(Sprite *sprite);
 
     /**
      * Called whenever the stamp block is used to place a copy of the sprite onto the pen canvas.
