@@ -31,6 +31,12 @@ struct Variable {
     Value value;
 };
 
+struct List {
+    std::string id;
+    std::string name;
+    std::vector<Value> items;
+};
+
 struct ParsedField {
     std::string value;
     std::string id;
@@ -67,6 +73,7 @@ struct Block {
     Value (*valueHandler)(Block &block, Sprite *sprite) = nullptr;
 
     Variable *variable = nullptr;
+    List *list = nullptr;
 
     /* variables that some blocks need*/
     double repeatTimes;
@@ -85,7 +92,6 @@ struct Block {
 };
 
 struct CustomBlock {
-
     std::string name;
     std::string tagName;
     std::string blockId;
@@ -94,12 +100,6 @@ struct CustomBlock {
     std::vector<std::string> argumentDefaults;
     std::unordered_map<std::string, Value> argumentValues;
     bool runWithoutScreenRefresh;
-};
-
-struct List {
-    std::string id;
-    std::string name;
-    std::vector<Value> items;
 };
 
 struct Sound {

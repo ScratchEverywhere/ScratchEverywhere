@@ -742,6 +742,8 @@ std::string Scratch::getListName(Block &block) {
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
+    if (block.list != nullptr) return &block.list->items;
+
     std::string listId = Scratch::getFieldId(block, "LIST");
     Sprite *targetSprite = nullptr;
     if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;

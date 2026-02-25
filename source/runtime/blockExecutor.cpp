@@ -53,12 +53,25 @@ void BlockExecutor::linkBlocks(Sprite *sprite) {
             auto it = sprite->variables.find(variableId);
             if (it != sprite->variables.end()) {
                 block.variable = &it->second;
+            } else {
+                auto globalIt = Scratch::stageSprite->variables.find(variableId);
+                if (globalIt != Scratch::stageSprite->variables.end()) {
+                    block.variable = &globalIt->second;
+                }
+            }
+        }
+
+        auto listId = Scratch::getFieldId(block, "LIST");
+        if (listId != "") {
+            auto it = sprite->lists.find(listId);
+            if (it != sprite->lists.end()) {
+                block.list = &it->second;
                 continue;
             }
 
-            auto globalIt = Scratch::stageSprite->variables.find(variableId);
-            if (globalIt != Scratch::stageSprite->variables.end()) {
-                block.variable = &globalIt->second;
+            auto globalIt = Scratch::stageSprite->lists.find(listId);
+            if (globalIt != Scratch::stageSprite->lists.end()) {
+                block.list = &globalIt->second;
             }
         }
     }
