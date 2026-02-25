@@ -457,12 +457,14 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
     // Set sprite variable
     const auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
+        if (block != nullptr && block->variable == nullptr) block->variable = &it->second;
         it->second.value = newValue;
         return;
     }
 
     auto globalIt = Scratch::stageSprite->variables.find(variableId);
     if (globalIt != Scratch::stageSprite->variables.end()) {
+        if (block != nullptr && block->variable == nullptr) block->variable = &globalIt->second;
         globalIt->second.value = newValue;
 #ifdef ENABLE_CLOUDVARS
         if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
@@ -541,7 +543,10 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
 
     // Check sprite variables
     const auto it = sprite->variables.find(variableId);
-    if (it != sprite->variables.end()) return it->second.value;
+    if (it != sprite->variables.end()) {
+        if (block != nullptr && block->variable == nullptr) block->variable = &it->second;
+        return it->second.value;
+    }
 
     // Check lists
     const auto listIt = sprite->lists.find(variableId);
@@ -563,27 +568,27 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
 
     // Check global variables
     const auto globalIt = Scratch::stageSprite->variables.find(variableId);
-    if (globalIt != Scratch::stageSprite->variables.end()) return globalIt->second.value;
+    if (globalIt != Scratch::stageSprite->variables.end()) {
+        if (block != nullptr && block->variable == nullptr) block->variable = &globalIt->second;
+        return globalIt->second.value;
+    }
 
     // Check global lists
-    for (const auto &currentSprite : Scratch::sprites) {
-        if (currentSprite->isStage) {
-            auto globalIt = currentSprite->lists.find(variableId);
-            if (globalIt == currentSprite->lists.end()) continue;
-            std::string result;
-            std::string seperator = "";
-            for (const auto &item : globalIt->second.items) {
-                if (item.asString().size() > 1 || !item.isString()) {
-                    seperator = " ";
-                    break;
-                }
+    auto globalListIt = Scratch::stageSprite->lists.find(variableId);
+    if (globalListIt != Scratch::stageSprite->lists.end()) {
+        std::string result;
+        std::string seperator = "";
+        for (const auto &item : globalListIt->second.items) {
+            if (item.asString().size() > 1 || !item.isString()) {
+                seperator = " ";
+                break;
             }
-            for (const auto &item : globalIt->second.items) {
-                result += item.asString() + seperator;
-            }
-            if (!result.empty() && !seperator.empty()) result.pop_back();
-            return Value(result);
         }
+        for (const auto &item : globalListIt->second.items) {
+            result += item.asString() + seperator;
+        }
+        if (!result.empty() && !seperator.empty()) result.pop_back();
+        return Value(result);
     }
 
     return Value();
