@@ -36,7 +36,7 @@ C3D_Tex *penTex;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 static int currentScreen = 0;
-std::vector<Monitor> Render::visibleVariables;
+std::unordered_map<std::string, Monitor> Render::visibleVariables;
 
 bool Render::Init() {
     globalWindow = new Window3DS();

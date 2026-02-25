@@ -474,7 +474,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
 }
 
 void BlockExecutor::updateMonitors() {
-    for (auto &var : Render::visibleVariables) {
+    for (auto &[id, var] : Render::visibleVariables) {
         if (var.visible) {
             Sprite *sprite = nullptr;
             for (auto &spr : Scratch::sprites) {

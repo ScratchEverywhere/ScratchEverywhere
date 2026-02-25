@@ -466,7 +466,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         if (monitor.contains("sliderMax") && !monitor["sliderMax"].is_null())
             newMonitor.sliderMax = monitor.at("sliderMax").get<double>();
 
-        Render::visibleVariables.push_back(newMonitor);
+        Render::visibleVariables.emplace(newMonitor.id, newMonitor);
     }
 
     // try to find the advanced project settings comment

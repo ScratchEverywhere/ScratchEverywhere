@@ -258,7 +258,7 @@ class Render {
         }
 
         // FIXME: the text is slightly lower on OpenGL
-        for (auto &var : visibleVariables) {
+        for (auto &[id, var] : visibleVariables) {
             if (var.visible) {
 
                 // Weird Turbowarp math for monitor positions on custom sized projects
@@ -644,5 +644,5 @@ class Render {
     };
     static std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
 
-    static std::vector<Monitor> visibleVariables;
+    static std::unordered_map<std::string, Monitor> visibleVariables;
 };
