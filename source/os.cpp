@@ -235,6 +235,8 @@ std::string OS::getScratchFolderLocation() {
     return prefix + "/scratch-ds/";
 #elif defined(WEBOS)
     return prefix + "projects/";
+#elif defined(ANDROID)
+    return prefix + "/";
 #else
     return "scratch-everywhere/";
 #endif

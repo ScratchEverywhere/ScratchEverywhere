@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="io.github.scratcheverywhere"
+    android:versionCode="1"
+    android:versionName="1.0">
+
+    <!-- OpenGL ES 2.0 -->
+    <uses-feature android:glEsVersion="0x00020000" />
+
+    <!-- Touchscreen support -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <!-- Game controller support -->
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.gamepad"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
+
+    <!-- External mouse input events -->
+    <uses-feature
+        android:name="android.hardware.type.pc"
+        android:required="false" />
+
+    <uses-permission android:name="android.permission.VIBRATE" />
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.BLUETOOTH" />
+	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+	<uses-permission android:name="android.permission.VIBRATE" />
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+    <application android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:theme="@style/AppTheme"
+        android:hardwareAccelerated="true" >
+
+        <activity android:name=".MainActivity"
+            android:label="@string/app_name"
+            android:alwaysRetainTaskState="true"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+			android:launchMode="singleTask"
+			android:screenOrientation="sensorLandscape"
+            android:preferMinimalPostProcessing="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+			<intent-filter>
+				<action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+			</intent-filter>
+        </activity>
+		<activity android:name=".ProjectImportActivity"
+			android:exported="true">
+			<!-- Accept sb3 files from file managers -->
+			<intent-filter>
+				<action android:name="android.intent.action.VIEW" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<data android:scheme="file" />
+				<data android:scheme="content" />
+				<data android:pathPattern=".*\\.sb3" />
+				<data android:mimeType="application/*" />
+			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.SEND" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<data android:mimeType="application/*" />
+				<data android:pathPattern=".*\\.sb3" />
+			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.SEND_MULTIPLE" />
+				<category android:name="android.intent.category.DEFAULT" />
+				<data android:mimeType="application/*" />
+				<data android:pathPattern=".*\\.sb3" />
+			</intent-filter>
+		</activity>
+    </application>
+
+</manifest>

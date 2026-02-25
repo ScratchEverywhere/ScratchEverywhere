@@ -91,8 +91,14 @@ bool Scratch::startScratchProject() {
             if (checkFPS) Render::renderSprites();
 
 #ifdef ENABLE_MENU
+#ifdef ANDROID
+            // Trap the back button to act as pause button
+            bool shouldPause = Input::keyHeldDuration["back"] >= 1;
+#else
+            bool shouldPause = Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
+#endif
 
-            if ((projectType == UNEMBEDDED || (projectType == UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+            if ((projectType == UNEMBEDDED || (projectType == UNZIPPED && Unzip::UnpackedInSD)) && shouldPause) {
 
                 PauseMenu *menu = new PauseMenu();
                 MenuManager::changeMenu(menu);
@@ -208,7 +214,7 @@ void Scratch::stopClicked() {
     for (auto *spr : toDelete) {
         delete spr;
         Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
-                                   Scratch::sprites.end());
+                               Scratch::sprites.end());
     }
     for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;

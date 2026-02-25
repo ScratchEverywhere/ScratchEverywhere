@@ -116,7 +116,7 @@ class Input {
             if (key == "DOWN") return "down arrow";
         }
 
-        if (key == "space" || key == "left arrow" || key == "up arrow" || key == "right arrow" || key == "down arrow" || key == "enter" || key == "any") {
+        if (key == "space" || key == "left arrow" || key == "up arrow" || key == "right arrow" || key == "down arrow" || key == "enter" || key == "back" || key == "any") {
             return key;
         }
 
