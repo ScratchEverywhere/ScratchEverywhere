@@ -708,6 +708,7 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
         return input.literalValue;
 
     case ParsedInput::VARIABLE:
+        if (input.variable != nullptr) return input.variable->value;
         return BlockExecutor::getVariableValue(input.variableId, sprite);
 
     case ParsedInput::BLOCK:

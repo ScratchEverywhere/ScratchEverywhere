@@ -48,6 +48,24 @@ void BlockExecutor::linkBlocks(Sprite *sprite) {
             if (vit != vh.end()) block.valueHandler = vit->second;
         }
 
+        for (auto &[id, input] : *block.parsedInputs) {
+            if (input.inputType != ParsedInput::VARIABLE) continue;
+
+            auto it = sprite->variables.find(input.variableId);
+            if (it != sprite->variables.end()) {
+                input.variable = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->variables.find(input.variableId);
+            if (globalIt != Scratch::stageSprite->variables.end()) {
+                input.variable = &globalIt->second;
+                continue;
+            }
+
+            input.variable = nullptr;
+        }
+
         auto variableId = Scratch::getFieldId(block, "VARIABLE");
         if (variableId != "") {
             auto it = sprite->variables.find(variableId);
@@ -57,6 +75,8 @@ void BlockExecutor::linkBlocks(Sprite *sprite) {
                 auto globalIt = Scratch::stageSprite->variables.find(variableId);
                 if (globalIt != Scratch::stageSprite->variables.end()) {
                     block.variable = &globalIt->second;
+                } else {
+                    block.variable = nullptr;
                 }
             }
         }
@@ -72,7 +92,10 @@ void BlockExecutor::linkBlocks(Sprite *sprite) {
             auto globalIt = Scratch::stageSprite->lists.find(listId);
             if (globalIt != Scratch::stageSprite->lists.end()) {
                 block.list = &globalIt->second;
+                continue;
             }
+
+            block.list = nullptr;
         }
     }
 }
