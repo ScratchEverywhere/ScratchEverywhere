@@ -52,9 +52,10 @@ std::vector<double> MenuObject::getScaledPosition(double xPos, double yPos) {
     return pos;
 }
 
-ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos, std::string fontPath) {
+ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos, std::string fontPath, bool nineslice) {
     x = xPos;
     y = yPos;
+    shouldNineslice = nineslice;
     scale = 1.0;
     textScale = 1.0;
     text = createTextObject(buttonText, x, y, fontPath);
@@ -141,7 +142,7 @@ void ButtonObject::render(double xPos, double yPos) {
     params.scale = scale * getScaleFactor();
     params.centered = true;
 
-    if (enableNineslice) {
+    if (enableNineslice && this->shouldNineslice) {
         buttonTexture->image->renderNineslice(scaledPos[0], scaledPos[1],
                                               std::max(text->getSize()[0], (float)buttonTexture->image->getWidth() * renderScale),
                                               std::max(text->getSize()[1], (float)buttonTexture->image->getHeight() * renderScale), 8, true);
@@ -157,9 +158,10 @@ ButtonObject::~ButtonObject() {
     delete buttonTexture;
 }
 
-MenuImage::MenuImage(std::string filePath, int xPos, int yPos) {
+MenuImage::MenuImage(std::string filePath, int xPos, int yPos, bool nineslice) {
     x = xPos;
     y = yPos;
+    shouldNineslice = nineslice;
     scale = 1.0;
     try {
         image = createImageFromFile(filePath, false);
@@ -181,7 +183,7 @@ void MenuImage::render(double xPos, double yPos) {
 
     const float renderScale = scale * getScaleFactor();
 
-    if (enableNineslice) {
+    if (enableNineslice && this->shouldNineslice) {
         if (width <= 0 && height <= 0) {
             image->renderNineslice(renderX, renderY, image->getWidth() * renderScale, image->getHeight() * renderScale, 8 /* TODO: make this customizable */, true);
             return;

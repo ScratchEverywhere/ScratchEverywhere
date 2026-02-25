@@ -19,21 +19,21 @@ void SettingsMenu::init() {
     // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     // Credits->text->setColor(Math::color(0, 0, 0, 255));
     // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold");
+    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
     EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
     EnableUsername->text->setScale(0.5);
-    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold");
+    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
     ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
     ChangeUsername->text->setScale(0.5);
 
-    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
+    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
     EnableCustomFolderPath->text->setColor(Math::color(0, 0, 0, 255));
     EnableCustomFolderPath->text->setScale(0.5);
-    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold");
+    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
     ChangeFolderPath->text->setColor(Math::color(0, 0, 0, 255));
     ChangeFolderPath->text->setScale(0.5);
 
-    EnableMenuMusic = new ButtonObject("Menu Music: clickToLoad", "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold");
+    EnableMenuMusic = new ButtonObject("Menu Music: clickToLoad", "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
     EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
     EnableMenuMusic->text->setScale(0.5);
 

@@ -9,6 +9,7 @@ class MenuObject {
     double x = 0;
     double y = 0;
     double scale;
+    bool shouldNineslice = false;
     bool hidden = false;
     virtual void render(double xPos = 0, double yPos = 0) = 0;
     static double getScaleFactor();
@@ -86,7 +87,7 @@ class MenuImage : public MenuObject {
      * @param xPosition
      * @param yPosition
      */
-    MenuImage(std::string filePath, int xPos = 0, int yPos = 0);
+    MenuImage(std::string filePath, int xPos = 0, int yPos = 0, bool nineslice = false);
     virtual ~MenuImage();
 
     double renderX;
@@ -125,7 +126,7 @@ class ButtonObject : public MenuObject {
      * @param xPosition
      * @param yPosition
      */
-    ButtonObject(std::string buttonText, std::string filePath, int xPos = 0, int yPos = 0, std::string fontPath = "");
+    ButtonObject(std::string buttonText, std::string filePath, int xPos = 0, int yPos = 0, std::string fontPath = "", bool nineslice = false);
     virtual ~ButtonObject();
 };
 
