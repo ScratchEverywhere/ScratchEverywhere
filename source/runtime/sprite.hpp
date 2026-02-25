@@ -77,8 +77,10 @@ struct Block {
     BlockResult (*handler)(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) = nullptr;
     Value (*valueHandler)(Block &block, Sprite *sprite) = nullptr;
 
-    Variable *variable = nullptr;
-    List *list = nullptr;
+    union {
+        Variable *variable = nullptr;
+        List *list;
+    };
 
     /* variables that some blocks need*/
     double repeatTimes;
@@ -104,7 +106,7 @@ struct Block {
           glideStartX(other.glideStartX), glideStartY(other.glideStartY),
           glideEndX(other.glideEndX), glideEndY(other.glideEndY),
           waitTimer(other.waitTimer), customBlockPtr(nullptr),
-          variable(nullptr), list(nullptr) {
+          variable(nullptr) {
         parsedFields = other.parsedFields;
 
         if (other.parsedInputs) {
@@ -127,7 +129,6 @@ struct Block {
         std::swap(first.handler, second.handler);
         std::swap(first.valueHandler, second.valueHandler);
         std::swap(first.variable, second.variable);
-        std::swap(first.list, second.list);
         std::swap(first.customBlockPtr, second.customBlockPtr);
         std::swap(first.shadow, second.shadow);
         std::swap(first.topLevel, second.topLevel);
