@@ -2,8 +2,8 @@
 
 TARGET		:=	scratch-wasm
 BUILD		:=	build/wasm
-SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz
-INCLUDES	:=	include $(SOURCES)
+SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz include/lunasvg/source include/lunasvg/plutovg/source
+INCLUDES	:=	include $(SOURCES) include/lunasvg/include include/lunasvg/plutovg/include
 
 CXX	:=	em++
 CC	:=	emcc

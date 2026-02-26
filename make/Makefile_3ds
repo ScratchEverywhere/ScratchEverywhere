@@ -38,9 +38,9 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3
+SOURCES		:=	source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3 include/lunasvg/source include/lunasvg/plutovg/source
 DATA		:=	data
-INCLUDES	:=	include source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3 include/miniz
+INCLUDES	:=	include source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3 include/miniz include/lunasvg/include include/lunasvg/plutovg/include
 GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
@@ -86,6 +86,8 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			$(ARCH)
 
 CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
+
+CFLAGS	+=	-Wincompatible-pointer-types -Wno-error=incompatible-pointer-types -DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD # PlutoVG fixes
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
