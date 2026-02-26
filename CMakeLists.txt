@@ -235,10 +235,16 @@ CPMAddPackage(
 	VERSION 3.0
 )
 CPMAddPackage(
+  NAME plutovg
+  GITHUB_REPOSITORY sammycage/plutovg
+  VERSION 1.3.0 # Version expected by LunaSVG
+  OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
+)
+CPMAddPackage(
   NAME lunasvg
   GITHUB_REPOSITORY sammycage/lunasvg
   VERSION 3.5.0
-  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF"
+  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
 )
 CPMAddPackage(
   NAME stb
@@ -246,6 +252,9 @@ CPMAddPackage(
   GIT_TAG master
 )
 
+if(VITA)
+	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
