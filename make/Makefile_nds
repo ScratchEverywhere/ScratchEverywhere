@@ -49,6 +49,7 @@ GAME_ICON		:=	$(CURDIR)/../../gfx/nds/icon.bmp
 #---------------------------------------------------------------------------------
 ENABLE_MENU		?=	1
 ENABLE_AUDIO	?=	1
+ENABLE_CACHING	?=	0
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -79,6 +80,10 @@ LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
 
 ifneq ($(wildcard $(NITRODATA)/project*),)
     ENABLE_MENU = 0
+endif
+
+ifeq ($(ENABLE_CACHING),1)
+CFLAGS	+=	-DENABLE_CACHING
 endif
 
 ifeq ($(ENABLE_MENU),1)

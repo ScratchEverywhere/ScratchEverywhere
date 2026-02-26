@@ -33,10 +33,11 @@ include $(DEVKITPRO)/wut/share/wut_rules
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
-ENABLE_AUDIO	?=	1
-ENABLE_DOWNLOAD	?=	1
+ENABLE_AUDIO		?=	1
+ENABLE_DOWNLOAD		?=	1
 ENABLE_LOADSCREEN	?=	1
-ENABLE_MENU		?=	1
+ENABLE_MENU			?=	1
+ENABLE_CACHING		?=	1
 
 # Flags
 
@@ -54,6 +55,10 @@ LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 ifneq ($(wildcard $(ROMFS)/project*),)
     ENABLE_MENU = 0
 	ENABLE_LOADSCREEN = 0
+endif
+
+ifeq ($(ENABLE_CACHING),1)
+CFLAGS	+=	-DENABLE_CACHING
 endif
 
 ifeq ($(ENABLE_MENU),1)

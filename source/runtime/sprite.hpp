@@ -55,7 +55,9 @@ struct ParsedInput {
     Value literalValue;
 
     std::string variableId;
+#ifdef ENABLE_CACHING
     Variable *variable = nullptr;
+#endif
 
     std::string blockId;
 };
@@ -73,7 +75,7 @@ struct Block {
     bool shadow;
     bool topLevel;
 
-    // Caching
+#ifdef ENABLE_CACHING
     BlockResult (*handler)(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) = nullptr;
     Value (*valueHandler)(Block &block, Sprite *sprite) = nullptr;
 
@@ -81,6 +83,7 @@ struct Block {
         Variable *variable = nullptr;
         List *list;
     };
+#endif
 
     /* variables that some blocks need*/
     double repeatTimes;
@@ -101,12 +104,13 @@ struct Block {
         : id(other.id), customBlockId(other.customBlockId), opcode(other.opcode),
           next(other.next), nextBlock(other.nextBlock), parent(other.parent),
           blockChainID(other.blockChainID), shadow(other.shadow), topLevel(other.topLevel),
-          handler(other.handler), valueHandler(other.valueHandler),
+#ifdef ENABLE_CACHING
+          handler(other.handler), valueHandler(other.valueHandler), variable(nullptr),
+#endif
           repeatTimes(other.repeatTimes), waitDuration(other.waitDuration),
           glideStartX(other.glideStartX), glideStartY(other.glideStartY),
           glideEndX(other.glideEndX), glideEndY(other.glideEndY),
-          waitTimer(other.waitTimer), customBlockPtr(nullptr),
-          variable(nullptr) {
+          waitTimer(other.waitTimer), customBlockPtr(nullptr) {
         parsedFields = other.parsedFields;
 
         if (other.parsedInputs) {
@@ -126,9 +130,6 @@ struct Block {
         std::swap(first.nextBlock, second.nextBlock);
         std::swap(first.parsedInputs, second.parsedInputs);
         std::swap(first.parsedFields, second.parsedFields);
-        std::swap(first.handler, second.handler);
-        std::swap(first.valueHandler, second.valueHandler);
-        std::swap(first.variable, second.variable);
         std::swap(first.customBlockPtr, second.customBlockPtr);
         std::swap(first.shadow, second.shadow);
         std::swap(first.topLevel, second.topLevel);
@@ -141,6 +142,12 @@ struct Block {
         std::swap(first.waitTimer, second.waitTimer);
         std::swap(first.broadcastsRun, second.broadcastsRun);
         std::swap(first.backdropsRun, second.backdropsRun);
+
+#ifdef ENABLE_CACHING
+        std::swap(first.handler, second.handler);
+        std::swap(first.valueHandler, second.valueHandler);
+        std::swap(first.variable, second.variable);
+#endif
     }
 
     Block &operator=(Block other) {
@@ -223,10 +230,12 @@ struct Monitor {
     double sliderMax;
     bool isDiscrete;
 
+#ifdef ENABLE_CACHING
     union {
         Variable *variablePtr = nullptr;
         List *listPtr;
     };
+#endif
 };
 
 class Sprite {

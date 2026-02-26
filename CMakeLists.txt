@@ -12,6 +12,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
 
+set(SE_CACHING_DEFAULT ON)
+if(PSP)
+    set(SE_CACHING_DEFAULT OFF)
+endif()
+option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
+
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
@@ -733,6 +739,9 @@ elseif(SE_RENDERER STREQUAL "headless")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
 endif()
 
+if(SE_CACHING)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CACHING)
+endif()
 if(SE_AUDIO)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
 endif()
