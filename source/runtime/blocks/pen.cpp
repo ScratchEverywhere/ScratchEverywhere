@@ -9,7 +9,9 @@ SCRATCH_BLOCK(pen, penDown) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     sprite->penData.down = true;
 
-    Render::penDot(sprite);
+    if (Scratch::accuratePen)
+        Render::penDotAccurate(sprite);
+    else Render::penDotFast(sprite);
 
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -120,7 +122,7 @@ SCRATCH_BLOCK(pen, clear) {
 SCRATCH_BLOCK(pen, stamp) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
 
-    Image::loadImageFromProject(sprite);
+    Scratch::loadCurrentCostumeImage(sprite);
 
     Render::penStamp(sprite);
 

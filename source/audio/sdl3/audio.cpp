@@ -31,16 +31,17 @@ bool SoundPlayer::init() {
         Log::logError("Could not init SDL Mixer! " + std::string(SDL_GetError()));
         return false;
     }
-    SDL_AudioDeviceID device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
-    if (!device) {
-        Log::logWarning("Failed to open audio device: " + std::string(SDL_GetError()));
-        return false;
-    }
 
     SDL_AudioSpec spac;
     spac.channels = 2;
     spac.format = SDL_AUDIO_S16LE;
     spac.freq = 44100;
+
+    SDL_AudioDeviceID device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spac);
+    if (!device) {
+        Log::logWarning("Failed to open audio device: " + std::string(SDL_GetError()));
+        return false;
+    }
 
     // Create the mixer
     mixer = MIX_CreateMixerDevice(device, &spac);
@@ -63,6 +64,9 @@ SDL_Audio::SDL_Audio() {}
 
 SDL_Audio::~SDL_Audio() {
 #ifdef ENABLE_AUDIO
+    if (track != nullptr) {
+        MIX_DestroyTrack(track);
+    }
     if (sound != nullptr) {
         MIX_DestroyAudio(sound);
         sound = nullptr;
@@ -260,7 +264,6 @@ int SoundPlayer::playSound(const std::string &soundId) {
         return 0;
     }
 #endif
-    Log::logWarning("Sound not found: " + soundId);
     return -1;
 }
 
@@ -273,7 +276,6 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
         float sdlVolume = clampedVolume / 100.0f;
 
         if (soundFind->second->track == nullptr) {
-            Log::logWarning("Track not initialized, cannot set volume!");
             return;
         }
 
@@ -290,7 +292,6 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         if (soundFind->second->track == nullptr) {
-            Log::logWarning("Track not initialized, cannot get volume!");
             return -1.0f;
         }
 
@@ -308,7 +309,6 @@ void SoundPlayer::setPitch(const std::string &soundId, float pitch) {
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         if (soundFind->second->track == nullptr) {
-            Log::logWarning("Track not initialized, cannot set pitch!");
             return;
         }
 
@@ -325,7 +325,6 @@ void SoundPlayer::setPan(const std::string &soundId, float pan) {
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         if (soundFind->second->track == nullptr) {
-            Log::logWarning("Track not initialized, cannot set pan!");
             return;
         }
 
@@ -372,8 +371,6 @@ void SoundPlayer::stopSound(const std::string &soundId) {
             }
             soundFind->second->isPlaying = false;
         }
-    } else {
-        Log::logWarning("Sound not found, cannot stop: " + soundId);
     }
 #endif
 }
@@ -421,7 +418,7 @@ void SoundPlayer::freeAudio(const std::string &soundId) {
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
         SDL_Sounds.erase(it);
-    } else Log::logWarning("Could not find sound to free: " + soundId);
+    }
 #endif
 }
 

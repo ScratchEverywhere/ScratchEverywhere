@@ -9,6 +9,7 @@ class MenuObject {
     double x = 0;
     double y = 0;
     double scale;
+    bool shouldNineslice = false;
     bool hidden = false;
     virtual void render(double xPos = 0, double yPos = 0) = 0;
     static double getScaleFactor();
@@ -26,7 +27,7 @@ class JollySnow {
     int oldWindowWidth, oldWindowHeight;
 
   public:
-    Image *image;
+    std::shared_ptr<Image> image;
     JollySnow() {
 #ifndef RENDERER_HEADLESS
         oldWindowWidth = Render::getWidth();
@@ -45,7 +46,13 @@ class JollySnow {
     void render(float xOffset = 0.0f, float yOffset = 0.0f) {
 #ifndef RENDERER_HEADLESS
         for (auto &ball : snow) {
-            image->render(ball.x + xOffset, ball.y + yOffset, true);
+
+            ImageRenderParams params;
+            params.x = ball.x + xOffset;
+            params.y = ball.y + yOffset;
+            params.centered = true;
+
+            image->render(params);
             ball.y += ball.fallSpeed;
             if (ball.y > Render::getHeight() + 20 - yOffset) {
                 ball.y = -20 - yOffset;
@@ -67,7 +74,7 @@ class JollySnow {
 
 class MenuImage : public MenuObject {
   public:
-    Image *image;
+    std::shared_ptr<Image> image;
     void render(double xPos = 0, double yPos = 0) override;
 
     // These override scale if they are greater than 0.
@@ -80,7 +87,7 @@ class MenuImage : public MenuObject {
      * @param xPosition
      * @param yPosition
      */
-    MenuImage(std::string filePath, int xPos = 0, int yPos = 0);
+    MenuImage(std::string filePath, int xPos = 0, int yPos = 0, bool nineslice = false);
     virtual ~MenuImage();
 
     double renderX;
@@ -94,11 +101,11 @@ class ButtonObject : public MenuObject {
 
   public:
     std::unique_ptr<TextObject> text;
+    std::string imageId;
     double textScale;
     bool isSelected = false;
     bool needsToBeSelected = true;
     bool canBeClicked = true;
-    bool enableNineslice = true;
     MenuImage *buttonTexture;
     ButtonObject *buttonUp = nullptr;
     ButtonObject *buttonDown = nullptr;
@@ -119,7 +126,7 @@ class ButtonObject : public MenuObject {
      * @param xPosition
      * @param yPosition
      */
-    ButtonObject(std::string buttonText, std::string filePath, int xPos = 0, int yPos = 0, std::string fontPath = "");
+    ButtonObject(std::string buttonText, std::string filePath, int xPos = 0, int yPos = 0, std::string fontPath = "", bool nineslice = false);
     virtual ~ButtonObject();
 };
 

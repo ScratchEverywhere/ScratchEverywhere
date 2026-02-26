@@ -16,16 +16,16 @@ void PauseMenu::init() {
     pauseControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
 
-    exitProjectButton = new ButtonObject("Exit Project", "gfx/menu/projectBox.svg", 200, 60, "gfx/menu/Ubuntu-Bold");
+    exitProjectButton = new ButtonObject("Exit Project", "gfx/menu/projectBox.svg", 200, 60, "gfx/menu/Ubuntu-Bold", true);
     exitProjectButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    flagButton = new ButtonObject("Click Green Flag", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
+    flagButton = new ButtonObject("Click Green Flag", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold", true);
     flagButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    stopButton = new ButtonObject("Click Stop Button", "gfx/menu/projectBox.svg", 200, 140, "gfx/menu/Ubuntu-Bold");
+    stopButton = new ButtonObject("Click Stop Button", "gfx/menu/projectBox.svg", 200, 140, "gfx/menu/Ubuntu-Bold", true);
     stopButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    turboButton = new ButtonObject((Scratch::turbo ? "Turbo Mode: ON" : "Turbo Mode: OFF"), "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
+    turboButton = new ButtonObject((Scratch::turbo ? "Turbo Mode: ON" : "Turbo Mode: OFF"), "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold", true);
     turboButton->text->setColor(Math::color(0, 0, 0, 255));
 
     backButton->needsToBeSelected = false;
@@ -42,7 +42,7 @@ void PauseMenu::init() {
 
     flagButton->buttonDown = stopButton;
     stopButton->buttonUp = flagButton;
-    
+
     stopButton->buttonDown = turboButton;
     turboButton->buttonUp = stopButton;
 }

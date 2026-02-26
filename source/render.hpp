@@ -11,8 +11,6 @@ class SpeechManager;
 
 class Render {
   public:
-    static std::chrono::system_clock::time_point startTime;
-    static std::chrono::system_clock::time_point endTime;
     static bool debugMode;
     static float renderScale;
 
@@ -72,6 +70,9 @@ class Render {
         const int screenWidth = getWidth();
         const int screenHeight = getHeight();
 
+        sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+        sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+
         // If the window size changed, or if the sprite changed costumes
         if (sprite->renderInfo.forceUpdate || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
             // change all renderinfo a bit to update position for all
@@ -88,11 +89,7 @@ class Render {
             sprite->renderInfo.oldRotation++;
             sprite->renderInfo.oldX++;
             sprite->renderInfo.oldY++;
-#ifdef RENDERER_GL2D
-            sprite->renderInfo.renderScaleX = sprite->size * 0.005;
-#else
-            sprite->renderInfo.renderScaleX = sprite->size * (isSVG ? 0.01 : 0.005);
-#endif
+            sprite->renderInfo.renderScaleX = sprite->size * 0.01;
 
             if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
                 float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
@@ -123,44 +120,44 @@ class Render {
             float spriteX = static_cast<int>(sprite->xPosition);
             float spriteY = static_cast<int>(sprite->yPosition);
 
+            int rotCenterX = sprite->rotationCenterX;
+            int rotCenterY = sprite->rotationCenterY;
+
+            if (isSVG) {
+                rotCenterX *= 2;
+                rotCenterY *= 2;
+            }
+
             // Handle if the sprite's image is not centered in the costume editor
-            if (sprite->spriteWidth - sprite->rotationCenterX != 0 ||
-                sprite->spriteHeight - sprite->rotationCenterY != 0) {
-                const int shiftAmount = !isSVG ? 1 : 0;
-                int offsetX = (sprite->spriteWidth - sprite->rotationCenterX) >> shiftAmount;
-                const int offsetY = (sprite->spriteHeight - sprite->rotationCenterY) >> shiftAmount;
+            if (sprite->spriteWidth - rotCenterX != 0 ||
+                sprite->spriteHeight - rotCenterY != 0) {
+
+                float offsetX = (sprite->spriteWidth - rotCenterX) * 0.5f;
+                float offsetY = (sprite->spriteHeight - rotCenterY) * 0.5f;
 
                 if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0)
                     offsetX *= -1;
 
                 // Offset based on size
-                if (sprite->size != 100.0f) {
-                    const float scale = sprite->size * 0.01;
-                    const float scaledX = offsetX * scale;
-                    const float scaledY = offsetY * scale;
-
-                    spriteX += scaledX - offsetX;
-                    spriteY -= scaledY - offsetY;
-                }
+                float scale = sprite->size * 0.01f;
+                offsetX *= scale;
+                offsetY *= scale;
 
                 // Offset based on rotation
-                if (sprite->renderInfo.renderRotation != 0) {
-                    float rot = sprite->renderInfo.renderRotation;
-                    float rotatedX = -offsetX * std::cos(rot) + offsetY * std::sin(rot);
-                    float rotatedY = -offsetX * std::sin(rot) - offsetY * std::cos(rot);
-                    spriteX += rotatedX;
-                    spriteY -= rotatedY;
-                } else {
-                    spriteX += offsetX;
-                    spriteY -= offsetY;
-                }
-            }
+                if (sprite->renderInfo.renderRotation != 0.0f) {
+                    float rotCos = cos(sprite->renderInfo.renderRotation);
+                    float rotSin = sin(sprite->renderInfo.renderRotation);
 
-#ifdef RENDERER_CITRO2D
-            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-                spriteX -= sprite->spriteWidth * (isSVG ? 2 : 1);
+                    float rotX = offsetX * rotCos - offsetY * rotSin;
+                    float rotY = offsetX * rotSin + offsetY * rotCos;
+
+                    offsetX = rotX;
+                    offsetY = rotY;
+                }
+
+                spriteX += offsetX;
+                spriteY -= offsetY;
             }
-#endif
 
             if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
@@ -169,11 +166,6 @@ class Render {
                 renderX = static_cast<int>(spriteX + (screenWidth >> 1));
                 renderY = static_cast<int>(-spriteY + (screenHeight >> 1));
             }
-
-#if defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-            renderX -= (sprite->spriteWidth * sprite->renderInfo.renderScaleY);
-            renderY -= (sprite->spriteHeight * sprite->renderInfo.renderScaleY);
-#endif
 
             sprite->renderInfo.renderX = renderX;
             sprite->renderInfo.renderY = renderY;
@@ -199,6 +191,30 @@ class Render {
     static void forceUpdateSpritePosition() {
         for (auto &sprite : Scratch::sprites) {
             sprite->renderInfo.forceUpdate = true;
+        }
+    }
+
+    /**
+     * Gets a variable value as a string for display
+     */
+    static std::string getVariableValueString(Value value) {
+        if (value.isDouble()) {
+            return Math::toString(std::round(value.asDouble() * 1e6) / 1e6); // js Number(value.toFixed(6))
+        } else if (value.isUndefined()) {
+            return ""; // Scratch keeps the original value, leave blank for now
+        } else {
+            return value.asString();
+        }
+    }
+
+    /**
+     * Gets a list value as a string for display
+     */
+    static std::string getListValueString(Value value) {
+        if (value.isUndefined()) {
+            return ""; // Scratch crashes, TurboWarp shows empty string
+        } else {
+            return value.asString();
         }
     }
 
@@ -308,7 +324,7 @@ class Render {
                             drawBox(monitorW - (24 * scale), boxHeight, monitorX + (22 * scale) + (monitorW - (28 * scale)) / 2, monitorY + boxHeight + item_y + (boxHeight / 2), 252, 102, 44);
 
                             std::unique_ptr<TextObject> &itemText = monitorGfx.items[index];
-                            itemText->setText(s.asString());
+                            itemText->setText(getListValueString(s));
                             itemText->setColor(Math::color(255, 255, 255, 255));
                             itemText->setScale(1.0f * (scale / 2.0f));
                             itemText->setCenterAligned(false);
@@ -402,7 +418,7 @@ class Render {
                     }
 
                 } else {
-                    std::string renderText = var.value.asString();
+                    std::string renderText = getVariableValueString(var.value);
                     if (monitorTexts.find(var.id) == monitorTexts.end()) {
                         monitorTexts[var.id].first = createTextObject(var.displayName.empty() ? " " : var.displayName, var.x, var.y);
                         monitorTexts[var.id].second = createTextObject(renderText.empty() ? " " : renderText, var.x, var.y);
@@ -584,12 +600,22 @@ class Render {
     /**
      * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
      */
-    static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite);
+    static void penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite);
+
+    /**
+     * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
+     */
+    static void penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite);
 
     /**
      * Called on pen down to place a singular dot at the position of the sprite.
      */
-    static void penDot(Sprite *sprite);
+    static void penDotFast(Sprite *sprite);
+
+    /**
+     * Called on pen down to place a singular dot at the position of the sprite.
+     */
+    static void penDotAccurate(Sprite *sprite);
 
     /**
      * Called whenever the stamp block is used to place a copy of the sprite onto the pen canvas.

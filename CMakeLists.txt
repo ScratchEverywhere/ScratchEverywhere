@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.35 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.36 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -235,6 +235,18 @@ CPMAddPackage(
 	GITHUB_REPOSITORY poipole807/ryuJS
 	VERSION 3.0
 )
+CPMAddPackage(
+  NAME nanosvg
+  GITHUB_REPOSITORY memononen/nanosvg
+  GIT_TAG master
+)
+CPMAddPackage(
+  NAME stb
+  GITHUB_REPOSITORY nothings/stb
+  GIT_TAG master
+)
+
+
 include(FetchContent)
 FetchContent_Declare(
     miniz
@@ -246,7 +258,6 @@ FetchContent_MakeAvailable(miniz)
 if(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
-		pkg_check_modules(SDL_IMAGE REQUIRED SDL_image>=1.2.0)
 		pkg_check_modules(SDL_TTF REQUIRED SDL_ttf>=1.2.0)
 		pkg_check_modules(SDL_GFX REQUIRED SDL_gfx>=1.0.0)
 	else()
@@ -263,7 +274,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 		pkg_check_modules(SDL2_TTF REQUIRED SDL2_ttf>=2.0.0)
 
 		if(NOT WEBOS)
-			pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image>=2.0.0)
 			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
 		endif()
 	else()
@@ -293,12 +303,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 
 	if(NOT SE_SYSTEM OR WEBOS)
 		CPMAddPackage(
-			NAME SDL2_image
-			VERSION 2.8.8
-			GITHUB_REPOSITORY libsdl-org/SDL_image
-			GIT_TAG release-2.8.8
-		)
-		CPMAddPackage(
 			NAME SDL2_gfx
 			VERSION 1.0.4
 			GITHUB_REPOSITORY giroletm/SDL2_gfx
@@ -317,8 +321,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 		)
 		if(WEBOS)
-			target_link_libraries(SDL2_image PUBLIC ${SDL2_LIBRARIES})
-			target_include_directories(SDL2_image PRIVATE ${SDL2_INCLUDE_DIRS})
 			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
 			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
 		else()
@@ -330,7 +332,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 elseif(SE_RENDERER STREQUAL "sdl3")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL3 REQUIRED sdl3>=3.0.0)
-		pkg_check_modules(SDL3_IMAGE REQUIRED sdl3-image>=3.0.0)
 		pkg_check_modules(SDL3_TTF REQUIRED sdl3-ttf>=3.0.0)
 		pkg_check_modules(SDL3_GFX REQUIRED sdl3-gfx>=1.0.0)
 	else()
@@ -340,12 +341,6 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 			GITHUB_REPOSITORY libsdl-org/SDL
 			GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
 			OPTIONS "SDL_TEST_LIBRARY OFF"
-		)
-		CPMAddPackage(
-			NAME SDL3_image
-			VERSION 3.2.4
-			GITHUB_REPOSITORY libsdl-org/SDL_image
-			GIT_TAG release-3.2.4
 		)
 		CPMAddPackage(
 			NAME SDL3_ttf
@@ -629,16 +624,12 @@ if(SE_RENDERER STREQUAL "sdl3")
 	endif()
 
 	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_IMAGE_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_IMAGE_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
+		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
 	elseif(BUILD_SHARED_LIBS)
-		list(APPEND SDL_LINK_LIBS SDL3_image::SDL3_image)
 		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
 		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
 	else()
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_image::SDL3_image-static>,
-			SDL3_image::SDL3_image-static,
-			SDL3_image::SDL3_image>)
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL3_ttf::SDL3_ttf-static>,
 			SDL3_ttf::SDL3_ttf-static,
 			SDL3_ttf::SDL3_ttf>)
@@ -654,7 +645,6 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_GFX_INCLUDE_DIRS})
 		target_link_directories(scratch-everywhere PRIVATE ${SDL2_GFX_LIBRARY_DIRS})
 	else()
-		list(APPEND SDL_LINK_LIBS SDL2_image)
 		list(APPEND SDL_LINK_LIBS SDL2_gfx)
 	endif()
 
@@ -663,17 +653,13 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	endif()
 
 	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES} ${SDL2_TTF_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_IMAGE_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
+		list(APPEND SDL_LINK_LIBS ${SDL2_LIBRARIES} ${SDL2_TTF_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
 
 	elseif(BUILD_SHARED_LIBS)
-		list(APPEND SDL_LINK_LIBS SDL2_image::SDL2_image)
 		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)
 
-	elseif()
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_image::SDL2_image-static>,
-			SDL2_image::SDL2_image-static,
-			SDL2_image::SDL2_image>)
+	else()
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL2_ttf::SDL2_ttf-static>,
 			SDL2_ttf::SDL2_ttf-static,
 			SDL2_ttf::SDL2_ttf>)
@@ -695,17 +681,13 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 	endif()
 
 	if(SE_SYSTEM)
-		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_IMAGE_LIBRARIES} ${SDL_TTF_LIBRARIES})
-		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_IMAGE_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
+		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_TTF_LIBRARIES})
+		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
 
 	elseif(BUILD_SHARED_LIBS)
-		list(APPEND SDL_LINK_LIBS SDL_image::SDL_image)
 		list(APPEND SDL_LINK_LIBS SDL_ttf::SDL_ttf)
 
 	else()
-		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_image::SDL_image-static>,
-			SDL_image::SDL_image-static,
-			SDL_image::SDL_image>)
 		list(APPEND SDL_LINK_LIBS $<IF:$<TARGET_EXISTS:SDL_ttf::SDL_ttf-static>,
 			SDL_ttf::SDL_ttf-static,
 			SDL_ttf::SDL_ttf>)
@@ -861,6 +843,8 @@ target_link_libraries(scratch-everywhere PRIVATE ryuJS)
 target_include_directories(ryuJS PUBLIC
   ${poipole807_ryuJS_SOURCE_DIR}
 )
+target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
+target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
 if(PSP)

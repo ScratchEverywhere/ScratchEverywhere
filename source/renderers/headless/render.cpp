@@ -4,8 +4,6 @@
 #include <windowing/headless/window.hpp>
 
 // Static member initialization
-std::chrono::_V2::system_clock::time_point Render::startTime;
-std::chrono::_V2::system_clock::time_point Render::endTime;
 bool Render::debugMode = false;
 bool Render::hasFrameBegan = false;
 Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
@@ -48,10 +46,16 @@ bool Render::initPen() {
     return false;
 }
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
 }
 
-void Render::penDot(Sprite *sprite) {
+void Render::penDotFast(Sprite *sprite) {
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+}
+
+void Render::penDotAccurate(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {

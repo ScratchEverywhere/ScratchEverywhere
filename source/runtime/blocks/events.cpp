@@ -61,3 +61,5 @@ SCRATCH_BLOCK(event, broadcastandwait) {
 SCRATCH_BLOCK_NOP(event, whenkeypressed)
 
 SCRATCH_BLOCK_NOP(event, whenbroadcastreceived)
+
+SCRATCH_BLOCK_NOP(event, whenthisspriteclicked)

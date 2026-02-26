@@ -62,8 +62,6 @@ bool Render::Init() {
     topScreenRightEye = C2D_CreateScreenTarget(GFX_TOP, GFX_RIGHT);
     bottomScreen = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
-    speechManager = new SpeechManagerC2D();
-
     return true;
 }
 
@@ -81,6 +79,7 @@ void *Render::getRenderer() {
 }
 
 SpeechManager *Render::getSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerC2D();
     return speechManager;
 }
 
@@ -128,8 +127,18 @@ bool Render::initPen() {
     return true;
 }
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penMoveAccurate(x1, y1, x2, y2, sprite);
+}
+
+void Render::penDotFast(Sprite *sprite) {
+    penDotAccurate(sprite);
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    uint8_t alpha = static_cast<uint8_t>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
@@ -143,7 +152,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (screenHeight * 0.5) + 32;
 
     const float heightMultiplier = 0.5f;
-    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, alpha);
     const float thickness = sprite->penData.size * renderScale;
 
     const float x1_scaled = (x1 * renderScale) + (width / 2);
@@ -163,7 +172,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     C2D_DrawCircleSolid(x2_scaled, y2_scaled, 0, radius, color);
 }
 
-void Render::penDot(Sprite *sprite) {
+void Render::penDotAccurate(Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -185,14 +194,13 @@ void Render::penDot(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {
-    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
-    if (imgFind == images.end()) {
+    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
-    ImageData &data = imgFind->second;
-    imgFind->second.freeTimer = data.maxFreeTimer;
-    C2D_Image *costumeTexture = &data.image;
+
+    Image *image = imgFind->second.get();
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         Render::hasFrameBegan = true;
@@ -200,36 +208,20 @@ void Render::penStamp(Sprite *sprite) {
     C2D_SceneBegin(penRenderTarget);
     C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
 
-    const bool isSVG = data.isSVG;
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-    sprite->spriteWidth = data.width >> 1;
-    sprite->spriteHeight = data.height >> 1;
+    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
     Render::calculateRenderPosition(sprite, isSVG);
-
-    C2D_ImageTint tinty;
-
-    // set ghost and brightness effect
-    if (sprite->brightnessEffect != 0.0f || sprite->ghostEffect != 0.0f) {
-        const float brightnessEffect = sprite->brightnessEffect * 0.01f;
-        const float alpha = 255.0f * (1.0f - sprite->ghostEffect / 100.0f);
-        if (brightnessEffect > 0)
-            C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
-        else
-            C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
-    } else C2D_AlphaImageTint(&tinty, 1.0f);
-
     const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (screenHeight * 0.5) + 32;
 
-    C2D_DrawImageAtRotated(
-        *costumeTexture,
-        sprite->renderInfo.renderX,
-        sprite->renderInfo.renderY + PEN_Y_OFFSET,
-        1,
-        sprite->renderInfo.renderRotation,
-        &tinty,
-        sprite->renderInfo.renderScaleX,
-        sprite->renderInfo.renderScaleY);
+    ImageRenderParams params;
+    params.centered = true;
+    params.x = sprite->renderInfo.renderX;
+    params.y = sprite->renderInfo.renderY + PEN_Y_OFFSET;
+    params.rotation = sprite->renderInfo.renderRotation;
+    params.scale = sprite->renderInfo.renderScaleY;
+    params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
+    params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+    params.brightness = sprite->brightnessEffect;
+    image->render(params);
 }
 
 void Render::penClear() {
@@ -260,7 +252,6 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Render::endFrame(bool shouldFlush) {
     C2D_Flush();
     C3D_FrameEnd(0);
-    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
@@ -301,48 +292,26 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
     if (!currentSprite || currentSprite == nullptr) return;
 
-    bool isSVG = false;
-
-    auto imageIt = images.find(costumeId);
-    if (imageIt == images.end()) {
-        currentSprite->spriteWidth = 64;
-        currentSprite->spriteHeight = 64;
+    auto imgFind = Scratch::costumeImages.find(costumeId);
+    if (imgFind == Scratch::costumeImages.end()) {
         return;
     }
 
-    ImageData &data = imageIt->second;
-    isSVG = data.isSVG;
-    currentSprite->spriteWidth = data.width >> 1;
-    currentSprite->spriteHeight = data.height >> 1;
+    Image *image = imgFind->second.get();
+    const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
 
     Render::calculateRenderPosition(currentSprite, isSVG);
 
-    if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-        currentSprite->renderInfo.renderScaleX = -std::abs(currentSprite->renderInfo.renderScaleX);
-    } else currentSprite->renderInfo.renderScaleX = std::abs(currentSprite->renderInfo.renderScaleX);
-
-    C2D_ImageTint tinty;
-
-    // set ghost and brightness effect
-    if (currentSprite->brightnessEffect != 0.0f || currentSprite->ghostEffect != 0.0f) {
-        float brightnessEffect = currentSprite->brightnessEffect * 0.01f;
-        float alpha = 255.0f * (1.0f - currentSprite->ghostEffect / 100.0f);
-        if (brightnessEffect > 0)
-            C2D_PlainImageTint(&tinty, C2D_Color32(255, 255, 255, alpha), brightnessEffect);
-        else
-            C2D_PlainImageTint(&tinty, C2D_Color32(0, 0, 0, alpha), brightnessEffect);
-    } else C2D_AlphaImageTint(&tinty, 1.0f);
-
-    C2D_DrawImageAtRotated(
-        data.image,
-        currentSprite->renderInfo.renderX + xOffset,
-        currentSprite->renderInfo.renderY + yOffset,
-        1,
-        currentSprite->renderInfo.renderRotation,
-        &tinty,
-        currentSprite->renderInfo.renderScaleX,
-        currentSprite->renderInfo.renderScaleY);
-    data.freeTimer = data.maxFreeTimer;
+    ImageRenderParams params;
+    params.centered = true;
+    params.x = currentSprite->renderInfo.renderX + xOffset;
+    params.y = currentSprite->renderInfo.renderY + yOffset;
+    params.rotation = currentSprite->renderInfo.renderRotation;
+    params.scale = currentSprite->renderInfo.renderScaleY;
+    params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
+    params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+    params.brightness = currentSprite->brightnessEffect;
+    image->render(params);
 
     // collisioon points (debug)
     // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
@@ -406,7 +375,7 @@ void Render::renderSprites() {
 
                     renderImage(
                         currentSprite,
-                        costume.id,
+                        costume.fullName,
                         false,
                         eyeOffset,
                         renderMode == BOTH_SCREENS ? 120 : 0);
@@ -467,7 +436,7 @@ void Render::renderSprites() {
 
                     renderImage(
                         currentSprite,
-                        costume.id,
+                        costume.fullName,
                         false,
                         eyeOffset,
                         renderMode == BOTH_SCREENS ? 120 : 0);
@@ -500,8 +469,8 @@ void Render::renderSprites() {
 
             // render the pen texture above the backdrop, but below every other sprite
             if (i == 1 && penRenderTarget != nullptr) {
-                const float yOffset = renderMode == BOTH_SCREENS ? -screenHeight : 0.0f;
-                const float xOffset = renderMode == BOTH_SCREENS ? -(screenWidth - bottomScreenWidth) * 0.5 : 0.0f;
+                const float yOffset = renderMode == BOTH_SCREENS ? -240 : 0.0f;
+                const float xOffset = renderMode == BOTH_SCREENS ? -40 : 0.0f;
 
                 C2D_DrawImageAt(penImage,
                                 xOffset,
@@ -522,7 +491,7 @@ void Render::renderSprites() {
 
                     renderImage(
                         currentSprite,
-                        costume.id,
+                        costume.fullName,
                         true,
                         renderMode == BOTH_SCREENS ? -40 : 0,
                         renderMode == BOTH_SCREENS ? -120 : 0);
@@ -546,7 +515,6 @@ void Render::renderSprites() {
 
     C3D_FrameEnd(0);
     C2D_Flush();
-    Image::FlushImages();
 #ifdef ENABLE_AUDIO
     SoundPlayer::flushAudio();
 #endif
@@ -565,7 +533,6 @@ void Render::deInit() {
         C3D_TexDelete(penImage.tex);
     }
 
-    Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SoundPlayer::deinit();

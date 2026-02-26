@@ -59,7 +59,6 @@ struct Block {
     std::shared_ptr<std::map<std::string, ParsedField>> parsedFields;
     bool shadow;
     bool topLevel;
-    std::string topLevelParentBlock;
 
     /* variables that some blocks need*/
     double repeatTimes;
@@ -194,8 +193,8 @@ class Sprite {
 
     RotationStyle rotationStyle;
     std::vector<std::pair<double, double>> collisionPoints;
-    int spriteWidth;
-    int spriteHeight;
+    int spriteWidth = 0;
+    int spriteHeight = 0;
 
     struct {
         bool down = false;

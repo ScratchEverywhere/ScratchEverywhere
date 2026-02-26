@@ -469,15 +469,6 @@ void Parser::loadSprites(const nlohmann::json &json) {
         Render::visibleVariables.push_back(newMonitor);
     }
 
-    // setup top level blocks
-    for (Sprite *currentSprite : Scratch::sprites) {
-        for (auto &[id, block] : currentSprite->blocks) {
-            if (block.topLevel) continue;                                                   // skip top level blocks
-            block.topLevelParentBlock = Scratch::getBlockParent(&block, currentSprite)->id; // get parent block id
-            // std::cout<<"block id = "<< block.topLevelParentBlock << std::endl;
-        }
-    }
-
     // try to find the advanced project settings comment
     nlohmann::json config;
     for (auto &[id, comment] : Scratch::stageSprite->comments) {
@@ -625,6 +616,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 #endif
 
+    auto accuratePen = Unzip::getSetting("accuratePen");
+    if (!accuratePen.is_null() && accuratePen.get<bool>())
+        Scratch::accuratePen = true;
+    else Scratch::accuratePen = false;
+
     if (infClones) Scratch::maxClones = std::numeric_limits<int>::max();
     else Scratch::maxClones = 300;
 
@@ -650,7 +646,6 @@ void Parser::loadSprites(const nlohmann::json &json) {
     Unzip::loadingState = "Finishing up!";
 
     Input::applyControls(Unzip::filePath + ".json");
-    Render::setRenderScale();
     Log::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
 }
 

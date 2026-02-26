@@ -48,6 +48,7 @@ bool Scratch::fencing = true;
 bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
 bool Scratch::forceRedraw = false;
+bool Scratch::accuratePen = false;
 
 double Scratch::counter = 0;
 
@@ -56,6 +57,8 @@ Value Scratch::dataNextProject;
 
 bool Scratch::useCustomUsername = false;
 std::string Scratch::customUsername;
+
+std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
 bool Scratch::startScratchProject() {
     Parser::loadUsernameFromSettings();
@@ -69,6 +72,7 @@ bool Scratch::startScratchProject() {
     BlockExecutor::updateMonitors();
     Render::renderSprites();
 #endif
+    Render::setRenderScale();
 
     Scratch::greenFlagClicked();
 
@@ -88,7 +92,10 @@ bool Scratch::startScratchProject() {
             if (speechManager) {
                 speechManager->update();
             }
-            if (checkFPS) Render::renderSprites();
+            if (checkFPS) {
+                Render::renderSprites();
+                Scratch::flushCostumeImages();
+            }
 
 #ifdef ENABLE_MENU
 #ifdef ANDROID
@@ -135,7 +142,7 @@ bool Scratch::startScratchProject() {
 
 void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
-    Image::cleanupImages();
+    costumeImages.clear();
     SoundPlayer::cleanupAudio();
     Render::monitorTexts.clear();
     Render::listMonitors.clear();
@@ -288,11 +295,9 @@ void Scratch::cleanupSprites() {
 std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *currentSprite) {
     std::vector<std::pair<double, double>> collisionPoints;
 
-    const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
-
-    Render::calculateRenderPosition(currentSprite, isSVG);
-    const float spriteWidth = (currentSprite->spriteWidth * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
-    const float spriteHeight = (currentSprite->spriteHeight * (isSVG ? 2 : 1)) * (currentSprite->size * 0.01);
+    Render::calculateRenderPosition(currentSprite, currentSprite->costumes[currentSprite->currentCostume].isSVG);
+    const float spriteWidth = (currentSprite->spriteWidth) * (currentSprite->size * 0.01);
+    const float spriteHeight = (currentSprite->spriteHeight) * (currentSprite->size * 0.01);
 
     const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
     float x = cords.first;
@@ -304,16 +309,11 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
         rotation = Math::degreesToRadians(currentSprite->rotation - 90);
     } else if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
         rotation = Math::degreesToRadians(-180);
-#ifdef RENDERER_CITRO2D
-        x += currentSprite->spriteWidth * (isSVG ? 2 : 1);
-#endif
     } else rotation = 0;
 
-// put position to top left of sprite (SDL platforms already do this)
-#if !defined(RENDERER_SDL1) && !defined(RENDERER_SDL2) && !defined(RENDERER_SDL3)
-    x -= (currentSprite->spriteWidth / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
-    y += (currentSprite->spriteHeight / (isSVG ? 1 : 2)) * currentSprite->size * 0.01;
-#endif
+    // put position to top left of sprite
+    x -= spriteWidth / 2;
+    y += spriteHeight / 2;
 
     std::vector<std::pair<double, double>> corners = {
         {x, y},                              // Top-left
@@ -365,7 +365,6 @@ inline bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
 
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
     // Get collision points of the current sprite
-    std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
 
     if (collisionType == "mouse") {
         // Define a small square centered on the mouse pointer
@@ -380,6 +379,8 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
         };
 
         bool collision = true;
+
+        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
 
         for (int i = 0; i < 4; i++) {
             auto edge1 = std::pair{
@@ -415,6 +416,8 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
         double halfWidth = Scratch::projectWidth / 2.0;
         double halfHeight = Scratch::projectHeight / 2.0;
 
+        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
+
         for (const auto &point : currentSpritePoints) {
             if (point.first <= -halfWidth || point.first >= halfWidth ||
                 point.second <= -halfHeight || point.second >= halfHeight)
@@ -437,6 +440,42 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
             return false;
         }
 
+        // non rotated Sprite collision
+        if ((currentSprite->rotationStyle != currentSprite->ALL_AROUND || std::abs(currentSprite->rotation) == 90.0f) &&
+            (targetSprite->rotationStyle != currentSprite->ALL_AROUND || std::abs(targetSprite->rotation) == 90.0f)) {
+
+            const float currentSize = currentSprite->size * 0.01f;
+            const float targetSize = targetSprite->size * 0.01f;
+
+            const float currentLeft = (currentSprite->xPosition - currentSprite->spriteWidth / 2) * currentSize;
+            const float currentRight = (currentSprite->xPosition + currentSprite->spriteWidth / 2) * currentSize;
+            const float currentTop = (currentSprite->yPosition - currentSprite->spriteHeight / 2) * currentSize;
+            const float currentBottom = (currentSprite->yPosition + currentSprite->spriteHeight / 2) * currentSize;
+
+            const float targetLeft = (targetSprite->xPosition - targetSprite->spriteWidth / 2) * targetSize;
+            const float targetRight = (targetSprite->xPosition + targetSprite->spriteWidth / 2) * targetSize;
+            const float targetTop = (targetSprite->yPosition - targetSprite->spriteHeight / 2) * targetSize;
+            const float targetBottom = (targetSprite->yPosition + targetSprite->spriteHeight / 2) * targetSize;
+
+            if (currentRight < targetLeft || currentLeft > targetRight || currentBottom < targetTop || currentTop > targetBottom)
+                return false;
+
+            return true;
+        }
+
+        // rotated Sprite collision
+
+        // quick aabb first to save on performance
+        const int currentSize = std::max(currentSprite->spriteWidth, currentSprite->spriteHeight) * currentSprite->size * 0.01;
+        const int targetSize = std::max(targetSprite->spriteWidth, targetSprite->spriteHeight) * targetSprite->size * 0.01;
+        if (currentSprite->xPosition + currentSize < targetSprite->xPosition - targetSize ||
+            currentSprite->xPosition - currentSize > targetSprite->xPosition + targetSize ||
+            currentSprite->yPosition + currentSize < targetSprite->yPosition - targetSize ||
+            currentSprite->yPosition - currentSize > targetSprite->yPosition + targetSize) {
+            return false;
+        }
+
+        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
         std::vector<std::pair<double, double>> targetSpritePoints = Scratch::getCollisionPoints(targetSprite);
 
         bool collision = true;
@@ -490,36 +529,64 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 
     if (Scratch::fencing) fenceSpriteWithinBounds(sprite);
 
-    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) Render::penMove(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    if (sprite->penData.down && (oldX != sprite->xPosition || oldY != sprite->yPosition)) {
+        if (accuratePen) Render::penMoveAccurate(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+        else Render::penMoveFast(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
+    }
     Scratch::forceRedraw = true;
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
-    double halfWidth = Scratch::projectWidth / 2.0;
-    double halfHeight = Scratch::projectHeight / 2.0;
-    double scale = sprite->size / (sprite->costumes[sprite->currentCostume].isSVG ? 100.0 : 200.0);
-    double spriteHalfWidth = sprite->spriteWidth * scale;
-    double spriteHalfHeight = sprite->spriteHeight * scale;
 
-    // how much of the sprite remains visible when fenced
-    const double sliverSize = 15.0;
+    if (std::abs(sprite->xPosition) < Scratch::projectWidth * 0.3 && std::abs(sprite->yPosition) < Scratch::projectHeight * 0.3)
+        return;
 
-    const double inset = std::floor(std::min(spriteHalfWidth, spriteHalfHeight));
+    if (sprite->spriteWidth == 0 || sprite->spriteHeight == 0) loadCurrentCostumeImage(sprite);
 
-    double maxX = halfWidth - std::min(inset, sliverSize);
-    double maxY = halfHeight - std::min(inset, sliverSize);
+    std::vector<std::pair<double, double>> points = Scratch::getCollisionPoints(sprite);
 
-    if (sprite->xPosition - spriteHalfWidth > maxX) {
-        sprite->xPosition = maxX + spriteHalfWidth;
+    double rawMinX = std::numeric_limits<double>::max();
+    double rawMaxX = std::numeric_limits<double>::lowest();
+    double rawMinY = std::numeric_limits<double>::max();
+    double rawMaxY = std::numeric_limits<double>::lowest();
+
+    for (const auto &p : points) {
+        rawMinX = std::min(rawMinX, p.first);
+        rawMaxX = std::max(rawMaxX, p.first);
+        rawMinY = std::min(rawMinY, p.second);
+        rawMaxY = std::max(rawMaxY, p.second);
     }
-    if (sprite->xPosition + spriteHalfWidth < -maxX) {
-        sprite->xPosition = (-maxX) - spriteHalfWidth;
+
+    const float minX = std::floor(rawMinX);
+    const float maxX = std::ceil(rawMaxX);
+    const float minY = std::floor(rawMinY);
+    const float maxY = std::ceil(rawMaxY);
+
+    const float sprWidth = maxX - minX;
+    const float sprHeight = maxY - minY;
+
+    const float inset = std::floor(std::min(15.0, std::min(sprWidth, sprHeight) / 2.0));
+
+    const float distToLeft = std::floor((sprWidth - 1.0) / 2.0);
+    const float distToRight = std::floor((sprWidth - 1.0) / 2.0);
+    const float distToBottom = std::floor((sprHeight - 1.0) / 2.0);
+    const float distToTop = std::floor((sprHeight - 1.0) / 2.0);
+
+    const float stageRight = Scratch::projectWidth / 2.0;
+    const float stageLeft = -stageRight;
+    const float stageTop = Scratch::projectHeight / 2.0;
+    const float stageBottom = -stageTop;
+
+    if (minX > stageRight - inset) {
+        sprite->xPosition = (stageRight - inset) + distToLeft;
+    } else if (maxX < stageLeft + inset) {
+        sprite->xPosition = (stageLeft + inset) - distToRight;
     }
-    if (sprite->yPosition - spriteHalfHeight > maxY) {
-        sprite->yPosition = maxY + spriteHalfHeight;
-    }
-    if (sprite->yPosition + spriteHalfHeight < -maxY) {
-        sprite->yPosition = (-maxY) - spriteHalfHeight;
+
+    if (minY > stageTop - inset) {
+        sprite->yPosition = (stageTop - inset) + distToBottom;
+    } else if (maxY < stageBottom + inset) {
+        sprite->yPosition = (stageBottom + inset) - distToTop;
     }
 }
 
@@ -538,7 +605,7 @@ void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
-    Image::loadImageFromProject(sprite);
+    loadCurrentCostumeImage(sprite);
 
     Scratch::forceRedraw = true;
 }
@@ -554,6 +621,60 @@ void Scratch::sortSprites() {
     unsigned int currentLayer = sprites.size() - 1;
     for (auto *sprite : sprites)
         sprite->layer = currentLayer--;
+}
+
+void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
+    const std::string &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+
+    auto it = costumeImages.find(costumeName);
+    if (it != costumeImages.end()) {
+        sprite->spriteWidth = it->second->getWidth();
+        sprite->spriteHeight = it->second->getHeight();
+        return;
+    }
+
+    std::shared_ptr<Image> image;
+
+    try {
+        if (projectType == UNZIPPED) {
+            image = createImageFromFile(costumeName, true, true);
+        } else {
+            image = createImageFromZip(costumeName, &Unzip::zipArchive, true);
+        }
+    } catch (const std::runtime_error &e) {
+        Log::logWarning("Failed to load image: " + costumeName + ": " + std::string(e.what()));
+        freeUnusedCostumeImages();
+        return;
+    }
+
+    if (image) {
+        sprite->spriteWidth = image->getWidth();
+        sprite->spriteHeight = image->getHeight();
+        costumeImages[costumeName] = image;
+    }
+}
+
+void Scratch::flushCostumeImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, img] : costumeImages) {
+        img->freeTimer--;
+        if (img->freeTimer <= 0) toDelete.push_back(id);
+    }
+
+    for (const std::string &id : toDelete) {
+        costumeImages.erase(id);
+    }
+}
+
+void Scratch::freeUnusedCostumeImages() {
+    std::vector<std::string> toDelete;
+    for (auto &[id, img] : costumeImages) {
+        if (img->freeTimer < img->maxFreeTimer - 2) toDelete.push_back(id);
+    }
+
+    for (const std::string &id : toDelete) {
+        costumeImages.erase(id);
+    }
 }
 
 Block *Scratch::findBlock(std::string blockId, Sprite *sprite) {

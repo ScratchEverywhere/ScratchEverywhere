@@ -24,7 +24,7 @@ APP_NAME							:=	Scratch Everywhere!
 APP_AUTHOR						:=	NateXS and Grady Link
 APP_SHORT_DESCRIPTION	:=	Play Scratch Games on the Wii U!
 APP_LONG_DESCRIPTION	:=	$(APP_SHORT_DESCRIPTION)
-APP_VERSION						:=	0.35
+APP_VERSION						:=	0.36
 APP_ICON							:=	gfx/wiiu/icon.png
 APP_TV_SPLASH					:=	gfx/wiiu/tv-splash.png
 APP_DRC_SPLASH				:=	gfx/wiiu/drc-splash.png
@@ -45,7 +45,7 @@ CFLAGS	:=	-g -Wall -O2 -Wno-format-truncation -ffunction-sections -ffast-math $(
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(LIBDIRS),-I$(dir)/include) -I$(CURDIR)/$(BUILD)
 
 CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DRENDERER_SDL2 -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
-CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_image SDL2_ttf SDL2_gfx sdl2`
+CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_ttf SDL2_gfx sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
 
 ASFLAGS	:=	-g $(MACHDEP)
@@ -66,9 +66,9 @@ endif
 
 ifeq ($(ENABLE_AUDIO),1)
 CFLAGS	+=	-DENABLE_AUDIO `$(PKGCONF_WIIU) --cflags SDL2_mixer`
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_mixer SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_ttf SDL2_mixer SDL2_gfx sdl2` `$(PKGCONF) --libs zlib`
 else
-LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_image SDL2_ttf SDL2_gfx sdl2` `$(PKGCONF) --libs zlib libpng`
+LIBS	:=	`$(PKGCONF_WIIU) --libs SDL2_ttf SDL2_gfx sdl2` `$(PKGCONF) --libs zlib`
 endif
 
 LIBS	+=	-lharfbuzz -lfreetype
