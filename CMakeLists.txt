@@ -252,8 +252,13 @@ CPMAddPackage(
   GIT_TAG master
 )
 
-if(VITA)
+# PlutoVG Fixes
+if(VITA OR WEBOS OR PSP)
 	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
+endif()
+
+if(PSP)
+	target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
 endif()
 
 include(FetchContent)
