@@ -505,9 +505,9 @@ Then you need to compile the projects into proper Homebrew packages.
   inside the root of your Wii SD card.
 - **For the GameCube**, you need to run `make PLATFORM=gamecube`, then find the
   `.dol` file at `build/gamecube/scratch-gamecube.dol`.
-- **For the Switch**, you need to run `make PLATFORM=switch`, then find the
-  `.nro` file at `build/switch/scratch-nx.nro`.
-- **For the Vita**, run `make PLATFORM=vita`, then transfer the VPK at
+- **For the Switch**, you need to run `cmake -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake -B build/nx && cmake --build build/nx`, then find the
+  `.nro` file at `build/nx/scratch-nx.nro`.
+- **For the Vita**, run `cmake -DCMAKE_TOOLCHAIN_FILE=$VITASDK/share/vita.toolchain.cmake -B build/vita && cmake --build build/vita`, then transfer the VPK at
   `build/vita/scratch-vita.vpk` over to your Vita.
 - **For the PSP**, run
   `psp-cmake -B build/psp -S . -DSE_SYSTEM=ON -DSE_CLOUDVARS=OFF && make -C build/psp`,
