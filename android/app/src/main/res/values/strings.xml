@@ -3,5 +3,6 @@
 	<string name="exit_hint">Press and hold to exit the app.</string>
 	<string name="import_success">Imported project %s successfully!</string>
 	<string name="import_failed">Oops! Something went wrong while importing this project</string>
+	<string name="import_multiple_failed">Oops! Something went wrong while importing multiple projects</string>
 	<string name="import_exists">This project was already imported. Would you like to overwrite it?</string>
 </resources>

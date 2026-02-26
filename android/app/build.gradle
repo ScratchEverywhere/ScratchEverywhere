@@ -1,19 +1,18 @@
-apply plugin: 'com.android.application'
+apply plugin: "com.android.application"
 
 android {
     namespace "io.github.scratcheverywhere"
-    compileSdkVersion 34
+    compileSdkVersion 35
     defaultConfig {
-        minSdkVersion 19
-        targetSdkVersion 34
+        minSdkVersion 14
+        targetSdkVersion 35
         versionCode 1
-        versionName "0.35"
+        versionName "0.36"
         externalNativeBuild {
              cmake {
 				 arguments "-DANDROID_STL=c++_static", "-DBUILD_SHARED_LIBS=ON", "-DCPM_SOURCE_CACHE=build/CPM"
-				 abiFilters "arm64-v8a"
+				 abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
 				 cppFlags "-std=c++17", "-O2"
-				 //abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
              }
         }
     }

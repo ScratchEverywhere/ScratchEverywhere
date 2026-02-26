@@ -50,7 +50,14 @@ public class ProjectImportActivity extends Activity {
 				Log.i(TAG, "Received import URI: " + uri);
 
 				// Import URI
-				importProject(uri);
+				try {
+					importProject(uri);
+				} catch (Exception e) {
+					Toast.makeText(this, R.string.import_failed, Toast.LENGTH_SHORT)
+						.show();
+
+					e.printStackTrace();
+				}
 			}
 		} else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
 			ArrayList<Uri> uriList = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
@@ -58,7 +65,18 @@ public class ProjectImportActivity extends Activity {
 				// Import selected files
 				for (Uri uri : uriList) {
 					Log.i(TAG, "Received import URI: " + uriList);
-					importProject(uri);
+
+					try {
+						importProject(uri);
+					} catch (Exception e) {
+						Toast.makeText(this, R.string.import_failed, Toast.LENGTH_SHORT)
+							.show();
+
+						e.printStackTrace();
+					}
+					
+					Toast.makeText(this, R.string.import_failed, Toast.LENGTH_SHORT)
+						.show();
 				}
 			}
 		}
@@ -69,7 +87,6 @@ public class ProjectImportActivity extends Activity {
 	}
 
 	protected void importProject(Uri uri) {
-		try {
 			InputStream input = getContentResolver().openInputStream(uri);
 
 			// Get file name
@@ -122,11 +139,5 @@ public class ProjectImportActivity extends Activity {
 			Intent redirectIntent = new Intent(this, MainActivity.class);
 			startActivity(redirectIntent);
 			finish();
-		} catch (Exception e) {
-			Toast.makeText(this, R.string.import_failed, Toast.LENGTH_SHORT)
-				.show();
-
-			e.printStackTrace();
-		}
 	}
 }
