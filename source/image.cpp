@@ -160,10 +160,17 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     if (!dst) throw std::runtime_error("Failed to allocate SVG pixels buffer");
 
     for (size_t i = 0; i < pixelsSize; i += 4) {
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        dst[i + 0] = src[i + 1];
+        dst[i + 1] = src[i + 2];
+        dst[i + 2] = src[i + 3];
+        dst[i + 3] = src[i + 0];
+#else
         dst[i + 0] = src[i + 2];
         dst[i + 1] = src[i + 1];
         dst[i + 2] = src[i + 0];
         dst[i + 3] = src[i + 3];
+#endif
     }
 
     imgData.pitch = width * 4;
