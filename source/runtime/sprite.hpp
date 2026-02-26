@@ -222,6 +222,11 @@ struct Monitor {
     double sliderMin;
     double sliderMax;
     bool isDiscrete;
+
+    union {
+        Variable *variablePtr = nullptr;
+        List *listPtr;
+    };
 };
 
 class Sprite {

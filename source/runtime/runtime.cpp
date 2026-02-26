@@ -68,7 +68,7 @@ bool Scratch::startScratchProject() {
     Scratch::nextProject = false;
 
     for (auto &sprite : sprites) {
-        BlockExecutor::linkBlocks(sprite);
+        BlockExecutor::linkPointers(sprite);
     }
 
 #ifdef RENDERER_CITRO2D

@@ -97,7 +97,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     clonedSprite->renderInfo.forceUpdate = true;
     clonedSprite->id = Math::generateRandomString(15);
 
-    BlockExecutor::linkBlocks(clonedSprite);
+    BlockExecutor::linkPointers(clonedSprite);
 
     const int sourceIndex = (Scratch::sprites.size() - 1) - targetSprite->layer;
     auto it = Scratch::sprites.insert(Scratch::sprites.begin() + sourceIndex + 1, clonedSprite);

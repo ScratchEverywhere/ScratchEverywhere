@@ -68,7 +68,7 @@ class BlockExecutor {
     static std::unordered_map<std::string, BlockHandlerPtr> &getHandlers();
     static std::unordered_map<std::string, ValueHandlerPtr> &getValueHandlers();
 
-    static void linkBlocks(Sprite *sprite);
+    static void linkPointers(Sprite *sprite);
 
     static void executeKeyHats();
     static void doSpriteClicking();

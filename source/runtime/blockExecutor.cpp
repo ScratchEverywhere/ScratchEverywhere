@@ -35,7 +35,7 @@ std::unordered_map<std::string, ValueHandlerPtr> &BlockExecutor::getValueHandler
     return valueHandlers;
 }
 
-void BlockExecutor::linkBlocks(Sprite *sprite) {
+void BlockExecutor::linkPointers(Sprite *sprite) {
     auto &h = getHandlers();
     auto &vh = getValueHandlers();
 
@@ -98,6 +98,41 @@ void BlockExecutor::linkBlocks(Sprite *sprite) {
             }
 
             block.list = nullptr;
+        }
+    }
+
+    for (auto &[id, monitor] : Render::visibleVariables) {
+        if (monitor.opcode == "data_variable") {
+            auto it = sprite->variables.find(monitor.id);
+            if (it != sprite->variables.end()) {
+                monitor.variablePtr = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->variables.find(monitor.id);
+            if (globalIt != Scratch::stageSprite->variables.end()) {
+                monitor.variablePtr = &globalIt->second;
+                continue;
+            }
+
+            monitor.variablePtr = nullptr;
+            continue;
+        }
+        if (monitor.opcode == "data_listcontents") {
+            auto it = sprite->lists.find(monitor.id);
+            if (it != sprite->lists.end()) {
+                monitor.listPtr = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->lists.find(monitor.id);
+            if (globalIt != Scratch::stageSprite->lists.end()) {
+                monitor.listPtr = &globalIt->second;
+                continue;
+            }
+
+            monitor.variablePtr = nullptr;
+            continue;
         }
     }
 }
@@ -489,22 +524,32 @@ void BlockExecutor::updateMonitors() {
             }
 
             if (var.opcode == "data_variable") {
-                var.value = BlockExecutor::getVariableValue(var.id, sprite);
+                if (var.variablePtr != nullptr) var.value = var.variablePtr->value;
+                else var.value = BlockExecutor::getVariableValue(var.id, sprite);
+
                 var.displayName = Math::removeQuotations(var.parameters["VARIABLE"]);
                 if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
             } else if (var.opcode == "data_listcontents") {
                 var.displayName = Math::removeQuotations(var.parameters["LIST"]);
                 if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
 
-                // Check lists
-                auto listIt = sprite->lists.find(var.id);
-                if (listIt != sprite->lists.end())
-                    var.list = listIt->second.items;
+                if (var.listPtr != nullptr) {
+                    var.list = var.listPtr->items;
+                } else {
+                    // Check lists
+                    auto listIt = sprite->lists.find(var.id);
+                    if (listIt != sprite->lists.end()) {
+                        var.list = listIt->second.items;
+                        var.listPtr = &listIt->second;
+                    }
 
-                // Check global lists
-                auto globalIt = Scratch::stageSprite->lists.find(var.id);
-                if (globalIt != Scratch::stageSprite->lists.end())
-                    var.list = globalIt->second.items;
+                    // Check global lists
+                    auto globalIt = Scratch::stageSprite->lists.find(var.id);
+                    if (globalIt != Scratch::stageSprite->lists.end()) {
+                        var.list = globalIt->second.items;
+                        var.listPtr = &globalIt->second;
+                    }
+                }
             } else {
                 try {
                     Block newBlock;
