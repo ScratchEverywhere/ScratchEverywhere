@@ -11,7 +11,9 @@ import android.util.Log;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.Override;
@@ -86,7 +88,20 @@ public class ProjectImportActivity extends Activity {
 		return getExternalFilesDir(null).getAbsolutePath() + "/";
 	}
 
+	private void showErrorDialog(int resourceId) {
+		AlertDialog.Builder dialog = new AlertDialog.Builder(this, android.R.style.Theme_Holo_Dialog)
+			.setTitle(R.string.error_import_title)
+			.setMessage(getString(resourceId))
+			.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
+				dialogInterface.dismiss();
+			})
+			.setCancelable(true);
+
+		dialog.show();
+	}
+
 	protected void importProject(Uri uri) {
+		try {
 			InputStream input = getContentResolver().openInputStream(uri);
 
 			// Get file name
@@ -103,16 +118,17 @@ public class ProjectImportActivity extends Activity {
 				AtomicBoolean overwrite = new AtomicBoolean(false);
 
 				// Create confirm view
-				AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-				dialog.setMessage(getString(R.string.import_exists));
-				dialog.setNegativeButton(android.R.string.cancel, (dialogInterface, i) -> {
-					dialogInterface.cancel();
-				});
-				dialog.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
-					dialogInterface.dismiss();
-					overwrite.set(true);
-				});
-				dialog.setCancelable(true);
+				AlertDialog.Builder dialog = new AlertDialog.Builder(this, android.R.style.Theme_Holo_Dialog)
+					.setMessage(getString(R.string.import_exists))
+					.setNegativeButton(android.R.string.cancel, (dialogInterface, i) -> {
+						dialogInterface.cancel();
+					})
+					.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
+						dialogInterface.dismiss();
+						overwrite.set(true);
+					})
+					.setCancelable(true);
+
 				dialog.show();
 
 				if (!overwrite.get()) return;
@@ -139,5 +155,12 @@ public class ProjectImportActivity extends Activity {
 			Intent redirectIntent = new Intent(this, MainActivity.class);
 			startActivity(redirectIntent);
 			finish();
+		} catch (FileNotFoundException e) {
+			Log.e(TAG, "File not found: " + e);
+			showErrorDialog(R.string.error_file_not_found);
+		} catch (IOException e) {
+			Log.e(TAG, "I/O error: " + e);
+			showErrorDialog(R.string.error_file_io);
+		}
 	}
 }
