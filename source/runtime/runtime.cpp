@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "blockExecutor.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
@@ -66,6 +67,12 @@ bool Scratch::startScratchProject() {
     if (cloudProject) Parser::initMist();
 #endif
     Scratch::nextProject = false;
+
+#ifdef ENABLE_CACHING
+    for (auto &sprite : sprites) {
+        BlockExecutor::linkPointers(sprite);
+    }
+#endif
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird
@@ -707,6 +714,9 @@ Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite 
         return input.literalValue;
 
     case ParsedInput::VARIABLE:
+#ifdef ENABLE_CACHING
+        if (input.variable != nullptr) return input.variable->value;
+#endif
         return BlockExecutor::getVariableValue(input.variableId, sprite);
 
     case ParsedInput::BLOCK:
@@ -741,6 +751,10 @@ std::string Scratch::getListName(Block &block) {
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
+#ifdef ENABLE_CACHING
+    if (block.list != nullptr) return &block.list->items;
+#endif
+
     std::string listId = Scratch::getFieldId(block, "LIST");
     Sprite *targetSprite = nullptr;
     if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;

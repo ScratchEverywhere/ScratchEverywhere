@@ -48,11 +48,12 @@ GFXBUILD	:=	$(ROMFS)/gfx
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
-ENABLE_LOADSCREEN	  ?=	1
-ENABLE_AUDIO	?=	1
-ENABLE_DOWNLOAD	?=	1
-ENABLE_MENU		?=	1
-RAM_AMOUNT		?= 72
+ENABLE_LOADSCREEN	?=	1
+ENABLE_AUDIO		?=	1
+ENABLE_DOWNLOAD		?=	1
+ENABLE_MENU			?=	1
+ENABLE_CACHING		?=	0
+RAM_AMOUNT			?=	72
 
 # Check for SDL3 libraries
 ifeq ($(ENABLE_AUDIO),1)
@@ -97,6 +98,9 @@ ifneq ($(wildcard $(ROMFS)/project*),)
 	ENABLE_LOADSCREEN = 0
 endif
 
+ifeq ($(ENABLE_CACHING),1)
+CFLAGS	+=	-DENABLE_CACHING
+endif
 
 ifeq ($(ENABLE_MENU),1)
 SOURCES += source/scratch/menus
