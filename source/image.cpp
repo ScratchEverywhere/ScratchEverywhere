@@ -169,8 +169,8 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     auto document = lunasvg::Document::loadFromData(std::string(data, size).c_str());
     if (!document) throw std::runtime_error("LunaSVG failed to parse SVG");
 
-    width = document->width();
-    height = document->height();
+    width = document->width() - 1;
+    height = document->height() - 1;
 
     if (width <= 0) width = 32;
     if (height <= 0) height = 32;
