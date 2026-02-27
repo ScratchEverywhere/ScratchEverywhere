@@ -12,8 +12,8 @@ PKGCONF_WIIU	:=	/opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-pkg-config
 
 TARGET		:=	scratch-wiiu
 BUILD		:=	build/wiiu
-SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz
-INCLUDES	:=	include $(SOURCES)
+SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz include/lunasvg/source include/lunasvg/plutovg/source
+INCLUDES	:=	include $(SOURCES) include/lunasvg/include include/lunasvg/plutovg/include
 ROMFS	:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
@@ -47,6 +47,8 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) $(foreach dir,$(
 CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__ -DRENDERER_SDL2 -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 CFLAGS	+=	`$(PKGCONF_WIIU) --cflags SDL2_ttf SDL2_gfx sdl2`
 CFLAGS	+=	-I$(DEVKITPRO)/wut/include
+
+CFLAGS	+=	-DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD # PlutoVG fixes
 
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
