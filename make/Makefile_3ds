@@ -88,7 +88,7 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 
 CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 
-CFLAGS	+=	-Wincompatible-pointer-types -Wno-error=incompatible-pointer-types -DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD # PlutoVG fixes
+CFLAGS	+= -Wno-error=incompatible-pointer-types -DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD # PlutoVG fixes
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)

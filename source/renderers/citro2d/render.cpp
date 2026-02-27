@@ -38,6 +38,21 @@ bool Render::hasFrameBegan;
 static int currentScreen = 0;
 std::unordered_map<std::string, Monitor> Render::visibleVariables;
 
+enum class FastPenType {
+    DOT,
+    LINE
+};
+
+struct FastPenData {
+    FastPenType type;
+    float x1, y1;
+    float x2, y2;
+    float size;
+    u32 color;
+};
+
+static std::vector<FastPenData> fastPenQueue;
+
 bool Render::Init() {
     globalWindow = new Window3DS();
     if (!globalWindow->init(400, 240, "Scratch Everywhere!")) {
@@ -127,12 +142,69 @@ bool Render::initPen() {
     return true;
 }
 
+void flushFastPenQueue() {
+    if (fastPenQueue.empty()) return;
+
+    if (!Render::hasFrameBegan) {
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        Render::hasFrameBegan = true;
+    }
+    C2D_SceneBegin(penRenderTarget);
+    C3D_DepthTest(false, GPU_ALWAYS, GPU_WRITE_COLOR);
+
+    for (FastPenData &draw : fastPenQueue) {
+
+        switch (draw.type) {
+        case FastPenType::DOT: {
+            C2D_DrawRectSolid(draw.x1, draw.y1, 0.0f, draw.size, draw.size, draw.color);
+            break;
+        }
+        case FastPenType::LINE: {
+            C2D_DrawLine(draw.x1, draw.y1, draw.color, draw.x2, draw.y2, draw.color, draw.size, 0.0f);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+    fastPenQueue.clear();
+}
+
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    penMoveAccurate(x1, y1, x2, y2, sprite);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    uint8_t alpha = static_cast<uint8_t>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+
+    const int width = getWidth();
+    const int height = getHeight();
+
+    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (screenHeight * 0.5) + 32;
+
+    const float heightMultiplier = 0.5f;
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, alpha);
+    const float thickness = sprite->penData.size * renderScale;
+
+    const float x1_scaled = (x1 * renderScale) + (width / 2);
+    const float y1_scaled = (y1 * -1 * renderScale) + (height * heightMultiplier) + PEN_Y_OFFSET;
+    const float x2_scaled = (x2 * renderScale) + (width / 2);
+    const float y2_scaled = (y2 * -1 * renderScale) + (height * heightMultiplier) + PEN_Y_OFFSET;
+
+    C2D_DrawLine(x1_scaled, y1_scaled, color, x2_scaled, y2_scaled, color, thickness, 0);
+    fastPenQueue.push_back({FastPenType::LINE, x1_scaled, y1_scaled, x2_scaled, y2_scaled, thickness, color});
 }
 
 void Render::penDotFast(Sprite *sprite) {
-    penDotAccurate(sprite);
+    const int PEN_Y_OFFSET = renderMode != BOTH_SCREENS ? 16 : (screenHeight * 0.5) + 32;
+
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    uint8_t alpha = static_cast<uint8_t>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+
+    const u32 color = C2D_Color32(rgbColor.r, rgbColor.g, rgbColor.b, alpha);
+    const float thickness = std::clamp(sprite->penData.size * Render::renderScale, 1.0, 1000.0);
+
+    const float xSscaled = (sprite->xPosition * Render::renderScale) + (Render::getWidth() / 2);
+    const float yScaled = (sprite->yPosition * -1 * Render::renderScale) + (Render::getHeight() * 0.5);
+
+    fastPenQueue.push_back({FastPenType::DOT, xSscaled - (thickness / 2.0f), (yScaled - (thickness / 2.0f)) + PEN_Y_OFFSET, 0.0f, 0.0f, thickness, color});
 }
 
 void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
@@ -199,6 +271,8 @@ void Render::penStamp(Sprite *sprite) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
+
+    flushFastPenQueue();
 
     Image *image = imgFind->second.get();
     if (!Render::hasFrameBegan) {
@@ -334,6 +408,8 @@ void Render::renderSprites() {
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     }
+
+    if (penRenderTarget && penRenderTarget != nullptr) flushFastPenQueue();
 
     // Always start rendering top screen, otherwise bottom screen only rendering gets weird fsr
     C2D_SceneBegin(topScreen);
