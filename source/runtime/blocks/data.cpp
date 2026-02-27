@@ -225,3 +225,32 @@ SCRATCH_REPORTER_BLOCK(data, listcontainsitem) {
 SCRATCH_REPORTER_BLOCK(data, variable) {
     return Value(BlockExecutor::getVariableValue(Scratch::getFieldId(block, "VARIABLE"), sprite, &block));
 }
+
+SCRATCH_REPORTER_BLOCK(data, listcontents) {
+    const auto &items = Scratch::getListItems(block, sprite);
+    std::string ret = "";
+    bool allSingle = true;
+
+    if (items) {
+        int i = 0;
+
+        for (const auto &item : *items) {
+            if (!(item.isString() && item.asString().length() == 1)) {
+                allSingle = false;
+            }
+        }
+
+        for (const auto &item : *items) {
+            if (allSingle) {
+                ret += item.asString();
+            } else {
+                if (i > 0) ret += " ";
+                ret += item.asString();
+            }
+
+            i++;
+        }
+    }
+
+    return Value(ret);
+}
