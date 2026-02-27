@@ -221,3 +221,7 @@ SCRATCH_REPORTER_BLOCK(data, listcontainsitem) {
     }
     return Value(false);
 }
+
+SCRATCH_REPORTER_BLOCK(data, variable) {
+    return Value(BlockExecutor::getVariableValue(Scratch::getFieldId(block, "VARIABLE"), sprite, &block));
+}
