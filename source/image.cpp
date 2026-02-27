@@ -1,15 +1,15 @@
 #include "image.hpp"
+#include "os.hpp"
 #include <stdexcept>
+#include <string_view>
 #include <unzip.hpp>
 #ifdef __WIIU__
 #define STBI_NO_THREAD_LOCALS
 #endif
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-#define NANOSVG_IMPLEMENTATION
-#include <nanosvg.h>
-#define NANOSVGRAST_IMPLEMENTATION
-#include <nanosvgrast.h>
+
+#include <lunasvg.h>
 
 #if defined(RENDERER_SDL1)
 #include <image_sdl1.hpp>
@@ -34,6 +34,28 @@ CMRC_DECLARE(romfs);
 #endif
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
+
+bool loadFont(const std::string &family, const std::string &path) {
+#ifdef USE_CMAKERC
+    const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
+#else
+    if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
+#endif
+
+    return true;
+}
+
+bool Image::Init() {
+    if (!loadFont("", "gfx/ingame/fonts/NotoSerif-Regular")) return false;
+    if (!loadFont("Sans Serif", "gfx/ingame/fonts/NotoSans-Regular")) return false;
+    if (!loadFont("Handwriting", "gfx/ingame/fonts/Handlee-Regular")) return false;
+    if (!loadFont("Marker", "gfx/ingame/fonts/Knewave-Regular")) return false;
+    if (!loadFont("Curly", "gfx/ingame/fonts/Griffy-Regular")) return false;
+    if (!loadFont("Pixel", "gfx/ingame/fonts/Grand9KPixel")) return false;
+
+    return true;
+}
 
 std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) {
     auto it = images.find(filePath);
@@ -144,33 +166,40 @@ std::vector<char> Image::readFileToBuffer(const std::string &filePath, bool from
 }
 
 unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height) {
-    char *svg_data = const_cast<char *>(data);
-    NSVGimage *image = nsvgParse(svg_data, "px", 96.0f);
-    if (!image) throw std::runtime_error("Failed to parse SVG");
+    auto document = lunasvg::Document::loadFromData(std::string(data, size).c_str());
+    if (!document) throw std::runtime_error("LunaSVG failed to parse SVG");
 
-    width = image->width > 0 ? (int)image->width : 32;
-    height = image->height > 0 ? (int)image->height : 32;
+    width = document->width() - 1;
+    height = document->height() - 1;
+
+    if (width <= 0) width = 32;
+    if (height <= 0) height = 32;
+
+    auto bitmap = document->renderToBitmap(width, height);
+    if (!bitmap.valid()) throw std::runtime_error("LunaSVG failed to render SVG to bitmap");
+
+    unsigned char *src = bitmap.data();
+    const size_t pixelsSize = width * height * 4;
+    unsigned char *dst = (unsigned char *)malloc(pixelsSize);
+    if (!dst) throw std::runtime_error("Failed to allocate SVG pixels buffer");
+
+    for (size_t i = 0; i < pixelsSize; i += 4) {
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        dst[i + 0] = src[i + 1];
+        dst[i + 1] = src[i + 2];
+        dst[i + 2] = src[i + 3];
+        dst[i + 3] = src[i + 0];
+#else
+        dst[i + 0] = src[i + 2];
+        dst[i + 1] = src[i + 1];
+        dst[i + 2] = src[i + 0];
+        dst[i + 3] = src[i + 3];
+#endif
+    }
+
     imgData.pitch = width * 4;
 
-    NSVGrasterizer *rast = nsvgCreateRasterizer();
-    if (!rast) {
-        nsvgDelete(image);
-        throw std::runtime_error("Failed to create SVG rasterizer");
-    }
-
-    unsigned char *pixels = (unsigned char *)malloc(width * height * 4);
-    if (!pixels) {
-        nsvgDeleteRasterizer(rast);
-        nsvgDelete(image);
-        throw std::runtime_error("Failed to allocate SVG pixel buffer");
-    }
-
-    nsvgRasterize(rast, image, 0, 0, 1.0f, pixels, width, height, imgData.pitch);
-
-    nsvgDeleteRasterizer(rast);
-    nsvgDelete(image);
-
-    return pixels;
+    return dst;
 }
 
 unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {

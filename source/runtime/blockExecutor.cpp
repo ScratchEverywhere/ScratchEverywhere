@@ -25,15 +25,131 @@ Timer BlockExecutor::timer;
 int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
 
-std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> &BlockExecutor::getHandlers() {
-    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
+std::unordered_map<std::string, BlockHandlerPtr> &BlockExecutor::getHandlers() {
+    static std::unordered_map<std::string, BlockHandlerPtr> handlers;
     return handlers;
 }
 
-std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &BlockExecutor::getValueHandlers() {
-    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
+std::unordered_map<std::string, ValueHandlerPtr> &BlockExecutor::getValueHandlers() {
+    static std::unordered_map<std::string, ValueHandlerPtr> valueHandlers;
     return valueHandlers;
 }
+
+#ifdef ENABLE_CACHING
+void BlockExecutor::linkPointers(Sprite *sprite) {
+    auto &h = getHandlers();
+    auto &vh = getValueHandlers();
+
+    for (auto &[id, block] : sprite->blocks) {
+
+        if (!block.next.empty()) {
+            auto nextIt = sprite->blocks.find(block.next);
+            if (nextIt != sprite->blocks.end()) {
+                block.nextBlock = &nextIt->second;
+            } else {
+                block.nextBlock = nullptr;
+            }
+        } else {
+            block.nextBlock = nullptr;
+        }
+
+        auto it = h.find(block.opcode);
+        if (it != h.end()) {
+            block.handler = it->second;
+        } else {
+            auto vit = vh.find(block.opcode);
+            if (vit != vh.end()) block.valueHandler = vit->second;
+        }
+
+        for (auto &[id, input] : *block.parsedInputs) {
+            if (input.inputType != ParsedInput::VARIABLE) continue;
+
+            auto it = sprite->variables.find(input.variableId);
+            if (it != sprite->variables.end()) {
+                input.variable = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->variables.find(input.variableId);
+            if (globalIt != Scratch::stageSprite->variables.end()) {
+                input.variable = &globalIt->second;
+                continue;
+            }
+
+            input.variable = nullptr;
+        }
+
+        auto variableId = Scratch::getFieldId(block, "VARIABLE");
+        if (variableId != "") {
+            auto it = sprite->variables.find(variableId);
+            if (it != sprite->variables.end()) {
+                block.variable = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->variables.find(variableId);
+            if (globalIt != Scratch::stageSprite->variables.end()) {
+                block.variable = &globalIt->second;
+                continue;
+            }
+
+            block.variable = nullptr;
+        }
+
+        auto listId = Scratch::getFieldId(block, "LIST");
+        if (listId != "") {
+            auto it = sprite->lists.find(listId);
+            if (it != sprite->lists.end()) {
+                block.list = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->lists.find(listId);
+            if (globalIt != Scratch::stageSprite->lists.end()) {
+                block.list = &globalIt->second;
+                continue;
+            }
+
+            block.list = nullptr;
+        }
+    }
+
+    for (auto &[id, monitor] : Render::visibleVariables) {
+        if (monitor.opcode == "data_variable") {
+            auto it = sprite->variables.find(monitor.id);
+            if (it != sprite->variables.end()) {
+                monitor.variablePtr = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->variables.find(monitor.id);
+            if (globalIt != Scratch::stageSprite->variables.end()) {
+                monitor.variablePtr = &globalIt->second;
+                continue;
+            }
+
+            monitor.variablePtr = nullptr;
+            continue;
+        }
+        if (monitor.opcode == "data_listcontents") {
+            auto it = sprite->lists.find(monitor.id);
+            if (it != sprite->lists.end()) {
+                monitor.listPtr = &it->second;
+                continue;
+            }
+
+            auto globalIt = Scratch::stageSprite->lists.find(monitor.id);
+            if (globalIt != Scratch::stageSprite->lists.end()) {
+                monitor.listPtr = &globalIt->second;
+                continue;
+            }
+
+            monitor.variablePtr = nullptr;
+            continue;
+        }
+    }
+}
+#endif
 
 void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
     Block *currentBlock = &block;
@@ -45,16 +161,25 @@ void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRe
 
         if (result == BlockResult::RETURN) return;
 
+#ifdef ENABLE_CACHING
+        if (!currentBlock->nextBlock) return;
+        currentBlock = currentBlock->nextBlock;
+#else
         if (currentBlock->next.empty()) return;
         currentBlock = &sprite->blocks[currentBlock->next];
+#endif
         fromRepeat = false;
     }
 }
 
 BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    auto &h = getHandlers();
-    const auto iterator = h.find(block.opcode);
-    if (iterator != h.end()) return iterator->second(block, sprite, withoutScreenRefresh, fromRepeat);
+#ifdef ENABLE_CACHING
+    if (block.handler != nullptr) return block.handler(block, sprite, withoutScreenRefresh, fromRepeat);
+#else
+    const auto &h = getHandlers();
+    const auto &it = h.find(block.opcode);
+    if (it != h.end()) return it->second(block, sprite, withoutScreenRefresh, fromRepeat);
+#endif
 
     if (!block.opcode.empty())
         Log::logWarning("Unknown block: " + block.opcode);
@@ -373,25 +498,48 @@ void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
 }
 
 Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
-    auto &vh = getValueHandlers();
-    const auto iterator = vh.find(block.opcode);
-    if (iterator != vh.end()) return iterator->second(block, sprite);
+#ifdef ENABLE_CACHING
+    if (block.valueHandler != nullptr) return block.valueHandler(block, sprite);
+    else {
+#endif
+        const auto &vh = getValueHandlers();
+        const auto &it = vh.find(block.opcode);
+        if (it != vh.end()) return it->second(block, sprite);
+#ifdef ENABLE_CACHING
+    }
+#endif
 
     Log::logWarning("Unknown block: " + block.opcode);
 
     return Value();
 }
 
-void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
+void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite, Block *block) {
+#ifdef ENABLE_CACHING
+    if (block != nullptr && block->variable != nullptr) {
+        block->variable->value = newValue;
+#ifdef ENABLE_CLOUDVARS
+        if (block->variable->cloud) cloudConnection->set(block->variable->name, block->variable->value.asString());
+#endif
+        return;
+    }
+#endif
+
     // Set sprite variable
     const auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
+#ifdef ENABLE_CACHING
+        if (block != nullptr && block->variable == nullptr) block->variable = &it->second;
+#endif
         it->second.value = newValue;
         return;
     }
 
     auto globalIt = Scratch::stageSprite->variables.find(variableId);
     if (globalIt != Scratch::stageSprite->variables.end()) {
+#ifdef ENABLE_CACHING
+        if (block != nullptr && block->variable == nullptr) block->variable = &globalIt->second;
+#endif
         globalIt->second.value = newValue;
 #ifdef ENABLE_CLOUDVARS
         if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
@@ -401,7 +549,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
 }
 
 void BlockExecutor::updateMonitors() {
-    for (auto &var : Render::visibleVariables) {
+    for (auto &[id, var] : Render::visibleVariables) {
         if (var.visible) {
             Sprite *sprite = nullptr;
             for (auto &spr : Scratch::sprites) {
@@ -416,22 +564,44 @@ void BlockExecutor::updateMonitors() {
             }
 
             if (var.opcode == "data_variable") {
+#ifdef ENABLE_CACHING
+                if (var.variablePtr != nullptr) var.value = var.variablePtr->value;
+                else var.value = BlockExecutor::getVariableValue(var.id, sprite);
+#else
                 var.value = BlockExecutor::getVariableValue(var.id, sprite);
+#endif
+
                 var.displayName = Math::removeQuotations(var.parameters["VARIABLE"]);
                 if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
             } else if (var.opcode == "data_listcontents") {
                 var.displayName = Math::removeQuotations(var.parameters["LIST"]);
                 if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
 
-                // Check lists
-                auto listIt = sprite->lists.find(var.id);
-                if (listIt != sprite->lists.end())
-                    var.list = listIt->second.items;
+#ifdef ENABLE_CACHING
+                if (var.listPtr != nullptr) {
+                    var.list = var.listPtr->items;
+                } else {
+#endif
+                    // Check lists
+                    auto listIt = sprite->lists.find(var.id);
+                    if (listIt != sprite->lists.end()) {
+                        var.list = listIt->second.items;
+#ifdef ENABLE_CACHING
+                        var.listPtr = &listIt->second;
+#endif
+                    }
 
-                // Check global lists
-                auto globalIt = Scratch::stageSprite->lists.find(var.id);
-                if (globalIt != Scratch::stageSprite->lists.end())
-                    var.list = globalIt->second.items;
+                    // Check global lists
+                    auto globalIt = Scratch::stageSprite->lists.find(var.id);
+                    if (globalIt != Scratch::stageSprite->lists.end()) {
+                        var.list = globalIt->second.items;
+#ifdef ENABLE_CACHING
+                        var.listPtr = &globalIt->second;
+#endif
+                    }
+#ifdef ENABLE_CACHING
+                }
+#endif
             } else {
                 try {
                     Block newBlock;
@@ -465,10 +635,19 @@ void BlockExecutor::updateMonitors() {
     }
 }
 
-Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
+Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *sprite, Block *block) {
+#ifdef ENABLE_CACHING
+    if (block != nullptr && block->variable != nullptr) return block->variable->value;
+#endif
+
     // Check sprite variables
     const auto it = sprite->variables.find(variableId);
-    if (it != sprite->variables.end()) return it->second.value;
+    if (it != sprite->variables.end()) {
+#ifdef ENABLE_CACHING
+        if (block != nullptr && block->variable == nullptr) block->variable = &it->second;
+#endif
+        return it->second.value;
+    }
 
     // Check lists
     const auto listIt = sprite->lists.find(variableId);
@@ -489,32 +668,30 @@ Value BlockExecutor::getVariableValue(std::string variableId, Sprite *sprite) {
     }
 
     // Check global variables
-    for (const auto &currentSprite : Scratch::sprites) {
-        if (currentSprite->isStage) {
-            const auto globalIt = currentSprite->variables.find(variableId);
-            if (globalIt != currentSprite->variables.end()) return globalIt->second.value;
-        }
+    const auto globalIt = Scratch::stageSprite->variables.find(variableId);
+    if (globalIt != Scratch::stageSprite->variables.end()) {
+#ifdef ENABLE_CACHING
+        if (block != nullptr && block->variable == nullptr) block->variable = &globalIt->second;
+#endif
+        return globalIt->second.value;
     }
 
     // Check global lists
-    for (const auto &currentSprite : Scratch::sprites) {
-        if (currentSprite->isStage) {
-            auto globalIt = currentSprite->lists.find(variableId);
-            if (globalIt == currentSprite->lists.end()) continue;
-            std::string result;
-            std::string seperator = "";
-            for (const auto &item : globalIt->second.items) {
-                if (item.asString().size() > 1 || !item.isString()) {
-                    seperator = " ";
-                    break;
-                }
+    auto globalListIt = Scratch::stageSprite->lists.find(variableId);
+    if (globalListIt != Scratch::stageSprite->lists.end()) {
+        std::string result;
+        std::string seperator = "";
+        for (const auto &item : globalListIt->second.items) {
+            if (item.asString().size() > 1 || !item.isString()) {
+                seperator = " ";
+                break;
             }
-            for (const auto &item : globalIt->second.items) {
-                result += item.asString() + seperator;
-            }
-            if (!result.empty() && !seperator.empty()) result.pop_back();
-            return Value(result);
         }
+        for (const auto &item : globalListIt->second.items) {
+            result += item.asString() + seperator;
+        }
+        if (!result.empty() && !seperator.empty()) result.pop_back();
+        return Value(result);
     }
 
     return Value();

@@ -1,3 +1,4 @@
+#include "image.hpp"
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
@@ -28,6 +29,10 @@ static bool initApp() {
     Log::deleteLogFile();
     Render::debugMode = true;
     if (!Render::Init()) {
+        return false;
+    }
+    if (!Image::Init()) {
+        // Maybe this should just be ignored since unlike the renderer this won't break the app?
         return false;
     }
     return true;

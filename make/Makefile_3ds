@@ -38,9 +38,9 @@ MAKEROM    ?= makerom
 #	Build Info
 #---------------------------------------------------------------------------------
 BUILD		:=	build/3ds
-SOURCES		:=	source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3
+SOURCES		:=	source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3 include/lunasvg/source include/lunasvg/plutovg/source
 DATA		:=	data
-INCLUDES	:=	include source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3 include/miniz
+INCLUDES	:=	include source source/renderers/citro2d source/windowing/3ds source/runtime source/runtime/blocks source/menus include/miniz include/ryu source/audio/sdl3 include/miniz include/lunasvg/include include/lunasvg/plutovg/include
 GRAPHICS	:=	gfx
 ROMFS		:=	romfs
 ICON		:=	gfx/icon.png
@@ -48,11 +48,12 @@ GFXBUILD	:=	$(ROMFS)/gfx
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
-ENABLE_LOADSCREEN	  ?=	1
-ENABLE_AUDIO	?=	1
-ENABLE_DOWNLOAD	?=	1
-ENABLE_MENU		?=	1
-RAM_AMOUNT		?= 72
+ENABLE_LOADSCREEN	?=	1
+ENABLE_AUDIO		?=	1
+ENABLE_DOWNLOAD		?=	1
+ENABLE_MENU			?=	1
+ENABLE_CACHING		?=	0
+RAM_AMOUNT			?=	72
 
 # Check for SDL3 libraries
 ifeq ($(ENABLE_AUDIO),1)
@@ -87,6 +88,8 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 
 CFLAGS	+=	$(INCLUDE) -D__3DS__ -fomit-frame-pointer -DRENDERER_CITRO2D -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 
+CFLAGS	+= -Wno-error=incompatible-pointer-types -DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD # PlutoVG fixes
+
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
@@ -95,6 +98,9 @@ ifneq ($(wildcard $(ROMFS)/project*),)
 	ENABLE_LOADSCREEN = 0
 endif
 
+ifeq ($(ENABLE_CACHING),1)
+CFLAGS	+=	-DENABLE_CACHING
+endif
 
 ifeq ($(ENABLE_MENU),1)
 SOURCES += source/scratch/menus

@@ -36,7 +36,7 @@ SpeechManagerSDL1 *speechManager = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
-std::vector<Monitor> Render::visibleVariables;
+std::unordered_map<std::string, Monitor> Render::visibleVariables;
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 

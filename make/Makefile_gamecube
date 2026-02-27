@@ -18,24 +18,26 @@ PKGCONF_GAMECUBE	:=	$(DEVKITPRO)/libogc2/gamecube/bin/powerpc-eabi-pkg-config
 #---------------------------------------------------------------------------------
 TARGET		:=	scratch-gamecube
 BUILD		:=	build/gamecube
-SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz
+SOURCES		:=	source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz include/lunasvg/source include/lunasvg/plutovg/source
 DATA		:=	data
-INCLUDES	:=	include $(SOURCES)
+INCLUDES	:=	include $(SOURCES) include/lunasvg/include include/lunasvg/plutovg/include
 ROMFS		:=	romfs
 GRAPHICS	:=	gfx
 GFXBUILD	:=	$(ROMFS)/gfx
 
 # Config Options
 ENABLE_CLOUDVARS	?=	0
-ENABLE_LOADSCREEN		?=	1
-ENABLE_AUDIO	?=	1
-ENABLE_MENU		?=	1
+ENABLE_LOADSCREEN	?=	1
+ENABLE_AUDIO		?=	1
+ENABLE_MENU			?=	1
+ENABLE_CACHING		?=	0
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
 CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_gfx freetype2` -g -O2 -Wall $(MACHDEP) $(INCLUDE) -DGAMECUBE -D__OGC__ -DRENDERER_SDL2 -DPLATFORM_HAS_CONTROLLER -DCONSOLE
 
+CFLAGS	+=	-DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD # PlutoVG fixes
 
 ASFLAGS	:=	-g $(ARCH)
 
@@ -45,6 +47,10 @@ LDFLAGS	:=	-g $(MACHDEP) -Wl,-Map,$(notdir $*.map) \
 ifneq ($(wildcard $(ROMFS)/project*),)
     ENABLE_MENU = 0
 	ENABLE_LOADSCREEN = 0
+endif
+
+ifeq ($(ENABLE_CACHING),1)
+CFLAGS	+=	-DENABLE_CACHING
 endif
 
 ifeq ($(ENABLE_AUDIO),1)

@@ -12,6 +12,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SE_AUDIO "Enables audio in SE!" ON)
 
+set(SE_CACHING_DEFAULT ON)
+if(PSP)
+    set(SE_CACHING_DEFAULT OFF)
+endif()
+option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
+
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
 if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
@@ -236,9 +242,16 @@ CPMAddPackage(
 	VERSION 3.0
 )
 CPMAddPackage(
-  NAME nanosvg
-  GITHUB_REPOSITORY memononen/nanosvg
-  GIT_TAG master
+  NAME plutovg
+  GITHUB_REPOSITORY sammycage/plutovg
+  VERSION 1.3.0 # Version expected by LunaSVG
+  OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
+)
+CPMAddPackage(
+  NAME lunasvg
+  GITHUB_REPOSITORY sammycage/lunasvg
+  VERSION 3.5.0
+  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
 )
 CPMAddPackage(
   NAME stb
@@ -246,6 +259,14 @@ CPMAddPackage(
   GIT_TAG master
 )
 
+# PlutoVG Fixes
+if(VITA OR WEBOS OR PSP)
+	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
+endif()
+
+if(PSP)
+	target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
@@ -263,11 +284,6 @@ if(SE_RENDERER STREQUAL "sdl1")
 	else()
 		error("SDL1 is currently not supported without system libraries")
 	endif()
-	CPMAddPackage(
-		NAME nanosvg
-		GITHUB_REPOSITORY memononen/nanosvg
-		GIT_TAG 5cefd9847949af6df13f65027fd43af5a7513633
-	)
 elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL2 REQUIRED sdl2>=2.0.0)
@@ -699,7 +715,6 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 	endif()
 
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
-	target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
 elseif(SE_RENDERER STREQUAL "opengl")
 	target_link_libraries(scratch-everywhere PRIVATE OpenGL::GL)
 	if(SE_OPENGL_ES)
@@ -761,6 +776,9 @@ elseif(SE_RENDERER STREQUAL "headless")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
 endif()
 
+if(SE_CACHING)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CACHING)
+endif()
 if(SE_AUDIO)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
 endif()
@@ -848,7 +866,7 @@ target_link_libraries(scratch-everywhere PRIVATE ryuJS)
 target_include_directories(ryuJS PUBLIC
   ${poipole807_ryuJS_SOURCE_DIR}
 )
-target_include_directories(scratch-everywhere PRIVATE ${nanosvg_SOURCE_DIR}/src)
+target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 

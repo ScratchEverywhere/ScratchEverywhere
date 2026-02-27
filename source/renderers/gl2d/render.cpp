@@ -8,6 +8,7 @@
 #include <nds.h>
 #include <nds/arm9/dldi.h>
 #include <render.hpp>
+#include <unordered_map>
 #include <window.hpp>
 #include <windowing/nds/window.hpp>
 
@@ -18,7 +19,7 @@ float Render::renderScale = 1.0f;
 Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
 std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-std::vector<Monitor> Render::visibleVariables;
+std::unordered_map<std::string, Monitor> Render::visibleVariables;
 
 Window *globalWindow = nullptr;
 SpeechManagerGL2D *speechManager = nullptr;

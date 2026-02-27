@@ -8,10 +8,11 @@ TITLE_ID    := NTXS10053
 CONTENT_ID  := IV0000-NTXS10053_00-SCRATCHPS4000000
 
 # Options for building Scratch Everywhere!
-ENABLE_CLOUDVARS	?= 0
-ENABLE_AUDIO		?= 1
-ENABLE_LOADSCREEN	?= 0
-ENABLE_MENU		?=	1
+ENABLE_CLOUDVARS	?=	0
+ENABLE_AUDIO		?=	1
+ENABLE_LOADSCREEN	?=	0
+ENABLE_MENU			?=	1
+ENABLE_CACHING		?=	1
 
 # Libraries linked into the ELF.
 LIBS        := -lc -lkernel -lc++ -lSceSysmodule -lSceAudioOut -lSceUserService \
@@ -26,8 +27,8 @@ TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 TARGET		:= scratch-ps4
 BUILD		:= build/ps4
 GRAPHICS	:= gfx
-SOURCES		:= source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz
-INCLUDES	:= include $(SOURCES)
+SOURCES		:= source source/runtime source/runtime/blocks source/menus source/renderers/sdl2 source/windowing/sdl2 source/audio/sdl2 include/nlohmann include/ryu include/miniz include/lunasvg/source include/lunasvg/plutovg/source
+INCLUDES	:= include $(SOURCES) include/lunasvg/include include/lunasvg/plutovg/include
 FILES		:= eboot.bin sce_module/libc.prx sce_module/libSceFios2.prx\
 			   sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png sce_sys/pic1.png sce_sys/about/right.sprx\
 			   $(shell find $(GRAPHICS) -maxdepth 1 -type f) $(shell find $(GRAPHICS)/ps4 $(GRAPHICS)/menu $(GRAPHICS)/ingame -type f)
@@ -60,6 +61,10 @@ ifeq ($(strip $(PACBREW)),)
 $(error "Pacbrew packages are required to build for PS4. Please set PACBREW in your environment; export PACBREW=<path to>PACBREW")
 endif
 
+# Handle caching
+ifeq ($(ENABLE_CACHING),1)
+CFLAGS	+=	-DENABLE_CACHING
+endif
 
 # Handle cloudvars and mist++
 ifeq ($(ENABLE_CLOUDVARS),1)
