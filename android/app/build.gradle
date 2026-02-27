@@ -9,11 +9,11 @@ android {
         versionCode 1
         versionName "0.36"
         externalNativeBuild {
-             cmake {
-				 arguments "-DANDROID_STL=c++_static", "-DBUILD_SHARED_LIBS=ON", "-DCPM_SOURCE_CACHE=build/CPM"
-				 abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
-				 cppFlags "-std=c++17", "-O2"
-             }
+            cmake {
+                arguments "-DANDROID_STL=c++_static", "-DBUILD_SHARED_LIBS=ON", "-DCPM_SOURCE_CACHE=build/CPM"
+                abiFilters "armeabi-v7a", "arm64-v8a" // "x86", "x86_64"
+                cppFlags "-std=c++17", "-O2"
+            }
         }
     }
     buildTypes {
@@ -26,13 +26,13 @@ android {
         tasks["merge${variant.name.capitalize()}Assets"]
             .dependsOn("externalNativeBuild${variant.name.capitalize()}")
     }
+	sourceSets.main {
+		assets.srcDirs "../../romfs"
+	}
 	externalNativeBuild {
 		 cmake {
 			 path file("../../CMakeLists.txt")
 		 }
-	}
-	sourceSets.main {
-		assets.srcDirs += "../../romfs"
 	}
     lint {
         abortOnError false
