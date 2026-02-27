@@ -336,6 +336,14 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
 
     closedir(dir);
 #endif
+
+    std::sort(projectFiles.begin(), projectFiles.end(), [](const std::string &a, const std::string &b) {
+        return std::lexicographical_compare(
+            a.begin(), a.end(),
+            b.begin(), b.end(),
+            [](char x, char y) { return std::tolower(x) < std::tolower(y); });
+    });
+
     return projectFiles;
 }
 
