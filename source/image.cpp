@@ -37,10 +37,10 @@ std::unordered_map<std::string, std::weak_ptr<Image>> images;
 
 bool loadFont(const std::string &family, const std::string &path) {
 #ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(OS::getRomFSLocation() + path + ".ttf");
+    const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
     if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
 #else
-    if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, OS::getRomFSLocation() + path + ".ttf")) return false;
+    if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
 
     return true;
@@ -52,7 +52,7 @@ bool Image::Init() {
     if (!loadFont("Handwriting", "gfx/ingame/fonts/Handlee-Regular")) return false;
     if (!loadFont("Marker", "gfx/ingame/fonts/Knewave-Regular")) return false;
     if (!loadFont("Curly", "gfx/ingame/fonts/Griffy-Regular")) return false;
-    if (!loadFont("Pixel", "gfx/ingame/fonts/Grand9K Pixel")) return false;
+    if (!loadFont("Pixel", "gfx/ingame/fonts/Grand9KPixel")) return false;
 
     return true;
 }
