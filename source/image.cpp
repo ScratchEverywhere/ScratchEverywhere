@@ -1,5 +1,7 @@
 #include "image.hpp"
+#include "os.hpp"
 #include <stdexcept>
+#include <string_view>
 #include <unzip.hpp>
 #ifdef __WIIU__
 #define STBI_NO_THREAD_LOCALS
@@ -32,6 +34,28 @@ CMRC_DECLARE(romfs);
 #endif
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
+
+bool loadFont(const std::string &family, const std::string &path) {
+#ifdef USE_CMAKERC
+    const auto &file = cmrc::romfs::get_filesystem().open(OS::getRomFSLocation() + path + ".ttf");
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
+#else
+    if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, OS::getRomFSLocation() + path + ".ttf")) return false;
+#endif
+
+    return true;
+}
+
+bool Image::Init() {
+    if (!loadFont("", "gfx/ingame/fonts/NotoSerif-Regular")) return false;
+    if (!loadFont("Sans Serif", "gfx/ingame/fonts/NotoSans-Regular")) return false;
+    if (!loadFont("Handwriting", "gfx/ingame/fonts/Handlee-Regular")) return false;
+    if (!loadFont("Marker", "gfx/ingame/fonts/Knewave-Regular")) return false;
+    if (!loadFont("Curly", "gfx/ingame/fonts/Griffy-Regular")) return false;
+    if (!loadFont("Pixel", "gfx/ingame/fonts/Grand9K Pixel")) return false;
+
+    return true;
+}
 
 std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) {
     auto it = images.find(filePath);

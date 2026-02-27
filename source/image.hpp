@@ -50,6 +50,8 @@ class Image {
     const unsigned int maxFreeTimer = 540;
     unsigned int freeTimer = maxFreeTimer;
 
+    static bool Init();
+
     Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false);
     Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false);
     virtual ~Image();

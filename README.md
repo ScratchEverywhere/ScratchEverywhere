@@ -130,7 +130,6 @@ crashes, and things that will just not work.
 
 **List of Known Limitations:**
 
-- Text will not show up on vector images containing it.
 - Most Extensions (e.g. music extension) are not yet supported.
   - Only the `Pen`, `Text to Speech` (Wii U and 3DS only), and `Makey Makey`
     extensions are currently supported.
