@@ -1,18 +1,18 @@
 #include "value.hpp"
 #include "math.hpp"
+#include <array>
 #include <os.hpp>
 #include <regex>
-#include <array>
-#include <sstream>
-#include <charconv>
 
-Value::Value(int val) : value(val) {}
+Value::Value(int val) : value(static_cast<double>(val)) {}
 
 Value::Value(double val) : value(val) {}
 
 Value::Value(std::string val) : value(std::move(val)) {}
 
 Value::Value(bool val) : value(val) {}
+
+Value::Value(Undefined val) : value(val) {}
 
 double Value::asDouble() const {
     if (isDouble()) {
@@ -25,63 +25,25 @@ double Value::asDouble() const {
         } catch (...) {
             return 0.0;
         }
-    } else if (isColor() || isInteger() || isBoolean()) {
-        return static_cast<double>(asInt());
+    } else if (isColor()) {
+        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
+        return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
+    } else if (isBoolean()) {
+        return std::get<bool>(value) ? 1 : 0;
     }
 
     return 0.0;
 }
 
-int Value::asInt() const {
-    if (isInteger()) {
-        return std::get<int>(value);
-    } else if (isDouble()) {
-        auto doubleValue = std::get<double>(value);
-        return static_cast<int>(std::round(doubleValue));
-    } else if (isString()) {
-        auto &strValue = std::get<std::string>(value);
-
-        if (strValue == "Infinity") {
-            return std::numeric_limits<int>::infinity();
-        }
-
-        if (strValue == "-Infinity") {
-            return -std::numeric_limits<int>::infinity();
-        }
-
-        if (Math::isNumber(strValue)) {
-            return static_cast<int>(std::round(Math::parseNumber(strValue)));
-        }
-    } else if (isBoolean()) {
-        return std::get<bool>(value) ? 1 : 0;
-    } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
-        return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
-    }
-
-    return 0;
-}
-
 std::string Value::asString() const {
-    if (isInteger()) {
-        return std::to_string(std::get<int>(value));
-    } else if (isDouble()) {
-        double doubleValue = std::get<double>(value);
-        if (std::isnan(doubleValue)) return "NaN";
-        if (std::isinf(doubleValue)) return std::signbit(doubleValue) ? "-Infinity" : "Infinity";
-        /*
-        std::array<char, 24> buffer;
-        std::to_chars_result result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), doubleValue);
-        *result.ptr = '\0';
-        return buffer.data();
-        */
-        std::ostringstream oss;
-        oss << std::setprecision(17) << doubleValue;
-        return oss.str();
+    if (isDouble()) {
+        return Math::toString(std::get<double>(value));
     } else if (isString()) {
         return std::get<std::string>(value);
     } else if (isBoolean()) {
         return std::get<bool>(value) ? "true" : "false";
+    } else if (isUndefined()) {
+        return "undefined";
     } else if (isColor()) {
         const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         const char hex_chars[] = "0123456789abcdef";
@@ -104,9 +66,6 @@ std::string Value::asString() const {
 bool Value::asBoolean() const {
     if (isBoolean()) {
         return std::get<bool>(value);
-    }
-    if (isInteger()) {
-        return std::get<int>(value) != 0;
     }
     if (isDouble()) {
         return std::get<double>(value) != 0.0 && !isNaN();
@@ -228,8 +187,7 @@ bool Value::isScratchInt() {
 }
 
 Value Value::fromJson(const nlohmann::json &jsonVal) {
-    if (jsonVal.is_number_integer()) return Value(jsonVal.get<int>());
-    if (jsonVal.is_number_float()) return Value(jsonVal.get<double>());
+    if (jsonVal.is_number()) return Value(jsonVal.get<double>());
     if (jsonVal.is_string()) return Value(jsonVal.get<std::string>());
     if (jsonVal.is_boolean()) return Value(jsonVal.get<bool>());
     if (jsonVal.is_array()) {

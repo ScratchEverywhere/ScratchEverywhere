@@ -1,81 +1,72 @@
 #pragma once
-#include <interpret.hpp>
+#include <memory.h>
 #include <miniz.h>
+#include <sprite.hpp>
 #include <string>
-#include <unzip.hpp>
+
+struct ImageSubrect {
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+};
+
+struct ImageRenderParams {
+    int x = 0;
+    int y = 0;
+    float scale = 1.0f;
+    bool centered = true;
+    float opacity = 1.0f;
+    int brightness = 0;
+    float rotation = 0;
+    bool flip = false;
+    ImageSubrect *subrect = nullptr;
+};
+
+enum ImageFormat {
+    IMAGE_FORMAT_NONE,
+    IMAGE_FORMAT_RGBA32, // most platforms use this
+    IMAGE_FORMAT_PAL8,   // used by GL2D (NDS)
+};
+
+struct ImageData {
+    int width, height;
+    ImageFormat format;
+    int pitch;
+    void *pixels;
+};
 
 class Image {
   private:
-    int width;
-    int height;
+    inline std::vector<char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
+    inline unsigned char *loadSVGFromMemory(const char *data, size_t size, int &width, int &height);
+    inline unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
+    inline unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
+
+  protected:
+    ImageData imgData;
 
   public:
-    std::string imageId;
-    double scale;
-    double opacity;
-    double rotation;
-    /**
-     * Constructor for an image, good if you want to use images outside of a Scratch project.
-     * `3DS`: Loads an image RGBA and C2D_Image from a given filepath.
-     * `SDL`: Loads an SDL_Image from a given filepath.
-     * @param filepath does NOT need `romfs:/`, it will automatically be added.
-     */
-    Image(std::string filePath);
+    const unsigned int maxFreeTimer = 540;
+    unsigned int freeTimer = maxFreeTimer;
 
-    ~Image();
+    static bool Init();
 
-    int getWidth() { return width; }
-    int getHeight() { return height; }
+    Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false);
+    Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false);
+    virtual ~Image();
 
-    void render(double xPos, double yPos, bool centered = false);
+    virtual ImageData getPixels(ImageSubrect rect);
 
-    void renderNineslice(double xPos, double yPos, double width, double height, double padding /* IDK if that's the correct name */, bool centered = false);
+    int getWidth();
+    int getHeight();
 
-    /**
-     * `3DS`: Turns a single image from an unzipped Scratch project into RGBA data.
-     * `SDL`: Loads a single `SDL_Image` from an unzipped filepath.
-     * @param filePath
-     * @param fromScratchProject
-     */
-    static bool loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject = true);
+    virtual void *getNativeTexture() = 0;
 
-    /**
-     * Loads an image from an `mz_zip_archive`.
-     */
-    static void loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite);
-
-    /**
-     * Loads an image from a Sprite's current costume.
-     */
-    static void loadImageFromProject(Sprite *sprite) {
-        if (projectType == UNZIPPED) {
-            Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
-        } else {
-            Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
-        }
-    }
-
-    /**
-     * `3DS`: Frees a `C2D_Image` from memory.
-     * `SDL`: Frees an `SDL_Image` from memory.
-     */
-    static void freeImage(const std::string &costumeId);
-
-    /* Cleans up every single image currently in memory.*/
-    static void cleanupImages();
-
-    /* Cleans up every image that is currently not being used.*/
-    static void cleanupImagesLite();
-
-    /**
-     * `3DS`: Queues a `C2D_Image` to be freed using `costumeId` to find it.
-     *        The image will be freed once `FlushImages()` is called.
-     * `SDL`: Currently does nothing 😁😁
-     */
-    static void queueFreeImage(const std::string &costumeId);
-
-    /**
-     * Checks every Image in memory to see if they can be freed.
-     */
-    static void FlushImages();
+    virtual void render(ImageRenderParams &params) = 0;
+    virtual void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) = 0;
 };
+
+std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false);
+
+std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false);

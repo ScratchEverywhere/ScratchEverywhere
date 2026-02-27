@@ -1,108 +1,121 @@
 #include "render.hpp"
-#include "image.hpp"
+#include "speech_manager_sdl1.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_gfxBlitFunc.h>
 #include <SDL/SDL_gfxPrimitives.h>
 #include <SDL/SDL_rotozoom.h>
-#include <SDL/SDL_video.h>
 #include <algorithm>
 #include <audio.hpp>
-#include <blocks/pen.hpp>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
-#include <interpret.hpp>
+#include <image_sdl1.hpp>
 #include <math.hpp>
 #include <render.hpp>
+#include <runtime.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <text.hpp>
 #include <unordered_map>
 #include <unzip.hpp>
 #include <vector>
+#include <window.hpp>
+#include <windowing/sdl1/window.hpp>
 
 #ifdef __MINGW32__
 #define filledCircleRGBA GFX_filledCircleRGBA
 #define filledPolygonRGBA GFX_filledPolygonRGBA
 #endif
 
-int windowWidth = 540;
-int windowHeight = 405;
-SDL_Surface *window = nullptr;
+Window *globalWindow = nullptr;
 SDL_Surface *penSurface = nullptr;
+
+SpeechManagerSDL1 *speechManager = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
-std::vector<Monitor> Render::visibleVariables;
-std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
+std::unordered_map<std::string, Monitor> Render::visibleVariables;
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
-// TODO: properly export these to input.cpp
-SDL_Joystick *controller;
-
 bool Render::Init() {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
-    SDL_EnableUNICODE(1);
-    IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
-    SDL_WM_SetCaption("Scratch Everywhere!", NULL);
-    window = SDL_SetVideoMode(windowWidth, windowHeight, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
-    if (!window) {
-        Log::logError("SDL_SetVideoMode failed: " + std::string(SDL_GetError()));
+
+    globalWindow = new WindowSDL1();
+    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+        delete globalWindow;
+        globalWindow = nullptr;
         return false;
     }
 
-    if (SDL_NumJoysticks() > 0) controller = SDL_JoystickOpen(0);
-
     debugMode = true;
-
-    // Print SDL version number. could be useful for debugging
-    SDL_version ver;
-    SDL_VERSION(&ver);
-    Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
 
     return true;
 }
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
     SDL_FreeSurface(penSurface);
 
-    Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
+
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
+
     SoundPlayer::deinit();
-    IMG_Quit();
     SDL_Quit();
 }
 
 void *Render::getRenderer() {
-    return static_cast<void *>(window);
+    if (globalWindow) return globalWindow->getHandle();
+    return nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL1(static_cast<SDL_Surface *>(globalWindow->getHandle()));
+    return speechManager;
 }
 
 int Render::getWidth() {
-    return windowWidth;
+    if (globalWindow) return globalWindow->getWidth();
+    return 540;
 }
 int Render::getHeight() {
-    return windowHeight;
+    if (globalWindow) return globalWindow->getHeight();
+    return 405;
 }
 
 bool Render::initPen() {
     if (penSurface != nullptr) return true;
 
     if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight))
-            penSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight)), windowHeight, 32, RMASK, GMASK, BMASK, AMASK);
+        if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
+            penSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight(), 32, RMASK, GMASK, BMASK, AMASK);
         else
-            penSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, windowWidth, Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth)), 32, RMASK, GMASK, BMASK, AMASK);
+            penSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)), 32, RMASK, GMASK, BMASK, AMASK);
     } else penSurface = SDL_CreateRGBSurface(SDL_HWSURFACE, Scratch::projectWidth, Scratch::projectHeight, 32, RMASK, GMASK, BMASK, AMASK);
 
     return true;
 }
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penMoveAccurate(x1, y1, x2, y2, sprite);
+}
+
+void Render::penDotFast(Sprite *sprite) {
+    penDotAccurate(sprite);
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
 
     int penWidth = penSurface->w;
@@ -144,7 +157,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     SDL_FreeSurface(tempSurface);
 }
 
-void Render::penDot(Sprite *sprite) {
+void Render::penDotAccurate(Sprite *sprite) {
     int penWidth = penSurface->w;
     int penHeight = penSurface->h;
 
@@ -162,56 +175,50 @@ void Render::penDot(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {
-    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
-    if (imgFind == images.end()) {
+    const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
-    imgFind->second->freeTimer = imgFind->second->maxFreeTime;
-
-    // IDK if these are needed
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-
     // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
-    SDL_Image *image = imgFind->second;
-    image->freeTimer = image->maxFreeTime;
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-    sprite->spriteWidth = image->textureRect.w >> 1;
-    sprite->spriteHeight = image->textureRect.h >> 1;
+    Image_SDL1 *image = reinterpret_cast<Image_SDL1 *>(imgFind->second.get());
     bool flip = false;
     const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
     Render::calculateRenderPosition(sprite, isSVG);
-    image->renderRect.x = sprite->renderInfo.renderX;
-    image->renderRect.y = sprite->renderInfo.renderY;
+    int renderX = sprite->renderInfo.renderX;
+    int renderY = sprite->renderInfo.renderY;
+    float renderScale = 1.0f;
 
     if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
         flip = true;
     }
 
     // Pen mapping stuff
-    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
-    image->renderRect.x = cords.first + Scratch::projectWidth / 2;
-    image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
+    const auto &cords = Scratch::screenToScratchCoords(renderX, renderY, getWidth(), getHeight());
+    renderX = cords.first + Scratch::projectWidth / 2;
+    renderY = -cords.second + Scratch::projectHeight / 2;
 
     if (Scratch::hqpen) {
-        image->setScale(sprite->renderInfo.renderScaleY);
+        renderScale = sprite->renderInfo.renderScaleY;
 
         const double scale = (penSurface->h / static_cast<double>(Scratch::projectHeight));
 
-        image->renderRect.x *= scale;
-        image->renderRect.y *= scale;
+        renderX *= scale;
+        renderY *= scale;
     } else {
-        image->setScale(sprite->size / (isSVG ? 100.0f : 200.0f));
+        renderScale = sprite->size / 100.0f;
     }
 
     // set ghost effect
     float ghost = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
     Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-    SDL_SetAlpha(image->spriteTexture, SDL_SRCALPHA, alpha);
+    SDL_SetAlpha(image->texture, SDL_SRCALPHA, alpha);
 
-    SDL_Surface *finalSurface = rotozoomSurfaceXY(image->spriteTexture, -Math::radiansToDegrees(sprite->renderInfo.renderRotation), sprite->renderInfo.renderScaleX, sprite->renderInfo.renderScaleY, SMOOTHING_OFF);
+    SDL_Surface *finalSurface = rotozoomSurfaceXY(image->texture,
+                                                  -Math::radiansToDegrees(sprite->renderInfo.renderRotation),
+                                                  renderScale,
+                                                  renderScale,
+                                                  SMOOTHING_OFF);
 
     if (flip) {
         SDL_Surface *flipped = zoomSurface(finalSurface, -1, 1, 0);
@@ -220,18 +227,20 @@ void Render::penStamp(Sprite *sprite) {
     }
 
     SDL_Rect dest;
-    dest.x = sprite->renderInfo.renderX + (image->spriteTexture->w * sprite->renderInfo.renderScaleX / 2) - (finalSurface->w / 2);
-    dest.y = sprite->renderInfo.renderY + (image->spriteTexture->h * sprite->renderInfo.renderScaleY / 2) - (finalSurface->h / 2);
+    dest.x = renderX - (finalSurface->w * sprite->renderInfo.renderScaleX / 2);
+    dest.y = renderY - (finalSurface->h * sprite->renderInfo.renderScaleY / 2);
 
     SDL_gfxBlitRGBA(finalSurface, NULL, penSurface, &dest);
     SDL_FreeSurface(finalSurface);
 }
 
 void Render::penClear() {
+    if (!penSurface || penSurface == nullptr) return;
     SDL_FillRect(penSurface, NULL, SDL_MapRGBA(penSurface->format, 0, 0, 0, 0));
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    SDL_Surface *window = static_cast<SDL_Surface *>(getRenderer());
     if (!hasFrameBegan) {
         SDL_FillRect(window, NULL, SDL_MapRGB(window->format, colorR, colorG, colorB));
         hasFrameBegan = true;
@@ -239,18 +248,19 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 }
 
 void Render::endFrame(bool shouldFlush) {
-    SDL_Flip(window);
+    SDL_Flip(static_cast<SDL_Surface *>(getRenderer()));
     SDL_Delay(16);
-    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    SDL_Surface *window = static_cast<SDL_Surface *>(getRenderer());
     SDL_Rect rect = {static_cast<Sint16>(x - (w / 2)), static_cast<Sint16>(y - (h / 2)), static_cast<Uint16>(w), static_cast<Uint16>(h)};
     SDL_FillRect(window, &rect, SDL_MapRGBA(window->format, colorR, colorG, colorB, colorA));
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
+    SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
 
@@ -269,7 +279,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         // Horizontal bars,,,
         float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
         float scaledProjectHeight = Scratch::projectHeight * scale;
-        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
+        float barHeight = (Render::getHeight() - scaledProjectHeight) / 2.0f;
 
         SDL_Rect topBar = {0, 0, static_cast<Uint16>(screenWidth), static_cast<Uint16>(std::ceil(barHeight))};
         SDL_Rect bottomBar = {0, static_cast<Sint16>(std::floor(screenHeight - barHeight)), static_cast<Uint16>(screenWidth), static_cast<Uint16>(std::ceil(barHeight))};
@@ -280,65 +290,39 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 }
 
 void Render::renderSprites() {
+    SDL_Surface *window = static_cast<SDL_Surface *>(getRenderer());
     SDL_FillRect(window, NULL, SDL_MapRGB(window->format, 255, 255, 255));
 
-    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
+        auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        if (imgFind != Scratch::costumeImages.end()) {
+            Image *image = imgFind->second.get();
 
-        auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
-        if (imgFind != images.end()) {
-            SDL_Image *image = imgFind->second;
-
-            currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
-            currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
-            currentSprite->spriteWidth = image->textureRect.w >> 1;
-            currentSprite->spriteHeight = image->textureRect.h >> 1;
-
-            if (!currentSprite->visible) continue;
-
-            image->freeTimer = image->maxFreeTime;
-
-            bool flip = false;
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
-            image->renderRect.x = currentSprite->renderInfo.renderX;
-            image->renderRect.y = currentSprite->renderInfo.renderY;
+            if (!currentSprite->visible) continue;
 
-            image->setScale(currentSprite->renderInfo.renderScaleY);
-            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-                flip = true;
-            }
+            ImageRenderParams params;
+            params.centered = true;
+            params.x = currentSprite->renderInfo.renderX;
+            params.y = currentSprite->renderInfo.renderY;
+            params.rotation = currentSprite->renderInfo.renderRotation;
+            params.scale = currentSprite->renderInfo.renderScaleY;
+            params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
+            params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+            params.brightness = currentSprite->brightnessEffect;
 
-            // set ghost effect
-            float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
-            Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-            SDL_SetAlpha(image->spriteTexture, SDL_SRCALPHA, alpha);
-
-            // TODO: implement brightness effect
-
-            SDL_Surface *finalSurface = rotozoomSurfaceXY(image->spriteTexture, -Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), currentSprite->renderInfo.renderScaleX, currentSprite->renderInfo.renderScaleY, SMOOTHING_OFF);
-
-            if (flip) {
-                SDL_Surface *flipped = zoomSurface(finalSurface, -1, 1, 0);
-                SDL_FreeSurface(finalSurface);
-                finalSurface = flipped;
-            }
-
-            SDL_Rect dest;
-            dest.x = currentSprite->renderInfo.renderX + (image->spriteTexture->w * currentSprite->renderInfo.renderScaleX / 2) - (finalSurface->w / 2);
-            dest.y = currentSprite->renderInfo.renderY + (image->spriteTexture->h * currentSprite->renderInfo.renderScaleY / 2) - (finalSurface->h / 2);
-
-            SDL_BlitSurface(finalSurface, NULL, window, &dest);
-            SDL_FreeSurface(finalSurface);
+            image->render(params);
         }
 
         // Draw collision points (for debugging)
-        // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
+        // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
         // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
         // for (const auto &point : collisionPoints) {
-        //     double screenX = (point.first * renderScale) + (windowWidth / 2);
-        //     double screenY = (point.second * -renderScale) + (windowHeight / 2);
+        //     double screenX = (point.first * renderScale) + (getWidth() / 2);
+        //     double screenY = (point.second * -renderScale) + (getHeight() / 2);
 
         //     SDL_Rect debugPointRect;
         //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
@@ -352,68 +336,70 @@ void Render::renderSprites() {
         if (currentSprite->isStage) renderPenLayer();
     }
 
-    drawBlackBars(windowWidth, windowHeight);
+    if (speechManager) {
+        speechManager->render();
+    }
+
+    drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
 
     SDL_Flip(window);
-    Image::FlushImages();
+    if (globalWindow) globalWindow->swapBuffers();
     SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 
 void Render::renderPenLayer() {
     if (penSurface == nullptr) return;
 
     SDL_Rect renderRect = {0, 0, 0, 0};
-
-    if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
-        renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
-        renderRect.w = windowWidth - renderRect.x * 2;
-        renderRect.h = windowHeight;
+    if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+        renderRect.x = std::ceil((getWidth() - Scratch::projectWidth * (static_cast<float>(getHeight()) / Scratch::projectHeight)) / 2.0f);
+        renderRect.w = getWidth() - renderRect.x * 2;
+        renderRect.h = getHeight();
     } else {
-        renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
-        renderRect.h = windowHeight - renderRect.y * 2;
-        renderRect.w = windowWidth;
+        renderRect.y = std::ceil((getHeight() - Scratch::projectHeight * (static_cast<float>(getWidth()) / Scratch::projectWidth)) / 2.0f);
+        renderRect.h = getHeight() - renderRect.y * 2;
+        renderRect.w = getWidth();
     }
 
-    SDL_Surface *zoomedSurface = zoomSurface(penSurface, renderRect.w / penSurface->w, renderRect.h / penSurface->h, SMOOTHING_OFF);
-    SDL_BlitSurface(zoomedSurface, NULL, window, NULL);
+    SDL_Surface *zoomedSurface = zoomSurface(penSurface, (float)renderRect.w / penSurface->w, (float)renderRect.h / penSurface->h, SMOOTHING_OFF);
+    SDL_BlitSurface(zoomedSurface, NULL, static_cast<SDL_Surface *>(getRenderer()), &renderRect);
     SDL_FreeSurface(zoomedSurface);
 }
 
 bool Render::appShouldRun() {
-    if (toExit) return false;
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        switch (event.type) {
-        case SDL_QUIT:
-            toExit = true;
-            return false;
-        case SDL_VIDEORESIZE:
-            windowWidth = event.resize.w;
-            windowHeight = event.resize.h;
-            window = SDL_SetVideoMode(windowWidth, windowHeight, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
-            setRenderScale();
+    if (OS::toExit) return false;
+    if (globalWindow) {
+        globalWindow->pollEvents();
 
-            if (!Scratch::hqpen) break;
+        static int lastW = 0, lastH = 0;
+        int currentW = globalWindow->getWidth();
+        int currentH = globalWindow->getHeight();
 
-            int width, height;
-            if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight)) {
-                width = Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight));
-                height = windowHeight;
-            } else {
-                width = windowWidth;
-                height = Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth));
+        if (lastW != currentW || lastH != currentH) {
+            lastW = currentW;
+            lastH = currentH;
+
+            if (Scratch::hqpen) {
+                int width, height;
+                if (Scratch::projectWidth / static_cast<double>(currentW) < Scratch::projectHeight / static_cast<double>(currentH)) {
+                    width = Scratch::projectWidth * (currentH / static_cast<double>(Scratch::projectHeight));
+                    height = currentH;
+                } else {
+                    width = currentW;
+                    height = Scratch::projectHeight * (currentW / static_cast<double>(Scratch::projectWidth));
+                }
+
+                SDL_Surface *zoomedSurface = zoomSurface(penSurface, width / penSurface->w, height / penSurface->h, SMOOTHING_OFF);
+                SDL_FreeSurface(penSurface);
+                penSurface = zoomedSurface;
             }
-
-            SDL_Surface *zoomedSurface = zoomSurface(penSurface, width / penSurface->w, height / penSurface->h, SMOOTHING_OFF);
-            SDL_FreeSurface(penSurface);
-            penSurface = zoomedSurface;
-
-            break;
         }
+
+        return !globalWindow->shouldClose();
     }
     return true;
 }

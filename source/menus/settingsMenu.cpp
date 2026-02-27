@@ -1,7 +1,6 @@
 #include "settingsMenu.hpp"
 #include "menuObjects.hpp"
-#include "migrate.hpp"
-#include <keyboard.hpp>
+#include "settings.hpp"
 
 SettingsMenu::SettingsMenu() {
     init();
@@ -20,21 +19,21 @@ void SettingsMenu::init() {
     // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     // Credits->text->setColor(Math::color(0, 0, 0, 255));
     // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold");
+    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
     EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
     EnableUsername->text->setScale(0.5);
-    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold");
+    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
     ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
     ChangeUsername->text->setScale(0.5);
 
-    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
+    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
     EnableCustomFolderPath->text->setColor(Math::color(0, 0, 0, 255));
     EnableCustomFolderPath->text->setScale(0.5);
-    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold");
+    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
     ChangeFolderPath->text->setColor(Math::color(0, 0, 0, 255));
     ChangeFolderPath->text->setScale(0.5);
 
-    EnableMenuMusic = new ButtonObject("Menu Music: clickToLoad", "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold");
+    EnableMenuMusic = new ButtonObject("Menu Music: clickToLoad", "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
     EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
     EnableMenuMusic->text->setScale(0.5);
 
@@ -45,40 +44,33 @@ void SettingsMenu::init() {
     UseCostumeUsername = false;
     username = "Player";
 
-    migrate();
-    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-    if (inFile.good()) {
-        nlohmann::json j;
-        inFile >> j;
-        inFile.close();
+    nlohmann::json json = SettingsManager::getConfigSettings();
 
-        if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
-            UseCostumeUsername = j["EnableUsername"].get<bool>();
-        }
-        if (j.contains("Username") && j["Username"].is_string()) {
-            if (j["Username"].get<std::string>().length() <= 9) {
-                bool hasNonSpace = false;
-                for (char c : j["Username"].get<std::string>()) {
-                    if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-                        hasNonSpace = true;
-                    } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                        break;
-                    }
+    if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
+        UseCostumeUsername = json["EnableUsername"].get<bool>();
+    }
+    if (json.contains("Username") && json["Username"].is_string()) {
+        if (json["Username"].get<std::string>().length() <= 9) {
+            bool hasNonSpace = false;
+            for (char c : json["Username"].get<std::string>()) {
+                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
+                    hasNonSpace = true;
+                } else if (!std::isspace(static_cast<unsigned char>(c))) {
+                    break;
                 }
-                if (hasNonSpace) username = j["Username"].get<std::string>();
-                else username = "Player";
             }
+            if (hasNonSpace) username = json["Username"].get<std::string>();
+            else username = "Player";
         }
-
-        if (j.contains("UseProjectsPath") && j["UseProjectsPath"].is_boolean()) {
-            UseProjectsPath = j["UseProjectsPath"].get<bool>();
-        }
-        if (j.contains("ProjectsPath") && j["ProjectsPath"].is_string()) {
-            projectsPath = j["ProjectsPath"].get<std::string>();
-        }
-        if (j.contains("MenuMusic") && j["MenuMusic"].is_boolean()) {
-            menuMusic = j["MenuMusic"].get<bool>();
-        }
+    }
+    if (json.contains("UseProjectsPath") && json["UseProjectsPath"].is_boolean()) {
+        UseProjectsPath = json["UseProjectsPath"].get<bool>();
+    }
+    if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string()) {
+        projectsPath = json["ProjectsPath"].get<std::string>();
+    }
+    if (json.contains("MenuMusic") && json["MenuMusic"].is_boolean()) {
+        menuMusic = json["MenuMusic"].get<bool>();
     }
 
     updateButtonStates();
@@ -89,6 +81,9 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(EnableCustomFolderPath);
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
+
+    settingsControl->enableScrolling = true;
+    settingsControl->setScrollLimits();
 
     isInitialized = true;
 }
@@ -149,14 +144,6 @@ void SettingsMenu::render() {
     Render::beginFrame(0, 96, 90, 105);
     Render::beginFrame(1, 96, 90, 105);
 
-    backButton->render();
-    // Credits->render();
-    EnableUsername->render();
-    EnableCustomFolderPath->render();
-    EnableMenuMusic->render();
-    if (UseCostumeUsername) ChangeUsername->render();
-    if (UseProjectsPath) ChangeFolderPath->render();
-
     if (EnableMenuMusic->isPressed({"a"})) {
         menuMusic = !menuMusic;
         updateButtonStates();
@@ -173,8 +160,7 @@ void SettingsMenu::render() {
     }
 
     if (ChangeUsername->isPressed({"a"})) {
-        SoftwareKeyboard kbd;
-        std::string newUsername = kbd.openKeyboard(username.c_str());
+        std::string newUsername = Input::openSoftwareKeyboard(username.c_str());
         // You could also use regex here, Idk what would be more sensible
         // std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))
         if (newUsername.length() <= 9) {
@@ -193,8 +179,7 @@ void SettingsMenu::render() {
     }
 
     if (ChangeFolderPath->isPressed({"a"})) {
-        SoftwareKeyboard kbd;
-        const std::string newPath = kbd.openKeyboard(projectsPath.c_str());
+        const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
         if (newPath.length() > 0) {
             projectsPath = newPath;
 
@@ -202,6 +187,7 @@ void SettingsMenu::render() {
         }
     }
 
+    backButton->render();
     settingsControl->render();
     Render::endFrame();
 }
@@ -240,16 +226,14 @@ void SettingsMenu::cleanup() {
         settingsControl = nullptr;
     }
 
-    // save username and EnableUsername in json
-    std::ofstream outFile(OS::getConfigFolderLocation() + "Settings.json");
-    nlohmann::json j;
-    j["EnableUsername"] = UseCostumeUsername;
-    j["Username"] = username;
-    j["UseProjectsPath"] = UseProjectsPath;
-    j["ProjectsPath"] = projectsPath;
-    j["MenuMusic"] = menuMusic;
-    outFile << j.dump(4);
-    outFile.close();
+    // save settings
+    nlohmann::json json;
+    json["EnableUsername"] = UseCostumeUsername;
+    json["Username"] = username;
+    json["UseProjectsPath"] = UseProjectsPath;
+    json["ProjectsPath"] = projectsPath;
+    json["MenuMusic"] = menuMusic;
+    SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;
 }

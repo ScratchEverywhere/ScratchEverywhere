@@ -1,5 +1,5 @@
 #include "render.hpp"
-#include "image.hpp"
+#include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2_gfxPrimitives.h>
@@ -7,16 +7,14 @@
 #include <audio.hpp>
 #include <chrono>
 #include <cmath>
-#include <cstdlib>
-#include <downloader.hpp>
 #include <image.hpp>
-#include <interpret.hpp>
-#include <math.hpp>
+#include <input.hpp>
 #include <render.hpp>
+#include <runtime.hpp>
 #include <string>
-#include <text.hpp>
 #include <unordered_map>
 #include <vector>
+#include <windowing/sdl2/window.hpp>
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>
@@ -48,14 +46,8 @@ char nickname[0x21];
 #endif
 
 #ifdef __PS4__
-#include <orbis/Net.h>
 #include <orbis/Sysmodule.h>
 #include <orbis/libkernel.h>
-
-inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
-    // On PS4 there is no DPI scaling, so this is fine
-    SDL_GetWindowSize(window, w, h);
-}
 #endif
 
 #ifdef GAMECUBE
@@ -63,152 +55,55 @@ inline void SDL_GetWindowSizeInPixels(SDL_Window *window, int *w, int *h) {
 #include <ogc/exi.h>
 #endif
 
-int windowWidth = 540;
-int windowHeight = 405;
-SDL_Window *window = nullptr;
+Window *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
 
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
-std::vector<Monitor> Render::visibleVariables;
-std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
+std::unordered_map<std::string, Monitor> Render::visibleVariables;
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 
-// TODO: properly export these to input.cpp
-SDL_GameController *controller;
-bool touchActive = false;
-SDL_Point touchPosition;
+SpeechManagerSDL2 *speechManager = nullptr;
+
+static std::vector<SDL_Vertex> penVerts;
 
 bool Render::Init() {
 #ifdef __WIIU__
-    WHBLogUdpInit();
-
-    if (romfsInit()) {
-        OSFatal("Failed to init romfs.");
-        return false;
-    }
-    if (!WHBMountSdCard()) {
-        OSFatal("Failed to mount sd card.");
-        return false;
-    }
-    nn::act::Initialize();
-
-    windowWidth = 854;
-    windowHeight = 480;
+    int windowWidth = 854;
+    int windowHeight = 480;
 #elif defined(__SWITCH__)
-
-    windowWidth = 1280;
-    windowHeight = 720;
-
-    AccountUid userID = {0};
-    AccountProfile profile;
-    AccountProfileBase profilebase;
-    memset(&profilebase, 0, sizeof(profilebase));
-
-    Result rc = romfsInit();
-    if (R_FAILED(rc)) {
-        Log::logError("Failed to init romfs."); // TODO: Include error code
-        goto postAccount;
-    }
-
-    rc = accountInitialize(AccountServiceType_Application);
-    if (R_FAILED(rc)) {
-        Log::logError("accountInitialize failed.");
-        goto postAccount;
-    }
-
-    rc = accountGetPreselectedUser(&userID);
-    if (R_FAILED(rc)) {
-        PselUserSelectionSettings settings;
-        memset(&settings, 0, sizeof(settings));
-        rc = pselShowUserSelector(&userID, &settings);
-        if (R_FAILED(rc)) {
-            Log::logError("pselShowUserSelector failed.");
-            goto postAccount;
-        }
-    }
-
-    rc = accountGetProfile(&profile, userID);
-    if (R_FAILED(rc)) {
-        Log::logError("accountGetProfile failed.");
-        goto postAccount;
-    }
-
-    rc = accountProfileGet(&profile, NULL, &profilebase);
-    if (R_FAILED(rc)) {
-        Log::logError("accountProfileGet failed.");
-        goto postAccount;
-    }
-
-    memset(nickname, 0, sizeof(nickname));
-    strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
-
-    socketInitializeDefault();
-
-    accountProfileClose(&profile);
-    accountExit();
-postAccount:
+    int windowWidth = 1280;
+    int windowHeight = 720;
 #elif defined(__OGC__)
-#ifdef GAMECUBE
-    if ((SYS_GetConsoleType() & SYS_CONSOLE_MASK) == SYS_CONSOLE_DEVELOPMENT) {
-        CON_EnableBarnacle(EXI_CHANNEL_0, EXI_DEVICE_1);
-    }
-    CON_EnableGecko(EXI_CHANNEL_1, true);
-#else
-    SYS_STDIO_Report(true);
-#endif
-
-    fatInitDefault();
-    windowWidth = 640;
-    windowHeight = 480;
-    if (romfsInit()) {
-        Log::logError("Failed to init romfs.");
-        return false;
-    }
-
+    int windowWidth = 640;
+    int windowHeight = 480;
 #elif defined(VITA)
-    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
-
-    windowWidth = 960;
-    windowHeight = 544;
-
-    Log::log("[Vita] Loading module SCE_SYSMODULE_NET");
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-
-    Log::log("[Vita] Running sceNetInit");
-    SceNetInitParam netInitParam;
-    int size = 1 * 1024 * 1024; // net buffer size ([size in MB]*1024*1024)
-    netInitParam.memory = malloc(size);
-    netInitParam.size = size;
-    netInitParam.flags = 0;
-    sceNetInit(&netInitParam);
-
-    Log::log("[Vita] Running sceNetCtlInit");
-    sceNetCtlInit();
+    int windowWidth = 960;
+    int windowHeight = 544;
 #elif defined(__PSP__)
-    windowWidth = 480;
-    windowHeight = 272;
+    int windowWidth = 480;
+    int windowHeight = 272;
 #elif defined(__PS4__)
+    int windowWidth = 1280;
+    int windowHeight = 720;
+
+    // Freetype has to be initialized before SDL2_ttf
     int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
     if (rc != ORBIS_OK) {
         Log::logError("Failed to init freetype.");
         return false;
     }
+#elif defined(WEBOS)
+    // SDL has to be initialized before window creation on webOS
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
+        Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
+        return false;
+    }
 
-    windowWidth = 1280;
-    windowHeight = 720;
-#endif
-#ifndef __PS4__
-    SDL_SetHint(SDL_HINT_WINDOWS_DPI_SCALING, "1");
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
-#endif
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS);
-#ifdef WEBOS
-    windowWidth = 800;
-    windowHeight = 480;
+    int windowWidth = 800;
+    int windowHeight = 480;
 
     SDL_DisplayMode mode;
     SDL_GetDisplayMode(0, 0, &mode);
@@ -216,71 +111,82 @@ postAccount:
         windowWidth = mode.w;
         windowHeight = mode.h;
     }
-#endif
-    IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
-    TTF_Init();
-#ifdef WEBOS
-    Log::log("[SDL] windowWidth is " + std::to_string(windowWidth));
-    Log::log("[SDL] windowHeight is " + std::to_string(windowHeight));
-    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowWidth, windowHeight, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 #else
-    window = SDL_CreateWindow("Scratch Everywhere!", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    SDL_GetRendererOutputSize(renderer, &windowWidth, &windowHeight);
+    int windowWidth = 540;
+    int windowHeight = 405;
 #endif
 
-    if (SDL_NumJoysticks() > 0) controller = SDL_GameControllerOpen(0);
+    TTF_Init();
+
+    globalWindow = new WindowSDL2();
+    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+        delete globalWindow;
+        globalWindow = nullptr;
+        return false;
+    }
+#if defined(WEBOS) || defined(__PSP__)
+    uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
+#else
+    uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+#endif
+    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, sdlFlags);
+    if (renderer == NULL) {
+        Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
+        return false;
+    }
 
     debugMode = true;
-
-    // Print SDL version number. could be useful for debugging
-    SDL_version ver;
-    SDL_VERSION(&ver);
-    Log::log("SDL v" + std::to_string(ver.major) + "." + std::to_string(ver.minor) + "." + std::to_string(ver.patch));
 
     return true;
 }
 void Render::deInit() {
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
     SDL_DestroyTexture(penTexture);
 
-    Image::cleanupImages();
     SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SoundPlayer::deinit();
-    IMG_Quit();
-    SDL_Quit();
 
-#if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)
-    romfsExit();
-#endif
-#ifdef __WIIU__
-    WHBUnmountSdCard();
-    nn::act::Finalize();
-#endif
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
+
+    SoundPlayer::deinit();
+    SDL_Quit();
 }
 
 void *Render::getRenderer() {
     return static_cast<void *>(renderer);
 }
 
+SpeechManager *Render::getSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL2(renderer);
+    return speechManager;
+}
+
 int Render::getWidth() {
-    return windowWidth;
+    if (globalWindow) return globalWindow->getWidth();
+    return 540;
 }
 int Render::getHeight() {
-    return windowHeight;
+    if (globalWindow) return globalWindow->getHeight();
+    return 405;
 }
 
 bool Render::initPen() {
     if (penTexture != nullptr) return true;
 
     if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight))
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight)), windowHeight);
+        if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
         else
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, windowWidth, Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth)));
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
     } else penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
 
     // Clear the texture
@@ -292,7 +198,90 @@ bool Render::initPen() {
     return true;
 }
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    Uint8 alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+
+    int penWidth = 640;
+    int penHeight = 480;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+
+    const float sx1 = static_cast<float>(x1 * scale + penWidth / 2.0);
+    const float sy1 = static_cast<float>(-y1 * scale + penHeight / 2.0);
+    const float sx2 = static_cast<float>(x2 * scale + penWidth / 2.0);
+    const float sy2 = static_cast<float>(-y2 * scale + penHeight / 2.0);
+
+    const double dx = sx2 - sx1;
+    const double dy = sy2 - sy1;
+
+    const double length = sqrt(dx * dx + dy * dy);
+    const double drawWidth = (sprite->penData.size / 2.0f) * scale;
+
+    if (length > 0) {
+        float nx = static_cast<float>((-dy / length) * drawWidth);
+        float ny = static_cast<float>((dx / length) * drawWidth);
+
+        SDL_Color sdlColor = {
+            static_cast<Uint8>(rgbColor.r),
+            static_cast<Uint8>(rgbColor.g),
+            static_cast<Uint8>(rgbColor.b),
+            static_cast<Uint8>(alpha)};
+
+        SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}}; // top left
+        SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom left
+        SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}}; // top right
+        SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom right
+
+        // squarey
+        penVerts.push_back(v0);
+        penVerts.push_back(v1);
+        penVerts.push_back(v2);
+
+        penVerts.push_back(v1);
+        penVerts.push_back(v3);
+        penVerts.push_back(v2);
+    }
+}
+
+void Render::penDotFast(Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    Uint8 alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+
+    int penWidth = 640;
+    int penHeight = 480;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+
+    const float sx = static_cast<float>(sprite->xPosition * scale + penWidth / 2.0);
+    const float sy = static_cast<float>(-sprite->yPosition * scale + penHeight / 2.0);
+
+    const float halfSize = static_cast<float>((sprite->penData.size / 2.0f) * scale);
+
+    SDL_Color sdlColor = {
+        static_cast<Uint8>(rgbColor.r),
+        static_cast<Uint8>(rgbColor.g),
+        static_cast<Uint8>(rgbColor.b),
+        alpha};
+
+    SDL_Vertex v0 = {{sx - halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top left
+    SDL_Vertex v1 = {{sx - halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom left
+    SDL_Vertex v2 = {{sx + halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top right
+    SDL_Vertex v3 = {{sx + halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom right
+
+    // squarey
+    penVerts.push_back(v0);
+    penVerts.push_back(v1);
+    penVerts.push_back(v2);
+
+    penVerts.push_back(v1);
+    penVerts.push_back(v3);
+    penVerts.push_back(v2);
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
 
     int penWidth = 640;
@@ -342,7 +331,7 @@ void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite)
     SDL_DestroyTexture(tempTexture);
 }
 
-void Render::penDot(Sprite *sprite) {
+void Render::penDotAccurate(Sprite *sprite) {
     int penWidth;
     int penHeight;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
@@ -366,100 +355,66 @@ void Render::penDot(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {
-    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
-    if (imgFind == images.end()) {
+    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
-    imgFind->second->freeTimer = imgFind->second->maxFreeTime;
 
     SDL_SetRenderTarget(renderer, penTexture);
 
-    // IDK if these are needed
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-
-    // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
-    SDL_Image *image = imgFind->second;
-    image->freeTimer = image->maxFreeTime;
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-    sprite->spriteWidth = image->textureRect.w >> 1;
-    sprite->spriteHeight = image->textureRect.h >> 1;
-    SDL_RendererFlip flip = SDL_FLIP_NONE;
-    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
-    Render::calculateRenderPosition(sprite, isSVG);
-    image->renderRect.x = sprite->renderInfo.renderX;
-    image->renderRect.y = sprite->renderInfo.renderY;
-
-    if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-        flip = SDL_FLIP_HORIZONTAL;
+    // clear line draw queue so stamp can be rendered on top
+    if (!penVerts.empty()) {
+        SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        penVerts.clear();
     }
 
+    Image *image = imgFind->second.get();
+
+    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
+    calculateRenderPosition(sprite, isSVG);
+
     // Pen mapping stuff
-    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, windowWidth, windowHeight);
-    image->renderRect.x = cords.first + Scratch::projectWidth / 2;
-    image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
+    const auto &cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
+    int penX = cords.first + Scratch::projectWidth / 2;
+    int penY = -cords.second + Scratch::projectHeight / 2;
 
+    float penScale;
     if (Scratch::hqpen) {
-        image->setScale(sprite->renderInfo.renderScaleY);
-
         int penWidth;
         int penHeight;
         SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
         const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-        image->renderRect.x *= scale;
-        image->renderRect.y *= scale;
+        penX *= scale;
+        penY *= scale;
+        penScale = sprite->renderInfo.renderScaleY;
     } else {
-        image->setScale(sprite->size / (isSVG ? 100.0f : 200.0f));
+        penScale = sprite->size / 100.0f;
     }
 
-    // set ghost effect
-    float ghost = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
-    Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-    SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+    ImageRenderParams params;
+    params.centered = true;
+    params.x = penX;
+    params.y = penY;
+    params.rotation = sprite->renderInfo.renderRotation;
+    params.scale = penScale;
+    params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
+    params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+    params.brightness = sprite->brightnessEffect;
 
-    // set brightness effect
-    if (sprite->brightnessEffect != 0) {
-        float brightness = sprite->brightnessEffect * 0.01f;
-        if (brightness > 0.0f) {
-            // render the normal image first
-            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
-
-            // render another, blended image on top
-            SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
-            SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
-            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
-
-            // reset for next frame
-            SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
-        } else {
-            Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
-            SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
-
-            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
-            // reset for next frame
-            SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-        }
-    } else {
-        // if no brightness just render normal image
-        SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-        SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                         Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
-    }
+    image->render(params);
 
     SDL_SetRenderTarget(renderer, NULL);
 }
 
 void Render::penClear() {
+    if (!penTexture || penTexture == nullptr) return;
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
+    if (!penVerts.empty()) penVerts.clear();
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -473,7 +428,6 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Render::endFrame(bool shouldFlush) {
     SDL_RenderPresent(renderer);
     SDL_Delay(16);
-    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
@@ -518,78 +472,35 @@ void Render::renderSprites() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
-    for (auto it = sprites.rbegin(); it != sprites.rend(); ++it) {
+    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
+        auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        if (imgFind != Scratch::costumeImages.end()) {
+            Image *image = imgFind->second.get();
 
-        auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
-        if (imgFind != images.end()) {
-            SDL_Image *image = imgFind->second;
-
-            currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
-            currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
-            currentSprite->spriteWidth = image->textureRect.w >> 1;
-            currentSprite->spriteHeight = image->textureRect.h >> 1;
-
-            if (!currentSprite->visible) continue;
-
-            image->freeTimer = image->maxFreeTime;
-
-            SDL_RendererFlip flip = SDL_FLIP_NONE;
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
-            image->renderRect.x = currentSprite->renderInfo.renderX;
-            image->renderRect.y = currentSprite->renderInfo.renderY;
+            if (!currentSprite->visible) continue;
 
-            image->setScale(currentSprite->renderInfo.renderScaleY);
-            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-                flip = SDL_FLIP_HORIZONTAL;
-            }
+            ImageRenderParams params;
+            params.centered = true;
+            params.x = currentSprite->renderInfo.renderX;
+            params.y = currentSprite->renderInfo.renderY;
+            params.rotation = currentSprite->renderInfo.renderRotation;
+            params.scale = currentSprite->renderInfo.renderScaleY;
+            params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
+            params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+            params.brightness = currentSprite->brightnessEffect;
 
-            // set ghost effect
-            float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
-            Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-            SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
-
-            // set brightness effect
-            if (currentSprite->brightnessEffect != 0) {
-                float brightness = currentSprite->brightnessEffect * 0.01f;
-                if (brightness > 0.0f) {
-                    // render the normal image first
-                    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-
-                    // render another, blended image on top
-                    SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
-                    SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
-                    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-
-                    // reset for next frame
-                    SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
-                } else {
-                    Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
-                    SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
-
-                    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-                    // reset for next frame
-                    SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-                }
-            } else {
-                // if no brightness just render normal image
-                SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-                SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                 Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-            }
+            image->render(params);
         }
-
         // Draw collision points (for debugging)
-        // std::vector<std::pair<double, double>> collisionPoints = getCollisionPoints(currentSprite);
+        // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
         // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
         // for (const auto &point : collisionPoints) {
-        //     double screenX = (point.first * renderScale) + (windowWidth / 2);
-        //     double screenY = (point.second * -renderScale) + (windowHeight / 2);
+        //     double screenX = (point.first * renderScale) + (getWidth() / 2);
+        //     double screenY = (point.second * -renderScale) + (getHeight() / 2);
 
         //     SDL_Rect debugPointRect;
         //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
@@ -603,71 +514,78 @@ void Render::renderSprites() {
         if (currentSprite->isStage) renderPenLayer();
     }
 
-    drawBlackBars(windowWidth, windowHeight);
+    if (speechManager) {
+        speechManager->render();
+    }
+
+    drawBlackBars(getWidth(), getHeight());
     renderVisibleVariables();
 
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+    if (Input::mousePointer.isMoving) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        SDL_Rect rect;
+        rect.w = rect.h = 5;
+        rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5);
+        rect.y = (Input::mousePointer.y * -1 * renderScale) + (globalWindow->getHeight() * 0.5);
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+#endif
+
     SDL_RenderPresent(renderer);
-    Image::FlushImages();
     SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, std::pair<TextObject *, TextObject *>> Render::monitorTexts;
+std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 
 void Render::renderPenLayer() {
+
+    if (!penVerts.empty()) {
+        SDL_SetRenderTarget(renderer, penTexture);
+
+        SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        penVerts.clear();
+
+        SDL_SetRenderTarget(renderer, NULL);
+    }
+
     SDL_Rect renderRect = {0, 0, 0, 0};
 
-    if (static_cast<float>(windowWidth) / windowHeight > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
-        renderRect.x = std::ceil((windowWidth - Scratch::projectWidth * (static_cast<float>(windowHeight) / Scratch::projectHeight)) / 2.0f);
-        renderRect.w = windowWidth - renderRect.x * 2;
-        renderRect.h = windowHeight;
+    if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
+        renderRect.x = std::ceil((getWidth() - Scratch::projectWidth * (static_cast<float>(getHeight()) / Scratch::projectHeight)) / 2.0f);
+        renderRect.w = getWidth() - renderRect.x * 2;
+        renderRect.h = getHeight();
     } else {
-        renderRect.y = std::ceil((windowHeight - Scratch::projectHeight * (static_cast<float>(windowWidth) / Scratch::projectWidth)) / 2.0f);
-        renderRect.h = windowHeight - renderRect.y * 2;
-        renderRect.w = windowWidth;
+        renderRect.y = std::ceil((getHeight() - Scratch::projectHeight * (static_cast<float>(getWidth()) / Scratch::projectWidth)) / 2.0f);
+        renderRect.h = getHeight() - renderRect.y * 2;
+        renderRect.w = getWidth();
     }
 
     SDL_RenderCopy(renderer, penTexture, NULL, &renderRect);
 }
 
 bool Render::appShouldRun() {
-    if (toExit) return false;
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        switch (event.type) {
-        case SDL_QUIT:
-            toExit = true;
-            return false;
-        case SDL_CONTROLLERDEVICEADDED:
-            controller = SDL_GameControllerOpen(0);
-            break;
-        case SDL_FINGERDOWN:
-            touchActive = true;
-            touchPosition = {
-                static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)};
-            break;
-        case SDL_FINGERMOTION:
-            touchPosition = {
-                static_cast<int>(event.tfinger.x * windowWidth),
-                static_cast<int>(event.tfinger.y * windowHeight)};
-            break;
-        case SDL_FINGERUP:
-            touchActive = false;
-            break;
-        case SDL_WINDOWEVENT:
-            switch (event.window.event) {
-            case SDL_WINDOWEVENT_RESIZED:
-                SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-                setRenderScale();
+    if (OS::toExit) return false;
+    if (globalWindow) {
+        globalWindow->pollEvents();
 
-                if (!Scratch::hqpen) break;
+        static int lastW = 0, lastH = 0;
+        int currentW = globalWindow->getWidth();
+        int currentH = globalWindow->getHeight();
 
+        if (lastW != currentW || lastH != currentH) {
+            lastW = currentW;
+            lastH = currentH;
+
+            if (Scratch::hqpen) {
                 SDL_Texture *newTexture;
-                if (Scratch::projectWidth / static_cast<double>(windowWidth) < Scratch::projectHeight / static_cast<double>(windowHeight))
-                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (windowHeight / static_cast<double>(Scratch::projectHeight)), windowHeight);
+                if (Scratch::projectWidth / static_cast<double>(currentW) < Scratch::projectHeight / static_cast<double>(currentH))
+                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (currentH / static_cast<double>(Scratch::projectHeight)), currentH);
                 else
-                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, windowWidth, Scratch::projectHeight * (windowWidth / static_cast<double>(Scratch::projectWidth)));
+                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, currentW, Scratch::projectHeight * (currentW / static_cast<double>(Scratch::projectWidth)));
 
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_NONE);
                 SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_NONE);
@@ -676,12 +594,10 @@ bool Render::appShouldRun() {
                 SDL_SetRenderTarget(renderer, nullptr);
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_BLEND);
                 SDL_DestroyTexture(penTexture);
-                penTexture = newTexture;
-
-                break;
             }
-            break;
         }
+
+        return !globalWindow->shouldClose();
     }
-    return true;
+    return false;
 }

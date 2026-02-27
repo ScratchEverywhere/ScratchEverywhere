@@ -7,10 +7,11 @@
 class TextObjectC2D : public TextObject {
   private:
     void updateText();
+
+  protected:
     static std::unordered_map<std::string, C2D_Font> fonts;
     std::string fontName;
     static std::unordered_map<std::string, size_t> fontUsageCount;
-    bool textPosCorrection = false;
 
   public:
     typedef struct {

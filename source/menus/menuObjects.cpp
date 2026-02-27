@@ -11,6 +11,13 @@ static float guiScale = 1.3f;
 static float guiScale = 1.0f;
 #endif
 
+// turn off nineslice for low performance platforms
+#if defined(__NDS__) || defined(__PSP__) || defined(RENDERER_SDL1) /* sdl1 just doesnt support it currently */
+constexpr bool enableNineslice = false;
+#else
+constexpr bool enableNineslice = true;
+#endif
+
 double MenuObject::getScaleFactor() {
     double WindowScale = Render::getWidth() + Render::getHeight();
 
@@ -26,9 +33,12 @@ double MenuObject::getScaleFactor() {
         guiScale = 1.5f;
     else if (WindowScale > 1000)
         guiScale = 1.3f;
+    else if (WindowScale < 500)
+        guiScale = 0.5f;
     else if (WindowScale < 780)
         guiScale = 0.7f;
-    else guiScale = 1.0f;
+    else
+        guiScale = 1.0f;
 
     return guiScale;
 }
@@ -42,19 +52,16 @@ std::vector<double> MenuObject::getScaledPosition(double xPos, double yPos) {
     return pos;
 }
 
-ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos, std::string fontPath) {
+ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPos, int yPos, std::string fontPath, bool nineslice) {
     x = xPos;
     y = yPos;
+    shouldNineslice = nineslice;
     scale = 1.0;
     textScale = 1.0;
     text = createTextObject(buttonText, x, y, fontPath);
     text->setCenterAligned(true);
+    imageId = filePath;
     buttonTexture = new MenuImage(filePath);
-
-// turn off nineslice for low performance platforms
-#if defined(__NDS__) || defined(__PSP__)
-    enableNineslice = false;
-#endif
 }
 
 bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
@@ -89,7 +96,7 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
         // if just stopped clicking, count as a button press
         if (!pressedLastFrame) {
-            if (std::abs(lastFrameTouchPos[0] - touchX) < 2 && std::abs(lastFrameTouchPos[1] - touchY) < 2) return true;
+            if (std::abs(lastFrameTouchPos[0] - touchX) < 8 * getScaleFactor() && std::abs(lastFrameTouchPos[1] - touchY) < 8 * getScaleFactor()) return true;
         } else {
             lastFrameTouchPos = touchPos;
         }
@@ -129,14 +136,18 @@ void ButtonObject::render(double xPos, double yPos) {
     buttonTexture->x = xPos;
     buttonTexture->y = yPos;
     buttonTexture->scale = scale * getScaleFactor();
-    buttonTexture->image->scale = scale * getScaleFactor();
+    ImageRenderParams params;
+    params.x = scaledPos[0];
+    params.y = scaledPos[1];
+    params.scale = scale * getScaleFactor();
+    params.centered = true;
 
-    if (enableNineslice) {
+    if (enableNineslice && this->shouldNineslice) {
         buttonTexture->image->renderNineslice(scaledPos[0], scaledPos[1],
                                               std::max(text->getSize()[0], (float)buttonTexture->image->getWidth() * renderScale),
                                               std::max(text->getSize()[1], (float)buttonTexture->image->getHeight() * renderScale), 8, true);
     } else {
-        buttonTexture->image->render(scaledPos[0], scaledPos[1], true);
+        buttonTexture->image->render(params);
     }
 
     text->setScale(renderScale * textScale);
@@ -144,37 +155,52 @@ void ButtonObject::render(double xPos, double yPos) {
 }
 
 ButtonObject::~ButtonObject() {
-    delete text;
     delete buttonTexture;
 }
 
-MenuImage::MenuImage(std::string filePath, int xPos, int yPos) {
+MenuImage::MenuImage(std::string filePath, int xPos, int yPos, bool nineslice) {
     x = xPos;
     y = yPos;
+    shouldNineslice = nineslice;
     scale = 1.0;
-    image = new Image(filePath);
+    try {
+        image = createImageFromFile(filePath, false);
+    } catch (const std::runtime_error &e) {
+        Log::logError("Failed to load Menu Image: " + std::string(e.what()));
+    }
 }
 
 void MenuImage::render(double xPos, double yPos) {
     if (xPos == 0) xPos = x;
     if (yPos == 0) yPos = y;
 
-    image->scale = scale * getScaleFactor();
+    // image->scale = scale * getScaleFactor();
     const double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
     const double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
 
     renderX = proportionX * Render::getWidth();
     renderY = proportionY * Render::getHeight();
 
-    if (width <= 0 && height <= 0) {
-        image->renderNineslice(renderX, renderY, image->getWidth() * scale, image->getHeight() * scale, 8 /* TODO: make this customizable */, true);
-        return;
+    const float renderScale = scale * getScaleFactor();
+
+    if (enableNineslice && this->shouldNineslice) {
+        if (width <= 0 && height <= 0) {
+            image->renderNineslice(renderX, renderY, image->getWidth() * renderScale, image->getHeight() * renderScale, 8 /* TODO: make this customizable */, true);
+            return;
+        }
+        image->renderNineslice(renderX, renderY, width * renderScale, height * renderScale, 8 /* TODO: make this customizable */, true);
+    } else {
+        ImageRenderParams params;
+        params.x = renderX;
+        params.y = renderY;
+        params.scale = renderScale;
+        params.centered = true;
+        image->render(params);
     }
-    image->renderNineslice(renderX, renderY, width * scale, height * scale, 8 /* TODO: make this customizable */, true);
 }
 
 MenuImage::~MenuImage() {
-    delete image;
+    // delete image;
 }
 
 ControlObject::ControlObject() {
@@ -210,6 +236,7 @@ ButtonObject *ControlObject::getClosestObject() {
     float closestDist = std::numeric_limits<float>::max();
 
     for (ButtonObject *object : buttonObjects) {
+        if (object->hidden) continue;
         float dx = object->x - this->x;
         float dy = object->y - this->y - (REFERENCE_HEIGHT / 2);
         float dist = dx * dx + dy * dy;
@@ -304,7 +331,7 @@ void ControlObject::render(double xPos, double yPos) {
     double scaledWidth;
     double scaledHeight;
 
-    if (selectedObject->enableNineslice) {
+    if (enableNineslice) {
         scaledWidth = std::max(selectedObject->text->getSize()[0], (float)selectedObject->buttonTexture->image->getWidth() * renderScale);
         scaledHeight = std::max(selectedObject->text->getSize()[1], (float)selectedObject->buttonTexture->image->getHeight() * renderScale);
     } else {

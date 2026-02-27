@@ -1,14 +1,12 @@
 #include "audio.hpp"
 #include <audio.hpp>
-#include <interpret.hpp>
 #include <miniz.h>
 #include <os.hpp>
+#include <runtime.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <unordered_map>
-#ifdef __3DS__
-#include <3ds.h>
-#endif
+#include <unzip.hpp>
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -70,10 +68,16 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .soundId = soundId,
         .streamed = streamed || (sprite != nullptr && sprite->isStage)}; // stage sprites get streamed audio
 
-    if (projectType != UNZIPPED && fromProject && !fromCache)
+    if (Scratch::projectType != UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
-    else
-        loadSoundFromFile(params.sprite, (fromProject && !fromCache ? "project/" : "") + params.soundId, params.streamed, fromCache);
+    else {
+        std::string filePrefix = "";
+        if (fromProject && !fromCache) {
+            if (Unzip::UnpackedInSD) filePrefix = Unzip::filePath;
+            else filePrefix = "project/";
+        }
+        loadSoundFromFile(params.sprite, filePrefix + params.soundId, params.streamed, fromCache);
+    }
 
 #endif
 }
@@ -212,7 +216,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     if (!streamed) {
 #ifdef USE_CMAKERC
-        if (fromCache)
+        if (fromCache || Unzip::UnpackedInSD)
             chunk = Mix_LoadWAV(fileName.c_str());
         else {
             const auto &file = cmrc::romfs::get_filesystem().open(fileName);
@@ -227,7 +231,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         }
     } else {
 #ifdef USE_CMAKERC
-        if (fromCache)
+        if (fromCache || Unzip::UnpackedInSD)
             music = Mix_LoadMUS(fileName.c_str());
         else {
             const auto &file = cmrc::romfs::get_filesystem().open(fileName);
@@ -257,6 +261,9 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         if (fileName.rfind(prefix, 0) == 0) {
             fileName = fileName.substr(prefix.length());
         }
+        if (Unzip::UnpackedInSD) {
+            fileName = fileName.substr(Unzip::filePath.length());
+        }
     }
 
     audio->audioId = fileName;
@@ -280,7 +287,7 @@ int SoundPlayer::playSound(const std::string &soundId) {
 
         if (!currentStreamedSound.empty() && it->second->isStreaming) {
             stopStreamedSound();
-        }
+        } else if (it->second->isPlaying) stopSound(soundId);
 
         it->second->isPlaying = true;
 
@@ -352,6 +359,12 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     }
 #endif
     return -1.0f;
+}
+
+void SoundPlayer::setPitch(const std::string &soundId, float pitch) {
+}
+
+void SoundPlayer::setPan(const std::string &soundId, float pan) {
 }
 
 double SoundPlayer::getMusicPosition(const std::string &soundId) {

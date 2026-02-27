@@ -1,5 +1,6 @@
 #include "projectMenu.hpp"
 #include "projectSettings.hpp"
+#include "settings.hpp"
 #include "unpackMenu.hpp"
 #include <audio.hpp>
 
@@ -13,8 +14,8 @@ ProjectMenu::~ProjectMenu() {
 
 void ProjectMenu::init() {
 #if defined(__NDS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
+    if (!SoundPlayer::isSoundLoaded("gfx/nds/mm_ds.wav")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/nds/mm_ds.wav", false, false);
     }
 #else
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
@@ -22,8 +23,6 @@ void ProjectMenu::init() {
         SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
     }
 #endif
-
-    snow.image = new Image("gfx/menu/snow.svg");
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -36,7 +35,7 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 30;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
@@ -56,7 +55,7 @@ void ProjectMenu::init() {
         yPosition += 50;
     }
     for (std::string &file : UnzippedFiles) {
-        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.png", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         project->text->setColor(Math::color(126, 101, 1, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
@@ -140,24 +139,18 @@ void ProjectMenu::init() {
         hasProjects = true;
     }
     isInitialized = true;
+
+    settings = SettingsManager::getConfigSettings();
 }
 
 void ProjectMenu::render() {
     Input::getInput();
     projectControl->input();
 
-    nlohmann::json *settings;
-    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-    if (inFile.good()) {
-        settings = new nlohmann::json();
-        inFile >> *settings;
-        inFile.close();
-    }
-
-    if (!(settings != nullptr && settings->contains("MenuMusic") && (*settings)["MenuMusic"].is_boolean() && !(*settings)["MenuMusic"].get<bool>())) {
+    if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
-            SoundPlayer::playSound("gfx/menu/mm_full.wav");
+        if (!SoundPlayer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
+            SoundPlayer::playSound("gfx/nds/mm_ds.wav");
         }
 #else
         if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
@@ -169,12 +162,12 @@ void ProjectMenu::render() {
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed({"a"})) {
 
-            if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBoxFast") != std::string::npos) {
+            if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
                 // Unpacked sb3
                 Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
                 MenuManager::loadProject();
                 return;
-            } else if (projectControl->selectedObject->buttonTexture->image->imageId.find("projectBox") != std::string::npos) {
+            } else if (projectControl->selectedObject->imageId.find("projectBox") != std::string::npos) {
                 // normal sb3
                 Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
                 MenuManager::loadProject();
@@ -218,10 +211,8 @@ void ProjectMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 77, 58, 77);
-    Render::beginFrame(1, 77, 58, 77);
-
-    snow.render(0, 0);
+    Render::beginFrame(0, 97, 73, 97);
+    Render::beginFrame(1, 97, 73, 97);
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;
@@ -244,6 +235,10 @@ void ProjectMenu::render() {
 }
 
 void ProjectMenu::cleanup() {
+    if (!settings.empty()) {
+        settings.clear();
+    }
+
     projectFiles.clear();
     UnzippedFiles.clear();
     for (ButtonObject *button : projects) {
@@ -261,18 +256,6 @@ void ProjectMenu::cleanup() {
     if (noProjectsButton != nullptr) {
         delete noProjectsButton;
         noProjectsButton = nullptr;
-    }
-    if (noProjectsText != nullptr) {
-        delete noProjectsText;
-        noProjectsText = nullptr;
-    }
-    if (noProjectInfo != nullptr) {
-        delete noProjectInfo;
-        noProjectInfo = nullptr;
-    }
-    if (snow.image) {
-        delete snow.image;
-        snow.image = nullptr;
     }
     isInitialized = false;
 }

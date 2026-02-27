@@ -1,10 +1,11 @@
+#include "image.hpp"
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
 #include <cstdlib>
-#include <interpret.hpp>
 #include <menus/mainMenu.hpp>
 #include <render.hpp>
+#include <runtime.hpp>
 #include <unzip.hpp>
 
 #ifdef __SWITCH__
@@ -25,11 +26,15 @@ static void exitApp() {
 }
 
 static bool initApp() {
+    Log::deleteLogFile();
+    Render::debugMode = true;
     if (!Render::Init()) {
         return false;
     }
-
-    loadUsernameFromSettings();
+    if (!Image::Init()) {
+        // Maybe this should just be ignored since unlike the renderer this won't break the app?
+        return false;
+    }
     return true;
 }
 
@@ -76,7 +81,7 @@ void mainLoop() {
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
-    if (toExit || !activateMainMenu()) {
+    if (OS::toExit || !activateMainMenu()) {
         exitApp();
         exit(0);
     }

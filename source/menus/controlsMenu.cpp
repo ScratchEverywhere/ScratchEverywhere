@@ -1,4 +1,5 @@
 #include "controlsMenu.hpp"
+#include <settings.hpp>
 
 ControlsMenu::ControlsMenu(std::string projPath) {
     projectPath = projPath;
@@ -14,7 +15,7 @@ void ControlsMenu::init() {
     Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
     if (!Unzip::load()) {
         Log::logError("Failed to load project for ControlsMenu.");
-        toExit = true;
+        OS::toExit = true;
         return;
     }
     Unzip::filePath = "";
@@ -22,7 +23,7 @@ void ControlsMenu::init() {
     // get controls
     std::vector<std::string> controls;
 
-    for (auto &sprite : sprites) {
+    for (auto &sprite : Scratch::sprites) {
         for (auto &[id, block] : sprite->blocks) {
             std::string buttonCheck;
             if (block.opcode == "sensing_keypressed") {
@@ -63,7 +64,7 @@ void ControlsMenu::init() {
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold");
+    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold", true);
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;
@@ -78,7 +79,7 @@ void ControlsMenu::init() {
     double yPosition = 100;
     for (auto &control : controls) {
         key newControl;
-        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *controlButton = new ButtonObject(control, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         controlButton->text->setColor(Math::color(255, 255, 255, 255));
         controlButton->scale = 1.0;
         controlButton->y -= controlButton->text->getSize()[1] / 2;
@@ -134,7 +135,11 @@ void ControlsMenu::render() {
         return;
     }
     if (applyButton->isPressed({"y"})) {
-        applyControls();
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        for (const auto &c : controlButtons) {
+            settings["controls"][c.control] = c.controlValue;
+        }
+        SettingsManager::saveProjectSettings(settings, projectPath);
         MenuManager::changeMenu(MenuManager::previousMenu);
         return;
     }
@@ -199,40 +204,6 @@ void ControlsMenu::render() {
     applyButton->render();
 
     Render::endFrame();
-}
-
-void ControlsMenu::applyControls() {
-    // Build the file path
-    std::string folderPath = OS::getScratchFolderLocation() + projectPath;
-    std::string filePath = folderPath + ".sb3" + ".json";
-
-    // Make sure parent directories exist
-    try {
-        OS::createDirectory(OS::parentPath(filePath));
-    } catch (const OS::FilesystemError &e) {
-        Log::logError("Failed to create directories: " + std::string(e.what()));
-        return;
-    }
-
-    // Create a JSON object to hold control mappings
-    nlohmann::json json;
-    json["controls"] = nlohmann::json::object();
-
-    // Save each control in the form: "ControlName": "MappedKey"
-    for (const auto &c : controlButtons) {
-        json["controls"][c.control] = c.controlValue;
-    }
-
-    // Write JSON to file (overwrite if exists)
-    std::ofstream file(filePath);
-    if (!file) {
-        Log::logError("Failed to create JSON file: " + filePath);
-        return;
-    }
-    file << json.dump(2);
-    file.close();
-
-    Log::log("Controls saved to: " + filePath);
 }
 
 void ControlsMenu::cleanup() {

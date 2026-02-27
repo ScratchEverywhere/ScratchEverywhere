@@ -30,17 +30,6 @@ void UnpackMenu::render() {
 }
 
 void UnpackMenu::cleanup() {
-
-    if (infoText != nullptr) {
-        delete infoText;
-        infoText = nullptr;
-    }
-
-    if (descText != nullptr) {
-        delete descText;
-        descText = nullptr;
-    }
-
     Render::beginFrame(0, 181, 165, 111);
     Render::beginFrame(1, 181, 165, 111);
     Render::endFrame();

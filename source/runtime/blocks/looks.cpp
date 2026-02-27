@@ -1,14 +1,108 @@
+#include "blockExecutor.hpp"
 #include "blockUtils.hpp"
+#include "runtime.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <image.hpp>
-#include <interpret.hpp>
+#include <render.hpp>
+#include <speech_manager.hpp>
 #include <sprite.hpp>
 #include <value.hpp>
 
+SCRATCH_BLOCK(looks, say) {
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (!speechManager) return BlockResult::CONTINUE;
+
+    Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+    std::string message = messageValue.asString();
+
+    speechManager->showSpeech(sprite, message, -1, "say");
+
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK(looks, sayforsecs) {
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (!speechManager) return BlockResult::CONTINUE;
+
+    // copied wait block functionality to hold off subsequent block execution until speech timer expires
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
+
+    if (block.repeatTimes == -1) {
+        block.repeatTimes = -2;
+
+        Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+        Value secondsValue = Scratch::getInputValue(block, "SECS", sprite);
+        std::string message = messageValue.asString();
+        double seconds = secondsValue.asDouble();
+
+        block.waitDuration = seconds * 1000; // convert to milliseconds
+        block.waitTimer.start();
+
+        speechManager->showSpeech(sprite, message, seconds, "say");
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+    }
+
+    block.repeatTimes -= 1;
+
+    if (block.waitTimer.hasElapsed(block.waitDuration) && block.repeatTimes <= -4) {
+        block.repeatTimes = -1;
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+        return BlockResult::CONTINUE;
+    }
+
+    return BlockResult::RETURN;
+}
+SCRATCH_BLOCK(looks, think) {
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (!speechManager) return BlockResult::CONTINUE;
+
+    Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+    std::string message = messageValue.asString();
+
+    speechManager->showSpeech(sprite, message, -1, "think");
+
+    return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK(looks, thinkforsecs) {
+    SpeechManager *speechManager = Render::getSpeechManager();
+    if (!speechManager) return BlockResult::CONTINUE;
+
+    // copied wait block functionality to hold off subsequent block execution until speech timer expires
+    if (block.repeatTimes != -1 && !fromRepeat) {
+        block.repeatTimes = -1;
+    }
+
+    if (block.repeatTimes == -1) {
+        block.repeatTimes = -2;
+
+        Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
+        Value secondsValue = Scratch::getInputValue(block, "SECS", sprite);
+        std::string message = messageValue.asString();
+        double seconds = secondsValue.asDouble();
+
+        block.waitDuration = seconds * 1000; // convert to milliseconds
+        block.waitTimer.start();
+
+        speechManager->showSpeech(sprite, message, seconds, "think");
+        BlockExecutor::addToRepeatQueue(sprite, &block);
+    }
+
+    block.repeatTimes -= 1;
+
+    if (block.waitTimer.hasElapsed(block.waitDuration) && block.repeatTimes <= -4) {
+        block.repeatTimes = -1;
+        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+        return BlockResult::CONTINUE;
+    }
+
+    return BlockResult::RETURN;
+}
+
 SCRATCH_BLOCK(looks, show) {
+    if (!sprite->visible) Scratch::loadCurrentCostumeImage(sprite);
     sprite->visible = true;
-    Image::loadImageFromProject(sprite);
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
@@ -58,129 +152,179 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
     const Value inputValue = Scratch::getInputValue(block, "BACKDROP", sprite);
 
     if (inputValue.isDouble()) {
-        Scratch::switchCostume(stageSprite, inputValue.isNaN() ? 0 : inputValue.asDouble() - 1);
-        return BlockResult::CONTINUE;
+        Scratch::switchCostume(Scratch::stageSprite, inputValue.isNaN() ? 0 : inputValue.asDouble() - 1);
+        goto end;
     }
 
-    for (size_t i = 0; i < stageSprite->costumes.size(); i++) {
-        if (stageSprite->costumes[i].name == inputValue.asString()) {
-            Scratch::switchCostume(stageSprite, i);
-            return BlockResult::CONTINUE;
+    for (size_t i = 0; i < Scratch::stageSprite->costumes.size(); i++) {
+        if (Scratch::stageSprite->costumes[i].name == inputValue.asString()) {
+            Scratch::switchCostume(Scratch::stageSprite, i);
+            goto end;
         }
     }
 
     if (inputValue.asString() == "next backdrop") {
-        Scratch::switchCostume(stageSprite, ++stageSprite->currentCostume);
-        return BlockResult::CONTINUE;
+        Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
+        goto end;
     } else if (inputValue.asString() == "previous backdrop") {
-        Scratch::switchCostume(stageSprite, --stageSprite->currentCostume);
-        return BlockResult::CONTINUE;
+        Scratch::switchCostume(Scratch::stageSprite, --Scratch::stageSprite->currentCostume);
+        goto end;
     } else if (inputValue.asString() == "random backdrop") {
-        if (stageSprite->costumes.size() == 1) return BlockResult::CONTINUE;
-        int randomIndex = std::rand() % (stageSprite->costumes.size() - 1);
-        if (randomIndex >= stageSprite->currentCostume) randomIndex++;
-        Scratch::switchCostume(stageSprite, randomIndex);
-        return BlockResult::CONTINUE;
+        if (Scratch::stageSprite->costumes.size() == 1) goto end;
+        int randomIndex = std::rand() % (Scratch::stageSprite->costumes.size() - 1);
+        if (randomIndex >= Scratch::stageSprite->currentCostume) randomIndex++;
+        Scratch::switchCostume(Scratch::stageSprite, randomIndex);
+        goto end;
     }
 
     if (inputValue.isNumeric()) {
-        Scratch::switchCostume(stageSprite, inputValue.asDouble() - 1);
+        Scratch::switchCostume(Scratch::stageSprite, inputValue.asDouble() - 1);
+        goto end;
+    }
+
+end:
+    Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
+    return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
+    const Value inputValue = Scratch::getInputValue(block, "BACKDROP", sprite);
+
+    if (!fromRepeat) {
+        if (inputValue.isDouble()) {
+            Scratch::switchCostume(Scratch::stageSprite, inputValue.isNaN() ? 0 : inputValue.asDouble() - 1);
+            goto end;
+        }
+
+        for (size_t i = 0; i < Scratch::stageSprite->costumes.size(); i++) {
+            if (Scratch::stageSprite->costumes[i].name == inputValue.asString()) {
+                Scratch::switchCostume(Scratch::stageSprite, i);
+                goto end;
+            }
+        }
+
+        if (inputValue.asString() == "next backdrop") {
+            Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
+            goto end;
+        } else if (inputValue.asString() == "previous backdrop") {
+            Scratch::switchCostume(Scratch::stageSprite, --Scratch::stageSprite->currentCostume);
+            goto end;
+        } else if (inputValue.asString() == "random backdrop") {
+            if (Scratch::stageSprite->costumes.size() == 1) goto end;
+            int randomIndex = std::rand() % (Scratch::stageSprite->costumes.size() - 1);
+            if (randomIndex >= Scratch::stageSprite->currentCostume) randomIndex++;
+            Scratch::switchCostume(Scratch::stageSprite, randomIndex);
+            goto end;
+        }
+
+        if (inputValue.isNumeric()) {
+            Scratch::switchCostume(Scratch::stageSprite, inputValue.asDouble() - 1);
+            goto end;
+        }
+
+    end:
+        const std::string finalBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
+        for (Sprite *spr : Scratch::sprites) {
+            for (auto &[id, hat_block] : spr->blocks) {
+                if (hat_block.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(hat_block, "BACKDROP") == finalBackdrop) {
+                    Scratch::backdropQueue.push_back(finalBackdrop);
+                    BlockExecutor::addToRepeatQueue(sprite, &block);
+                    return BlockResult::RETURN;
+                }
+            }
+        }
         return BlockResult::CONTINUE;
     }
 
-    if (inputValue.isNumeric()) {
-        Scratch::switchCostume(stageSprite, inputValue.asDouble() - 1);
-        return BlockResult::CONTINUE;
-    }
+    if (block.backdropsRun.empty()) {
+        for (Sprite *spr : Scratch::sprites) {
+            for (auto &[id, chain] : spr->blockChains) {
+                if (chain.blocksToRepeat.empty()) continue;
 
-    for (auto &currentSprite : sprites) {
-        for (auto &[id, spriteBlock] : currentSprite->blocks) {
-            if (spriteBlock.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
-                executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
+                for (auto &chainBlock : chain.blockChain) {
+                    if (chainBlock->opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(*chainBlock, "BACKDROP") == inputValue.asString()) {
+                        block.backdropsRun.push_back({chainBlock, spr});
+                        break;
+                    }
+                }
             }
         }
     }
 
+    bool shouldEnd = true;
+    for (auto &[blockPtr, spritePtr] : block.backdropsRun) {
+        if (spritePtr->toDelete) continue;
+        if (!spritePtr->blockChains[blockPtr->blockChainID].blocksToRepeat.empty()) {
+            shouldEnd = false;
+            break;
+        }
+    }
+
+    if (!shouldEnd) return BlockResult::RETURN;
+
+    BlockExecutor::removeFromRepeatQueue(sprite, &block);
+    block.backdropsRun.clear();
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(looks, nextbackdrop) {
-    Scratch::switchCostume(stageSprite, ++stageSprite->currentCostume);
-
-    for (auto &currentSprite : sprites) {
-        for (auto &[id, spriteBlock] : currentSprite->blocks) {
-            if (spriteBlock.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(spriteBlock, "BACKDROP") == stageSprite->costumes[stageSprite->currentCostume].name) {
-                executor.runBlock(spriteBlock, currentSprite, withoutScreenRefresh, false);
-            }
-        }
-    }
+    Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
+    Scratch::backdropQueue.push_back(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
+    if (sprite->isStage) return BlockResult::CONTINUE;
+
     const Value value = Scratch::getInputValue(block, "NUM", sprite);
     const std::string forwardBackward = Scratch::getFieldValue(block, "FORWARD_BACKWARD");
     if (!value.isNumeric()) return BlockResult::CONTINUE;
 
-    const int shift = value.asInt();
-    if (shift == 0) return BlockResult::CONTINUE;
+    int shift = floor(value.asDouble());
+    if (forwardBackward == "backward") shift = -shift;
 
-    if (forwardBackward == "forward") {
-        const int targetLayer = sprite->layer + shift;
+    const int currentIndex = (Scratch::sprites.size() - 1) - sprite->layer;
+    const int targetIndex = std::clamp<int>(currentIndex - shift, 0, Scratch::sprites.size() - 2);
 
-        for (Sprite *currentSprite : sprites) {
-            if (currentSprite->isStage || currentSprite == sprite) continue;
-            if (currentSprite->layer >= targetLayer) {
-                currentSprite->layer++;
-            }
-        }
+    if (targetIndex == currentIndex) return BlockResult::CONTINUE;
 
-        sprite->layer = targetLayer;
-
-    } else if (forwardBackward == "backward") {
-        const int targetLayer = sprite->layer - shift;
-
-        for (Sprite *currentSprite : sprites) {
-            if (currentSprite->isStage || currentSprite == sprite) continue;
-            if (currentSprite->layer <= targetLayer) {
-                currentSprite->layer--;
-                if (currentSprite->layer < 0) currentSprite->layer = 0;
-            }
-        }
-
-        sprite->layer = targetLayer;
+    if (targetIndex < currentIndex) {
+        std::rotate(Scratch::sprites.begin() + targetIndex, Scratch::sprites.begin() + currentIndex, Scratch::sprites.begin() + currentIndex + 1);
+    } else {
+        std::rotate(Scratch::sprites.begin() + currentIndex, Scratch::sprites.begin() + currentIndex + 1, Scratch::sprites.begin() + targetIndex + 1);
     }
 
-    Scratch::forceRedraw = true;
-    Scratch::sortSprites();
+    for (int i = std::min(currentIndex, targetIndex); i <= std::max(currentIndex, targetIndex); i++) {
+        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
+    }
+
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(looks, gotofrontback) {
+    if (sprite->isStage) return BlockResult::CONTINUE;
+
     const std::string value = Scratch::getFieldValue(block, "FRONT_BACK");
-    if (value == "front") {
-        double maxLayer = 0.0;
-        for (Sprite *currentSprite : sprites) {
-            if (currentSprite->layer > maxLayer) {
-                maxLayer = currentSprite->layer;
-            }
-        }
 
-        sprite->layer = maxLayer + 1;
+    const int currentIndex = (Scratch::sprites.size() - 1) - sprite->layer;
+    const int targetIndex = value == "front" ? 0 : (Scratch::sprites.size() - 2);
 
-    } else if (value == "back") {
-        double minLayer = std::numeric_limits<double>::max();
-        for (Sprite *currentSprite : sprites) {
-            if (currentSprite->isStage) continue;
-            if (currentSprite->layer < minLayer) {
-                minLayer = currentSprite->layer;
-            }
-        }
+    if (currentIndex == targetIndex) return BlockResult::CONTINUE;
 
-        sprite->layer = minLayer - 1;
+    if (targetIndex < currentIndex) {
+        std::rotate(Scratch::sprites.begin() + targetIndex,
+                    Scratch::sprites.begin() + currentIndex,
+                    Scratch::sprites.begin() + currentIndex + 1);
+    } else {
+        std::rotate(Scratch::sprites.begin() + currentIndex,
+                    Scratch::sprites.begin() + currentIndex + 1,
+                    Scratch::sprites.begin() + targetIndex + 1);
     }
-    Scratch::forceRedraw = true;
-    Scratch::sortSprites();
+
+    for (int i = std::min(currentIndex, targetIndex); i <= std::max(currentIndex, targetIndex); i++) {
+        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
+    }
+
     return BlockResult::CONTINUE;
 }
 
@@ -196,9 +340,12 @@ SCRATCH_BLOCK(looks, setsizeto) {
     if (value.isNumeric()) {
         const double inputSizePercent = value.asDouble();
 
-        const double minScale = std::min(1.0, std::max(5.0 / sprite->spriteWidth, 5.0 / sprite->spriteHeight));
+        const int sprWidth = sprite->spriteWidth;
+        const int sprHeight = sprite->spriteHeight;
 
-        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprite->spriteWidth, (1.5 * Scratch::projectHeight) / sprite->spriteHeight);
+        const double minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight));
+
+        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight);
 
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
@@ -219,9 +366,12 @@ SCRATCH_BLOCK(looks, changesizeby) {
     if (value.isNumeric()) {
         sprite->size += value.asDouble();
 
-        const double minScale = std::min(1.0, std::max(5.0 / sprite->spriteWidth, 5.0 / sprite->spriteHeight)) * 100.0;
+        const int sprWidth = sprite->spriteWidth;
+        const int sprHeight = sprite->spriteHeight;
 
-        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprite->spriteWidth, (1.5 * Scratch::projectHeight) / sprite->spriteHeight) * 100.0;
+        const double minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
+
+        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
 
         sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
     }
@@ -294,7 +444,7 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
 }
 
 SCRATCH_REPORTER_BLOCK(looks, size) {
-    return Value(sprite->size);
+    return Value(std::round(sprite->size));
 }
 
 SCRATCH_REPORTER_BLOCK(looks, costumenumbername) {
@@ -309,8 +459,8 @@ SCRATCH_REPORTER_BLOCK(looks, costumenumbername) {
 SCRATCH_REPORTER_BLOCK(looks, backdropnumbername) {
     const std::string value = Scratch::getFieldValue(block, "NUMBER_NAME");
 
-    if (value == "name") return Value(stageSprite->costumes[stageSprite->currentCostume].name);
-    if (value == "number") return Value(stageSprite->currentCostume + 1);
+    if (value == "name") return Value(Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name);
+    if (value == "number") return Value(Scratch::stageSprite->currentCostume + 1);
 
     return Value();
 }

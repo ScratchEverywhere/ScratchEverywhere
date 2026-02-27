@@ -1,6 +1,7 @@
 #include "projectSettings.hpp"
 #include "controlsMenu.hpp"
 #include "projectMenu.hpp"
+#include "settings.hpp"
 #include "unpackMenu.hpp"
 
 ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
@@ -16,19 +17,23 @@ ProjectSettings::~ProjectSettings() {
 void ProjectSettings::init() {
     // initialize
 
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 50, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
     if (canUnpacked) {
-        UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
     } else {
-        UnpackProjectButton = new ButtonObject("Delete Unpacked Project", "gfx/menu/projectBox.svg", 200, 130, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject("Delete Unpacked Project", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
         UnpackProjectButton->text->setScale(0.75);
     }
-    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold");
+    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 150, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
+
+    penModeButton = new ButtonObject("Pen Mode: clicktoload", "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
+    penModeButton->text->setColor(Math::color(0, 0, 0, 255));
+    penModeButton->text->setScale(0.5);
 
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -44,19 +49,28 @@ void ProjectSettings::init() {
     changeControlsButton->buttonUp = UnpackProjectButton;
     UnpackProjectButton->buttonUp = changeControlsButton;
     UnpackProjectButton->buttonDown = bottomScreenButton;
-    bottomScreenButton->buttonDown = changeControlsButton;
+    bottomScreenButton->buttonDown = penModeButton;
     bottomScreenButton->buttonUp = UnpackProjectButton;
+    penModeButton->buttonDown = changeControlsButton;
+    penModeButton->buttonUp = bottomScreenButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
     settingsControl->buttonObjects.push_back(bottomScreenButton);
+    settingsControl->buttonObjects.push_back(penModeButton);
 
-    nlohmann::json settings = getProjectSettings();
-    if (!settings.is_null() && !settings["settings"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
+    nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
         bottomScreenButton->text->setText("Bottom Screen: ON");
     } else {
         bottomScreenButton->text->setText("Bottom Screen: OFF");
+    }
+
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>()) {
+        penModeButton->text->setText("Pen Mode: Accurate");
+    } else {
+        penModeButton->text->setText("Pen Mode: Fast");
     }
 
     isInitialized = true;
@@ -72,10 +86,16 @@ void ProjectSettings::render() {
         return;
     }
     if (bottomScreenButton->isPressed()) {
-        nlohmann::json screenSetting;
-        screenSetting["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
-        applySettings(screenSetting);
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
         bottomScreenButton->text->setText(bottomScreenButton->text->getText() == "Bottom Screen: ON" ? "Bottom Screen: OFF" : "Bottom Screen: ON");
+    }
+    if (penModeButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["accuratePen"] = penModeButton->text->getText() == "Pen Mode: Accurate" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        penModeButton->text->setText(penModeButton->text->getText() == "Pen Mode: Accurate" ? "Pen Mode: Fast" : "Pen Mode: Accurate");
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
@@ -117,55 +137,6 @@ void ProjectSettings::render() {
     Render::endFrame();
 }
 
-nlohmann::json ProjectSettings::getProjectSettings() {
-    nlohmann::json json;
-
-    std::ifstream file(OS::getScratchFolderLocation() + projectPath + ".sb3.json");
-    if (file.is_open()) {
-        file >> json;
-        file.close();
-    } else {
-        Log::logWarning("Failed to open controls file: " + OS::getScratchFolderLocation() + projectPath + ".sb3.json");
-    }
-    return json;
-}
-
-void ProjectSettings::applySettings(const nlohmann::json &settingsData) {
-    std::string folderPath = OS::getScratchFolderLocation() + projectPath;
-    std::string filePath = folderPath + ".sb3" + ".json";
-
-    try {
-        OS::createDirectory(OS::parentPath(filePath));
-    } catch (const OS::FilesystemError &e) {
-        Log::logError("Failed to create directories: " + std::string(e.what()));
-        return;
-    }
-
-    nlohmann::json json;
-    std::ifstream existingFile(filePath);
-    if (existingFile.good()) {
-        try {
-            existingFile >> json;
-        } catch (const nlohmann::json::parse_error &e) {
-            Log::logError("Failed to parse existing JSON file: " + std::string(e.what()));
-            json = nlohmann::json::object();
-        }
-        existingFile.close();
-    }
-
-    json["settings"] = settingsData;
-
-    std::ofstream file(filePath);
-    if (!file) {
-        Log::logError("Failed to create JSON file: " + filePath);
-        return;
-    }
-
-    file << json.dump(2);
-    file.close();
-    Log::log("Settings saved to: " + filePath);
-}
-
 void ProjectSettings::cleanup() {
     if (changeControlsButton != nullptr) {
         delete changeControlsButton;
@@ -186,6 +157,10 @@ void ProjectSettings::cleanup() {
     if (backButton != nullptr) {
         delete backButton;
         backButton = nullptr;
+    }
+    if (penModeButton != nullptr) {
+        delete penModeButton;
+        penModeButton = nullptr;
     }
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);

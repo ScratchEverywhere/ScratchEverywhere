@@ -52,7 +52,7 @@ inline std::string_view getCurrentMenuMonitorName(std::string_view menuValue) {
 }
 } // namespace MonitorDisplayNames
 
-enum class BlockResult {
+enum class BlockResult : uint8_t {
     // Goes to the block below.
     CONTINUE,
 
@@ -60,10 +60,17 @@ enum class BlockResult {
     RETURN,
 };
 
+using BlockHandlerPtr = BlockResult (*)(Block &, Sprite *, bool *, bool);
+using ValueHandlerPtr = Value (*)(Block &, Sprite *);
+
 class BlockExecutor {
   public:
-    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> &getHandlers();
-    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &getValueHandlers();
+    static std::unordered_map<std::string, BlockHandlerPtr> &getHandlers();
+    static std::unordered_map<std::string, ValueHandlerPtr> &getValueHandlers();
+
+#ifdef ENABLE_CACHING
+    static void linkPointers(Sprite *sprite);
+#endif
 
     static void executeKeyHats();
     static void doSpriteClicking();
@@ -75,7 +82,7 @@ class BlockExecutor {
      * @param withoutScreenRefresh Whether or not the block is running without screen refresh.
      * @param fromRepeat whether or not the block is repeating
      */
-    std::vector<Block *> runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh = nullptr, bool fromRepeat = false);
+    void runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh = nullptr, bool fromRepeat = false);
 
     /**
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.
@@ -105,16 +112,10 @@ class BlockExecutor {
     static BlockResult runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh);
 
     /**
-     * Runs and executes every block currently in the `broadcastQueue`.
+     * Runs and executes every block currently in the `Scratch::broadcastQueue`.
      * @return a Vector pair of every block that was run.
      */
     static std::vector<std::pair<Block *, Sprite *>> runBroadcasts();
-
-    /**
-     * Runs every "when I start as a clone" block
-     * Called when a "create a clone of" block is run
-     */
-    static void runCloneStarts();
 
     /**
      * Runs and executes a single broadcast
@@ -122,6 +123,15 @@ class BlockExecutor {
      * @return a Vector pair of every block that was run.
      */
     static std::vector<std::pair<Block *, Sprite *>> runBroadcast(std::string broadcastToRun);
+
+    static std::vector<std::pair<Block *, Sprite *>> runBackdrops();
+    static std::vector<std::pair<Block *, Sprite *>> runBackdrop(std::string backdropToRun);
+
+    /**
+     * Runs every "when I start as a clone" block
+     * Called when a "create a clone of" block is run
+     */
+    static void runCloneStarts();
 
     /**
      * Executes a `block` function that's registered through `valueHandlers`.
@@ -137,7 +147,7 @@ class BlockExecutor {
      * @param sprite Pointer to the sprite the variable is inside. If the variable is global, it would be in the Stage Sprite.
      * @return The Value of the Variable.
      */
-    static Value getVariableValue(std::string variableId, Sprite *sprite);
+    static Value getVariableValue(const std::string &variableId, Sprite *sprite, Block *block = nullptr);
 
     /**
      * Updates the values of all visible Monitors.
@@ -159,7 +169,7 @@ class BlockExecutor {
      * @param newValue the new Value to set.
      * @param sprite Pointer to the sprite the variable is inside. If the variable is global, it would be in the Stage Sprite.
      */
-    static void setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite);
+    static void setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite, Block *block = nullptr);
 
 #ifdef ENABLE_CLOUDVARS
     /**

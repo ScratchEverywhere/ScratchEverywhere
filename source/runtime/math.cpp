@@ -3,13 +3,14 @@
 #include <ctime>
 #include <limits>
 #include <math.h>
+#include <os.hpp>
 #include <random>
 #include <stdexcept>
 #include <string>
-#ifdef __3DS__
+#ifdef RENDERER_CITRO2D
 #include <citro2d.h>
 #endif
-#ifdef __NDS__
+#ifdef RENDERER_GL2D
 #include <nds.h>
 #endif
 
@@ -19,17 +20,17 @@ int Math::color(int r, int g, int b, int a) {
     b = std::clamp(b, 0, 255);
     a = std::clamp(a, 0, 255);
 
-#ifdef __NDS__
+#ifdef RENDERER_GL2D
     int r5 = r >> 3;
     int g5 = g >> 3;
     int b5 = b >> 3;
     return RGB15(r5, g5, b5);
-#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_OPENGL)
     return (r << 24) |
            (g << 16) |
            (b << 8) |
            a;
-#elif defined(__3DS__)
+#elif defined(RENDERER_CITRO2D)
     return C2D_Color32(r, g, b, a);
 #endif
     return 0;
@@ -43,6 +44,8 @@ double Math::parseNumber(std::string str) {
     while (!str.empty() && std::isspace(str.back())) {
         str.pop_back();
     }
+
+    if (str.empty()) throw std::invalid_argument("");
 
     if (str == "Infinity" || str == "+Infinity") {
         return std::numeric_limits<double>::infinity();
@@ -71,12 +74,13 @@ double Math::parseNumber(std::string str) {
             throw std::invalid_argument("");
         }
         if (base == 0) {
-            if (str[i] == 'e' && i == str.length() - 1) {
+            if (i == str.length() - 1 && (str[i] == '+' || str[i] == '-' || str[i] == 'e' || str[i] == 'E')) {
                 // implementation differece, "1e" doesn't work in Scratch but works
                 // with std::stod()
+                // signs (+, -) should also not be at the end
                 throw std::invalid_argument("");
             }
-            if (str[i] == 'e' && str.find('.', i + 1) != std::string::npos) {
+            if ((str[i] == 'e' || str[i] == 'E') && str.find('.', i + 1) != std::string::npos) {
                 // implementation differece, decimal point after e doesn't work in
                 // Scratch but works with std::stod()
                 throw std::invalid_argument("");
@@ -98,8 +102,6 @@ double Math::parseNumber(std::string str) {
         } else {
             return std::numeric_limits<double>::infinity();
         }
-    } catch (const std::invalid_argument &e) {
-        return 0;
     }
 
     return conversion;
@@ -114,12 +116,24 @@ bool Math::isNumber(const std::string &str) {
     }
 }
 
+std::string Math::toString(double number) {
+    if (std::isnan(number)) return "NaN";
+    if (std::isinf(number)) return std::signbit(number) ? "-Infinity" : "Infinity";
+    char buffer[32];
+    d2s_buffered(number, buffer);
+    return std::string(buffer);
+}
+
 double Math::degreesToRadians(double degrees) {
     return degrees * (M_PI / 180.0);
 }
 
 double Math::radiansToDegrees(double radians) {
     return radians * (180.0 / M_PI);
+}
+
+int16_t Math::radiansToAngle16(float radians) {
+    return (int16_t)(radians * (32768.0f / (2.0f * M_PI)));
 }
 
 std::string Math::generateRandomString(int length) {

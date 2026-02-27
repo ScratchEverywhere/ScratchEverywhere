@@ -66,6 +66,7 @@ main.code-workspace
 *.dol
 *.wbfs
 *.vpk
+*.ipk
 *.nds
 *.pkg
 romfs/sample.ogg
@@ -75,6 +76,7 @@ scratch-wiiu/
 scratch-wasm/
 scratch-ds/
 scratch-wii.zip
+scratch-everywhere
 
 # Stored Files
 cloud-username.txt

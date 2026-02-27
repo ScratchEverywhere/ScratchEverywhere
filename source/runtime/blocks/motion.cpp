@@ -3,7 +3,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <input.hpp>
-#include <interpret.hpp>
 #include <math.h>
 #include <math.hpp>
 #include <render.hpp>
@@ -27,7 +26,7 @@ SCRATCH_BLOCK(motion, goto) {
     } else if (objectName == "_mouse_") {
         Scratch::gotoXY(sprite, Input::mousePointer.x, Input::mousePointer.y);
     } else {
-        for (Sprite *currentSprite : sprites) {
+        for (Sprite *currentSprite : Scratch::sprites) {
             if (currentSprite->name == objectName) {
                 Scratch::gotoXY(sprite, currentSprite->xPosition, currentSprite->yPosition);
                 break;
@@ -144,7 +143,7 @@ SCRATCH_BLOCK(motion, glideto) {
             positionXStr = Input::mousePointer.x;
             positionYStr = Input::mousePointer.y;
         } else {
-            for (auto &currentSprite : sprites) {
+            for (auto &currentSprite : Scratch::sprites) {
                 if (currentSprite->name != inputValue) continue;
                 positionXStr = currentSprite->xPosition;
                 positionYStr = currentSprite->yPosition;
@@ -173,7 +172,7 @@ SCRATCH_BLOCK(motion, glideto) {
     return BlockResult::RETURN;
 }
 
-SCRATCH_BLOCK(motion, pointtoward) {
+SCRATCH_BLOCK(motion, pointtowards) {
     const std::string objectName = Scratch::getInputValue(block, "TOWARDS", sprite).asString();
     double targetX = 0;
     double targetY = 0;
@@ -187,7 +186,7 @@ SCRATCH_BLOCK(motion, pointtoward) {
         targetX = Input::mousePointer.x;
         targetY = Input::mousePointer.y;
     } else {
-        for (Sprite *currentSprite : sprites) {
+        for (Sprite *currentSprite : Scratch::sprites) {
             if (currentSprite->name == objectName) {
                 targetX = currentSprite->xPosition;
                 targetY = currentSprite->yPosition;
@@ -261,7 +260,7 @@ SCRATCH_BLOCK(motion, ifonedgebounce) {
         nearestEdge = "bottom";
     }
 
-    if (!isColliding("edge", sprite))
+    if (!Scratch::isColliding("edge", sprite))
         return BlockResult::CONTINUE;
 
     // Convert current direction to radians
@@ -310,4 +309,12 @@ SCRATCH_REPORTER_BLOCK(motion, yposition) {
 
 SCRATCH_REPORTER_BLOCK(motion, direction) {
     return Value(sprite->rotation);
+}
+
+SCRATCH_REPORTER_BLOCK(motion, xscroll) {
+    return Value(Undefined{});
+}
+
+SCRATCH_REPORTER_BLOCK(motion, yscroll) {
+    return Value(Undefined{});
 }

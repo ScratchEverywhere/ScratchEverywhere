@@ -1,14 +1,12 @@
 #include "audio.hpp"
 #include <audio.hpp>
-#include <interpret.hpp>
 #include <miniz.h>
 #include <os.hpp>
+#include <runtime.hpp>
 #include <sprite.hpp>
 #include <string>
 #include <unordered_map>
-#ifdef __3DS__
-#include <3ds.h>
-#endif
+#include <unzip.hpp>
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -33,16 +31,17 @@ bool SoundPlayer::init() {
         Log::logError("Could not init SDL Mixer! " + std::string(SDL_GetError()));
         return false;
     }
-    SDL_AudioDeviceID device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
-    if (!device) {
-        Log::logWarning("Failed to open audio device: " + std::string(SDL_GetError()));
-        return false;
-    }
 
     SDL_AudioSpec spac;
     spac.channels = 2;
     spac.format = SDL_AUDIO_S16LE;
     spac.freq = 44100;
+
+    SDL_AudioDeviceID device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spac);
+    if (!device) {
+        Log::logWarning("Failed to open audio device: " + std::string(SDL_GetError()));
+        return false;
+    }
 
     // Create the mixer
     mixer = MIX_CreateMixerDevice(device, &spac);
@@ -65,6 +64,9 @@ SDL_Audio::SDL_Audio() {}
 
 SDL_Audio::~SDL_Audio() {
 #ifdef ENABLE_AUDIO
+    if (track != nullptr) {
+        MIX_DestroyTrack(track);
+    }
     if (sound != nullptr) {
         MIX_DestroyAudio(sound);
         sound = nullptr;
@@ -90,10 +92,16 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     params.streamed = false;
 #endif
 
-    if (projectType != UNZIPPED && fromProject && !fromCache)
+    if (Scratch::projectType != UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
-    else
-        loadSoundFromFile(params.sprite, (fromProject && !fromCache ? "project/" : "") + params.soundId, params.streamed, fromCache);
+    else {
+        std::string filePrefix = "";
+        if (fromProject && !fromCache) {
+            if (Unzip::UnpackedInSD) filePrefix = Unzip::filePath;
+            else filePrefix = "project/";
+        }
+        loadSoundFromFile(params.sprite, filePrefix + params.soundId, params.streamed, fromCache);
+    }
 
 #endif
 }
@@ -186,7 +194,7 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
 
     MIX_Audio *sound;
 #ifdef USE_CMAKERC
-    if (fromCache)
+    if (fromCache || Unzip::UnpackedInSD)
         sound = MIX_LoadAudio(mixer, fileName.c_str(), !streamed);
     else {
         const auto &file = cmrc::romfs::get_filesystem().open(fileName);
@@ -207,10 +215,14 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
         if (fileName.rfind(prefix, 0) == 0) {
             fileName = fileName.substr(prefix.length());
         }
+        if (Unzip::UnpackedInSD) {
+            fileName = fileName.substr(Unzip::filePath.length());
+        }
     }
 
     // Create SDL_Audio object
-    std::unique_ptr<SDL_Audio> audio = std::make_unique<SDL_Audio>();
+    std::unique_ptr<SDL_Audio>
+        audio = std::make_unique<SDL_Audio>();
     audio->sound = sound;
     audio->audioId = fileName;
 
@@ -252,7 +264,6 @@ int SoundPlayer::playSound(const std::string &soundId) {
         return 0;
     }
 #endif
-    Log::logWarning("Sound not found: " + soundId);
     return -1;
 }
 
@@ -265,7 +276,6 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
         float sdlVolume = clampedVolume / 100.0f;
 
         if (soundFind->second->track == nullptr) {
-            Log::logWarning("Track not initialized, cannot set volume!");
             return;
         }
 
@@ -282,7 +292,6 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     auto soundFind = SDL_Sounds.find(soundId);
     if (soundFind != SDL_Sounds.end()) {
         if (soundFind->second->track == nullptr) {
-            Log::logWarning("Track not initialized, cannot get volume!");
             return -1.0f;
         }
 
@@ -293,6 +302,43 @@ float SoundPlayer::getSoundVolume(const std::string &soundId) {
     }
 #endif
     return -1.0f;
+}
+
+void SoundPlayer::setPitch(const std::string &soundId, float pitch) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        if (soundFind->second->track == nullptr) {
+            return;
+        }
+
+        if (!MIX_SetTrackFrequencyRatio(soundFind->second->track, (pitch * 0.01f) + 1.0f)) {
+            Log::logWarning("Failed to set pitch effect: " + std::string(SDL_GetError()));
+        }
+    }
+
+#endif
+}
+
+void SoundPlayer::setPan(const std::string &soundId, float pan) {
+#ifdef ENABLE_AUDIO
+    auto soundFind = SDL_Sounds.find(soundId);
+    if (soundFind != SDL_Sounds.end()) {
+        if (soundFind->second->track == nullptr) {
+            return;
+        }
+
+        // this method kinda just forces the sound to be on one side without it being gradual..
+        MIX_Point3D panPos;
+        panPos.x = std::clamp(pan * 0.0001f, -0.1f, 0.1f);
+        panPos.y = 0;
+        panPos.z = 0;
+
+        if (!MIX_SetTrack3DPosition(soundFind->second->track, &panPos)) {
+            Log::logWarning("Failed to set pan effect: " + std::string(SDL_GetError()));
+        }
+    }
+#endif
 }
 
 double SoundPlayer::getMusicPosition(const std::string &soundId) {
@@ -325,8 +371,6 @@ void SoundPlayer::stopSound(const std::string &soundId) {
             }
             soundFind->second->isPlaying = false;
         }
-    } else {
-        Log::logWarning("Sound not found, cannot stop: " + soundId);
     }
 #endif
 }
@@ -374,7 +418,7 @@ void SoundPlayer::freeAudio(const std::string &soundId) {
     auto it = SDL_Sounds.find(soundId);
     if (it != SDL_Sounds.end()) {
         SDL_Sounds.erase(it);
-    } else Log::logWarning("Could not find sound to free: " + soundId);
+    }
 #endif
 }
 

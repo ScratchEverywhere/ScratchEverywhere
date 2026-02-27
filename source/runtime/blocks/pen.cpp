@@ -1,6 +1,5 @@
 #include "blockUtils.hpp"
 #include <image.hpp>
-#include <interpret.hpp>
 #include <render.hpp>
 
 constexpr unsigned int minPenSize = 1;
@@ -10,7 +9,9 @@ SCRATCH_BLOCK(pen, penDown) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
     sprite->penData.down = true;
 
-    Render::penDot(sprite);
+    if (Scratch::accuratePen)
+        Render::penDotAccurate(sprite);
+    else Render::penDotFast(sprite);
 
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -86,7 +87,7 @@ SCRATCH_BLOCK(pen, changePenColorParamBy) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(pen, setPenColorTo) {
+SCRATCH_BLOCK(pen, setPenColorToColor) {
     sprite->penData.color = Scratch::getInputValue(block, "COLOR", sprite).asColor();
     sprite->penData.shade = sprite->penData.color.brightness / 2;
 
@@ -121,7 +122,7 @@ SCRATCH_BLOCK(pen, clear) {
 SCRATCH_BLOCK(pen, stamp) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
 
-    Image::loadImageFromProject(sprite);
+    Scratch::loadCurrentCostumeImage(sprite);
 
     Render::penStamp(sprite);
 

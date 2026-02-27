@@ -1,12 +1,13 @@
 #include "mainMenu.hpp"
 #include "projectMenu.hpp"
+#include "settings.hpp"
 #include "settingsMenu.hpp"
 #include <audio.hpp>
 #include <cctype>
 #include <cmath>
 #include <image.hpp>
-#include <interpret.hpp>
-#include <keyboard.hpp>
+#include <parser.hpp>
+
 #include <nlohmann/json.hpp>
 
 Menu::~Menu() = default;
@@ -41,6 +42,20 @@ void MenuManager::render() {
 }
 
 bool MenuManager::loadProject() {
+    cleanup();
+    // Image::cleanupImages();
+    SoundPlayer::cleanupAudio();
+
+    if (!Unzip::load()) {
+        Log::logWarning("Could not load project: " + Unzip::filePath + ". closing app.");
+        isProjectLoaded = -1;
+        return false;
+    }
+    isProjectLoaded = 1;
+    return true;
+}
+
+void MenuManager::cleanup() {
     if (currentMenu != nullptr) {
         currentMenu->cleanup();
         delete currentMenu;
@@ -50,17 +65,6 @@ bool MenuManager::loadProject() {
         delete previousMenu;
         previousMenu = nullptr;
     }
-
-    Image::cleanupImages();
-    SoundPlayer::cleanupAudio();
-
-    if (!Unzip::load()) {
-        Log::logWarning("Could not load project. closing app.");
-        isProjectLoaded = -1;
-        return false;
-    }
-    isProjectLoaded = 1;
-    return true;
 }
 
 MainMenu::MainMenu() {
@@ -72,8 +76,7 @@ MainMenu::~MainMenu() {
 
 void MainMenu::init() {
 #ifdef RENDERER_HEADLESS // let the user type what project they want to open if headless
-    SoftwareKeyboard kbd;
-    std::string answer = kbd.openKeyboard("Please type what project you want to open.");
+    std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
 
     const std::string ext = ".sb3";
     if (answer.size() >= ext.size() &&
@@ -81,12 +84,12 @@ void MainMenu::init() {
         answer = answer.substr(0, answer.size() - ext.size());
     }
 
-    Unzip::filePath = answer + ".sb3";
+    Unzip::filePath = OS::getScratchFolderLocation() + answer + ".sb3";
 
     MenuManager::loadProject();
 #elif defined(__NDS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_full.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_full.wav", false, false);
+    if (!SoundPlayer::isSoundLoaded("gfx/nds/mm_ds.wav")) {
+        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/nds/mm_ds.wav", false, false);
     }
 #else
     if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
@@ -98,13 +101,11 @@ void MainMenu::init() {
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
-    snow.image = new Image("gfx/menu/snow.svg");
-
     logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 31", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 36", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -129,24 +130,18 @@ void MainMenu::init() {
     mainMenuControl->buttonObjects.push_back(loadButton);
     mainMenuControl->buttonObjects.push_back(settingsButton);
     isInitialized = true;
+
+    settings = SettingsManager::getConfigSettings();
 }
 
 void MainMenu::render() {
     Input::getInput();
     mainMenuControl->input();
 
-    nlohmann::json *settings;
-    std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-    if (inFile.good()) {
-        settings = new nlohmann::json();
-        inFile >> *settings;
-        inFile.close();
-    }
-
-    if (!(settings != nullptr && settings->contains("MenuMusic") && (*settings)["MenuMusic"].is_boolean() && !(*settings)["MenuMusic"].get<bool>())) {
+    if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_full.wav")) {
-            SoundPlayer::playSound("gfx/menu/mm_full.wav");
+        if (!SoundPlayer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
+            SoundPlayer::playSound("gfx/nds/mm_ds.wav");
         }
 #else
         if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
@@ -155,18 +150,13 @@ void MainMenu::render() {
 #endif
     }
 
-    if (settings != nullptr) delete settings;
-
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();
         MenuManager::changeMenu(projectMenu);
         return;
     }
 
-    // begin frame
-    Render::beginFrame(0, 87, 60, 88);
-
-    snow.render();
+    Render::beginFrame(0, 117, 77, 117);
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
@@ -176,11 +166,11 @@ void MainMenu::render() {
     splashText->scale = splashTextOriginalScale + splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
-    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.935);
-    splashText->render(logo->renderX, logo->renderY + (logo->image->getHeight() * 0.7));
+    versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
+    splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 
     // begin 3DS bottom screen frame
-    Render::beginFrame(1, 87, 60, 88);
+    Render::beginFrame(1, 117, 77, 117);
 
     if (settingsButton->isPressed()) {
         SettingsMenu *settingsMenu = new SettingsMenu();
@@ -193,6 +183,9 @@ void MainMenu::render() {
     Render::endFrame();
 }
 void MainMenu::cleanup() {
+    if (!settings.empty()) {
+        settings.clear();
+    }
 
     if (logo) {
         delete logo;
@@ -209,18 +202,6 @@ void MainMenu::cleanup() {
     if (mainMenuControl) {
         delete mainMenuControl;
         mainMenuControl = nullptr;
-    }
-    if (versionNumber) {
-        delete versionNumber;
-        versionNumber = nullptr;
-    }
-    if (splashText) {
-        delete splashText;
-        splashText = nullptr;
-    }
-    if (snow.image) {
-        delete snow.image;
-        snow.image = nullptr;
     }
     isInitialized = false;
 }

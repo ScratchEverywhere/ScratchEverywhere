@@ -6,9 +6,11 @@
 
 #include <variant>
 
+struct Undefined {};
+
 class Value {
   private:
-    std::variant<int, double, std::string, bool, Color> value;
+    std::variant<double, std::string, bool, Color, Undefined> value;
 
   public:
     // constructors
@@ -19,11 +21,9 @@ class Value {
     explicit Value(std::string val);
     explicit Value(bool val);
     explicit Value(Color val);
+    explicit Value(Undefined val);
 
     // type checks
-    inline bool isInteger() const {
-        return std::holds_alternative<int>(value);
-    }
     inline bool isDouble() const {
         return std::holds_alternative<double>(value);
     }
@@ -36,8 +36,11 @@ class Value {
     inline bool isColor() const {
         return std::holds_alternative<Color>(value);
     }
+    inline bool isUndefined() const {
+        return std::holds_alternative<Undefined>(value);
+    }
     inline bool isNumeric() const {
-        if (isInteger() || isDouble() || isBoolean()) {
+        if (isDouble() || isBoolean()) {
             return true;
         } else if (isString()) {
             auto &strValue = std::get<std::string>(value);
@@ -51,8 +54,6 @@ class Value {
     }
 
     double asDouble() const;
-
-    int asInt() const;
 
     std::string asString() const;
 

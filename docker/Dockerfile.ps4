@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=ps4
+RUN make PLATFORM=ps4 -j 2
 
 FROM scratch AS exporter
 

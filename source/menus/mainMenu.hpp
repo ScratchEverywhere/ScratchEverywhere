@@ -30,6 +30,7 @@ class MenuManager {
     static void changeMenu(Menu *menu);
     static void render();
     static bool loadProject();
+    static void cleanup();
 };
 
 class MainMenu : public Menu {
@@ -37,19 +38,19 @@ class MainMenu : public Menu {
   public:
     bool shouldExit = false;
 
-    JollySnow snow;
-
     Timer logoStartTime;
 
     MenuImage *logo = nullptr;
     ButtonObject *loadButton = nullptr;
     ButtonObject *settingsButton = nullptr;
     ControlObject *mainMenuControl = nullptr;
-    TextObject *versionNumber = nullptr;
-    TextObject *splashText = nullptr;
+    std::unique_ptr<TextObject> versionNumber = nullptr;
+    std::unique_ptr<TextObject> splashText = nullptr;
     float splashTextOriginalScale = 1.0f;
 
     int selectedTextIndex = 0;
+
+    nlohmann::json settings;
 
     void init() override;
     void render() override;

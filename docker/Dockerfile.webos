@@ -1,0 +1,37 @@
+#    -----------
+#   |  \/   \/  |       ____________
+#   |  /\   /\  |      |            |
+#   """""""""""""     <  fockerdile |
+# /|  O       O  |\    |            |
+# \|             |/     """"""""""""
+#   \___________/
+
+# syntax=docker/dockerfile:1.6
+
+FROM node:20-slim AS main_builder
+WORKDIR /app
+
+# --- Build tools, webOS ares CLI ---
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get install -y pkg-config cmake wget git file ca-certificates && npm install -g @webos-tools/cli && \
+    rm -rf /var/lib/apt/lists/*
+
+# --- Set up webosbrew SDK ---
+ARG WEBOS_SDK_URL=https://github.com/openlgtv/buildroot-nc4/releases/latest/download/arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz
+RUN wget -qO- "${WEBOS_SDK_URL}" | tar -xzf - && \
+    chmod +x arm-webos-linux-gnueabi_sdk-buildroot/relocate-sdk.sh && \
+    arm-webos-linux-gnueabi_sdk-buildroot/relocate-sdk.sh
+
+COPY . .
+
+# --- Build ---
+RUN cmake -B build/webos -S . -DCMAKE_TOOLCHAIN_FILE=arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake \
+        -DSE_CLOUDVARS=ON \
+        -DWEBOS=ON \
+        -DSE_RENDERER=sdl2 && \
+    make -C build/webos -j 2 all package && \
+    mv build/webos/*.ipk build/webos/scratch-webos.ipk
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/build/webos/scratch-webos.ipk /

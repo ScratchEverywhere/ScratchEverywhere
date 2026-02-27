@@ -1,9 +1,10 @@
 #include "audio.hpp"
 #include <audio.hpp>
-#include <interpret.hpp>
 #include <miniz/miniz.h>
 #include <os.hpp>
+#include <runtime.hpp>
 #include <sys/stat.h>
+#include <unzip.hpp>
 
 std::unordered_map<std::string, Sound> SoundPlayer::soundsPlaying;
 std::unordered_map<std::string, NDS_Audio> NDS_Sounds;
@@ -152,10 +153,16 @@ mm_stream_formats NDS_Audio::getMMStreamType(uint16_t numChannels, uint16_t bits
 void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
 
-    if (projectType != UNZIPPED && zip != nullptr && !fromCache)
+    if (Scratch::projectType != UNZIPPED && zip != nullptr && !fromCache)
         loadSoundFromSB3(sprite, zip, soundId, true);
-    else
-        loadSoundFromFile(sprite, (fromProject && !fromCache ? "project/" : "") + soundId, true, fromCache);
+    else {
+        std::string filePrefix = "";
+        if (fromProject && !fromCache) {
+            if (Unzip::UnpackedInSD) filePrefix = Unzip::filePath;
+            else filePrefix = "project/";
+        }
+        loadSoundFromFile(sprite, filePrefix + soundId, true, fromCache);
+    }
 #endif
 }
 
@@ -305,8 +312,9 @@ bool SoundPlayer::loadSoundFromFile(Sprite *sprite, std::string fileName, const 
     if (!fromCache) {
         baseName = fileName.substr(fileName.find_last_of("/\\") + 1);
         baseName = baseName.substr(OS::getRomFSLocation().length());
-    } else
-        baseName = fileName;
+        if (Unzip::UnpackedInSD) baseName = baseName.substr(Unzip::filePath.length());
+    } else baseName = fileName;
+
     NDS_Sounds[baseName] = std::move(audio);
     NDS_Sounds[baseName].id = baseName;
     return true;
@@ -345,6 +353,12 @@ void SoundPlayer::setSoundVolume(const std::string &soundId, float volume) {
 float SoundPlayer::getSoundVolume(const std::string &soundId) {
 
     return 0.0f;
+}
+
+void SoundPlayer::setPitch(const std::string &soundId, float pitch) {
+}
+
+void SoundPlayer::setPan(const std::string &soundId, float pan) {
 }
 
 double SoundPlayer::getMusicPosition(const std::string &soundId) {

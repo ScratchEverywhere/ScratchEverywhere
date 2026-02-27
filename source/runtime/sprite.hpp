@@ -1,9 +1,12 @@
 #pragma once
 #include "value.hpp"
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <os.hpp>
 #include <string>
 #include <unordered_map>
+
+enum class BlockResult : uint8_t;
 
 class Sprite;
 
@@ -29,6 +32,12 @@ struct Variable {
     Value value;
 };
 
+struct List {
+    std::string id;
+    std::string name;
+    std::vector<Value> items;
+};
+
 struct ParsedField {
     std::string value;
     std::string id;
@@ -38,13 +47,18 @@ struct ParsedInput {
     enum InputType {
         LITERAL,
         VARIABLE,
-        BLOCK,
-        BOOLEAN
+        BLOCK
     };
 
     InputType inputType;
+
     Value literalValue;
+
     std::string variableId;
+#ifdef ENABLE_CACHING
+    Variable *variable = nullptr;
+#endif
+
     std::string blockId;
 };
 
@@ -56,32 +70,96 @@ struct Block {
     Block *nextBlock;
     std::string parent;
     std::string blockChainID;
-    std::shared_ptr<std::map<std::string, ParsedInput>> parsedInputs;
+    std::unique_ptr<std::map<std::string, ParsedInput>> parsedInputs;
     std::shared_ptr<std::map<std::string, ParsedField>> parsedFields;
     bool shadow;
     bool topLevel;
-    std::string topLevelParentBlock;
+
+#ifdef ENABLE_CACHING
+    BlockResult (*handler)(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) = nullptr;
+    Value (*valueHandler)(Block &block, Sprite *sprite) = nullptr;
+
+    union {
+        Variable *variable = nullptr;
+        List *list;
+    };
+#endif
 
     /* variables that some blocks need*/
-    int repeatTimes = -1;
-    bool isRepeating = false;
+    double repeatTimes;
     double waitDuration;
     double glideStartX, glideStartY;
     double glideEndX, glideEndY;
     Timer waitTimer;
-    bool customBlockExecuted = false;
-    bool stopScript = false;
     Block *customBlockPtr = nullptr;
     std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
+    std::vector<std::pair<Block *, Sprite *>> backdropsRun;
 
     Block() {
         parsedFields = std::make_shared<std::map<std::string, ParsedField>>();
-        parsedInputs = std::make_shared<std::map<std::string, ParsedInput>>();
+        parsedInputs = std::make_unique<std::map<std::string, ParsedInput>>();
+    }
+
+    Block(const Block &other)
+        : id(other.id), customBlockId(other.customBlockId), opcode(other.opcode),
+          next(other.next), nextBlock(other.nextBlock), parent(other.parent),
+          blockChainID(other.blockChainID), shadow(other.shadow), topLevel(other.topLevel),
+#ifdef ENABLE_CACHING
+          handler(other.handler), valueHandler(other.valueHandler), variable(nullptr),
+#endif
+          repeatTimes(other.repeatTimes), waitDuration(other.waitDuration),
+          glideStartX(other.glideStartX), glideStartY(other.glideStartY),
+          glideEndX(other.glideEndX), glideEndY(other.glideEndY),
+          waitTimer(other.waitTimer), customBlockPtr(nullptr) {
+        parsedFields = other.parsedFields;
+
+        if (other.parsedInputs) {
+            parsedInputs = std::make_unique<std::map<std::string, ParsedInput>>(*other.parsedInputs);
+            return;
+        }
+        parsedInputs = std::make_unique<std::map<std::string, ParsedInput>>();
+    }
+
+    friend void swap(Block &first, Block &second) noexcept {
+        std::swap(first.id, second.id);
+        std::swap(first.customBlockId, second.customBlockId);
+        std::swap(first.opcode, second.opcode);
+        std::swap(first.next, second.next);
+        std::swap(first.parent, second.parent);
+        std::swap(first.blockChainID, second.blockChainID);
+        std::swap(first.nextBlock, second.nextBlock);
+        std::swap(first.parsedInputs, second.parsedInputs);
+        std::swap(first.parsedFields, second.parsedFields);
+        std::swap(first.customBlockPtr, second.customBlockPtr);
+        std::swap(first.shadow, second.shadow);
+        std::swap(first.topLevel, second.topLevel);
+        std::swap(first.repeatTimes, second.repeatTimes);
+        std::swap(first.waitDuration, second.waitDuration);
+        std::swap(first.glideStartX, second.glideStartX);
+        std::swap(first.glideStartY, second.glideStartY);
+        std::swap(first.glideEndX, second.glideEndX);
+        std::swap(first.glideEndY, second.glideEndY);
+        std::swap(first.waitTimer, second.waitTimer);
+        std::swap(first.broadcastsRun, second.broadcastsRun);
+        std::swap(first.backdropsRun, second.backdropsRun);
+
+#ifdef ENABLE_CACHING
+        std::swap(first.handler, second.handler);
+        std::swap(first.valueHandler, second.valueHandler);
+        std::swap(first.variable, second.variable);
+#endif
+    }
+
+    Block &operator=(Block other) {
+        if (this == &other) return *this;
+
+        swap(*this, other);
+
+        return *this;
     }
 };
 
 struct CustomBlock {
-
     std::string name;
     std::string tagName;
     std::string blockId;
@@ -90,12 +168,6 @@ struct CustomBlock {
     std::vector<std::string> argumentDefaults;
     std::unordered_map<std::string, Value> argumentValues;
     bool runWithoutScreenRefresh;
-};
-
-struct List {
-    std::string id;
-    std::string name;
-    std::vector<Value> items;
 };
 
 struct Sound {
@@ -152,10 +224,18 @@ struct Monitor {
     int y;
     int width;
     int height;
+    int listPage = 0;
     bool visible;
     double sliderMin;
     double sliderMax;
     bool isDiscrete;
+
+#ifdef ENABLE_CACHING
+    union {
+        Variable *variablePtr = nullptr;
+        List *listPtr;
+    };
+#endif
 };
 
 class Sprite {
@@ -167,10 +247,8 @@ class Sprite {
     bool visible;
     bool isClone;
     bool toDelete;
-    bool isDeleted = false;
     bool shouldDoSpriteClick = false;
     int currentCostume;
-    float volume;
     float xPosition;
     float yPosition;
     int rotationCenterX;
@@ -180,9 +258,15 @@ class Sprite {
     int layer;
     RenderInfo renderInfo;
 
+    /** Costume effects */
     float ghostEffect;
     float brightnessEffect;
     float colorEffect;
+
+    /** Audio effects */
+    float volume = 100.0f;
+    float pitch = 100.0f;
+    float pan = 100.0f;
 
     enum RotationStyle {
         NONE,
@@ -192,8 +276,8 @@ class Sprite {
 
     RotationStyle rotationStyle;
     std::vector<std::pair<double, double>> collisionPoints;
-    int spriteWidth;
-    int spriteHeight;
+    int spriteWidth = 0;
+    int spriteHeight = 0;
 
     struct {
         bool down = false;
@@ -216,7 +300,8 @@ class Sprite {
     std::unordered_map<std::string, Comment> comments;
     std::unordered_map<std::string, Broadcast> broadcasts;
     std::unordered_map<std::string, CustomBlock> customBlocks;
-    std::unordered_map<std::string, BlockChain> blockChains;
+    std::unordered_map<std::string, std::string> customBlockDefinitions;
+    std::map<std::string, BlockChain> blockChains;
 
     ~Sprite() {
         variables.clear();

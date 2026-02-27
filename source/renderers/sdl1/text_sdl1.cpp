@@ -169,7 +169,7 @@ void TextObjectSDL1::updateTexture() {
     texture = SDL_DisplayFormatAlpha(compositeSurface);
     memorySize = compositeSurface->w * compositeSurface->h * 4;
 
-    if (!texture) Log::logError("Failed to create text texture: " + SDL_GetError());
+    if (!texture) Log::logError("Failed to create text texture: " + std::string(SDL_GetError()));
 
     // Store dimensions
     textWidth = compositeSurface->w;

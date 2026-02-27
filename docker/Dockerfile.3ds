@@ -16,7 +16,7 @@ RUN git clone --branch main --recurse-submodules https://github.com/libsdl-org/S
 
 RUN . /opt/devkitpro/3dsvars.sh && \
     mkdir build && cd build && \
-    arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDLMIXER_MP3_MPG123_SHARED=OFF -DSDLMIXER_MP3_DRMP3=OFF -DSDLMIXER_MP3_MPG123=ON -DCMAKE_DISABLE_FIND_PACKAGE_Opus=ON -DCMAKE_DISABLE_FIND_PACKAGE_OpusFile=ON -DCMAKE_DISABLE_FIND_PACKAGE_Ogg=ON -DCMAKE_DISABLE_FIND_PACKAGE_Vorbis=ON -DCMAKE_DISABLE_FIND_PACKAGE_FLAC=ON -DCMAKE_DISABLE_FIND_PACKAGE_gme=ON -DCMAKE_DISABLE_FIND_PACKAGE_libxmp=ON -G Ninja && \
+    arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDLMIXER_TESTS=OFF -DSDLMIXER_EXAMPLES=OFF -DSDLMIXER_MP3_MPG123_SHARED=OFF -DSDLMIXER_MP3_DRMP3=OFF -DSDLMIXER_MP3_MPG123=ON -DCMAKE_DISABLE_FIND_PACKAGE_Opus=ON -DCMAKE_DISABLE_FIND_PACKAGE_OpusFile=ON -DCMAKE_DISABLE_FIND_PACKAGE_Ogg=ON -DCMAKE_DISABLE_FIND_PACKAGE_Vorbis=ON -DCMAKE_DISABLE_FIND_PACKAGE_FLAC=ON -DCMAKE_DISABLE_FIND_PACKAGE_gme=ON -DCMAKE_DISABLE_FIND_PACKAGE_libxmp=ON -G Ninja && \
     ninja && ninja install
 
 FROM devkitpro/devkitarm:latest AS libcurl_builder
@@ -40,7 +40,7 @@ WORKDIR /mistpp-packages
 
 COPY --from=libcurl_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
 
-RUN wget https://github.com/ScratchEverywhere/mistpp-packages/releases/download/0.2.0-1/3ds-libmistpp-0.2.0-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.2.0-1-any.pkg.tar.zst
+RUN wget https://github.com/ScratchEverywhere/mistpp-packages/releases/download/0.3.4-1/3ds-libmistpp-0.3.4-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.3.4-1-any.pkg.tar.zst
 
 FROM devkitpro/devkitarm:latest AS makerom_installer
 WORKDIR /makerom
@@ -56,7 +56,7 @@ COPY --from=makerom_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portli
 
 RUN apt update && apt install -y --no-install-recommends build-essential git ca-certificates cmake
 
-RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build && cp build/bannertool /opt/devkitpro/portlibs/3ds/bin/
+RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && git checkout 3767e03b0492654bdff7be7beacf32b5b6a60415 && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build && cp build/bannertool /opt/devkitpro/portlibs/3ds/bin/
 
 FROM devkitpro/devkitarm:latest AS main_builder
 WORKDIR /app
@@ -66,7 +66,7 @@ COPY --from=bannertool_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portl
 COPY . .
 
 # Build .3dsx and .cia for default TARGET (Scratch)
-RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1 ENABLE_DOWNLOAD=1
+RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1 ENABLE_DOWNLOAD=1 -j 2
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build/3ds/scratch-3ds.3dsx /

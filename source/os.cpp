@@ -1,6 +1,6 @@
 #include "os.hpp"
-#include "migrate.hpp"
 #include "render.hpp"
+#include "settings.hpp"
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
@@ -15,25 +15,39 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
-#ifdef WII
+#if defined(__3DS__)
+#include <malloc.h>
+#elif defined(__WIIU__)
+#include <nn/act.h>
+#elif defined(__SWITCH__)
+extern char nickname[0x21];
+#elif defined(VITA)
+#include <psp2/apputil.h>
+#include <psp2/system_param.h>
+#elif defined(__PS4__)
+#include <orbis/UserService.h>
+#include <orbis/libkernel.h>
+#elif defined(WII)
 #include <gccore.h>
-#endif
-#ifdef __NDS__
+#include <ogc/conf.h>
+#elif defined(__NDS__)
 #include <nds.h>
 #endif
-#ifdef __PS4__
-#include <orbis/libkernel.h>
-#endif
+
 #ifdef _WIN32
 #include <direct.h>
 #include <io.h>
+#include <lmcons.h>
 #include <shlwapi.h>
+#include <windows.h>
 #else
 #include <dirent.h>
 #include <unistd.h>
 #endif
-#ifdef __3DS__
-#include <malloc.h>
+
+#if defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#include <pwd.h>
+#include <sys/types.h>
 #endif
 
 // PS4 implementation of logging
@@ -60,6 +74,10 @@ void Log::logError(std::string message, bool printToScreen) {
 }
 void Log::writeToFile(std::string message) {
 }
+
+void Log::deleteLogFile() {
+}
+
 #else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
@@ -91,6 +109,14 @@ void Log::writeToFile(std::string message) {
         }
     }
 }
+
+void Log::deleteLogFile() {
+    std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
+    if (std::remove(filePath.c_str()) != 0) {
+        Log::logError("Failed to delete log file: " + std::string(std::strerror(errno)));
+    }
+}
+
 #endif
 
 // Nintendo DS Timer implementation
@@ -173,21 +199,17 @@ bool Timer::hasElapsedAndRestart(int milliseconds) {
 
 bool loadedSettings = false;
 std::string *customProjectsPath = nullptr;
+namespace OS {
+bool toExit = false;
+}
 
 std::string OS::getScratchFolderLocation() {
     if (!loadedSettings) {
         loadedSettings = true;
 
-        migrate();
+        nlohmann::json json = SettingsManager::getConfigSettings();
 
-        std::ifstream inFile(OS::getConfigFolderLocation() + "Settings.json");
-        if (inFile.good()) {
-            nlohmann::json j;
-            inFile >> j;
-            inFile.close();
-
-            if (j.contains("ProjectsPath") && j["ProjectsPath"].is_string() && j.contains("UseProjectsPath") && j["UseProjectsPath"].is_boolean() && j["UseProjectsPath"] == true) customProjectsPath = new std::string(j["ProjectsPath"].get<std::string>());
-        }
+        if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string() && json.contains("UseProjectsPath") && json["UseProjectsPath"].is_boolean() && json["UseProjectsPath"] == true) customProjectsPath = new std::string(json["ProjectsPath"].get<std::string>());
     }
 
     if (customProjectsPath != nullptr) return *customProjectsPath;
@@ -211,6 +233,8 @@ std::string OS::getScratchFolderLocation() {
     return "/scratch-everywhere/";
 #elif defined(__NDS__)
     return prefix + "/scratch-ds/";
+#elif defined(WEBOS)
+    return prefix + "projects/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -219,15 +243,19 @@ std::string OS::getScratchFolderLocation() {
 std::string OS::getConfigFolderLocation() {
     const std::string prefix = getFilesystemRootPrefix();
     std::string path = getScratchFolderLocation();
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64)
     PWSTR szPath = NULL;
     if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, NULL, &szPath) == S_OK) {
         path = (std::filesystem::path(szPath) / "scratch-everywhere" / "").string();
         CoTaskMemFree(szPath);
+    } else {
+        Log::logError("Could not find RoamingData path.");
     }
 #elif defined(__APPLE__)
     const char *home = std::getenv("HOME");
-    if (home) path = (std::filesystem::path(home) / "Library" / "Application Support" / "scratch-everywhere" / "").string();
+    if (home) {
+        path = std::string(home) + "/Library/Application Support/scratch-everywhere/";
+    }
 #elif defined(__HAIKU__)
     BPath bpath;
     if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
@@ -247,6 +275,22 @@ std::string OS::getConfigFolderLocation() {
     }
 #endif
     return path;
+}
+
+bool OS::isOnline() {
+#if defined(ENABLE_DOWNLOAD) || defined(ENABLE_CLOUDVARS)
+
+#if defined(__3DS__)
+    u32 wifiEnabled = 0;
+    ACU_GetWifiStatus(&wifiEnabled);
+    if (wifiEnabled == AC_AP_TYPE_NONE) return false;
+    return true;
+#else
+    return true;
+#endif
+
+#endif
+    return false;
 }
 
 bool OS::initWifi() {
@@ -282,6 +326,61 @@ void OS::deInitWifi() {
         socExit();
 #endif
 }
+
+std::string OS::getUsername() {
+#ifdef __WIIU__
+    int16_t miiName[256];
+    nn::act::GetMiiName(miiName);
+    return std::string(miiName, miiName + sizeof(miiName) / sizeof(miiName[0]));
+#elif defined(__SWITCH__)
+    if (std::string(nickname) != "") return std::string(nickname);
+#elif defined(VITA)
+    static SceChar8 username[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE];
+    sceAppUtilSystemParamGetString(
+        SCE_SYSTEM_PARAM_ID_USERNAME,
+        username,
+        sizeof(username));
+    return std::string(reinterpret_cast<char *>(username));
+#elif defined(WII)
+
+    CONF_Init();
+    u8 nickname[24];
+    if (CONF_GetNickName(nickname) != 0) {
+        return std::string(reinterpret_cast<char *>(nickname));
+    }
+#elif defined(__PS4__)
+    char username[32];
+    int userId;
+    sceUserServiceGetInitialUser(&userId);
+    if (sceUserServiceGetUserName(userId, username, 31) == 0) {
+        return std::string(reinterpret_cast<char *>(username));
+    }
+#elif defined(__3DS__)
+    std::array<u16, 0x1C / sizeof(u16)> block{};
+
+    cfguInit();
+    CFGU_GetConfigInfoBlk2(0x1C, 0xA0000, reinterpret_cast<u8 *>(block.data()));
+    cfguExit();
+
+    std::string username(0x14, '\0');
+    const ssize_t length = utf16_to_utf8(reinterpret_cast<u8 *>(username.data()), block.data(), username.size());
+
+    if (length > 0) {
+        username.resize(static_cast<size_t>(length));
+        return username;
+    }
+#elif defined(_WIN32) || defined(_WIN64)
+    TCHAR username[UNLEN + 1];
+    DWORD size = UNLEN + 1;
+    if (GetUserName((TCHAR *)username, &size)) return std::string(username);
+#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+    uid_t uid = geteuid();
+    struct passwd *pw = getpwuid(uid);
+    if (pw) return std::string(pw->pw_name);
+#endif
+    return "Player";
+}
+
 void OS::createDirectory(const std::string &path) {
     std::string p = path;
     std::replace(p.begin(), p.end(), '\\', '/');
@@ -338,7 +437,6 @@ void OS::removeDirectory(const std::string &path) {
     }
 
     struct dirent *entry;
-    bool success = true;
     while ((entry = readdir(dir)) != nullptr) {
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;

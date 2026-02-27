@@ -2,12 +2,27 @@ FROM gcc:14 AS main_builder
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev libxcursor-dev libxi-dev libxrandr-dev libxss-dev libxtst-dev
+ARG RENDERER=sdl2
+ARG WINDOWING=sdl2
+ARG AUDIO_ENGINE=sdl2
+ARG EXT_ARGS=
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev
+
+RUN if [ "$RENDERER" = "opengl" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl1-mesa-dev; \
+    fi; \
+    if [ "$WINDOWING" = "glfw" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libxss-dev libxtst-dev libwayland-dev libxkbcommon-dev wayland-protocols libwayland-bin; \
+    fi; \
+    if [ "$RENDERER" = "sdl1" ] || [ "$WINDOWING" = "sdl1" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends libsdl1.2-dev libsdl-image1.2-dev libsdl-ttf2.0-dev libsdl-mixer1.2-dev libsdl-gfx1.2-dev; \
+    fi
 
 COPY . .
 
 # TODO: Fix SDL3 compatability in Dockerfile
-RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=sdl2 && cmake --build . -j $(nproc)
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} ${EXT_ARGS} && cmake --build . -j 2
 
 FROM scratch AS exporter
 

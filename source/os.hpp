@@ -32,6 +32,7 @@ void log(std::string message, bool printToScreen = true);
 void logWarning(std::string message, bool printToScreen = true);
 void logError(std::string message, bool printToScreen = true);
 void writeToFile(std::string message);
+void deleteLogFile();
 } // namespace Log
 
 class Timer {
@@ -66,6 +67,9 @@ class Timer {
 };
 
 namespace OS {
+
+extern bool toExit;
+
 /**
  * Function to detect whether the platform is a DSi.
  * @return `true` on DSi, `false` everywhere else.
@@ -96,6 +100,8 @@ inline std::string getFilesystemRootPrefix() {
     return "";
 #elif defined(__NDS__)
     return isDSi() ? "sd:" : "fat:";
+#elif defined(_WIN32) || defined(_WIN64)
+    return std::filesystem::path(std::getenv("SystemDrive")).string();
 #else
     return "";
 #endif
@@ -159,6 +165,8 @@ inline std::string getPlatform() {
     return "PS4";
 #elif defined(__PSP__)
     return "PSP";
+#elif defined(WEBOS)
+    return "webOS TV";
 #else
     return "Unknown";
 #endif
@@ -177,6 +185,8 @@ inline bool isNew3DS() {
     return false;
 }
 
+bool isOnline();
+
 /**
  * Initializes the internet.
  */
@@ -186,6 +196,11 @@ bool initWifi();
  * De-Initializes the internet.
  */
 void deInitWifi();
+
+/**
+ * Gets the device's nickname, or the user's custom username if set.
+ */
+std::string getUsername();
 
 /**
  * Create a directory.

@@ -5,10 +5,10 @@
 
 class Loading {
   private:
-    Image *block1 = nullptr;
-    Image *block2 = nullptr;
-    Image *block3 = nullptr;
-    TextObject *loadingStateText;
+    std::shared_ptr<Image> block1 = nullptr;
+    std::shared_ptr<Image> block2 = nullptr;
+    std::shared_ptr<Image> block3 = nullptr;
+    std::unique_ptr<TextObject> loadingStateText;
     Timer deltaTime;
     float block1Y;
     float block2Y;
