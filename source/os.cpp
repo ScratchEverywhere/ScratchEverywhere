@@ -32,6 +32,8 @@ extern char nickname[0x21];
 #include <ogc/conf.h>
 #elif defined(__NDS__)
 #include <nds.h>
+#elif defined(ANDROID)
+#include <SDL2/SDL_system.h>
 #endif
 
 #ifdef _WIN32
@@ -236,7 +238,7 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(WEBOS)
     return prefix + "projects/";
 #elif defined(ANDROID)
-    return prefix + "/";
+    return std::string(SDL_AndroidGetExternalStoragePath()) + "/";
 #else
     return "scratch-everywhere/";
 #endif
