@@ -483,10 +483,13 @@ void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
 Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
 #ifdef ENABLE_CACHING
     if (block.valueHandler != nullptr) return block.valueHandler(block, sprite);
-#else
-    const auto &vh = getValueHandlers();
-    const auto &it = vh.find(block.opcode);
-    if (it != vh.end()) return it->second(block, sprite);
+    else {
+#endif
+        const auto &vh = getValueHandlers();
+        const auto &it = vh.find(block.opcode);
+        if (it != vh.end()) return it->second(block, sprite);
+#ifdef ENABLE_CACHING
+    }
 #endif
 
     Log::logWarning("Unknown block: " + block.opcode);
