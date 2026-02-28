@@ -48,7 +48,7 @@ bool loadFont(const std::string &family, const std::string &path) {
 
 bool Image::Init() {
     if (!loadFont("", "gfx/ingame/fonts/NotoSerif-Regular")) return false;
-    if (!loadFont("Sans Serif", "gfx/ingame/fonts/NotoSans-Regular")) return false;
+    if (!loadFont("Sans Serif", "gfx/ingame/fonts/NotoSans-Medium")) return false;
     if (!loadFont("Handwriting", "gfx/ingame/fonts/Handlee-Regular")) return false;
     if (!loadFont("Marker", "gfx/ingame/fonts/Knewave-Regular")) return false;
     if (!loadFont("Curly", "gfx/ingame/fonts/Griffy-Regular")) return false;
