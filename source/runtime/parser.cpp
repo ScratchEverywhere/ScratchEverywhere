@@ -211,6 +211,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     if (fieldData.is_array() && !fieldData.empty()) {
                         if (fieldData[0].is_number()) {
                             parsedField.value = Value(fieldData[0].get<double>()).asString();
+                        } else if (fieldData[0].is_array() && fieldData[0].size() >= 2) {
+                            parsedField.value = fieldData[0][1].get<std::string>();
                         } else {
                             parsedField.value = fieldData[0].get<std::string>();
                         }

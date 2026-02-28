@@ -42,17 +42,6 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
 
     for (auto &[id, block] : sprite->blocks) {
 
-        if (!block.next.empty()) {
-            auto nextIt = sprite->blocks.find(block.next);
-            if (nextIt != sprite->blocks.end()) {
-                block.nextBlock = &nextIt->second;
-            } else {
-                block.nextBlock = nullptr;
-            }
-        } else {
-            block.nextBlock = nullptr;
-        }
-
         auto it = h.find(block.opcode);
         if (it != h.end()) {
             block.handler = it->second;
@@ -161,13 +150,8 @@ void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRe
 
         if (result == BlockResult::RETURN) return;
 
-#ifdef ENABLE_CACHING
-        if (!currentBlock->nextBlock) return;
-        currentBlock = currentBlock->nextBlock;
-#else
         if (currentBlock->next.empty()) return;
         currentBlock = &sprite->blocks[currentBlock->next];
-#endif
         fromRepeat = false;
     }
 }
