@@ -260,7 +260,16 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
     loadingState = "Loading Sprites";
-    Parser::loadSprites(project_json);
+    try {
+        Parser::loadSprites(project_json);
+    } catch (const std::exception &e) {
+        Log::logError("Failed to parse project: " + std::string(e.what()));
+        Unzip::projectOpened = -3;
+        Unzip::threadFinished = true;
+        delete file;
+        return;
+    }
+
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
     delete file;
