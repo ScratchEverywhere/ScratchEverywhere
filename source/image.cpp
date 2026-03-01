@@ -240,7 +240,7 @@ void Image::resizeSVG(float scale) {
 #endif
     }
 
-    free(imgData.pixels);
+    if (imgData.pixels != nullptr) free(imgData.pixels);
 
     imgData.pitch = width * 4;
     imgData.pixels = dst;
