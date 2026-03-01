@@ -199,7 +199,7 @@ class Render {
      */
     static void resizeSVGs(Sprite *sprite) {
         for (auto &costume : sprite->costumes) {
-            auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+            auto imgFind = Scratch::costumeImages.find(costume.fullName);
             if (imgFind == Scratch::costumeImages.end()) continue;
 
             float scale = sprite->size / 100;
