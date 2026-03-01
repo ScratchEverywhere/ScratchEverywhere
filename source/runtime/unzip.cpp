@@ -142,7 +142,7 @@ bool Unzip::load() {
     Unzip::threadFinished = false;
     Unzip::projectOpened = 0;
 
-#ifdef ENABLE_LOADSCREEN
+#if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
 #ifdef RENDERER_CITRO2D // create 3DS thread for loading screen
     s32 mainPrio = 0;

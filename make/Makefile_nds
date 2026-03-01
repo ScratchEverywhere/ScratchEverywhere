@@ -80,7 +80,7 @@ LIBS	:= -lstdc++ -lc -lnds9 -lmm9
 #---------------------------------------------------------------------------------
 LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
 
-ifneq ($(wildcard $(NITRODATA)/project*),)
+ifneq ($(wildcard $(TOPDIR)/$(NITRODATA)/project*),)
     ENABLE_MENU = 0
 endif
 

@@ -54,7 +54,7 @@ CFLAGS	+=	-DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD # PlutoVG fixes
 ASFLAGS	:=	-g $(MACHDEP)
 LDFLAGS	:=	-g $(MACHDEP) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
-ifneq ($(wildcard $(ROMFS)/project*),)
+ifneq ($(wildcard $(TOPDIR)/$(ROMFS)/project*),)
     ENABLE_MENU = 0
 	ENABLE_LOADSCREEN = 0
 endif

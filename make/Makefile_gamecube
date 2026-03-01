@@ -44,7 +44,7 @@ ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	:=	-g $(MACHDEP) -Wl,-Map,$(notdir $*.map) \
 		-Wl,--gc-sections
 
-ifneq ($(wildcard $(ROMFS)/project*),)
+ifneq ($(wildcard $(TOPDIR)/$(ROMFS)/project*),)
     ENABLE_MENU = 0
 	ENABLE_LOADSCREEN = 0
 endif
