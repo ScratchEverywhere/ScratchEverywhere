@@ -500,8 +500,6 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
         }
 
         if (keepInRam) {
-            Log::log("keeping project in RAM");
-            filePath.clear();
             Scratch::sb3InRam = true;
 
             // read the file
