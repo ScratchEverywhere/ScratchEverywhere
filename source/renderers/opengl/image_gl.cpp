@@ -164,11 +164,11 @@ void Image_GL::refreshTexture() {
     setInitialTexture();
 }
 
-Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
+Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) : Image(filePath, fromScratchProject, bitmapHalfQuality, scale) {
     setInitialTexture();
 }
 
-Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
+Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
     setInitialTexture();
 }
 
