@@ -35,6 +35,8 @@ CMRC_DECLARE(romfs);
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
 
+constexpr unsigned int maxScale = 5; // TODO: Make project setting
+
 bool loadFont(const std::string &family, const std::string &path) {
 #ifdef USE_CMAKERC
     const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
@@ -166,6 +168,8 @@ std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, 
 }
 
 unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
+    if (scale > maxScale) scale = maxScale;
+
     svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
     if (!svgDocument) throw std::runtime_error("LunaSVG failed to parse SVG");
 
@@ -204,7 +208,6 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
 }
 
 void Image::resizeSVG(float scale) {
-    constexpr unsigned int maxScale = 5; // TODO: Make project setting
     if (scale > maxScale) scale = maxScale;
 
     if (!svgDocument || scale <= imgData.scale) return;
