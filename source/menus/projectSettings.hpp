@@ -10,6 +10,8 @@ class ProjectSettings : public Menu {
     ButtonObject *UnpackProjectButton = nullptr;
     ButtonObject *bottomScreenButton = nullptr;
     ButtonObject *penModeButton = nullptr;
+    ButtonObject *debugVarsButton = nullptr;
+    ButtonObject *ramButton = nullptr;
 
     bool canUnpacked = true;
     bool shouldGoBack = false;

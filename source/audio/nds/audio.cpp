@@ -153,8 +153,8 @@ mm_stream_formats NDS_Audio::getMMStreamType(uint16_t numChannels, uint16_t bits
 void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &fromCache) {
 #ifdef ENABLE_AUDIO
 
-    if (Scratch::projectType != UNZIPPED && zip != nullptr && !fromCache)
-        loadSoundFromSB3(sprite, zip, soundId, true);
+    if (Scratch::projectType != ProjectType::UNZIPPED && zip != nullptr && !fromCache)
+        loadSoundFromSB3(sprite, Scratch::sb3InRam ? zip : nullptr, soundId, true);
     else {
         std::string filePrefix = "";
         if (fromProject && !fromCache) {
@@ -168,84 +168,81 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
 
 bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed) {
 #ifdef ENABLE_AUDIO
-    if (!zip) {
-        Log::logWarning("Error: Zip archive is null");
-        return false;
-    }
-
     if (soundId.size() < 4 || soundId.substr(soundId.size() - 4) != ".wav") {
-        Log::logError("Audio type not supported!");
+        Log::logWarning("Audio type not supported: " + soundId);
         return false;
     }
 
-    int file_count = (int)mz_zip_reader_get_num_files(zip);
-    if (file_count <= 0) {
-        Log::logWarning("Error: No files found in zip archive");
+    mz_zip_archive localArchive;
+    memset(&localArchive, 0, sizeof(localArchive));
+    mz_zip_archive *currentZip = zip;
+    bool usingLocalZip = false;
+
+    if (currentZip == nullptr) {
+        if (!mz_zip_reader_init_file(&localArchive, Unzip::filePath.c_str(), 0)) {
+            Log::logWarning("Failed to open SB3 archive from disk");
+            return false;
+        }
+        currentZip = &localArchive;
+        usingLocalZip = true;
+    }
+
+    int file_index = mz_zip_reader_locate_file(currentZip, soundId.c_str(), nullptr, 0);
+    if (file_index < 0) {
+        Log::logWarning("Audio not found in archive: " + soundId);
+        if (usingLocalZip) mz_zip_reader_end(currentZip);
         return false;
     }
 
-    for (int i = 0; i < file_count; i++) {
-        mz_zip_archive_file_stat file_stat;
-        if (!mz_zip_reader_file_stat(zip, i, &file_stat)) {
-            continue;
-        }
+    std::string tempDir = OS::getScratchFolderLocation() + "cache/";
+    std::string tempPath = tempDir + soundId;
 
-        std::string zipFileName = file_stat.m_filename;
+    mkdir(tempDir.c_str(), 0777);
 
-        if (zipFileName.find(soundId) == std::string::npos) {
-            continue;
-        }
+    FILE *tempFile = fopen(tempPath.c_str(), "wb");
+    if (!tempFile) {
+        Log::logWarning("Failed to create temp file: " + tempPath);
+        if (usingLocalZip) mz_zip_reader_end(currentZip);
+        return false;
+    }
 
-        // Create temporary file
-        std::string tempDir = OS::getScratchFolderLocation() + "cache/";
-        std::string tempPath = tempDir + soundId;
-
-        mkdir(tempDir.c_str(), 0777);
-
-        FILE *tempFile = fopen(tempPath.c_str(), "wb");
-        if (!tempFile) {
-            Log::logWarning("Failed to create temp file");
-            return false;
-        }
-
-        // Extract file in chunks to avoid large allocation
-        mz_zip_reader_extract_iter_state *pState = mz_zip_reader_extract_iter_new(zip, i, 0);
-        if (!pState) {
-            Log::logWarning("Failed to create extraction iterator");
-            fclose(tempFile);
-            return false;
-        }
-
-        const size_t CHUNK_SIZE = 4096; // 4KB chunks
-        char buffer[CHUNK_SIZE];
-        size_t total_read = 0;
-
-        while (true) {
-            size_t read = mz_zip_reader_extract_iter_read(pState, buffer, CHUNK_SIZE);
-            if (read == 0) break;
-
-            fwrite(buffer, 1, read, tempFile);
-            total_read += read;
-        }
-
-        mz_zip_reader_extract_iter_free(pState);
+    mz_zip_reader_extract_iter_state *pState = mz_zip_reader_extract_iter_new(currentZip, file_index, 0);
+    if (!pState) {
+        Log::logWarning("Failed to create extraction iterator");
         fclose(tempFile);
-
-        // Now load from the temp file
-        bool success = loadSoundFromFile(sprite, tempPath, streamed);
-
-        if (!streamed) {
-            remove(tempPath.c_str());
-        } else {
-        }
-
-        if (success) {
-            playSound(soundId);
-            setSoundVolume(soundId, sprite->volume);
-        }
-
-        return success;
+        if (usingLocalZip) mz_zip_reader_end(currentZip);
+        return false;
     }
+
+    const size_t CHUNK_SIZE = 4096; // 4KB chunks
+    char buffer[CHUNK_SIZE];
+
+    while (true) {
+        size_t read = mz_zip_reader_extract_iter_read(pState, buffer, CHUNK_SIZE);
+        if (read == 0) break;
+        fwrite(buffer, 1, read, tempFile);
+    }
+
+    mz_zip_reader_extract_iter_free(pState);
+    fclose(tempFile);
+
+    if (usingLocalZip) {
+        mz_zip_reader_end(currentZip);
+    }
+
+    bool success = loadSoundFromFile(sprite, tempPath, streamed);
+
+    if (!streamed) {
+        remove(tempPath.c_str());
+    }
+
+    if (success) {
+        playSound(soundId);
+        setSoundVolume(soundId, sprite->volume);
+    }
+
+    return success;
+
 #endif
     Log::logWarning("Audio not found in archive: " + soundId);
     return false;

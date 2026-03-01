@@ -17,23 +17,32 @@ ProjectSettings::~ProjectSettings() {
 void ProjectSettings::init() {
     // initialize
 
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 50, "gfx/menu/Ubuntu-Bold");
+    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 40, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
     if (canUnpacked) {
-        UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
     } else {
-        UnpackProjectButton = new ButtonObject("Delete Unpacked Project", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject("Delete Unpacked Project", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
         UnpackProjectButton->text->setScale(0.75);
     }
-    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 150, "gfx/menu/Ubuntu-Bold");
+    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
 
-    penModeButton = new ButtonObject("Pen Mode: clicktoload", "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
+    penModeButton = new ButtonObject("Pen Mode: clicktoload", "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
     penModeButton->text->setColor(Math::color(0, 0, 0, 255));
     penModeButton->text->setScale(0.5);
+
+    debugVarsButton = new ButtonObject("Show FPS: clicktoload", "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
+    debugVarsButton->text->setColor(Math::color(0, 0, 0, 255));
+    debugVarsButton->text->setScale(0.5);
+
+    ramButton = new ButtonObject("Keep Project In RAM: clicktoload", "gfx/menu/projectBox.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
+    ramButton->text->setColor(Math::color(0, 0, 0, 255));
+    ramButton->text->setScale(0.5);
+    ramButton->shouldNineslice = true;
 
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -46,19 +55,28 @@ void ProjectSettings::init() {
 
     // link buttons
     changeControlsButton->buttonDown = UnpackProjectButton;
-    changeControlsButton->buttonUp = UnpackProjectButton;
+    changeControlsButton->buttonUp = ramButton;
     UnpackProjectButton->buttonUp = changeControlsButton;
     UnpackProjectButton->buttonDown = bottomScreenButton;
     bottomScreenButton->buttonDown = penModeButton;
     bottomScreenButton->buttonUp = UnpackProjectButton;
-    penModeButton->buttonDown = changeControlsButton;
+    penModeButton->buttonDown = debugVarsButton;
     penModeButton->buttonUp = bottomScreenButton;
+    debugVarsButton->buttonDown = ramButton;
+    debugVarsButton->buttonUp = penModeButton;
+    ramButton->buttonDown = changeControlsButton;
+    ramButton->buttonUp = debugVarsButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
     settingsControl->buttonObjects.push_back(bottomScreenButton);
     settingsControl->buttonObjects.push_back(penModeButton);
+    settingsControl->buttonObjects.push_back(debugVarsButton);
+    settingsControl->buttonObjects.push_back(ramButton);
+
+    settingsControl->enableScrolling = true;
+    settingsControl->setScrollLimits();
 
     nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
     if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
@@ -71,6 +89,22 @@ void ProjectSettings::init() {
         penModeButton->text->setText("Pen Mode: Accurate");
     } else {
         penModeButton->text->setText("Pen Mode: Fast");
+    }
+
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["debugVars"].is_null() && settings["settings"]["debugVars"].get<bool>()) {
+        debugVarsButton->text->setText("Show FPS: ON");
+    } else {
+        debugVarsButton->text->setText("Show FPS: OFF");
+    }
+
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["sb3InRam"].is_null()) {
+        ramButton->text->setText(settings["settings"]["sb3InRam"].get<bool>() ? "Keep Project In RAM: ON" : "Keep Project In RAM: OFF");
+    } else {
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+        ramButton->text->setText("Keep Project In RAM: OFF");
+#else
+        ramButton->text->setText("Keep Project In RAM: ON");
+#endif
     }
 
     isInitialized = true;
@@ -96,6 +130,18 @@ void ProjectSettings::render() {
         settings["settings"]["accuratePen"] = penModeButton->text->getText() == "Pen Mode: Accurate" ? false : true;
         SettingsManager::saveProjectSettings(settings, projectPath);
         penModeButton->text->setText(penModeButton->text->getText() == "Pen Mode: Accurate" ? "Pen Mode: Fast" : "Pen Mode: Accurate");
+    }
+    if (debugVarsButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["debugVars"] = debugVarsButton->text->getText() == "Show FPS: ON" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        debugVarsButton->text->setText(debugVarsButton->text->getText() == "Show FPS: ON" ? "Show FPS: OFF" : "Show FPS: ON");
+    }
+    if (ramButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["sb3InRam"] = ramButton->text->getText() == "Keep Project In RAM: ON" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        ramButton->text->setText(ramButton->text->getText() == "Keep Project In RAM: ON" ? "Keep Project In RAM: OFF" : "Keep Project In RAM: ON");
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
@@ -161,6 +207,14 @@ void ProjectSettings::cleanup() {
     if (penModeButton != nullptr) {
         delete penModeButton;
         penModeButton = nullptr;
+    }
+    if (debugVarsButton != nullptr) {
+        delete debugVarsButton;
+        debugVarsButton = nullptr;
+    }
+    if (ramButton != nullptr) {
+        delete ramButton;
+        ramButton = nullptr;
     }
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);

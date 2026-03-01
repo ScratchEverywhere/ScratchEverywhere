@@ -3,9 +3,13 @@
 #include <unzip.hpp>
 
 void Loading::init() {
-    block1 = createImageFromFile("gfx/menu/block1.svg", false);
-    block2 = createImageFromFile("gfx/menu/block2.svg", false);
-    block3 = createImageFromFile("gfx/menu/block3.svg", false);
+    try {
+        block1 = createImageFromFile("gfx/menu/block1.svg", false);
+        block2 = createImageFromFile("gfx/menu/block2.svg", false);
+        block3 = createImageFromFile("gfx/menu/block3.svg", false);
+    } catch (std::runtime_error &e) {
+        renderBlocks = false;
+    }
     loadingStateText = createTextObject("", 0, 0);
     block1Y = Render::getHeight() * 2;
     block2Y = Render::getHeight() * 2;
@@ -54,9 +58,11 @@ void Loading::render() {
         .scale = 0.5f,
         .centered = true};
 
-    block1->render(p1);
-    block2->render(p2);
-    block3->render(p3);
+    if (renderBlocks) {
+        block1->render(p1);
+        block2->render(p2);
+        block3->render(p3);
+    }
 
     loadingStateText->setText(Unzip::loadingState);
     loadingStateText->render(Render::getWidth() / 2, Render::getHeight() * 0.8);

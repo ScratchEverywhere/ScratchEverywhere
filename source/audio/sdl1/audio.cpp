@@ -64,11 +64,11 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
 
     SDL_Audio::SoundLoadParams params = {
         .sprite = sprite,
-        .zip = zip,
+        .zip = Scratch::sb3InRam ? zip : nullptr,
         .soundId = soundId,
         .streamed = streamed || (sprite != nullptr && sprite->isStage)}; // stage sprites get streamed audio
 
-    if (Scratch::projectType != UNZIPPED && fromProject && !fromCache)
+    if (Scratch::projectType != ProjectType::UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else {
         std::string filePrefix = "";
@@ -84,106 +84,92 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
 
 bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed) {
 #ifdef ENABLE_AUDIO
-    if (!zip) {
-        Log::logWarning("Error: Zip archive is null");
+    bool isAudio = false;
+    if (soundId.size() >= 4) {
+        std::string ext4 = soundId.substr(soundId.size() - 4);
+        std::transform(ext4.begin(), ext4.end(), ext4.begin(), ::tolower);
+
+        if (ext4 == ".mp3" || ext4 == ".mpga" || ext4 == ".wav" || ext4 == ".ogg" || ext4 == ".oga") {
+            isAudio = true;
+        }
+    }
+
+    if (!isAudio) {
+        Log::logWarning("Not a recognized audio format: " + soundId);
         return false;
     }
 
-    // Log::log("Loading sound: '" + soundId + "'");
+    size_t file_size = 0;
+    void *file_data = nullptr;
 
-    int file_count = (int)mz_zip_reader_get_num_files(zip);
-    if (file_count <= 0) {
-        Log::logWarning("Error: No files found in zip archive");
+    if (zip != nullptr) {
+        int file_index = mz_zip_reader_locate_file(zip, soundId.c_str(), nullptr, 0);
+        if (file_index < 0) {
+            Log::logWarning("Audio not found in zip: " + soundId);
+            return false;
+        }
+        file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
+    } else {
+        file_data = Unzip::getFileInSB3(soundId, &file_size);
+    }
+
+    if (!file_data || file_size == 0) {
+        Log::logWarning("Failed to extract: " + soundId);
         return false;
     }
 
-    for (int i = 0; i < file_count; i++) {
-        mz_zip_archive_file_stat file_stat;
-        if (!mz_zip_reader_file_stat(zip, i, &file_stat)) continue;
+    Mix_Music *music = nullptr;
+    Mix_Chunk *chunk = nullptr;
 
-        std::string zipFileName = file_stat.m_filename;
+    SDL_RWops *rw = SDL_RWFromMem(file_data, (int)file_size);
+    if (!rw) {
+        Log::logWarning("Failed to create RWops for: " + soundId);
+        mz_free(file_data);
+        return false;
+    }
 
-        bool isAudio = false;
-        std::string extension = "";
+    if (!streamed) {
+        chunk = Mix_LoadWAV_RW(rw, 1);
+        mz_free(file_data);
 
-        if (zipFileName.size() >= 4) {
-            std::string ext4 = zipFileName.substr(zipFileName.size() - 4);
-            std::transform(ext4.begin(), ext4.end(), ext4.begin(), ::tolower);
-
-            if (ext4 == ".mp3" || ext4 == ".mpga" || ext4 == ".wav" || ext4 == ".ogg" || ext4 == ".oga") {
-                isAudio = true;
-                extension = ext4;
-            }
+        if (!chunk) {
+            Log::logWarning("Failed to load chunk: " + soundId + " - Error: " + Mix_GetError());
+            return false;
         }
-
-        if (isAudio) {
-            if (zipFileName != soundId) {
-                continue;
-            }
-
-            size_t file_size;
-            // Log::log("Extracting sound from sb3...");
-            void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
-            if (!file_data || file_size == 0) {
-                Log::logWarning("Failed to extract: " + zipFileName);
-                return false;
-            }
-
-            Mix_Music *music = nullptr;
-            Mix_Chunk *chunk = nullptr;
-
-            SDL_RWops *rw = SDL_RWFromMem(file_data, (int)file_size);
-            if (!rw) {
-                Log::logWarning("Failed to create RWops for: " + zipFileName);
-                mz_free(file_data);
-                return false;
-            }
-
-            if (!streamed) {
-                chunk = Mix_LoadWAV_RW(rw, 1);
-                mz_free(file_data);
-
-                if (!chunk) {
-                    Log::logWarning("Failed to load audio from memory: " + zipFileName + " - SDL_mixer Error: " + Mix_GetError());
-                    return false;
-                }
-            } else {
-                music = Mix_LoadMUS_RW(rw);
-                if (!music) {
-                    Log::logWarning("Failed to load audio from memory: " + zipFileName + " - SDL_mixer Error: " + Mix_GetError());
-                    mz_free(file_data);
-                    return false;
-                }
-            }
-
-            // Create SDL_Audio object
-            auto it = SDL_Sounds.find(soundId);
-            if (it == SDL_Sounds.end()) {
-                std::unique_ptr<SDL_Audio> audio;
-                audio = std::make_unique<SDL_Audio>();
-                SDL_Sounds[soundId] = std::move(audio);
-            }
-
-            if (!streamed) {
-                SDL_Sounds[soundId]->audioChunk = chunk;
-            } else {
-                SDL_Sounds[soundId]->music = music;
-                SDL_Sounds[soundId]->isStreaming = true;
-            }
-            SDL_Sounds[soundId]->audioId = soundId;
-
-            Log::log("Successfully loaded audio!");
-            SDL_Sounds[soundId]->isLoaded = true;
-            SDL_Sounds[soundId]->file_data = file_data;
-            SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
-            SDL_Sounds[soundId]->file_size = file_size;
-            playSound(soundId);
-            setSoundVolume(soundId, sprite->volume);
-            return true;
+    } else {
+        music = Mix_LoadMUS_RW(rw);
+        if (!music) {
+            Log::logWarning("Failed to load music: " + soundId + " - Error: " + Mix_GetError());
+            mz_free(file_data);
+            return false;
         }
     }
+
+    auto it = SDL_Sounds.find(soundId);
+    if (it == SDL_Sounds.end()) {
+        SDL_Sounds[soundId] = std::make_unique<SDL_Audio>();
+    }
+
+    SDL_Sounds[soundId]->audioId = soundId;
+    SDL_Sounds[soundId]->isLoaded = true;
+    SDL_Sounds[soundId]->channelId = SDL_Sounds.size();
+    SDL_Sounds[soundId]->file_size = file_size;
+
+    if (!streamed) {
+        SDL_Sounds[soundId]->audioChunk = chunk;
+        SDL_Sounds[soundId]->file_data = nullptr;
+    } else {
+        SDL_Sounds[soundId]->music = music;
+        SDL_Sounds[soundId]->isStreaming = true;
+        SDL_Sounds[soundId]->file_data = file_data;
+    }
+
+    playSound(soundId);
+    setSoundVolume(soundId, sprite->volume);
+
+    return true;
+
 #endif
-    Log::logWarning("Audio not found: " + soundId);
     return false;
 }
 

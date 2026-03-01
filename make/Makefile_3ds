@@ -93,7 +93,7 @@ CFLAGS	+= -Wno-error=incompatible-pointer-types -DPLUTOVG_DISABLE_FONT_FACE_CACH
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-ifneq ($(wildcard $(ROMFS)/project*),)
+ifneq ($(wildcard $(TOPDIR)/$(ROMFS)/project*),)
     ENABLE_MENU = 0
 	ENABLE_LOADSCREEN = 0
 endif

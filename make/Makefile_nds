@@ -65,7 +65,7 @@ CFLAGS	:=	-g -Wall -O2 \
 CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DRENDERER_GL2D -DPLATFORM_HAS_TOUCH -DPLATFORM_HAS_CONTROLLER
 
 # PlutoVG fixes
-CFLAGS	+=	-Wincompatible-pointer-types -Wno-error=incompatible-pointer-types -DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD -D__STDC_NO_ATOMICS__
+CFLAGS	+=	-Wno-error=incompatible-pointer-types -DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD -D__STDC_NO_ATOMICS__
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(BLOCKSDS)/sys/crts/ds_arm9.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections
@@ -80,7 +80,7 @@ LIBS	:= -lstdc++ -lc -lnds9 -lmm9
 #---------------------------------------------------------------------------------
 LIBDIRS	:=	$(BLOCKSDS)/libs/libnds $(BLOCKSDS)/libs/maxmod
 
-ifneq ($(wildcard $(NITRODATA)/project*),)
+ifneq ($(wildcard $(TOPDIR)/$(NITRODATA)/project*),)
     ENABLE_MENU = 0
 endif
 

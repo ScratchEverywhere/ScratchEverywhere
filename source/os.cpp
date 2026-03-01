@@ -121,8 +121,8 @@ void Log::deleteLogFile() {
 
 // Nintendo DS Timer implementation
 #ifdef __NDS__
-Timer::Timer() {
-    start();
+Timer::Timer(const bool autoStart) {
+    if (autoStart) start();
 }
 void Timer::start() {
     startTime = cpuGetTiming();
@@ -134,11 +134,16 @@ int Timer::getTimeMs() {
     return static_cast<int>((currentTime - startTime) * 1000 / BUS_CLOCK);
 }
 
+double Timer::getTimeMsDouble() {
+    uint64_t currentTime = cpuGetTiming();
+    return static_cast<double>((currentTime - startTime)) * 1000.0 / BUS_CLOCK;
+}
+
 // Wii's std::chrono support is still pretty bad
 #elif defined(WII)
 
-Timer::Timer() {
-    start();
+Timer::Timer(const bool autoStart) {
+    if (autoStart) start();
 }
 
 void Timer::start() {
@@ -150,11 +155,15 @@ int Timer::getTimeMs() {
     return ticks_to_millisecs(currentTime - startTime);
 }
 
+double Timer::getTimeMsDouble() {
+    return static_cast<double>(getTimeMs());
+}
+
 // std::chrono on PS4 updates slowly
 #elif defined(__PS4__)
 
-Timer::Timer() {
-    start();
+Timer::Timer(const bool autoStart) {
+    if (autoStart) start();
 }
 
 void Timer::start() {
@@ -166,10 +175,15 @@ int Timer::getTimeMs() {
     return static_cast<int>((currentTime - startTime) / sceKernelGetTscFrequency());
 }
 
+double Timer::getTimeMsDouble() {
+    uint64_t currentTime = sceKernelReadTsc() * 1000;
+    return static_cast<double>((currentTime - startTime)) / sceKernelGetTscFrequency();
+}
+
 // everyone else...
 #else
-Timer::Timer() {
-    start();
+Timer::Timer(const bool autoStart) {
+    if (autoStart) start();
 }
 
 void Timer::start() {
@@ -181,6 +195,12 @@ int Timer::getTimeMs() {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime);
 
     return static_cast<int>(duration.count());
+}
+
+double Timer::getTimeMsDouble() {
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = currentTime - startTime;
+    return duration.count();
 }
 
 #endif

@@ -44,7 +44,7 @@ class Timer {
 #endif
 
   public:
-    Timer();
+    Timer(const bool autoStart = true);
     /**
      * Starts the clock.
      */
@@ -54,6 +54,8 @@ class Timer {
      * @return time passed (in ms)
      */
     int getTimeMs();
+
+    double getTimeMsDouble();
     /**
      * Checks if enough time, in milliseconds, has passed since the timer started.
      * @return True if enough time has passed, False otherwise.

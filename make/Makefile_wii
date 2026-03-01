@@ -49,7 +49,7 @@ CFLAGS	:=	`$(PREFIX)pkg-config --cflags sdl2 SDL2_ttf SDL2_gfx freetype2` -g -O2
 
 CFLAGS	+=	-DPLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD # PlutoVG fixes
 
-ifneq ($(wildcard $(ROMFS)/project*),)
+ifneq ($(wildcard $(TOPDIR)/$(ROMFS)/project*),)
     ENABLE_MENU = 0
 	ENABLE_LOADSCREEN = 0
 endif
