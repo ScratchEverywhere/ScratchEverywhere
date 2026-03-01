@@ -22,4 +22,6 @@ class Image_SDL3 : public Image {
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;
 
     void *getNativeTexture() override;
+
+    void refreshTexture() override;
 };
