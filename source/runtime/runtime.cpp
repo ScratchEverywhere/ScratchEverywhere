@@ -667,7 +667,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         float scale = (sprite->size / 100);
         if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
 
-        if (projectType == UNZIPPED) {
+        if (projectType == ProjectType::UNZIPPED) {
             image = createImageFromFile(costumeName, true, true, scale);
         } else {
             image = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true, scale);
