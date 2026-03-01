@@ -89,7 +89,10 @@ int Unzip::openFile(std::istream *&file) {
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
 #endif
-    if (file != nullptr && *file) return 1;
+    if (file != nullptr && *file) {
+        Unzip::filePath = embeddedFilename;
+        return 1;
+    }
     // Main menu
     Log::logWarning("No sb3 project, trying Main Menu.");
     Scratch::projectType = UNEMBEDDED;
@@ -252,11 +255,11 @@ void Unzip::openScratchProject(void *arg) {
     }
     loadingState = "Unzipping Scratch project";
     nlohmann::json project_json = unzipProject(file);
+    delete file;
     if (project_json.empty()) {
         Log::logError("Project.json is empty.");
         Unzip::projectOpened = -2;
         Unzip::threadFinished = true;
-        delete file;
         return;
     }
     loadingState = "Loading Sprites";
@@ -266,13 +269,11 @@ void Unzip::openScratchProject(void *arg) {
         Log::logError("Failed to parse project: " + std::string(e.what()));
         Unzip::projectOpened = -3;
         Unzip::threadFinished = true;
-        delete file;
         return;
     }
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
-    delete file;
     return;
 }
 
@@ -434,41 +435,137 @@ std::string Unzip::getSplashText() {
     return splash;
 }
 
+void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
+    mz_zip_archive archive;
+    memset(&archive, 0, sizeof(archive));
+    bool initSuccess = false;
+
+#ifdef USE_CMAKERC
+    if (Scratch::projectType == EMBEDDED) {
+        const auto &fs = cmrc::romfs::get_filesystem();
+        const auto &romfsFile = fs.open(Unzip::filePath);
+        initSuccess = mz_zip_reader_init_mem(&archive, romfsFile.begin(), romfsFile.size(), 0);
+    } else {
+#endif
+        initSuccess = mz_zip_reader_init_file(&archive, Unzip::filePath.c_str(), 0);
+#ifdef USE_CMAKERC
+    }
+#endif
+    if (!initSuccess) {
+        Log::logWarning("Failed to open SB3 archive: " + Unzip::filePath);
+        return nullptr;
+    }
+
+    int file_index = mz_zip_reader_locate_file(&archive, fileName.c_str(), NULL, 0);
+    if (file_index < 0) {
+        Log::logWarning("File not found in SB3: " + fileName);
+        mz_zip_reader_end(&archive);
+        return nullptr;
+    }
+
+    size_t size = 0;
+    void *data = mz_zip_reader_extract_to_heap(&archive, file_index, &size, 0);
+
+    if (outSize != nullptr) {
+        *outSize = size;
+    }
+
+    mz_zip_reader_end(&archive);
+
+    return data;
+}
+
+static size_t miniz_istream_read_func(void *pOpaque, mz_uint64 file_ofs, void *pBuf, size_t n) {
+    std::istream *stream = static_cast<std::istream *>(pOpaque);
+    stream->clear();
+    stream->seekg(file_ofs, std::ios::beg);
+    stream->read(static_cast<char *>(pBuf), n);
+    return static_cast<size_t>(stream->gcount());
+}
+
 nlohmann::json Unzip::unzipProject(std::istream *file) {
     nlohmann::json project_json;
 
     if (Scratch::projectType != UNZIPPED) {
-        // read the file
-        Log::log("Reading SB3...");
-        std::streamsize size = file->tellg();
-        file->seekg(0, std::ios::beg);
-        zipBuffer.resize(size);
-        if (!file->read(zipBuffer.data(), size)) {
-            return project_json;
+        auto setting = Unzip::getSetting("sb3InRam");
+        bool keepInRam;
+        if (setting.is_null()) {
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+            keepInRam = false;
+#else
+            keepInRam = true;
+#endif
+        } else {
+            keepInRam = setting.get<bool>();
         }
 
-        // open ZIP file
-        Log::log("Opening SB3 file...");
-        memset(&zipArchive, 0, sizeof(zipArchive));
-        if (!mz_zip_reader_init_mem(&zipArchive, zipBuffer.data(), zipBuffer.size(), 0)) {
-            return project_json;
+        if (keepInRam) {
+            Log::log("keeping project in RAM");
+            filePath.clear();
+            Scratch::sb3InRam = true;
+
+            // read the file
+            std::streamsize size = file->tellg();
+            file->seekg(0, std::ios::beg);
+            zipBuffer.resize(size);
+            if (!file->read(zipBuffer.data(), size)) {
+                return project_json;
+            }
+
+            // open ZIP file
+            memset(&zipArchive, 0, sizeof(zipArchive));
+            if (!mz_zip_reader_init_mem(&zipArchive, zipBuffer.data(), zipBuffer.size(), 0)) {
+                return project_json;
+            }
+
+            // extract project.json
+            int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
+            if (file_index < 0) {
+                return project_json;
+            }
+
+            size_t json_size;
+            const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
+
+            // Parse JSON file
+            project_json = nlohmann::json::parse(std::string(json_data, json_size));
+            mz_free((void *)json_data);
+        } else {
+            Scratch::sb3InRam = false;
+            memset(&zipArchive, 0, sizeof(zipArchive));
+
+            file->seekg(0, std::ios::end);
+            mz_uint64 file_size = file->tellg();
+            file->seekg(0, std::ios::beg);
+
+            zipArchive.m_pIO_opaque = file;
+            zipArchive.m_pRead = miniz_istream_read_func;
+
+            if (!mz_zip_reader_init(&zipArchive, file_size, 0)) {
+                Log::logError("Failed to initialize SB3 zip reader from stream.");
+                return project_json;
+            }
+
+            int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
+            if (file_index < 0) {
+                Log::logError("Failed to extract project.json");
+                mz_zip_reader_end(&zipArchive);
+                return project_json;
+            }
+
+            size_t json_size;
+            const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
+
+            if (json_data) {
+                project_json = nlohmann::json::parse(std::string(json_data, json_size));
+                mz_free((void *)json_data);
+            }
+
+            mz_zip_reader_end(&zipArchive);
+            zipBuffer.clear();
+            zipBuffer.shrink_to_fit();
+            memset(&zipArchive, 0, sizeof(zipArchive));
         }
-
-        // extract project.json
-        Log::log("Extracting project.json...");
-        int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
-        if (file_index < 0) {
-            return project_json;
-        }
-
-        size_t json_size;
-        const char *json_data = static_cast<const char *>(mz_zip_reader_extract_to_heap(&zipArchive, file_index, &json_size, 0));
-
-        // Parse JSON file
-        Log::log("Parsing project.json...");
-
-        project_json = nlohmann::json::parse(std::string(json_data, json_size));
-        mz_free((void *)json_data);
 
     } else {
         file->clear();

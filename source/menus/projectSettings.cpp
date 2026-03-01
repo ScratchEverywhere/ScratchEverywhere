@@ -39,6 +39,11 @@ void ProjectSettings::init() {
     debugVarsButton->text->setColor(Math::color(0, 0, 0, 255));
     debugVarsButton->text->setScale(0.5);
 
+    ramButton = new ButtonObject("Keep Project In RAM: clicktoload", "gfx/menu/projectBox.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
+    ramButton->text->setColor(Math::color(0, 0, 0, 255));
+    ramButton->text->setScale(0.5);
+    ramButton->shouldNineslice = true;
+
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
@@ -50,15 +55,17 @@ void ProjectSettings::init() {
 
     // link buttons
     changeControlsButton->buttonDown = UnpackProjectButton;
-    changeControlsButton->buttonUp = debugVarsButton;
+    changeControlsButton->buttonUp = ramButton;
     UnpackProjectButton->buttonUp = changeControlsButton;
     UnpackProjectButton->buttonDown = bottomScreenButton;
     bottomScreenButton->buttonDown = penModeButton;
     bottomScreenButton->buttonUp = UnpackProjectButton;
     penModeButton->buttonDown = debugVarsButton;
     penModeButton->buttonUp = bottomScreenButton;
-    debugVarsButton->buttonDown = changeControlsButton;
+    debugVarsButton->buttonDown = ramButton;
     debugVarsButton->buttonUp = penModeButton;
+    ramButton->buttonDown = changeControlsButton;
+    ramButton->buttonUp = debugVarsButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
@@ -66,6 +73,7 @@ void ProjectSettings::init() {
     settingsControl->buttonObjects.push_back(bottomScreenButton);
     settingsControl->buttonObjects.push_back(penModeButton);
     settingsControl->buttonObjects.push_back(debugVarsButton);
+    settingsControl->buttonObjects.push_back(ramButton);
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -87,6 +95,16 @@ void ProjectSettings::init() {
         debugVarsButton->text->setText("Show FPS: ON");
     } else {
         debugVarsButton->text->setText("Show FPS: OFF");
+    }
+
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["sb3InRam"].is_null()) {
+        ramButton->text->setText(settings["settings"]["sb3InRam"].get<bool>() ? "Keep Project In RAM: ON" : "Keep Project In RAM: OFF");
+    } else {
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+        ramButton->text->setText("Keep Project In RAM: OFF");
+#else
+        ramButton->text->setText("Keep Project In RAM: ON");
+#endif
     }
 
     isInitialized = true;
@@ -118,6 +136,12 @@ void ProjectSettings::render() {
         settings["settings"]["debugVars"] = debugVarsButton->text->getText() == "Show FPS: ON" ? false : true;
         SettingsManager::saveProjectSettings(settings, projectPath);
         debugVarsButton->text->setText(debugVarsButton->text->getText() == "Show FPS: ON" ? "Show FPS: OFF" : "Show FPS: ON");
+    }
+    if (ramButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["sb3InRam"] = ramButton->text->getText() == "Keep Project In RAM: ON" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        ramButton->text->setText(ramButton->text->getText() == "Keep Project In RAM: ON" ? "Keep Project In RAM: OFF" : "Keep Project In RAM: ON");
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
@@ -187,6 +211,10 @@ void ProjectSettings::cleanup() {
     if (debugVarsButton != nullptr) {
         delete debugVarsButton;
         debugVarsButton = nullptr;
+    }
+    if (ramButton != nullptr) {
+        delete ramButton;
+        ramButton = nullptr;
     }
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);

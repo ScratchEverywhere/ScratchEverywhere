@@ -277,12 +277,18 @@ Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuali
 }
 
 Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) {
-    int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
-    if (file_index < 0) throw std::runtime_error("Image not found in SB3: " + filePath);
-
+    void *file_data = nullptr;
     size_t file_size;
-    void *file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
-    if (!file_data) throw std::runtime_error("Failed to extract: " + filePath);
+    if (zip != nullptr) {
+        int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
+        if (file_index < 0) throw std::runtime_error("Image not found in SB3: " + filePath);
+
+        file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
+    } else {
+        file_data = Unzip::getFileInSB3(filePath, &file_size);
+    }
+
+    if (!file_data || file_data == nullptr) throw std::runtime_error("Failed to extract: " + filePath);
 
     bool isSVG = filePath.size() >= 4 &&
                  (filePath.substr(filePath.size() - 4) == ".svg" ||

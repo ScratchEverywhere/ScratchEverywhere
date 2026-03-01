@@ -90,6 +90,7 @@ class Scratch {
     static bool forceRedraw;
 
     static bool debugVars;
+    static bool sb3InRam;
 
     static double counter;
 

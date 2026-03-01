@@ -51,6 +51,7 @@ bool Scratch::shouldStop = false;
 bool Scratch::forceRedraw = false;
 bool Scratch::accuratePen = false;
 bool Scratch::debugVars = false;
+bool Scratch::sb3InRam = true;
 
 double Scratch::counter = 0;
 
@@ -208,6 +209,7 @@ void Scratch::cleanupScratchProject() {
     forceRedraw = false;
     nextProject = false;
     useCustomUsername = false;
+    sb3InRam = true;
     projectType = UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 
@@ -665,7 +667,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         if (projectType == UNZIPPED) {
             image = createImageFromFile(costumeName, true, true);
         } else {
-            image = createImageFromZip(costumeName, &Unzip::zipArchive, true);
+            image = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true);
         }
     } catch (const std::runtime_error &e) {
         Log::logWarning("Failed to load image: " + costumeName + ": " + std::string(e.what()));
