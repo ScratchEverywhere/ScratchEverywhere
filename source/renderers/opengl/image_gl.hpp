@@ -21,4 +21,6 @@ class Image_GL : public Image {
 
     // this just returns the TextureID as a void*
     void *getNativeTexture() override;
+
+    void refreshTexture() override;
 };
