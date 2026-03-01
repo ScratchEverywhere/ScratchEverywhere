@@ -74,6 +74,8 @@ void Image_SDL1::render(ImageRenderParams &params) {
     }
 
     SDL_Rect dest;
+    dest.w = getWidth();
+    dest.h = getHeight();
     dest.x = x;
     dest.y = y;
 
@@ -160,7 +162,6 @@ void *Image_SDL1::getNativeTexture() {
 }
 
 void Image_SDL1::setInitialTexture() {
-
     texture = SDL_CreateRGBSurfaceFrom(imgData.pixels, imgData.width, imgData.height, 32, imgData.pitch, RMASK, GMASK, BMASK, AMASK);
 
     if (!texture) {
@@ -169,11 +170,19 @@ void Image_SDL1::setInitialTexture() {
     SDL_SetAlpha(texture, SDL_SRCALPHA, 255);
 }
 
-Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
+void Image_SDL1::refreshTexture() {
+    if (texture) {
+        SDL_FreeSurface(texture);
+        texture = nullptr;
+    }
     setInitialTexture();
 }
 
-Image_SDL1::Image_SDL1(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
+Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) : Image(filePath, fromScratchProject, bitmapHalfQuality, scale) {
+    setInitialTexture();
+}
+
+Image_SDL1::Image_SDL1(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
     setInitialTexture();
 }
 

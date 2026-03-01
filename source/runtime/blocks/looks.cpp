@@ -331,9 +331,17 @@ SCRATCH_BLOCK(looks, gotofrontback) {
 SCRATCH_BLOCK(looks, setsizeto) {
     const Value value = Scratch::getInputValue(block, "SIZE", sprite);
 
+    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
+        Log::logWarning("Invalid Image in current costume.");
+        return BlockResult::CONTINUE;
+    }
+
     // hasn't been rendered yet, or fencing is disabled
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size = value.asDouble();
+
+        Render::resizeSVGs(sprite);
         return BlockResult::CONTINUE;
     }
 
@@ -349,6 +357,8 @@ SCRATCH_BLOCK(looks, setsizeto) {
 
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
+
+        Render::resizeSVGs(sprite);
     }
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -357,9 +367,17 @@ SCRATCH_BLOCK(looks, setsizeto) {
 SCRATCH_BLOCK(looks, changesizeby) {
     const Value value = Scratch::getInputValue(block, "CHANGE", sprite);
 
+    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
+        Log::logWarning("Invalid Image in current costume.");
+        return BlockResult::CONTINUE;
+    }
+
     // hasn't been rendered yet, or fencing is disabled
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size += value.asDouble();
+
+        Render::resizeSVGs(sprite);
         return BlockResult::CONTINUE;
     }
 
@@ -374,6 +392,8 @@ SCRATCH_BLOCK(looks, changesizeby) {
         const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
 
         sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
+
+        Render::resizeSVGs(sprite);
     }
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;

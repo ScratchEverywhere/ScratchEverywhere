@@ -14,15 +14,17 @@ class Image_C2D : public Image {
   public:
     C2D_Image texture;
 
-    Image_C2D(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false);
+    Image_C2D(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
-    Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false);
+    Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_C2D() override;
 
     ImageData getPixels(ImageSubrect rect) override;
 
     void *getNativeTexture() override;
+
+    void refreshTexture() override;
 
     void render(ImageRenderParams &params) override;
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;

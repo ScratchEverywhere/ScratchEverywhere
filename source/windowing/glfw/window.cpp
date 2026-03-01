@@ -11,7 +11,6 @@
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
     globalWindow->resize(width, height);
     glViewport(0, 0, width, height);
-    Render::setRenderScale();
 }
 
 bool WindowGLFW::init(int w, int h, const std::string &title) {
@@ -62,6 +61,9 @@ void WindowGLFW::swapBuffers() {
 void WindowGLFW::resize(int width, int height) {
     this->width = width;
     this->height = height;
+
+    Render::setRenderScale();
+    Render::resizeSVGs();
 }
 
 int WindowGLFW::getWidth() const {

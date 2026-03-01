@@ -114,6 +114,7 @@ void WindowSDL1::resize(int width, int height) {
     window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
 #endif
     Render::setRenderScale();
+    Render::resizeSVGs();
 }
 
 int WindowSDL1::getWidth() const {
