@@ -137,7 +137,7 @@ bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const st
             return false;
         }
     } else {
-        music = Mix_LoadMUS_RW(rw, 1);
+        music = Mix_LoadMUS_RW(rw);
         if (!music) {
             Log::logWarning("Failed to load music: " + soundId + " - Error: " + Mix_GetError());
             mz_free(file_data);
