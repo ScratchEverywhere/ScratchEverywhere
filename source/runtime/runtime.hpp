@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-enum ProjectType {
+enum class ProjectType {
     UNZIPPED,
     EMBEDDED,
     UNEMBEDDED

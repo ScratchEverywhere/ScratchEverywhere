@@ -74,11 +74,11 @@ int Unzip::openFile(std::istream *&file) {
 #else
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
-    Scratch::projectType = UNZIPPED;
+    Scratch::projectType = ProjectType::UNZIPPED;
     if (file != nullptr && *file) return 1;
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
-    Scratch::projectType = EMBEDDED;
+    Scratch::projectType = ProjectType::EMBEDDED;
 #ifdef USE_CMAKERC
     if (fs.exists(embeddedFilename)) {
         const auto &romfsFile = fs.open(embeddedFilename);
@@ -95,7 +95,7 @@ int Unzip::openFile(std::istream *&file) {
     }
     // Main menu
     Log::logWarning("No sb3 project, trying Main Menu.");
-    Scratch::projectType = UNEMBEDDED;
+    Scratch::projectType = ProjectType::UNEMBEDDED;
     if (filePath == "") {
         Log::log("Activating main menu...");
         return -1;
@@ -113,7 +113,7 @@ int Unzip::openFile(std::istream *&file) {
 
         return 1;
     }
-    Scratch::projectType = UNZIPPED;
+    Scratch::projectType = ProjectType::UNZIPPED;
     Log::log("Unpacked .sb3 project in SD card");
     // check if Unpacked Project
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
@@ -441,7 +441,7 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
     bool initSuccess = false;
 
 #ifdef USE_CMAKERC
-    if (Scratch::projectType == EMBEDDED) {
+    if (Scratch::projectType == ProjectType::EMBEDDED) {
         const auto &fs = cmrc::romfs::get_filesystem();
         const auto &romfsFile = fs.open(Unzip::filePath);
         initSuccess = mz_zip_reader_init_mem(&archive, romfsFile.begin(), romfsFile.size(), 0);
@@ -486,7 +486,7 @@ static size_t miniz_istream_read_func(void *pOpaque, mz_uint64 file_ofs, void *p
 nlohmann::json Unzip::unzipProject(std::istream *file) {
     nlohmann::json project_json;
 
-    if (Scratch::projectType != UNZIPPED) {
+    if (Scratch::projectType != ProjectType::UNZIPPED) {
         auto setting = Unzip::getSetting("sb3InRam");
         bool keepInRam;
         if (setting.is_null()) {

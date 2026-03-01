@@ -131,7 +131,7 @@ bool Scratch::startScratchProject() {
 
 #ifdef ENABLE_MENU
 
-            if ((projectType == UNEMBEDDED || (projectType == UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+            if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
 
                 PauseMenu *menu = new PauseMenu();
                 MenuManager::changeMenu(menu);
@@ -151,7 +151,7 @@ bool Scratch::startScratchProject() {
 #endif
 
             if (shouldStop) {
-                if (projectType != UNEMBEDDED && !(projectType == UNZIPPED && Unzip::UnpackedInSD)) {
+                if (projectType != ProjectType::UNEMBEDDED && !(projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) {
                     OS::toExit = true;
                     cleanupScratchProject();
                     return false;
@@ -179,7 +179,7 @@ void Scratch::cleanupScratchProject() {
     Render::penClear();
 
     // Clean up ZIP archive if it was initialized
-    if (projectType != UNZIPPED) {
+    if (projectType != ProjectType::UNZIPPED) {
         mz_zip_reader_end(&Unzip::zipArchive);
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
@@ -210,7 +210,7 @@ void Scratch::cleanupScratchProject() {
     nextProject = false;
     useCustomUsername = false;
     sb3InRam = true;
-    projectType = UNEMBEDDED;
+    projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 
     Log::log("Cleaned up Scratch project.");
@@ -664,7 +664,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     std::shared_ptr<Image> image;
 
     try {
-        if (projectType == UNZIPPED) {
+        if (projectType == ProjectType::UNZIPPED) {
             image = createImageFromFile(costumeName, true, true);
         } else {
             image = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true);

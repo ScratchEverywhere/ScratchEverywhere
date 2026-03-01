@@ -92,7 +92,7 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     params.streamed = false;
 #endif
 
-    if (Scratch::projectType != UNZIPPED && fromProject && !fromCache)
+    if (Scratch::projectType != ProjectType::UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else {
         std::string filePrefix = "";

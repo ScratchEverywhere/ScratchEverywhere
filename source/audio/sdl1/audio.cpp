@@ -68,7 +68,7 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
         .soundId = soundId,
         .streamed = streamed || (sprite != nullptr && sprite->isStage)}; // stage sprites get streamed audio
 
-    if (Scratch::projectType != UNZIPPED && fromProject && !fromCache)
+    if (Scratch::projectType != ProjectType::UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else {
         std::string filePrefix = "";

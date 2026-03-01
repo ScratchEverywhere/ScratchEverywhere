@@ -98,27 +98,7 @@ void ProjectMenu::init() {
         noProjectInfo = createTextObject("a", 0, 0);
         noProjectInfo->setCenterAligned(true);
 
-#ifdef __WIIU__
-        noProjectInfo->setText("Put Scratch projects in sd:/wiiu/scratch-wiiu/ !");
-#elif defined(__3DS__)
-        noProjectInfo->setText("Put Scratch projects in sd:/3ds/scratch-everywhere/ !");
-#elif defined(WII)
-        noProjectInfo->setText("Put Scratch projects in sd:/apps/scratch-wii/ !");
-#elif defined(VITA)
-        noProjectInfo->setText("Put Scratch projects in ux0:data/scratch-vita/ !");
-#elif defined(GAMECUBE)
-        noProjectInfo->setText("Put Scratch projects in sd:/scratch-gamecube/ !");
-#elif defined(__SWITCH__)
-        noProjectInfo->setText("Put Scratch projects in sd:/switch/scratch-nx !");
-#elif defined(__NDS__)
-        noProjectInfo->setText("Put Scratch projects in sd:/scratch-ds !");
-#elif defined(__PS4__)
-        noProjectInfo->setText("Put Scratch projects in /data/scratch-ps4 !");
-#elif defined(WEBOS)
-        noProjectInfo->setText("Upload Scratch projects to apps/usr/palm/applications/io.github.scratcheverywhere/projects/ using webosbrew Dev Manager!");
-#else
-        noProjectInfo->setText("Put Scratch projects in the scratch-everywhere folder!");
-#endif
+        noProjectInfo->setText("Put projects in " + OS::getScratchFolderLocation());
 
         if (noProjectInfo->getSize()[0] > Render::getWidth() * 0.85) {
             float scale = (float)Render::getWidth() / (noProjectInfo->getSize()[0] * 1.15);
