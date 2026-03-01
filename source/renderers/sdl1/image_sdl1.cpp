@@ -160,13 +160,20 @@ void *Image_SDL1::getNativeTexture() {
 }
 
 void Image_SDL1::setInitialTexture() {
-
     texture = SDL_CreateRGBSurfaceFrom(imgData.pixels, imgData.width, imgData.height, 32, imgData.pitch, RMASK, GMASK, BMASK, AMASK);
 
     if (!texture) {
         throw std::runtime_error(std::string("Texture creation failed: ") + SDL_GetError());
     }
     SDL_SetAlpha(texture, SDL_SRCALPHA, 255);
+}
+
+void Image_SDL1::refreshTexture() {
+    if (texture) {
+        SDL_FreeSurface(texture);
+        texture = nullptr;
+    }
+    setInitialTexture();
 }
 
 Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
