@@ -34,6 +34,9 @@ SDL_Gamepad *controller = nullptr;
 
 #ifdef PLATFORM_HAS_TOUCH
 bool touchActive = false;
+#ifdef __PC__
+bool isFullscreen = false;
+#endif
 SDL_Point touchPosition;
 #endif
 
@@ -158,6 +161,18 @@ postAccount:
     return true;
 }
 
+#ifdef __PC__
+void WindowSDL3::toggleFullscreen() {
+    isFullscreen = !isFullscreen;
+
+    SDL_SetWindowFullscreen(window, isFullscreen);
+
+    int w, h;
+    SDL_GetWindowSizeInPixels(window, &w, &h);
+    resize(w, h);
+}
+#endif
+
 void WindowSDL3::cleanup() {
 #ifdef PLATFORM_HAS_CONTROLLER
     if (controller) SDL_CloseGamepad(controller);
@@ -188,6 +203,13 @@ void WindowSDL3::pollEvents() {
             OS::toExit = true;
             shouldCloseFlag = true;
             break;
+#ifdef __PC__
+        case SDL_EVENT_KEY_DOWN:
+            if (!event.key.repeat && event.key.key == SDLK_F11) {
+                toggleFullscreen();
+            }
+        break;
+#endif
         case SDL_EVENT_WINDOW_RESIZED: {
             int w, h;
             SDL_GetWindowSizeInPixels(window, &w, &h);
