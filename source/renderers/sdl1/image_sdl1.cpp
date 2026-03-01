@@ -74,6 +74,8 @@ void Image_SDL1::render(ImageRenderParams &params) {
     }
 
     SDL_Rect dest;
+    dest.w = getWidth();
+    dest.h = getHeight();
     dest.x = x;
     dest.y = y;
 
