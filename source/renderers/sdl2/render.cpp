@@ -594,6 +594,7 @@ bool Render::appShouldRun() {
                 SDL_SetRenderTarget(renderer, nullptr);
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_BLEND);
                 SDL_DestroyTexture(penTexture);
+                penTexture = newTexture;
             }
         }
 
