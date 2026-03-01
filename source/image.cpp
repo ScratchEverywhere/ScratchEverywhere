@@ -204,7 +204,10 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
 }
 
 void Image::resizeSVG(float scale) {
-    if (!svgDocument) return;
+    constexpr unsigned int maxScale = 5; // TODO: Make project setting
+    if (scale > maxScale) scale = maxScale;
+
+    if (!svgDocument || scale <= imgData.scale) return;
 
     // TODO: De-duplicate code.
 
