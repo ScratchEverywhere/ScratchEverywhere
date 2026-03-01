@@ -186,6 +186,29 @@ class Render {
     }
 
     /**
+     * Resizes every SVG costume that is currently loaded.
+     */
+    static void resizeSVGs() {
+        for (auto &sprite : Scratch::sprites) {
+            resizeSVGs(sprite);
+        }
+    }
+
+    /**
+     * Resizes every SVG costume in a given that is currently loaded.
+     */
+    static void resizeSVGs(Sprite *sprite) {
+        for (auto &costume : sprite->costumes) {
+            auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+            if (imgFind == Scratch::costumeImages.end()) continue;
+
+            float scale = sprite->size / 100;
+            if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+            imgFind->second->resizeSVG(scale);
+        }
+    }
+
+    /**
      * Force updates every sprite's position on screen. Should be called when window size changes.
      */
     static void forceUpdateSpritePosition() {

@@ -341,9 +341,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size = value.asDouble();
 
-        float scale = sprite->size / 100;
-        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-        imgFind->second->resizeSVG(scale);
+        Render::resizeSVGs(sprite);
         return BlockResult::CONTINUE;
     }
 
@@ -360,9 +358,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
 
-        float scale = sprite->size / 100;
-        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-        imgFind->second->resizeSVG(scale);
+        Render::resizeSVGs(sprite);
     }
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -381,9 +377,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size += value.asDouble();
 
-        float scale = sprite->size / 100;
-        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-        imgFind->second->resizeSVG(scale);
+        Render::resizeSVGs(sprite);
         return BlockResult::CONTINUE;
     }
 
@@ -399,9 +393,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
 
         sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
 
-        float scale = sprite->size / 100;
-        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-        imgFind->second->resizeSVG(scale);
+        Render::resizeSVGs(sprite);
     }
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
