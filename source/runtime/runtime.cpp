@@ -129,8 +129,14 @@ bool Scratch::startScratchProject() {
             }
 
 #ifdef ENABLE_MENU
+#ifdef ANDROID
+            // Trap the back button to act as pause button
+            bool shouldPause = Input::keyHeldDuration["back"] >= 1;
+#else
+            bool shouldPause = Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
+#endif
 
-            if ((projectType == UNEMBEDDED || (projectType == UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+            if ((projectType == UNEMBEDDED || (projectType == UNZIPPED && Unzip::UnpackedInSD)) && shouldPause) {
 
                 PauseMenu *menu = new PauseMenu();
                 MenuManager::changeMenu(menu);

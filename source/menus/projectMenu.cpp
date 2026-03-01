@@ -116,6 +116,8 @@ void ProjectMenu::init() {
         noProjectInfo->setText("Put Scratch projects in /data/scratch-ps4 !");
 #elif defined(WEBOS)
         noProjectInfo->setText("Upload Scratch projects to apps/usr/palm/applications/io.github.scratcheverywhere/projects/ using webosbrew Dev Manager!");
+#elif defined(ANDROID)
+        noProjectInfo->setText("Upload Scratch projects by opening or sharing them with the app !");
 #else
         noProjectInfo->setText("Put Scratch projects in the scratch-everywhere folder!");
 #endif

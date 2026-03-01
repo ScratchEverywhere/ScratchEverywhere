@@ -151,6 +151,9 @@ postAccount:
     Log::log("[Vita] Running sceNetCtlInit");
     sceNetCtlInit();
 #elif defined(__PS4__)
+#elif defined(ANDROID)
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
 #endif
 
 // SDL has to be initialized before window creation on webOS
@@ -181,6 +184,8 @@ postAccount:
 
 #ifdef RENDERER_OPENGL
     flags |= SDL_WINDOW_OPENGL;
+#elif defined(ANDROID)
+    flags |= SDL_WINDOW_FULLSCREEN;
 #endif
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, flags);

@@ -1,0 +1,58 @@
+apply plugin: "com.android.application"
+
+android {
+    namespace "io.github.scratcheverywhere"
+    compileSdkVersion 35
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 35
+        versionCode 1
+        versionName "0.36"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_static", "-DBUILD_SHARED_LIBS=ON", "-DCPM_SOURCE_CACHE=build/CPM"
+                abiFilters "armeabi-v7a", "arm64-v8a" // "x86", "x86_64"
+                cppFlags "-std=c++17", "-O2"
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    applicationVariants.all { variant ->
+        tasks["merge${variant.name.capitalize()}Assets"]
+            .dependsOn("externalNativeBuild${variant.name.capitalize()}")
+    }
+	sourceSets.main {
+		assets.srcDirs "../../romfs"
+	}
+	externalNativeBuild {
+		 cmake {
+			 path file("../../CMakeLists.txt")
+		 }
+	}
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+}
+
+tasks.register("exportReleaseApk", Copy) {
+	dependsOn("assembleRelease")
+	from("$buildDir/outputs/apk/release/app-release.apk")
+	into("$rootProject.projectDir/build/android")
+	rename("app-release.apk", "scratch-android.apk")
+}
+
+tasks.register("exportDebugApk", Copy) {
+	dependsOn("assembleDebug")
+	from("$buildDir/outputs/apk/debug/app-debug.apk")
+	into("$rootProject.projectDir/build/android")
+	rename("app-debug.apk", "scratch-android.apk")
+}
