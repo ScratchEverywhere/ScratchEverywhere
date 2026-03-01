@@ -340,7 +340,10 @@ SCRATCH_BLOCK(looks, setsizeto) {
     // hasn't been rendered yet, or fencing is disabled
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size = value.asDouble();
-        imgFind->second->resizeSVG(sprite->size / 100);
+
+        float scale = sprite->size / 100;
+        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+        imgFind->second->resizeSVG(scale);
         return BlockResult::CONTINUE;
     }
 
@@ -356,7 +359,10 @@ SCRATCH_BLOCK(looks, setsizeto) {
 
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
-        imgFind->second->resizeSVG(sprite->size / 100);
+
+        float scale = sprite->size / 100;
+        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+        imgFind->second->resizeSVG(scale);
     }
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
@@ -374,7 +380,10 @@ SCRATCH_BLOCK(looks, changesizeby) {
     // hasn't been rendered yet, or fencing is disabled
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size += value.asDouble();
-        imgFind->second->resizeSVG(sprite->size / 100);
+
+        float scale = sprite->size / 100;
+        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+        imgFind->second->resizeSVG(scale);
         return BlockResult::CONTINUE;
     }
 
@@ -389,7 +398,10 @@ SCRATCH_BLOCK(looks, changesizeby) {
         const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
 
         sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
-        imgFind->second->resizeSVG(sprite->size / 100);
+
+        float scale = sprite->size / 100;
+        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+        imgFind->second->resizeSVG(scale);
     }
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
