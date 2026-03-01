@@ -50,6 +50,7 @@ bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
 bool Scratch::forceRedraw = false;
 bool Scratch::accuratePen = false;
+bool Scratch::debugVars = false;
 
 double Scratch::counter = 0;
 
@@ -83,17 +84,38 @@ bool Scratch::startScratchProject() {
 
     Scratch::greenFlagClicked();
 
+    Timer fpsTimer(false);
+    if (debugVars) fpsTimer.start();
+
     while (Render::appShouldRun()) {
+
         const bool checkFPS = Render::checkFramerate();
         if (Scratch::turbo) forceRedraw = false;
 
         if (!forceRedraw || checkFPS) {
             forceRedraw = false;
+
+            float currentFPS;
+            if (debugVars) {
+                double frameTimeMs = fpsTimer.getTimeMsDouble();
+                fpsTimer.start();
+                currentFPS = (frameTimeMs > 0) ? (1000.0f / frameTimeMs) : 0;
+            }
+
+            Timer scriptTimer(false);
+            if (debugVars) scriptTimer.start();
+
             if (checkFPS) Input::getInput();
             BlockExecutor::runCloneStarts();
             BlockExecutor::runBroadcasts();
             BlockExecutor::runBackdrops();
             BlockExecutor::runRepeatBlocks();
+
+            if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
+
+            Timer renderTimer(false);
+            if (debugVars) renderTimer.start();
+
             BlockExecutor::updateMonitors();
             SpeechManager *speechManager = Render::getSpeechManager();
             if (speechManager) {
@@ -102,6 +124,8 @@ bool Scratch::startScratchProject() {
             if (checkFPS) {
                 Render::renderSprites();
                 Scratch::flushCostumeImages();
+
+                if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
             }
 
 #ifdef ENABLE_MENU
@@ -135,6 +159,7 @@ bool Scratch::startScratchProject() {
                 shouldStop = false;
                 return true;
             }
+            if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(std::to_string(renderTimer.getTimeMsDouble()) + " ms");
         }
     }
     cleanupScratchProject();
@@ -777,4 +802,43 @@ std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
     }
     if (!targetSprite) return nullptr; // TODO: Implement list creation
     return &targetSprite->lists[listId].items;
+}
+
+void Scratch::createDebugMonitor(const std::string &name, int x, int y) {
+    Variable newVariable;
+    newVariable.id = name;
+    newVariable.name = name;
+    newVariable.value = Value(0);
+
+    stageSprite->variables[newVariable.id] = newVariable;
+
+    Monitor newMonitor;
+    newMonitor.displayName = newVariable.name;
+    newMonitor.id = newVariable.id;
+    newMonitor.opcode = "data_variable";
+    newMonitor.parameters["VARIABLE"] = newVariable.name;
+    newMonitor.visible = true;
+    newMonitor.x = x;
+    newMonitor.y = y;
+    newMonitor.spriteName = stageSprite->name;
+    newMonitor.mode = "67"; // i dont think this matters
+
+    Render::visibleVariables[newMonitor.id] = newMonitor;
+}
+
+void Scratch::toggleDebugVars(const bool enabled) {
+    if (enabled && !debugVars) {
+        createDebugMonitor("SE!__FPS", 0, 0);
+        createDebugMonitor("SE!__ScriptTime", 0, 30);
+        createDebugMonitor("SE!__RenderTime", 0, 60);
+        debugVars = true;
+    } else if (!enabled && debugVars) {
+        stageSprite->variables.erase("SE!__FPS");
+        stageSprite->variables.erase("SE!__ScriptTime");
+        stageSprite->variables.erase("SE!__RenderTime");
+        Render::visibleVariables.erase("SE!__FPS");
+        Render::visibleVariables.erase("SE!__ScriptTime");
+        Render::visibleVariables.erase("SE!__RenderTime");
+        debugVars = false;
+    }
 }

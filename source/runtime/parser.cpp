@@ -623,6 +623,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
         Scratch::accuratePen = true;
     else Scratch::accuratePen = false;
 
+    auto debugVars = Unzip::getSetting("debugVars");
+    if (!debugVars.is_null() && debugVars.get<bool>())
+        Scratch::toggleDebugVars(true);
+    else Scratch::toggleDebugVars(false);
+
     if (infClones) Scratch::maxClones = std::numeric_limits<int>::max();
     else Scratch::maxClones = 300;
 

@@ -73,6 +73,9 @@ class Scratch {
     static void flushCostumeImages();
     static void freeUnusedCostumeImages();
 
+    static void createDebugMonitor(const std::string &name, int x, int y);
+    static void toggleDebugVars(const bool enabled);
+
     static int projectWidth;
     static int projectHeight;
     static int FPS;
@@ -85,6 +88,8 @@ class Scratch {
     static bool miscellaneousLimits;
     static bool shouldStop;
     static bool forceRedraw;
+
+    static bool debugVars;
 
     static double counter;
 
