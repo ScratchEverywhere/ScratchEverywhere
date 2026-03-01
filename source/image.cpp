@@ -210,12 +210,13 @@ void Image::resizeSVG(float scale) {
 
     int width = svgDocument->width() * scale - 1;
     int height = svgDocument->height() * scale - 1;
-    imgData.width = width;
-    imgData.height = height;
     imgData.scale = scale;
 
     if (width <= 0) width = 32;
     if (height <= 0) height = 32;
+
+    imgData.width = width;
+    imgData.height = height;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) throw std::runtime_error("LunaSVG failed to render SVG to bitmap");
