@@ -638,9 +638,9 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     try {
         if (projectType == UNZIPPED) {
-            image = createImageFromFile(costumeName, true, true);
+            image = createImageFromFile(costumeName, true, true, sprite->size / 100);
         } else {
-            image = createImageFromZip(costumeName, &Unzip::zipArchive, true);
+            image = createImageFromZip(costumeName, &Unzip::zipArchive, true, sprite->size / 100);
         }
     } catch (const std::runtime_error &e) {
         Log::logWarning("Failed to load image: " + costumeName + ": " + std::string(e.what()));

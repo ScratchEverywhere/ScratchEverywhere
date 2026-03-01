@@ -331,9 +331,16 @@ SCRATCH_BLOCK(looks, gotofrontback) {
 SCRATCH_BLOCK(looks, setsizeto) {
     const Value value = Scratch::getInputValue(block, "SIZE", sprite);
 
+    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
+        Log::logWarning("Invalid Image in current costume.");
+        return BlockResult::CONTINUE;
+    }
+
     // hasn't been rendered yet, or fencing is disabled
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size = value.asDouble();
+        imgFind->second->resizeSVG(sprite->size / 100);
         return BlockResult::CONTINUE;
     }
 
@@ -349,6 +356,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
 
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
+        imgFind->second->resizeSVG(sprite->size / 100);
     }
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;

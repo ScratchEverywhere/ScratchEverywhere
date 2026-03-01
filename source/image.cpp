@@ -57,7 +57,7 @@ bool Image::Init() {
     return true;
 }
 
-std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) {
+std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -68,19 +68,19 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
     }
 
 #if defined(RENDERER_SDL1)
-    Image *rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapHalfQuality);
+    Image *rawImg = new Image_SDL1(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_SDL2)
-    Image *rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality);
+    Image *rawImg = new Image_SDL2(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_SDL3)
-    Image *rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality);
+    Image *rawImg = new Image_SDL3(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_CITRO2D)
-    Image *rawImg = new Image_C2D(filePath, fromScratchProject, bitmapHalfQuality);
+    Image *rawImg = new Image_C2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_OPENGL)
-    Image *rawImg = new Image_GL(filePath, fromScratchProject, bitmapHalfQuality);
+    Image *rawImg = new Image_GL(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_GL2D)
-    Image *rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality);
+    Image *rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_HEADLESS)
-    Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality);
+    Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #else
 #error "Image backend not defined."
 #endif
@@ -94,7 +94,7 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
     return img;
 }
 
-std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) {
+std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -105,19 +105,19 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
     }
 
 #if defined(RENDERER_SDL1)
-    Image *rawImg = new Image_SDL1(filePath, zip, bitmapHalfQuality);
+    Image *rawImg = new Image_SDL1(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_SDL2)
-    Image *rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality);
+    Image *rawImg = new Image_SDL2(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_SDL3)
-    Image *rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality);
+    Image *rawImg = new Image_SDL3(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_CITRO2D)
-    Image *rawImg = new Image_C2D(filePath, zip, bitmapHalfQuality);
+    Image *rawImg = new Image_C2D(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_OPENGL)
-    Image *rawImg = new Image_GL(filePath, zip, bitmapHalfQuality);
+    Image *rawImg = new Image_GL(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_GL2D)
-    Image *rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality);
+    Image *rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_HEADLESS)
-    Image *rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality);
+    Image *rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
 #else
 #error "Image backend not defined."
 #endif
@@ -131,11 +131,11 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
     return img;
 }
 
-std::vector<char> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
+std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
 #ifdef USE_CMAKERC
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
         auto file = cmrc::romfs::get_filesystem().open(filePath);
-        std::vector<char> buffer(file.size() + 1);
+        std::vector<unsigned char> buffer(file.size() + 1);
         std::copy(file.begin(), file.end(), buffer.begin());
         buffer[file.size()] = '\0';
         return buffer;
@@ -155,7 +155,7 @@ std::vector<char> Image::readFileToBuffer(const std::string &filePath, bool from
         throw std::runtime_error("Empty file: " + path);
     }
 
-    std::vector<char> buffer(size + 1);
+    std::vector<unsigned char> buffer(size + 1);
     if (fread(buffer.data(), 1, size, file) != (size_t)size) {
         fclose(file);
         throw std::runtime_error("Failed to read file: " + path);
@@ -165,17 +165,18 @@ std::vector<char> Image::readFileToBuffer(const std::string &filePath, bool from
     return buffer;
 }
 
-unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height) {
-    auto document = lunasvg::Document::loadFromData(std::string(data, size).c_str());
-    if (!document) throw std::runtime_error("LunaSVG failed to parse SVG");
+unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
+    svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
+    if (!svgDocument) throw std::runtime_error("LunaSVG failed to parse SVG");
 
-    width = document->width() - 1;
-    height = document->height() - 1;
+    width = svgDocument->width() * scale - 1;
+    height = svgDocument->height() * scale - 1;
+    imgData.scale = scale;
 
     if (width <= 0) width = 32;
     if (height <= 0) height = 32;
 
-    auto bitmap = document->renderToBitmap(width, height);
+    auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) throw std::runtime_error("LunaSVG failed to render SVG to bitmap");
 
     unsigned char *src = bitmap.data();
@@ -200,6 +201,50 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     imgData.pitch = width * 4;
 
     return dst;
+}
+
+void Image::resizeSVG(float scale) {
+    if (!svgDocument) return;
+
+    // TODO: De-duplicate code.
+
+    int width = svgDocument->width() * scale - 1;
+    int height = svgDocument->height() * scale - 1;
+    imgData.width = width;
+    imgData.height = height;
+    imgData.scale = scale;
+
+    if (width <= 0) width = 32;
+    if (height <= 0) height = 32;
+
+    auto bitmap = svgDocument->renderToBitmap(width, height);
+    if (!bitmap.valid()) throw std::runtime_error("LunaSVG failed to render SVG to bitmap");
+
+    unsigned char *src = bitmap.data();
+    const size_t pixelsSize = width * height * 4;
+    unsigned char *dst = (unsigned char *)malloc(pixelsSize);
+    if (!dst) throw std::runtime_error("Failed to allocate SVG pixels buffer");
+
+    for (size_t i = 0; i < pixelsSize; i += 4) {
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        dst[i + 0] = src[i + 1];
+        dst[i + 1] = src[i + 2];
+        dst[i + 2] = src[i + 3];
+        dst[i + 3] = src[i + 0];
+#else
+        dst[i + 0] = src[i + 2];
+        dst[i + 1] = src[i + 1];
+        dst[i + 2] = src[i + 0];
+        dst[i + 3] = src[i + 3];
+#endif
+    }
+
+    free(imgData.pixels);
+
+    imgData.pitch = width * 4;
+    imgData.pixels = dst;
+
+    refreshTexture();
 }
 
 unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {
@@ -256,8 +301,7 @@ unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t siz
     }
 }
 
-Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) {
-
+Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     if (fromScratchProject) {
         if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
         else filePath = OS::getRomFSLocation() + "project/" + filePath;
@@ -265,18 +309,18 @@ Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuali
 
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
 
-    std::vector<char> buffer = readFileToBuffer(filePath, fromScratchProject);
+    std::vector<unsigned char> buffer = readFileToBuffer(filePath, fromScratchProject);
 
     if (isSVG) {
-        imgData.pixels = loadSVGFromMemory(buffer.data(), buffer.size(), imgData.width, imgData.height);
+        imgData.pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), buffer.size(), imgData.width, imgData.height);
     } else {
-        imgData.pixels = loadRasterFromMemory(reinterpret_cast<unsigned char *>(buffer.data()), buffer.size(), imgData.width, imgData.height, bitmapHalfQuality);
+        imgData.pixels = loadRasterFromMemory(buffer.data(), buffer.size(), imgData.width, imgData.height, bitmapHalfQuality);
     }
 
     if (!imgData.pixels) throw std::runtime_error("Failed to load image: " + filePath);
 }
 
-Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) {
+Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
     if (file_index < 0) throw std::runtime_error("Image not found in SB3: " + filePath);
 
@@ -289,11 +333,11 @@ Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) 
                   filePath.substr(filePath.size() - 4) == ".SVG");
 
     if (isSVG) {
-        std::vector<char> svgBuffer(file_size + 1);
-        memcpy(svgBuffer.data(), file_data, file_size);
-        svgBuffer[file_size] = '\0';
+        std::vector<unsigned char> buffer(file_size + 1);
+        memcpy(buffer.data(), file_data, file_size);
+        buffer[file_size] = '\0';
 
-        imgData.pixels = loadSVGFromMemory(svgBuffer.data(), file_size, imgData.width, imgData.height);
+        imgData.pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
     } else {
         imgData.pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
     }
@@ -309,11 +353,11 @@ Image::~Image() {
 }
 
 int Image::getWidth() {
-    return imgData.width;
+    return imgData.width / imgData.scale;
 }
 
 int Image::getHeight() {
-    return imgData.height;
+    return imgData.height / imgData.scale;
 }
 
 ImageData Image::getPixels(ImageSubrect rect) {
