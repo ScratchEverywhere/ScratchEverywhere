@@ -171,6 +171,8 @@ postAccount:
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+#elif defined(__PS4__)
+    SDL_GL_SetSwapInterval(1); // Required for VSync
 #endif
 
 #ifdef WEBOS
