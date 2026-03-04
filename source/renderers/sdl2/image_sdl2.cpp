@@ -16,11 +16,12 @@ void Image_SDL2::render(ImageRenderParams &params) {
     SDL_RendererFlip flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
     SDL_Rect renderRect;
-    renderRect.w = static_cast<int>(imgData.width * scale);
-    renderRect.h = static_cast<int>(imgData.height * scale);
+    renderRect.w = static_cast<int>(imgData.width / imgData.scale * scale);
+    renderRect.h = static_cast<int>(imgData.height / imgData.scale * scale);
 
     SDL_Rect subRect;
     if (params.subrect != nullptr) {
+        Log::log("hi");
         subRect = {
             .x = params.subrect->x,
             .y = params.subrect->y,
@@ -78,25 +79,24 @@ void Image_SDL2::render(ImageRenderParams &params) {
 
 // I doubt you want to mess with this...
 void Image_SDL2::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
-
     const int iDestX = static_cast<int>(xPos - (centered ? width / 2 : 0));
     const int iDestY = static_cast<int>(yPos - (centered ? height / 2 : 0));
     const int iWidth = static_cast<int>(width);
     const int iHeight = static_cast<int>(height);
-    const int iSrcPadding = std::max(1, static_cast<int>(std::min(std::min(padding, static_cast<double>(getWidth()) / 2), static_cast<double>(getHeight()) / 2)));
+    const int iSrcPadding = std::max(1, static_cast<int>(std::min(std::min(padding, static_cast<double>(imgData.width) / 2), static_cast<double>(imgData.height) / 2)));
 
-    const int srcCenterWidth = std::max(0, getWidth() - 2 * iSrcPadding);
-    const int srcCenterHeight = std::max(0, getHeight() - 2 * iSrcPadding);
+    const int srcCenterWidth = std::max(0, imgData.width - 2 * iSrcPadding);
+    const int srcCenterHeight = std::max(0, imgData.height - 2 * iSrcPadding);
 
     const SDL_Rect srcTopLeft = {0, 0, iSrcPadding, iSrcPadding};
     const SDL_Rect srcTop = {iSrcPadding, 0, srcCenterWidth, iSrcPadding};
-    const SDL_Rect srcTopRight = {getWidth() - iSrcPadding, 0, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcTopRight = {imgData.width - iSrcPadding, 0, iSrcPadding, iSrcPadding};
     const SDL_Rect srcLeft = {0, iSrcPadding, iSrcPadding, srcCenterHeight};
     const SDL_Rect srcCenter = {iSrcPadding, iSrcPadding, srcCenterWidth, srcCenterHeight};
-    const SDL_Rect srcRight = {getWidth() - iSrcPadding, iSrcPadding, iSrcPadding, srcCenterHeight};
-    const SDL_Rect srcBottomLeft = {0, getHeight() - iSrcPadding, iSrcPadding, iSrcPadding};
-    const SDL_Rect srcBottom = {iSrcPadding, getHeight() - iSrcPadding, srcCenterWidth, iSrcPadding};
-    const SDL_Rect srcBottomRight = {getWidth() - iSrcPadding, getHeight() - iSrcPadding, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcRight = {imgData.width - iSrcPadding, iSrcPadding, iSrcPadding, srcCenterHeight};
+    const SDL_Rect srcBottomLeft = {0, imgData.height - iSrcPadding, iSrcPadding, iSrcPadding};
+    const SDL_Rect srcBottom = {iSrcPadding, imgData.height - iSrcPadding, srcCenterWidth, iSrcPadding};
+    const SDL_Rect srcBottomRight = {imgData.width - iSrcPadding, imgData.height - iSrcPadding, iSrcPadding, iSrcPadding};
 
     const int dstCenterWidth = std::max(0, iWidth - 2 * iSrcPadding);
     const int dstCenterHeight = std::max(0, iHeight - 2 * iSrcPadding);
@@ -177,11 +177,19 @@ void Image_SDL2::setInitialTexture() {
     // pixels = nullptr;
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
+void Image_SDL2::refreshTexture() {
+    if (texture) {
+        SDL_DestroyTexture(texture);
+        texture = nullptr;
+    }
     setInitialTexture();
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
+Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
+    setInitialTexture();
+}
+
+Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) : Image(filePath, fromScratchProject, bitmapHalfQuality, scale) {
     setInitialTexture();
 }
 

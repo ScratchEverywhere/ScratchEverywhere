@@ -23,8 +23,8 @@ void Image_SDL3::render(ImageRenderParams &params) {
     SDL_FlipMode flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
     SDL_FRect renderRect;
-    renderRect.w = static_cast<int>(imgData.width * scale);
-    renderRect.h = static_cast<int>(imgData.height * scale);
+    renderRect.w = static_cast<int>(imgData.width / imgData.scale * scale);
+    renderRect.h = static_cast<int>(imgData.height / imgData.scale * scale);
 
     SDL_FRect subRect;
     if (params.subrect != nullptr) {
@@ -85,23 +85,22 @@ void Image_SDL3::render(ImageRenderParams &params) {
 
 // I doubt you want to mess with this...
 void Image_SDL3::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
-
     const float destX = xPos - (centered ? width / 2.0f : 0);
     const float destY = yPos - (centered ? height / 2.0f : 0);
     const float srcPadding = std::max(1.0f, std::min(std::min(static_cast<float>(padding), getWidth() / 2.0f), static_cast<float>(getHeight())) / 2.0f);
 
-    const float srcCenterWidth = std::max(0.0f, getWidth() - 2 * srcPadding);
-    const float srcCenterHeight = std::max(0.0f, getHeight() - 2 * srcPadding);
+    const float srcCenterWidth = std::max(0.0f, imgData.width - 2 * srcPadding);
+    const float srcCenterHeight = std::max(0.0f, imgData.height - 2 * srcPadding);
 
     const SDL_FRect srcTopLeft = {0, 0, srcPadding, srcPadding};
     const SDL_FRect srcTop = {srcPadding, 0, srcCenterWidth, srcPadding};
-    const SDL_FRect srcTopRight = {getWidth() - srcPadding, 0, srcPadding, srcPadding};
+    const SDL_FRect srcTopRight = {imgData.width - srcPadding, 0, srcPadding, srcPadding};
     const SDL_FRect srcLeft = {0, srcPadding, srcPadding, srcCenterHeight};
     const SDL_FRect srcCenter = {srcPadding, srcPadding, srcCenterWidth, srcCenterHeight};
-    const SDL_FRect srcRight = {getWidth() - srcPadding, srcPadding, srcPadding, srcCenterHeight};
-    const SDL_FRect srcBottomLeft = {0, getHeight() - srcPadding, srcPadding, srcPadding};
-    const SDL_FRect srcBottom = {srcPadding, getHeight() - srcPadding, srcCenterWidth, srcPadding};
-    const SDL_FRect srcBottomRight = {getWidth() - srcPadding, getHeight() - srcPadding, srcPadding, srcPadding};
+    const SDL_FRect srcRight = {imgData.width - srcPadding, srcPadding, srcPadding, srcCenterHeight};
+    const SDL_FRect srcBottomLeft = {0, imgData.height - srcPadding, srcPadding, srcPadding};
+    const SDL_FRect srcBottom = {srcPadding, imgData.height - srcPadding, srcCenterWidth, srcPadding};
+    const SDL_FRect srcBottomRight = {imgData.width - srcPadding, imgData.height - srcPadding, srcPadding, srcPadding};
 
     const float dstCenterWidth = std::max(0.0f, static_cast<float>(width) - 2 * srcPadding);
     const float dstCenterHeight = std::max(0.0f, static_cast<float>(height) - 2 * srcPadding);
@@ -154,11 +153,19 @@ void Image_SDL3::setInitialTexture() {
     }
 }
 
-Image_SDL3::Image_SDL3(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality) : Image(filePath, zip, bitmapHalfQuality) {
+void Image_SDL3::refreshTexture() {
+    if (texture) {
+        SDL_DestroyTexture(texture);
+        texture = nullptr;
+    }
     setInitialTexture();
 }
 
-Image_SDL3::Image_SDL3(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality) : Image(filePath, fromScratchProject, bitmapHalfQuality) {
+Image_SDL3::Image_SDL3(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
+    setInitialTexture();
+}
+
+Image_SDL3::Image_SDL3(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) : Image(filePath, fromScratchProject, bitmapHalfQuality, scale) {
     setInitialTexture();
 }
 

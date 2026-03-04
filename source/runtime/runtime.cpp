@@ -664,10 +664,13 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     std::shared_ptr<Image> image;
 
     try {
+        float scale = (sprite->size / 100);
+        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+
         if (projectType == ProjectType::UNZIPPED) {
-            image = createImageFromFile(costumeName, true, true);
+            image = createImageFromFile(costumeName, true, true, scale);
         } else {
-            image = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true);
+            image = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true, scale);
         }
     } catch (const std::runtime_error &e) {
         Log::logWarning("Failed to load image: " + costumeName + ": " + std::string(e.what()));

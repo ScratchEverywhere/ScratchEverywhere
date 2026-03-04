@@ -318,6 +318,7 @@ void WindowSDL2::resize(int width, int height) {
     glViewport(0, 0, width, height);
 #endif
     Render::setRenderScale();
+    Render::resizeSVGs();
 }
 
 int WindowSDL2::getWidth() const {

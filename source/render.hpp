@@ -1,4 +1,5 @@
 #pragma once
+#include "os.hpp"
 #include <chrono>
 #include <input.hpp>
 #include <math.hpp>
@@ -183,6 +184,34 @@ class Render {
                                static_cast<float>(screenHeight) / Scratch::projectHeight);
         if (renderMode == BOTH_SCREENS) renderScale = 1.0f;
         forceUpdateSpritePosition();
+    }
+
+    /**
+     * Resizes every SVG costume that is currently loaded.
+     */
+    static void resizeSVGs() {
+        for (auto &sprite : Scratch::sprites) {
+            resizeSVGs(sprite);
+        }
+    }
+
+    /**
+     * Resizes every SVG costume in a given that is currently loaded.
+     */
+    static void resizeSVGs(Sprite *sprite) {
+        for (auto &costume : sprite->costumes) {
+            auto imgFind = Scratch::costumeImages.find(costume.fullName);
+            if (imgFind == Scratch::costumeImages.end()) continue;
+
+            float scale = sprite->size / 100;
+            if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+
+            try {
+                imgFind->second->resizeSVG(scale);
+            } catch (const std::runtime_error e) {
+                Log::logWarning(std::string("Failed to resize SVG: ") + e.what());
+            }
+        }
     }
 
     /**
