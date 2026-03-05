@@ -10,6 +10,8 @@ else()
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(SE_OBJECTS_DIR "" CACHE PATH "Directory containing pre-built .o files.")
+
 option(SE_AUDIO "Enables audio in SE!" ON)
 
 set(SE_CACHING_DEFAULT ON)
@@ -229,6 +231,24 @@ if(SE_SYSTEM)
 	find_package(PkgConfig REQUIRED)
 endif()
 
+# Pre-Compiled Deps (for packager)
+macro(check_prebuilt_dep DEP_NAME LIB_NAME ALIAS_NAME)
+    if(NOT SE_OBJECTS_DIR STREQUAL "")
+        find_library(${DEP_NAME}_PREBUILT NAMES ${LIB_NAME} PATHS ${SE_OBJECTS_DIR} NO_DEFAULT_PATH)
+        
+        if(${DEP_NAME}_PREBUILT)
+            message(STATUS "Found pre-built ${LIB_NAME} at ${${DEP_NAME}_PREBUILT}")
+            add_library(${DEP_NAME} STATIC IMPORTED GLOBAL)
+            set_target_properties(${DEP_NAME} PROPERTIES IMPORTED_LOCATION "${${DEP_NAME}_PREBUILT}")
+			add_library(${ALIAS_NAME} ALIAS ${DEP_NAME})
+            set(USE_${DEP_NAME}_PREBUILT ON)
+        endif()
+    endif()
+endmacro()
+
+check_prebuilt_dep(plutovg plutovg plutovg::plutovg)
+check_prebuilt_dep(lunasvg lunasvg lunasvg::lunasvg)
+
 # They're single header so I just use CPM no matter what
 CPMAddPackage(
 	NAME nlohmann_json
@@ -240,18 +260,22 @@ CPMAddPackage(
 	GITHUB_REPOSITORY poipole807/ryuJS
 	VERSION 3.0
 )
-CPMAddPackage(
-  NAME plutovg
-  GITHUB_REPOSITORY sammycage/plutovg
-  VERSION 1.3.0 # Version expected by LunaSVG
-  OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
-)
-CPMAddPackage(
-  NAME lunasvg
-  GITHUB_REPOSITORY sammycage/lunasvg
-  VERSION 3.5.0
-  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
-)
+if(NOT USE_plutovg_PREBUILT)
+	CPMAddPackage(
+	  NAME plutovg
+	  GITHUB_REPOSITORY sammycage/plutovg
+	  VERSION 1.3.0 # Version expected by LunaSVG
+	  OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
+	)
+endif()
+if(NOT USE_lunasvg_PREBUILT)
+	CPMAddPackage(
+	  NAME lunasvg
+	  GITHUB_REPOSITORY sammycage/lunasvg
+	  VERSION 3.5.0
+	  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
+	)
+endif()
 CPMAddPackage(
   NAME stb
   GITHUB_REPOSITORY nothings/stb
@@ -549,15 +573,21 @@ if(SE_MENU)
 endif()
 
 set(SOURCE_FILES)
-foreach(DIR IN LISTS SOURCES)
-	file(GLOB DIR_SOURCES
-		${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
-	)
-	list(APPEND SOURCE_FILES ${DIR_SOURCES})
-endforeach()
+if(NOT SE_OBJECTS_DIR STREQUAL "")
+	file(GLOB SOURCE_FILES "${SE_OBJECTS_DIR}/*.o")
+	set_source_files_properties(${SOURCE_FILES} PROPERTIES EXTERNAL_OBJECT TRUE)
+else()
+	foreach(DIR IN LISTS SOURCES)
+		file(GLOB DIR_SOURCES
+			${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
+			${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
+			${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
+		)
+		list(APPEND SOURCE_FILES ${DIR_SOURCES})
+	endforeach()
+endif()
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
@@ -838,7 +868,7 @@ target_link_libraries(scratch-everywhere PRIVATE ryuJS)
 target_include_directories(ryuJS PUBLIC
   ${poipole807_ryuJS_SOURCE_DIR}
 )
-target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
+target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg plutovg::plutovg)
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
