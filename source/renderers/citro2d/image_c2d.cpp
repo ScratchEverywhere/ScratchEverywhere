@@ -274,11 +274,15 @@ void Image_C2D::refreshTexture() {
     setInitialTexture();
 }
 
-Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) : Image(filePath, fromScratchProject, bitmapHalfQuality, scale) {
+Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+    maxTextureSize = {1024, 1024};
+    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
     setInitialTexture();
 }
 
-Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
+Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+    maxTextureSize = {1024, 1024};
+    init(filePath, zip, bitmapHalfQuality, scale);
     setInitialTexture();
 }
 
