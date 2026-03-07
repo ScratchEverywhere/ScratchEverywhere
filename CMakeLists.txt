@@ -355,31 +355,39 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	endif()
 
 	if(NOT SE_SYSTEM OR WEBOS)
-		CPMAddPackage(
-			NAME SDL2_gfx
-			VERSION 1.0.4
-			GITHUB_REPOSITORY giroletm/SDL2_gfx
-			GIT_TAG release-1.0.4
-			DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
-		)
-		file(GLOB SDL2_GFX_SOURCES
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
-		)
-		add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
-		target_include_directories(SDL2_gfx PUBLIC
-			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
-		)
 		if(WEBOS)
-			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
-			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
+			check_prebuilt_dep(SDL2_gfx SDL2_gfx SDL2_gfx::SDL2_gfx REQUIRED_LIBS ${SDL2_LIBRARIES})
 		else()
-			target_link_libraries(SDL2_gfx PUBLIC
-				SDL2::SDL2
+			check_prebuilt_dep(SDL2_gfx SDL2_gfx SDL2_gfx::SDL2_gfx REQUIRED_LIBS SDL2::SDL2)
+		endif()
+
+		if (NOT USE_SDL2_gfx_PREBUILT)
+			CPMAddPackage(
+				NAME SDL2_gfx
+				VERSION 1.0.4
+				GITHUB_REPOSITORY giroletm/SDL2_gfx
+				GIT_TAG release-1.0.4
+				DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
 			)
+			file(GLOB SDL2_GFX_SOURCES
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
+			)
+			add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
+			target_include_directories(SDL2_gfx PUBLIC
+				$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
+			)
+			if(WEBOS)
+				target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
+				target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
+			else()
+				target_link_libraries(SDL2_gfx PUBLIC
+					SDL2::SDL2
+				)
+			endif()
 		endif()
 	endif()
 elseif(SE_RENDERER STREQUAL "sdl3")
@@ -493,17 +501,25 @@ if(SE_AUDIO)
 				)
 			endif()
 
-			CPMAddPackage(
-				NAME SDL2_mixer
-				VERSION 2.8.1
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG release-2.8.1
-				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
-			)
-
 			if(WEBOS)
-				target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
-				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
+				check_prebuilt_dep(SDL2_mixer SDL2_mixer SDL2_mixer::SDL2_mixer REQUIRED_LIBS ${SDL2_LIBRARIES})
+			else()
+				check_prebuilt_dep(SDL2_mixer SDL2_mixer SDL2_mixer::SDL2_mixer REQUIRED_LIBS SDL2::SDL2)
+			endif()
+
+			if(NOT USE_SDL2_mixer_PREBUILT)
+				CPMAddPackage(
+					NAME SDL2_mixer
+					VERSION 2.8.1
+					GITHUB_REPOSITORY libsdl-org/SDL_mixer
+					GIT_TAG release-2.8.1
+					OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+				)
+
+				if(WEBOS)
+					target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
+					target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
+				endif()
 			endif()
 		else()
 			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
@@ -535,48 +551,57 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
 	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
 	if(NOT HAIKU)
-		set(CURL_OPTIONS
-			"BUILD_CURL_EXE OFF"
-			"BUILD_TESTING OFF"
-			"BUILD_EXAMPLES OFF"
-			"ENABLE_MANUAL OFF"
-			"CURL_DISABLE_INSTALL ON"
-			"ENABLE_ARES OFF"
-			"USE_LIBIDN2 OFF"
-			"ENABLE_WEBSOCKETS ON"
-			"CURL_DISABLE_WEBSOCKETS OFF"
-			"CURL_DISABLE_LDAP ON"
-			"CURL_USE_LIBSSH2 OFF"
-		)
-		if(WEBOS)
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
-		elseif(APPLE)
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
-		else()
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
-		endif()
-		if(WIN32 OR WEBOS)
-			list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
-		endif()
+		find_package(ZLIB REQUIRED)
+		check_prebuilt_dep(curl curl curl::curl REQUIRED_LIBS ${ZLIB_LIBRARIES})
 
-		CPMAddPackage(
-			NAME curl
-			GIT_REPOSITORY "https://github.com/curl/curl.git"
-			GIT_TAG "curl-8_17_0"
-			VERSION 8.17.0
-			OPTIONS ${CURL_OPTIONS}
-		)
+		if(NOT USE_curl_PREBUILT)
+			set(CURL_OPTIONS
+				"BUILD_CURL_EXE OFF"
+				"BUILD_TESTING OFF"
+				"BUILD_EXAMPLES OFF"
+				"ENABLE_MANUAL OFF"
+				"CURL_DISABLE_INSTALL ON"
+				"ENABLE_ARES OFF"
+				"USE_LIBIDN2 OFF"
+				"ENABLE_WEBSOCKETS ON"
+				"CURL_DISABLE_WEBSOCKETS OFF"
+				"CURL_DISABLE_LDAP ON"
+				"CURL_USE_LIBSSH2 OFF"
+			)
+			if(WEBOS)
+				list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+				list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+				list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+			elseif(APPLE)
+				list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+				list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+				list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+			else()
+				list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+				list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+				list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
+			endif()
+			if(WIN32 OR WEBOS)
+				list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
+			endif()
+
+			CPMAddPackage(
+				NAME curl
+				GIT_REPOSITORY "https://github.com/curl/curl.git"
+				GIT_TAG "curl-8_17_0"
+				VERSION 8.17.0
+				OPTIONS ${CURL_OPTIONS}
+			)
+		endif()
 	else()
 		find_package(CURL REQUIRED)
 	endif()
 	if(SE_CLOUDVARS)
-		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.4")
+		check_prebuilt_dep(mistpp mist++ mist++ REQUIRED_LIBS curl)
+
+		if(NOT USE_mistpp_PREBUILT)
+			CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.4")
+		endif()
 	endif()
 endif()
 
@@ -829,6 +854,9 @@ if(SE_DOWNLOAD)
 	if(NOT SE_CLOUDVARS)
 		target_link_libraries(scratch-everywhere PRIVATE curl)
 	endif()
+
+	find_package(Threads REQUIRED)
+	target_link_libraries(scratch-everywhere PRIVATE Threads::Threads)
 endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CLOUDVARS)
