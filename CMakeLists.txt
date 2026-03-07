@@ -234,7 +234,7 @@ endif()
 # Pre-Compiled Deps (for packager)
 macro(check_prebuilt_dep DEP_NAME LIB_NAME ALIAS_NAME)
     if(NOT SE_OBJECTS_DIR STREQUAL "")
-        find_library(${DEP_NAME}_PREBUILT NAMES ${LIB_NAME} PATHS ${SE_OBJECTS_DIR} NO_DEFAULT_PATH)
+        find_library(${DEP_NAME}_PREBUILT NAMES ${LIB_NAME} PATHS ${SE_OBJECTS_DIR} NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
         
         if(${DEP_NAME}_PREBUILT)
             message(STATUS "Found pre-built ${LIB_NAME} at ${${DEP_NAME}_PREBUILT}")
