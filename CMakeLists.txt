@@ -10,11 +10,11 @@ else()
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(SE_APP_NAME "Scratch Everywhere!" CACHE "Name of the outputed app.")
-set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE "Description of the outputed app.")
-set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE "Author of the outputed app.")
-set(SE_APP_VERSION "${CMAKE_PROJECT_VERSION}" CACHE "Version of the outputed app.")
-set(SE_APP_TITLEID "NTXS00053" CACHE "Title ID of the outputed app.")
+set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
+set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
+set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
+set(SE_APP_VERSION "${CMAKE_PROJECT_VERSION}" CACHE STRING "Version of the outputed app.")
+set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
 
 set(SE_OBJECTS_DIR "" CACHE PATH "Directory containing pre-built .o files.")
 
