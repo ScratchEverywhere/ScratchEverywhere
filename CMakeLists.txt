@@ -233,6 +233,8 @@ endif()
 
 # Pre-Compiled Deps (for packager)
 macro(check_prebuilt_dep DEP_NAME LIB_NAME ALIAS_NAME)
+	cmake_parse_arguments(ARG "" "" "REQUIRED_LIBS" ${ARGN})
+
     if(NOT SE_OBJECTS_DIR STREQUAL "")
         find_library(${DEP_NAME}_PREBUILT NAMES ${LIB_NAME} PATHS ${SE_OBJECTS_DIR} NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
         
@@ -240,21 +242,33 @@ macro(check_prebuilt_dep DEP_NAME LIB_NAME ALIAS_NAME)
             message(STATUS "Found pre-built ${LIB_NAME} at ${${DEP_NAME}_PREBUILT}")
             add_library(${DEP_NAME} STATIC IMPORTED GLOBAL)
             set_target_properties(${DEP_NAME} PROPERTIES IMPORTED_LOCATION "${${DEP_NAME}_PREBUILT}")
+
+			if(ARG_REQUIRED_LIBS)
+				target_link_libraries(${DEP_NAME} INTERFACE "${ARG_REQUIRED_LIBS}")
+			endif()
+
 			add_library(${ALIAS_NAME} ALIAS ${DEP_NAME})
             set(USE_${DEP_NAME}_PREBUILT ON)
         endif()
     endif()
 endmacro()
 
-check_prebuilt_dep(plutovg plutovg plutovg::plutovg)
-check_prebuilt_dep(lunasvg lunasvg lunasvg::lunasvg)
+check_prebuilt_dep(plutovg plutovg plutovg::plutovg REQUIRED_LIBS m)
+check_prebuilt_dep(lunasvg lunasvg lunasvg::lunasvg REQUIRED_LIBS plutovg::plutovg)
 
 # They're single header so I just use CPM no matter what
-CPMAddPackage(
-	NAME nlohmann_json
-	GITHUB_REPOSITORY nlohmann/json
-	VERSION 3.12.0
-)
+if(SE_OBJECTS_DIR STREQUAL "")
+	CPMAddPackage(
+		NAME nlohmann_json
+		GITHUB_REPOSITORY nlohmann/json
+		VERSION 3.12.0
+	)
+	CPMAddPackage(
+		NAME stb
+		GITHUB_REPOSITORY nothings/stb
+		GIT_TAG master # TODO: Pin commit
+	)
+endif()
 CPMAddPackage(
 	NAME poipole807_ryuJS
 	GITHUB_REPOSITORY poipole807/ryuJS
@@ -276,19 +290,16 @@ if(NOT USE_lunasvg_PREBUILT)
 	  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
 	)
 endif()
-CPMAddPackage(
-  NAME stb
-  GITHUB_REPOSITORY nothings/stb
-  GIT_TAG master
-)
 
 # PlutoVG Fixes
-if(VITA OR WEBOS OR PSP)
-	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
-endif()
+if(NOT USE_plutovg_PREBUILT)
+	if(VITA OR WEBOS OR PSP)
+		target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
+	endif()
 
-if(PSP)
-	target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
+	if(PSP)
+		target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
+	endif()
 endif()
 
 include(FetchContent)
@@ -859,7 +870,11 @@ if(SE_AUDIO)
 	endif()
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+if(SE_OBJECTS_DIR STREQUAL "")
+	target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+	target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
+endif()
+
 add_library(ryuJS STATIC
   ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
   ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
@@ -868,8 +883,7 @@ target_link_libraries(scratch-everywhere PRIVATE ryuJS)
 target_include_directories(ryuJS PUBLIC
   ${poipole807_ryuJS_SOURCE_DIR}
 )
-target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg plutovg::plutovg)
-target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
+target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
 if(PSP)
