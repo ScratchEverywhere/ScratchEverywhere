@@ -574,7 +574,7 @@ endif()
 
 set(SOURCE_FILES)
 if(NOT SE_OBJECTS_DIR STREQUAL "")
-	file(GLOB SOURCE_FILES "${SE_OBJECTS_DIR}/*.o")
+	file(GLOB SOURCE_FILES "${SE_OBJECTS_DIR}/*.o" "${SE_OBJECTS_DIR}/*.obj")
 	set_source_files_properties(${SOURCE_FILES} PROPERTIES EXTERNAL_OBJECT TRUE)
 else()
 	foreach(DIR IN LISTS SOURCES)
