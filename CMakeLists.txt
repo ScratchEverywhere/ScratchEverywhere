@@ -239,7 +239,7 @@ macro(check_prebuilt_dep DEP_NAME LIB_NAME ALIAS_NAME)
         find_library(${DEP_NAME}_PREBUILT NAMES ${LIB_NAME} PATHS ${SE_OBJECTS_DIR} NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
         
         if(${DEP_NAME}_PREBUILT)
-            message(STATUS "Found pre-built ${LIB_NAME} at ${${DEP_NAME}_PREBUILT}")
+            message(STATUS "Using pre-built ${LIB_NAME}: ${${DEP_NAME}_PREBUILT}")
             add_library(${DEP_NAME} STATIC IMPORTED GLOBAL)
             set_target_properties(${DEP_NAME} PROPERTIES IMPORTED_LOCATION "${${DEP_NAME}_PREBUILT}")
 
@@ -255,6 +255,7 @@ endmacro()
 
 check_prebuilt_dep(plutovg plutovg plutovg::plutovg REQUIRED_LIBS m)
 check_prebuilt_dep(lunasvg lunasvg lunasvg::lunasvg REQUIRED_LIBS plutovg::plutovg)
+check_prebuilt_dep(ryuJS ryuJS ryuJS::ryuJS)
 
 # They're single header so I just use CPM no matter what
 if(SE_OBJECTS_DIR STREQUAL "")
@@ -269,11 +270,21 @@ if(SE_OBJECTS_DIR STREQUAL "")
 		GIT_TAG master # TODO: Pin commit
 	)
 endif()
-CPMAddPackage(
-	NAME poipole807_ryuJS
-	GITHUB_REPOSITORY poipole807/ryuJS
-	VERSION 3.0
-)
+if(NOT USE_ryuJS_PREBUILT)
+	CPMAddPackage(
+		NAME poipole807_ryuJS
+		GITHUB_REPOSITORY poipole807/ryuJS
+		VERSION 3.0
+	)
+
+	add_library(ryuJS STATIC
+	  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
+	  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
+	)
+	target_include_directories(ryuJS PUBLIC
+	  ${poipole807_ryuJS_SOURCE_DIR}
+	)
+endif()
 if(NOT USE_plutovg_PREBUILT)
 	CPMAddPackage(
 	  NAME plutovg
@@ -301,14 +312,6 @@ if(NOT USE_plutovg_PREBUILT)
 		target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
 	endif()
 endif()
-
-include(FetchContent)
-FetchContent_Declare(
-    miniz
-    URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
-	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(miniz)
 
 if(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
@@ -597,13 +600,33 @@ else()
 		list(APPEND SOURCE_FILES ${DIR_SOURCES})
 	endforeach()
 endif()
-list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+
+set(MINIZ_PREBUILT_FOUND FALSE)
+if(NOT SE_OBJECTS_DIR STREQUAL "")
+	file(GLOB MINIZ_OBJECT "${SE_OBJECTS_DIR}/miniz.o" "${SE_OBJECTS_DIR}/miniz.obj" "${SE_OBJECTS_DIR}/miniz.c.o" "${SE_OBJECTS_DIR}/miniz.c.obj")
+	if(MINIZ_OBJECT)
+		message(STATUS "Using pre-built miniz: ${MINIZ_OBJECT}")
+		list(APPEND SOURCE_FILES "${MINIZ_OBJECT}")
+		set(MINIZ_PREBUILT_FOUND TRUE)
+	endif()
+endif()
+if (NOT MINIZ_PREBUILT_FOUND)
+	include(FetchContent)
+	FetchContent_Declare(
+		miniz
+		URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
+		DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+	)
+	FetchContent_MakeAvailable(miniz)
+	list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+endif()
 
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
 
 add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+set_target_properties(scratch-everywhere PROPERTIES LINKER_LANGUAGE CXX)
 if(PSP)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-psp)
 elseif(NINTENDO_SWITCH)
@@ -875,16 +898,12 @@ if(SE_OBJECTS_DIR STREQUAL "")
 	target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
 endif()
 
-add_library(ryuJS STATIC
-  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
-  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
-)
-target_link_libraries(scratch-everywhere PRIVATE ryuJS)
-target_include_directories(ryuJS PUBLIC
-  ${poipole807_ryuJS_SOURCE_DIR}
-)
-target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
-target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg ryuJS)
+target_include_directories(scratch-everywhere PRIVATE ${SOURCES})
+
+if(NOT MINIZ_PREBUILT_FOUND)
+	target_include_directories(scratch-everywhere PRIVATE ${miniz_SOURCE_DIR})
+endif()
 
 if(PSP)
     create_pbp_file(
