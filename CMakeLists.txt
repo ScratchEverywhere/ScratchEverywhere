@@ -10,6 +10,12 @@ else()
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(SE_APP_NAME "Scratch Everywhere!" CACHE "Name of the outputed app.")
+set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE "Description of the outputed app.")
+set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE "Author of the outputed app.")
+set(SE_APP_VERSION "${CMAKE_PROJECT_VERSION}" CACHE "Version of the outputed app.")
+set(SE_APP_TITLEID "NTXS00053" CACHE "Title ID of the outputed app.")
+
 set(SE_OBJECTS_DIR "" CACHE PATH "Directory containing pre-built .o files.")
 
 option(SE_AUDIO "Enables audio in SE!" ON)
@@ -554,7 +560,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 		find_package(ZLIB REQUIRED)
 		check_prebuilt_dep(curl curl curl::curl REQUIRED_LIBS ${ZLIB_LIBRARIES})
 
-		if(NOT USE_curl_PREBUILT)
+		if(NOT USE_curl_PREBUIL)
 			set(CURL_OPTIONS
 				"BUILD_CURL_EXE OFF"
 				"BUILD_TESTING OFF"
@@ -941,8 +947,8 @@ if(PSP)
         ICON_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/ICON0.png
         BACKGROUND_PATH NULL
         PREVIEW_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
-        TITLE scratch-everywhere
-        VERSION ${CMAKE_PROJECT_VERSION}
+		TITLE "${SE_APP_NAME}"
+		VERSION "${SE_APP_VERSION}"
     )
 	# package the EBOOT.pbp
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
@@ -951,7 +957,7 @@ if(PSP)
 		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/scratch-psp.zip" --format=zip -- "${CMAKE_BINARY_DIR}/scratch-psp-bundle"
 	)
 elseif(NINTENDO_SWITCH)
-	nx_generate_nacp(OUTPUT scratch-nx.nacp NAME "Scratch Everywhere!" AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
+	nx_generate_nacp(OUTPUT scratch-nx.nacp NAME "${SE_APP_NAME}" AUTHOR "${SE_APP_AUTHOR}" VERSION "${SE_APP_VERSION}")
 	nx_create_nro(scratch-everywhere OUTPUT scratch-nx.nro ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/switch-icon.jpg" NACP scratch-nx.nacp)
 elseif(VITA)
 	include("${VITASDK}/share/vita.cmake" REQUIRED)
@@ -970,9 +976,9 @@ elseif(VITA)
 	endforeach()
 
 	vita_create_self(scratch-vita.self scratch-everywhere)
-	vita_create_vpk(scratch-vita.vpk "NTXS00053" scratch-vita.self
+	vita_create_vpk(scratch-vita.vpk "${SE_APP_TITLEID}" scratch-vita.self
 		VERSION "01.00"
-		NAME "Scratch Everywhere!"
+		NAME "${SE_APP_NAME}"
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
@@ -984,8 +990,11 @@ elseif(WEBOS)
 	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
 	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++" "-static-libgcc")
 	set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
+
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/webos/appinfo.json.in" "${CMAKE_CURRENT_BINARY_DIR}/appinfo.json" @ONLY)
+
 	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
-    install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
+	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
 
     if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
         install(FILES "${CMAKE_SOURCE_DIR}/romfs/project.sb3" DESTINATION .)
