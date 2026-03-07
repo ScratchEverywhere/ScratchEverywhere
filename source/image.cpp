@@ -35,7 +35,7 @@ CMRC_DECLARE(romfs);
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
 
-constexpr unsigned int maxScale = 5; // TODO: Make project setting
+constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to remove scaling limit.
 
 bool loadFont(const std::string &family, const std::string &path) {
 #ifdef USE_CMAKERC
@@ -168,17 +168,28 @@ std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, 
 }
 
 unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
-    if (scale > maxScale) scale = maxScale;
+    if constexpr (maxScale != 0)
+        if (scale > maxScale) scale = maxScale;
 
     svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
     if (!svgDocument) throw std::runtime_error("LunaSVG failed to parse SVG");
 
-    width = svgDocument->width() * scale - 1;
-    height = svgDocument->height() * scale - 1;
-    imgData.scale = scale;
+    const float targetWidth = svgDocument->width() * scale;
+    const float targetHeight = svgDocument->height() * scale;
 
-    if (width <= 0) width = 32;
-    if (height <= 0) height = 32;
+    const auto [maxWidth, maxHeight] = maxTextureSize;
+    float finalScale = scale;
+    if (maxWidth > 0 && maxHeight > 0) {
+        if (targetWidth > maxWidth || targetHeight > maxHeight) {
+            const float ratioWidth = (float)maxWidth / targetWidth;
+            const float ratioHeight = (float)maxHeight / targetHeight;
+            finalScale *= std::min(ratioWidth, ratioHeight);
+        }
+    }
+
+    width = std::max(32, (int)(svgDocument->width() * finalScale) - 1);
+    height = std::max(32, (int)(svgDocument->height() * finalScale) - 1);
+    imgData.scale = finalScale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) throw std::runtime_error("LunaSVG failed to render SVG to bitmap");
@@ -208,21 +219,34 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
 }
 
 void Image::resizeSVG(float scale) {
-    if (scale > maxScale) scale = maxScale;
+    if constexpr (maxScale == 1) return;
+
+    if constexpr (maxScale != 0)
+        if (scale > maxScale) scale = maxScale;
 
     if (!svgDocument || scale <= imgData.scale) return;
 
     // TODO: De-duplicate code.
 
-    int width = svgDocument->width() * scale - 1;
-    int height = svgDocument->height() * scale - 1;
-    imgData.scale = scale;
+    const float targetWidth = svgDocument->width() * scale;
+    const float targetHeight = svgDocument->height() * scale;
 
-    if (width <= 0) width = 32;
-    if (height <= 0) height = 32;
+    const auto [maxWidth, maxHeight] = maxTextureSize;
+    float finalScale = scale;
+    if (maxWidth > 0 && maxHeight > 0) {
+        if (targetWidth > maxWidth || targetHeight > maxHeight) {
+            const float ratioWidth = (float)maxWidth / targetWidth;
+            const float ratioHeight = (float)maxHeight / targetHeight;
+            finalScale *= std::min(ratioWidth, ratioHeight);
+        }
+    }
+
+    const int width = std::max(32, (int)(svgDocument->width() * finalScale) - 1);
+    const int height = std::max(32, (int)(svgDocument->height() * finalScale) - 1);
 
     imgData.width = width;
     imgData.height = height;
+    imgData.scale = finalScale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) throw std::runtime_error("LunaSVG failed to render SVG to bitmap");
@@ -309,6 +333,14 @@ unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t siz
 }
 
 Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+}
+
+Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+    init(filePath, zip, bitmapHalfQuality, scale);
+}
+
+void Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     if (fromScratchProject) {
         if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
         else filePath = OS::getRomFSLocation() + "project/" + filePath;
@@ -327,7 +359,7 @@ Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuali
     if (!imgData.pixels) throw std::runtime_error("Failed to load image: " + filePath);
 }
 
-Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+void Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     void *file_data = nullptr;
     size_t file_size;
     if (zip != nullptr) {

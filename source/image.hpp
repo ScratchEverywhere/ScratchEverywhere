@@ -36,7 +36,7 @@ struct ImageData {
     int width, height;
     ImageFormat format;
     int pitch;
-    void *pixels;
+    void *pixels = nullptr;
     float scale = 1;
 };
 
@@ -54,14 +54,19 @@ class Image {
 
     virtual void refreshTexture() = 0;
 
+    std::pair<unsigned int, unsigned int> maxTextureSize = {0, 0};
+
   public:
     const unsigned int maxFreeTimer = 540;
     unsigned int freeTimer = maxFreeTimer;
 
     static bool Init();
 
+    Image() {}
     Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
     Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    void init(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
+    void init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
     virtual ~Image();
 
     virtual ImageData getPixels(ImageSubrect rect);

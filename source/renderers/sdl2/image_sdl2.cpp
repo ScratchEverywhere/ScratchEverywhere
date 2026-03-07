@@ -185,11 +185,23 @@ void Image_SDL2::refreshTexture() {
     setInitialTexture();
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
+Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+    SDL_RendererInfo info;
+    if (SDL_GetRendererInfo(renderer, &info) == 0) {
+        maxTextureSize = {info.max_texture_width, info.max_texture_height};
+    }
+
+    init(filePath, zip, bitmapHalfQuality, scale);
     setInitialTexture();
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) : Image(filePath, fromScratchProject, bitmapHalfQuality, scale) {
+Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+    SDL_RendererInfo info;
+    if (SDL_GetRendererInfo(renderer, &info) == 0) {
+        maxTextureSize = {info.max_texture_width, info.max_texture_height};
+    }
+
+    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
     setInitialTexture();
 }
 

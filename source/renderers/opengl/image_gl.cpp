@@ -1,5 +1,6 @@
 #include "image_gl.hpp"
 #include "render.hpp"
+#include <GL/gl.h>
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -164,11 +165,21 @@ void Image_GL::refreshTexture() {
     setInitialTexture();
 }
 
-Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) : Image(filePath, fromScratchProject, bitmapHalfQuality, scale) {
+Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+    GLint glMaxTextureSize;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
+    maxTextureSize = {glMaxTextureSize, glMaxTextureSize};
+
+    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
     setInitialTexture();
 }
 
-Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
+Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+    GLint glMaxTextureSize;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
+    maxTextureSize = {glMaxTextureSize, glMaxTextureSize};
+
+    init(filePath, zip, bitmapHalfQuality, scale);
     setInitialTexture();
 }
 
