@@ -233,9 +233,7 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if(SE_SYSTEM)
-	find_package(PkgConfig REQUIRED)
-endif()
+find_package(PkgConfig REQUIRED)
 
 # Pre-Compiled Deps (for packager)
 macro(check_prebuilt_dep DEP_NAME LIB_NAME ALIAS_NAME)
@@ -336,28 +334,37 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
 		endif()
 	else()
-		if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
-			message(STATUS "Test!")
-			set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF") # TODO: Fix compiler-rt issues
-		elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)
-			set(SDL2_OPTIONS "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
-		else()
-			set(SDL2_OPTIONS "")
+		check_prebuilt_dep(SDL2 SDL2 SDL2::SDL2)
+		if(NOT USE_SDL2_PREBUILT)
+			if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
+				set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF") # TODO: Fix compiler-rt issues
+			elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)
+				set(SDL2_OPTIONS "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
+			else()
+				set(SDL2_OPTIONS "")
+			endif()
+			CPMAddPackage(
+				NAME SDL2
+				VERSION 2.32.10
+				GITHUB_REPOSITORY libsdl-org/SDL
+				GIT_TAG release-2.32.10
+				OPTIONS ${SDL2_OPTIONS}
+			)
 		endif()
-		CPMAddPackage(
-			NAME SDL2
-			VERSION 2.32.10
-			GITHUB_REPOSITORY libsdl-org/SDL
-			GIT_TAG release-2.32.10
-			OPTIONS ${SDL2_OPTIONS}
-		)
-		CPMAddPackage(
-			NAME SDL2_ttf
-			VERSION 2.24.0
-			GITHUB_REPOSITORY libsdl-org/SDL_ttf
-			GIT_TAG release-2.24.0
-			OPTIONS "SDL2TTF_VENDORED ON"
-		)
+
+		check_prebuilt_dep(freetype freetype Freetype::Freetype)
+		if(USE_freetype_PREBUILT)
+			check_prebuilt_dep(SDL2_ttf SDL2_ttf SDL2_ttf::SDL2_ttf REQUIRED_LIBS Freetype::Freetype)
+		endif()
+		if(NOT USE_SDL2_ttf_PREBUILT)
+			CPMAddPackage(
+				NAME SDL2_ttf
+				VERSION 2.24.0
+				GITHUB_REPOSITORY libsdl-org/SDL_ttf
+				GIT_TAG release-2.24.0
+				OPTIONS "SDL2TTF_VENDORED ON"
+			)
+		endif()
 	endif()
 
 	if(NOT SE_SYSTEM OR WEBOS)
@@ -558,34 +565,38 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
 	if(NOT HAIKU)
 		find_package(ZLIB REQUIRED)
-		check_prebuilt_dep(curl curl curl::curl REQUIRED_LIBS ${ZLIB_LIBRARIES})
+		if(WEBOS)
+			check_prebuilt_dep(curl curl curl::curl REQUIRED_LIBS ${ZLIB_LIBRARIES})
+		else()
+			check_prebuilt_dep(curl curl curl::curl REQUIRED_LIBS ${ZLIB_LIBRARIES} mbedtls mbedx509 mbedcrypto)
+		endif()
 
-		if(NOT USE_curl_PREBUIL)
+		if(NOT USE_curl_PREBUILT)
 			set(CURL_OPTIONS
 				"BUILD_CURL_EXE OFF"
 				"BUILD_TESTING OFF"
 				"BUILD_EXAMPLES OFF"
-				"ENABLE_MANUAL OFF"
+				"ENABLE_CURL_MANUAL OFF"
 				"CURL_DISABLE_INSTALL ON"
 				"ENABLE_ARES OFF"
 				"USE_LIBIDN2 OFF"
-				"ENABLE_WEBSOCKETS ON"
 				"CURL_DISABLE_WEBSOCKETS OFF"
 				"CURL_DISABLE_LDAP ON"
+				"USE_NGHTTP2 OFF"
+				"CURL_BROTLI OFF"
+				"CURL_ZSTD OFF"
 				"CURL_USE_LIBSSH2 OFF"
+				"CURL_USE_LIBPSL OFF"
 			)
 			if(WEBOS)
 				list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
 				list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
-				list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
 			elseif(APPLE)
 				list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
 				list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-				list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
 			else()
 				list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
 				list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-				list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
 			endif()
 			if(WIN32 OR WEBOS)
 				list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
