@@ -126,10 +126,10 @@ std::string getScratchFolderLocation();
 /**
  * Gets the location of the `RomFS`, the embedded filesystem within the executable.
  * This function should be used whenever you need to load an asset from say, the `gfx` folder.
- * @return The location of the RomFS. On OGC, Switch, Wii U, and 3DS, this is `romfs:/`. everywhere else will be an empty string.
+ * @return The location of the RomFS. On Switch, Wii U, and 3DS, this is `romfs:/`. everywhere else will be an empty string.
  */
 inline std::string getRomFSLocation() {
-#if defined(__WIIU__) || defined(__OGC__) || defined(__SWITCH__) || defined(__3DS__)
+#if defined(__WIIU__) || defined(__SWITCH__) || defined(__3DS__)
     return "romfs:/";
 #elif defined(__EMSCRIPTEN__)
     return "/romfs/";

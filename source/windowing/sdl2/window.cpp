@@ -33,7 +33,6 @@ extern char nickname[0x21];
 #ifdef __OGC__
 #include <fat.h>
 #include <ogc/system.h>
-#include <romfs-ogc.h>
 #endif
 
 #ifdef __PS4__
@@ -127,13 +126,6 @@ postAccount:
 #else
     SYS_STDIO_Report(true);
 #endif
-
-    fatInitDefault();
-    if (romfsInit()) {
-        Log::logError("Failed to init romfs.");
-        return false;
-    }
-
 #elif defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 
@@ -240,7 +232,7 @@ void WindowSDL2::cleanup() {
 #endif
     SDL_DestroyWindow(window);
 
-#if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)
+#if defined(__WIIU__) || defined(__SWITCH__)
     romfsExit();
 #endif
 #ifdef __WIIU__

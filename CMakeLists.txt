@@ -22,12 +22,12 @@ option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput st
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII)
 	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
 endif()
 
@@ -49,7 +49,7 @@ if(NINTENDO_DS)
 else()
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
 endif()
 
@@ -103,7 +103,7 @@ if(NINTENDO_DS)
 elseif(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
 	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
 	if(SE_RENDERER STREQUAL "opengl")
 		list(APPEND SE_WINDOWING_VALID_OPTIONS "glfw")
 	endif()
@@ -165,7 +165,7 @@ if(NINTENDO_DS)
 else()
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
@@ -202,7 +202,7 @@ if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
     )
 endif()
 
-if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS OR NINTENDO_DS)
+if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS OR NINTENDO_DS OR NINTENDO_GAMECUBE OR NINTENDO_WII)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -287,7 +287,7 @@ CPMAddPackage(
 )
 
 # PlutoVG Fixes
-if(VITA OR WEBOS OR PSP OR NINTENDO_DS)
+if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII)
 	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
 endif()
 
@@ -610,6 +610,12 @@ elseif(NINTENDO_DS)
 	target_compile_definitions(scratch-everywhere PRIVATE __NDS__ ARM9)
 elseif(EMSCRIPTEN)
 	target_compile_definitions(scratch-everywhere PRIVATE __EMSCRIPTEN__)
+elseif(NINTENDO_WII)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-wii)
+	target_compile_definitions(scratch-everywhere PRIVATE __OGC__ WII)
+elseif(NINTENDO_GAMECUBE)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-gamecube)
+	target_compile_definitions(scratch-everywhere PRIVATE __OGC__ GAMECUBE)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# set_target_properties(scratch-everywhere PROPERTIES
 	# 	MACOSX_BUNDLE True
@@ -640,7 +646,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
@@ -775,7 +781,7 @@ if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND EMSCRIPTEN)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -817,13 +823,13 @@ if(SE_CLOUDVARS)
 endif()
 
 
-if(NOT PSP AND NOT WEBOS)
+if(NOT PSP AND NOT WEBOS AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
 endif()
 if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) ) # joystick doesn't work on MacOS with current Dockerfile
@@ -972,5 +978,24 @@ elseif(NINTENDO_DS)
 		AUTHOR "NateXS"
 		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/icon.bmp"
 		NITROFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs"
+	)
+elseif(NINTENDO_WII OR NINTENDO_GAMECUBE)
+	ogc_create_dol(scratch-everywhere)
+endif()
+if(NINTENDO_WII)
+	execute_process(
+		COMMAND date "+%Y%m%d%H%M%S"
+		OUTPUT_VARIABLE WII_RELEASE_DATE
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/wii/meta.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" @ONLY)
+
+	add_custom_command(TARGET scratch-everywhere POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/scratch-wii-bundle/apps/scratch-wii"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/scratch-wii.dol" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wii-bundle/apps/scratch-wii/boot.dol"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wii-bundle/apps/scratch-wii/meta.xml"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wii/icon.png" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wii-bundle/apps/scratch-wii/icon.png"
+		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wii.zip" --format=zip -- "${CMAKE_CURRENT_BINARY_DIR}/scratch-wii-bundle/apps"
+		COMMENT "Packaging..."
 	)
 endif()
