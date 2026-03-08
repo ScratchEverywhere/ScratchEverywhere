@@ -537,7 +537,7 @@ if(SE_AUDIO)
 					VERSION 3.2.26
 					GITHUB_REPOSITORY libsdl-org/SDL
 					GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
-					OPTIONS "SDL_TEST_LIBRARY OFF" "SDL_VIDEO OFF" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF" "SDL_AUDIO ON" # We should only need audio in this case.
+					OPTIONS "SDL_TEST_LIBRARY OFF" "SDL_VIDEO OFF" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF" "SDL_UNIX_CONSOLE_BUILD ON" "SDL_AUDIO ON" # We should only need audio in this case.
 				)
 			endif()
 			set(SDL3_MIXER_OPTIONS "SDLMIXER_TESTS OFF" "SDLMIXER_EXAMPLES OFF")
