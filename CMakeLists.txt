@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.36 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.37 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -781,7 +781,7 @@ if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
