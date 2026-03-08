@@ -10,6 +10,8 @@ else()
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(SE_OUTPUT_NAME "" CACHE STRING "File name of the outputed executable")
+
 option(SE_AUDIO "Enables audio in SE!" ON)
 
 set(SE_CACHING_DEFAULT ON)
@@ -20,13 +22,12 @@ option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput st
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
-# [NDS]    They should work with both the system and CPM libcurl, it's just untested at them moment so I'm removing the option for now.
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT NINTENDO_DS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
 	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
 endif()
 
@@ -48,7 +49,7 @@ if(NINTENDO_DS)
 else()
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
 endif()
 
@@ -102,7 +103,7 @@ if(NINTENDO_DS)
 elseif(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
 	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND EMSCRIPTEN)
 	if(SE_RENDERER STREQUAL "opengl")
 		list(APPEND SE_WINDOWING_VALID_OPTIONS "glfw")
 	endif()
@@ -164,7 +165,7 @@ if(NINTENDO_DS)
 else()
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND EMSCRIPTEN)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
@@ -219,7 +220,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
 	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
 endif()
 
@@ -607,6 +608,8 @@ elseif(WEBOS)
 elseif(NINTENDO_DS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-ds)
 	target_compile_definitions(scratch-everywhere PRIVATE __NDS__ ARM9)
+elseif(EMSCRIPTEN)
+	target_compile_definitions(scratch-everywhere PRIVATE __EMSCRIPTEN__)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# set_target_properties(scratch-everywhere PROPERTIES
 	# 	MACOSX_BUNDLE True
@@ -615,6 +618,10 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT 
 	# )
 	# add_custom_command(TARGET scratch-everywhere POST_BUILD
 	# 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/gfx/macOS/Icon.icns "$<TARGET_BUNDLE_DIR:scratch-everywhere>/Contents/Resources/Icon.icns")
+endif()
+
+if(NOT SE_OUTPUT_NAME STREQUAL "")
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
 endif()
 
 if(SE_CMAKERC)
@@ -633,7 +640,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS)
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
@@ -768,7 +775,7 @@ if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND EMSCRIPTEN)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -883,6 +890,12 @@ target_include_directories(ryuJS PUBLIC
 target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+
+if(EMSCRIPTEN)
+	target_include_directories(scratch-everywhere PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/wasm)
+	set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
+	target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
+endif()
 
 if(PSP)
     create_pbp_file(

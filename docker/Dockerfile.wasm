@@ -4,8 +4,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=wasm release TARGET=index -j 2
+RUN mkdir build-wasm && cd build-wasm && emcmake cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_OUTPUT_NAME=index && emmake make -j 2
 
 FROM scratch AS exporter
 
-COPY --from=main_builder /app/build/wasm/release/index.* /scratch-wasm/
+COPY --from=main_builder /app/build-wasm/index.* /scratch-wasm/
