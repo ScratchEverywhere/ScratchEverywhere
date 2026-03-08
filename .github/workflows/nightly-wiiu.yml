@@ -3,7 +3,7 @@ name: Wii U Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_wiiu
+      - CMakeLists.txt
       - source/runtime/**
       - source/renderers/sdl2/**
       - source/*
