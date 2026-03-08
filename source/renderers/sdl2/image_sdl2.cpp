@@ -173,8 +173,8 @@ void Image_SDL2::setInitialTexture() {
     /** some platforms may need this to be freed due to RAM limits,
      *  but they then wont be able to support Image::getPixels()
      *  */
-    // free(imgData.pixels);
-    // pixels = nullptr;
+    free(imgData.pixels);
+    imgData.pixels = nullptr;
 }
 
 void Image_SDL2::refreshTexture() {
