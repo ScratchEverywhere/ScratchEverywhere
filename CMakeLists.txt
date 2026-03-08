@@ -12,10 +12,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(SE_OUTPUT_NAME "" CACHE STRING "File name of the outputed executable")
 
+if(NINTENDO_3DS)
+	option(SE_BUILD_CIA "Whether or not to build a .cia output." ON)
+	set(SE_BANNERTOOL bannertool CACHE PATH "Path to bannertool executable")
+	set(SE_MAKEROM makerom CACHE PATH "Path to makerom executable")
+	set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
+endif()
+
 option(SE_AUDIO "Enables audio in SE!" ON)
 
 set(SE_CACHING_DEFAULT ON)
-if(PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_GAMECUBE)
+if(PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_GAMECUBE OR NINTENDO_3DS)
     set(SE_CACHING_DEFAULT OFF)
 endif()
 option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
@@ -46,10 +53,12 @@ endif()
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NINTENDO_DS)
 	list(APPEND SE_RENDERER_VALID_OPTIONS "gl2d")
+elseif(NINTENDO_3DS)
+	list(APPEND SE_RENDERER_VALID_OPTIONS "citro2d")
 else()
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
 endif()
 
@@ -83,6 +92,12 @@ elseif("gl2d" IN_LIST SE_RENDERER_VALID_OPTIONS)
 		"gl2d"
 		CACHE STRING "Select the desired renderer backend."
 	)
+elseif("citro2d" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"citro2d"
+		CACHE STRING "Select the desired renderer backend."
+	)
 else()
 	set(
 		SE_RENDERER
@@ -100,10 +115,12 @@ endif()
 list(APPEND SE_WINDOWING_VALID_OPTIONS "headless")
 if(NINTENDO_DS)
 	list(APPEND SE_WINDOWING_VALID_OPTIONS "nds")
+elseif(NINTENDO_3DS)
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "3ds")
 elseif(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
 	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
 	if(SE_RENDERER STREQUAL "opengl")
 		list(APPEND SE_WINDOWING_VALID_OPTIONS "glfw")
 	endif()
@@ -145,6 +162,12 @@ elseif("nds" IN_LIST SE_WINDOWING_VALID_OPTIONS)
 		"nds"
 		CACHE STRING "Select the desired windowing backend."
 	)
+elseif("3ds" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"3ds"
+		CACHE STRING "Select the desired windowing backend."
+	)
 else()
 	set(
 		SE_WINDOWING
@@ -162,14 +185,16 @@ endif()
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
 if(NINTENDO_DS)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "nds")
+elseif(NINTENDO_3DS)
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3")
 else()
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
-if(SE_RENDERER STREQUAL "sdl3" OR SE_WINDOWING STREQUAL "sdl3")
+if(SE_RENDERER STREQUAL "sdl3" OR SE_WINDOWING STREQUAL "sdl3" OR SE_RENDERER STREQUAL "citro2d" OR SE_WINDOWING STREQUAL "3ds")
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
 elseif(SE_RENDERER STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "glfw")
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
@@ -220,7 +245,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN)
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_3DS)
 	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
 endif()
 
@@ -287,11 +312,11 @@ CPMAddPackage(
 )
 
 # PlutoVG Fixes
-if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU)
+if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_3DS)
 	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
 endif()
 
-if(PSP OR NINTENDO_DS)
+if(PSP OR NINTENDO_DS OR NINTENDO_3DS)
 	target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
 endif()
 
@@ -512,14 +537,19 @@ if(SE_AUDIO)
 					VERSION 3.2.26
 					GITHUB_REPOSITORY libsdl-org/SDL
 					GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
-					OPTIONS "SDL_TEST_LIBRARY OFF"
+					OPTIONS "SDL_TEST_LIBRARY OFF" "SDL_VIDEO OFF" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF" "SDL_AUDIO ON" # We should only need audio in this case.
 				)
+			endif()
+			set(SDL3_MIXER_OPTIONS "SDLMIXER_TESTS OFF" "SDLMIXER_EXAMPLES OFF")
+			if(NINTENDO_3DS)
+				list(APPEND SDL3_MIXER_OPTIONS "SDLMIXER_MP3_MPG123_SHARED OFF" "SDLMIXER_MP3_DRMP3 OFF" "SDLMIXER_MP3_MPG123 ON" "CMAKE_DISABLE_FIND_PACKAGE_Opus ON" "CMAKE_DISABLE_FIND_PACKAGE_OpusFile ON" "CMAKE_DISABLE_FIND_PACKAGE_Ogg ON" "CMAKE_DISABLE_FIND_PACKAGE_Vorbis ON" "CMAKE_DISABLE_FIND_PACKAGE_FLAC ON" "CMAKE_DISABLE_FIND_PACKAGE_gme ON" "CMAKE_DISABLE_FIND_PACKAGE_libxmp ON" "SDLMIXER_MIDI OFF")
 			endif()
 			CPMAddPackage(
 				NAME SDL3_mixer
 				VERSION 3
 				GITHUB_REPOSITORY libsdl-org/SDL_mixer
 				GIT_TAG main # TODO: pin version
+				OPTIONS ${SDL3_MIXER_OPTIONS}
 			)
 		endif()
 	endif()
@@ -542,19 +572,14 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 			"CURL_DISABLE_WEBSOCKETS OFF"
 			"CURL_DISABLE_LDAP ON"
 			"CURL_USE_LIBSSH2 OFF"
+			"CURL_USE_LIBPSL OFF"
 		)
 		if(WEBOS)
 			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
 			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
-		elseif(APPLE)
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
 		else()
 			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
 			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL ON")
 		endif()
 		if(WIN32 OR WEBOS)
 			list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
@@ -563,8 +588,9 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 		CPMAddPackage(
 			NAME curl
 			GIT_REPOSITORY "https://github.com/curl/curl.git"
-			GIT_TAG "curl-8_17_0"
-			VERSION 8.17.0
+			GIT_TAG "curl-8_15_0"
+			VERSION 8.15.0
+			PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/3ds-curl.patch"
 			OPTIONS ${CURL_OPTIONS}
 		)
 	elseif(NINTENDO_WIIU)
@@ -624,6 +650,9 @@ elseif(NINTENDO_GAMECUBE)
 elseif(NINTENDO_WIIU)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-wiiu)
 	target_compile_definitions(scratch-everywhere PRIVATE __WIIU__)
+elseif(NINTENDO_3DS)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-3ds)
+	target_compile_definitions(scratch-everywhere PRIVATE __3DS__)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# set_target_properties(scratch-everywhere PROPERTIES
 	# 	MACOSX_BUNDLE True
@@ -654,7 +683,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_WIIU)
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
@@ -749,6 +778,8 @@ elseif(SE_RENDERER STREQUAL "opengl")
 		target_compile_definitions(scratch-everywhere PRIVATE USE_GLES)
 	endif()
 	target_include_directories(scratch-everywhere PRIVATE include)
+elseif(SE_RENDERER STREQUAL "citro2d")
+	target_link_libraries(scratch-everywhere PRIVATE citro2d citro3d)
 endif()
 
 if(SE_WINDOWING STREQUAL "sdl1")
@@ -783,13 +814,15 @@ elseif(SE_WINDOWING STREQUAL "glfw")
 	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_GLFW)
 elseif(SE_WINDOWING STREQUAL "nds")
 	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_NDS)
+elseif(SE_WINDOWING STREQUAL "3ds")
+	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_3DS)
 endif()
 
 if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -803,6 +836,8 @@ elseif(SE_RENDERER STREQUAL "opengl")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_OPENGL)
 elseif(SE_RENDERER STREQUAL "gl2d")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_GL2D)
+elseif(SE_RENDERER STREQUAL "citro2d")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_CITRO2D)
 elseif(SE_RENDERER STREQUAL "headless")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
 endif()
@@ -834,10 +869,10 @@ endif()
 if(NOT PSP AND NOT WEBOS AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_SWIIU)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
 endif()
 if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) ) # joystick doesn't work on MacOS with current Dockerfile
@@ -1016,6 +1051,20 @@ elseif(NINTENDO_WIIU)
 		DEPENDS scratch-everywhere
 		COMMENT "Packaging..."
 	)
+elseif(NINTENDO_3DS)
+	ctr_generate_smdh(OUTPUT scratch-3ds.smdh NAME "Scrach Everywhere!" AUTHOR "NateXS" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "Scratch 3 Games on your 3DS!")
+	ctr_create_3dsx(scratch-everywhere ROMFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs" SMDH "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.smdh")
+
+	if(SE_BUILD_CIA)
+		set(3DS_ROMFS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
+		configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/makerom.rsf.in" "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf") # For setting the amount of ram
+		add_custom_command(TARGET scratch-everywhere POST_BUILD
+			COMMAND ${SE_BANNERTOOL} makebanner -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.png" -a "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.wav" -o "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr"
+			COMMAND ${SE_BANNERTOOL} makesmdh -s "Scratch Everywhere!" -l "Scratch 3 Games on your 3DS!" -p "NateXS" -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" -o "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh"
+			COMMAND	${SE_MAKEROM} -f "cia" -o "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.cia" -elf "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.elf" -rsf "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf" -banner "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr" -icon "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh" -target t -exefslogo
+			COMMENT "Building scratch-3ds.cia..."
+		)
+	endif()
 endif()
 if(NINTENDO_WII)
 	execute_process(

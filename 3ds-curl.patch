@@ -1,0 +1,60 @@
+diff --git a/lib/cf-socket.c b/lib/cf-socket.c
+index 92fe433a69..b766281f82 100644
+--- a/lib/cf-socket.c
++++ b/lib/cf-socket.c
+@@ -175,6 +175,7 @@ static void
+ tcpkeepalive(struct Curl_easy *data,
+              curl_socket_t sockfd)
+ {
++#ifndef __3DS__
+   int optval = data->set.tcp_keepalive ? 1 : 0;
+ 
+   /* only set IDLE and INTVL if setting KEEPALIVE is successful */
+@@ -298,6 +299,7 @@ tcpkeepalive(struct Curl_easy *data,
+ #endif
+ #endif
+   }
++#endif
+ }
+ 
+ /**
+@@ -575,6 +577,10 @@ CURLcode Curl_parse_interface(const char *input,
+ static CURLcode bindlocal(struct Curl_easy *data, struct connectdata *conn,
+                           curl_socket_t sockfd, int af, unsigned int scope)
+ {
++#ifdef __3DS
++  return CURLE_OK;
++#endif
++
+   struct Curl_sockaddr_storage sa;
+   struct sockaddr *sock = (struct sockaddr *)&sa;  /* bind to this address */
+   curl_socklen_t sizeof_sa = 0; /* size of the data sock points to */
+diff --git a/lib/curl_addrinfo.c b/lib/curl_addrinfo.c
+index e26ee656bd..63c44212f9 100644
+--- a/lib/curl_addrinfo.c
++++ b/lib/curl_addrinfo.c
+@@ -142,9 +142,11 @@ Curl_getaddrinfo_ex(const char *nodename,
+     if(!ai->ai_addr || !(ai->ai_addrlen > 0))
+       continue;
+ 
++#ifndef __3DS__
+     /* ignore elements with bogus address size */
+     if((size_t)ai->ai_addrlen < ss_size)
+       continue;
++#endif
+ 
+     ca = malloc(sizeof(struct Curl_addrinfo) + ss_size + namelen);
+     if(!ca) {
+diff --git a/lib/mime.c b/lib/mime.c
+index 0a56b07bc5..a08b4c971b 100644
+--- a/lib/mime.c
++++ b/lib/mime.c
+@@ -222,7 +222,7 @@ static FILE * vmsfopenread(const char *file, const char *mode)
+ #endif
+ 
+ 
+-#ifndef HAVE_BASENAME
++#if !defined(HAVE_BASENAME) || defined(__3DS__)
+ /*
+   (Quote from The Open Group Base Specifications Issue 6 IEEE Std 1003.1, 2004
+   Edition)

@@ -3,7 +3,7 @@ name: 3DS Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_3ds
+      - CMakeLists.txt
       - source/runtime/**
       - source/renderers/citro2d/**
       - source/*
