@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN /opt/devkitpro/libogc2/gamecube/bin/powerpc-eabi-cmake -B build-gamecube -DCMAKE_BUILD_TYPE=Debug && cmake --build build-gamecube -j2
+RUN /opt/devkitpro/libogc2/gamecube/bin/powerpc-eabi-cmake -B build-gamecube -DCMAKE_BUILD_TYPE=Release && cmake --build build-gamecube -j2
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build-gamecube/scratch-gamecube.dol /
