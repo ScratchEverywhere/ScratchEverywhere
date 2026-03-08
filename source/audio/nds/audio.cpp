@@ -1,6 +1,6 @@
 #include "audio.hpp"
 #include <audio.hpp>
-#include <miniz/miniz.h>
+#include <miniz.h>
 #include <os.hpp>
 #include <runtime.hpp>
 #include <sys/stat.h>

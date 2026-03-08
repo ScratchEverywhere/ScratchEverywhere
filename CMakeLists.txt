@@ -20,12 +20,13 @@ option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput st
 
 # [SWITCH] Cloud variables might actually be possible with a newer version of libcurl but I don't really feel like dealing with that rn
 # [VITA]   It should work with our custom curl package but it doesn't so I'm just going to disable it here.
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+# [NDS]    They should work with both the system and CPM libcurl, it's just untested at them moment so I'm removing the option for now.
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
 	option(SE_CLOUDVARS "Enable cloud variables." ON)
 endif()
 
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT NINTENDO_DS)
 	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
 endif()
 
@@ -37,12 +38,17 @@ if (EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/ro
 	set(SE_LOADSCREEN OFF)
 endif()
 
-if(SE_MENU)
+if(SE_MENU AND NOT NINTENDO_DS)
 	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 endif()
 
-list(APPEND SE_RENDERER_VALID_OPTIONS "headless" "sdl2")
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
+if(NINTENDO_DS)
+	list(APPEND SE_RENDERER_VALID_OPTIONS "gl2d")
+else()
+	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl2")
+endif()
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
 endif()
 
@@ -70,6 +76,12 @@ elseif("opengl" IN_LIST SE_RENDERER_VALID_OPTIONS)
 		"opengl"
 		CACHE STRING "Select the desired renderer backend."
 	)
+elseif("gl2d" IN_LIST SE_RENDERER_VALID_OPTIONS)
+	set(
+		SE_RENDERER
+		"gl2d"
+		CACHE STRING "Select the desired renderer backend."
+	)
 else()
 	set(
 		SE_RENDERER
@@ -85,10 +97,12 @@ if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
 endif()
 
 list(APPEND SE_WINDOWING_VALID_OPTIONS "headless")
-if(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
+if(NINTENDO_DS)
+	list(APPEND SE_WINDOWING_VALID_OPTIONS "nds")
+elseif(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
 	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
 	if(SE_RENDERER STREQUAL "opengl")
 		list(APPEND SE_WINDOWING_VALID_OPTIONS "glfw")
 	endif()
@@ -124,6 +138,12 @@ elseif("sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
 		"sdl1"
 		CACHE STRING "Select the desired windowing backend."
 	)
+elseif("nds" IN_LIST SE_WINDOWING_VALID_OPTIONS)
+	set(
+		SE_WINDOWING
+		"nds"
+		CACHE STRING "Select the desired windowing backend."
+	)
 else()
 	set(
 		SE_WINDOWING
@@ -138,8 +158,13 @@ if(NOT SE_WINDOWING IN_LIST SE_WINDOWING_VALID_OPTIONS)
     )
 endif()
 
-list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless" "sdl2")
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
+if(NINTENDO_DS)
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "nds")
+else()
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
+endif()
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
@@ -149,6 +174,8 @@ elseif(SE_RENDERER STREQUAL "sdl2" OR SE_WINDOWING STREQUAL "sdl2" OR SE_WINDOWI
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
 elseif(SE_RENDERER STREQUAL "sdl1" OR SE_WINDOWING STREQUAL "sdl1")
 	set(SE_AUDIO_ENGINE_DEFAULT "sdl1")
+elseif(SE_RENDERER STREQUAL "gl2d" OR SE_WINDOWING STREQUAL "nds")
+	set(SE_AUDIO_ENGINE_DEFAULT "nds")
 else()
 	set(SE_AUDIO_ENGINE_DEFAULT "headless")
 endif()
@@ -174,7 +201,7 @@ if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
     )
 endif()
 
-if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS)
+if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS OR NINTENDO_DS)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -192,7 +219,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS)
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
 	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
 endif()
 
@@ -259,12 +286,16 @@ CPMAddPackage(
 )
 
 # PlutoVG Fixes
-if(VITA OR WEBOS OR PSP)
+if(VITA OR WEBOS OR PSP OR NINTENDO_DS)
 	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
 endif()
 
-if(PSP)
+if(PSP OR NINTENDO_DS)
 	target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
+endif()
+
+if(NINTENDO_DS)
+	target_compile_definitions(plutovg PRIVATE __STDC_NO_ATOMICS__)
 endif()
 
 include(FetchContent)
@@ -573,6 +604,9 @@ elseif(VITA)
 elseif(WEBOS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
+elseif(NINTENDO_DS)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-ds)
+	target_compile_definitions(scratch-everywhere PRIVATE __NDS__ ARM9)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# set_target_properties(scratch-everywhere PROPERTIES
 	# 	MACOSX_BUNDLE True
@@ -599,7 +633,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE)
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
@@ -726,13 +760,15 @@ elseif(SE_WINDOWING STREQUAL "sdl3")
 elseif(SE_WINDOWING STREQUAL "glfw")
 	target_link_libraries(scratch-everywhere PRIVATE glfw)
 	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_GLFW)
+elseif(SE_WINDOWING STREQUAL "nds")
+	target_compile_definitions(scratch-everywhere PRIVATE WINDOWING_NDS)
 endif()
 
 if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -744,6 +780,8 @@ elseif(SE_RENDERER STREQUAL "sdl3")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_SDL3)
 elseif(SE_RENDERER STREQUAL "opengl")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_OPENGL)
+elseif(SE_RENDERER STREQUAL "gl2d")
+	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_GL2D)
 elseif(SE_RENDERER STREQUAL "headless")
 	target_compile_definitions(scratch-everywhere PRIVATE RENDERER_HEADLESS)
 endif()
@@ -775,10 +813,10 @@ endif()
 if(NOT PSP AND NOT WEBOS)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
 endif()
 if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) ) # joystick doesn't work on MacOS with current Dockerfile
@@ -828,6 +866,8 @@ if(SE_AUDIO)
 				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,SDL3_mixer::SDL3_mixer-static,SDL3_mixer::SDL3_mixer>)
 			endif()
 		endif()
+	elseif(SE_AUDIO_ENGINE STREQUAL "nds")
+		target_link_libraries(scratch-everywhere PRIVATE mm9)
 	endif()
 endif()
 
@@ -912,4 +952,12 @@ elseif(WEBOS)
     set(CPACK_MONOLITHIC_INSTALL TRUE)
 
     include(CPack)
+elseif(NINTENDO_DS)
+	nds_create_rom(scratch-everywhere
+		NAME "Scratch Everywhere!"
+		SUBTITLE "Scratch 3 Games on your DS!"
+		AUTHOR "NateXS"
+		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/icon.bmp"
+		NITROFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs"
+	)
 endif()
