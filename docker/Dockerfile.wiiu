@@ -1,14 +1,5 @@
-FROM devkitpro/devkitppc:latest AS libromfs_builder
-WORKDIR /libromfs
-
-RUN git clone https://github.com/yawut/libromfs-wiiu.git . 
-RUN make
-RUN make install
-
 FROM devkitpro/devkitppc:latest AS mistpp_installer
 WORKDIR /mistpp-packages
-
-COPY --from=libromfs_builder /opt/devkitpro/portlibs/wiiu/ /opt/devkitpro/portlibs/wiiu/
 
 RUN wget https://github.com/ScratchEverywhere/mistpp-packages/releases/download/0.3.4-2/wiiu-libmistpp-0.3.4-2-any.pkg.tar.zst && dkp-pacman -U --noconfirm wiiu-libmistpp-0.3.4-2-any.pkg.tar.zst
 
@@ -18,7 +9,7 @@ WORKDIR /app
 COPY --from=mistpp_installer /opt/devkitpro/portlibs/wiiu/ /opt/devkitpro/portlibs/wiiu/
 COPY . .
 
-RUN make PLATFORM=wiiu ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1 ENABLE_DOWNLOAD=1 -j 2
+RUN /opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-cmake -B build-wiiu -DCMAKE_BUILD_TYPE=Release && cmake --build build-wiiu -j2 && cmake --build build-wiiu --target package
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/wiiu/scratch-wiiu /scratch-wiiu
+COPY --from=main_builder /app/build-wiiu/scratch-wiiu.zip /

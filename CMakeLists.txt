@@ -49,7 +49,7 @@ if(NINTENDO_DS)
 else()
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
 endif()
 
@@ -103,7 +103,7 @@ if(NINTENDO_DS)
 elseif(SE_RENDERER STREQUAL "sdl2" OR SE_RENDERER STREQUAL "opengl")
 	list(APPEND SE_WINDOWING_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU)
 	if(SE_RENDERER STREQUAL "opengl")
 		list(APPEND SE_WINDOWING_VALID_OPTIONS "glfw")
 	endif()
@@ -165,7 +165,7 @@ if(NINTENDO_DS)
 else()
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
@@ -202,7 +202,7 @@ if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
     )
 endif()
 
-if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS OR NINTENDO_DS OR NINTENDO_GAMECUBE OR NINTENDO_WII)
+if(SE_RENDERER STREQUAL "sdl1" OR NINTENDO_SWITCH OR PSP OR VITA OR WEBOS OR NINTENDO_DS OR NINTENDO_GAMECUBE OR NINTENDO_WII OR NINTENDO_WIIU)
 	option(SE_SYSTEM "Use system libraries instead of CPM" ON)
 else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
@@ -287,7 +287,7 @@ CPMAddPackage(
 )
 
 # PlutoVG Fixes
-if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII)
+if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU)
 	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
 endif()
 
@@ -528,7 +528,8 @@ endif()
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# Curl should always be built from source because most platforms don't build it with WebSockets enabled
 	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
-	if(NOT HAIKU)
+	# DevkitPro finally merged our WebSocket patches to their Wii U libcurl.
+	if(NOT HAIKU AND NOT NINTENDO_WIIU)
 		set(CURL_OPTIONS
 			"BUILD_CURL_EXE OFF"
 			"BUILD_TESTING OFF"
@@ -566,6 +567,10 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 			VERSION 8.17.0
 			OPTIONS ${CURL_OPTIONS}
 		)
+	elseif(NINTENDO_WIIU)
+		pkg_check_modules(libcurl REQUIRED IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
+		add_library(curl ALIAS PkgConfig::libcurl)
+		add_library(CURL::libcurl ALIAS PkgConfig::libcurl)
 	else()
 		find_package(CURL REQUIRED)
 	endif()
@@ -616,6 +621,9 @@ elseif(NINTENDO_WII)
 elseif(NINTENDO_GAMECUBE)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-gamecube)
 	target_compile_definitions(scratch-everywhere PRIVATE __OGC__ GAMECUBE)
+elseif(NINTENDO_WIIU)
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-wiiu)
+	target_compile_definitions(scratch-everywhere PRIVATE __WIIU__)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# set_target_properties(scratch-everywhere PROPERTIES
 	# 	MACOSX_BUNDLE True
@@ -646,7 +654,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII)
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_WIIU)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
@@ -781,7 +789,7 @@ if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 
@@ -826,10 +834,10 @@ endif()
 if(NOT PSP AND NOT WEBOS AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
 endif()
-if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII)
+if(NOT PSP AND NOT VITA AND NOT NINTENDO_SWITCH AND NOT NINTENDO_DS AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_SWIIU)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
 endif()
 if(NOT (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) ) # joystick doesn't work on MacOS with current Dockerfile
@@ -981,6 +989,33 @@ elseif(NINTENDO_DS)
 	)
 elseif(NINTENDO_WII OR NINTENDO_GAMECUBE)
 	ogc_create_dol(scratch-everywhere)
+elseif(NINTENDO_WIIU)
+	wut_create_rpx(scratch-everywhere)
+	wut_create_wuhb(scratch-everywhere
+		NAME "Scratch Everywhere!"
+		AUTHOR "NateXS and Grady Link"
+		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/icon.png"
+		TVSPLASH "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/tv-splash.png"
+		DRCSPLASH "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/drc-splash.png"
+	)
+
+	execute_process(
+		COMMAND date "+%Y%m%d%H%M%S"
+		OUTPUT_VARIABLE WIIU_RELEASE_DATE
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/meta.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" @ONLY)
+
+	add_custom_target(package
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu.rpx" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/scratch-wii.rpx"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu.wuhb" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/scratch-wiiu.wuhb"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/meta.xml"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/hbl-icon.png" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/icon.png"
+		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu.zip" --format=zip -- "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle"
+		DEPENDS scratch-everywhere
+		COMMENT "Packaging..."
+	)
 endif()
 if(NINTENDO_WII)
 	execute_process(

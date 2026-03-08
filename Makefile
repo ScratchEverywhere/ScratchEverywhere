@@ -2,8 +2,6 @@ PLATFORM ?= 3ds
 
 ifeq ($(PLATFORM),3ds)
 include make/Makefile_3ds
-else ifeq ($(PLATFORM),wiiu)
-include make/Makefile_wiiu
 else ifeq ($(PLATFORM),ps4)
 include make/Makefile_ps4
 else
