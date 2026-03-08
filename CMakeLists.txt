@@ -15,7 +15,7 @@ set(SE_OUTPUT_NAME "" CACHE STRING "File name of the outputed executable")
 option(SE_AUDIO "Enables audio in SE!" ON)
 
 set(SE_CACHING_DEFAULT ON)
-if(PSP)
+if(PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_GAMECUBE)
     set(SE_CACHING_DEFAULT OFF)
 endif()
 option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
