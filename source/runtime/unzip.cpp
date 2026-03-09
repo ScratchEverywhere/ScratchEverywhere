@@ -34,6 +34,10 @@
 #endif
 #endif
 
+#if ANDROID
+#include <sstream>
+#endif
+
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 #include <sstream>
@@ -364,7 +368,7 @@ std::string Unzip::getSplashText() {
     textPath = OS::getRomFSLocation() + textPath;
 
     std::vector<std::string> splashLines;
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC)
     try {
         auto file = cmrc::romfs::get_filesystem().open(textPath);
         std::string_view sv(file.begin(), file.size());
@@ -379,6 +383,27 @@ std::string Unzip::getSplashText() {
     } catch (const std::exception &e) {
         return fallback;
     }
+#elif defined(ANDROID)
+    SDL_RWops *rw = SDL_RWFromFile(textPath.c_str(), "r");
+    if (!rw) return fallback;
+
+    Sint32 size = SDL_RWsize(rw);
+    std::vector<unsigned char> file(size + 1);
+
+    if (!SDL_RWread(rw, file.data(), 1, size)) {
+        SDL_RWclose(rw);
+        return fallback;
+    }
+
+    std::istringstream stream{std::string(file.begin(), file.end())};
+    std::string line;
+    while (std::getline(stream, line)) {
+        if (!line.empty()) {
+            splashLines.push_back(line);
+        }
+    }
+
+    SDL_RWclose(rw);
 #else
     std::ifstream file(textPath);
     if (!file.is_open()) {
@@ -440,15 +465,25 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
     memset(&archive, 0, sizeof(archive));
     bool initSuccess = false;
 
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC)
     if (Scratch::projectType == ProjectType::EMBEDDED) {
         const auto &fs = cmrc::romfs::get_filesystem();
         const auto &romfsFile = fs.open(Unzip::filePath);
         initSuccess = mz_zip_reader_init_mem(&archive, romfsFile.begin(), romfsFile.size(), 0);
     } else {
+#elif defined(ANDROID)
+    if (Scratch::projectType == ProjectType::EMBEDDED) {
+        SDL_RWops *rw = SDL_RWFromFile(Unzip::filePath.c_str(), "rb");
+        Sint32 size = SDL_RWsize(rw);
+        std::vector<unsigned char> buffer(size + 1);
+
+        SDL_RWread(rw, buffer.data(), 1, size);
+        SDL_RWclose(rw);
+        initSuccess = mz_zip_reader_init_mem(&archive, buffer.data(), size, 0);
+    } else {
 #endif
         initSuccess = mz_zip_reader_init_file(&archive, Unzip::filePath.c_str(), 0);
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC) || defined(ANDROID)
     }
 #endif
     if (!initSuccess) {
@@ -493,7 +528,7 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
 #if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
             keepInRam = false;
 #else
-            keepInRam = true;
+                keepInRam = true;
 #endif
         } else {
             keepInRam = setting.get<bool>();

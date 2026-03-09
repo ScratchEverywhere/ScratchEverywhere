@@ -397,7 +397,7 @@ std::string OS::getUsername() {
     TCHAR username[UNLEN + 1];
     DWORD size = UNLEN + 1;
     if (GetUserName((TCHAR *)username, &size)) return std::string(username);
-#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif (defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(ANDROID)
     uid_t uid = geteuid();
     struct passwd *pw = getpwuid(uid);
     if (pw) return std::string(pw->pw_name);

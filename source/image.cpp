@@ -38,9 +38,19 @@ std::unordered_map<std::string, std::weak_ptr<Image>> images;
 constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to remove scaling limit.
 
 bool loadFont(const std::string &family, const std::string &path) {
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC)
     const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
     if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
+#elif defined(ANDROID)
+    SDL_RWops *rw = SDL_RWFromFile((OS::getRomFSLocation() + path + ".ttf").c_str(), "rb");
+    if (!rw) return false;
+
+    Sint32 size = SDL_RWsize(rw);
+    std::vector<unsigned char> file(size);
+
+    SDL_RWread(rw, file.data(), 1, size);
+    SDL_RWclose(rw);
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.data(), size, nullptr, nullptr)) return false;
 #else
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
@@ -134,7 +144,7 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
 }
 
 std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC)
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
         auto file = cmrc::romfs::get_filesystem().open(filePath);
         std::vector<unsigned char> buffer(file.size() + 1);
@@ -142,7 +152,23 @@ std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, 
         buffer[file.size()] = '\0';
         return buffer;
     }
-#endif
+#elif defined(ANDROID)
+    std::string path = filePath;
+
+    SDL_RWops *rw = SDL_RWFromFile(path.c_str(), "rb");
+    if (!rw) throw std::runtime_error("Failed to open file: " + path);
+
+    Sint32 size = SDL_RWsize(rw);
+    std::vector<unsigned char> buffer(size + 1);
+
+    if (!SDL_RWread(rw, buffer.data(), 1, size)) {
+        SDL_RWclose(rw);
+        throw std::runtime_error("Failed to read file: " + path);
+    }
+
+    SDL_RWclose(rw);
+    return buffer;
+#else
 
     std::string path = filePath;
 
@@ -165,6 +191,7 @@ std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, 
     buffer[size] = '\0';
     fclose(file);
     return buffer;
+#endif
 }
 
 unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
