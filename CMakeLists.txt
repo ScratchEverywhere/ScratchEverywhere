@@ -58,7 +58,8 @@ elseif(NINTENDO_3DS)
 else()
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
+# We'll only use SDL2 on Android for now, yes, even if it Nate says that I shouldn't
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT ANDROID AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS) # SDL1 and SDL3 (and I think you can use any version of SDL as an opengl backened in WASM?) technically supports Emscripten but I don't want to test it rn...
 	list(APPEND SE_RENDERER_VALID_OPTIONS "sdl1" "sdl3" "opengl")
 endif()
 
@@ -190,7 +191,7 @@ elseif(NINTENDO_3DS)
 else()
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 endif()
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS AND NOT ANDROID)
 	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl3")
 endif()
 
@@ -245,7 +246,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_3DS)
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT ANDROID AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_3DS)
 	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
 endif()
 
@@ -327,8 +328,8 @@ endif()
 include(FetchContent)
 FetchContent_Declare(
     miniz
-    URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
 )
 FetchContent_MakeAvailable(miniz)
 
@@ -577,6 +578,16 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 		if(WEBOS)
 			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
 			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+		elseif(ANDROID)
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
+			list(APPEND CURL_OPTIONS "HAVE_FSEEKO OFF") # Support old armeabi-v7a phones
+		elseif(APPLE)
+			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+			list(APPEND CURL_OPTIONS "CURL_USE_LIBPSL OFF")
 		else()
 			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
 			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
@@ -601,7 +612,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 		find_package(CURL REQUIRED)
 	endif()
 	if(SE_CLOUDVARS)
-		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.4")
+		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.5")
 	endif()
 endif()
 
@@ -611,21 +622,43 @@ if(SE_MENU)
 	list(APPEND SOURCES source/menus)
 endif()
 
+if(ANDROID)
+    set(PROJECT_ROOT ${CMAKE_CURRENT_LIST_DIR})
+else()
+    set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 set(SOURCE_FILES)
 foreach(DIR IN LISTS SOURCES)
 	file(GLOB DIR_SOURCES
-		${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
+		${PROJECT_ROOT}/${DIR}/*.cpp
+        ${PROJECT_ROOT}/${DIR}/*.c
+        ${PROJECT_ROOT}/${DIR}/*.cc
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
+	message(${DIR})
 endforeach()
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 if(WIN32)
-	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
+	list(APPEND SOURCE_FILES "${PROJECT_ROOT}/gfx/windows/resource.rc")
+elseif(ANDROID)
+	list(APPEND SOURCE_FILES "${PROJECT_ROOT}/android/app/jni/bridge.cpp")
 endif()
 
-add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+if(ANDROID)
+    # armeabi-v7a requires cpufeatures library
+    include(AndroidNdkModules)
+    android_ndk_import_module_cpufeatures()
+
+    find_library(android-lib android)
+    find_library(log-lib log)
+
+    add_library(scratch-everywhere SHARED ${SOURCE_FILES})
+    target_link_libraries(scratch-everywhere PRIVATE android log)
+else()
+    add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+endif()
+
 if(PSP)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-psp)
 elseif(NINTENDO_SWITCH)
@@ -636,6 +669,9 @@ elseif(VITA)
 elseif(WEBOS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-webos)
 	target_compile_definitions(scratch-everywhere PRIVATE WEBOS)
+elseif(ANDROID)
+    set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch LINKER_LANGUAGE CXX) # libscratch.so
+    target_compile_definitions(scratch-everywhere PRIVATE ANDROID)
 elseif(NINTENDO_DS)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-ds)
 	target_compile_definitions(scratch-everywhere PRIVATE __NDS__ ARM9)
@@ -683,7 +719,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
+if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT ANDROID AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
@@ -744,7 +780,7 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 
 	if (WIN32)
 		list(APPEND SDL_LINK_LIBS SDL2::SDL2main)
-	endif()
+    endif()
 
 	target_link_libraries(scratch-everywhere PRIVATE ${SDL_LINK_LIBS})
 elseif(SE_RENDERER STREQUAL "sdl1")
@@ -822,7 +858,7 @@ if(SE_SYSTEM)
 	target_compile_definitions(scratch-everywhere PRIVATE SYSTEM_LIBS)
 endif()
 
-if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
+if(NOT NINTENDO_SWITCH AND NOT PSP AND NOT VITA AND NOT WEBOS AND NOT ANDROID AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS)
 	target_compile_definitions(scratch-everywhere PRIVATE __PC__)
 endif()
 

@@ -32,6 +32,8 @@ extern char nickname[0x21];
 #include <ogc/conf.h>
 #elif defined(__NDS__)
 #include <nds.h>
+#elif defined(ANDROID)
+#include <SDL2/SDL_system.h>
 #endif
 
 #ifdef _WIN32
@@ -255,6 +257,8 @@ std::string OS::getScratchFolderLocation() {
     return prefix + "/scratch-ds/";
 #elif defined(WEBOS)
     return prefix + "projects/";
+#elif defined(ANDROID)
+    return std::string(SDL_AndroidGetExternalStoragePath()) + "/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -281,7 +285,7 @@ std::string OS::getConfigFolderLocation() {
     if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
         path = (std::filesystem::path(bpath.Path()) / "scratch-everywhere" / "").string();
     }
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(ANDROID)
     const char *xdgHome = std::getenv("XDG_CONFIG_HOME");
     if (xdgHome && xdgHome[0] != '\0') {
         path = (std::filesystem::path(xdgHome) / "scratch-everywhere" / "").string();
