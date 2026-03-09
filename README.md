@@ -522,29 +522,44 @@ Then you need to compile the projects into proper Homebrew packages.
 
 #### Compilation Flags
 
-> [!WARNING]
-> We are currently migrating our build system from standalone Makefiles to a
-> centralized `CMakeLists.txt` so documentation in this section might be
-> outdated. For CMake options, take a look at the contents of the
-> `CMakeLists.txt` until they are properly documented.
-
 Compilation flags are used to select which features will be enabled in the
 compiled version of Scratch Everywhere!. To use a compilation flag simply add it
-to the end of the make command (e.g. `make ENABLE_LOADSCREEN=0`).
+to the end of the cmake configure command (e.g.
+`cmake -B build -DSE_LOADSCREEN=OFF`).
 
-- `ENABLE_LOADSCREEN` (default: `1`): If set to `1`, the loading screen is
-  enabled, if set to `0` the screen is simply black during that time.
-- `ENABLE_AUDIO` (default: `1`): If set to `1`, Audio will be enabled. If set to
-  `0`, it will be disabled.
-- `ENABLE_CLOUDVARS` (default: `0`): If set to `1`, cloud variable support is
-  enabled, if set to `0` cloud variables are treated like normal variables. If
-  your project doesn't use cloud variables, it is recommended to leave this
+- `SE_LOADSCREEN` (default: `ON`): If set to `ON`, the loading screen is
+  enabled, if set to `OFF` the screen is simply black during that time.
+- `SE_AUDIO` (default: `ON`): If set to `ON`, audio will be enabled. If set to
+  `OFF`, it will be disabled.
+- `SE_CLOUDVARS` (default: `ON`): If set to `ON`, cloud variable support is
+  enabled, if set to `OFF` cloud variables are treated like normal variables. If
+  your project doesn't use cloud variables, it is recommended to turn this
   turned off. If you run into errors while building try turning this off and see
   if that fixes the errors.
-- `ENABLE_MENU` (default: `1`): If set to 1, the SE! main menu is enabled. It's
+- `SE_DOWNLOAD` (default: `ON`): If set to `ON` this will enable SE!'s internal
+  downloader module used for the Text to Speech Extension. Like with cloud
+  variables it is recommended to turn this off if your project doesn't use this
+  feature.
+- `SE_MENU` (default: `ON`): If set to `ON`, the SE! main menu is enabled. It's
   good to disable this when packaging a project, as the file size is lowered.
-- **[Old 3DS]** `RAM_AMOUNT` (default: `72`): the amount of RAM, in megabytes,
-  the old 3DS should be using. Can be set to `32`, `64`, `72`, `80`, or `96`.
+- `SE_CACHING` (default: `ON`): If set to `ON`, SE! will cache pointers in some
+  `struct`s leading to better performance at the cost of RAM.
+- `SE_RENDERER` (default: `sdl2`): Controls which renderer SE! will use.
+- `SE_WINDOWING` (default: `sdl2`): Controls which windowing system SE! will
+  use.
+- `SE_AUDIO_ENGINE` (default: `sdl2`): Controls which audio engine SE! will use.
+- `SE_OUTPUT_NAME` (default: `scratch-everywhere`): Controls what the name of
+  the output executable will be called, this is only supported on some
+  platforms.
+
+##### 3DS
+
+- `SE_BUILD_CIA` (default: `ON`): Whether a not a `.cia` file should be built.
+- `SE_RAM` (default: `72`): the amount of RAM, in megabytes, the **old** 3DS
+  should be using. Can be set to `32`, `64`, `72`, `80`, or `96`. Only effects
+  the `.cia` output.
+- `SE_BANNERTOOL` (default: `bannertool`): Path to the `bannertool` executable.
+- `SE_MAKEROM` (default: `makerom`): Path to the `makerom` executable.
 
 ## Contributors
 
