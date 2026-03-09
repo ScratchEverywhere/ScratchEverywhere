@@ -107,7 +107,9 @@ class Scratch {
 
     static Timer fpsTimer;
 
+#ifdef ENABLE_MENU
     static PauseMenu *pauseMenu;
+#endif
 
     static std::vector<Sprite *> sprites;
     static Sprite *stageSprite;

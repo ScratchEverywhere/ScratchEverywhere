@@ -55,7 +55,9 @@ bool Scratch::sb3InRam = true;
 
 Timer Scratch::fpsTimer(false);
 
+#ifdef ENABLE_MENU
 PauseMenu *Scratch::pauseMenu = nullptr;
+#endif
 
 double Scratch::counter = 0;
 
@@ -96,12 +98,15 @@ void Scratch::initializeScratchProject() {
 
 std::pair<bool, bool> Scratch::stepScratchProject() {
     if (!Render::appShouldRun()) {
+#ifdef ENABLE_MENU
         if (pauseMenu != nullptr) {
             MenuManager::cleanup();
             pauseMenu = nullptr;
         }
+#endif
         return std::make_pair(false, false);
     }
+#ifdef ENABLE_MENU
     if (pauseMenu != nullptr) {
         MenuManager::render();
         if (pauseMenu->shouldUnpause) {
@@ -110,6 +115,7 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
         }
         return std::make_pair(Render::appShouldRun(), false);
     }
+#endif
 
     const bool checkFPS = Render::checkFramerate();
     if (Scratch::turbo) forceRedraw = false;
