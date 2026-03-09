@@ -646,10 +646,6 @@ elseif(ANDROID)
 endif()
 
 if(ANDROID)
-    # armeabi-v7a requires cpufeatures library
-    include(AndroidNdkModules)
-    android_ndk_import_module_cpufeatures()
-
     find_library(android-lib android)
     find_library(log-lib log)
 
@@ -1050,6 +1046,14 @@ elseif(WEBOS)
     set(CPACK_MONOLITHIC_INSTALL TRUE)
 
     include(CPack)
+elseif(ANDROID)
+	# armeabi-v7a requires cpufeatures library
+    include(AndroidNdkModules)
+    android_ndk_import_module_cpufeatures()
+
+	set(SDL2_JAVA_SOURCE app/src/main/java/org/libsdl/app/)
+	file(COPY ${SDL2_SOURCE_DIR}/android-project/${SDL2_JAVA_SOURCE}
+		DESTINATION ${PROJECT_ROOT}/android/${SDL2_JAVA_SOURCE})
 elseif(NINTENDO_DS)
 	nds_create_rom(scratch-everywhere
 		NAME "Scratch Everywhere!"
