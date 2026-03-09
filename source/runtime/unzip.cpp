@@ -387,7 +387,7 @@ std::string Unzip::getSplashText() {
     SDL_RWops *rw = SDL_RWFromFile(textPath.c_str(), "r");
     if (!rw) return fallback;
 
-    Sint32 size = SDL_RWsize(rw);
+    Sint64 size = SDL_RWsize(rw);
     std::vector<unsigned char> file(size + 1);
 
     if (!SDL_RWread(rw, file.data(), 1, size)) {
@@ -474,8 +474,8 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
 #elif defined(ANDROID)
     if (Scratch::projectType == ProjectType::EMBEDDED) {
         SDL_RWops *rw = SDL_RWFromFile(Unzip::filePath.c_str(), "rb");
-        Sint32 size = SDL_RWsize(rw);
-        std::vector<unsigned char> buffer(size + 1);
+        Sint64 size = SDL_RWsize(rw);
+        std::vector<char> buffer(size + 1);
 
         SDL_RWread(rw, buffer.data(), 1, size);
         SDL_RWclose(rw);

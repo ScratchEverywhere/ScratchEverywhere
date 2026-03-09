@@ -37,6 +37,10 @@ std::unordered_map<std::string, std::weak_ptr<Image>> images;
 
 constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to remove scaling limit.
 
+static void unloadFont(void *closure) {
+    free(closure);
+}
+
 bool loadFont(const std::string &family, const std::string &path) {
 #if defined(USE_CMAKERC)
     const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
@@ -45,12 +49,20 @@ bool loadFont(const std::string &family, const std::string &path) {
     SDL_RWops *rw = SDL_RWFromFile((OS::getRomFSLocation() + path + ".ttf").c_str(), "rb");
     if (!rw) return false;
 
-    Sint32 size = SDL_RWsize(rw);
-    std::vector<unsigned char> file(size);
+    Sint64 size = SDL_RWsize(rw);
+    void *file = malloc(size);
 
-    SDL_RWread(rw, file.data(), 1, size);
+    if (SDL_RWread(rw, file, 1, size) != size) {
+        SDL_RWclose(rw);
+        free(file);
+        return false;
+    };
+
     SDL_RWclose(rw);
-    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.data(), size, nullptr, nullptr)) return false;
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file, size, unloadFont, file)) {
+        free(file);
+        return false;
+    };
 #else
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
@@ -158,8 +170,8 @@ std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, 
     SDL_RWops *rw = SDL_RWFromFile(path.c_str(), "rb");
     if (!rw) throw std::runtime_error("Failed to open file: " + path);
 
-    Sint32 size = SDL_RWsize(rw);
-    std::vector<unsigned char> buffer(size + 1);
+    Sint64 size = SDL_RWsize(rw);
+    std::vector<unsigned char> buffer(size);
 
     if (!SDL_RWread(rw, buffer.data(), 1, size)) {
         SDL_RWclose(rw);
