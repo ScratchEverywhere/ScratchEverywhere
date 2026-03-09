@@ -137,7 +137,7 @@ bool Scratch::startScratchProject() {
             bool shouldPause = Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
 #endif
 
-            if ((projectType == UNEMBEDDED || (projectType == UNZIPPED && Unzip::UnpackedInSD)) && shouldPause) {
+            if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && shouldPause) {
 
                 PauseMenu *menu = new PauseMenu();
                 MenuManager::changeMenu(menu);
