@@ -265,7 +265,7 @@ std::string OS::getConfigFolderLocation() {
     if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
         path = (std::filesystem::path(bpath.Path()) / "scratch-everywhere" / "").string();
     }
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(ANDROID)
     const char *xdgHome = std::getenv("XDG_CONFIG_HOME");
     if (xdgHome && xdgHome[0] != '\0') {
         path = (std::filesystem::path(xdgHome) / "scratch-everywhere" / "").string();
