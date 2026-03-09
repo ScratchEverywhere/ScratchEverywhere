@@ -53,6 +53,10 @@ bool Scratch::accuratePen = false;
 bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
 
+Timer Scratch::fpsTimer(false);
+
+PauseMenu *Scratch::pauseMenu = nullptr;
+
 double Scratch::counter = 0;
 
 bool Scratch::nextProject = false;
@@ -63,12 +67,14 @@ std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
-bool Scratch::startScratchProject() {
+void Scratch::initializeScratchProject() {
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) Parser::initMist();
 #endif
     Scratch::nextProject = false;
+
+    Scratch::pauseMenu = nullptr;
 
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
@@ -85,84 +91,101 @@ bool Scratch::startScratchProject() {
 
     Scratch::greenFlagClicked();
 
-    Timer fpsTimer(false);
     if (debugVars) fpsTimer.start();
+}
 
-    while (Render::appShouldRun()) {
+std::pair<bool, bool> Scratch::stepScratchProject() {
+    if (!Render::appShouldRun()) {
+        if (pauseMenu != nullptr) {
+            MenuManager::cleanup();
+            pauseMenu = nullptr;
+        }
+        return std::make_pair(false, false);
+    }
+    if (pauseMenu != nullptr) {
+        MenuManager::render();
+        if (pauseMenu->shouldUnpause) {
+            MenuManager::cleanup();
+            pauseMenu = nullptr;
+        }
+        return std::make_pair(Render::appShouldRun(), false);
+    }
 
-        const bool checkFPS = Render::checkFramerate();
-        if (Scratch::turbo) forceRedraw = false;
+    const bool checkFPS = Render::checkFramerate();
+    if (Scratch::turbo) forceRedraw = false;
 
-        if (!forceRedraw || checkFPS) {
-            forceRedraw = false;
+    if (!forceRedraw || checkFPS) {
+        forceRedraw = false;
 
-            float currentFPS;
-            if (debugVars) {
-                double frameTimeMs = fpsTimer.getTimeMsDouble();
-                fpsTimer.start();
-                currentFPS = (frameTimeMs > 0) ? (1000.0f / frameTimeMs) : 0;
-            }
+        float currentFPS;
+        if (debugVars) {
+            double frameTimeMs = fpsTimer.getTimeMsDouble();
+            fpsTimer.start();
+            currentFPS = (frameTimeMs > 0) ? (1000.0f / frameTimeMs) : 0;
+        }
 
-            Timer scriptTimer(false);
-            if (debugVars) scriptTimer.start();
+        Timer scriptTimer(false);
+        if (debugVars) scriptTimer.start();
 
-            if (checkFPS) Input::getInput();
-            BlockExecutor::runCloneStarts();
-            BlockExecutor::runBroadcasts();
-            BlockExecutor::runBackdrops();
-            BlockExecutor::runRepeatBlocks();
+        if (checkFPS) Input::getInput();
+        BlockExecutor::runCloneStarts();
+        BlockExecutor::runBroadcasts();
+        BlockExecutor::runBackdrops();
+        BlockExecutor::runRepeatBlocks();
 
-            if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
+        if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
 
-            Timer renderTimer(false);
-            if (debugVars) renderTimer.start();
+        Timer renderTimer(false);
+        if (debugVars) renderTimer.start();
 
-            BlockExecutor::updateMonitors();
-            SpeechManager *speechManager = Render::getSpeechManager();
-            if (speechManager) {
-                speechManager->update();
-            }
-            if (checkFPS) {
-                Render::renderSprites();
-                Scratch::flushCostumeImages();
+        BlockExecutor::updateMonitors();
+        SpeechManager *speechManager = Render::getSpeechManager();
+        if (speechManager) {
+            speechManager->update();
+        }
+        if (checkFPS) {
+            Render::renderSprites();
+            Scratch::flushCostumeImages();
 
-                if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
-            }
+            if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
+        }
 
 #ifdef ENABLE_MENU
 
-            if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
-
-                PauseMenu *menu = new PauseMenu();
-                MenuManager::changeMenu(menu);
-
-                while (Render::appShouldRun()) {
-                    MenuManager::render();
-                    if (menu->shouldUnpause) break;
-
-#ifdef __EMSCRIPTEN__
-                    emscripten_sleep(0);
-#endif
-                }
-                MenuManager::cleanup();
-                if (!Render::appShouldRun()) break;
-            }
-
-#endif
-
-            if (shouldStop) {
-                if (projectType != ProjectType::UNEMBEDDED && !(projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) {
-                    OS::toExit = true;
-                    cleanupScratchProject();
-                    return false;
-                }
-                cleanupScratchProject();
-                shouldStop = false;
-                return true;
-            }
-            if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(std::to_string(renderTimer.getTimeMsDouble()) + " ms");
+        if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+            pauseMenu = new PauseMenu();
+            MenuManager::changeMenu(pauseMenu);
+            return std::make_pair(true, false);
         }
+
+#endif
+
+        if (shouldStop) {
+            if (projectType != ProjectType::UNEMBEDDED && !(projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) {
+                OS::toExit = true;
+                cleanupScratchProject();
+                return std::make_pair(false, false);
+            }
+            cleanupScratchProject();
+            shouldStop = false;
+            return std::make_pair(false, true);
+        }
+        if (debugVars) stageSprite->variables["SE!__RenderTime"].value = Value(std::to_string(renderTimer.getTimeMsDouble()) + " ms");
     }
+
+    return std::make_pair(true, false);
+}
+
+bool Scratch::startScratchProject() {
+    std::pair<bool, bool> code;
+
+    initializeScratchProject();
+
+    while (true) {
+        code = stepScratchProject();
+        if (!code.first) return code.second;
+    }
+
     cleanupScratchProject();
     return false;
 }
