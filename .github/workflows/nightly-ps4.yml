@@ -3,7 +3,7 @@ name: PS4 Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_ps4
+      - CMakeLists.txt
       - source/runtime/**
       - source/renderers/sdl2/**
       - source/*
