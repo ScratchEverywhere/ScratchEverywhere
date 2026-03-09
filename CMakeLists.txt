@@ -573,6 +573,8 @@ endforeach()
 list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 if(WIN32)
 	list(APPEND SOURCE_FILES "${PROJECT_ROOT}/gfx/windows/resource.rc")
+elseif(ANDROID)
+	list(APPEND SOURCE_FILES "${PROJECT_ROOT}/android/app/jni/bridge.cpp")
 endif()
 
 if(ANDROID)
