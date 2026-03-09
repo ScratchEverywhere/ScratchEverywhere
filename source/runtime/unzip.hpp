@@ -24,6 +24,7 @@ class Unzip {
     static void openScratchProject(void *arg);
     static std::vector<std::string> getProjectFiles(const std::string &directory);
     static std::string getSplashText();
+    static void *getFileInSB3(const std::string &fileName, size_t *outSize = nullptr);
     static nlohmann::json unzipProject(std::istream *file);
     static int openFile(std::istream *&file);
     static bool load();

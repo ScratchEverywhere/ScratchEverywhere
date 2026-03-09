@@ -84,7 +84,7 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
 
     SDL_Audio::SoundLoadParams params = {
         .sprite = sprite,
-        .zip = zip,
+        .zip = Scratch::sb3InRam ? zip : nullptr,
         .soundId = soundId,
         .streamed = true};
 
@@ -92,7 +92,7 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
     params.streamed = false;
 #endif
 
-    if (Scratch::projectType != UNZIPPED && fromProject && !fromCache)
+    if (Scratch::projectType != ProjectType::UNZIPPED && fromProject && !fromCache)
         loadSoundFromSB3(params.sprite, params.zip, params.soundId, params.streamed);
     else {
         std::string filePrefix = "";
@@ -108,63 +108,53 @@ void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, co
 
 bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed) {
 #ifdef ENABLE_AUDIO
-    if (!zip) {
-        Log::logWarning("Error: Zip archive is null");
+    size_t file_size = 0;
+    void *file_data = nullptr;
+
+    if (zip != nullptr) {
+        int file_index = mz_zip_reader_locate_file(zip, soundId.c_str(), nullptr, 0);
+        if (file_index < 0) {
+            Log::logWarning("Audio not found in zip: " + soundId);
+            return false;
+        }
+        file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
+    } else {
+        file_data = Unzip::getFileInSB3(soundId, &file_size);
+    }
+
+    if (!file_data || file_size == 0) {
+        Log::logWarning("Failed to extract: " + soundId);
         return false;
     }
 
-    int file_count = (int)mz_zip_reader_get_num_files(zip);
-    if (file_count <= 0) {
-        Log::logWarning("Error: No files found in zip archive");
-        return false;
-    }
-
-    for (int i = 0; i < file_count; i++) {
-        mz_zip_archive_file_stat file_stat;
-        if (!mz_zip_reader_file_stat(zip, i, &file_stat)) {
-            continue;
-        }
-
-        std::string zipFileName = file_stat.m_filename;
-
-        if (zipFileName != soundId) {
-            continue;
-        }
-
-        size_t file_size;
-        void *file_data = mz_zip_reader_extract_to_heap(zip, i, &file_size, 0);
-        if (!file_data || file_size == 0) {
-            Log::logWarning("Failed to extract: " + zipFileName);
-            return false;
-        }
-
-        SDL_IOStream *rw = SDL_IOFromConstMem(file_data, (int)file_size);
-        if (!rw) {
-            Log::logWarning("Failed to create RWops for: " + zipFileName);
-            mz_free(file_data);
-            return false;
-        }
-
-        MIX_Audio *sound = MIX_LoadAudio_IO(mixer, rw, !streamed, true);
+    SDL_IOStream *rw = SDL_IOFromConstMem(file_data, file_size);
+    if (!rw) {
+        Log::logWarning("Failed to create IOStream for: " + soundId);
         mz_free(file_data);
-
-        if (!sound) {
-            Log::logWarning("Failed to load audio from memory: " + zipFileName + " - SDL Error: " + std::string(SDL_GetError()));
-            return false;
-        }
-
-        auto audio = std::make_unique<SDL_Audio>();
-        audio->sound = sound;
-        audio->audioId = soundId;
-        audio->isLoaded = true;
-
-        SDL_Sounds[soundId] = std::move(audio);
-
-        playSound(soundId);
-        const int volume = sprite != nullptr ? sprite->volume : 100;
-        setSoundVolume(soundId, volume);
-        return true;
+        return false;
     }
+
+    MIX_Audio *sound = MIX_LoadAudio_IO(mixer, rw, !streamed, true);
+    mz_free(file_data);
+
+    if (!sound) {
+        Log::logWarning("Failed to load audio from memory: " + soundId + " - " + std::string(SDL_GetError()));
+        return false;
+    }
+
+    auto audio = std::make_unique<SDL_Audio>();
+    audio->sound = sound;
+    audio->audioId = soundId;
+    audio->isLoaded = true;
+
+    SDL_Sounds[soundId] = std::move(audio);
+
+    playSound(soundId);
+    const int volume = sprite != nullptr ? sprite->volume : 100;
+    setSoundVolume(soundId, volume);
+
+    return true;
+
 #endif
     Log::logWarning("Audio not found in archive: " + soundId);
     return false;

@@ -211,6 +211,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     if (fieldData.is_array() && !fieldData.empty()) {
                         if (fieldData[0].is_number()) {
                             parsedField.value = Value(fieldData[0].get<double>()).asString();
+                        } else if (fieldData[0].is_array() && fieldData[0].size() >= 2) {
+                            parsedField.value = fieldData[0][1].get<std::string>();
                         } else {
                             parsedField.value = fieldData[0].get<std::string>();
                         }
@@ -620,6 +622,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
     if (!accuratePen.is_null() && accuratePen.get<bool>())
         Scratch::accuratePen = true;
     else Scratch::accuratePen = false;
+
+    auto debugVars = Unzip::getSetting("debugVars");
+    if (!debugVars.is_null() && debugVars.get<bool>())
+        Scratch::toggleDebugVars(true);
+    else Scratch::toggleDebugVars(false);
 
     if (infClones) Scratch::maxClones = std::numeric_limits<int>::max();
     else Scratch::maxClones = 300;

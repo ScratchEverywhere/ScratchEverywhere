@@ -517,6 +517,23 @@ bool Render::appShouldRun() {
     if (OS::toExit) return false;
     if (globalWindow) {
         globalWindow->pollEvents();
+
+        static int lastW = 0, lastH = 0;
+        int currentW = globalWindow->getWidth();
+        int currentH = globalWindow->getHeight();
+
+        if (lastW != currentW || lastH != currentH) {
+            lastW = currentW;
+            lastH = currentH;
+
+            if (Scratch::hqpen) {
+                // Recreate pen texture
+                glDeleteTextures(1, &penTexture);
+                penTexture = 0;
+                initPen();
+            }
+        }
+
         return !globalWindow->shouldClose();
     }
     return false;

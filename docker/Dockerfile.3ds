@@ -1,73 +1,28 @@
-FROM devkitpro/devkitarm:latest AS sdl3_builder
-WORKDIR /sdl3
-
-RUN git clone --recursive --branch main https://github.com/libsdl-org/SDL.git .
-
-RUN . /opt/devkitpro/3dsvars.sh && \
-    mkdir build && cd build && \
-    arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDL_STATIC=ON -DSDL_SHARED=OFF -G Ninja && ninja && ninja install
-
-FROM devkitpro/devkitarm:latest AS sdl3_mixer_builder
-WORKDIR /sdl3_mixer
-
-COPY --from=sdl3_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
-
-RUN git clone --branch main --recurse-submodules https://github.com/libsdl-org/SDL_mixer.git .
-
-RUN . /opt/devkitpro/3dsvars.sh && \
-    mkdir build && cd build && \
-    arm-none-eabi-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PORTLIBS_PREFIX -DSDLMIXER_TESTS=OFF -DSDLMIXER_EXAMPLES=OFF -DSDLMIXER_MP3_MPG123_SHARED=OFF -DSDLMIXER_MP3_DRMP3=OFF -DSDLMIXER_MP3_MPG123=ON -DCMAKE_DISABLE_FIND_PACKAGE_Opus=ON -DCMAKE_DISABLE_FIND_PACKAGE_OpusFile=ON -DCMAKE_DISABLE_FIND_PACKAGE_Ogg=ON -DCMAKE_DISABLE_FIND_PACKAGE_Vorbis=ON -DCMAKE_DISABLE_FIND_PACKAGE_FLAC=ON -DCMAKE_DISABLE_FIND_PACKAGE_gme=ON -DCMAKE_DISABLE_FIND_PACKAGE_libxmp=ON -G Ninja && \
-    ninja && ninja install
-
-FROM devkitpro/devkitarm:latest AS libcurl_builder
-WORKDIR /pacman-packages
-
-COPY --from=sdl3_mixer_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
-
-RUN apt-get update && apt-get install -y --no-install-recommends fakeroot zstd
-
-RUN git clone https://github.com/gradylink/dkp-pacman-packages . && git switch feat/3ds-curl
-
-RUN groupadd --gid 1000 builder && useradd --uid 1000 --gid builder --shell /bin/bash --create-home builder
-RUN chown -R builder:builder /pacman-packages
-RUN echo 'builder ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/99-builder
-USER builder
-
-RUN cd 3ds/curl && dkp-makepkg -si --noconfirm
-
-FROM devkitpro/devkitarm:latest AS mistpp_installer
-WORKDIR /mistpp-packages
-
-COPY --from=libcurl_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
-
-RUN wget https://github.com/ScratchEverywhere/mistpp-packages/releases/download/0.3.4-1/3ds-libmistpp-0.3.4-1-any.pkg.tar.zst && dkp-pacman -U --noconfirm 3ds-libmistpp-0.3.4-1-any.pkg.tar.zst
-
-FROM devkitpro/devkitarm:latest AS makerom_installer
+FROM debian:bookworm AS makerom_installer
 WORKDIR /makerom
 
-COPY --from=mistpp_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates unzip
 
-RUN wget https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.18.4/makerom-v0.18.4-ubuntu_x86_64.zip && unzip makerom-v0.18.4-ubuntu_x86_64.zip && chmod +x makerom && cp makerom /opt/devkitpro/portlibs/3ds/bin/
+RUN wget https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.18.4/makerom-v0.18.4-ubuntu_x86_64.zip && unzip makerom-v0.18.4-ubuntu_x86_64.zip && chmod +x makerom
 
 FROM debian:bookworm AS bannertool_builder
 WORKDIR /bannertool
 
-COPY --from=makerom_installer /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
-
 RUN apt update && apt install -y --no-install-recommends build-essential git ca-certificates cmake
 
-RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && git checkout 3767e03b0492654bdff7be7beacf32b5b6a60415 && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build && cp build/bannertool /opt/devkitpro/portlibs/3ds/bin/
+RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && git checkout 3767e03b0492654bdff7be7beacf32b5b6a60415 && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 
 FROM devkitpro/devkitarm:latest AS main_builder
 WORKDIR /app
 
-# Bring in all built portlibs + makerom + bannertool
-COPY --from=bannertool_builder /opt/devkitpro/portlibs/3ds/ /opt/devkitpro/portlibs/3ds/
+# Bring in makerom + bannertool
+COPY --from=makerom_installer /makerom/ /makerom/
+COPY --from=bannertool_builder /bannertool/ /bannertool/
 COPY . .
 
 # Build .3dsx and .cia for default TARGET (Scratch)
-RUN make ENABLE_CLOUDVARS=1 ENABLE_AUDIO=1 ENABLE_DOWNLOAD=1 -j 2
+RUN /opt/devkitpro/portlibs/3ds/bin/arm-none-eabi-cmake -B build-3ds -DCMAKE_BUILD_TYPE=Release -DSE_MAKEROM=/makerom/makerom -DSE_BANNERTOOL=/bannertool/build/bannertool && cmake --build build-3ds -j2
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/3ds/scratch-3ds.3dsx /
-COPY --from=main_builder /app/build/3ds/scratch-3ds.cia /
+COPY --from=main_builder /app/build-3ds/scratch-3ds.3dsx /
+COPY --from=main_builder /app/build-3ds/scratch-3ds.cia /

@@ -13,6 +13,7 @@ class Loading {
     float block1Y;
     float block2Y;
     float block3Y;
+    bool renderBlocks = true;
 
   public:
     void init();

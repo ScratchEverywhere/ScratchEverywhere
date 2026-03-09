@@ -5,24 +5,26 @@ on:
     paths:
       - CMakeLists.txt
       - source/runtime/**
+      - source/renderers/sdl1/**
+      - source/windowing/sdl1/**
+      - source/audio/sdl1/**
       - source/renderers/sdl2/**
-      - source/renderers/opengl/**
-      - source/renderers/headless/**
       - source/windowing/sdl2/**
+      - source/audio/sdl2/**
+      - source/audio/sdl3/**
+      - source/renderers/opengl/**
       - source/windowing/glfw/**
+      - source/renderers/headless/**
+      - source/audio/headless/**
       - source/windowing/headless/**
       - source/*
       - source/menus/**
-      - source/audio/sdl2/**
-      - source/audio/sdl3/**
-      - source/audio/headless/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-pc.yml
       - docker/Dockerfile.linux
       - docker/Dockerfile.windows
       - docker/Dockerfile.macos
-      - source/main.cpp
     branches:
       - main
   pull_request:

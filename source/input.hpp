@@ -33,7 +33,7 @@ class Input {
     static void applyControls(std::string controlsFilePath = "") {
         Input::inputControls.clear();
 
-        if (controlsFilePath != "" && Scratch::projectType == UNEMBEDDED) {
+        if (controlsFilePath != "" && Scratch::projectType == ProjectType::UNEMBEDDED) {
             // load controls from file
             std::ifstream file(controlsFilePath);
             if (file.is_open()) {
