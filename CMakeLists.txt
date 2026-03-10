@@ -10,6 +10,14 @@ else()
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
+set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
+set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
+set(SE_APP_VERSION "${CMAKE_PROJECT_VERSION}" CACHE STRING "Version of the outputed app.")
+set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
+
+set(SE_OBJECTS_DIR "" CACHE PATH "Directory containing pre-built .o files.")
+
 set(SE_OUTPUT_NAME "" CACHE STRING "File name of the outputed executable")
 
 if(NINTENDO_3DS)
@@ -278,50 +286,92 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if(SE_SYSTEM)
-	find_package(PkgConfig REQUIRED)
-endif()
+find_package(PkgConfig REQUIRED)
+
+# Pre-Compiled Deps (for packager)
+macro(check_prebuilt_dep DEP_NAME LIB_NAME ALIAS_NAME)
+	cmake_parse_arguments(ARG "" "" "REQUIRED_LIBS" ${ARGN})
+
+    if(NOT SE_OBJECTS_DIR STREQUAL "")
+        find_library(${DEP_NAME}_PREBUILT NAMES ${LIB_NAME} PATHS ${SE_OBJECTS_DIR} NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+        
+        if(${DEP_NAME}_PREBUILT)
+            message(STATUS "Using pre-built ${LIB_NAME}: ${${DEP_NAME}_PREBUILT}")
+            add_library(${DEP_NAME} STATIC IMPORTED GLOBAL)
+            set_target_properties(${DEP_NAME} PROPERTIES IMPORTED_LOCATION "${${DEP_NAME}_PREBUILT}")
+
+			if(ARG_REQUIRED_LIBS)
+				target_link_libraries(${DEP_NAME} INTERFACE "${ARG_REQUIRED_LIBS}")
+			endif()
+
+			add_library(${ALIAS_NAME} ALIAS ${DEP_NAME})
+            set(USE_${DEP_NAME}_PREBUILT ON)
+        endif()
+    endif()
+endmacro()
+
+check_prebuilt_dep(plutovg plutovg plutovg::plutovg REQUIRED_LIBS m)
+check_prebuilt_dep(lunasvg lunasvg lunasvg::lunasvg REQUIRED_LIBS plutovg::plutovg)
+check_prebuilt_dep(ryuJS ryuJS ryuJS::ryuJS)
 
 # They're single header so I just use CPM no matter what
-CPMAddPackage(
-	NAME nlohmann_json
-	GITHUB_REPOSITORY nlohmann/json
-	VERSION 3.12.0
-)
-CPMAddPackage(
-	NAME poipole807_ryuJS
-	GITHUB_REPOSITORY poipole807/ryuJS
-	VERSION 3.0
-)
-CPMAddPackage(
-  NAME plutovg
-  GITHUB_REPOSITORY sammycage/plutovg
-  VERSION 1.3.0 # Version expected by LunaSVG
-  OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
-)
-CPMAddPackage(
-  NAME lunasvg
-  GITHUB_REPOSITORY sammycage/lunasvg
-  VERSION 3.5.0
-  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
-)
-CPMAddPackage(
-  NAME stb
-  GITHUB_REPOSITORY nothings/stb
-  GIT_TAG master
-)
+if(SE_OBJECTS_DIR STREQUAL "")
+	CPMAddPackage(
+		NAME nlohmann_json
+		GITHUB_REPOSITORY nlohmann/json
+		VERSION 3.12.0
+	)
+	CPMAddPackage(
+		NAME stb
+		GITHUB_REPOSITORY nothings/stb
+		GIT_TAG master # TODO: Pin commit
+	)
+endif()
+if(NOT USE_ryuJS_PREBUILT)
+	CPMAddPackage(
+		NAME poipole807_ryuJS
+		GITHUB_REPOSITORY poipole807/ryuJS
+		VERSION 3.0
+	)
+
+	add_library(ryuJS STATIC
+	  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
+	  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
+	)
+	target_include_directories(ryuJS PUBLIC
+	  ${poipole807_ryuJS_SOURCE_DIR}
+	)
+endif()
+if(NOT USE_plutovg_PREBUILT)
+	CPMAddPackage(
+	  NAME plutovg
+	  GITHUB_REPOSITORY sammycage/plutovg
+	  VERSION 1.3.0 # Version expected by LunaSVG
+	  OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
+	)
+endif()
+if(NOT USE_lunasvg_PREBUILT)
+	CPMAddPackage(
+	  NAME lunasvg
+	  GITHUB_REPOSITORY sammycage/lunasvg
+	  VERSION 3.5.0
+	  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
+	)
+endif()
 
 # PlutoVG Fixes
-if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_3DS)
-	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
-endif()
+if(NOT USE_plutovg_PREBUILT)
+	if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_3DS)
+		target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
+	endif()
 
-if(PSP OR NINTENDO_DS OR NINTENDO_3DS)
-	target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
-endif()
+	if(PSP OR NINTENDO_DS OR NINTENDO_3DS)
+		target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
+	endif()
 
-if(NINTENDO_DS)
-	target_compile_definitions(plutovg PRIVATE __STDC_NO_ATOMICS__)
+	if(NINTENDO_DS)
+		target_compile_definitions(plutovg PRIVATE __STDC_NO_ATOMICS__)
+	endif()
 endif()
 
 include(FetchContent)
@@ -332,6 +382,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz)
 
+>>>>>>> main
 if(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
@@ -349,56 +400,73 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 			pkg_check_modules(SDL2_GFX REQUIRED SDL2_gfx>=1.0.0)
 		endif()
 	else()
-		if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
-			message(STATUS "Test!")
-			set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF") # TODO: Fix compiler-rt issues
-		elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)
-			set(SDL2_OPTIONS "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
-		else()
-			set(SDL2_OPTIONS "")
+		check_prebuilt_dep(SDL2 SDL2 SDL2::SDL2)
+		if(NOT USE_SDL2_PREBUILT)
+			if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
+				set(SDL2_OPTIONS "SDL_COCOA OFF" "SDL_RENDER_METAL OFF" "SDL_OPENGL ON" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF") # TODO: Fix compiler-rt issues
+			elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)
+				set(SDL2_OPTIONS "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF")
+			else()
+				set(SDL2_OPTIONS "")
+			endif()
+			CPMAddPackage(
+				NAME SDL2
+				VERSION 2.32.10
+				GITHUB_REPOSITORY libsdl-org/SDL
+				GIT_TAG release-2.32.10
+				OPTIONS ${SDL2_OPTIONS}
+			)
 		endif()
-		CPMAddPackage(
-			NAME SDL2
-			VERSION 2.32.10
-			GITHUB_REPOSITORY libsdl-org/SDL
-			GIT_TAG release-2.32.10
-			OPTIONS ${SDL2_OPTIONS}
-		)
-		CPMAddPackage(
-			NAME SDL2_ttf
-			VERSION 2.24.0
-			GITHUB_REPOSITORY libsdl-org/SDL_ttf
-			GIT_TAG release-2.24.0
-			OPTIONS "SDL2TTF_VENDORED ON"
-		)
+
+		check_prebuilt_dep(freetype freetype Freetype::Freetype)
+		if(USE_freetype_PREBUILT)
+			check_prebuilt_dep(SDL2_ttf SDL2_ttf SDL2_ttf::SDL2_ttf REQUIRED_LIBS Freetype::Freetype)
+		endif()
+		if(NOT USE_SDL2_ttf_PREBUILT)
+			CPMAddPackage(
+				NAME SDL2_ttf
+				VERSION 2.24.0
+				GITHUB_REPOSITORY libsdl-org/SDL_ttf
+				GIT_TAG release-2.24.0
+				OPTIONS "SDL2TTF_VENDORED ON"
+			)
+		endif()
 	endif()
 
 	if(NOT SE_SYSTEM OR WEBOS)
-		CPMAddPackage(
-			NAME SDL2_gfx
-			VERSION 1.0.4
-			GITHUB_REPOSITORY giroletm/SDL2_gfx
-			GIT_TAG release-1.0.4
-			DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
-		)
-		file(GLOB SDL2_GFX_SOURCES
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
-			"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
-		)
-		add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
-		target_include_directories(SDL2_gfx PUBLIC
-			$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
-		)
 		if(WEBOS)
-			target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
-			target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
+			check_prebuilt_dep(SDL2_gfx SDL2_gfx SDL2_gfx::SDL2_gfx REQUIRED_LIBS ${SDL2_LIBRARIES})
 		else()
-			target_link_libraries(SDL2_gfx PUBLIC
-				SDL2::SDL2
+			check_prebuilt_dep(SDL2_gfx SDL2_gfx SDL2_gfx::SDL2_gfx REQUIRED_LIBS SDL2::SDL2)
+		endif()
+
+		if (NOT USE_SDL2_gfx_PREBUILT)
+			CPMAddPackage(
+				NAME SDL2_gfx
+				VERSION 1.0.4
+				GITHUB_REPOSITORY giroletm/SDL2_gfx
+				GIT_TAG release-1.0.4
+				DOWNLOAD_ONLY TRUE # SDL2_gfx doesn't have a CMakeLists.txt
 			)
+			file(GLOB SDL2_GFX_SOURCES
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_rotozoom.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_framerate.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_imageFilter.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
+				"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
+			)
+			add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
+			target_include_directories(SDL2_gfx PUBLIC
+				$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
+			)
+			if(WEBOS)
+				target_link_libraries(SDL2_gfx PUBLIC ${SDL2_LIBRARIES})
+				target_include_directories(SDL2_gfx PRIVATE ${SDL2_INCLUDE_DIRS})
+			else()
+				target_link_libraries(SDL2_gfx PUBLIC
+					SDL2::SDL2
+				)
+			endif()
 		endif()
 	endif()
 elseif(SE_RENDERER STREQUAL "sdl3")
@@ -512,17 +580,25 @@ if(SE_AUDIO)
 				)
 			endif()
 
-			CPMAddPackage(
-				NAME SDL2_mixer
-				VERSION 2.8.1
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG release-2.8.1
-				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
-			)
-
 			if(WEBOS)
-				target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
-				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
+				check_prebuilt_dep(SDL2_mixer SDL2_mixer SDL2_mixer::SDL2_mixer REQUIRED_LIBS ${SDL2_LIBRARIES})
+			else()
+				check_prebuilt_dep(SDL2_mixer SDL2_mixer SDL2_mixer::SDL2_mixer REQUIRED_LIBS SDL2::SDL2)
+			endif()
+
+			if(NOT USE_SDL2_mixer_PREBUILT)
+				CPMAddPackage(
+					NAME SDL2_mixer
+					VERSION 2.8.1
+					GITHUB_REPOSITORY libsdl-org/SDL_mixer
+					GIT_TAG release-2.8.1
+					OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+				)
+
+				if(WEBOS)
+					target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
+					target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
+				endif()
 			endif()
 		else()
 			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
@@ -561,39 +637,48 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# DevkitPro finally merged our WebSocket patches to their Wii U libcurl.
 	# NetBSD curl has ws/wss
 	if(NOT HAIKU AND NOT NINTENDO_WIIU AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
-		set(CURL_OPTIONS
-			"BUILD_CURL_EXE OFF"
-			"BUILD_TESTING OFF"
-			"BUILD_EXAMPLES OFF"
-			"ENABLE_MANUAL OFF"
-			"CURL_DISABLE_INSTALL ON"
-			"ENABLE_ARES OFF"
-			"USE_LIBIDN2 OFF"
-			"ENABLE_WEBSOCKETS ON"
-			"CURL_DISABLE_WEBSOCKETS OFF"
-			"CURL_DISABLE_LDAP ON"
-			"CURL_USE_LIBSSH2 OFF"
-			"CURL_USE_LIBPSL OFF"
-		)
+		find_package(ZLIB REQUIRED)
 		if(WEBOS)
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+			check_prebuilt_dep(curl curl curl::curl REQUIRED_LIBS ${ZLIB_LIBRARIES})
 		else()
-			list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
-			list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
-		endif()
-		if(WIN32 OR WEBOS)
-			list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
+			check_prebuilt_dep(curl curl curl::curl REQUIRED_LIBS ${ZLIB_LIBRARIES} mbedtls mbedx509 mbedcrypto)
 		endif()
 
-		CPMAddPackage(
-			NAME curl
-			GIT_REPOSITORY "https://github.com/curl/curl.git"
-			GIT_TAG "curl-8_15_0"
-			VERSION 8.15.0
-			PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/3ds-curl.patch"
-			OPTIONS ${CURL_OPTIONS}
-		)
+		if(NOT USE_curl_PREBUILT)
+			set(CURL_OPTIONS
+				"BUILD_CURL_EXE OFF"
+				"BUILD_TESTING OFF"
+				"BUILD_EXAMPLES OFF"
+				"ENABLE_MANUAL OFF"
+				"CURL_DISABLE_INSTALL ON"
+				"ENABLE_ARES OFF"
+				"USE_LIBIDN2 OFF"
+				"ENABLE_WEBSOCKETS ON"
+				"CURL_DISABLE_WEBSOCKETS OFF"
+				"CURL_DISABLE_LDAP ON"
+				"CURL_USE_LIBSSH2 OFF"
+				"CURL_USE_LIBPSL OFF"
+			)
+			if(WEBOS)
+				list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+				list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+			else()
+				list(APPEND CURL_OPTIONS "CURL_USE_OPENSSL OFF")
+				list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
+			endif()
+			if(WIN32 OR WEBOS)
+				list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
+			endif()
+
+			CPMAddPackage(
+				NAME curl
+				GIT_REPOSITORY "https://github.com/curl/curl.git"
+				GIT_TAG "curl-8_15_0"
+				VERSION 8.15.0
+				PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/3ds-curl.patch"
+				OPTIONS ${CURL_OPTIONS}
+			)
+		endif()
 	elseif(NINTENDO_WIIU)
 		pkg_check_modules(libcurl REQUIRED IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
 		add_library(curl ALIAS PkgConfig::libcurl)
@@ -602,7 +687,11 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 		find_package(CURL REQUIRED)
 	endif()
 	if(SE_CLOUDVARS)
-		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.4")
+		check_prebuilt_dep(mistpp mist++ mist++ REQUIRED_LIBS curl)
+
+		if(NOT USE_mistpp_PREBUILT)
+			CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.4")
+		endif()
 	endif()
 endif()
 
@@ -613,20 +702,46 @@ if(SE_MENU)
 endif()
 
 set(SOURCE_FILES)
-foreach(DIR IN LISTS SOURCES)
-	file(GLOB DIR_SOURCES
-		${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
+if(NOT SE_OBJECTS_DIR STREQUAL "")
+	file(GLOB SOURCE_FILES "${SE_OBJECTS_DIR}/*.o" "${SE_OBJECTS_DIR}/*.obj")
+	set_source_files_properties(${SOURCE_FILES} PROPERTIES EXTERNAL_OBJECT TRUE)
+else()
+	foreach(DIR IN LISTS SOURCES)
+		file(GLOB DIR_SOURCES
+			${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
+			${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
+			${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
+		)
+		list(APPEND SOURCE_FILES ${DIR_SOURCES})
+	endforeach()
+endif()
+
+set(MINIZ_PREBUILT_FOUND FALSE)
+if(NOT SE_OBJECTS_DIR STREQUAL "")
+	file(GLOB MINIZ_OBJECT "${SE_OBJECTS_DIR}/miniz.o" "${SE_OBJECTS_DIR}/miniz.obj" "${SE_OBJECTS_DIR}/miniz.c.o" "${SE_OBJECTS_DIR}/miniz.c.obj")
+	if(MINIZ_OBJECT)
+		message(STATUS "Using pre-built miniz: ${MINIZ_OBJECT}")
+		list(APPEND SOURCE_FILES "${MINIZ_OBJECT}")
+		set(MINIZ_PREBUILT_FOUND TRUE)
+	endif()
+endif()
+if (NOT MINIZ_PREBUILT_FOUND)
+	include(FetchContent)
+	FetchContent_Declare(
+		miniz
+		URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
+		DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 	)
-	list(APPEND SOURCE_FILES ${DIR_SOURCES})
-endforeach()
-list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+	FetchContent_MakeAvailable(miniz)
+	list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+endif()
+
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
 
 add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+set_target_properties(scratch-everywhere PROPERTIES LINKER_LANGUAGE CXX)
 if(PSP)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-psp)
 elseif(NINTENDO_SWITCH)
@@ -862,6 +977,9 @@ if(SE_DOWNLOAD)
 	if(NOT SE_CLOUDVARS)
 		target_link_libraries(scratch-everywhere PRIVATE curl)
 	endif()
+
+	find_package(Threads REQUIRED)
+	target_link_libraries(scratch-everywhere PRIVATE Threads::Threads)
 endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CLOUDVARS)
@@ -930,18 +1048,17 @@ if(SE_AUDIO)
 	endif()
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
-add_library(ryuJS STATIC
-  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
-  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
-)
-target_link_libraries(scratch-everywhere PRIVATE ryuJS)
-target_include_directories(ryuJS PUBLIC
-  ${poipole807_ryuJS_SOURCE_DIR}
-)
-target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
-target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
-target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+if(SE_OBJECTS_DIR STREQUAL "")
+	target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+	target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
+endif()
+
+target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg ryuJS)
+target_include_directories(scratch-everywhere PRIVATE ${SOURCES})
+
+if(NOT MINIZ_PREBUILT_FOUND)
+	target_include_directories(scratch-everywhere PRIVATE ${miniz_SOURCE_DIR})
+endif()
 
 if(EMSCRIPTEN)
 	target_include_directories(scratch-everywhere PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/wasm)
@@ -955,8 +1072,8 @@ if(PSP)
         ICON_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/ICON0.png
         BACKGROUND_PATH NULL
         PREVIEW_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
-        TITLE scratch-everywhere
-        VERSION ${CMAKE_PROJECT_VERSION}
+		TITLE "${SE_APP_NAME}"
+		VERSION "${SE_APP_VERSION}"
     )
 	# package the EBOOT.pbp
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
@@ -965,7 +1082,7 @@ if(PSP)
 		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/scratch-psp.zip" --format=zip -- "${CMAKE_BINARY_DIR}/scratch-psp-bundle"
 	)
 elseif(NINTENDO_SWITCH)
-	nx_generate_nacp(OUTPUT scratch-nx.nacp NAME "Scratch Everywhere!" AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
+	nx_generate_nacp(OUTPUT scratch-nx.nacp NAME "${SE_APP_NAME}" AUTHOR "${SE_APP_AUTHOR}" VERSION "${SE_APP_VERSION}")
 	nx_create_nro(scratch-everywhere OUTPUT scratch-nx.nro ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/switch-icon.jpg" NACP scratch-nx.nacp)
 elseif(VITA)
 	include("${VITASDK}/share/vita.cmake" REQUIRED)
@@ -984,9 +1101,9 @@ elseif(VITA)
 	endforeach()
 
 	vita_create_self(scratch-vita.self scratch-everywhere)
-	vita_create_vpk(scratch-vita.vpk "NTXS00053" scratch-vita.self
+	vita_create_vpk(scratch-vita.vpk "${SE_APP_TITLEID}" scratch-vita.self
 		VERSION "01.00"
-		NAME "Scratch Everywhere!"
+		NAME "${SE_APP_NAME}"
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/template.xml sce_sys/livearea/contents/template.xml
@@ -998,8 +1115,11 @@ elseif(WEBOS)
 	# toolchain path: ~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake
 	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++" "-static-libgcc")
 	set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY ON)
+
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/webos/appinfo.json.in" "${CMAKE_CURRENT_BINARY_DIR}/appinfo.json" @ONLY)
+
 	install(TARGETS scratch-everywhere RUNTIME DESTINATION .)
-    install(FILES ${CMAKE_SOURCE_DIR}/gfx/webos/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
+	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/appinfo.json ${CMAKE_SOURCE_DIR}/gfx/webos/icon.png ${CMAKE_SOURCE_DIR}/gfx/webos/splash.png DESTINATION .)
 
     if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
         install(FILES "${CMAKE_SOURCE_DIR}/romfs/project.sb3" DESTINATION .)
@@ -1019,9 +1139,9 @@ elseif(WEBOS)
     include(CPack)
 elseif(NINTENDO_DS)
 	nds_create_rom(scratch-everywhere
-		NAME "Scratch Everywhere!"
-		SUBTITLE "Scratch 3 Games on your DS!"
-		AUTHOR "NateXS"
+		NAME "${SE_APP_NAME}"
+		SUBTITLE "${SE_APP_DESCRIPTION}"
+		AUTHOR "${SE_APP_AUTHOR}"
 		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/icon.bmp"
 		NITROFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs"
 	)
@@ -1030,8 +1150,8 @@ elseif(NINTENDO_WII OR NINTENDO_GAMECUBE)
 elseif(NINTENDO_WIIU)
 	wut_create_rpx(scratch-everywhere)
 	wut_create_wuhb(scratch-everywhere
-		NAME "Scratch Everywhere!"
-		AUTHOR "NateXS and Grady Link"
+		NAME "${SE_APP_NAME}"
+		AUTHOR "${SE_APP_AUTHOR}"
 		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/icon.png"
 		TVSPLASH "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/tv-splash.png"
 		DRCSPLASH "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/drc-splash.png"
@@ -1055,7 +1175,7 @@ elseif(NINTENDO_WIIU)
 		COMMENT "Packaging..."
 	)
 elseif(NINTENDO_3DS)
-	ctr_generate_smdh(OUTPUT scratch-3ds.smdh NAME "Scrach Everywhere!" AUTHOR "NateXS" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "Scratch 3 Games on your 3DS!")
+	ctr_generate_smdh(OUTPUT scratch-3ds.smdh NAME "${SE_APP_NAME}" AUTHOR "${SE_APP_AUTHOR}" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "${SE_APP_DESCRIPTION}")
 	ctr_create_3dsx(scratch-everywhere ROMFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs" SMDH "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.smdh")
 
 	if(SE_BUILD_CIA)
@@ -1063,7 +1183,7 @@ elseif(NINTENDO_3DS)
 		configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/makerom.rsf.in" "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf") # For setting the amount of ram
 		add_custom_command(TARGET scratch-everywhere POST_BUILD
 			COMMAND ${SE_BANNERTOOL} makebanner -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.png" -a "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.wav" -o "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr"
-			COMMAND ${SE_BANNERTOOL} makesmdh -s "Scratch Everywhere!" -l "Scratch 3 Games on your 3DS!" -p "NateXS" -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" -o "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh"
+			COMMAND ${SE_BANNERTOOL} makesmdh -s "${SE_APP_NAME}" -l "${SE_APP_DESCRIPTION}" -p "${SE_APP_AUTHOR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" -o "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh"
 			COMMAND	${SE_MAKEROM} -f "cia" -o "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.cia" -elf "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.elf" -rsf "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf" -banner "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr" -icon "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh" -target t -exefslogo
 			COMMENT "Building scratch-3ds.cia..."
 		)
@@ -1080,7 +1200,7 @@ elseif(PS4)
 	file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
 
 	add_self(scratch-everywhere)
-	add_pkg(scratch-everywhere "NTXS10053" "Scratch Everywhere!" ${CMAKE_PROJECT_VERSION} ${ROMFS_FILES})
+	add_pkg(scratch-everywhere "${SE_APP_TITLEID}" "${SE_APP_NAME}" ${CMAKE_PROJECT_VERSION} ${ROMFS_FILES})
 endif()
 if(NINTENDO_WII)
 	execute_process(

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <app version="1">
-	<name>Scratch Everywhere!</name>
-	<coder>NateXS and Grady Link</coder>
-	<version>@CMAKE_PROJECT_VERSION@</version>
+	<name>@SE_APP_NAME@</name>
+	<coder>@SE_APP_AUTHOR@</coder>
+	<version>@SE_APP_VERSION@</version>
 	<release_date>@WIIU_RELEASE_DATE@</release_date>
-	<short_description>Play Scratch Games on the Wii U!</short_description>
-	<long_description>Play Scratch Games on the Wii U!</long_description>
+	<short_description>@SE_APP_DESCRIPTION@</short_description>
+	<long_description>@SE_APP_DESCRIPTION@</long_description>
 </app>
