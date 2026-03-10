@@ -1139,9 +1139,9 @@ elseif(WEBOS)
     include(CPack)
 elseif(NINTENDO_DS)
 	nds_create_rom(scratch-everywhere
-		NAME "Scratch Everywhere!"
-		SUBTITLE "Scratch 3 Games on your DS!"
-		AUTHOR "NateXS"
+		NAME "${SE_APP_NAME}"
+		SUBTITLE "${SE_APP_DESCRIPTION}"
+		AUTHOR "${SE_APP_AUTHOR}"
 		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/icon.bmp"
 		NITROFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs"
 	)
@@ -1150,8 +1150,8 @@ elseif(NINTENDO_WII OR NINTENDO_GAMECUBE)
 elseif(NINTENDO_WIIU)
 	wut_create_rpx(scratch-everywhere)
 	wut_create_wuhb(scratch-everywhere
-		NAME "Scratch Everywhere!"
-		AUTHOR "NateXS and Grady Link"
+		NAME "${SE_APP_NAME}"
+		AUTHOR "${SE_APP_AUTHOR}"
 		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/icon.png"
 		TVSPLASH "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/tv-splash.png"
 		DRCSPLASH "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/drc-splash.png"
@@ -1175,7 +1175,7 @@ elseif(NINTENDO_WIIU)
 		COMMENT "Packaging..."
 	)
 elseif(NINTENDO_3DS)
-	ctr_generate_smdh(OUTPUT scratch-3ds.smdh NAME "Scrach Everywhere!" AUTHOR "NateXS" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "Scratch 3 Games on your 3DS!")
+	ctr_generate_smdh(OUTPUT scratch-3ds.smdh NAME "${SE_APP_NAME}" AUTHOR "${SE_APP_AUTHOR}" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "${SE_APP_DESCRIPTION}")
 	ctr_create_3dsx(scratch-everywhere ROMFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs" SMDH "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.smdh")
 
 	if(SE_BUILD_CIA)
@@ -1183,7 +1183,7 @@ elseif(NINTENDO_3DS)
 		configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/makerom.rsf.in" "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf") # For setting the amount of ram
 		add_custom_command(TARGET scratch-everywhere POST_BUILD
 			COMMAND ${SE_BANNERTOOL} makebanner -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.png" -a "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.wav" -o "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr"
-			COMMAND ${SE_BANNERTOOL} makesmdh -s "Scratch Everywhere!" -l "Scratch 3 Games on your 3DS!" -p "NateXS" -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" -o "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh"
+			COMMAND ${SE_BANNERTOOL} makesmdh -s "${SE_APP_NAME}" -l "${SE_APP_DESCRIPTION}" -p "${SE_APP_AUTHOR}" -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" -o "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh"
 			COMMAND	${SE_MAKEROM} -f "cia" -o "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.cia" -elf "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.elf" -rsf "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf" -banner "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr" -icon "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh" -target t -exefslogo
 			COMMENT "Building scratch-3ds.cia..."
 		)
@@ -1200,7 +1200,7 @@ elseif(PS4)
 	file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
 
 	add_self(scratch-everywhere)
-	add_pkg(scratch-everywhere "NTXS10053" "Scratch Everywhere!" ${CMAKE_PROJECT_VERSION} ${ROMFS_FILES})
+	add_pkg(scratch-everywhere "${SE_APP_TITLEID}" "${SE_APP_NAME}" ${CMAKE_PROJECT_VERSION} ${ROMFS_FILES})
 endif()
 if(NINTENDO_WII)
 	execute_process(
