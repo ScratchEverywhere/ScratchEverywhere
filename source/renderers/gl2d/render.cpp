@@ -59,8 +59,17 @@ void *Render::getRenderer() {
     return nullptr;
 }
 
-SpeechManager *Render::getSpeechManager() {
+bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerGL2D();
+    return speechManager != nullptr;
+}
+
+void Render::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
     return speechManager;
 }
 

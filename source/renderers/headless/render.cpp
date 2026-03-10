@@ -33,6 +33,13 @@ void *Render::getRenderer() {
     return nullptr;
 }
 
+bool Render::createSpeechManager() {
+    return false;
+}
+
+void Render::destroySpeechManager() {
+}
+
 SpeechManager *Render::getSpeechManager() {
     return nullptr;
 }

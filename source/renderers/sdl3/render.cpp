@@ -111,6 +111,16 @@ void *Render::getRenderer() {
     return static_cast<void *>(renderer);
 }
 
+bool Render::createSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
+    return speechManager != nullptr;
+}
+
+void Render::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
+}
+
 SpeechManager *Render::getSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
     return speechManager;

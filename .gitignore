@@ -87,4 +87,6 @@ cloud-username.txt
 # fockerdile
 !docker/Dockerfile.nds
 
+.clangd
+
 CMakeSettings.json

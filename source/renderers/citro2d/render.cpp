@@ -93,8 +93,17 @@ void *Render::getRenderer() {
     return nullptr;
 }
 
-SpeechManager *Render::getSpeechManager() {
+bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerC2D();
+    return speechManager != nullptr;
+}
+
+void Render::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
     return speechManager;
 }
 
@@ -578,7 +587,9 @@ void Render::renderSprites() {
             i++;
         }
         if (speechManager) {
-            speechManager->render();
+            speechManager->render(
+                renderMode == BOTH_SCREENS ? -40 : 0,
+                renderMode == BOTH_SCREENS ? -240 : 0);
         }
 
         if (Render::renderMode != Render::BOTH_SCREENS) {

@@ -10,8 +10,8 @@
 #include <value.hpp>
 
 SCRATCH_BLOCK(looks, say) {
+    if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
     SpeechManager *speechManager = Render::getSpeechManager();
-    if (!speechManager) return BlockResult::CONTINUE;
 
     Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
     std::string message = messageValue.asString();
@@ -21,8 +21,8 @@ SCRATCH_BLOCK(looks, say) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK(looks, sayforsecs) {
+    if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
     SpeechManager *speechManager = Render::getSpeechManager();
-    if (!speechManager) return BlockResult::CONTINUE;
 
     // copied wait block functionality to hold off subsequent block execution until speech timer expires
     if (block.repeatTimes != -1 && !fromRepeat) {
@@ -55,8 +55,8 @@ SCRATCH_BLOCK(looks, sayforsecs) {
     return BlockResult::RETURN;
 }
 SCRATCH_BLOCK(looks, think) {
+    if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
     SpeechManager *speechManager = Render::getSpeechManager();
-    if (!speechManager) return BlockResult::CONTINUE;
 
     Value messageValue = Scratch::getInputValue(block, "MESSAGE", sprite);
     std::string message = messageValue.asString();
@@ -66,8 +66,8 @@ SCRATCH_BLOCK(looks, think) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK(looks, thinkforsecs) {
+    if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
     SpeechManager *speechManager = Render::getSpeechManager();
-    if (!speechManager) return BlockResult::CONTINUE;
 
     // copied wait block functionality to hold off subsequent block execution until speech timer expires
     if (block.repeatTimes != -1 && !fromRepeat) {

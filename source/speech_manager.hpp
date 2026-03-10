@@ -34,5 +34,5 @@ class SpeechManager {
     void update();
     void cleanup();
 
-    virtual void render() = 0;
+    virtual void render(int offsetX = 0, int offsetY = 0) = 0;
 };

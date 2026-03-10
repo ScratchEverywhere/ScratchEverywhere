@@ -9,14 +9,10 @@
 #include <runtime.hpp>
 
 SpeechManagerSDL1::SpeechManagerSDL1(SDL_Surface *window) : window(window) {
-    speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false);
 }
 
 SpeechManagerSDL1::~SpeechManagerSDL1() {
     cleanup();
-}
-
-void SpeechManagerSDL1::ensureImagesLoaded() {
 }
 
 double SpeechManagerSDL1::getCurrentTime() {
@@ -28,10 +24,8 @@ void SpeechManagerSDL1::createSpeechObject(Sprite *sprite, const std::string &me
     static_cast<SpeechTextObjectSDL *>(speechObjects[sprite].get())->setRenderer(window);
 }
 
-void SpeechManagerSDL1::render() {
+void SpeechManagerSDL1::render(int offsetX, int offsetY) {
     if (!window) return;
-
-    ensureImagesLoaded();
 
     // Get window dimensions and scale so speech size aligns with resolution
     int windowWidth = Render::getWidth();
@@ -40,8 +34,11 @@ void SpeechManagerSDL1::render() {
     double scaleY = static_cast<double>(windowHeight) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
+    size_t visibleObjects = 0;
     for (auto &[sprite, obj] : speechObjects) {
         if (obj && sprite->visible) {
+            visibleObjects++;
+            if (visibleObjects == 1 && speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false);
             // Apply res-respecting transformations
             int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (windowWidth / 2));
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));
@@ -103,6 +100,7 @@ void SpeechManagerSDL1::render() {
             speechObj->render(textX, textY);
         }
     }
+    if (visibleObjects == 0 && speechIndicatorImage != nullptr) speechIndicatorImage.reset();
 }
 
 void SpeechManagerSDL1::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {

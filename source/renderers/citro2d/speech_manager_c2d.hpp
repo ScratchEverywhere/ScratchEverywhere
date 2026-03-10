@@ -8,7 +8,7 @@ class Image;
 
 class SpeechManagerC2D : public SpeechManager {
   private:
-    std::shared_ptr<Image> speechIndicatorImage;
+    std::shared_ptr<Image> speechIndicatorImage = nullptr;
 
   protected:
     double getCurrentTime() override;
@@ -16,11 +16,10 @@ class SpeechManagerC2D : public SpeechManager {
 
   private:
     void renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
-    void ensureImagesLoaded();
 
   public:
     SpeechManagerC2D();
     ~SpeechManagerC2D();
 
-    void render() override;
+    void render(int offsetX = 0, int offsetY = 0) override;
 };

@@ -8,8 +8,8 @@ class Image;
 
 class SpeechManagerGL : public SpeechManager {
   private:
-    std::shared_ptr<Image> bubbleImage;
-    std::shared_ptr<Image> speechIndicatorImage;
+    std::shared_ptr<Image> bubbleImage = nullptr;
+    std::shared_ptr<Image> speechIndicatorImage = nullptr;
 
   protected:
     double getCurrentTime() override;
@@ -17,11 +17,10 @@ class SpeechManagerGL : public SpeechManager {
 
   private:
     void renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
-    void ensureImagesLoaded();
 
   public:
     SpeechManagerGL();
     ~SpeechManagerGL();
 
-    void render() override;
+    void render(int offsetX = 0, int offsetY = 0) override;
 };

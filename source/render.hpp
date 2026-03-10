@@ -29,9 +29,19 @@ class Render {
     static void *getRenderer();
 
     /**
+     * Creates a global speech manager instance.
+     */
+    static bool createSpeechManager();
+
+    /**
      * Returns the speech manager instance.
      */
     static SpeechManager *getSpeechManager();
+
+    /**
+     * Destroys the global speech manager instance.
+     */
+    static void destroySpeechManager();
 
     /**
      * Begins a drawing frame.

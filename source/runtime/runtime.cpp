@@ -207,6 +207,9 @@ void Scratch::cleanupScratchProject() {
     Render::visibleVariables.clear();
     Render::penClear();
 
+    if (Render::getSpeechManager())
+        Render::destroySpeechManager();
+
     // Clean up ZIP archive if it was initialized
     if (projectType != ProjectType::UNZIPPED) {
         mz_zip_reader_end(&Unzip::zipArchive);
