@@ -76,7 +76,9 @@ void Scratch::initializeScratchProject() {
 #endif
     Scratch::nextProject = false;
 
+#ifdef ENABLE_MENU
     Scratch::pauseMenu = nullptr;
+#endif
 
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {

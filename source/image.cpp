@@ -3,13 +3,17 @@
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
+#ifdef ENABLE_BITMAP
 #ifdef __WIIU__
 #define STBI_NO_THREAD_LOCALS
 #endif
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#endif
 
+#ifdef ENABLE_SVG
 #include <lunasvg.h>
+#endif
 
 #if defined(RENDERER_SDL1)
 #include <image_sdl1.hpp>
@@ -35,6 +39,7 @@ CMRC_DECLARE(romfs);
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
 
+#ifdef ENABLE_SVG
 std::unordered_map<std::string, SVGFont> Image::loadedFonts = {
     {"", {"gfx/ingame/fonts/NotoSerif-Regular", false}},
     {"Sans Serif", {"gfx/ingame/fonts/NotoSans-Medium", false}},
@@ -42,11 +47,12 @@ std::unordered_map<std::string, SVGFont> Image::loadedFonts = {
     {"Marker", {"gfx/ingame/fonts/Knewave-Regular", false}},
     {"Curly", {"gfx/ingame/fonts/Griffy-Regular", false}},
     {"Pixel", {"gfx/ingame/fonts/Grand9KPixel", false}}};
+#endif
 
 constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to remove scaling limit.
 
 bool Image::loadFont(const std::string &family) {
-
+#ifdef ENABLE_SVG
     auto it = loadedFonts.find(family);
     if (it == loadedFonts.end()) return false;
     if (it->second.isLoaded) return true;
@@ -62,6 +68,8 @@ bool Image::loadFont(const std::string &family) {
 
     it->second.isLoaded = true;
     return true;
+#endif
+    return false;
 }
 
 std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
@@ -173,6 +181,7 @@ std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, 
 }
 
 unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
+#ifdef ENABLE_SVG
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
 
@@ -236,9 +245,16 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     imgData.pitch = width * 4;
 
     return dst;
+#endif
+    width = 0;
+    height = 0;
+    scale = 1.0f;
+    return nullptr;
 }
 
 void Image::resizeSVG(float scale) {
+#ifdef ENABLE_SVG
+
     if constexpr (maxScale == 1) return;
 
     if constexpr (maxScale != 0)
@@ -296,6 +312,7 @@ void Image::resizeSVG(float scale) {
     imgData.pixels = dst;
 
     refreshTexture();
+#endif
 }
 
 unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {
@@ -327,6 +344,7 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
 }
 
 unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality) {
+#ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
     if (!pixels) throw std::runtime_error("Failed to decode raster image");
@@ -350,6 +368,10 @@ unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t siz
     } else {
         return pixels;
     }
+#endif
+    width = 0;
+    height = 0;
+    return nullptr;
 }
 
 Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
@@ -414,7 +436,7 @@ void Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuali
 
 Image::~Image() {
     if (imgData.pixels)
-        stbi_image_free(imgData.pixels);
+        free(imgData.pixels);
 }
 
 int Image::getWidth() {

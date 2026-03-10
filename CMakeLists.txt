@@ -50,6 +50,10 @@ if(SE_MENU AND NOT NINTENDO_DS)
 	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 endif()
 
+option(SE_SVG "Enable support for SVG images." ON)
+option(SE_BITMAP "Enable support for Bitmap images." ON)
+
+
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NINTENDO_DS)
 	list(APPEND SE_RENDERER_VALID_OPTIONS "gl2d")
@@ -233,6 +237,11 @@ else()
 	option(SE_SYSTEM "Use system libraries instead of CPM" OFF)
 endif()
 
+if(SE_RENDERER STREQUAL "headless")
+	set(SE_SVG OFF)
+	set(SE_BITMAP OFF)
+endif()
+
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 	message(STATUS "Downloading CPM.cmake...")
 	file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -267,6 +276,10 @@ else()
 	)
 endif()
 
+if(NOT SE_SVG)
+	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
+endif()
+
 foreach(file IN LISTS GFXFILES)
 	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
@@ -293,35 +306,42 @@ CPMAddPackage(
 	GITHUB_REPOSITORY poipole807/ryuJS
 	VERSION 3.0
 )
-CPMAddPackage(
-  NAME plutovg
-  GITHUB_REPOSITORY sammycage/plutovg
-  VERSION 1.3.0 # Version expected by LunaSVG
-  OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
-)
-CPMAddPackage(
-  NAME lunasvg
-  GITHUB_REPOSITORY sammycage/lunasvg
-  VERSION 3.5.0
-  OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
-)
-CPMAddPackage(
-  NAME stb
-  GITHUB_REPOSITORY nothings/stb
-  GIT_TAG master
-)
-
-# PlutoVG Fixes
-if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_3DS)
-	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
+if(SE_BITMAP)
+	CPMAddPackage(
+	NAME stb
+	GITHUB_REPOSITORY nothings/stb
+	GIT_TAG master
+	)
 endif()
 
-if(PSP OR NINTENDO_DS OR NINTENDO_3DS)
-	target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
-endif()
+if(SE_SVG)
+	CPMAddPackage(
+	NAME plutovg
+	GITHUB_REPOSITORY sammycage/plutovg
+	VERSION 1.3.0 # Version expected by LunaSVG
+	OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
+	)
 
-if(NINTENDO_DS)
-	target_compile_definitions(plutovg PRIVATE __STDC_NO_ATOMICS__)
+	CPMAddPackage(
+	NAME lunasvg
+	GITHUB_REPOSITORY sammycage/lunasvg
+	VERSION 3.5.0
+	OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
+	)
+
+	# PlutoVG Fixes
+	if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_3DS)
+		target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
+	endif()
+
+	if(PSP OR NINTENDO_DS OR NINTENDO_3DS)
+		target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
+	endif()
+
+	if(NINTENDO_DS)
+		target_compile_definitions(plutovg PRIVATE __STDC_NO_ATOMICS__)
+	endif()
+
 endif()
 
 include(FetchContent)
@@ -868,6 +888,13 @@ if(SE_CLOUDVARS)
 	target_link_libraries(scratch-everywhere PRIVATE mist++)
 endif()
 
+if(SE_BITMAP)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_BITMAP)
+endif()
+
+if(SE_SVG)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_SVG)
+endif()
 
 if(NOT PSP AND NOT WEBOS AND NOT NINTENDO_WII AND NOT NINTENDO_GAMECUBE AND NOT PS4)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
@@ -939,8 +966,15 @@ target_link_libraries(scratch-everywhere PRIVATE ryuJS)
 target_include_directories(ryuJS PUBLIC
   ${poipole807_ryuJS_SOURCE_DIR}
 )
+
+if(SE_SVG)
 target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
+endif()
+
+if(SE_BITMAP)
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
+endif()
+
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
 if(EMSCRIPTEN)

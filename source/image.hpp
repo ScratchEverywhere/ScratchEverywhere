@@ -1,5 +1,7 @@
 #pragma once
+#ifdef ENABLE_SVG
 #include "lunasvg.h"
+#endif
 #include <cstddef>
 #include <memory.h>
 #include <miniz.h>
@@ -40,15 +42,19 @@ struct ImageData {
     float scale = 1;
 };
 
+#ifdef ENABLE_SVG
 struct SVGFont {
     std::string path;
     bool isLoaded = false;
 };
+#endif
 
 class Image {
   private:
+#ifdef ENABLE_SVG
     std::unique_ptr<lunasvg::Document> svgDocument = nullptr;
     static std::unordered_map<std::string, SVGFont> loadedFonts;
+#endif
 
     bool loadFont(const std::string &family);
     inline std::vector<unsigned char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);

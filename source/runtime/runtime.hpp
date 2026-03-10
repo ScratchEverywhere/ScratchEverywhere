@@ -14,7 +14,9 @@ enum class ProjectType {
     UNEMBEDDED
 };
 
+#ifdef ENABLE_MENU
 class PauseMenu;
+#endif
 class BlockExecutor;
 extern BlockExecutor executor;
 
