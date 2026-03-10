@@ -11,7 +11,6 @@
 #ifdef __WIIU__
 #include <coreinit/debug.h>
 #include <nn/act.h>
-#include <romfs-wiiu.h>
 #include <whb/log_udp.h>
 #include <whb/sdcard.h>
 #endif
@@ -33,7 +32,6 @@ extern char nickname[0x21];
 #ifdef __OGC__
 #include <fat.h>
 #include <ogc/system.h>
-#include <romfs-ogc.h>
 #endif
 
 #ifdef __PS4__
@@ -60,10 +58,6 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 #ifdef __WIIU__
     WHBLogUdpInit();
 
-    if (romfsInit()) {
-        OSFatal("Failed to init romfs.");
-        return false;
-    }
     if (!WHBMountSdCard()) {
         OSFatal("Failed to mount sd card.");
         return false;
@@ -127,13 +121,6 @@ postAccount:
 #else
     SYS_STDIO_Report(true);
 #endif
-
-    fatInitDefault();
-    if (romfsInit()) {
-        Log::logError("Failed to init romfs.");
-        return false;
-    }
-
 #elif defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 
@@ -240,7 +227,7 @@ void WindowSDL2::cleanup() {
 #endif
     SDL_DestroyWindow(window);
 
-#if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)
+#ifdef __SWITCH__
     romfsExit();
 #endif
 #ifdef __WIIU__

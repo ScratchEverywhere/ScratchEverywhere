@@ -208,7 +208,7 @@ class Render {
 
             try {
                 imgFind->second->resizeSVG(scale);
-            } catch (const std::runtime_error e) {
+            } catch (const std::runtime_error &e) {
                 Log::logWarning(std::string("Failed to resize SVG: ") + e.what());
             }
         }

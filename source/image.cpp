@@ -187,8 +187,8 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
         }
     }
 
-    width = std::max(32, (int)(svgDocument->width() * finalScale) - 1);
-    height = std::max(32, (int)(svgDocument->height() * finalScale) - 1);
+    width = std::max(1, (int)(svgDocument->width() * finalScale) - 1);
+    height = std::max(1, (int)(svgDocument->height() * finalScale) - 1);
     imgData.scale = finalScale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
@@ -241,8 +241,8 @@ void Image::resizeSVG(float scale) {
         }
     }
 
-    const int width = std::max(32, (int)(svgDocument->width() * finalScale) - 1);
-    const int height = std::max(32, (int)(svgDocument->height() * finalScale) - 1);
+    const int width = std::max(1, (int)(svgDocument->width() * finalScale) - 1);
+    const int height = std::max(1, (int)(svgDocument->height() * finalScale) - 1);
 
     imgData.width = width;
     imgData.height = height;

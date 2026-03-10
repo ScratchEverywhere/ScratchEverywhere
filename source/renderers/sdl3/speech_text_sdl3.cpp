@@ -4,7 +4,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <os.hpp>
 
-#ifdef __PC__
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -26,7 +26,7 @@ SpeechTextObjectSDL3::SpeechTextObjectSDL3(const std::string &text, int maxWidth
         pathFont.clear();
     }
 
-#ifdef __PC__
+#ifdef USE_CMAKERC
     const auto &file = cmrc::romfs::get_filesystem().open(OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf");
     font = TTF_OpenFontIO(SDL_IOFromConstMem(file.begin(), file.size()), 1, 16);
 #else

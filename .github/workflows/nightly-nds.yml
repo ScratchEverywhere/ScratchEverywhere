@@ -3,7 +3,7 @@ name: DS Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_nds
+      - CMakeLists.txt
       - source/runtime/**
       - source/renderers/gl2d/**
       - source/*

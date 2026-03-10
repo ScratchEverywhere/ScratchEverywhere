@@ -3,7 +3,7 @@ name: Wii Nightly Build
 on:
   push:
     paths:
-      - make/Makefile_wii
+      - CMakeLists.txt
       - source/runtime/**
       - source/renderers/sdl2/**
       - source/*

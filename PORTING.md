@@ -5,18 +5,21 @@ depending on what your target platform is.
 
 ## Build System
 
-CMake is prefered if possible.
+### Makefile (Deprecated)
 
-### Makefile
+> [!WARNING]
+> Makefiles are not the primary build system for this repo, we **will** except
+> them if they are strictly necessary for new ports but since we have finished
+> migrating all of our current ports, you will have to use old commits as
+> reference.
 
 To start, simply create a new Makefile in the `make/` directory, and add the
 target platform to the root `Makefile`.
 
 ### CMake
 
-If you're lucky, you won't need to modify anything in besides setting defaults
-for your platform, for platform specific building stuff look at what we do for
-the PS Vita.
+I'd personally recommend just searching for `NINTENDO_SWITCH` in the
+`CMakeLists.txt` and seeing what you need to add.
 
 ## Platform That Support An Existing Renderer
 

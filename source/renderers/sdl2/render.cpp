@@ -19,7 +19,6 @@
 #ifdef __WIIU__
 #include <coreinit/debug.h>
 #include <nn/act.h>
-#include <romfs-wiiu.h>
 #include <whb/log_udp.h>
 #include <whb/sdcard.h>
 #endif
@@ -42,7 +41,6 @@ char nickname[0x21];
 #ifdef __OGC__
 #include <fat.h>
 #include <ogc/system.h>
-#include <romfs-ogc.h>
 #endif
 
 #ifdef __PS4__

@@ -14,11 +14,19 @@ enum class ProjectType {
     UNEMBEDDED
 };
 
+class PauseMenu;
 class BlockExecutor;
 extern BlockExecutor executor;
 
 class Scratch {
   public:
+    static void initializeScratchProject();
+
+    /**
+     * Runs a single step of execution.
+     * @return First bool for if loop should be continued, second bool for exit code
+     */
+    static std::pair<bool, bool> stepScratchProject();
     static bool startScratchProject();
     static void cleanupScratchProject();
 
@@ -96,6 +104,12 @@ class Scratch {
 
     static bool nextProject;
     static Value dataNextProject;
+
+    static Timer fpsTimer;
+
+#ifdef ENABLE_MENU
+    static PauseMenu *pauseMenu;
+#endif
 
     static std::vector<Sprite *> sprites;
     static Sprite *stageSprite;

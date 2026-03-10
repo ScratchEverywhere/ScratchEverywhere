@@ -150,6 +150,12 @@ void Image_SDL3::setInitialTexture() {
     if (!SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch)) {
         throw std::runtime_error("Failed to update texture: " + std::string(SDL_GetError()));
     }
+
+    /** some platforms may need this to be freed due to RAM limits,
+     *  but they then wont be able to support Image::getPixels()
+     *  */
+    free(imgData.pixels);
+    imgData.pixels = nullptr;
 }
 
 void Image_SDL3::refreshTexture() {

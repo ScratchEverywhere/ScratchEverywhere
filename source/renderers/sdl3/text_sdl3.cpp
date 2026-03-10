@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef __PC__
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -29,7 +29,7 @@ TextObjectSDL3::TextObjectSDL3(std::string txt, double posX, double posY, std::s
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
-#ifdef __PC__
+#ifdef USE_CMAKERC
         const auto &file = cmrc::romfs::get_filesystem().open(fontPath);
         TTF_Font *loadedFont = TTF_OpenFontIO(SDL_IOFromConstMem(file.begin(), file.size()), 1, 30);
 #else
