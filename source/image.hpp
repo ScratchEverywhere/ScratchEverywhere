@@ -40,10 +40,17 @@ struct ImageData {
     float scale = 1;
 };
 
+struct SVGFont {
+    std::string path;
+    bool isLoaded = false;
+};
+
 class Image {
   private:
     std::unique_ptr<lunasvg::Document> svgDocument = nullptr;
+    static std::unordered_map<std::string, SVGFont> loadedFonts;
 
+    bool loadFont(const std::string &family);
     inline std::vector<unsigned char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
     inline unsigned char *loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1);
     inline unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
@@ -59,8 +66,6 @@ class Image {
   public:
     const unsigned int maxFreeTimer = 540;
     unsigned int freeTimer = maxFreeTimer;
-
-    static bool Init();
 
     Image() {}
     Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);

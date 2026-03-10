@@ -35,9 +35,24 @@ CMRC_DECLARE(romfs);
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
 
+std::unordered_map<std::string, SVGFont> Image::loadedFonts = {
+    {"", {"gfx/ingame/fonts/NotoSerif-Regular", false}},
+    {"Sans Serif", {"gfx/ingame/fonts/NotoSans-Medium", false}},
+    {"Handwriting", {"gfx/ingame/fonts/Handlee-Regular", false}},
+    {"Marker", {"gfx/ingame/fonts/Knewave-Regular", false}},
+    {"Curly", {"gfx/ingame/fonts/Griffy-Regular", false}},
+    {"Pixel", {"gfx/ingame/fonts/Grand9KPixel", false}}};
+
 constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to remove scaling limit.
 
-bool loadFont(const std::string &family, const std::string &path) {
+bool Image::loadFont(const std::string &family) {
+
+    auto it = loadedFonts.find(family);
+    if (it == loadedFonts.end()) return false;
+    if (it->second.isLoaded) return true;
+
+    const std::string &path = it->second.path;
+
 #ifdef USE_CMAKERC
     const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
     if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
@@ -45,17 +60,7 @@ bool loadFont(const std::string &family, const std::string &path) {
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
 
-    return true;
-}
-
-bool Image::Init() {
-    if (!loadFont("", "gfx/ingame/fonts/NotoSerif-Regular")) return false;
-    if (!loadFont("Sans Serif", "gfx/ingame/fonts/NotoSans-Medium")) return false;
-    if (!loadFont("Handwriting", "gfx/ingame/fonts/Handlee-Regular")) return false;
-    if (!loadFont("Marker", "gfx/ingame/fonts/Knewave-Regular")) return false;
-    if (!loadFont("Curly", "gfx/ingame/fonts/Griffy-Regular")) return false;
-    if (!loadFont("Pixel", "gfx/ingame/fonts/Grand9KPixel")) return false;
-
+    it->second.isLoaded = true;
     return true;
 }
 
@@ -170,6 +175,21 @@ std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, 
 unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
+
+    const std::string_view svgView(data, size);
+
+    // always load default font if there is text present
+    if (svgView.find("<text") != std::string_view::npos || svgView.find("<tspan") != std::string_view::npos) {
+        loadFont("");
+    }
+
+    for (const auto &[family, entry] : loadedFonts) {
+        if (family.empty() || entry.isLoaded) continue;
+
+        if (svgView.find(family) != std::string_view::npos) {
+            loadFont(family);
+        }
+    }
 
     svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
     if (!svgDocument) throw std::runtime_error("LunaSVG failed to parse SVG");

@@ -31,10 +31,6 @@ static bool initApp() {
     if (!Render::Init()) {
         return false;
     }
-    if (!Image::Init()) {
-        // Maybe this should just be ignored since unlike the renderer this won't break the app?
-        return false;
-    }
     return true;
 }
 
