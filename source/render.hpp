@@ -12,6 +12,10 @@ class SpeechManager;
 
 class Render {
   public:
+#ifdef PLAYDATE
+    static std::vector<std::string> logs;
+#endif
+
     static bool debugMode;
     static float renderScale;
 

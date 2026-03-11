@@ -29,6 +29,8 @@
 #include <image_gl2d.hpp>
 #elif defined(RENDERER_HEADLESS)
 #include <image_headless.hpp>
+#elif defined(RENDERER_PLAYDATE)
+#include <image_playdate.hpp>
 #endif
 
 #ifdef USE_CMAKERC
@@ -96,6 +98,8 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
     Image *rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_HEADLESS)
     Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
+#elif defined(RENDERER_PLAYDATE)
+    Image *rawImg = new Image_Playdate(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #else
 #error "Image backend not defined."
 #endif
@@ -133,6 +137,8 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
     Image *rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_HEADLESS)
     Image *rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
+#elif defined(RENDERER_PLAYDATE)
+    Image *rawImg = new Image_Playdate(filePath, zip, bitmapHalfQuality, scale);
 #else
 #error "Image backend not defined."
 #endif

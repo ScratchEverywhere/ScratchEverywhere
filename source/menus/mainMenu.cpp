@@ -75,7 +75,7 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
-#if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
+#if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP) || !defined(RENDERER_PLAYDATE)
     // let the user type what project they want to open
     std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
 

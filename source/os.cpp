@@ -77,7 +77,32 @@ void Log::writeToFile(std::string message) {
 
 void Log::deleteLogFile() {
 }
+#elif defined(PLAYDATE)
+#include <pdcpp/pdnewlib.h>
 
+extern PlaydateAPI *pd;
+
+void Log::log(std::string message, bool printToScreen) {
+    if (!printToScreen) return;
+    pd->system->logToConsole(message.c_str());
+    Render::logs.push_back(message);
+}
+
+void Log::logWarning(std::string message, bool printToScreen) {
+    if (!printToScreen) return;
+    pd->system->logToConsole(("Warning: " + message).c_str());
+    Render::logs.push_back("Warning: " + message);
+}
+
+void Log::logError(std::string message, bool printToScreen) {
+    if (!printToScreen) return;
+    pd->system->logToConsole(("Error: " + message).c_str());
+    Render::logs.push_back("Error: " + message);
+}
+
+// TODO: Implement for Playdate
+void Log::writeToFile(std::string message) {}
+void Log::deleteLogFile() {}
 #else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
