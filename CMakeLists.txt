@@ -382,7 +382,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(miniz)
 
->>>>>>> main
 if(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
 		pkg_check_modules(SDL REQUIRED sdl>=1.2.0)
