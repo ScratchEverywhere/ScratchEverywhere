@@ -587,33 +587,29 @@ void BlockExecutor::updateMonitors() {
                 }
 #endif
             } else {
-                try {
-                    Block newBlock;
-                    newBlock.opcode = var.opcode;
-                    for (const auto &[paramName, paramValue] : var.parameters) {
-                        ParsedField parsedField;
-                        parsedField.value = Math::removeQuotations(paramValue);
-                        (*newBlock.parsedFields)[paramName] = parsedField;
-                    }
-                    if (var.opcode == "looks_costumenumbername")
-                        var.displayName = var.spriteName + ": costume " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
-                    else if (var.opcode == "looks_backdropnumbername")
-                        var.displayName = "backdrop " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
-                    else if (var.opcode == "sensing_current")
-                        var.displayName = std::string(MonitorDisplayNames::getCurrentMenuMonitorName(Scratch::getFieldValue(newBlock, "CURRENTMENU")));
-                    else {
-                        auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
-                        if (spriteName != var.opcode) {
-                            var.displayName = var.spriteName + ": " + std::string(spriteName);
-                        } else {
-                            auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
-                            var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
-                        }
-                    }
-                    var.value = executor.getBlockValue(newBlock, sprite);
-                } catch (...) {
-                    var.value = Value("Unknown...");
+                Block newBlock;
+                newBlock.opcode = var.opcode;
+                for (const auto &[paramName, paramValue] : var.parameters) {
+                    ParsedField parsedField;
+                    parsedField.value = Math::removeQuotations(paramValue);
+                    (*newBlock.parsedFields)[paramName] = parsedField;
                 }
+                if (var.opcode == "looks_costumenumbername")
+                    var.displayName = var.spriteName + ": costume " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
+                else if (var.opcode == "looks_backdropnumbername")
+                    var.displayName = "backdrop " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
+                else if (var.opcode == "sensing_current")
+                    var.displayName = std::string(MonitorDisplayNames::getCurrentMenuMonitorName(Scratch::getFieldValue(newBlock, "CURRENTMENU")));
+                else {
+                    auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
+                    if (spriteName != var.opcode) {
+                        var.displayName = var.spriteName + ": " + std::string(spriteName);
+                    } else {
+                        auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
+                        var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
+                    }
+                }
+                var.value = executor.getBlockValue(newBlock, sprite);
             }
         }
     }

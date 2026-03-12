@@ -1,4 +1,5 @@
 #pragma once
+#include "nonstd/expected.hpp"
 #include "os.hpp"
 #include <chrono>
 #include <input.hpp>
@@ -216,11 +217,8 @@ class Render {
             float scale = sprite->size / 100;
             if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
 
-            try {
-                imgFind->second->resizeSVG(scale);
-            } catch (const std::runtime_error &e) {
-                Log::logWarning(std::string("Failed to resize SVG: ") + e.what());
-            }
+            auto potentialError = imgFind->second->resizeSVG(scale);
+            if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
         }
     }
 

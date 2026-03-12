@@ -34,7 +34,7 @@ void SpeechManagerC2D::render(int offsetX, int offsetY) {
 
             // load speechmanager image
             visibleObjects++;
-            if (visibleObjects == 1 && speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false);
+            if (visibleObjects == 1 && speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false).value();
 
             // Apply res-respecting transformations
             int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (SCREEN_WIDTH / 2));

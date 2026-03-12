@@ -297,6 +297,11 @@ endif()
 
 # They're single header so I just use CPM no matter what
 CPMAddPackage(
+	NAME expected-lite
+	GITHUB_REPOSITORY nonstd-lite/expected-lite
+	VERSION 0.10.0
+)
+CPMAddPackage(
 	NAME nlohmann_json
 	GITHUB_REPOSITORY nlohmann/json
 	VERSION 3.12.0
@@ -957,7 +962,7 @@ if(SE_AUDIO)
 	endif()
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(scratch-everywhere PRIVATE nonstd::expected-lite nlohmann_json::nlohmann_json)
 add_library(ryuJS STATIC
   ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
   ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h

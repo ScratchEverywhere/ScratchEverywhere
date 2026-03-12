@@ -42,29 +42,22 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
     }
     if (block.repeatTimes == -3) {
         if (!DownloadManager::init()) return BlockResult::CONTINUE;
-        try {
-            if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(api)) {
-                Log::log("T2S audio already downloaded: " + inputString);
-                SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, tempFile, false, false, true);
-                BlockExecutor::addToRepeatQueue(sprite, &block);
-                block.repeatTimes = -4;
-                return BlockResult::RETURN;
-            }
-
-            if (!DownloadManager::isDownloading(api) && !fromRepeat) {
-                Log::log("T2S: starting download for: " + inputString + " -> " + tempFile);
-
-                DownloadManager::addDownload(api, tempFile);
-                BlockExecutor::addToRepeatQueue(sprite, &block);
-                block.repeatTimes = -3;
-                return BlockResult::RETURN;
-            } else if (DownloadManager::isDownloading(api)) return BlockResult::RETURN;
-
-        } catch (const std::exception &e) {
-            Log::logWarning(std::string("Filesystem::exists threw: ") + e.what());
-            BlockExecutor::removeFromRepeatQueue(sprite, &block);
-            return BlockResult::CONTINUE;
+        if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(api)) {
+            Log::log("T2S audio already downloaded: " + inputString);
+            SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, tempFile, false, false, true);
+            BlockExecutor::addToRepeatQueue(sprite, &block);
+            block.repeatTimes = -4;
+            return BlockResult::RETURN;
         }
+
+        if (!DownloadManager::isDownloading(api) && !fromRepeat) {
+            Log::log("T2S: starting download for: " + inputString + " -> " + tempFile);
+
+            DownloadManager::addDownload(api, tempFile);
+            BlockExecutor::addToRepeatQueue(sprite, &block);
+            block.repeatTimes = -3;
+            return BlockResult::RETURN;
+        } else if (DownloadManager::isDownloading(api)) return BlockResult::RETURN;
     }
     if (block.repeatTimes == -4) {
         if (SoundPlayer::isSoundPlaying(tempFile)) return BlockResult::RETURN;

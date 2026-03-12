@@ -20,11 +20,7 @@ double Value::asDouble() const {
         return std::get<double>(value);
     } else if (isString()) {
         auto &strValue = std::get<std::string>(value);
-        try {
-            return Math::parseNumber(strValue);
-        } catch (...) {
-            return 0.0;
-        }
+        return Math::parseNumber(strValue).value_or(0);
     } else if (isColor()) {
         const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
         return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
@@ -174,12 +170,9 @@ bool Value::operator>(const Value &other) const {
 
 bool Value::isScratchInt() {
     if (isDouble()) {
-        if (std::isnan(asDouble())) return true;
-        try {
-            return std::fabs(asDouble()) < 1e21 && std::floor(asDouble()) == asDouble();
-        } catch (...) {
-            return false;
-        }
+        double val = asDouble();
+        if (std::isnan(val)) return true;
+        return std::fabs(val) < 1e21 && std::floor(val) == val;
     }
     if (isBoolean()) return true;
     if (isString()) return asString().find('.') == std::string::npos;

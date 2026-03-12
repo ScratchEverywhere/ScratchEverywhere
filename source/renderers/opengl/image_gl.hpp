@@ -1,4 +1,5 @@
 #pragma once
+#include "nonstd/expected.hpp"
 #include <image.hpp>
 #include <string>
 #include <unordered_map>
@@ -22,5 +23,5 @@ class Image_GL : public Image {
     // this just returns the TextureID as a void*
     void *getNativeTexture() override;
 
-    void refreshTexture() override;
+    nonstd::expected<void, std::string> refreshTexture() override;
 };

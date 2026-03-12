@@ -1,12 +1,12 @@
 #pragma once
+#include "nonstd/expected.hpp"
 #include <SDL2/SDL.h>
 #include <image.hpp>
 #include <string>
-#include <unordered_map>
 
 class Image_SDL2 : public Image {
   private:
-    void setInitialTexture();
+    nonstd::expected<void, std::string> setInitialTexture();
 
   public:
     SDL_Texture *texture;
@@ -22,5 +22,5 @@ class Image_SDL2 : public Image {
 
     void *getNativeTexture() override;
 
-    void refreshTexture() override;
+    nonstd::expected<void, std::string> refreshTexture() override;
 };

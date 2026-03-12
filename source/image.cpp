@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "nonstd/expected.hpp"
 #include "os.hpp"
 #include <stdexcept>
 #include <string_view>
@@ -72,7 +73,7 @@ bool Image::loadFont(const std::string &family) {
     return false;
 }
 
-std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -100,6 +101,8 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
 #error "Image backend not defined."
 #endif
 
+    if (rawImg->error.has_value()) return nonstd::make_unexpected(rawImg->error.value());
+
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
         images.erase(filePath);
         delete p;
@@ -109,7 +112,7 @@ std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratc
     return img;
 }
 
-std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -137,6 +140,8 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
 #error "Image backend not defined."
 #endif
 
+    if (rawImg->error.has_value()) return nonstd::make_unexpected(rawImg->error.value());
+
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
         images.erase(filePath);
         delete p;
@@ -146,7 +151,7 @@ std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *
     return img;
 }
 
-std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
+nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
 #ifdef USE_CMAKERC
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
         auto file = cmrc::romfs::get_filesystem().open(filePath);
@@ -160,27 +165,27 @@ std::vector<unsigned char> Image::readFileToBuffer(const std::string &filePath, 
     std::string path = filePath;
 
     FILE *file = fopen(path.c_str(), "rb");
-    if (!file) throw std::runtime_error("Failed to open file: " + path);
+    if (!file) return nonstd::make_unexpected("Failed to open file: " + path);
 
     fseek(file, 0, SEEK_END);
     long size = ftell(file);
     fseek(file, 0, SEEK_SET);
     if (size <= 0) {
         fclose(file);
-        throw std::runtime_error("Empty file: " + path);
+        return nonstd::make_unexpected("Empty file: " + path);
     }
 
     std::vector<unsigned char> buffer(size + 1);
     if (fread(buffer.data(), 1, size, file) != (size_t)size) {
         fclose(file);
-        throw std::runtime_error("Failed to read file: " + path);
+        return nonstd::make_unexpected("Failed to read file: " + path);
     }
     buffer[size] = '\0';
     fclose(file);
     return buffer;
 }
 
-unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
+nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
 #ifdef ENABLE_SVG
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
@@ -201,7 +206,7 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     }
 
     svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
-    if (!svgDocument) throw std::runtime_error("LunaSVG failed to parse SVG");
+    if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
 
     const float targetWidth = svgDocument->width() * scale;
     const float targetHeight = svgDocument->height() * scale;
@@ -221,12 +226,12 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     imgData.scale = finalScale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
-    if (!bitmap.valid()) throw std::runtime_error("LunaSVG failed to render SVG to bitmap");
+    if (!bitmap.valid()) return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
 
     unsigned char *src = bitmap.data();
     const size_t pixelsSize = width * height * 4;
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
-    if (!dst) throw std::runtime_error("Failed to allocate SVG pixels buffer");
+    if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
 
     for (size_t i = 0; i < pixelsSize; i += 4) {
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
@@ -252,15 +257,14 @@ unsigned char *Image::loadSVGFromMemory(const char *data, size_t size, int &widt
     return nullptr;
 }
 
-void Image::resizeSVG(float scale) {
+nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
 #ifdef ENABLE_SVG
-
-    if constexpr (maxScale == 1) return;
+    if constexpr (maxScale == 1) return {};
 
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
 
-    if (!svgDocument || scale <= imgData.scale) return;
+    if (!svgDocument || scale <= imgData.scale) return {};
 
     // TODO: De-duplicate code.
 
@@ -285,12 +289,12 @@ void Image::resizeSVG(float scale) {
     imgData.scale = finalScale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
-    if (!bitmap.valid()) throw std::runtime_error("LunaSVG failed to render SVG to bitmap");
+    if (!bitmap.valid()) return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
 
     unsigned char *src = bitmap.data();
     const size_t pixelsSize = width * height * 4;
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
-    if (!dst) throw std::runtime_error("Failed to allocate SVG pixels buffer");
+    if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
 
     for (size_t i = 0; i < pixelsSize; i += 4) {
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
@@ -311,8 +315,10 @@ void Image::resizeSVG(float scale) {
     imgData.pitch = width * 4;
     imgData.pixels = dst;
 
-    refreshTexture();
+    return refreshTexture();
 #endif
+
+    return {};
 }
 
 unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH) {
@@ -343,11 +349,11 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
     return dst;
 }
 
-unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality) {
+nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality) {
 #ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
-    if (!pixels) throw std::runtime_error("Failed to decode raster image");
+    if (!pixels) return nonstd::make_unexpected("Failed to decode raster image");
     imgData.pitch = width * 4;
 
 #ifdef __OGC__ // may break getPixels()
@@ -375,14 +381,16 @@ unsigned char *Image::loadRasterFromMemory(const unsigned char *data, size_t siz
 }
 
 Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    auto potentialError = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
-    init(filePath, zip, bitmapHalfQuality, scale);
+    auto potentialError = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
-void Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     if (fromScratchProject) {
         if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
         else filePath = OS::getRomFSLocation() + "project/" + filePath;
@@ -390,30 +398,37 @@ void Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQ
 
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
 
-    std::vector<unsigned char> buffer = readFileToBuffer(filePath, fromScratchProject);
+    auto buffer = readFileToBuffer(filePath, fromScratchProject);
+    if (!buffer.has_value()) return nonstd::make_unexpected(buffer.error());
 
     if (isSVG) {
-        imgData.pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), buffer.size(), imgData.width, imgData.height);
+        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.value().data()), buffer.value().size(), imgData.width, imgData.height);
+        if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
+        imgData.pixels = pixels.value();
     } else {
-        imgData.pixels = loadRasterFromMemory(buffer.data(), buffer.size(), imgData.width, imgData.height, bitmapHalfQuality);
+        auto pixels = loadRasterFromMemory(buffer.value().data(), buffer.value().size(), imgData.width, imgData.height, bitmapHalfQuality);
+        if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
+        imgData.pixels = pixels.value();
     }
 
-    if (!imgData.pixels) throw std::runtime_error("Failed to load image: " + filePath);
+    if (!imgData.pixels) return nonstd::make_unexpected("Failed to load image: " + filePath);
+
+    return {};
 }
 
-void Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+nonstd::expected<void, std::string> Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     void *file_data = nullptr;
     size_t file_size;
     if (zip != nullptr) {
         int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
-        if (file_index < 0) throw std::runtime_error("Image not found in SB3: " + filePath);
+        if (file_index < 0) return nonstd::make_unexpected("Image not found in SB3: " + filePath);
 
         file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
     } else {
         file_data = Unzip::getFileInSB3(filePath, &file_size);
     }
 
-    if (!file_data || file_data == nullptr) throw std::runtime_error("Failed to extract: " + filePath);
+    if (!file_data || file_data == nullptr) return nonstd::make_unexpected("Failed to extract: " + filePath);
 
     bool isSVG = filePath.size() >= 4 &&
                  (filePath.substr(filePath.size() - 4) == ".svg" ||
@@ -424,14 +439,20 @@ void Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuali
         memcpy(buffer.data(), file_data, file_size);
         buffer[file_size] = '\0';
 
-        imgData.pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
+        auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
+        if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
+        imgData.pixels = pixels.value();
     } else {
-        imgData.pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
+        auto pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
+        if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
+        imgData.pixels = pixels.value();
     }
 
     mz_free(file_data);
 
-    if (!imgData.pixels) throw std::runtime_error("Failed to load image from zip: " + filePath);
+    if (!imgData.pixels) return nonstd::make_unexpected("Failed to load image from zip: " + filePath);
+
+    return {};
 }
 
 Image::~Image() {
