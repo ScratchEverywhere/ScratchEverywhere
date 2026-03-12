@@ -300,7 +300,12 @@ CPMAddPackage(
 	NAME expected-lite
 	GITHUB_REPOSITORY nonstd-lite/expected-lite
 	VERSION 0.10.0
+	DOWNLOAD_ONLY TRUE
 )
+add_library(expected-lite INTERFACE)
+add_library(nonstd::expected-lite ALIAS expected-lite)
+target_include_directories(expected-lite INTERFACE "$<BUILD_INTERFACE:${expected-lite_SOURCE_DIR}>/include")
+
 CPMAddPackage(
 	NAME nlohmann_json
 	GITHUB_REPOSITORY nlohmann/json
