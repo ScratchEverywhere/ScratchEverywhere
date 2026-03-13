@@ -15,6 +15,7 @@
 #include <math.h>
 #include <os.hpp>
 #include <render.hpp>
+#include <set>
 #include <speech_manager.hpp>
 #include <string>
 #include <unordered_map>
@@ -710,7 +711,11 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             image = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true, scale);
         }
     } catch (const std::runtime_error &e) {
-        Log::logWarning("Failed to load image: " + costumeName + ": " + std::string(e.what()));
+        static std::set<std::string> failedImages;
+        if (failedImages.count(costumeName) == 0) {
+            Log::logWarning("Failed to load image: " + costumeName + ": " + std::string(e.what()));
+            failedImages.insert(costumeName);
+        }
         freeUnusedCostumeImages();
         return;
     }

@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <image.hpp>
 #include <render.hpp>
+#include <set>
 #include <speech_manager.hpp>
 #include <sprite.hpp>
 #include <value.hpp>
@@ -331,9 +332,14 @@ SCRATCH_BLOCK(looks, gotofrontback) {
 SCRATCH_BLOCK(looks, setsizeto) {
     const Value value = Scratch::getInputValue(block, "SIZE", sprite);
 
-    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    const auto &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    auto imgFind = Scratch::costumeImages.find(costumeName);
     if (imgFind == Scratch::costumeImages.end()) {
-        Log::logWarning("Invalid Image in current costume.");
+        static std::set<std::string> failedCostumes;
+        if (failedCostumes.count(costumeName) == 0) {
+            Log::logWarning("Invalid Image in current costume.");
+            failedCostumes.insert(costumeName);
+        }
         return BlockResult::CONTINUE;
     }
 
@@ -367,9 +373,14 @@ SCRATCH_BLOCK(looks, setsizeto) {
 SCRATCH_BLOCK(looks, changesizeby) {
     const Value value = Scratch::getInputValue(block, "CHANGE", sprite);
 
-    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    const auto &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    auto imgFind = Scratch::costumeImages.find(costumeName);
     if (imgFind == Scratch::costumeImages.end()) {
-        Log::logWarning("Invalid Image in current costume.");
+        static std::set<std::string> failedCostumes;
+        if (failedCostumes.count(costumeName) == 0) {
+            Log::logWarning("Invalid Image in current costume.");
+            failedCostumes.insert(costumeName);
+        }
         return BlockResult::CONTINUE;
     }
 
