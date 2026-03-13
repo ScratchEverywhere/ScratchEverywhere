@@ -191,7 +191,10 @@ bool Scratch::startScratchProject() {
 
     while (true) {
         code = stepScratchProject();
-        if (!code.first) return code.second;
+        if (!code.first) {
+            cleanupScratchProject();
+            return code.second;
+        }
     }
 
     cleanupScratchProject();
