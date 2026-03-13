@@ -12,6 +12,7 @@
 #include <render.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -40,7 +41,7 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
     auto &h = getHandlers();
     auto &vh = getValueHandlers();
 
-    for (auto &[id, block] : sprite->blocks) {
+    for (auto &block : sprite->blocks) {
 
         auto it = h.find(block.opcode);
         if (it != h.end()) {
@@ -151,7 +152,7 @@ void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRe
         if (result == BlockResult::RETURN) return;
 
         if (currentBlock->next.empty()) return;
-        currentBlock = &sprite->blocks[currentBlock->next];
+        currentBlock = sprite->blocksMap[currentBlock->next];
         fromRepeat = false;
     }
 }
@@ -194,7 +195,7 @@ void BlockExecutor::executeKeyHats() {
 
     const std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (Sprite *currentSprite : sprToRun) {
-        for (auto &[id, data] : currentSprite->blocks) {
+        for (auto &data : currentSprite->blocks) {
             // TODO: Add a way to register these with macros
             if (data.opcode == "event_whenkeypressed") {
                 std::string key = Scratch::getFieldValue(data, "KEY_OPTION");
@@ -223,7 +224,7 @@ void BlockExecutor::doSpriteClicking() {
 
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;
-                    for (auto &[id, data] : sprite->blocks) {
+                    for (auto &data : sprite->blocks) {
                         if (data.opcode == "event_whenthisspriteclicked") {
                             executor.runBlock(data, sprite);
                         }
@@ -266,7 +267,7 @@ void BlockExecutor::runRepeatBlocks() {
             const std::string toRepeat = repeatList.back();
             if (toRepeat.empty()) continue;
 
-            Block *const toRun = &sprite->blocks[toRepeat];
+            Block *const toRun = sprite->blocksMap[toRepeat];
             if (toRun != nullptr) executor.runBlock(*toRun, sprite, &withoutRefresh, true);
         }
     }
@@ -310,7 +311,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             }
 
             // Get the parent of the prototype block (the definition containing all blocks)
-            Block *customBlockDefinition = &sprite->blocks[sprite->customBlockDefinitions[data.blockId]];
+            Block *customBlockDefinition = sprite->blocksMap[sprite->customBlockDefinitions[data.blockId]];
 
             callerBlock->customBlockPtr = customBlockDefinition;
 
@@ -391,89 +392,62 @@ void BlockExecutor::runCloneStarts() {
         Scratch::cloneQueue.erase(Scratch::cloneQueue.begin());
         for (Sprite *sprite : Scratch::sprites) {
             if (cloningSprite != sprite) continue;
-            for (auto &[id, data] : cloningSprite->blocks) {
+            for (auto &data : cloningSprite->blocks) {
                 if (data.opcode == "control_start_as_clone") executor.runBlock(data, sprite);
             }
         }
     }
 }
 
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
+void BlockExecutor::runBroadcasts() {
     while (!Scratch::broadcastQueue.empty()) {
         std::string currentBroadcast = Scratch::broadcastQueue.front();
         Scratch::broadcastQueue.erase(Scratch::broadcastQueue.begin());
         std::transform(currentBroadcast.begin(), currentBroadcast.end(), currentBroadcast.begin(), ::tolower);
-        const auto results = runBroadcast(currentBroadcast);
-        blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
+        runBroadcast(currentBroadcast);
     }
-
-    return blocksToRun;
 }
 
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::string broadcastToRun) {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
-    // find all matching "when I receive" blocks
+void BlockExecutor::runBroadcast(std::string broadcastToRun) {
     std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (auto *currentSprite : sprToRun) {
-        for (auto &[id, block] : currentSprite->blocks) {
+        for (auto &block : currentSprite->blocks) {
             if (block.opcode == "event_whenbroadcastreceived") {
                 std::string fieldValue = Scratch::getFieldValue(block, "BROADCAST_OPTION");
                 std::transform(fieldValue.begin(), fieldValue.end(), fieldValue.begin(), ::tolower);
                 if (fieldValue == broadcastToRun) {
-                    blocksToRun.push_back({&block, currentSprite});
+                    executor.runBlock(block, currentSprite);
                 }
             }
         }
     }
-
-    // run each matching block
-    for (auto &[blockPtr, spritePtr] : blocksToRun)
-        executor.runBlock(*blockPtr, spritePtr);
-
-    return blocksToRun;
 }
 
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBackdrops() {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
+void BlockExecutor::runBackdrops() {
     while (!Scratch::backdropQueue.empty()) {
         const std::string currentBackdrop = Scratch::backdropQueue.front();
         Scratch::backdropQueue.erase(Scratch::backdropQueue.begin());
-        const auto results = runBackdrop(currentBackdrop);
-        blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
+        runBackdrop(currentBackdrop);
     }
-
-    return blocksToRun;
 }
 
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBackdrop(std::string backdropToRun) {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
+void BlockExecutor::runBackdrop(std::string backdropToRun) {
     std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (auto *currentSprite : sprToRun) {
-        for (auto &[id, block] : currentSprite->blocks) {
+        for (auto &block : currentSprite->blocks) {
             if (block.opcode == "event_whenbackdropswitchesto" &&
                 Scratch::getFieldValue(block, "BACKDROP") == backdropToRun) {
-                blocksToRun.push_back({&block, currentSprite});
+                executor.runBlock(block, currentSprite);
             }
         }
     }
-
-    // run each matching block
-    for (auto &[blockPtr, spritePtr] : blocksToRun)
-        executor.runBlock(*blockPtr, spritePtr);
-
-    return blocksToRun;
 }
 
 void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (Sprite *currentSprite : sprToRun) {
-        for (auto &[id, data] : currentSprite->blocks) {
+        for (auto &data : currentSprite->blocks) {
             if (data.opcode != opcodeToFind) continue;
 
             executor.runBlock(data, currentSprite);

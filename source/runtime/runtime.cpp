@@ -15,6 +15,7 @@
 #include <math.h>
 #include <os.hpp>
 #include <render.hpp>
+#include <set>
 #include <speech_manager.hpp>
 #include <string>
 #include <unordered_map>
@@ -191,7 +192,10 @@ bool Scratch::startScratchProject() {
 
     while (true) {
         code = stepScratchProject();
-        if (!code.first) return code.second;
+        if (!code.first) {
+            cleanupScratchProject();
+            return code.second;
+        }
     }
 
     cleanupScratchProject();
@@ -581,7 +585,6 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
 }
 
 void Scratch::gotoXY(Sprite *sprite, double x, double y) {
-
     if (sprite->isStage) return;
 
     const double oldX = sprite->xPosition;
@@ -595,7 +598,7 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
         if (accuratePen) Render::penMoveAccurate(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
         else Render::penMoveFast(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
     }
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
@@ -659,17 +662,16 @@ void Scratch::setDirection(Sprite *sprite, double direction) {
     }
 
     sprite->rotation = direction - floor((direction + 179) / 360) * 360;
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
 }
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
-
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
     loadCurrentCostumeImage(sprite);
 
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
 }
 
 void Scratch::sortSprites() {
@@ -698,8 +700,12 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     std::shared_ptr<Image> image;
 
     auto onErr = [&](std::string error) {
-        Log::logWarning("Failed to load image: " + costumeName + ": " + error);
-        freeUnusedCostumeImages();
+        static std::set<std::string> failedImages;
+        if (failedImages.count(costumeName) == 0) {
+            Log::logWarning("Failed to load image: " + costumeName + ": " + error);
+            freeUnusedCostumeImages();
+            failedImages.insert(costumeName);
+        }
     };
 
     float scale = (sprite->size / 100);
@@ -752,11 +758,11 @@ void Scratch::freeUnusedCostumeImages() {
 }
 
 Block *Scratch::findBlock(std::string blockId, Sprite *sprite) {
-    auto block = sprite->blocks.find(blockId);
-    if (block == sprite->blocks.end()) {
+    auto block = sprite->blocksMap.find(blockId);
+    if (block == sprite->blocksMap.end()) {
         return nullptr;
     }
-    return &block->second;
+    return block->second;
 }
 
 Block *Scratch::getBlockParent(const Block *block, Sprite *sprite) {

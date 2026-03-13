@@ -417,15 +417,15 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
 }
 
 nonstd::expected<void, std::string> Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
-    void *file_data = nullptr;
+    std::unique_ptr<void, decltype(&mz_free)> file_data(nullptr, mz_free);
     size_t file_size;
     if (zip != nullptr) {
         int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
         if (file_index < 0) return nonstd::make_unexpected("Image not found in SB3: " + filePath);
 
-        file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
+        file_data.reset(mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0));
     } else {
-        file_data = Unzip::getFileInSB3(filePath, &file_size);
+        file_data.reset(Unzip::getFileInSB3(filePath, &file_size));
     }
 
     if (!file_data || file_data == nullptr) return nonstd::make_unexpected("Failed to extract: " + filePath);
@@ -436,19 +436,17 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, mz_zip_arc
 
     if (isSVG) {
         std::vector<unsigned char> buffer(file_size + 1);
-        memcpy(buffer.data(), file_data, file_size);
+        memcpy(buffer.data(), file_data.get(), file_size);
         buffer[file_size] = '\0';
 
         auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     } else {
-        auto pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
+        auto pixels = loadRasterFromMemory((unsigned char *)file_data.get(), file_size, imgData.width, imgData.height, bitmapHalfQuality);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     }
-
-    mz_free(file_data);
 
     if (!imgData.pixels) return nonstd::make_unexpected("Failed to load image from zip: " + filePath);
 
