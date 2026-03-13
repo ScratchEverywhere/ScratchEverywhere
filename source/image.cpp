@@ -402,15 +402,15 @@ void Image::init(std::string filePath, bool fromScratchProject, bool bitmapHalfQ
 }
 
 void Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
-    void *file_data = nullptr;
+    std::unique_ptr<void, decltype(&mz_free)> file_data(nullptr, mz_free);
     size_t file_size;
     if (zip != nullptr) {
         int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
         if (file_index < 0) throw std::runtime_error("Image not found in SB3: " + filePath);
 
-        file_data = mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0);
+        file_data.reset(mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0));
     } else {
-        file_data = Unzip::getFileInSB3(filePath, &file_size);
+        file_data.reset(Unzip::getFileInSB3(filePath, &file_size));
     }
 
     if (!file_data || file_data == nullptr) throw std::runtime_error("Failed to extract: " + filePath);
@@ -421,15 +421,13 @@ void Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuali
 
     if (isSVG) {
         std::vector<unsigned char> buffer(file_size + 1);
-        memcpy(buffer.data(), file_data, file_size);
+        memcpy(buffer.data(), file_data.get(), file_size);
         buffer[file_size] = '\0';
 
         imgData.pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
     } else {
-        imgData.pixels = loadRasterFromMemory((unsigned char *)file_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
+        imgData.pixels = loadRasterFromMemory((unsigned char *)file_data.get(), file_size, imgData.width, imgData.height, bitmapHalfQuality);
     }
-
-    mz_free(file_data);
 
     if (!imgData.pixels) throw std::runtime_error("Failed to load image from zip: " + filePath);
 }
