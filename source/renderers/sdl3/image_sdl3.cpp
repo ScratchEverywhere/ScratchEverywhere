@@ -172,7 +172,11 @@ Image_SDL3::Image_SDL3(std::string filePath, mz_zip_archive *zip, bool bitmapHal
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
 
-    init(filePath, zip, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
@@ -182,7 +186,11 @@ Image_SDL3::Image_SDL3(std::string filePath, bool fromScratchProject, bool bitma
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
 
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();

@@ -192,7 +192,11 @@ Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHal
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 
-    init(filePath, zip, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
@@ -204,7 +208,11 @@ Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitma
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();

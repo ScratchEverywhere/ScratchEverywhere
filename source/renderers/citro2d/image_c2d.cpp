@@ -278,7 +278,13 @@ nonstd::expected<void, std::string> Image_C2D::refreshTexture() {
 
 Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
@@ -286,7 +292,12 @@ Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapH
 
 Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
-    init(filePath, zip, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();

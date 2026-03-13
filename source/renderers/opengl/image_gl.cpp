@@ -173,7 +173,12 @@ Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHal
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
     maxTextureSize = {glMaxTextureSize, glMaxTextureSize};
 
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
     setInitialTexture();
 }
 
@@ -182,7 +187,12 @@ Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQua
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
     maxTextureSize = {glMaxTextureSize, glMaxTextureSize};
 
-    init(filePath, zip, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
     setInitialTexture();
 }
 
