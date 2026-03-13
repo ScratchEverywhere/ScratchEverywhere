@@ -524,26 +524,28 @@ void Parser::loadSprites(const nlohmann::json &json) {
     }
     // set advanced project settings properties
     bool infClones = false;
+    if (!config.is_null()) {
 
-    Scratch::FPS = config.value("framerate", 0);
-    if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
+        Scratch::FPS = config.value("framerate", 0);
+        if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
 #if defined(RENDERER_SDL2)
-        Scratch::FPS = 255; // SDL2's vsync will figure it out
+            Scratch::FPS = 255; // SDL2's vsync will figure it out
 #else
-        Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
+            Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
 #endif
-    }
+        }
 
-    Scratch::turbo = config.value("turbo", false);
-    Scratch::hqpen = config.value("hq", false);
-    Scratch::projectWidth = config.value("width", 480);
-    Scratch::projectHeight = config.value("height", 360);
+        Scratch::turbo = config.value("turbo", false);
+        Scratch::hqpen = config.value("hq", false);
+        Scratch::projectWidth = config.value("width", 480);
+        Scratch::projectHeight = config.value("height", 360);
 
-    auto &runtimeOptions = config["runtimeOptions"];
-    if (runtimeOptions.is_object()) {
-        Scratch::fencing = runtimeOptions.value("fencing", true);
-        Scratch::miscellaneousLimits = runtimeOptions.value("miscLimits", true);
-        infClones = runtimeOptions.contains("maxClones") && !runtimeOptions["maxClones"].is_null();
+        auto &runtimeOptions = config["runtimeOptions"];
+        if (runtimeOptions.is_object()) {
+            Scratch::fencing = runtimeOptions.value("fencing", true);
+            Scratch::miscellaneousLimits = runtimeOptions.value("miscLimits", true);
+            infClones = runtimeOptions.contains("maxClones") && !runtimeOptions["maxClones"].is_null();
+        }
     }
 
 #ifdef RENDERER_CITRO2D
