@@ -163,11 +163,9 @@ MenuImage::MenuImage(std::string filePath, int xPos, int yPos, bool nineslice) {
     y = yPos;
     shouldNineslice = nineslice;
     scale = 1.0;
-    try {
-        image = createImageFromFile(filePath, false);
-    } catch (const std::runtime_error &e) {
-        Log::logError("Failed to load Menu Image: " + std::string(e.what()));
-    }
+    auto potentialImage = createImageFromFile(filePath, false);
+    if (!potentialImage.has_value()) Log::logError("Failed to load Menu Image: " + potentialImage.error());
+    else image = potentialImage.value();
 }
 
 void MenuImage::render(double xPos, double yPos) {

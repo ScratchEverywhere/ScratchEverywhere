@@ -699,23 +699,32 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     std::shared_ptr<Image> image;
 
-    try {
-        float scale = (sprite->size / 100);
-        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-
-        if (projectType == ProjectType::UNZIPPED) {
-            image = createImageFromFile(costumeName, true, true, scale);
-        } else {
-            image = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true, scale);
-        }
-    } catch (const std::runtime_error &e) {
+    auto onErr = [&](std::string error) {
         static std::set<std::string> failedImages;
         if (failedImages.count(costumeName) == 0) {
-            Log::logWarning("Failed to load image: " + costumeName + ": " + std::string(e.what()));
+            Log::logWarning("Failed to load image: " + costumeName + ": " + error);
+            freeUnusedCostumeImages();
             failedImages.insert(costumeName);
         }
-        freeUnusedCostumeImages();
-        return;
+    };
+
+    float scale = (sprite->size / 100);
+    if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+
+    if (projectType == ProjectType::UNZIPPED) {
+        auto imageOrErr = createImageFromFile(costumeName, true, true, scale);
+        if (!imageOrErr.has_value()) {
+            onErr(imageOrErr.error());
+            return;
+        }
+        image = imageOrErr.value();
+    } else {
+        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true, scale);
+        if (!imageOrErr.has_value()) {
+            onErr(imageOrErr.error());
+            return;
+        }
+        image = imageOrErr.value();
     }
 
     if (image) {

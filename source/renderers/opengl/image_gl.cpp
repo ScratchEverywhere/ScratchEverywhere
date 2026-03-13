@@ -1,4 +1,5 @@
 #include "image_gl.hpp"
+#include "nonstd/expected.hpp"
 #include "render.hpp"
 #include <GL/gl.h>
 #include <algorithm>
@@ -160,9 +161,11 @@ void Image_GL::setInitialTexture() {
     imgData.pixels = nullptr;
 }
 
-void Image_GL::refreshTexture() {
+nonstd::expected<void, std::string> Image_GL::refreshTexture() {
     glDeleteTextures(1, &textureID);
     setInitialTexture();
+
+    return {};
 }
 
 Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {

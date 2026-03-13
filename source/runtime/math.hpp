@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <nonstd/expected.hpp>
 #include <ryu/d2s.h>
 #include <string>
 #ifndef M_PI
@@ -9,7 +10,7 @@
 namespace Math {
 
 bool isNumber(const std::string &str);
-double parseNumber(std::string str);
+nonstd::expected<double, std::string> parseNumber(std::string str);
 
 std::string toString(double number);
 
