@@ -5,23 +5,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certifi
 
 RUN wget https://github.com/3DSGuy/Project_CTR/releases/download/makerom-v0.18.4/makerom-v0.18.4-ubuntu_x86_64.zip && unzip makerom-v0.18.4-ubuntu_x86_64.zip && chmod +x makerom
 
-FROM debian:bookworm AS bannertool_installer
+FROM debian:bookworm AS bannertool_builder
 WORKDIR /bannertool
 
-RUN apt update && apt install -y --no-install-recommends wget ca-certificates unzip tree
+RUN apt update && apt install -y --no-install-recommends build-essential git ca-certificates cmake
 
-RUN wget https://github.com/carstene1ns/3ds-bannertool/releases/download/1.2.2/bannertool-1.2.2-linux.zip && unzip bannertool-1.2.2-linux.zip && chmod +x bannertool-1.2.2-linux/bannertool
+RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && git checkout 3767e03b0492654bdff7be7beacf32b5b6a60415 && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 
 FROM devkitpro/devkitarm:latest AS main_builder
 WORKDIR /app
 
 # Bring in makerom + bannertool
 COPY --from=makerom_installer /makerom/ /makerom/
-COPY --from=bannertool_installer /bannertool/ /bannertool/
+COPY --from=bannertool_builder /bannertool/ /bannertool/
 COPY . .
 
 # Build .3dsx and .cia for default TARGET (Scratch)
-RUN /opt/devkitpro/portlibs/3ds/bin/arm-none-eabi-cmake -B build-3ds -DCMAKE_BUILD_TYPE=Release -DSE_MAKEROM=/makerom/makerom -DSE_BANNERTOOL=/bannertool/bannertool-1.2.2-linux/bannertool && cmake --build build-3ds -j2
+RUN /opt/devkitpro/portlibs/3ds/bin/arm-none-eabi-cmake -B build-3ds -DCMAKE_BUILD_TYPE=Release -DSE_MAKEROM=/makerom/makerom -DSE_BANNERTOOL=/bannertool/build/bannertool && cmake --build build-3ds -j2
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build-3ds/scratch-3ds.3dsx /
