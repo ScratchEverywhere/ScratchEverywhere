@@ -366,7 +366,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
 
         Render::resizeSVGs(sprite);
     }
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -406,7 +406,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
 
         Render::resizeSVGs(sprite);
     }
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -453,7 +453,7 @@ SCRATCH_BLOCK(looks, seteffectto) {
         sprite->ghostEffect = std::clamp(amount.asDouble(), 0.0, 100.0);
     }
 
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK(looks, changeeffectby) {
@@ -481,7 +481,7 @@ SCRATCH_BLOCK(looks, changeeffectby) {
         sprite->ghostEffect = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
     }
 
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -490,7 +490,7 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
     sprite->colorEffect = 0.0f;
     sprite->brightnessEffect = 0.0f;
 
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 

@@ -585,7 +585,6 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
 }
 
 void Scratch::gotoXY(Sprite *sprite, double x, double y) {
-
     if (sprite->isStage) return;
 
     const double oldX = sprite->xPosition;
@@ -599,7 +598,7 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
         if (accuratePen) Render::penMoveAccurate(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
         else Render::penMoveFast(oldX, oldY, sprite->xPosition, sprite->yPosition, sprite);
     }
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
@@ -663,17 +662,16 @@ void Scratch::setDirection(Sprite *sprite, double direction) {
     }
 
     sprite->rotation = direction - floor((direction + 179) / 360) * 360;
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
 }
 
 void Scratch::switchCostume(Sprite *sprite, double costumeIndex) {
-
     costumeIndex = std::round(costumeIndex);
     sprite->currentCostume = std::isfinite(costumeIndex) ? (costumeIndex - std::floor(costumeIndex / sprite->costumes.size()) * sprite->costumes.size()) : 0;
 
     loadCurrentCostumeImage(sprite);
 
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
 }
 
 void Scratch::sortSprites() {
