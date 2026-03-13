@@ -225,7 +225,7 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
     end:
         const std::string finalBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
         for (Sprite *spr : Scratch::sprites) {
-            for (auto &[id, hat_block] : spr->blocks) {
+            for (auto &hat_block : spr->blocks) {
                 if (hat_block.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(hat_block, "BACKDROP") == finalBackdrop) {
                     Scratch::backdropQueue.push_back(finalBackdrop);
                     BlockExecutor::addToRepeatQueue(sprite, &block);

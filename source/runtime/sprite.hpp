@@ -293,7 +293,8 @@ class Sprite {
     } textToSpeechData;
 
     std::unordered_map<std::string, Variable> variables;
-    std::map<std::string, Block> blocks;
+    std::vector<Block> blocks;
+    std::map<std::string, Block *> blocksMap;
     std::unordered_map<std::string, List> lists;
     std::vector<Sound> sounds;
     std::vector<Costume> costumes;
@@ -306,6 +307,7 @@ class Sprite {
     ~Sprite() {
         variables.clear();
         blocks.clear();
+        blocksMap.clear();
         lists.clear();
         sounds.clear();
         costumes.clear();

@@ -189,7 +189,6 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
         // set Blocks
         for (const auto &[id, data] : target["blocks"].items()) {
-
             Block newBlock;
             newBlock.id = id;
             if (data.contains("opcode")) {
@@ -286,7 +285,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     newBlock.customBlockId = "";
                 }
             }
-            newSprite->blocks[newBlock.id] = newBlock; // add block
+            newSprite->blocks.push_back(newBlock);
 
             // add custom function blocks
             if (newBlock.opcode == "procedures_prototype") {
@@ -327,6 +326,10 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     Log::logError("Unknown Custom block data: " + data.dump()); // TODO handle these
                 }
             }
+        }
+        // setup blocksMap
+        for (auto &block : newSprite->blocks) {
+            newSprite->blocksMap[block.id] = &block;
         }
 
         // set Lists
@@ -633,7 +636,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     // get block chains for every block
     for (Sprite *currentSprite : Scratch::sprites) {
-        for (auto &[id, block] : currentSprite->blocks) {
+        for (auto &block : currentSprite->blocks) {
             if (!block.topLevel) continue;
             std::string outID;
             BlockChain chain;
@@ -643,8 +646,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
             block.blockChainID = outID;
 
             for (auto &chainBlock : chain.blockChain) {
-                if (currentSprite->blocks.find(chainBlock->id) != currentSprite->blocks.end()) {
-                    currentSprite->blocks[chainBlock->id].blockChainID = outID;
+                if (currentSprite->blocksMap.find(chainBlock->id) != currentSprite->blocksMap.end()) {
+                    currentSprite->blocksMap[chainBlock->id]->blockChainID = outID;
                 }
             }
         }

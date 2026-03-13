@@ -746,11 +746,11 @@ void Scratch::freeUnusedCostumeImages() {
 }
 
 Block *Scratch::findBlock(std::string blockId, Sprite *sprite) {
-    auto block = sprite->blocks.find(blockId);
-    if (block == sprite->blocks.end()) {
+    auto block = sprite->blocksMap.find(blockId);
+    if (block == sprite->blocksMap.end()) {
         return nullptr;
     }
-    return &block->second;
+    return block->second;
 }
 
 Block *Scratch::getBlockParent(const Block *block, Sprite *sprite) {

@@ -14,7 +14,7 @@ SCRATCH_BLOCK(control, if) {
     const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
     const bool condition = conditionValue.asBoolean();
     const auto it = block.parsedInputs->find("SUBSTACK");
-    Block *const subBlock = it == block.parsedInputs->end() ? nullptr : &sprite->blocks[it->second.blockId];
+    Block *const subBlock = it == block.parsedInputs->end() ? nullptr : sprite->blocksMap[it->second.blockId];
     std::vector<std::string> blockID;
     Block *repeatBlock;
 
@@ -28,7 +28,7 @@ SCRATCH_BLOCK(control, if) {
     executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     blockID = sprite->blockChains[block.blockChainID].blocksToRepeat;
     if (blockID.empty()) return BlockResult::RETURN;
-    repeatBlock = &sprite->blocks[blockID.back()];
+    repeatBlock = sprite->blocksMap[blockID.back()];
     if (!repeatBlock || repeatBlock != &block) return BlockResult::RETURN;
 
 end:
@@ -55,12 +55,12 @@ SCRATCH_BLOCK(control, if_else) {
         BlockExecutor::removeFromRepeatQueue(sprite, &block);
         return BlockResult::CONTINUE;
     }
-    Block *const subBlock = &sprite->blocks[it->second.blockId];
+    Block *const subBlock = sprite->blocksMap[it->second.blockId];
     if (subBlock == nullptr) goto end;
     executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     blockID = sprite->blockChains[block.blockChainID].blocksToRepeat;
     if (blockID.empty()) return BlockResult::RETURN;
-    repeatBlock = &sprite->blocks[blockID.back()];
+    repeatBlock = sprite->blocksMap[blockID.back()];
     if (!repeatBlock || repeatBlock != &block) return BlockResult::RETURN;
 
 end:
@@ -96,6 +96,12 @@ SCRATCH_BLOCK(control, create_clone_of) {
     clonedSprite->toDelete = false;
     clonedSprite->renderInfo.forceUpdate = true;
     clonedSprite->id = Math::generateRandomString(15);
+
+    // Regenerate blocksMap
+    clonedSprite->blocksMap.clear();
+    for (auto &block : clonedSprite->blocks) {
+        clonedSprite->blocksMap[block.id] = &block;
+    }
 
 #ifdef ENABLE_CACHING
     BlockExecutor::linkPointers(clonedSprite);
@@ -194,7 +200,7 @@ SCRATCH_BLOCK(control, repeat) {
     }
     const auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
-        Block *const subBlock = &sprite->blocks[it->second.blockId];
+        Block *const subBlock = sprite->blocksMap[it->second.blockId];
         if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     }
 
@@ -220,9 +226,9 @@ SCRATCH_BLOCK(control, while) {
     if (it == block.parsedInputs->end()) return BlockResult::RETURN;
 
     const std::string &blockId = it->second.blockId;
-    const auto blockIt = sprite->blocks.find(blockId);
-    if (blockIt != sprite->blocks.end()) {
-        Block *subBlock = &blockIt->second;
+    const auto blockIt = sprite->blocksMap.find(blockId);
+    if (blockIt != sprite->blocksMap.end()) {
+        Block *subBlock = blockIt->second;
         executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     } else {
         Log::logError("Invalid blockId: " + blockId);
@@ -249,9 +255,9 @@ SCRATCH_BLOCK(control, repeat_until) {
     if (it == block.parsedInputs->end()) return BlockResult::RETURN;
 
     const std::string &blockId = it->second.blockId;
-    auto blockIt = sprite->blocks.find(blockId);
-    if (blockIt != sprite->blocks.end()) {
-        Block *subBlock = &blockIt->second;
+    auto blockIt = sprite->blocksMap.find(blockId);
+    if (blockIt != sprite->blocksMap.end()) {
+        Block *subBlock = blockIt->second;
         executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     } else {
         Log::logError("Invalid blockId: " + blockId);
@@ -267,7 +273,7 @@ SCRATCH_BLOCK(control, forever) {
 
     const auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
-        Block *const subBlock = &sprite->blocks[it->second.blockId];
+        Block *const subBlock = sprite->blocksMap[it->second.blockId];
         if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     }
     return BlockResult::RETURN;
@@ -303,7 +309,7 @@ SCRATCH_BLOCK(control, for_each) {
 
     const auto it = block.parsedInputs->find("SUBSTACK");
     if (it != block.parsedInputs->end()) {
-        Block *subBlock = &sprite->blocks[it->second.blockId];
+        Block *subBlock = sprite->blocksMap[it->second.blockId];
         if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
     }
 
