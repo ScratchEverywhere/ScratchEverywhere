@@ -407,15 +407,35 @@ SCRATCH_BLOCK(looks, seteffectto) {
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
 
     if (effect == "COLOR") {
-        Log::logWarning("Color effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Color effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "FISHEYE") {
-        Log::logWarning("Fisheye effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Fisheye effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "WHIRL") {
-        Log::logWarning("Whirl effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Whirl effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "PIXELATE") {
-        Log::logWarning("Pixelate effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Pixelate effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "MOSAIC") {
-        Log::logWarning("Mosaic effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Mosaic effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "BRIGHTNESS") {
         sprite->brightnessEffect = std::clamp(amount.asDouble(), -100.0, 100.0);
     } else if (effect == "GHOST") {
