@@ -1,4 +1,5 @@
 #include "image_sdl2.hpp"
+#include "nonstd/expected.hpp"
 #include "render.hpp"
 #include <algorithm>
 #include <stdexcept>
@@ -21,7 +22,6 @@ void Image_SDL2::render(ImageRenderParams &params) {
 
     SDL_Rect subRect;
     if (params.subrect != nullptr) {
-        Log::log("hi");
         subRect = {
             .x = params.subrect->x,
             .y = params.subrect->y,
@@ -135,19 +135,18 @@ void *Image_SDL2::getNativeTexture() {
     return texture;
 }
 
-void Image_SDL2::setInitialTexture() {
-
+nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
 #ifdef __PS4__ // PS4 magic to prevent white everywhere
     SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(imgData.pixels, imgData.width, imgData.height, 32, imgData.pitch, SDL_PIXELFORMAT_RGBA32);
 
     if (!surface) {
-        throw std::runtime_error("Failed to create surface: " + std::string(SDL_GetError()));
+        return nonstd::make_unexpected("Failed to create surface: " + std::string(SDL_GetError()));
     }
 
     SDL_Surface *convert = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_RGBA8888, 0);
     if (convert == NULL) {
         SDL_FreeSurface(convert);
-        throw std::runtime_error("Error converting image surface: " + std::string(SDL_GetError()));
+        return nonstd::make_unexpected("Error converting image surface: " + std::string(SDL_GetError()));
     }
 
     SDL_FreeSurface(surface);
@@ -159,14 +158,14 @@ void Image_SDL2::setInitialTexture() {
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 #endif
     if (!texture) {
-        throw std::runtime_error("Failed to create texture: " + std::string(SDL_GetError()));
+        return nonstd::make_unexpected("Failed to create texture: " + std::string(SDL_GetError()));
     }
 
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
 
 #ifndef __PS4__
     if (SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch) < 0) {
-        throw std::runtime_error("Failed to update texture: " + std::string(SDL_GetError()));
+        return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
     }
 #endif
 
@@ -175,14 +174,16 @@ void Image_SDL2::setInitialTexture() {
      *  */
     free(imgData.pixels);
     imgData.pixels = nullptr;
+
+    return {};
 }
 
-void Image_SDL2::refreshTexture() {
+nonstd::expected<void, std::string> Image_SDL2::refreshTexture() {
     if (texture) {
         SDL_DestroyTexture(texture);
         texture = nullptr;
     }
-    setInitialTexture();
+    return setInitialTexture();
 }
 
 Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
@@ -191,8 +192,14 @@ Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHal
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 
-    init(filePath, zip, bitmapHalfQuality, scale);
-    setInitialTexture();
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
+    const auto potentialError = setInitialTexture();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
@@ -201,8 +208,14 @@ Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitma
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
-    setInitialTexture();
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
+    const auto potentialError = setInitialTexture();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_SDL2::~Image_SDL2() {

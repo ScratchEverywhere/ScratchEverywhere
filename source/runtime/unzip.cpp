@@ -1,5 +1,6 @@
 #include "unzip.hpp"
 #include "input.hpp"
+#include "os.hpp"
 #include <cstring>
 #include <ctime>
 #include <errno.h>
@@ -263,14 +264,7 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
     loadingState = "Loading Sprites";
-    try {
-        Parser::loadSprites(project_json);
-    } catch (const std::exception &e) {
-        Log::logError("Failed to parse project: " + std::string(e.what()));
-        Unzip::projectOpened = -3;
-        Unzip::threadFinished = true;
-        return;
-    }
+    Parser::loadSprites(project_json);
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
@@ -283,10 +277,8 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
 
     if (stat(directory.c_str(), &dirStat) != 0) {
         Log::logWarning("Directory does not exist! " + directory);
-        try {
-            OS::createDirectory(directory);
-        } catch (...) {
-        }
+        auto potentialError = OS::createDirectory(directory);
+        if (!potentialError.has_value()) Log::logWarning("Failed to create directory, " + directory + ", " + potentialError.error());
         return projectFiles;
     }
 
@@ -365,8 +357,9 @@ std::string Unzip::getSplashText() {
 
     std::vector<std::string> splashLines;
 #ifdef USE_CMAKERC
-    try {
-        auto file = cmrc::romfs::get_filesystem().open(textPath);
+    auto fs = cmrc::romfs::get_filesystem();
+    if (fs.exists(textPath)) {
+        auto file = fs.open(textPath);
         std::string_view sv(file.begin(), file.size());
         std::istringstream stream{std::string(sv)};
 
@@ -376,7 +369,7 @@ std::string Unzip::getSplashText() {
                 splashLines.push_back(line);
             }
         }
-    } catch (const std::exception &e) {
+    } else {
         return fallback;
     }
 #else
@@ -593,11 +586,9 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
         return false;
     }
 
-    try {
-
-        OS::createDirectory(destFolder + "/");
-    } catch (const std::exception &e) {
-        Log::logError(e.what());
+    auto potentialError = OS::createDirectory(destFolder + "/");
+    if (!potentialError.has_value()) {
+        Log::logError(potentialError.error());
         return false;
     }
 
@@ -612,7 +603,11 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
 
         std::string outPath = destFolder + "/" + filename;
 
-        OS::createDirectory(OS::parentPath(outPath));
+        auto potentialError = OS::createDirectory(OS::parentPath(outPath));
+        if (!potentialError.has_value()) {
+            Log::logError(potentialError.error());
+            return false;
+        }
 
         if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
             Log::logError("Failed to extract: " + outPath);
@@ -637,11 +632,10 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
         return false;
     }
 
-    try {
-        OS::removeDirectory(directory);
-        return true;
-    } catch (const OS::FilesystemError &e) {
-        Log::logError(std::string("Failed to delete folder: ") + e.what());
+    auto potentialError = OS::removeDirectory(directory);
+    if (!potentialError.has_value()) {
+        Log::logError(std::string("Failed to delete folder: ") + potentialError.error());
+        return false;
     }
 
     return true;
@@ -656,15 +650,13 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         return nlohmann::json();
     }
 
-    nlohmann::json json;
-    try {
-        file >> json;
-    } catch (const nlohmann::json::parse_error &e) {
-        Log::logError("Failed to parse JSON file: " + std::string(e.what()));
-        file.close();
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+    nlohmann::json json = nlohmann::json::parse(content, nullptr, false);
+    if (json.is_discarded()) {
+        Log::logError("Failed to parse JSON file: Syntax error.");
         return nlohmann::json();
     }
-    file.close();
 
     if (!json.contains("settings")) {
         return nlohmann::json();

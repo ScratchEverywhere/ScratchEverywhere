@@ -189,7 +189,6 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
         // set Blocks
         for (const auto &[id, data] : target["blocks"].items()) {
-
             Block newBlock;
             newBlock.id = id;
             if (data.contains("opcode")) {
@@ -286,7 +285,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     newBlock.customBlockId = "";
                 }
             }
-            newSprite->blocks[newBlock.id] = newBlock; // add block
+            newSprite->blocks.push_back(newBlock);
 
             // add custom function blocks
             if (newBlock.opcode == "procedures_prototype") {
@@ -327,6 +326,10 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     Log::logError("Unknown Custom block data: " + data.dump()); // TODO handle these
                 }
             }
+        }
+        // setup blocksMap
+        for (auto &block : newSprite->blocks) {
+            newSprite->blocksMap[block.id] = &block;
         }
 
         // set Lists
@@ -516,18 +519,14 @@ void Parser::loadSprites(const nlohmann::json &json) {
             cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
         }
 
-        try {
-            config = nlohmann::json::parse(cleaned_json);
-            break;
-        } catch (nlohmann::json::parse_error &e) {
-            continue;
-        }
+        config = nlohmann::json::parse(cleaned_json, nullptr, false);
+        if (!config.is_discarded()) break;
     }
     // set advanced project settings properties
     bool infClones = false;
+    if (!config.is_null()) {
 
-    try {
-        Scratch::FPS = config["framerate"].get<int>();
+        Scratch::FPS = config.value("framerate", 0);
         if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
 #if defined(RENDERER_SDL2)
             Scratch::FPS = 255; // SDL2's vsync will figure it out
@@ -535,67 +534,20 @@ void Parser::loadSprites(const nlohmann::json &json) {
             Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
 #endif
         }
-        Log::log("Set FPS to: " + std::to_string(Scratch::FPS));
-    } catch (...) {
-#ifdef DEBUG
-        Log::logWarning("no framerate property.");
-#endif
+
+        Scratch::turbo = config.value("turbo", false);
+        Scratch::hqpen = config.value("hq", false);
+        Scratch::projectWidth = config.value("width", 480);
+        Scratch::projectHeight = config.value("height", 360);
+
+        auto &runtimeOptions = config["runtimeOptions"];
+        if (runtimeOptions.is_object()) {
+            Scratch::fencing = runtimeOptions.value("fencing", true);
+            Scratch::miscellaneousLimits = runtimeOptions.value("miscLimits", true);
+            infClones = runtimeOptions.contains("maxClones") && !runtimeOptions["maxClones"].is_null();
+        }
     }
-    try {
-        Scratch::turbo = config["turbo"].get<bool>();
-        Log::log("Set turbo mode to: " + std::to_string(Scratch::turbo));
-    } catch (...) {
-#ifdef DEBUG
-        Log::logWarning("no turbo property.");
-#endif
-    }
-    try {
-        Scratch::hqpen = config["hq"].get<bool>();
-        Log::log("Set hqpen mode to: " + std::to_string(Scratch::hqpen));
-    } catch (...) {
-#ifdef DEBUG
-        Log::logWarning("no hqpen property.");
-#endif
-    }
-    try {
-        Scratch::projectWidth = config["width"].get<int>();
-        Log::log("Set width to: " + std::to_string(Scratch::projectWidth));
-    } catch (...) {
-#ifdef DEBUG
-        Log::logWarning("no width property.");
-#endif
-    }
-    try {
-        Scratch::projectHeight = config["height"].get<int>();
-        Log::log("Set height to: " + std::to_string(Scratch::projectHeight));
-    } catch (...) {
-#ifdef DEBUG
-        Log::logWarning("no height property.");
-#endif
-    }
-    try {
-        Scratch::fencing = config["runtimeOptions"]["fencing"].get<bool>();
-        Log::log("Set fencing to: " + std::to_string(Scratch::fencing));
-    } catch (...) {
-#ifdef DEBUG
-        Log::logWarning("no fencing property.");
-#endif
-    }
-    try {
-        Scratch::miscellaneousLimits = config["runtimeOptions"]["miscLimits"].get<bool>();
-        Log::log("Set misc limits to: " + std::to_string(Scratch::miscellaneousLimits));
-    } catch (...) {
-#ifdef DEBUG
-        Log::logWarning("no misc limits property.");
-#endif
-    }
-    try {
-        infClones = !config["runtimeOptions"]["maxClones"].is_null();
-    } catch (...) {
-#ifdef DEBUG
-        Log::logWarning("No Max clones property.");
-#endif
-    }
+
 #ifdef RENDERER_CITRO2D
     if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
         Render::renderMode = Render::BOTH_SCREENS;
@@ -633,7 +585,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     // get block chains for every block
     for (Sprite *currentSprite : Scratch::sprites) {
-        for (auto &[id, block] : currentSprite->blocks) {
+        for (auto &block : currentSprite->blocks) {
             if (!block.topLevel) continue;
             std::string outID;
             BlockChain chain;
@@ -643,8 +595,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
             block.blockChainID = outID;
 
             for (auto &chainBlock : chain.blockChain) {
-                if (currentSprite->blocks.find(chainBlock->id) != currentSprite->blocks.end()) {
-                    currentSprite->blocks[chainBlock->id].blockChainID = outID;
+                if (currentSprite->blocksMap.find(chainBlock->id) != currentSprite->blocksMap.end()) {
+                    currentSprite->blocksMap[chainBlock->id]->blockChainID = outID;
                 }
             }
         }

@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <image.hpp>
 #include <render.hpp>
+#include <set>
 #include <speech_manager.hpp>
 #include <sprite.hpp>
 #include <value.hpp>
@@ -225,7 +226,7 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
     end:
         const std::string finalBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
         for (Sprite *spr : Scratch::sprites) {
-            for (auto &[id, hat_block] : spr->blocks) {
+            for (auto &hat_block : spr->blocks) {
                 if (hat_block.opcode == "event_whenbackdropswitchesto" && Scratch::getFieldValue(hat_block, "BACKDROP") == finalBackdrop) {
                     Scratch::backdropQueue.push_back(finalBackdrop);
                     BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -331,9 +332,14 @@ SCRATCH_BLOCK(looks, gotofrontback) {
 SCRATCH_BLOCK(looks, setsizeto) {
     const Value value = Scratch::getInputValue(block, "SIZE", sprite);
 
-    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    const auto &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    auto imgFind = Scratch::costumeImages.find(costumeName);
     if (imgFind == Scratch::costumeImages.end()) {
-        Log::logWarning("Invalid Image in current costume.");
+        static std::set<std::string> failedCostumes;
+        if (failedCostumes.count(costumeName) == 0) {
+            Log::logWarning("Invalid Image in current costume.");
+            failedCostumes.insert(costumeName);
+        }
         return BlockResult::CONTINUE;
     }
 
@@ -360,16 +366,21 @@ SCRATCH_BLOCK(looks, setsizeto) {
 
         Render::resizeSVGs(sprite);
     }
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(looks, changesizeby) {
     const Value value = Scratch::getInputValue(block, "CHANGE", sprite);
 
-    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    const auto &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    auto imgFind = Scratch::costumeImages.find(costumeName);
     if (imgFind == Scratch::costumeImages.end()) {
-        Log::logWarning("Invalid Image in current costume.");
+        static std::set<std::string> failedCostumes;
+        if (failedCostumes.count(costumeName) == 0) {
+            Log::logWarning("Invalid Image in current costume.");
+            failedCostumes.insert(costumeName);
+        }
         return BlockResult::CONTINUE;
     }
 
@@ -395,7 +406,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
 
         Render::resizeSVGs(sprite);
     }
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -407,22 +418,42 @@ SCRATCH_BLOCK(looks, seteffectto) {
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
 
     if (effect == "COLOR") {
-        Log::logWarning("Color effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Color effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "FISHEYE") {
-        Log::logWarning("Fisheye effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Fisheye effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "WHIRL") {
-        Log::logWarning("Whirl effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Whirl effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "PIXELATE") {
-        Log::logWarning("Pixelate effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Pixelate effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "MOSAIC") {
-        Log::logWarning("Mosaic effect is not supported yet.");
+        static bool logged = false;
+        if (!logged) {
+            Log::logWarning("Mosaic effect is not supported yet.");
+            logged = true;
+        }
     } else if (effect == "BRIGHTNESS") {
         sprite->brightnessEffect = std::clamp(amount.asDouble(), -100.0, 100.0);
     } else if (effect == "GHOST") {
         sprite->ghostEffect = std::clamp(amount.asDouble(), 0.0, 100.0);
     }
 
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK(looks, changeeffectby) {
@@ -450,7 +481,7 @@ SCRATCH_BLOCK(looks, changeeffectby) {
         sprite->ghostEffect = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
     }
 
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -459,7 +490,7 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
     sprite->colorEffect = 0.0f;
     sprite->brightnessEffect = 0.0f;
 
-    Scratch::forceRedraw = true;
+    if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 

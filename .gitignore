@@ -91,3 +91,6 @@ cloud-username.txt
 .clangd
 
 CMakeSettings.json
+
+# Debug files
+perf.data*

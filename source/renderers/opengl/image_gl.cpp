@@ -1,4 +1,5 @@
 #include "image_gl.hpp"
+#include "nonstd/expected.hpp"
 #include "render.hpp"
 #include <GL/gl.h>
 #include <algorithm>
@@ -160,9 +161,11 @@ void Image_GL::setInitialTexture() {
     imgData.pixels = nullptr;
 }
 
-void Image_GL::refreshTexture() {
+nonstd::expected<void, std::string> Image_GL::refreshTexture() {
     glDeleteTextures(1, &textureID);
     setInitialTexture();
+
+    return {};
 }
 
 Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
@@ -170,7 +173,12 @@ Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHal
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
     maxTextureSize = {glMaxTextureSize, glMaxTextureSize};
 
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
     setInitialTexture();
 }
 
@@ -179,7 +187,12 @@ Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQua
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
     maxTextureSize = {glMaxTextureSize, glMaxTextureSize};
 
-    init(filePath, zip, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
     setInitialTexture();
 }
 

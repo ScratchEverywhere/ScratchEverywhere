@@ -1,15 +1,23 @@
 #include "loading.hpp"
+#include "image.hpp"
+#include <memory>
 #include <render.hpp>
+#include <string>
 #include <unzip.hpp>
 
 void Loading::init() {
-    try {
-        block1 = createImageFromFile("gfx/menu/block1.svg", false);
-        block2 = createImageFromFile("gfx/menu/block2.svg", false);
-        block3 = createImageFromFile("gfx/menu/block3.svg", false);
-    } catch (std::runtime_error &e) {
-        renderBlocks = false;
-    }
+    auto loadBlock = [&](const uint8_t number) -> std::shared_ptr<Image> {
+        auto image = createImageFromFile("gfx/menu/block" + std::to_string(number) + ".svg", false);
+        if (!image.has_value()) {
+            renderBlocks = false;
+            return nullptr;
+        }
+        return image.value();
+    };
+
+    block1 = loadBlock(1);
+    block2 = loadBlock(2);
+    block3 = loadBlock(3);
     loadingStateText = createTextObject("", 0, 0);
     block1Y = Render::getHeight() * 2;
     block2Y = Render::getHeight() * 2;

@@ -1,4 +1,5 @@
 #include "os.hpp"
+#include "nonstd/expected.hpp"
 #include "render.hpp"
 #include "settings.hpp"
 #include <cerrno>
@@ -426,7 +427,7 @@ std::string OS::getUsername() {
     return "Player";
 }
 
-void OS::createDirectory(const std::string &path) {
+nonstd::expected<void, std::string> OS::createDirectory(const std::string &path) {
     std::string p = path;
     std::replace(p.begin(), p.end(), '\\', '/');
 
@@ -443,24 +444,26 @@ void OS::createDirectory(const std::string &path) {
 #else
             if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
 #endif
-                throw OS::DirectoryCreationFailed(dir, errno);
+                return nonstd::make_unexpected("Failed to create directory, " + dir + ", " + std::to_string(errno));
             }
         }
     }
+
+    return {};
 }
 
 void OS::renameFile(const std::string &originalPath, const std::string &newPath) {
     rename(originalPath.c_str(), newPath.c_str());
 }
 
-void OS::removeDirectory(const std::string &path) {
+nonstd::expected<void, std::string> OS::removeDirectory(const std::string &path) {
     struct stat st;
     if (stat(path.c_str(), &st) != 0) {
-        throw OS::DirectoryNotFound(path, errno);
+        return nonstd::make_unexpected("Directory not found, " + path + ", " + std::to_string(errno));
     }
 
     if (!(st.st_mode & S_IFDIR)) {
-        throw OS::NotADirectory(path, errno);
+        return nonstd::make_unexpected("Not a directory, " + path + ", " + std::to_string(errno));
     }
 
 #ifdef _WIN32
@@ -473,12 +476,12 @@ void OS::removeDirectory(const std::string &path) {
     options.fFlags = FOF_NO_UI | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT;
 
     if (SHFileOperationW(&options) != 0) {
-        throw OS::DirectoryRemovalFailed(path, errno);
+        return nonstd::make_unexpected("Directory removal failed, " + path + ", " + std::to_string(errno));
     }
 #else
     DIR *dir = opendir(path.c_str());
     if (dir == nullptr) {
-        throw OS::DirectoryOpenFailed(path, errno);
+        return nonstd::make_unexpected("Directory open failed, " + path + ", " + std::to_string(errno));
     }
 
     struct dirent *entry;
@@ -492,10 +495,11 @@ void OS::removeDirectory(const std::string &path) {
         struct stat entrySt;
         if (stat(fullPath.c_str(), &entrySt) == 0) {
             if (S_ISDIR(entrySt.st_mode)) {
-                removeDirectory(fullPath);
+                auto potentialError = removeDirectory(fullPath);
+                if (!potentialError.has_value()) return nonstd::make_unexpected(potentialError.error());
             } else {
                 if (remove(fullPath.c_str()) != 0) {
-                    throw OS::FileRemovalFailed(fullPath, errno);
+                    return nonstd::make_unexpected("File removal failed, " + fullPath + ", " + std::to_string(errno));
                 }
             }
         }
@@ -504,9 +508,11 @@ void OS::removeDirectory(const std::string &path) {
     closedir(dir);
 
     if (rmdir(path.c_str()) != 0) {
-        throw OS::DirectoryRemovalFailed(path, errno);
+        return nonstd::make_unexpected("Directory removal failed, " + path + ", " + std::to_string(errno));
     }
 #endif
+
+    return {};
 }
 
 bool OS::fileExists(const std::string &path) {

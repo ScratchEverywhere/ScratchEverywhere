@@ -1,5 +1,8 @@
 #include "math.hpp"
+#include "nonstd/expected.hpp"
 #include <algorithm>
+#include <cerrno>
+#include <cstdlib>
 #include <ctime>
 #include <limits>
 #include <math.h>
@@ -36,7 +39,7 @@ int Math::color(int r, int g, int b, int a) {
     return 0;
 }
 
-double Math::parseNumber(std::string str) {
+nonstd::expected<double, std::string> Math::parseNumber(std::string str) {
     // Scratch has whitespace trimming
     while (!str.empty() && std::isspace(str[0])) {
         str.erase(0, 1);
@@ -45,7 +48,7 @@ double Math::parseNumber(std::string str) {
         str.pop_back();
     }
 
-    if (str.empty()) throw std::invalid_argument("");
+    if (str.empty()) return nonstd::make_unexpected("Invalid Argument");
 
     if (str == "Infinity" || str == "+Infinity") {
         return std::numeric_limits<double>::infinity();
@@ -71,49 +74,43 @@ double Math::parseNumber(std::string str) {
 
     for (size_t i = 0; i < str.length(); i++) {
         if (validcharacters.find(str[i]) == std::string::npos) {
-            throw std::invalid_argument("");
+            return nonstd::make_unexpected("Invalid Argument");
         }
         if (base == 0) {
             if (i == str.length() - 1 && (str[i] == '+' || str[i] == '-' || str[i] == 'e' || str[i] == 'E')) {
                 // implementation differece, "1e" doesn't work in Scratch but works
                 // with std::stod()
                 // signs (+, -) should also not be at the end
-                throw std::invalid_argument("");
+                return nonstd::make_unexpected("Invalid Argument");
             }
             if ((str[i] == 'e' || str[i] == 'E') && str.find('.', i + 1) != std::string::npos) {
                 // implementation differece, decimal point after e doesn't work in
                 // Scratch but works with std::stod()
-                throw std::invalid_argument("");
+                return nonstd::make_unexpected("Invalid Argument");
             }
         }
     }
 
     double conversion;
-    std::size_t pos;
-    try {
-        if (base == 0) {
-            conversion = std::stod(str, &pos);
-        } else {
-            conversion = std::stoull(str, &pos, base);
-        }
-    } catch (const std::out_of_range &e) {
-        if (str[0] == '-') {
-            return -std::numeric_limits<double>::infinity();
-        } else {
-            return std::numeric_limits<double>::infinity();
-        }
+    char *endptr = nullptr;
+
+    errno = 0;
+    if (base == 0) {
+        conversion = std::strtod(str.c_str(), &endptr);
+    } else {
+        unsigned long long val = std::strtoull(str.c_str(), &endptr, base);
+        conversion = static_cast<double>(val);
+    }
+    if (errno == ERANGE) {
+        if (str[0] == '-') return -std::numeric_limits<double>::infinity();
+        else return std::numeric_limits<double>::infinity();
     }
 
     return conversion;
 }
 
 bool Math::isNumber(const std::string &str) {
-    try {
-        parseNumber(str);
-        return true;
-    } catch (...) {
-        return false;
-    }
+    return parseNumber(str).has_value();
 }
 
 std::string Math::toString(double number) {
