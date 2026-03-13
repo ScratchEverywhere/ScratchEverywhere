@@ -36,6 +36,7 @@ nonstd::expected<void, std::string> Image_GL2D::setInitialTexture() {
     }
 
     textureID = texID;
+    return {};
 }
 
 nonstd::expected<void, std::string> Image_GL2D::refreshTexture() {

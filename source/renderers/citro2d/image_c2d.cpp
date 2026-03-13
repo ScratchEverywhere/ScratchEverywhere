@@ -187,6 +187,7 @@ nonstd::expected<void, std::string> Image_C2D::setInitialTexture() {
     texture.subtex = subtex;
     free(imgData.pixels);
     imgData.pixels = nullptr;
+    return {};
 }
 
 static inline uint32_t unswizzleRGBA8(const uint32_t *swizzled, int texWidth, int x, int y) {

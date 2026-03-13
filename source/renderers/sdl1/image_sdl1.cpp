@@ -169,6 +169,7 @@ nonstd::expected<void, std::string> Image_SDL1::setInitialTexture() {
         return nonstd::make_unexpected(std::string("Texture creation failed: ") + SDL_GetError());
     }
     SDL_SetAlpha(texture, SDL_SRCALPHA, 255);
+    return {};
 }
 
 nonstd::expected<void, std::string> Image_SDL1::refreshTexture() {
