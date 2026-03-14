@@ -256,6 +256,8 @@ void Mixer::requestSound(short *output, int frames) {
             stereo_resampled[i] = 0;
 
         if ((n = e.second->read(buffer, pairs)) == 0) {
+            delete[] stereo_resampled;
+            delete[] stereo;
             delete[] buffer;
             e.second->paused = true;
             continue;
