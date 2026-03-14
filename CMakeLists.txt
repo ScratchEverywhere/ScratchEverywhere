@@ -694,7 +694,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT 
 	# )
 	# add_custom_command(TARGET scratch-everywhere POST_BUILD
 	# 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/gfx/macOS/Icon.icns "$<TARGET_BUNDLE_DIR:scratch-everywhere>/Contents/Resources/Icon.icns")
-elseif(NINTENDO_3DS)
+elseif(PS2)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-ps2)
 	target_compile_definitions(scratch-everywhere PRIVATE)
 endif()
