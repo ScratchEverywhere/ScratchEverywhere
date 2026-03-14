@@ -1,0 +1,2 @@
+set(SE_SVG OFF)
+set(SE_BITMAP OFF)
