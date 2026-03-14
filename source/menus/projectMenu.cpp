@@ -142,13 +142,17 @@ void ProjectMenu::render() {
         }
 #endif
 #else
-        SoundStream *strm = new SoundStream(
 #ifdef __NDS__
-            "gfx/nds/mm_ds.wav"
+        if (!Mixer::isSoundPlaying("gfx/menu/mm_ds.wav")) {
+            SoundStream *strm = new SoundStream(
+                "gfx/nds/mm_ds.wav");
+        }
 #else
-            "gfx/menu/mm_splash.ogg"
+        if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+            SoundStream *strm = new SoundStream(
+                "gfx/menu/mm_splash.ogg");
+        }
 #endif
-        );
 #endif
     }
 

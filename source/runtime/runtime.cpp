@@ -82,10 +82,6 @@ void Scratch::initializeScratchProject() {
     Scratch::pauseMenu = nullptr;
 #endif
 
-#ifdef ENABLE_AUDIO
-    SoundPlayer::init();
-#endif
-
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
         BlockExecutor::linkPointers(sprite);

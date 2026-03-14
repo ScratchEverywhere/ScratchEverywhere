@@ -1,7 +1,11 @@
 #pragma once
+#ifndef STB_VORBIS_IMPLEMENTATION
+#define STB_VORBIS_HEADER_ONLY
+#endif
 #include <dr_mp3.h>
 #include <dr_wav.h>
 #include <miniz.h>
+#include <stb_vorbis.c>
 #include <string>
 #include <unordered_map>
 
@@ -35,8 +39,10 @@ class SoundWin32Mutex {
 #endif
 
 enum SoundStreamTypes {
-    SoundStreamWAV = 0,
-    SoundStreamMP3
+    SoundStreamUnknown = 0,
+    SoundStreamWAV,
+    SoundStreamMP3,
+    SoundStreamVorbis
 };
 
 /* TODO: maybe make this modular? but it's not like we're going to support
@@ -48,11 +54,13 @@ class SoundStream {
 
     void loadAsWAV();
     void loadAsMP3();
+    void loadAsVorbis();
     void loadFromBuffer();
 
   public:
     drwav wav;
     drmp3 mp3;
+    stb_vorbis *vorbis;
 
     int type;
 

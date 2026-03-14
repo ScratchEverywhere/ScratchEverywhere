@@ -46,30 +46,49 @@ SoundWin32Mutex::~SoundWin32Mutex() {
  */
 
 void SoundStream::loadAsWAV() {
-    this->type = SoundStreamWAV;
-
     if (!drwav_init_memory(&this->wav, this->buffer, this->buffer_size, nullptr)) {
         /* TODO: handle error */
         return;
     }
+
+    this->type = SoundStreamWAV;
 
     this->rate = this->wav.sampleRate;
     this->channels = this->wav.channels;
 }
 
 void SoundStream::loadAsMP3() {
-    this->type = SoundStreamMP3;
-
     if (!drmp3_init_memory(&this->mp3, this->buffer, this->buffer_size, nullptr)) {
         /* TODO: handle error */
         return;
     }
 
+    this->type = SoundStreamMP3;
+
     this->rate = this->mp3.sampleRate;
     this->channels = this->mp3.channels;
 }
 
+void SoundStream::loadAsVorbis() {
+    int err;
+    stb_vorbis_info info;
+
+    if ((this->vorbis = stb_vorbis_open_memory(this->buffer, this->buffer_size, &err, nullptr)) == nullptr) {
+        /* TODO: handle error */
+        return;
+    }
+
+    info = stb_vorbis_get_info(this->vorbis);
+
+    this->type = SoundStreamVorbis;
+
+    this->rate = info.sample_rate;
+    this->channels = info.channels;
+}
+
 void SoundStream::loadFromBuffer() {
+    this->type = SoundStreamUnknown;
+
     if (this->buffer == nullptr || this->buffer_size <= 0) return;
 
     if (this->buffer_size >= 4 && memcmp(this->buffer, "RIFF", 4) == 0) {
@@ -78,6 +97,8 @@ void SoundStream::loadFromBuffer() {
         loadAsMP3();
     } else if (this->buffer_size >= 2 && this->buffer[0] == 0xff && (this->buffer[1] == 0xfb || this->buffer[1] == 0xf3 || this->buffer[1] == 0xf2)) {
         loadAsMP3();
+    } else if (this->buffer_size >= 4 && memcmp(this->buffer, "OggS", 4) == 0) {
+        loadAsVorbis();
     } else {
         return;
     }
@@ -181,6 +202,8 @@ SoundStream::~SoundStream() {
         drwav_uninit(&this->wav);
     } else if (this->type == SoundStreamMP3) {
         drmp3_uninit(&this->mp3);
+    } else if (this->type == SoundStreamVorbis) {
+        stb_vorbis_close(this->vorbis);
     }
 
     if (this->buffer != nullptr) free(this->buffer);
@@ -191,6 +214,8 @@ int SoundStream::read(float *output, int frames) {
         return drwav_read_pcm_frames_f32(&this->wav, frames, output);
     } else if (this->type == SoundStreamMP3) {
         return drmp3_read_pcm_frames_f32(&this->mp3, frames, output);
+    } else if (this->type == SoundStreamVorbis) {
+        return stb_vorbis_get_samples_float_interleaved(this->vorbis, this->channels, output, frames * this->channels);
     }
     return 0;
 }
