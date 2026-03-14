@@ -2,9 +2,22 @@
 #include <dr_mp3.h>
 #include <dr_wav.h>
 #include <miniz.h>
-#include <mutex>
 #include <string>
 #include <vector>
+
+#if defined(__NDS__)
+class SoundDummyMutex {
+    void lock();
+    void unlock();
+};
+
+#define MUTEX SoundDummyMutex
+#define SOUND_DUMMY_MUTEX
+#else
+#include <mutex>
+
+#define MUTEX std::mutex
+#endif
 
 enum SoundStreamTypes {
     SoundStreamWAV = 0,
@@ -46,7 +59,7 @@ class SoundStream {
 
 class Mixer {
   public:
-    static std::mutex mutex;
+    static MUTEX mutex;
     static std::vector<SoundStream *> streams;
     static int rate;
     static void requestSound(short *output, int frames); /* expects stereo */

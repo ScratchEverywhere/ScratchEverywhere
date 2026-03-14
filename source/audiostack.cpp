@@ -14,6 +14,11 @@ CMRC_DECLARE(romfs);
 
 #include <cstdlib>
 
+#if SOUND_DUMMY_MUTEX
+void SoundDummyMutex::lock() {}
+void SoundDummyMutex::unlock() {}
+#endif
+
 /* TODO: Oh no! this does not check errors from dr_libs. Please anyone,
  * think me a best way to check them. I don't know enough C++ to do this.
  */
@@ -149,7 +154,7 @@ void SoundStream::start() {
 }
 
 std::vector<SoundStream *> Mixer::streams;
-std::mutex Mixer::mutex;
+MUTEX Mixer::mutex;
 int Mixer::rate = 44100;
 
 void Mixer::requestSound(short *output, int frames) {
