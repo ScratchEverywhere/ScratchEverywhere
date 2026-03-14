@@ -11,7 +11,7 @@ extern "C" void SDLCALL callback(void *ptr, Uint8 *stream, int len) {
 
 void SoundPlayer::init() {
 #ifdef ENABLE_AUDIO
-	SDL_AudioSpec spec;
+    SDL_AudioSpec spec;
 
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
         /* TODO: Handle error */
@@ -51,9 +51,9 @@ void SoundPlayer::cleanupAudio() {
         delete streams[i];
 }
 
-void SoundPlayer::flushAudio(){
+void SoundPlayer::flushAudio() {
 }
 
-void SoundPlayer::deinit(){
-	cleanupAudio();
+void SoundPlayer::deinit() {
+    cleanupAudio();
 }
