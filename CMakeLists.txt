@@ -323,13 +323,11 @@ CPMAddPackage(
 	GIT_TAG master
 )
 
-if(SE_BITMAP)
-	CPMAddPackage(
+CPMAddPackage(
 	NAME stb
 	GITHUB_REPOSITORY nothings/stb
 	GIT_TAG master
-	)
-endif()
+)	
 
 if(SE_SVG)
 	CPMAddPackage(
@@ -994,9 +992,7 @@ endif()
 
 target_include_directories(scratch-everywhere PRIVATE ${dr_libs_SOURCE_DIR})
 
-if(SE_BITMAP)
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
-endif()
 
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
