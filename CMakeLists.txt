@@ -986,6 +986,8 @@ if(SE_SVG)
 target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
 endif()
 
+target_include_directories(scratch-everywhere PRIVATE ${dr_libs_SOURCE_DIR})
+
 if(SE_BITMAP)
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
 endif()
