@@ -222,7 +222,7 @@ if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
 endif()
 
 if(SE_AUDIO)
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/${SE_AUDIO}.cmake")
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/${SE_AUDIO_ENGINE}.cmake")
 endif()
 
 option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ${SE_CMAKERC_DEFAULT})
