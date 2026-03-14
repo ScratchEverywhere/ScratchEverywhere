@@ -25,7 +25,7 @@ class Input {
     static std::map<std::string, std::string> inputControls;
     static std::vector<std::string> inputBuffer;
     static std::unordered_map<std::string, int> keyHeldDuration;
-    static std::unordered_set<std::string> codePressedBlockOpcodes;
+    static std::unordered_set<Block *> codePressedBlockOpcodes;
 
     static std::vector<int> getTouchPosition();
     static void getInput();

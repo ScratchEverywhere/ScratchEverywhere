@@ -157,6 +157,7 @@ nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
      *  */
     free(imgData.pixels);
     imgData.pixels = nullptr;
+    return {};
 }
 
 nonstd::expected<void, std::string> Image_SDL3::refreshTexture() {

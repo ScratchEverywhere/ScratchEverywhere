@@ -2,78 +2,82 @@
 #include <sprite.hpp>
 #include <value.hpp>
 
-#if defined(RENDERER_SDL1) && defined(PLATFORM_HAS_CONTROLLER)
-#include <SDL/SDL.h>
-
-extern SDL_Joystick *controller;
-#elif defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
-#include <SDL2/SDL.h>
-
-extern SDL_GameController *controller;
-#elif defined(RENDERER_SDL3) && defined(PLATFORM_HAS_CONTROLLER)
-#include <SDL3/SDL.h>
-
-extern SDL_Gamepad *controller;
-#endif
-
-SCRATCH_REPORTER_BLOCK_OPCODE(argument_reporter_string_number) {
-    const std::string name = Scratch::getFieldValue(block, "VALUE");
-    if (name == "Scratch Everywhere! platform") return Value(OS::getPlatform());
-    if (name == "\u200B\u200Breceived data\u200B\u200B") return Scratch::dataNextProject;
-    if (name == "Scratch Everywhere! controller") {
-#ifdef RENDERER_CITRO2D
-        return Value("3DS");
-#elif defined(RENDERER_GL2D)
-        return Value("NDS");
-#elif defined(RENDERER_SDL1) && defined(PLATFORM_HAS_CONTROLLER)
-        if (controller != nullptr) return Value(std::string(SDL_JoystickName(SDL_JoystickIndex(controller))));
-#elif defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
-        if (controller != nullptr) return Value(std::string(SDL_GameControllerName(controller)));
-#elif defined(RENDERER_SDL3) && defined(PLATFORM_HAS_CONTROLLER)
-        if (controller != nullptr) return Value(std::string(SDL_GetGamepadName(controller)));
-#endif
-    }
-    return BlockExecutor::getCustomBlockValue(name, sprite, block);
-}
-
-SCRATCH_REPORTER_BLOCK_OPCODE(argument_reporter_boolean) {
-    const std::string name = Scratch::getFieldValue(block, "VALUE");
-    if (name == "is Scratch Everywhere!?") return Value(true);
-    if (name == "is New 3DS?") return Value(OS::isNew3DS());
-    if (name == "is DSi?") return Value(OS::isDSi());
-
-    return Value(BlockExecutor::getCustomBlockValue(name, sprite, block));
-}
-
 SCRATCH_BLOCK(procedures, call) {
-    if (!fromRepeat) {
-        // Run the custom block for the first time
-        if (BlockExecutor::runCustomBlock(sprite, block, &block, withoutScreenRefresh) == BlockResult::RETURN) return BlockResult::RETURN;
-        if (sprite->toDelete) return BlockResult::RETURN;
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-    }
+    BlockState *state = thread->getState(block);
 
-    // Check if any repeat blocks are still running inside the custom block
-    if (block.customBlockPtr != nullptr && !BlockExecutor::hasActiveRepeats(sprite, block.customBlockPtr->blockChainID)) {
-
-        // std::cout << "done with custom!" << std::endl;
-
-        // Custom block execution is complete
-        block.customBlockPtr = nullptr;
-
-        if (sprite->toDelete) {
-            return BlockResult::RETURN;
+    if (state->completedSteps == -2) {
+        BlockResult result = BlockExecutor::runThread(*state->threads[0], *sprite, nullptr);
+        if (result == BlockResult::RETURN) {
+            if (outValue) *outValue = state->threads[0]->returnValue;
+            thread->eraseState(block);
+            return BlockResult::CONTINUE;
         }
-        BlockExecutor::removeFromRepeatQueue(sprite, &block);
-        return BlockResult::CONTINUE;
+        return BlockResult::REPEAT;
     }
 
-    if (block.customBlockPtr == nullptr) {
-        BlockExecutor::removeFromRepeatQueue(sprite, &block);
-        return BlockResult::CONTINUE;
+    if (state->completedSteps == 0) {
+        ScriptThread *newThread;
+        if (!Pools::threads.empty()) {
+            newThread = Pools::threads.back();
+            Pools::threads.pop_back();
+        } else {
+            newThread = new ScriptThread();
+        }
+        newThread->blockHat = block->MyBlockDefinitionID;
+        newThread->nextBlock = block->MyBlockDefinitionID;
+        newThread->withoutScreenRefresh = block->MyBlockWithoutScreenRefresh;
+        newThread->finished = false;
+        newThread->MyBlocksVariablen.clear();
+        state->threads.push_back(newThread);
+        state->completedSteps = 1;
     }
 
-    return BlockResult::RETURN;
+    while ((size_t)(state->completedSteps - 1) < block->argumentIDs.size()) {
+        int argIdx = state->completedSteps - 1;
+        Value argVal;
+        if (!Scratch::getInput(block, block->argumentIDs[argIdx], thread, sprite, argVal))
+            return BlockResult::REPEAT;
+        state->threads[0]->MyBlocksVariablen[block->argumentIDs[argIdx]] = argVal;
+        state->completedSteps++;
+    }
+
+    
+    state->completedSteps = -2;
+    return BlockResult::REPEAT;
+}
+SCRATCH_BLOCK(procedures, prototype) {
+    for (size_t i = 0; i < block->argumentIDs.size(); i++) {
+        const std::string &argId   = block->argumentIDs[i];
+        const std::string &argName = (i < block->argumentNames.size())
+                                     ? block->argumentNames[i] : argId;
+
+        auto it = thread->MyBlocksVariablen.find(argId);
+        if (it != thread->MyBlocksVariablen.end()) {
+            thread->MyBlocksVariablen[argName] = std::move(it->second);
+        
+            if (argName != argId)
+                thread->MyBlocksVariablen.erase(argId);
+        } else {
+            thread->MyBlocksVariablen[argName] = (i < block->argumentDefaults.size())
+                                                  ? block->argumentDefaults[i]
+                                                  : Value("");
+        }
+    }
+    return BlockResult::CONTINUE_IMIDIATELY;
 }
 
-SCRATCH_BLOCK_NOP(procedures, definition)
+SCRATCH_BLOCK(argument, reporter_string_number) {
+    std::string name = Scratch::getFieldValue(*block, "VALUE");
+    auto it = thread->MyBlocksVariablen.find(name);
+    if (outValue)
+        *outValue = (it != thread->MyBlocksVariablen.end()) ? it->second : Value("");
+    return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK(argument, reporter_boolean) {
+    std::string name = Scratch::getFieldValue(*block, "VALUE");
+    auto it = thread->MyBlocksVariablen.find(name);
+    if (outValue)
+        *outValue = (it != thread->MyBlocksVariablen.end()) ? it->second : Value(false);
+    return BlockResult::CONTINUE;
+}

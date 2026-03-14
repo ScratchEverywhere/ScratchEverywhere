@@ -232,7 +232,6 @@ bool Unzip::load() {
     if (Unzip::projectOpened != 1)
         return false;
 #endif
-
     loadInitialImages();
     return true;
 }

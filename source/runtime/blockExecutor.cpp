@@ -26,16 +26,12 @@ Timer BlockExecutor::timer;
 int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
 
-std::unordered_map<std::string, BlockHandlerPtr> &BlockExecutor::getHandlers() {
-    static std::unordered_map<std::string, BlockHandlerPtr> handlers;
+std::unordered_map<std::string, BlockFunc> &BlockExecutor::getHandlers() {
+    static std::unordered_map<std::string, BlockFunc> handlers;
     return handlers;
 }
 
-std::unordered_map<std::string, ValueHandlerPtr> &BlockExecutor::getValueHandlers() {
-    static std::unordered_map<std::string, ValueHandlerPtr> valueHandlers;
-    return valueHandlers;
-}
-
+/* Should be implemented, but i dont want to do it right now
 #ifdef ENABLE_CACHING
 void BlockExecutor::linkPointers(Sprite *sprite) {
     auto &h = getHandlers();
@@ -140,38 +136,117 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
     }
 }
 #endif
+*/
 
-void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-    Block *currentBlock = &block;
+ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
+    ScriptThread *newThread = nullptr;
+    if (Pools::threads.empty()) newThread = new ScriptThread();
+    else {
+        newThread = Pools::threads.back();
+        Pools::threads.pop_back();
+    }
+    newThread->blockHat = block;
+    newThread->nextBlock = block;
+    newThread->finished = false;
+    sprite->pendingThreads.push_back(newThread);
+    return newThread;
+}
 
-    if (!sprite || sprite->toDelete) return;
+void BlockExecutor::runThreads() {
+    if (!Scratch::pendingSprites.empty()) {
+        for (auto &sprite : Scratch::pendingSprites) {
+            Scratch::addCloneBehind(sprite.second, sprite.first);
+        }
+        Scratch::pendingSprites.clear();
+    }
+    Scratch::sprites.erase(
+        std::remove_if(Scratch::sprites.begin(), Scratch::sprites.end(),
+                       [](Sprite *s) { return s->toDelete; }),
+        Scratch::sprites.end());
+    for (auto &sprite : Scratch::sprites) {
+        if (!sprite->pendingThreads.empty()) {
+            sprite->threads.insert(sprite->threads.end(), sprite->pendingThreads.begin(), sprite->pendingThreads.end());
+            sprite->pendingThreads.clear();
+        }
+        auto it = sprite->threads.begin();
+        while (it != sprite->threads.end()) {
+            ScriptThread *thread;
+            BlockResult var;
+            thread = *it;
 
-    while (currentBlock && currentBlock->id != "null") {
-        BlockResult result = executeBlock(*currentBlock, sprite, withoutScreenRefresh, fromRepeat);
+            if (thread->finished) {
+                thread->clear();
+                Pools::threads.push_back(thread);
+                it = sprite->threads.erase(it);
+                continue;
+            }
+            var = runThread(*thread, *sprite, nullptr);
+            if (Scratch::shouldStop) return;
+            ++it;
+        }
+    }
+    return;
+}
 
-        if (result == BlockResult::RETURN) return;
+BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value *outValue) {
+    if (thread.nextBlock == nullptr) return BlockResult::RETURN;
+    BlockResult var = BlockResult::CONTINUE;
+    do {
+        Block *currentBlock = thread.nextBlock;
+        thread.nextBlock = currentBlock->nextBlock;
 
-        if (currentBlock->next.empty()) return;
-        currentBlock = sprite->blocksMap[currentBlock->next];
-        fromRepeat = false;
+        var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);//runBlock(currentBlock, thread, sprite, outValue);
+        if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
+        else {
+            Scratch::resetInput(thread.nextBlock); //just for safety
+            Scratch::resetInput(currentBlock);
+        }
+    } while ((var == BlockResult::CONTINUE_IMIDIATELY || (thread.withoutScreenRefresh && var == BlockResult::CONTINUE)) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
+    return var;
+}
+
+//old thingy  
+/*BlockResult BlockExecutor::runBlock(Block *block, ScriptThread &thread, Sprite &sprite, Value *outValue) {
+    bool finished = true;
+    BlockResult executedBlock;
+    do {
+        bool finished = true;
+        for (auto &input : block->inputs) {
+            if (input.second.needed && !input.second.calculated) {
+
+                if (Scratch::getInput(block, input.first, &thread, &sprite, input.second.value)) {
+                    input.second.calculated = true;
+                    input.second.needed = false;
+                } else {
+                    finished = false;
+                }
+                if (Scratch::shouldStop) return BlockResult::CONTINUE;
+            }
+            if (!finished) return BlockResult::REPEAT;
+        }
+
+    } while ((executedBlock = block->blockFunction(block, &thread, &sprite, outValue)) == BlockResult::GET_INPUTS);
+    return executedBlock;
+}*/
+
+void BlockExecutor::runAllBlocksByOpcode(const std::string &opcode, std::vector<ScriptThread *> *out) {
+    for (auto &sprite : Scratch::sprites) {
+        if (sprite->hats[opcode].empty()) continue;
+        for (auto &hat : sprite->hats[opcode]) {
+            ScriptThread *thread = BlockExecutor::startThread(sprite, hat);
+            if (out) out->push_back(thread);
+        }
+    }
+}
+void BlockExecutor::runAllBlocksByOpcodeInSprite(const std::string &opcode, Sprite *sprite, std::vector<ScriptThread *> *out) {
+    if (sprite->hats[opcode].empty()) return;
+    for (auto &hat : sprite->hats[opcode]) {
+        ScriptThread *thread = BlockExecutor::startThread(sprite, hat);
+        if (out) out->push_back(thread);
     }
 }
 
-BlockResult BlockExecutor::executeBlock(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) {
-#ifdef ENABLE_CACHING
-    if (block.handler != nullptr) return block.handler(block, sprite, withoutScreenRefresh, fromRepeat);
-#else
-    const auto &h = getHandlers();
-    const auto &it = h.find(block.opcode);
-    if (it != h.end()) return it->second(block, sprite, withoutScreenRefresh, fromRepeat);
-#endif
-
-    if (!block.opcode.empty())
-        Log::logWarning("Unknown block: " + block.opcode);
-
-    return BlockResult::CONTINUE;
-}
-
+//ToDo: That could be optimized, but it works for now and i want to move on to other stuff
 void BlockExecutor::executeKeyHats() {
     for (const auto &key : Input::keyHeldDuration) {
         if (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), key.first) == Input::inputButtons.end()) {
@@ -195,18 +270,18 @@ void BlockExecutor::executeKeyHats() {
 
     const std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (Sprite *currentSprite : sprToRun) {
-        for (auto &data : currentSprite->blocks) {
-            // TODO: Add a way to register these with macros
-            if (data.opcode == "event_whenkeypressed") {
-                std::string key = Scratch::getFieldValue(data, "KEY_OPTION");
-                if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && (Input::keyHeldDuration.find(key)->second == 1 || Input::keyHeldDuration.find(key)->second > 15 * (Scratch::FPS / 30.0f)))
-                    executor.runBlock(data, currentSprite);
-            } else if (data.opcode == "makeymakey_whenMakeyKeyPressed") {
-                std::string key = Input::convertToKey(Scratch::getInputValue(data, "KEY", currentSprite), true);
-                if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0)
-                    executor.runBlock(data, currentSprite);
-            }
-        }
+        BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenkeypressed", currentSprite);
+        BlockExecutor::runAllBlocksByOpcodeInSprite("makeymakey_whenMakeyKeyPressed", currentSprite);
+        // TODO: Add a way to register these with macros
+        // if (data.opcode == "event_whenkeypressed") {
+        //    std::string key = Scratch::getFieldValue(data, "KEY_OPTION");
+        //    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && (Input::keyHeldDuration.find(key)->second == 1 || Input::keyHeldDuration.find(key)->second > 15 * (Scratch::FPS / 30.0f)))
+        //        executor.runBlock(data, currentSprite);
+        //} else if (data.opcode == "makeymakey_whenMakeyKeyPressed") {
+        //    std::string key = Input::convertToKey(Scratch::getInputValue(data, "KEY", currentSprite), true);
+        //    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0)
+        //        executor.runBlock(data, currentSprite);
+        //}
     }
     BlockExecutor::runAllBlocksByOpcode("makeymakey_whenCodePressed");
 }
@@ -224,11 +299,7 @@ void BlockExecutor::doSpriteClicking() {
 
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;
-                    for (auto &data : sprite->blocks) {
-                        if (data.opcode == "event_whenthisspriteclicked") {
-                            executor.runBlock(data, sprite);
-                        }
-                    }
+                    BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenthisspriteclicked", sprite);
                 }
             }
             // start dragging a sprite
@@ -254,224 +325,7 @@ void BlockExecutor::doSpriteClicking() {
     Input::draggingSprite->yPosition = Input::mousePointer.y - dragPositionOffsetY;
 }
 
-void BlockExecutor::runRepeatBlocks() {
-    bool withoutRefresh = false;
-
-    // repeat ONLY the block most recently added to the repeat chain,,,
-    std::vector<Sprite *> sprToRun = Scratch::sprites;
-    for (auto &sprite : sprToRun) {
-        for (auto &[id, blockChain] : sprite->blockChains) {
-            const auto &repeatList = blockChain.blocksToRepeat;
-            if (repeatList.empty()) continue;
-
-            const std::string toRepeat = repeatList.back();
-            if (toRepeat.empty()) continue;
-
-            Block *const toRun = sprite->blocksMap[toRepeat];
-            if (toRun != nullptr) executor.runBlock(*toRun, sprite, &withoutRefresh, true);
-        }
-    }
-    // delete sprites ready for deletion
-    SpeechManager *speechManager = Render::getSpeechManager();
-    for (auto *&spr : Scratch::sprites) {
-        if (!spr->toDelete) continue;
-
-        if (speechManager) {
-            speechManager->clearSpeech(spr);
-        }
-        delete spr;
-        spr = nullptr;
-    }
-
-    Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), nullptr), Scratch::sprites.end());
-
-    for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
-        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
-    }
-}
-
-void BlockExecutor::runRepeatsWithoutRefresh(Sprite *sprite, std::string blockChainID) {
-    bool withoutRefresh = true;
-    if (sprite->blockChains.find(blockChainID) == sprite->blockChains.end()) return;
-
-    while (!sprite->blockChains[blockChainID].blocksToRepeat.empty() && !sprite->toDelete) {
-        const std::string toRepeat = sprite->blockChains[blockChainID].blocksToRepeat.back();
-        Block *toRun = Scratch::findBlock(toRepeat, sprite);
-        if (toRun != nullptr)
-            executor.runBlock(*toRun, sprite, &withoutRefresh, true);
-    }
-}
-
-BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *callerBlock, bool *withoutScreenRefresh) {
-    for (auto &[id, data] : sprite->customBlocks) {
-        if (id == block.customBlockId) {
-            // Set up argument values
-            for (std::string arg : data.argumentIds) {
-                data.argumentValues[arg] = block.parsedInputs->find(arg) == block.parsedInputs->end() ? Value(0) : Scratch::getInputValue(block, arg, sprite);
-            }
-
-            // Get the parent of the prototype block (the definition containing all blocks)
-            Block *customBlockDefinition = sprite->blocksMap[sprite->customBlockDefinitions[data.blockId]];
-
-            callerBlock->customBlockPtr = customBlockDefinition;
-
-            bool localWithoutRefresh = data.runWithoutScreenRefresh;
-
-            // If the parent chain is running without refresh, force this one to also run without refresh
-            if (!localWithoutRefresh && withoutScreenRefresh != nullptr) localWithoutRefresh = *withoutScreenRefresh;
-
-            // std::cout << "RWSR = " << localWithoutRefresh << std::endl;
-
-            // Execute the custom block definition
-            executor.runBlock(*customBlockDefinition, sprite, &localWithoutRefresh, false);
-
-            if (localWithoutRefresh && !sprite->toDelete) BlockExecutor::runRepeatsWithoutRefresh(sprite, customBlockDefinition->blockChainID);
-
-            break;
-        }
-    }
-
-    if (block.customBlockId == "\u200B\u200Blog\u200B\u200B %s") Log::log("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
-    if (block.customBlockId == "\u200B\u200Bwarn\u200B\u200B %s") Log::logWarning("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
-    if (block.customBlockId == "\u200B\u200Berror\u200B\u200B %s") Log::logError("[PROJECT] " + Scratch::getInputValue(block, "arg0", sprite).asString());
-    if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3") {
-        Log::log("Open next Project with Block");
-        Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
-        if (Unzip::filePath.rfind("sd:", 0) == 0) {
-            const std::string drivePrefix = OS::getFilesystemRootPrefix();
-            Unzip::filePath.replace(0, 3, drivePrefix);
-        } else if (Unzip::filePath.rfind("romfs:", 0) == 0) {
-            const std::string drivePrefix = OS::getRomFSLocation();
-            Unzip::filePath.replace(0, 6, drivePrefix);
-        } else {
-            Unzip::filePath = Unzip::filePath;
-        }
-
-        if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
-            Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
-        }
-        if (!OS::fileExists(Unzip::filePath + "/project.json"))
-            Unzip::filePath = Unzip::filePath + ".sb3";
-
-        Scratch::dataNextProject = Value();
-        Scratch::shouldStop = true;
-        return BlockResult::RETURN;
-    }
-    if (block.customBlockId == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") {
-        Log::log("Open next Project with Block and data");
-        Scratch::nextProject = true;
-        Unzip::filePath = Scratch::getInputValue(block, "arg0", sprite).asString();
-        // if filepath contains sd:/ at the beginning and only at the beginning, replace it with sdmc:/
-        if (Unzip::filePath.rfind("sd:", 0) == 0) {
-            const std::string drivePrefix = OS::getFilesystemRootPrefix();
-            Unzip::filePath.replace(0, 3, drivePrefix);
-        } else if (Unzip::filePath.rfind("romfs:", 0) == 0) {
-            const std::string drivePrefix = OS::getRomFSLocation();
-            Unzip::filePath.replace(0, 6, drivePrefix);
-        } else {
-            Unzip::filePath = Unzip::filePath;
-        }
-        if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
-            Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
-        }
-        if (!OS::fileExists(Unzip::filePath + "/project.json"))
-            Unzip::filePath = Unzip::filePath + ".sb3";
-
-        Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
-        Scratch::shouldStop = true;
-        return BlockResult::RETURN;
-    }
-
-    return BlockResult::CONTINUE;
-}
-
-void BlockExecutor::runCloneStarts() {
-    while (!Scratch::cloneQueue.empty()) {
-        Sprite *cloningSprite = Scratch::cloneQueue.front();
-        Scratch::cloneQueue.erase(Scratch::cloneQueue.begin());
-        for (Sprite *sprite : Scratch::sprites) {
-            if (cloningSprite != sprite) continue;
-            for (auto &data : cloningSprite->blocks) {
-                if (data.opcode == "control_start_as_clone") executor.runBlock(data, sprite);
-            }
-        }
-    }
-}
-
-void BlockExecutor::runBroadcasts() {
-    while (!Scratch::broadcastQueue.empty()) {
-        std::string currentBroadcast = Scratch::broadcastQueue.front();
-        Scratch::broadcastQueue.erase(Scratch::broadcastQueue.begin());
-        std::transform(currentBroadcast.begin(), currentBroadcast.end(), currentBroadcast.begin(), ::tolower);
-        runBroadcast(currentBroadcast);
-    }
-}
-
-void BlockExecutor::runBroadcast(std::string broadcastToRun) {
-    std::vector<Sprite *> sprToRun = Scratch::sprites;
-    for (auto *currentSprite : sprToRun) {
-        for (auto &block : currentSprite->blocks) {
-            if (block.opcode == "event_whenbroadcastreceived") {
-                std::string fieldValue = Scratch::getFieldValue(block, "BROADCAST_OPTION");
-                std::transform(fieldValue.begin(), fieldValue.end(), fieldValue.begin(), ::tolower);
-                if (fieldValue == broadcastToRun) {
-                    executor.runBlock(block, currentSprite);
-                }
-            }
-        }
-    }
-}
-
-void BlockExecutor::runBackdrops() {
-    while (!Scratch::backdropQueue.empty()) {
-        const std::string currentBackdrop = Scratch::backdropQueue.front();
-        Scratch::backdropQueue.erase(Scratch::backdropQueue.begin());
-        runBackdrop(currentBackdrop);
-    }
-}
-
-void BlockExecutor::runBackdrop(std::string backdropToRun) {
-    std::vector<Sprite *> sprToRun = Scratch::sprites;
-    for (auto *currentSprite : sprToRun) {
-        for (auto &block : currentSprite->blocks) {
-            if (block.opcode == "event_whenbackdropswitchesto" &&
-                Scratch::getFieldValue(block, "BACKDROP") == backdropToRun) {
-                executor.runBlock(block, currentSprite);
-            }
-        }
-    }
-}
-
-void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
-    // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
-    std::vector<Sprite *> sprToRun = Scratch::sprites;
-    for (Sprite *currentSprite : sprToRun) {
-        for (auto &data : currentSprite->blocks) {
-            if (data.opcode != opcodeToFind) continue;
-
-            executor.runBlock(data, currentSprite);
-        }
-    }
-}
-
-Value BlockExecutor::getBlockValue(Block &block, Sprite *sprite) {
-#ifdef ENABLE_CACHING
-    if (block.valueHandler != nullptr) return block.valueHandler(block, sprite);
-    else {
-#endif
-        const auto &vh = getValueHandlers();
-        const auto &it = vh.find(block.opcode);
-        if (it != vh.end()) return it->second(block, sprite);
-#ifdef ENABLE_CACHING
-    }
-#endif
-
-    Log::logWarning("Unknown block: " + block.opcode);
-
-    return Value();
-}
-
+/*
 void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite, Block *block) {
 #ifdef ENABLE_CACHING
     if (block != nullptr && block->variable != nullptr) {
@@ -505,10 +359,32 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
         return;
     }
 }
+*/
 
-void BlockExecutor::updateMonitors() {
+//that was the old variant without caching, with caching would need a rewrite to work properly again
+void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
+    // Set sprite variable
+    const auto it = sprite->variables.find(variableId);
+    if (it != sprite->variables.end()) {
+        it->second.value = newValue;
+        return;
+    }
+
+    auto globalIt = Scratch::stageSprite->variables.find(variableId);
+    if (globalIt != Scratch::stageSprite->variables.end()) {
+        globalIt->second.value = newValue;
+#ifdef ENABLE_CLOUDVARS
+        if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
+#endif
+        return;
+    }
+}
+
+// same goes for this one, rewrite would be needed for caching (BUT I have ideas on how to do it, so it shouldnt be too bad, just not my priority right now)
+void BlockExecutor::updateMonitors(ScriptThread *thread) {
     for (auto &[id, var] : Render::visibleVariables) {
         if (var.visible) {
+
             Sprite *sprite = nullptr;
             for (auto &spr : Scratch::sprites) {
                 if (var.spriteName == "" && spr->isStage) {
@@ -522,51 +398,29 @@ void BlockExecutor::updateMonitors() {
             }
 
             if (var.opcode == "data_variable") {
-#ifdef ENABLE_CACHING
-                if (var.variablePtr != nullptr) var.value = var.variablePtr->value;
-                else var.value = BlockExecutor::getVariableValue(var.id, sprite);
-#else
                 var.value = BlockExecutor::getVariableValue(var.id, sprite);
-#endif
-
                 var.displayName = Math::removeQuotations(var.parameters["VARIABLE"]);
                 if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
             } else if (var.opcode == "data_listcontents") {
                 var.displayName = Math::removeQuotations(var.parameters["LIST"]);
                 if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
 
-#ifdef ENABLE_CACHING
-                if (var.listPtr != nullptr) {
-                    var.list = var.listPtr->items;
-                } else {
-#endif
-                    // Check lists
-                    auto listIt = sprite->lists.find(var.id);
-                    if (listIt != sprite->lists.end()) {
-                        var.list = listIt->second.items;
-#ifdef ENABLE_CACHING
-                        var.listPtr = &listIt->second;
-#endif
-                    }
+                // Check lists
+                auto listIt = sprite->lists.find(var.id);
+                if (listIt != sprite->lists.end())
+                    var.list = listIt->second.items;
 
-                    // Check global lists
-                    auto globalIt = Scratch::stageSprite->lists.find(var.id);
-                    if (globalIt != Scratch::stageSprite->lists.end()) {
-                        var.list = globalIt->second.items;
-#ifdef ENABLE_CACHING
-                        var.listPtr = &globalIt->second;
-#endif
-                    }
-#ifdef ENABLE_CACHING
-                }
-#endif
+                // Check global lists
+                auto globalIt = Scratch::stageSprite->lists.find(var.id);
+                if (globalIt != Scratch::stageSprite->lists.end())
+                    var.list = globalIt->second.items;
             } else {
                 Block newBlock;
                 newBlock.opcode = var.opcode;
                 for (const auto &[paramName, paramValue] : var.parameters) {
                     ParsedField parsedField;
                     parsedField.value = Math::removeQuotations(paramValue);
-                    (*newBlock.parsedFields)[paramName] = parsedField;
+                    (newBlock.fields)[paramName] = parsedField;
                 }
                 if (var.opcode == "looks_costumenumbername")
                     var.displayName = var.spriteName + ": costume " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
@@ -583,23 +437,28 @@ void BlockExecutor::updateMonitors() {
                         var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
                     }
                 }
-                var.value = executor.getBlockValue(newBlock, sprite);
+                auto handlerIt = getHandlers().find(var.opcode);
+                if (handlerIt != getHandlers().end() && handlerIt->second != nullptr) {
+                    handlerIt->second(&newBlock, thread, sprite, &var.value);
+                } else {
+                    Log::logWarning("No handler found for monitor opcode: " + var.opcode);
+                }
             }
         }
     }
 }
 
-Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *sprite, Block *block) {
-#ifdef ENABLE_CACHING
-    if (block != nullptr && block->variable != nullptr) return block->variable->value;
-#endif
+Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *sprite) {
+//#ifdef ENABLE_CACHING
+//    if (block != nullptr && block->variable != nullptr) return block->variable->value;
+//#endif
 
     // Check sprite variables
     const auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
-#ifdef ENABLE_CACHING
-        if (block != nullptr && block->variable == nullptr) block->variable = &it->second;
-#endif
+//#ifdef ENABLE_CACHING
+//        if (block != nullptr && block->variable == nullptr) block->variable = &it->second;
+//#endif
         return it->second.value;
     }
 
@@ -624,9 +483,9 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
     // Check global variables
     const auto globalIt = Scratch::stageSprite->variables.find(variableId);
     if (globalIt != Scratch::stageSprite->variables.end()) {
-#ifdef ENABLE_CACHING
-        if (block != nullptr && block->variable == nullptr) block->variable = &globalIt->second;
-#endif
+//#ifdef ENABLE_CACHING
+//        if (block != nullptr && block->variable == nullptr) block->variable = &globalIt->second;
+//#endif
         return globalIt->second.value;
     }
 
@@ -664,63 +523,3 @@ void BlockExecutor::handleCloudVariableChange(const std::string &name, const std
     }
 }
 #endif
-
-Value BlockExecutor::getCustomBlockValue(std::string valueName, Sprite *sprite, Block block) {
-    // get the parent prototype block
-    Block *const definitionBlock = Scratch::getBlockParent(&block, sprite);
-    const Block *prototypeBlock = Scratch::findBlock(Scratch::getInputValue(*definitionBlock, "custom_block", sprite).asString(), sprite);
-
-    for (auto &[custId, custBlock] : sprite->customBlocks) {
-        // variable must be in the same custom block
-        if (prototypeBlock != nullptr && custBlock.blockId != prototypeBlock->id) continue;
-
-        size_t index = custBlock.argumentNames.size();
-        for (size_t i = custBlock.argumentNames.size(); i-- > 0;) {
-            if (custBlock.argumentNames[i] == valueName) {
-                index = i;
-                break;
-            }
-        }
-
-        if (index == custBlock.argumentNames.size()) {
-            continue;
-        }
-
-        if (index < custBlock.argumentIds.size()) {
-            const std::string argumentId = custBlock.argumentIds[index];
-
-            const auto valueIt = custBlock.argumentValues.find(argumentId);
-            if (valueIt != custBlock.argumentValues.end()) {
-                return valueIt->second;
-                continue;
-            }
-
-            Log::logWarning("Argument ID found, but no value exists for it.");
-            continue;
-        }
-        Log::logWarning("Index out of bounds for argumentIds!");
-    }
-    return Value();
-}
-
-void BlockExecutor::addToRepeatQueue(Sprite *sprite, Block *block) {
-    auto &repeatList = sprite->blockChains[block->blockChainID].blocksToRepeat;
-    if (std::find(repeatList.begin(), repeatList.end(), block->id) == repeatList.end()) {
-        repeatList.push_back(block->id);
-    }
-}
-
-void BlockExecutor::removeFromRepeatQueue(Sprite *sprite, Block *block) {
-    auto it = sprite->blockChains.find(block->blockChainID);
-    if (it == sprite->blockChains.end()) return;
-
-    auto &blocksToRepeat = it->second.blocksToRepeat;
-    if (!blocksToRepeat.empty()) {
-        blocksToRepeat.pop_back();
-    }
-}
-
-bool BlockExecutor::hasActiveRepeats(Sprite *sprite, std::string blockChainID) {
-    if (sprite->toDelete) return false;
-    return (sprite->blockChains.find(blockChainID) != sprite->blockChains.end() && !sprite->blockChains[blockChainID].blocksToRepeat.empty());
-}

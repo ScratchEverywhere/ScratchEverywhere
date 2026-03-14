@@ -2,64 +2,72 @@
 #include <input.hpp>
 #include <sprite.hpp>
 
-SCRATCH_BLOCK_NOP(event, whenflagclicked)
+SCRATCH_BLOCK(event, whenflagclicked) {
+    thread->finished = false;
+    return BlockResult::CONTINUE_IMIDIATELY;
+}
 
-SCRATCH_BLOCK_NOP(event, whenbackdropswitchesto)
+SCRATCH_BLOCK(event, whenbackdropswitchesto) {
+    if (Scratch::getFieldValue(*block, "BACKDROP") == Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name) {
+        return BlockResult::CONTINUE_IMIDIATELY;
+    }
+    return BlockResult::RETURN;
+}
+
+SCRATCH_BLOCK(event, whenthisspriteclicked) {
+    return BlockResult::CONTINUE_IMIDIATELY;
+}
 
 SCRATCH_BLOCK(event, broadcast) {
-    Scratch::broadcastQueue.push_back(Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString());
-    return BlockResult::CONTINUE;
+    Value broadcast;
+    if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
+    Scratch::newBroadcast = broadcast.asString();
+    BlockExecutor::runAllBlocksByOpcode("event_whenbroadcastreceived");
+    
+    return BlockResult::CONTINUE_IMIDIATELY;
 }
 
 SCRATCH_BLOCK(event, broadcastandwait) {
-    std::string broadcastName = Scratch::getInputValue(block, "BROADCAST_INPUT", sprite).asString();
-
-    if (!fromRepeat) {
-        for (Sprite *spr : Scratch::sprites) {
-            for (auto &hat_block : spr->blocks) {
-                if (hat_block.opcode == "event_whenbroadcastreceived" && Scratch::getFieldValue(hat_block, "BROADCAST_OPTION") == broadcastName) {
-                    Scratch::broadcastQueue.push_back(broadcastName);
-                    BlockExecutor::addToRepeatQueue(sprite, &block);
-                    return BlockResult::RETURN;
-                }
-            }
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps == 0 ) {
+        Value broadcastValue;
+        if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcastValue)) return BlockResult::REPEAT;
+        Scratch::newBroadcast = broadcastValue.asString();
+        
+        std::vector<ScriptThread *> *out;
+        BlockExecutor::runAllBlocksByOpcode("event_whenbroadcastreceived", out);
+        state->threads = *out;
+        state->completedSteps = 1;
+        if (state->threads.empty()) {
+            thread->eraseState(block);
+            return BlockResult::CONTINUE_IMIDIATELY;
         }
-        return BlockResult::CONTINUE;
+        return BlockResult::REPEAT;
     }
-
-    if (block.broadcastsRun.empty()) {
-        for (Sprite *spr : Scratch::sprites) {
-            for (auto &[id, chain] : spr->blockChains) {
-                if (chain.blocksToRepeat.empty()) continue;
-
-                for (auto &chainBlock : chain.blockChain) {
-                    if (chainBlock->opcode == "event_whenbroadcastreceived" && Scratch::getFieldValue(*chainBlock, "BROADCAST_OPTION") == broadcastName) {
-                        block.broadcastsRun.push_back({chainBlock, spr});
-                        break;
-                    }
-                }
-            }
+    for (Sprite *spr : Scratch::sprites) {
+        for (auto &t : state->threads) {
+            if (!t->finished) return BlockResult::REPEAT;
         }
     }
-
-    bool shouldEnd = true;
-    for (auto &[blockPtr, spritePtr] : block.broadcastsRun) {
-        if (spritePtr->toDelete) continue;
-        if (!spritePtr->blockChains[blockPtr->blockChainID].blocksToRepeat.empty()) {
-            shouldEnd = false;
-            break;
-        }
+    thread->eraseState(block);
+    return BlockResult::CONTINUE_IMIDIATELY;
+}
+// TODO: This is currently very poorly optimized. Please fix it, thank you.
+SCRATCH_BLOCK(event, whenkeypressed) {
+    std::string key = Scratch::getFieldValue(*block, "KEY_OPTION");
+    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && (Input::keyHeldDuration.find(key)->second == 1 || Input::keyHeldDuration.find(key)->second > 15 * (Scratch::FPS / 30.0f))) {
+        return BlockResult::CONTINUE_IMIDIATELY;
     }
-
-    if (!shouldEnd) return BlockResult::RETURN;
-
-    BlockExecutor::removeFromRepeatQueue(sprite, &block);
-    block.broadcastsRun.clear();
-    return BlockResult::CONTINUE;
+    return BlockResult::RETURN;
 }
 
-SCRATCH_BLOCK_NOP(event, whenkeypressed)
+SCRATCH_BLOCK(event, whenbroadcastreceived) {
+    std::string key = Scratch::getFieldValue(*block, "KEY_OPTION");
+    if (Scratch::newBroadcast == Scratch::getFieldValue(*block, "BROADCAST_OPTION")) {
+        return BlockResult();
+    }
+    return BlockResult::RETURN;
+}
 
-SCRATCH_BLOCK_NOP(event, whenbroadcastreceived)
 
-SCRATCH_BLOCK_NOP(event, whenthisspriteclicked)
+SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)

@@ -23,6 +23,8 @@ extern BlockExecutor executor;
 class Scratch {
   public:
     static void initializeScratchProject();
+    static bool getInput(Block *block, std::string inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
+    static void resetInput(Block *block, std::string inputName = "");
 
     /**
      * Runs a single step of execution.
@@ -37,27 +39,11 @@ class Scratch {
 
     static std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight);
 
-    static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
     static std::string getFieldValue(Block &block, const std::string &fieldName);
     static std::string getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
 
-    /**
-     * Gets the top level block of the specified `Block`.
-     * @param block
-     * @param sprite
-     * @return The top level parent of the specified `block`.
-     */
-    static Block *getBlockParent(const Block *block, Sprite *sprite);
-
-    /**
-     * Finds a block from a sprite.
-     * @param blockId ID of the block you need
-     * @param sprite The sprite to limit the search to.
-     * @return A `Block*` if it's found, `nullptr` otherwise.
-     */
-    static Block *findBlock(std::string blockId, Sprite *sprite);
 
     /**
      * Gets the Sprite's box collision points.
@@ -77,6 +63,8 @@ class Scratch {
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
     static void sortSprites();
+    static void addCloneBehind(Sprite *original, Sprite *clone);
+    static void moveLayer(Sprite *s, int layers);
 
     static std::unordered_map<std::string, std::shared_ptr<Image>> costumeImages;
     static void loadCurrentCostumeImage(Sprite *sprite);
@@ -106,6 +94,7 @@ class Scratch {
 
     static bool nextProject;
     static Value dataNextProject;
+    static std::string newBroadcast;
 
     static Timer fpsTimer;
 
@@ -114,10 +103,9 @@ class Scratch {
 #endif
 
     static std::vector<Sprite *> sprites;
+    static std::vector<std::pair<Sprite *, Sprite *>> pendingSprites;
     static Sprite *stageSprite;
-    static std::vector<std::string> broadcastQueue;
-    static std::vector<std::string> backdropQueue;
-    static std::vector<Sprite *> cloneQueue;
+    static std::vector<Block *> blocks;
     static std::string answer;
     static ProjectType projectType;
 
