@@ -312,6 +312,18 @@ void Mixer::requestSound(short *output, int frames) {
     delete[] tmp;
 }
 
+void Mixer::cleanupAudio() {
+    std::vector<SoundStream *> streams;
+    int i;
+
+    for (auto e : Mixer::streams) {
+        streams.push_back(e.second);
+    }
+
+    for (i = 0; i < streams.size(); i++)
+        delete streams[i];
+}
+
 #define FIND                     \
     Mixer::mutex.lock();         \
                                  \

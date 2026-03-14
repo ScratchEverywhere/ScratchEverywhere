@@ -96,4 +96,5 @@ class Mixer {
     static void setSoundVolume(std::string name, float volume);
     static float getSoundVolume(std::string name);
     static void setAutoClean(std::string name, bool toggle);
+    static void cleanupAudio();
 };
