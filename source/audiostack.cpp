@@ -1,11 +1,10 @@
 #define DR_MP3_IMPLEMENTATION
 #define DR_WAV_IMPLEMENTATION
-#include <audiostack.hpp>
-#include <fstream>
-#include <iostream>
-#include <os.hpp>
-#include <runtime.hpp>
-#include <unzip.hpp>
+#include "audiostack.hpp"
+#include "os.hpp"
+#include "runtime.hpp"
+#include "unzip.hpp"
+#include <samplerate.h>
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -13,6 +12,9 @@ CMRC_DECLARE(romfs);
 #endif
 
 #include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <vector>
 
 #if SOUND_DUMMY_MUTEX
 void SoundDummyMutex::lock() {}
@@ -58,10 +60,31 @@ void SoundStream::loadFromBuffer() {
         return;
     }
 
-    this->volume = 1;
+    this->volume = 100;
     this->pan = 0;
 
     this->paused = false;
+    this->auto_clean = false;
+    this->no_lock = false;
+}
+
+SoundStream::SoundStream(std::string path) {
+    std::ifstream ifs(path, std::ios::binary);
+
+    ifs.seekg(0, std::ios::end);
+    this->buffer_size = ifs.tellg();
+    ifs.seekg(0);
+
+    this->buffer = (unsigned char *)malloc(this->buffer_size);
+    ifs.read((char *)this->buffer, this->buffer_size);
+
+    ifs.close();
+
+    loadFromBuffer();
+
+    Mixer::mutex.lock();
+    Mixer::streams[path] = this;
+    Mixer::mutex.unlock();
 }
 
 SoundStream::SoundStream(std::string path, bool cached) {
@@ -94,7 +117,7 @@ SoundStream::SoundStream(std::string path, bool cached) {
     loadFromBuffer();
 
     Mixer::mutex.lock();
-    Mixer::streams.push_back(this);
+    Mixer::streams[path] = this;
     Mixer::mutex.unlock();
 }
 
@@ -116,21 +139,21 @@ SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
     loadFromBuffer();
 
     Mixer::mutex.lock();
-    Mixer::streams.push_back(this);
+    Mixer::streams[path] = this;
     Mixer::mutex.unlock();
 }
 
 SoundStream::~SoundStream() {
     int i;
 
-    Mixer::mutex.lock();
-    for (i = 0; i < Mixer::streams.size(); i++) {
-        if (Mixer::streams[i] == this) {
-            Mixer::streams.erase(Mixer::streams.begin() + i);
+    if (!this->no_lock) Mixer::mutex.lock();
+    for (auto e : Mixer::streams) {
+        if (e.second == this) {
+            Mixer::streams.erase(e.first);
+            break;
         }
-        break;
     }
-    Mixer::mutex.unlock();
+    if (!this->no_lock) Mixer::mutex.unlock();
 
     if (this->type == SoundStreamWAV) {
         drwav_uninit(&this->wav);
@@ -141,59 +164,85 @@ SoundStream::~SoundStream() {
     free(this->buffer);
 }
 
-void SoundStream::stop() {
-    Mixer::mutex.lock();
-    this->paused = true;
-    Mixer::mutex.unlock();
+int SoundStream::read(float *output, int frames) {
+    if (this->type == SoundStreamWAV) {
+        return drwav_read_pcm_frames_f32(&this->wav, frames, output);
+    } else if (this->type == SoundStreamMP3) {
+        return drmp3_read_pcm_frames_f32(&this->mp3, frames, output);
+    }
+    return 0;
 }
 
-void SoundStream::start() {
-    Mixer::mutex.lock();
-    this->paused = false;
-    Mixer::mutex.unlock();
-}
-
-std::vector<SoundStream *> Mixer::streams;
+std::unordered_map<std::string, SoundStream *> Mixer::streams;
 MUTEX Mixer::mutex;
-int Mixer::rate = 44100;
+int Mixer::rate = 48000;
 
 void Mixer::requestSound(short *output, int frames) {
-    float *tmp = new float(2 * frames); /* we use float to store sound, because it's easier to deal with it */
+    float *tmp = new float[2 * frames]; /* we use float to store sound, because it's easier to deal with it */
+    int i;
+    std::vector<SoundStream *> clean_queue;
+
+    for (i = 0; i < 2 * frames; i++)
+        tmp[i] = 0;
 
     Mixer::mutex.lock();
-    for (int i = 0; i < streams.size(); i++) {
-        if (streams[i]->paused) continue;
-
-        int pairs = (double)frames / Mixer::rate * streams[i]->rate;
-        float *buffer = new float(streams[i]->channels * pairs);
-
-        if (streams[i]->type == SoundStreamWAV) {
-            drwav_read_pcm_frames_f32(&streams[i]->wav, pairs, buffer);
-        } else if (streams[i]->type == SoundStreamMP3) {
-            drmp3_read_pcm_frames_f32(&streams[i]->mp3, pairs, buffer);
+    for (auto e : streams) {
+        if (e.second->paused) {
+            if (e.second->auto_clean) clean_queue.push_back(e.second);
+            continue;
         }
 
-#define CHANNEL_MAP(out, in)                   \
-    if (streams[i]->channels == 1) {           \
-        tmp[2 * out + 0] = buffer[in];         \
-        tmp[2 * out + 1] = buffer[in];         \
-    } else if (streams[i]->channels == 2) {    \
-        tmp[2 * out + 0] = buffer[2 * in + 0]; \
-        tmp[2 * out + 1] = buffer[2 * in + 1]; \
+        int pairs = (double)frames / Mixer::rate * e.second->rate;
+        float *buffer = new float[e.second->channels * pairs];
+        float *stereo = new float[2 * pairs];
+        float *stereo_resampled = new float[2 * frames];
+        int n;
+
+        if ((n = e.second->read(buffer, pairs)) == 0) {
+            delete[] buffer;
+            e.second->paused = true;
+            continue;
+        }
+
+        for (int i = 0; i < pairs; i++) {
+            if (e.second->channels == 1) {
+                stereo[2 * i + 0] = buffer[i];
+                stereo[2 * i + 1] = buffer[i];
+            } else if (e.second->channels == 2) {
+                stereo[2 * i + 0] = buffer[2 * i + 0];
+                stereo[2 * i + 1] = buffer[2 * i + 1];
+            }
+        }
+
+        SRC_DATA data;
+        data.data_in = stereo;
+        data.data_out = stereo_resampled;
+        data.input_frames = n;
+        data.output_frames = n * Mixer::rate / e.second->rate;
+        data.src_ratio = (double)Mixer::rate / e.second->rate;
+
+        src_simple(&data, SRC_SINC_BEST_QUALITY, 2);
+
+        for (int i = 0; i < 2 * frames; i++)
+            tmp[i] += stereo_resampled[i] * e.second->volume / 100;
+
+        delete[] stereo_resampled;
+        delete[] stereo;
+        delete[] buffer;
     }
+    Mixer::mutex.unlock();
 
-        for (int j = 0; j < pairs; j++) {
-            int n = (double)j / pairs * frames;
+    Mixer::mutex.lock();
+    for (int i = 0; i < clean_queue.size(); i++) {
+        SoundStream *s = clean_queue[i];
 
-            CHANNEL_MAP(n, j);
-        }
+        s->no_lock = true;
 
-        delete buffer;
+        delete s;
     }
     Mixer::mutex.unlock();
 
     for (int i = 0; i < 2 * frames; i++) {
-
         /* some magic i don't know how it works */
         if (tmp[i] <= -1.25) {
             tmp[i] = -0.984375;
@@ -205,5 +254,80 @@ void Mixer::requestSound(short *output, int frames) {
         output[i] = tmp[i] * 32767;
     }
 
-    delete tmp;
+    delete[] tmp;
+}
+
+#define FIND                     \
+    Mixer::mutex.lock();         \
+                                 \
+    auto e = streams.find(name); \
+    if (e != streams.end()) {
+
+#define END \
+    }       \
+            \
+    Mixer::mutex.unlock();
+
+void Mixer::stopSound(std::string name) {
+    FIND;
+
+    e->second->paused = true;
+
+    END;
+}
+
+bool Mixer::isSoundPlaying(std::string name) {
+    bool b = false;
+
+    FIND;
+
+    b = !e->second->paused;
+
+    END;
+
+    return b;
+}
+
+void Mixer::setPitch(std::string name, float pitch) {
+    FIND;
+
+    e->second->pitch = pitch;
+
+    END;
+}
+
+void Mixer::setPan(std::string name, float pan) {
+    FIND;
+
+    e->second->pan = pan;
+
+    END;
+}
+
+void Mixer::setSoundVolume(std::string name, float volume) {
+    FIND;
+
+    e->second->volume = volume;
+
+    END;
+}
+
+float Mixer::getSoundVolume(std::string name) {
+    float v;
+
+    FIND;
+
+    v = e->second->volume;
+
+    END;
+
+    return v;
+}
+
+void Mixer::setAutoClean(std::string name, bool toggle) {
+    FIND;
+
+    e->second->auto_clean = toggle;
+
+    END;
 }

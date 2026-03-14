@@ -3,11 +3,11 @@
 #include <dr_wav.h>
 #include <miniz.h>
 #include <string>
-#include <vector>
+#include <unordered_map>
 
 #if defined(__NDS__)
 class SoundDummyMutex {
-public:
+  public:
     void lock();
     void unlock();
 };
@@ -44,24 +44,34 @@ class SoundStream {
 
     int channels;
     int rate;
-    double volume;
-    double pan;
+    float volume;
+    float pan;
+    float pitch;
 
     bool paused;
+    bool auto_clean;
+    bool no_lock;
 
+    SoundStream(std::string path);
     SoundStream(std::string path, bool cached);
     SoundStream(mz_zip_archive *zip, std::string path);
 
     ~SoundStream();
 
-    void stop();
-    void start();
+    int read(float *output, int frames);
 };
 
 class Mixer {
   public:
     static MUTEX mutex;
-    static std::vector<SoundStream *> streams;
+    static std::unordered_map<std::string, SoundStream *> streams;
     static int rate;
     static void requestSound(short *output, int frames); /* expects stereo */
+    static void stopSound(std::string name);
+    static bool isSoundPlaying(std::string name);
+    static void setPitch(std::string name, float pitch);
+    static void setPan(std::string name, float pan);
+    static void setSoundVolume(std::string name, float volume);
+    static float getSoundVolume(std::string name);
+    static void setAutoClean(std::string name, bool toggle);
 };

@@ -3,6 +3,7 @@
 #include "settings.hpp"
 #include "unpackMenu.hpp"
 #include <audio.hpp>
+#include <audiostack.hpp>
 
 ProjectMenu::ProjectMenu() {
     init();
@@ -13,6 +14,7 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
+#ifdef OLD_AUDIO_CODE
 #if defined(__NDS__)
     if (!SoundPlayer::isSoundLoaded("gfx/nds/mm_ds.wav")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/nds/mm_ds.wav", false, false);
@@ -22,6 +24,7 @@ void ProjectMenu::init() {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
         SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
     }
+#endif
 #endif
 
     projectControl = new ControlObject();
@@ -128,6 +131,7 @@ void ProjectMenu::render() {
     projectControl->input();
 
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+#ifdef OLD_AUDIO_CODE
 #ifdef __NDS__
         if (!SoundPlayer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundPlayer::playSound("gfx/nds/mm_ds.wav");
@@ -136,6 +140,15 @@ void ProjectMenu::render() {
         if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
         }
+#endif
+#else
+        SoundStream *strm = new SoundStream(
+#ifdef __NDS__
+            "gfx/nds/mm_ds.wav"
+#else
+            "gfx/menu/mm_splash.ogg"
+#endif
+        );
 #endif
     }
 

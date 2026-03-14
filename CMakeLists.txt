@@ -316,11 +316,18 @@ CPMAddPackage(
 	GITHUB_REPOSITORY poipole807/ryuJS
 	VERSION 3.0
 )
+
 CPMAddPackage(
 	NAME dr_libs
 	GITHUB_REPOSITORY mackron/dr_libs
 	GIT_TAG master
 )
+CPMAddPackage(
+	NAME libsamplerate
+	GITHUB_REPOSITORY libsndfile/libsamplerate
+	GIT_TAG master
+)
+
 if(SE_BITMAP)
 	CPMAddPackage(
 	NAME stb
@@ -560,7 +567,7 @@ if(SE_AUDIO)
 				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
 			endif()
 		else()
-			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
+			#pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
 		endif()
 	elseif(SE_AUDIO_ENGINE STREQUAL "sdl3")
 		if(SE_SYSTEM)
@@ -987,6 +994,7 @@ target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
 endif()
 
 target_include_directories(scratch-everywhere PRIVATE ${dr_libs_SOURCE_DIR})
+target_link_libraries(scratch-everywhere PRIVATE samplerate)
 
 if(SE_BITMAP)
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})

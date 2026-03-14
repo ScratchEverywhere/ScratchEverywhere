@@ -9,7 +9,7 @@
 #include <string>
 
 SCRATCH_BLOCK(text2speech, speakAndWait) {
-#if defined(ENABLE_DOWNLOAD) && defined(ENABLE_AUDIO)
+#if defined(ENABLE_DOWNLOAD) && defined(ENABLE_AUDIO) && 0
     Value inputValue = Scratch::getInputValue(block, "WORDS", sprite);
     std::string inputString = inputValue.asString();
 

@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
@@ -79,6 +80,10 @@ void Scratch::initializeScratchProject() {
 
 #ifdef ENABLE_MENU
     Scratch::pauseMenu = nullptr;
+#endif
+
+#ifdef ENABLE_AUDIO
+    SoundPlayer::init();
 #endif
 
 #ifdef ENABLE_CACHING
@@ -282,7 +287,11 @@ void Scratch::stopClicked() {
         currentSprite->brightnessEffect = 0.0f;
         currentSprite->colorEffect = 0.0f;
         for (Sound sound : currentSprite->sounds)
+#ifdef OLD_AUDIO_CODE
             SoundPlayer::stopSound(sound.fullName);
+#else
+            Mixer::stopSound(sound.fullName);
+#endif
     }
     for (auto *spr : toDelete) {
         delete spr;
