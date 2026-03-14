@@ -43,7 +43,7 @@ void renderScrollableLogs() {
     int maxScroll = contentHeight - 240;
     if (maxScroll < 0) maxScroll = 0;
 
-    scrollOffset += pd->system->getCrankChange();
+    scrollOffset -= pd->system->getCrankChange();
     if (scrollOffset < 0) scrollOffset = 0;
     else if (scrollOffset > maxScroll) scrollOffset = maxScroll;
 }
