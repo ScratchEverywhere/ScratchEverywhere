@@ -92,23 +92,35 @@ void Log::log(std::string message, bool printToScreen) {
     if (!printToScreen) return;
     pd->system->logToConsole((message + '\r').c_str());
     Render::logs.push_back(message);
+    writeToFile(message);
 }
 
 void Log::logWarning(std::string message, bool printToScreen) {
     if (!printToScreen) return;
     pd->system->logToConsole(("Warning: " + message + '\r').c_str());
     Render::logs.push_back("Warning: " + message);
+    writeToFile("Warning: " + message);
 }
 
 void Log::logError(std::string message, bool printToScreen) {
     if (!printToScreen) return;
     pd->system->logToConsole(("Error: " + message + '\r').c_str());
     Render::logs.push_back("Error: " + message);
+    writeToFile("Error: " + message);
 }
 
-// TODO: Implement for Playdate
-void Log::writeToFile(std::string message) {}
-void Log::deleteLogFile() {}
+void Log::writeToFile(std::string message) {
+    SDFile *file = pd->file->open("log.txt", kFileAppend);
+    if (file == NULL) return;
+
+    pd->file->write(file, message.c_str(), message.length());
+    pd->file->write(file, "\n", 1);
+
+    pd->file->close(file);
+}
+void Log::deleteLogFile() {
+    pd->file->unlink("log.txt", 0);
+}
 #else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
