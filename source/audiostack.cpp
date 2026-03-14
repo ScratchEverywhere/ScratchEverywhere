@@ -237,8 +237,8 @@ void Mixer::requestSound(short *output, int frames) {
         SRC_DATA data;
         data.data_in = stereo;
         data.data_out = stereo_resampled;
-        data.input_frames = n;
-        data.output_frames = n * Mixer::rate / e.second->rate;
+        data.input_frames = pairs;
+        data.output_frames = frames;
         data.src_ratio = (double)Mixer::rate / e.second->rate;
 
         src_simple(&data, SRC_SINC_BEST_QUALITY, 2);
