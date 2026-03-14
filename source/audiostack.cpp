@@ -188,8 +188,15 @@ void Mixer::requestSound(short *output, int frames) {
     Mixer::mutex.unlock();
 
     for (int i = 0; i < 2 * frames; i++) {
-        if (tmp[i] < -1) tmp[i] = -1;
-        if (tmp[i] > 1) tmp[i] = 1;
+
+        /* some magic i don't know how it works */
+        if (tmp[i] <= -1.25) {
+            tmp[i] = -0.984375;
+        } else if (tmp[i] >= 1.25) {
+            tmp[i] = 0.984375;
+        } else {
+            tmp[i] = 1.1 * tmp[i] - 0.2 * tmp[i] * tmp[i] * tmp[i];
+        }
         output[i] = tmp[i] * 32767;
     }
 
