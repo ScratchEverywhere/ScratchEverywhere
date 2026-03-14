@@ -161,11 +161,13 @@ void MainMenu::render() {
         if (!Mixer::isSoundPlaying("gfx/menu/mm_ds.wav")) {
             SoundStream *strm = new SoundStream(
                 "gfx/nds/mm_ds.wav");
+            Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
         if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundStream *strm = new SoundStream(
                 "gfx/menu/mm_splash.ogg");
+            Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
         }
 #endif
 #endif
