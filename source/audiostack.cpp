@@ -70,6 +70,8 @@ void SoundStream::loadAsMP3() {
 }
 
 void SoundStream::loadFromBuffer() {
+    if (this->buffer == nullptr || this->buffer_size <= 0) return;
+
     if (this->buffer_size >= 4 && memcmp(this->buffer, "RIFF", 4) == 0) {
         loadAsWAV();
     } else if (this->buffer_size >= 3 && memcmp(this->buffer, "ID3", 3) == 0) {
@@ -181,7 +183,7 @@ SoundStream::~SoundStream() {
         drmp3_uninit(&this->mp3);
     }
 
-    free(this->buffer);
+    if (this->buffer != nullptr) free(this->buffer);
 }
 
 int SoundStream::read(float *output, int frames) {
