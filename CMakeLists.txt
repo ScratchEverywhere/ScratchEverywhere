@@ -322,12 +322,6 @@ CPMAddPackage(
 	GITHUB_REPOSITORY mackron/dr_libs
 	GIT_TAG master
 )
-CPMAddPackage(
-	NAME libsamplerate
-	GITHUB_REPOSITORY libsndfile/libsamplerate
-	GIT_TAG master
-	OPTIONS "LIBSAMPLERATE_EXAMPLES OFF" "LIBSAMPLERATE_INSTALL OFF" "BUILD_TESTING OFF"
-)
 
 if(SE_BITMAP)
 	CPMAddPackage(
@@ -999,7 +993,6 @@ target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
 endif()
 
 target_include_directories(scratch-everywhere PRIVATE ${dr_libs_SOURCE_DIR})
-target_link_libraries(scratch-everywhere PRIVATE samplerate)
 
 if(SE_BITMAP)
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})

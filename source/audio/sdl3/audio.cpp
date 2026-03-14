@@ -44,8 +44,9 @@ void SoundPlayer::cleanupAudio() {
     int i;
     std::vector<SoundStream *> streams;
 
-    SDL_PauseAudioStreamDevice(sdl_stream);
-    SDL_DestroyAudioStream(sdl_stream);
+// TODO: figure out why this crashes
+//    SDL_PauseAudioStreamDevice(sdl_stream);
+//    SDL_DestroyAudioStream(sdl_stream);
 #endif
 
     for (auto e : Mixer::streams) {

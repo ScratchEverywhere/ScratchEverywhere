@@ -4,7 +4,6 @@
 #include "os.hpp"
 #include "runtime.hpp"
 #include "unzip.hpp"
-#include <samplerate.h>
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -114,6 +113,8 @@ void SoundStream::loadFromBuffer() {
 SoundStream::SoundStream(std::string path) {
     std::ifstream ifs(path, std::ios::binary);
 
+    if (!ifs) return;
+
     ifs.seekg(0, std::ios::end);
     this->buffer_size = ifs.tellg();
     ifs.seekg(0);
@@ -141,6 +142,8 @@ SoundStream::SoundStream(std::string path, bool cached) {
         ifs.seekg(0, std::ios::end);
         this->buffer_size = ifs.tellg();
         ifs.seekg(0);
+
+        if (!ifs) return;
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         ifs.read((char *)this->buffer, this->buffer_size);
@@ -239,11 +242,18 @@ void Mixer::requestSound(short *output, int frames) {
             continue;
         }
 
-        int pairs = (double)frames / Mixer::rate * e.second->rate;
+        int pairs = frames * e.second->rate / Mixer::rate;
         float *buffer = new float[e.second->channels * pairs];
         float *stereo = new float[2 * pairs];
         float *stereo_resampled = new float[2 * frames];
         int n;
+
+        for (int i = 0; i < e.second->channels * pairs; i++)
+            buffer[i] = 0;
+        for (int i = 0; i < 2 * pairs; i++)
+            stereo[i] = 0;
+        for (int i = 0; i < 2 * frames; i++)
+            stereo_resampled[i] = 0;
 
         if ((n = e.second->read(buffer, pairs)) == 0) {
             delete[] buffer;
@@ -261,14 +271,10 @@ void Mixer::requestSound(short *output, int frames) {
             }
         }
 
-        SRC_DATA data;
-        data.data_in = stereo;
-        data.data_out = stereo_resampled;
-        data.input_frames = pairs;
-        data.output_frames = frames;
-        data.src_ratio = (double)Mixer::rate / e.second->rate;
-
-        src_simple(&data, SRC_SINC_BEST_QUALITY, 2);
+        for (int i = 0; i < frames; i++) {
+            for (int j = 0; j < 2; j++)
+                stereo_resampled[2 * i + j] = stereo[2 * (i * pairs / frames) + j];
+        }
 
         for (int i = 0; i < 2 * frames; i++)
             tmp[i] += stereo_resampled[i] * e.second->volume / 100;
