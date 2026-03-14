@@ -71,7 +71,25 @@ int Unzip::openFile(std::istream *&file) {
 #endif
 
     // Unzipped Project in romfs:/
-#ifdef USE_CMAKERC
+#ifdef PLAYDATE
+    SDFile *f = pd->file->open(unzippedPath.c_str(), kFileRead);
+    if (f) {
+        pd->file->seek(f, 0, SEEK_END);
+        int size = pd->file->tell(f);
+        pd->file->seek(f, 0, SEEK_SET);
+
+        std::string buffer;
+        buffer.resize(size);
+        int bytesRead = pd->file->read(f, &buffer[0], size);
+        pd->file->close(f);
+
+        if (bytesRead == size) {
+            file = new std::istringstream(buffer);
+        } else {
+            Log::logError("Failed to read full file. Expected " + std::to_string(size) + ", got " + std::to_string(bytesRead));
+        }
+    }
+#elif defined(USE_CMAKERC)
     if (fs.exists(unzippedPath)) {
         const auto &romfsFile = fs.open(unzippedPath);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
@@ -85,7 +103,25 @@ int Unzip::openFile(std::istream *&file) {
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
     Scratch::projectType = ProjectType::EMBEDDED;
-#ifdef USE_CMAKERC
+#ifdef PLAYDATE
+    f = pd->file->open(embeddedFilename.c_str(), kFileRead);
+    if (f) {
+        pd->file->seek(f, 0, SEEK_END);
+        int size = pd->file->tell(f);
+        pd->file->seek(f, 0, SEEK_SET);
+
+        std::string buffer;
+        buffer.resize(size);
+        int bytesRead = pd->file->read(f, &buffer[0], size);
+        pd->file->close(f);
+
+        if (bytesRead == size) {
+            file = new std::istringstream(buffer);
+        } else {
+            Log::logError("Failed to read full file. Expected " + std::to_string(size) + ", got " + std::to_string(bytesRead));
+        }
+    }
+#elif defined(USE_CMAKERC)
     if (fs.exists(embeddedFilename)) {
         const auto &romfsFile = fs.open(embeddedFilename);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
@@ -515,6 +551,7 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
             Scratch::sb3InRam = true;
 
             // read the file
+            file->seekg(0, std::ios::end);
             std::streamsize size = file->tellg();
             file->seekg(0, std::ios::beg);
             zipBuffer.resize(size);
