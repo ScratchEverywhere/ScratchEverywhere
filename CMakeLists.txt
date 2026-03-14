@@ -347,7 +347,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 			GIT_REPOSITORY "https://github.com/curl/curl.git"
 			GIT_TAG "curl-8_15_0"
 			VERSION 8.15.0
-			PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/3ds-curl.patch"
+			PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/3ds-curl.patch"
 			OPTIONS ${CURL_OPTIONS}
 		)
 	else()
