@@ -340,11 +340,11 @@ if(SE_SVG)
 	)
 
 	# PlutoVG Fixes
-	if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_3DS)
+	if(VITA OR WEBOS OR PSP OR NINTENDO_DS OR NINTENDO_WII OR NINTENDO_WIIU OR NINTENDO_3DS OR PS2)
 		target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__)
 	endif()
 
-	if(PSP OR NINTENDO_DS OR NINTENDO_3DS)
+	if(PSP OR NINTENDO_DS OR NINTENDO_3DS OR PS2)
 		target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
 	endif()
 
