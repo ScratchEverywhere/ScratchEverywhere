@@ -316,6 +316,11 @@ CPMAddPackage(
 	GITHUB_REPOSITORY poipole807/ryuJS
 	VERSION 3.0
 )
+CPMAddPackage(
+	NAME dr_libs
+	GITHUB_REPOSITORY mackron/dr_libs
+	GIT_TAG master
+)
 if(SE_BITMAP)
 	CPMAddPackage(
 	NAME stb
