@@ -1,3 +1,4 @@
+#include "audiostack.hpp"
 #include "blockUtils.hpp"
 #include "runtime.hpp"
 #include "runtime/blockExecutor.hpp"
@@ -149,7 +150,11 @@ SCRATCH_BLOCK(control, stop) {
             chain.blocksToRepeat.clear();
         }
         for (Sound sound : sprite->sounds)
+#ifdef OLD_AUDIO_CODE
             SoundPlayer::stopSound(sound.fullName);
+#else
+            Mixer::stopSound(sound.fullName);
+#endif
         return BlockResult::CONTINUE;
     }
 

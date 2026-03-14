@@ -316,13 +316,18 @@ CPMAddPackage(
 	GITHUB_REPOSITORY poipole807/ryuJS
 	VERSION 3.0
 )
-if(SE_BITMAP)
-	CPMAddPackage(
+
+CPMAddPackage(
+	NAME dr_libs
+	GITHUB_REPOSITORY mackron/dr_libs
+	GIT_TAG master
+)
+
+CPMAddPackage(
 	NAME stb
 	GITHUB_REPOSITORY nothings/stb
 	GIT_TAG master
-	)
-endif()
+)	
 
 if(SE_SVG)
 	CPMAddPackage(
@@ -520,7 +525,7 @@ endif()
 if(SE_AUDIO)
 	if(SE_AUDIO_ENGINE STREQUAL "sdl1")
 		if(SE_SYSTEM)
-			pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
+			#pkg_check_modules(SDL_MIXER REQUIRED SDL_mixer>=1.2.0)
 		else()
 			message(FATAL_ERROR "SDL1 Audio is currently not supported without system libraries")
 		endif()
@@ -541,24 +546,24 @@ if(SE_AUDIO)
 				)
 			endif()
 
-			CPMAddPackage(
-				NAME SDL2_mixer
-				VERSION 2.8.1
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG release-2.8.1
-				OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
-			)
+			#CPMAddPackage(
+			#	NAME SDL2_mixer
+			#	VERSION 2.8.1
+			#	GITHUB_REPOSITORY libsdl-org/SDL_mixer
+			#	GIT_TAG release-2.8.1
+			#	OPTIONS "SDL2MIXER_VORBIS STB" "SDL2MIXER_MP3 MINIMP3" "SDL2MIXER_FLAC DRFLAC" "SDL2MIXER_MOD OFF" "SDL2MIXER_OPUS OFF" "SDL2MIXER_FLUIDSYNTH OFF" "SDL2MIXER_WAVPACK OFF" "SDL2MIXER_MIDI OFF"
+			#)
 
 			if(WEBOS)
-				target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
-				target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
+			#	target_link_libraries(SDL2_mixer PUBLIC ${SDL2_LIBRARIES})
+			#	target_include_directories(SDL2_mixer PRIVATE ${SDL2_INCLUDE_DIRS})
 			endif()
 		else()
-			pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
+			#pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer>=2.0.0)
 		endif()
 	elseif(SE_AUDIO_ENGINE STREQUAL "sdl3")
 		if(SE_SYSTEM)
-			pkg_check_modules(SDL3_MIXER REQUIRED sdl3-mixer>=2.0.0)
+			#pkg_check_modules(SDL3_MIXER REQUIRED sdl3-mixer>=2.0.0)
 		else()
 			if(NOT TARGET SDL3::SDL3)
 				CPMAddPackage(
@@ -571,15 +576,15 @@ if(SE_AUDIO)
 			endif()
 			set(SDL3_MIXER_OPTIONS "SDLMIXER_TESTS OFF" "SDLMIXER_EXAMPLES OFF")
 			if(NINTENDO_3DS)
-				list(APPEND SDL3_MIXER_OPTIONS "SDLMIXER_MP3_MPG123_SHARED OFF" "SDLMIXER_MP3_DRMP3 OFF" "SDLMIXER_MP3_MPG123 ON" "CMAKE_DISABLE_FIND_PACKAGE_Opus ON" "CMAKE_DISABLE_FIND_PACKAGE_OpusFile ON" "CMAKE_DISABLE_FIND_PACKAGE_Ogg ON" "CMAKE_DISABLE_FIND_PACKAGE_Vorbis ON" "CMAKE_DISABLE_FIND_PACKAGE_FLAC ON" "CMAKE_DISABLE_FIND_PACKAGE_gme ON" "CMAKE_DISABLE_FIND_PACKAGE_libxmp ON" "SDLMIXER_MIDI OFF")
+				#list(APPEND SDL3_MIXER_OPTIONS "SDLMIXER_MP3_MPG123_SHARED OFF" "SDLMIXER_MP3_DRMP3 OFF" "SDLMIXER_MP3_MPG123 ON" "CMAKE_DISABLE_FIND_PACKAGE_Opus ON" "CMAKE_DISABLE_FIND_PACKAGE_OpusFile ON" "CMAKE_DISABLE_FIND_PACKAGE_Ogg ON" "CMAKE_DISABLE_FIND_PACKAGE_Vorbis ON" "CMAKE_DISABLE_FIND_PACKAGE_FLAC ON" "CMAKE_DISABLE_FIND_PACKAGE_gme ON" "CMAKE_DISABLE_FIND_PACKAGE_libxmp ON" "SDLMIXER_MIDI OFF")
 			endif()
-			CPMAddPackage(
-				NAME SDL3_mixer
-				VERSION 3
-				GITHUB_REPOSITORY libsdl-org/SDL_mixer
-				GIT_TAG main # TODO: pin version
-				OPTIONS ${SDL3_MIXER_OPTIONS}
-			)
+			#CPMAddPackage(
+			#	NAME SDL3_mixer
+			#	VERSION 3
+			#	GITHUB_REPOSITORY libsdl-org/SDL_mixer
+			#	GIT_TAG main # TODO: pin version
+			#	OPTIONS ${SDL3_MIXER_OPTIONS}
+			#)
 		endif()
 	endif()
 endif()
@@ -589,7 +594,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
 	# DevkitPro finally merged our WebSocket patches to their Wii U libcurl.
 	# NetBSD curl has ws/wss
-	if(NOT HAIKU AND NOT NINTENDO_WIIU AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+	if(NOT HAIKU AND NOT NINTENDO_WIIU AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD" AND NOT SE_SYSTEM_CURL)
 		set(CURL_OPTIONS
 			"BUILD_CURL_EXE OFF"
 			"BUILD_TESTING OFF"
@@ -650,7 +655,7 @@ foreach(DIR IN LISTS SOURCES)
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
-list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
+list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c" "${stb_SOURCE_DIR}/stb_vorbis.c")
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
@@ -735,6 +740,7 @@ if(SE_RENDERER STREQUAL "sdl3")
 	if(SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS ${SDL3_LIBRARIES} ${SDL3_TTF_LIBRARIES} ${SDL3_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL3_INCLUDE_DIRS} ${SDL3_TTF_INCLUDE_DIRS} ${SDL3_GFX_INCLUDE_DIRS})
+		target_link_directories(scratch-everywhere PRIVATE ${SDL3_LIBRARY_DIRS} ${SDL3_TTF_LIBRARY_DIRS} ${SDL3_GFX_LIBRARY_DIRS})
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL3_ttf::SDL3_ttf)
 		list(APPEND SDL_LINK_LIBS SDL3_gfx_Shared)
@@ -764,6 +770,7 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 	if(SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS ${SDL2_LIBRARIES} ${SDL2_TTF_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_TTF_INCLUDE_DIRS})
+		target_link_directories(scratch-everywhere PRIVATE ${SDL2_LIBRARY_DIRS} ${SDL2_TTF_LIBRARY_DIRS})
 
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL2_ttf::SDL2_ttf)
@@ -785,6 +792,7 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS ${SDL_GFX_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL_GFX_INCLUDE_DIRS})
+		target_link_directories(scratch-everywhere PRIVATE ${SDL_GFX_LIBRARY_DIRS})
 	else()
 		list(APPEND SDL_LINK_LIBS SDL_gfx SDL::SDL)
 	endif()
@@ -792,6 +800,7 @@ elseif(SE_RENDERER STREQUAL "sdl1")
 	if(SE_SYSTEM)
 		list(APPEND SDL_LINK_LIBS ${SDL_LIBRARIES} ${SDL_TTF_LIBRARIES})
 		target_include_directories(scratch-everywhere PRIVATE ${SDL_INCLUDE_DIRS} ${SDL_TTF_INCLUDE_DIRS})
+		target_link_directories(scratch-everywhere PRIVATE ${SDL_LIBRARY_DIRS} ${SDL_TTF_LIBRARY_DIRS})
 
 	elseif(BUILD_SHARED_LIBS)
 		list(APPEND SDL_LINK_LIBS SDL_ttf::SDL_ttf)
@@ -926,9 +935,9 @@ if(SE_AUDIO)
 			target_include_directories(scratch-everywhere PRIVATE ${SDL_MIXER_INCLUDE_DIRS})
 		else()
 			if(BUILD_SHARED_LIBS)
-				target_link_libraries(scratch-everywhere PRIVATE SDL_mixer::SDL_mixer)
+				#target_link_libraries(scratch-everywhere PRIVATE SDL_mixer::SDL_mixer)
 			else()
-				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL_mixer::SDL_mixer-static>,SDL_mixer::SDL_mixer-static,SDL_mixer::SDL_mixer>)
+				#target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL_mixer::SDL_mixer-static>,SDL_mixer::SDL_mixer-static,SDL_mixer::SDL_mixer>)
 			endif()
 		endif()
 	elseif(SE_AUDIO_ENGINE STREQUAL "sdl2")
@@ -940,11 +949,11 @@ if(SE_AUDIO)
 				target_link_libraries(scratch-everywhere PRIVATE SDL2::SDL2)
 			endif()
 			if(WEBOS)
-				target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer)
+				#target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer)
 			elseif(BUILD_SHARED_LIBS)
-				target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer::SDL2_mixer)
+				#target_link_libraries(scratch-everywhere PRIVATE SDL2_mixer::SDL2_mixer)
 			else()
-				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer-static>,SDL2_mixer::SDL2_mixer-static,SDL2_mixer::SDL2_mixer>)
+				#target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL2_mixer::SDL2_mixer-static>,SDL2_mixer::SDL2_mixer-static,SDL2_mixer::SDL2_mixer>)
 			endif()
 		endif()
 	elseif(SE_AUDIO_ENGINE STREQUAL "sdl3")
@@ -956,9 +965,9 @@ if(SE_AUDIO)
 		else()
 			target_link_libraries(scratch-everywhere PRIVATE SDL3::SDL3)
 			if(BUILD_SHARED_LIBS)
-				target_link_libraries(scratch-everywhere PRIVATE SDL3_mixer::SDL3_mixer)
+				#target_link_libraries(scratch-everywhere PRIVATE SDL3_mixer::SDL3_mixer)
 			else()
-				target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,SDL3_mixer::SDL3_mixer-static,SDL3_mixer::SDL3_mixer>)
+				#target_link_libraries(scratch-everywhere PRIVATE $<IF:$<TARGET_EXISTS:SDL3_mixer::SDL3_mixer-static>,SDL3_mixer::SDL3_mixer-static,SDL3_mixer::SDL3_mixer>)
 			endif()
 		endif()
 	elseif(SE_AUDIO_ENGINE STREQUAL "nds")
@@ -980,9 +989,9 @@ if(SE_SVG)
 target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
 endif()
 
-if(SE_BITMAP)
+target_include_directories(scratch-everywhere PRIVATE ${dr_libs_SOURCE_DIR})
+
 target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
-endif()
 
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
 
@@ -1087,7 +1096,7 @@ elseif(NINTENDO_WIIU)
 	)
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/meta.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" @ONLY)
 
-	add_custom_target(package
+	add_custom_target(package_wiiu
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/"
 		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu.rpx" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/scratch-wii.rpx"
 		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu.wuhb" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/scratch-wiiu.wuhb"
