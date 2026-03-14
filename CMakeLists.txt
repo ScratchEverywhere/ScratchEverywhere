@@ -317,7 +317,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(miniz)
 
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
-	if(SE_SYSTEM_CURL)
+	if(NOT SE_SYSTEM_CURL)
 		set(CURL_OPTIONS
 			"BUILD_CURL_EXE OFF"
 			"BUILD_TESTING OFF"
@@ -351,6 +351,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 			OPTIONS ${CURL_OPTIONS}
 		)
 	else()
+		include(PkgConfig REQUIRED)
 		pkg_check_modules(libcurl REQUIRED IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
 		add_library(curl ALIAS PkgConfig::libcurl)
 		add_library(CURL::libcurl ALIAS PkgConfig::libcurl)
