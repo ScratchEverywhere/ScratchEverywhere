@@ -7,6 +7,7 @@
 
 #if defined(__NDS__)
 class SoundDummyMutex {
+public:
     void lock();
     void unlock();
 };
