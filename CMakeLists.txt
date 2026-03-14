@@ -696,7 +696,9 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT 
 	# 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/gfx/macOS/Icon.icns "$<TARGET_BUNDLE_DIR:scratch-everywhere>/Contents/Resources/Icon.icns")
 elseif(PS2)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-ps2)
-	target_compile_definitions(scratch-everywhere PRIVATE)
+	target_compile_definitions(scratch-everywhere PRIVATE __PS2__)
+    target_compile_options(scratch-everywhere PRIVATE -mxgot)
+    target_link_options(scratch-everywhere PRIVATE -mxgot)
 endif()
 
 if(NOT SE_OUTPUT_NAME STREQUAL "")
@@ -778,7 +780,7 @@ elseif(SE_RENDERER STREQUAL "sdl2")
 			SDL2_ttf::SDL2_ttf>)
 	endif()
 
-	if (WIN32)
+	if (WIN32 OR PS2)
 		list(APPEND SDL_LINK_LIBS SDL2::SDL2main)
 	endif()
 

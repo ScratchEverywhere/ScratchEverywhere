@@ -10,9 +10,9 @@ WORKDIR /app
 
 COPY . .
 
-RUN cmake -B build-ps2 -S . -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DCMAKE_BUILD_TYPE=Release && make -C build-ps2 -j 2
+RUN cmake -B build-ps2 -S . -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DCMAKE_BUILD_TYPE=Release -DPS2=ON && make -C build-ps2 -j 2
 
 FROM scratch AS exporter
 
 # TODO: change the .elf with whatever the PS2 expects later
-COPY --from=main_builder /app/build-ps2/scratch-everywhere.elf /
+COPY --from=main_builder /app/build-ps2/scratch-ps2 /

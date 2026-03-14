@@ -43,4 +43,4 @@ jobs:
         with:
           name: Scratch Everywhere! PS2 Nightly
           # TODO: change the .elf with whatever the PS2 expects later
-          path: scratch-everywhere.elf
+          path: scratch-ps2
