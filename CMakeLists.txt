@@ -603,7 +603,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	# (except on Haiku we can't build from source because some sread/swrite macro thing though Haiku's curl already supports WebSockets anyway soooooooo)
 	# DevkitPro finally merged our WebSocket patches to their Wii U libcurl.
 	# NetBSD curl has ws/wss
-	if(NOT HAIKU AND NOT NINTENDO_WIIU AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+	if(NOT HAIKU AND NOT NINTENDO_WIIU AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD" AND NOT SE_SYSTEM_CURL)
 		set(CURL_OPTIONS
 			"BUILD_CURL_EXE OFF"
 			"BUILD_TESTING OFF"
