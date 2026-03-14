@@ -6,7 +6,6 @@
 #include <sys/stat.h>
 #include <unzip.hpp>
 
-std::unordered_map<std::string, Sound> SoundPlayer::soundsPlaying;
 std::unordered_map<std::string, NDS_Audio> NDS_Sounds;
 extern std::unordered_map<std::string, NDS_Audio> NDS_Sounds;
 char NDS_Audio::stream_buffer[BUFFER_LENGTH];

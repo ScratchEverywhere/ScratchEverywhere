@@ -1,7 +1,5 @@
 #include <audio.hpp>
 
-std::unordered_map<std::string, Sound> SoundPlayer::soundsPlaying;
-
 void SoundPlayer::startSoundLoaderThread(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed, const bool &fromProject, const bool &fromCache) {}
 
 bool SoundPlayer::loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed) {

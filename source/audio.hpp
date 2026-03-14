@@ -6,8 +6,6 @@
 
 class SoundPlayer {
   public:
-    static std::unordered_map<std::string, Sound> soundsPlaying;
-
     static bool loadSoundFromSB3(Sprite *sprite, mz_zip_archive *zip, const std::string &soundId, const bool &streamed = false);
     /**
      * Starts a thread to load a sound in the background. This is the function you should use to load a sound.
