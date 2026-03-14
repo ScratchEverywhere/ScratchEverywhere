@@ -90,19 +90,19 @@ extern PlaydateAPI *pd;
 
 void Log::log(std::string message, bool printToScreen) {
     if (!printToScreen) return;
-    pd->system->logToConsole(message.c_str());
+    pd->system->logToConsole((message + '\r').c_str());
     Render::logs.push_back(message);
 }
 
 void Log::logWarning(std::string message, bool printToScreen) {
     if (!printToScreen) return;
-    pd->system->logToConsole(("Warning: " + message).c_str());
+    pd->system->logToConsole(("Warning: " + message + '\r').c_str());
     Render::logs.push_back("Warning: " + message);
 }
 
 void Log::logError(std::string message, bool printToScreen) {
     if (!printToScreen) return;
-    pd->system->logToConsole(("Error: " + message).c_str());
+    pd->system->logToConsole(("Error: " + message + '\r').c_str());
     Render::logs.push_back("Error: " + message);
 }
 
