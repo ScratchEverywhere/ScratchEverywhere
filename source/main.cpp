@@ -35,6 +35,7 @@ static bool initApp() {
     if (!Render::Init()) {
         return false;
     }
+    BlockExecutor::Init();
     return true;
 }
 
@@ -54,7 +55,7 @@ int eventHandler(PlaydateAPI *pdIn, PDSystemEvent event, uint32_t arg) {
 
     if (event == kEventInit) {
         initApp(); // TODO: error handling
-        srand(time(NULL));
+        srand(pd->system->getCurrentTimeMilliseconds());
 
         Unzip::load(); // TODO: error handling and menu
         Scratch::initializeScratchProject();

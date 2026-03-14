@@ -3,7 +3,6 @@
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include <algorithm>
-#include <chrono>
 #include <cstddef>
 #include <input.hpp>
 #include <iterator>
@@ -22,9 +21,13 @@
 extern std::unique_ptr<MistConnection> cloudConnection;
 #endif
 
-Timer BlockExecutor::timer;
+Timer *BlockExecutor::timer;
 int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
+
+void BlockExecutor::Init() {
+    timer = new Timer();
+}
 
 std::unordered_map<std::string, BlockHandlerPtr> &BlockExecutor::getHandlers() {
     static std::unordered_map<std::string, BlockHandlerPtr> handlers;

@@ -1,5 +1,6 @@
 #pragma once
 #include <image.hpp>
+#include <nonstd/expected.hpp>
 
 class Image_Playdate : public Image {
   public:
@@ -14,5 +15,5 @@ class Image_Playdate : public Image {
 
     void *getNativeTexture() override;
 
-    void refreshTexture() override;
+    nonstd::expected<void, std::string> refreshTexture() override;
 };

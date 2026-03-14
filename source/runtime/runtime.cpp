@@ -269,7 +269,7 @@ void Scratch::cleanupScratchProject() {
 void Scratch::greenFlagClicked() {
     stopClicked();
     answer.clear();
-    BlockExecutor::timer.start();
+    BlockExecutor::timer->start();
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
 }
 

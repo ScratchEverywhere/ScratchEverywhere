@@ -27,4 +27,4 @@ void *Image_Playdate::getNativeTexture() {
     return nullptr;
 }
 
-void Image_Playdate::refreshTexture() {}
+nonstd::expected<void, std::string> Image_Playdate::refreshTexture() {}

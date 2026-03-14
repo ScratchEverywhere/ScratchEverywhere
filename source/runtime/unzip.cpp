@@ -2,7 +2,6 @@
 #include "input.hpp"
 #include "os.hpp"
 #include <cstring>
-#include <ctime>
 #include <errno.h>
 #include <fstream>
 #include <image.hpp>
@@ -17,7 +16,7 @@
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
-#else
+#elif !defined(PLAYDATE)
 #include <dirent.h>
 #endif
 
@@ -40,6 +39,12 @@
 #include <sstream>
 
 CMRC_DECLARE(romfs);
+#endif
+
+#ifdef PLAYDATE
+#include <pdcpp/pdnewlib.h>
+
+extern PlaydateAPI *pd;
 #endif
 
 volatile int Unzip::projectOpened = 0;
@@ -313,6 +318,15 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
     } while (FindNextFileW(hfind, &find_data));
 
     FindClose(hfind);
+#elif defined(PLAYDATE)
+    pd->file->listfiles(directory.c_str(), [](const char *filename, void *userdata) {
+        auto *files = static_cast<std::vector<std::string> *>(userdata);
+
+        size_t len = strlen(filename);
+        if (len <= 0 || filename[len - 1] == '/') return;
+        if (len < 4 || strcmp(filename + len - 4, ".sb3") != 0) return;
+        files->push_back(std::string(filename)); }, &projectFiles, 0);
+
 #else
     DIR *dir = opendir(directory.c_str());
     if (!dir) {
@@ -391,7 +405,12 @@ std::string Unzip::getSplashText() {
     }
 
     // Initialize random number generator with current time
-    static std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
+#ifdef PLAYDATE
+    static std::mt19937 rng(pd->system->getCurrentTimeMilliseconds());
+#else
+    static std::random_device rd;
+    static std::mt19937 rng(rd());
+#endif
     std::uniform_int_distribution<size_t> dist(0, splashLines.size() - 1);
 
     std::string splash = splashLines[dist(rng)];

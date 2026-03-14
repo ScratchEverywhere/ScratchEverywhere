@@ -3,7 +3,6 @@
 #include "render.hpp"
 #include "settings.hpp"
 #include <cerrno>
-#include <chrono>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -13,8 +12,10 @@
 #include <string>
 
 #include <cerrno>
-#include <dirent.h>
+
+#if !defined(PLAYDATE)
 #include <sys/stat.h>
+#endif
 
 #if defined(__3DS__)
 #include <malloc.h>
@@ -41,7 +42,7 @@ extern char nickname[0x21];
 #include <lmcons.h>
 #include <shlwapi.h>
 #include <windows.h>
-#else
+#elif !defined(PLAYDATE)
 #include <dirent.h>
 #include <unistd.h>
 #endif
@@ -49,6 +50,10 @@ extern char nickname[0x21];
 #if defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
 #include <pwd.h>
 #include <sys/types.h>
+#endif
+
+#if !defined(PLAYDATE)
+#include <chrono>
 #endif
 
 // PS4 implementation of logging
@@ -205,9 +210,24 @@ double Timer::getTimeMsDouble() {
     uint64_t currentTime = sceKernelReadTsc() * 1000;
     return static_cast<double>((currentTime - startTime)) / sceKernelGetTscFrequency();
 }
+#elif defined(PLAYDATE)
+Timer::Timer(const bool autoStart) {
+    if (autoStart) start();
+}
 
-// everyone else...
-#else
+void Timer::start() {
+    startTime = pd->system->getCurrentTimeMilliseconds();
+}
+
+int Timer::getTimeMs() {
+    return pd->system->getCurrentTimeMilliseconds() - startTime;
+}
+
+double Timer::getTimeMsDouble() {
+    return pd->system->getCurrentTimeMilliseconds() - startTime;
+}
+
+#else // everyone else...
 Timer::Timer(const bool autoStart) {
     if (autoStart) start();
 }
@@ -437,6 +457,13 @@ nonstd::expected<void, std::string> OS::createDirectory(const std::string &path)
         if (dir.empty()) continue;
         if (dir == OS::getFilesystemRootPrefix()) continue; // Fixes DS but hopefully doesn't negatively affect other platforms????
 
+#ifdef PLAYDATE
+        if (pd->file->mkdir(dir.c_str()) != 0) {
+            if (pd->file->stat(dir.c_str(), nullptr) != 0) {
+                return nonstd::make_unexpected("Failed to create directory, " + dir);
+            }
+        }
+#else
         struct stat st;
         if (stat(dir.c_str(), &st) != 0) {
 #ifdef _WIN32
@@ -447,16 +474,26 @@ nonstd::expected<void, std::string> OS::createDirectory(const std::string &path)
                 return nonstd::make_unexpected("Failed to create directory, " + dir + ", " + std::to_string(errno));
             }
         }
+#endif
     }
 
     return {};
 }
 
 void OS::renameFile(const std::string &originalPath, const std::string &newPath) {
+#ifdef PLAYDATE
+    pd->file->rename(originalPath.c_str(), newPath.c_str());
+#else
     rename(originalPath.c_str(), newPath.c_str());
+#endif
 }
 
 nonstd::expected<void, std::string> OS::removeDirectory(const std::string &path) {
+#ifdef PLAYDATE
+    if (pd->file->unlink(path.c_str(), 1) == -1) {
+        return nonstd::make_unexpected("Unknown error accured while deleting directory.");
+    }
+#else
     struct stat st;
     if (stat(path.c_str(), &st) != 0) {
         return nonstd::make_unexpected("Directory not found, " + path + ", " + std::to_string(errno));
@@ -511,13 +548,19 @@ nonstd::expected<void, std::string> OS::removeDirectory(const std::string &path)
         return nonstd::make_unexpected("Directory removal failed, " + path + ", " + std::to_string(errno));
     }
 #endif
+#endif
 
     return {};
 }
 
 bool OS::fileExists(const std::string &path) {
+#ifdef PLAYDATE
+    FileStat stat;
+    return pd->file->stat(path.c_str(), &stat) == 0;
+#else
     struct stat buffer;
     return (stat(path.c_str(), &buffer) == 0);
+#endif
 }
 
 std::string OS::parentPath(const std::string &path) {

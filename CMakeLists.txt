@@ -46,7 +46,7 @@ if (EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/ro
 	set(SE_LOADSCREEN OFF)
 endif()
 
-if(SE_MENU AND NOT NINTENDO_DS)
+if(SE_MENU AND NOT NINTENDO_DS AND NOT PLAYDATE)
 	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
 endif()
 
@@ -262,7 +262,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
-if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_3DS AND NOT PS4)
+if(NOT NINTENDO_SWITCH AND NOT VITA AND NOT WEBOS AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_3DS AND NOT PS4 AND NOT PLAYDATE)
 	option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ON)
 endif()
 
@@ -671,8 +671,15 @@ if(PLAYDATE)
 		GIT_TAG main
 	)
 
+	set(PDCPP_STAGE_IN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 	add_playdate_application(scratch-everywhere)
 	target_sources(scratch-everywhere PUBLIC ${SOURCE_FILES})
+
+
+    add_custom_command(
+		TARGET scratch-everywhere POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/romfs ${CMAKE_CURRENT_BINARY_DIR}/scratch-everywhere.pdx/romfs
+	)
 else()
 	add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
 endif()
@@ -707,7 +714,7 @@ elseif(NINTENDO_3DS)
 elseif(PS4)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME scratch-ps4)
 elseif(PLAYDATE)
-	target_compile_definitions(scratch-everywhere PRIVATE PLAYDATE)
+	target_compile_definitions(scratch-everywhere PRIVATE PLAYDATE MINIZ_NO_TIME)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# set_target_properties(scratch-everywhere PROPERTIES
 	# 	MACOSX_BUNDLE True
