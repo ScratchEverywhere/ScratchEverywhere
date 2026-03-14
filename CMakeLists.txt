@@ -348,7 +348,7 @@ if(SE_SVG)
 		target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
 	endif()
 
-	if(NINTENDO_DS AND PS2)
+	if(NINTENDO_DS OR PS2)
 		target_compile_definitions(plutovg PRIVATE __STDC_NO_ATOMICS__)
 	endif()
 
