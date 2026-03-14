@@ -16,9 +16,29 @@ CMRC_DECLARE(romfs);
 #include <iostream>
 #include <vector>
 
-#if SOUND_DUMMY_MUTEX
+#ifdef SOUND_DUMMY_MUTEX
 void SoundDummyMutex::lock() {}
 void SoundDummyMutex::unlock() {}
+#endif
+
+#ifdef SOUND_WIN32_MUTEX
+#include <windows.h>
+
+void SoundWin32Mutex::lock() {
+    WaitForSingleObject((HANDLE)this->handle, INFINITE);
+}
+
+void SoundWin32Mutex::unlock() {
+    SetEvent((HANDLE)this->handle);
+}
+
+SoundWin32Mutex::SoundWin32Mutex() {
+    this->handle = (void *)CreateEvent(nullptr, FALSE, TRUE, nullptr);
+}
+
+SoundWin32Mutex::~SoundWin32Mutex() {
+    CloseHandle((HANDLE)this->handle);
+}
 #endif
 
 /* TODO: Oh no! this does not check errors from dr_libs. Please anyone,

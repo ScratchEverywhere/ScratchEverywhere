@@ -14,6 +14,20 @@ class SoundDummyMutex {
 
 #define MUTEX SoundDummyMutex
 #define SOUND_DUMMY_MUTEX
+#elif defined(_WIN32)
+class SoundWin32Mutex {
+    void *handle;
+
+  public:
+    void lock();
+    void unlock();
+
+    SoundWin32Mutex();
+    ~SoundWin32Mutex();
+};
+
+#define MUTEX SoundWin32Mutex
+#define SOUND_WIN32_MUTEX
 #else
 #include <mutex>
 
