@@ -33,8 +33,6 @@ extern char nickname[0x21];
 #include <ogc/conf.h>
 #elif defined(__NDS__)
 #include <nds.h>
-#elif defined(__PS2__)
-#include <kernel.h>
 #endif
 
 #ifdef _WIN32
