@@ -1,11 +1,26 @@
+set(SE_DEFAULT_OUTPUT_NAME "scratch-3ds")
+
+set(SE_RENDERER_VALID_OPTIONS "citro2d")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
+set(SE_DEPS_VALID_OPTIONS "fallback" "system")
+
+set(SE_CACHING_DEFAULT OFF)
+set(SE_CMAKERC_DEFAULT OFF)
+
+set(SE_ALLOW_CLOUDVARS ON)
+set(SE_ALLOW_DOWNLOAD ON)
+
+set(SE_HAS_THREADS ON)
+
+set(SE_HAS_TOUCH TRUE)
+set(SE_HAS_MOUSE FALSE)
+set(SE_HAS_KEYBOARD FALSE)
+set(SE_HAS_CONTROLLER TRUE)
+
 option(SE_BUILD_CIA "Whether or not to build a .cia output." ON)
 set(SE_BANNERTOOL bannertool CACHE PATH "Path to bannertool executable")
 set(SE_MAKEROM makerom CACHE PATH "Path to makerom executable")
 set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
-
-set(SE_CACHING_DEFAULT OFF)
-set(SE_ALLOW_CLOUDVARS ON)
-set(SE_ALLOW_DOWNLOAD ON)
 
 macro(package_platform)
 	ctr_generate_smdh(OUTPUT scratch-3ds.smdh NAME "Scrach Everywhere!" AUTHOR "NateXS" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "Scratch 3 Games on your 3DS!")
