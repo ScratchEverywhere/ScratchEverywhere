@@ -50,6 +50,8 @@ elseif(NINTENDO_3DS)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/3ds.cmake")
 elseif(NINTENDO_WIIU)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/wiiu.cmake")
+elseif(WEBOS)
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/webos.cmake")
 endif()
 
 if("fallback" IN_LIST SE_DEPS_VALID_OPTIONS)
