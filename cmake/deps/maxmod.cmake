@@ -7,7 +7,8 @@ if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
 	check_include_file(maxmod9.h HAVE_MAXMOD9_H)
 
 	if(HAVE_MAXMOD9_H)
-		add_library(maxmod INTERFACE) # Already installed on system, we don't need to do anything
+		add_library(maxmod INTERFACE)
+		target_link_libraries(maxmod INTERFACE maxmod9)
 	endif()
 endif()
 
