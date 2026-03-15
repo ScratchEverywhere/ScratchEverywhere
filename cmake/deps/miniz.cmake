@@ -14,6 +14,7 @@ if((SE_DEPS STREQUAL "fallback" AND NOT TARGET miniz::miniz) OR SE_DEPS STREQUAL
 		GITHUB_REPOSITORY richgel999/miniz
 		VERSION 3.1.1
 		GIT_TAG 3.1.1
+		OPTIONS "BUILD_TESTS OFF" "BUILD_EXAMPLES OFF"
 	)
 	add_library(miniz::miniz ALIAS miniz)
 endif()
