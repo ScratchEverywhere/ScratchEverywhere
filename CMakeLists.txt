@@ -188,7 +188,7 @@ endforeach()
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/curl.cmake")
 	if(SE_CLOUDVARS)
-		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.5")
+		include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/mistpp.cmake")
 	endif()
 endif()
 
