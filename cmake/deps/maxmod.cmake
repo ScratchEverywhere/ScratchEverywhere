@@ -8,7 +8,7 @@ if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
 
 	if(HAVE_MAXMOD9_H)
 		add_library(maxmod INTERFACE)
-		target_link_libraries(maxmod INTERFACE maxmod9)
+		target_link_libraries(maxmod INTERFACE mm9)
 	endif()
 endif()
 
