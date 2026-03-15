@@ -144,8 +144,6 @@ endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
 
-list(APPEND SE_WINDOWING_VALID_OPTIONS "headless")
-
 if("glfw" IN_LIST SE_WINDOWING_VALID_OPTIONS)
 	set(
 		SE_WINDOWING
