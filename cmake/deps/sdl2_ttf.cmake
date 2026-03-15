@@ -3,9 +3,13 @@ if(TARGET SDL2_ttf::SDL2_ttf)
 endif()
 
 if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback" AND PkgConfig_FOUND)
-	pkg_check_modules(SDL2_ttf IMPORTED_TARGET SDL2_ttf>=2.0.0)
+	pkg_check_modules(SDL2_ttf QUIET SDL2_ttf>=2.0.0)
 	if(SDL2_ttf_FOUND)
-		add_library(SDL2_ttf::SDL2_ttf ALIAS PkgConfig::SDL2_ttf)
+		add_library(SDL2_ttf::SDL2_ttf INTERFACE IMPORTED)
+		set_target_properties(SDL2_ttf::SDL2_ttf PROPERTIES
+			INTERFACE_INCLUDE_DIRECTORIES "${SDL2_ttf_INCLUDE_DIRS}"
+			INTERFACE_LINK_LIBRARIES "${SDL2_ttf_LIBRARIES}"
+		)
 	endif()
 endif()
 
