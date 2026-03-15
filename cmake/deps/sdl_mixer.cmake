@@ -10,7 +10,7 @@ if(SE_DEPS STREQUAL "source")
 endif()
 
 if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback" AND PkgConfig_FOUND)
-	pkg_check_modules(SDL_mixer REQUIRED SDL_mixer>=1.2.0)
+	pkg_check_modules(SDL_mixer IMPORTED_TARGET SDL_mixer>=1.2.0)
 	if(SDL_mixer_FOUND)
 		add_library(SDL_mixer::SDL_mixer ALIAS PkgConfig::SDL_mixer)
 	endif()

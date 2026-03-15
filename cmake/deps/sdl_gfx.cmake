@@ -10,7 +10,7 @@ if(SE_DEPS STREQUAL "source")
 endif()
 
 if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback" AND PkgConfig_FOUND)
-	pkg_check_modules(SDL_gfx REQUIRED SDL_gfx>=1.0.0)
+	pkg_check_modules(SDL_gfx IMPORTED_TARGET SDL_gfx>=1.0.0)
 	if(SDL_gfx_FOUND)
 		add_library(SDL_gfx::SDL_gfx ALIAS PkgConfig::SDL_gfx)
 	endif()

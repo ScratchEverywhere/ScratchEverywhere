@@ -10,7 +10,7 @@ if(SE_DEPS STREQUAL "source")
 endif()
 
 if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback" AND PkgConfig_FOUND)
-	pkg_check_modules(SDL_ttf REQUIRED SDL_ttf>=1.2.0)
+	pkg_check_modules(SDL_ttf IMPORTED_TARGET SDL_ttf>=1.2.0)
 	if(SDL_ttf_FOUND)
 		add_library(SDL_ttf::SDL_ttf ALIAS PkgConfig::SDL_ttf)
 	endif()
