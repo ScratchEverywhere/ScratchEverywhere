@@ -5,10 +5,13 @@
 out/
 build/
 build-*/
-cmake/
 romfs/project/
 romfs/gfx
 scratch-everywhere/
+
+# CMake
+cmake/CPM.cmake
+cmake/*cache*/
 
 # legacy makefiles
 make/Makefile_vita
