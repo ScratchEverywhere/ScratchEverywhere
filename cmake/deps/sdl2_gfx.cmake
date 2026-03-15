@@ -30,11 +30,12 @@ if((SE_DEPS STREQUAL "fallback" AND NOT SDL2_gfx_FOUND) OR SE_DEPS STREQUAL "sou
 		"${SDL2_gfx_SOURCE_DIR}/SDL2_gfxPrimitives.c"
 		"${SDL2_gfx_SOURCE_DIR}/SDL2_bgi.c"
 	)
-	add_library(SDL2_gfx::SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
-	target_include_directories(SDL2_gfx::SDL2_gfx PUBLIC
+	add_library(SDL2_gfx STATIC ${SDL2_GFX_SOURCES})
+	add_library(SDL2_gfx::SDL2_gfx ALIAS SDL2_gfx)
+	target_include_directories(SDL2_gfx PUBLIC
 		$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 	)
-	target_link_libraries(SDL2_gfx::SDL2_gfx PUBLIC
+	target_link_libraries(SDL2_gfx PUBLIC
 		SDL2::SDL2
 	)
 endif()
