@@ -285,14 +285,7 @@ if(SE_BITMAP)
 endif()
 
 if(SE_SVG)
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/plutovg.cmake")
-
-	CPMAddPackage(
-		NAME lunasvg
-		GITHUB_REPOSITORY sammycage/lunasvg
-		VERSION 3.5.0
-		OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
-	)
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/lunasvg.cmake")
 endif()
 
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
