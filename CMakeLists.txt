@@ -285,15 +285,7 @@ if(SE_BITMAP)
 endif()
 
 if(SE_SVG)
-	CPMAddPackage(
-		NAME plutovg
-		GITHUB_REPOSITORY sammycage/plutovg
-		VERSION 1.3.0 # Version expected by LunaSVG
-		OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD ON" "PLUTOVG_BUILD_EXAMPLES OFF"
-	)
-	# Not all platforms need these but there's no harm in adding them since we don't need a multithreaded plutovg
-	target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__ __STDC_NO_ATOMICS__)
-	target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/plutovg.cmake")
 
 	CPMAddPackage(
 		NAME lunasvg
