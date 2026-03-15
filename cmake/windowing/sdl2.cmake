@@ -5,3 +5,11 @@ add_library(windowing_interface INTERFACE)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/sdl2.cmake")
 target_link_libraries(windowing_interface INTERFACE SDL2::SDL2)
+
+if(WIN32)
+	if(TARGET SDL2::SDL2main)
+		target_link_libraries(windowing_interface INTERFACE SDL2::SDL2main)
+	else()
+		target_link_libraries(windowing_interface INTERFACE SDL2main)
+	endif()
+endif()
