@@ -12,6 +12,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC and a few other things
 
+include(CMakeDependentOption)
+
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 	message(STATUS "Downloading CPM.cmake...")
 	file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -68,26 +70,20 @@ option(SE_AUDIO "Enables audio in SE!" ON)
 
 option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
 
-if(SE_ALLOW_CLOUDVARS)
-	option(SE_CLOUDVARS "Enable cloud variables." ON)
-endif()
+cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUDVARS" OFF)
 
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
-if(SE_ALLOW_DOWNLOAD)
-	option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON)
-endif()
+cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
 #  disable menu if a project is in RomFS
-if (EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/romfs/project.sb3")
+if(EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/romfs/project.sb3")
 	set(SE_MENU OFF)
 	set(SE_LOADSCREEN OFF)
 endif()
 
-if(SE_MENU AND SE_HAS_THREADS)
-	option(SE_LOADSCREEN "Enables SE!'s load screen." ON)
-endif()
+cmake_dependent_option(SE_LOADSCREEN "Enables SE!'s load screen." ON "SE_MENU;SE_HAS_THREADS" OFF)
 
 option(SE_SVG "Enable support for SVG images." ON)
 option(SE_BITMAP "Enable support for Bitmap images." ON)
