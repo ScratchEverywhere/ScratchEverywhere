@@ -270,6 +270,7 @@ add_library(nonstd::expected-lite ALIAS expected-lite)
 target_include_directories(expected-lite INTERFACE "$<BUILD_INTERFACE:${expected-lite_SOURCE_DIR}>/include")
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/nlohmann_json.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/miniz.cmake")
 CPMAddPackage(
 	NAME poipole807_ryuJS
 	GITHUB_REPOSITORY poipole807/ryuJS
@@ -301,14 +302,6 @@ if(SE_SVG)
 		OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
 	)
 endif()
-
-include(FetchContent)
-FetchContent_Declare(
-    miniz
-    URL https://github.com/richgel999/miniz/releases/download/3.1.0/miniz-3.1.0.zip
-	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
-FetchContent_MakeAvailable(miniz)
 
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	if(NOT SE_SYSTEM_CURL OR NOT PkgConfig_FOUND)
@@ -369,7 +362,6 @@ foreach(DIR IN LISTS SOURCES)
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
-list(APPEND SOURCE_FILES "${miniz_SOURCE_DIR}/miniz.c")
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
@@ -458,8 +450,7 @@ if(SE_HAS_CONTROLLER)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
 endif()
 
-
-target_link_libraries(scratch-everywhere PRIVATE nonstd::expected-lite nlohmann_json::nlohmann_json)
+target_link_libraries(scratch-everywhere PRIVATE nonstd::expected-lite nlohmann_json::nlohmann_json miniz::miniz)
 add_library(ryuJS STATIC
   ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
   ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
@@ -477,7 +468,7 @@ if(SE_BITMAP)
 	target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
 endif()
 
-target_include_directories(scratch-everywhere PRIVATE ${SOURCES} ${miniz_SOURCE_DIR})
+target_include_directories(scratch-everywhere PRIVATE ${SOURCES})
 
 # TODO: Move to cmake/platforms/wasm.cmake
 if(EMSCRIPTEN)
