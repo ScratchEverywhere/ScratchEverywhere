@@ -5,7 +5,7 @@
 #include <stb_truetype.h>
 
 SpeechTextObjectGL::SpeechTextObjectGL(const std::string &text, int maxWidth)
-    : TextObjectGL(text, 0, 0, "gfx/menu/LibSansN"), SpeechText(text, maxWidth) {
+    : TextObjectGL(text, 0, 0, "gfx/ingame/fonts/NotoSans-Medium"), SpeechText(text, maxWidth) {
     setColor(0x000000FF);
     setCenterAligned(false); // easier for positioning logic
     platformSetText(wrapText());

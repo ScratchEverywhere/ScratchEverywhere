@@ -19,7 +19,7 @@ std::unordered_map<std::string, FontData *> TextObjectGL::fonts;
 TextObjectGL::TextObjectGL(std::string txt, double posX, double posY, std::string fontPath)
     : TextObject(txt, posX, posY, fontPath) {
 
-    if (fontPath == "") fontPath = "gfx/menu/LibSansN";
+    if (fontPath == "") fontPath = "gfx/ingame/fonts/NotoSans-Medium";
     std::string fullPath = OS::getRomFSLocation() + fontPath + ".ttf";
 
     if (loadFont(fullPath)) {
