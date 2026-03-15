@@ -92,114 +92,40 @@ cmake_dependent_option(SE_LOADSCREEN "Enables SE!'s load screen." ON "SE_MENU;SE
 option(SE_SVG "Enable support for SVG images." ON)
 option(SE_BITMAP "Enable support for Bitmap images." ON)
 
+function(set_preferred_cache_var var_name priority_list valid_options_list doc_string)
+	if(DEFINED ${var_name} AND NOT "${${var_name}}" STREQUAL "")
+		set(selected_value "${${var_name}}")
+	else()
+		set(selected_value "")
+        foreach(option ${priority_list})
+            if(option IN_LIST valid_options_list)
+                set(selected_value "${option}")
+                break()
+            endif()
+        endforeach()
+	endif()
+
+	if(NOT selected_value IN_LIST valid_options_list)
+        message(
+			FATAL_ERROR 
+            "Invalid value for ${var_name}: '${selected_value}'. Must be one of: ${valid_options_list}"
+        )
+    endif()
+
+	set(${var_name} "${selected_value}" CACHE STRING "${doc_string}" FORCE)
+    set_property(CACHE ${var_name} PROPERTY STRINGS ${valid_options_list})
+endfunction()
+
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
-
-if("sdl2" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"sdl2"
-		CACHE STRING "Select the desired renderer backend."
-	)
-elseif("sdl3" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"sdl3"
-		CACHE STRING "Select the desired renderer backend."
-	)
-elseif("sdl1" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"sdl1"
-		CACHE STRING "Select the desired renderer backend."
-	)
-elseif("opengl" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"opengl"
-		CACHE STRING "Select the desired renderer backend."
-	)
-elseif("gl2d" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"gl2d"
-		CACHE STRING "Select the desired renderer backend."
-	)
-elseif("citro2d" IN_LIST SE_RENDERER_VALID_OPTIONS)
-	set(
-		SE_RENDERER
-		"citro2d"
-		CACHE STRING "Select the desired renderer backend."
-	)
-else()
-	set(
-		SE_RENDERER
-		"headless"
-		CACHE STRING "Select the desired renderer backend."
-	)
-endif()
-if(NOT SE_RENDERER IN_LIST SE_RENDERER_VALID_OPTIONS)
-    message(
-        FATAL_ERROR
-        "Invalid value for SE_RENDERER: '${SE_RENDERER}'. Must be one of: ${SE_RENDERER_VALID_OPTIONS}"
-    )
-endif()
-
+set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
 
-if("glfw" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"glfw"
-		CACHE STRING "Select the desired windowing backend."
-	)
-elseif("sdl3" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"sdl3"
-		CACHE STRING "Select the desired windowing backend."
-	)
-elseif("sdl2" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"sdl2"
-		CACHE STRING "Select the desired windowing backend."
-	)
-elseif("sdl1" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"sdl1"
-		CACHE STRING "Select the desired windowing backend."
-	)
-elseif("nds" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"nds"
-		CACHE STRING "Select the desired windowing backend."
-	)
-elseif("3ds" IN_LIST SE_WINDOWING_VALID_OPTIONS)
-	set(
-		SE_WINDOWING
-		"3ds"
-		CACHE STRING "Select the desired windowing backend."
-	)
-else()
-	set(
-		SE_WINDOWING
-		"headless"
-		CACHE STRING "Select the desired windowing backend."
-	)
-endif()
-if(NOT SE_WINDOWING IN_LIST SE_WINDOWING_VALID_OPTIONS)
-    message(
-        FATAL_ERROR
-        "Invalid value for SE_WINDOWING: '${SE_WINDOWING}'. Must be one of: ${SE_WINDOWING_VALID_OPTIONS}"
-    )
-endif()
-
+set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "3ds" "nds" "headless")
+set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${SE_WINDOWING}.cmake")
 
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
-
 if(SE_AUDIO_ENGINE_DEFAULT IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
 	set(
 		SE_AUDIO_ENGINE
@@ -213,14 +139,12 @@ else()
 		CACHE STRING "Select the desired audio backend."
 	)
 endif()
-
 if(NOT SE_AUDIO_ENGINE IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
 	message(
 		FATAL_ERROR
 		"Invalid value for SE_AUDIO_ENGINE: '${SE_AUDIO_ENGINE}'. Must be one of: ${SE_AUDIO_ENGINE_VALID_OPTIONS}"
 	)
 endif()
-
 if(SE_AUDIO)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/${SE_AUDIO_ENGINE}.cmake")
 endif()
