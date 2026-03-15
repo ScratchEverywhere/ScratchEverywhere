@@ -245,7 +245,6 @@ void Scratch::cleanupScratchProject() {
     miscellaneousLimits = true;
     shouldStop = false;
     forceRedraw = false;
-    nextProject = false;
     useCustomUsername = false;
     sb3InRam = true;
     projectType = ProjectType::UNEMBEDDED;
