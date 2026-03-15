@@ -225,7 +225,7 @@ void BlockExecutor::doSpriteClicking() {
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;
                     for (auto &data : sprite->blocks) {
-                        if (data.opcode == "event_whenthisspriteclicked") {
+                        if (data.opcode == "event_whenthisspriteclicked" || data.opcode == "event_whenstageclicked") {
                             executor.runBlock(data, sprite);
                         }
                     }
