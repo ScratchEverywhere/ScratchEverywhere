@@ -26,6 +26,8 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
+find_package(PkgConfig QUIET)
+
 if(NOT CMAKE_CROSSCOMPILING OR CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/pc.cmake")
 elseif(NINTENDO_SWITCH)
@@ -311,7 +313,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(miniz)
 
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
-	if(NOT SE_SYSTEM_CURL)
+	if(NOT SE_SYSTEM_CURL OR NOT PkgConfig_FOUND)
 		set(CURL_OPTIONS
 			"BUILD_CURL_EXE OFF"
 			"BUILD_TESTING OFF"
@@ -345,7 +347,6 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 			OPTIONS ${CURL_OPTIONS}
 		)
 	else()
-		include(PkgConfig REQUIRED)
 		pkg_check_modules(libcurl REQUIRED IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
 		add_library(curl ALIAS PkgConfig::libcurl)
 		add_library(CURL::libcurl ALIAS PkgConfig::libcurl)
