@@ -354,7 +354,7 @@ if(SE_CLOUDVARS OR SE_DOWNLOAD)
 		add_library(CURL::libcurl ALIAS PkgConfig::libcurl)
 	endif()
 	if(SE_CLOUDVARS)
-		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.4")
+		CPMAddPackage("gh:ScratchEverywhere/mistpp@0.3.5")
 	endif()
 endif()
 
