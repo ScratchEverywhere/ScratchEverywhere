@@ -258,25 +258,6 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-# They're single header so I just use CPM no matter what
-CPMAddPackage(
-	NAME expected-lite
-	GITHUB_REPOSITORY nonstd-lite/expected-lite
-	VERSION 0.10.0
-	DOWNLOAD_ONLY TRUE
-)
-add_library(expected-lite INTERFACE)
-add_library(nonstd::expected-lite ALIAS expected-lite)
-target_include_directories(expected-lite INTERFACE "$<BUILD_INTERFACE:${expected-lite_SOURCE_DIR}>/include")
-
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/nlohmann_json.cmake")
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/miniz.cmake")
-CPMAddPackage(
-	NAME poipole807_ryuJS
-	GITHUB_REPOSITORY poipole807/ryuJS
-	VERSION 3.0
-)
-
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	if(NOT SE_SYSTEM_CURL OR NOT PkgConfig_FOUND)
 		set(CURL_OPTIONS
@@ -424,15 +405,25 @@ if(SE_HAS_CONTROLLER)
 	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE nonstd::expected-lite nlohmann_json::nlohmann_json miniz::miniz)
+CPMAddPackage(
+	NAME poipole807_ryuJS
+	GITHUB_REPOSITORY poipole807/ryuJS
+	VERSION 3.0
+)
 add_library(ryuJS STATIC
   ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
   ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
 )
-target_link_libraries(scratch-everywhere PRIVATE ryuJS)
 target_include_directories(ryuJS PUBLIC
   ${poipole807_ryuJS_SOURCE_DIR}
 )
+target_link_libraries(scratch-everywhere PRIVATE ryuJS)
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/nlohmann_json.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/miniz.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/expected-lite.cmake")
+
+target_link_libraries(scratch-everywhere PRIVATE nonstd::expected-lite nlohmann_json::nlohmann_json miniz::miniz)
 
 if(SE_SVG)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/lunasvg.cmake")

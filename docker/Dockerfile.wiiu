@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN /opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-cmake -B build-wiiu -DCMAKE_BUILD_TYPE=Release && cmake --build build-wiiu -j2 && cmake --build build-wiiu --target package
+RUN /opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-cmake -B build-wiiu -DCMAKE_BUILD_TYPE=Release && cmake --build build-wiiu -j2 && cmake --build build-wiiu --target package_wiiu
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build-wiiu/scratch-wiiu.zip /
