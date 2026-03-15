@@ -6,6 +6,7 @@ if(NINTENDO_WIIU)
 	add_library(libcurl INTERFACE)
 	add_library(CURL::libcurl ALIAS libcurl)
 	target_link_libraries(libcurl INTERFACE curl mbedtls mbedx509 mbedcrypto z wut m)
+	target_include_directories(libcurl INTERFACE "${DEVKITPRO}/portlibs/wiiu/include")
 endif()
 
 if((SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback") AND NOT TARGET CURL::libcurl)
