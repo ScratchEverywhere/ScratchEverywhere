@@ -35,7 +35,7 @@ macro(package_platform)
     endforeach()
 
     set(CPACK_GENERATOR "External")
-    set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/AresPackage.cmake")
+    set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_SOURCE_DIR}/cmake/cpack/AresPackage.cmake")
     set(CPACK_EXTERNAL_ENABLE_STAGING TRUE)
     set(CPACK_MONOLITHIC_INSTALL TRUE)
 
