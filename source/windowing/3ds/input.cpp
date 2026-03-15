@@ -12,7 +12,7 @@ std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;
 std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
-std::unordered_set<std::string> Input::codePressedBlockOpcodes;
+std::unordered_set<Block *> Input::codePressedBlockOpcodes;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 static int mouseHeldFrames = 0;
