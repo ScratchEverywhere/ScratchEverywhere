@@ -1,5 +1,4 @@
 #pragma once
-#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <nonstd/expected.hpp>
@@ -36,10 +35,16 @@ void writeToFile(std::string message);
 void deleteLogFile();
 } // namespace Log
 
+#if !defined(PLAYDATE)
+#include <chrono>
+#endif
+
 class Timer {
   private:
 #if defined(__NDS__) || defined(WII) || defined(__PS4__)
     uint64_t startTime;
+#elif defined(PLAYDATE)
+    uint32_t startTime;
 #else
     std::chrono::high_resolution_clock::time_point startTime;
 #endif
@@ -136,6 +141,8 @@ inline std::string getRomFSLocation() {
     return "/romfs/";
 #elif defined(__PS4__)
     return "/app0/";
+#elif defined(PLAYDATE)
+    return "romfs/";
 #else
     return "";
 #endif
@@ -170,6 +177,8 @@ inline std::string getPlatform() {
     return "PSP";
 #elif defined(WEBOS)
     return "webOS TV";
+#elif defined(PLAYDATE)
+    return "Playdate";
 #else
     return "Unknown";
 #endif

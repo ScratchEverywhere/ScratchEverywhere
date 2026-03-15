@@ -1,7 +1,6 @@
 #pragma once
 #include "nonstd/expected.hpp"
 #include "os.hpp"
-#include <chrono>
 #include <input.hpp>
 #include <math.hpp>
 #include <runtime.hpp>
@@ -13,6 +12,10 @@ class SpeechManager;
 
 class Render {
   public:
+#ifdef PLAYDATE
+    static std::vector<std::string> logs;
+#endif
+
     static bool debugMode;
     static float renderScale;
 

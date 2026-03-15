@@ -68,6 +68,8 @@ class BlockExecutor {
     static std::unordered_map<std::string, BlockHandlerPtr> &getHandlers();
     static std::unordered_map<std::string, ValueHandlerPtr> &getValueHandlers();
 
+    static void Init();
+
 #ifdef ENABLE_CACHING
     static void linkPointers(Sprite *sprite);
 #endif
@@ -195,7 +197,7 @@ class BlockExecutor {
     static bool hasActiveRepeats(Sprite *sprite, std::string blockChainID);
 
     // For the `Timer` Scratch block.
-    static Timer timer;
+    static Timer *timer;
 
     static int dragPositionOffsetX;
     static int dragPositionOffsetY;

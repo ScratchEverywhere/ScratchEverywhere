@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
-#include <ctime>
 #include <limits>
 #include <math.h>
 #include <os.hpp>
@@ -15,6 +14,12 @@
 #endif
 #ifdef RENDERER_GL2D
 #include <nds.h>
+#endif
+
+#ifdef PLAYDATE
+#include <pdcpp/pdnewlib.h>
+
+extern PlaydateAPI *pd;
 #endif
 
 int Math::color(int r, int g, int b, int a) {
@@ -152,7 +157,12 @@ std::string Math::generateRandomString(int length) {
     const std::string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-=[];',./_+{}|:<>?~`";
     std::string result;
 
-    static std::mt19937 generator(static_cast<unsigned int>(std::time(nullptr)));
+#ifdef PLAYDATE
+    static std::mt19937 generator(pd->system->getCurrentTimeMilliseconds());
+#else
+    static std::random_device rd;
+    static std::mt19937 generator(rd());
+#endif
     std::uniform_int_distribution<> distribution(0, chars.size() - 1);
 
     for (int i = 0; i < length; i++) {

@@ -7,7 +7,7 @@
 #include <vector>
 
 SCRATCH_BLOCK(sensing, resettimer) {
-    BlockExecutor::timer.start();
+    BlockExecutor::timer->start();
     return BlockResult::CONTINUE;
 }
 
@@ -30,7 +30,7 @@ SCRATCH_BLOCK(sensing, setdragmode) {
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, timer) {
-    return Value(BlockExecutor::timer.getTimeMs() / 1000.0);
+    return Value(BlockExecutor::timer->getTimeMs() / 1000.0);
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, of) {

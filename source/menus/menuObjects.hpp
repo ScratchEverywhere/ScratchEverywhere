@@ -29,7 +29,7 @@ class JollySnow {
   public:
     std::shared_ptr<Image> image;
     JollySnow() {
-#ifndef RENDERER_HEADLESS
+#if !defined(RENDERER_HEADLESS) && !defined(RENDERER_PLAYDATE)
         oldWindowWidth = Render::getWidth();
         oldWindowHeight = Render::getHeight();
 
@@ -44,7 +44,7 @@ class JollySnow {
     }
 
     void render(float xOffset = 0.0f, float yOffset = 0.0f) {
-#ifndef RENDERER_HEADLESS
+#if !defined(RENDERER_HEADLESS) && !defined(RENDERER_PLAYDATE)
         for (auto &ball : snow) {
 
             ImageRenderParams params;
