@@ -1,3 +1,22 @@
+set(SE_DEFAULT_OUTPUT_NAME "scratch-ps4")
+
+set(SE_RENDERER_VALID_OPTIONS "sdl2")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
+set(SE_DEPS_VALID_OPTIONS "fallback" "system")
+
+set(SE_CACHING_DEFAULT ON)
+set(SE_CMAKERC_DEFAULT OFF)
+
+set(SE_ALLOW_CLOUDVARS OFF)
+set(SE_ALLOW_DOWNLOAD OFF)
+
+set(SE_HAS_THREADS ON)
+
+set(SE_HAS_TOUCH FALSE)
+set(SE_HAS_MOUSE FALSE)
+set(SE_HAS_KEYBOARD FALSE)
+set(SE_HAS_CONTROLLER TRUE)
+
 macro(package_platform)
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/sce_module"
