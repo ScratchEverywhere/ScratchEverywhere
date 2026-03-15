@@ -12,7 +12,6 @@ scratch-everywhere/
 # CMake
 cmake/CPM.cmake
 cmake/*cache*/
-cmake/deps/
 
 # legacy makefiles
 make/Makefile_vita

@@ -1,0 +1,36 @@
+if(TARGET SDL2_ttf::SDL2_ttf)
+	return()
+endif()
+
+if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
+	find_package(PkgConfig QUIET)
+	if(PkgConfig_FOUND)
+		pkg_check_modules(SDL2_ttf REQUIRED IMPORTED_TARGET SDL2_ttf>=2.0.0)
+		if(SDL2_ttf_FOUND)
+			add_library(SDL2_ttf::SDL2_ttf ALIAS PkgConfig::SDL2_ttf)
+		endif()
+	endif()
+endif()
+
+if((SE_DEPS STREQUAL "fallback" AND NOT SDL2_ttf_FOUND) OR SE_DEPS STREQUAL "source")
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+
+	CPMAddPackage(
+		NAME SDL2_ttf
+		VERSION 2.24.0
+		GITHUB_REPOSITORY libsdl-org/SDL_ttf
+		GIT_TAG release-2.24.0
+		OPTIONS "SDL2TTF_VENDORED ON"
+	)
+
+	if(NOT TARGET SDL2_ttf::SDL2_ttf AND TARGET SDL2_ttf::SDL2_ttf-static)
+		add_library(SDL2_ttf::SDL2_ttf ALIAS SDL2_ttf::SDL2_ttf-static)
+	endif()
+endif()
+
+if(NOT TARGET SDL2_ttf::SDL2_ttf)
+	message(
+		FATAL_ERROR
+		"Failed to get SDL2_ttf."
+	)
+endif()
