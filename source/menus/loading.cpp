@@ -51,18 +51,18 @@ void Loading::render() {
     else Render::beginFrame(1, 0, 0, 0);
 
     ImageRenderParams p1 = {
-        .x = Render::getWidth() / 2,
-        .y = static_cast<int>(block1Y),
+        .x = Render::getWidth() / 2.0f,
+        .y = block1Y,
         .scale = 0.5f,
         .centered = true};
     ImageRenderParams p2 = {
-        .x = Render::getWidth() / 2,
-        .y = static_cast<int>(block2Y),
+        .x = Render::getWidth() / 2.0f,
+        .y = block2Y,
         .scale = 0.5f,
         .centered = true};
     ImageRenderParams p3 = {
-        .x = Render::getWidth() / 2,
-        .y = static_cast<int>(block3Y),
+        .x = Render::getWidth() / 2.0f,
+        .y = block3Y,
         .scale = 0.5f,
         .centered = true};
 
