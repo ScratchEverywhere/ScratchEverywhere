@@ -276,17 +276,6 @@ CPMAddPackage(
 	GITHUB_REPOSITORY poipole807/ryuJS
 	VERSION 3.0
 )
-if(SE_BITMAP)
-	CPMAddPackage(
-	NAME stb
-	GITHUB_REPOSITORY nothings/stb
-	GIT_TAG master
-	)
-endif()
-
-if(SE_SVG)
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/lunasvg.cmake")
-endif()
 
 if(SE_CLOUDVARS OR SE_DOWNLOAD)
 	if(NOT SE_SYSTEM_CURL OR NOT PkgConfig_FOUND)
@@ -446,11 +435,13 @@ target_include_directories(ryuJS PUBLIC
 )
 
 if(SE_SVG)
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/lunasvg.cmake")
 	target_link_libraries(scratch-everywhere PRIVATE lunasvg::lunasvg)
 endif()
 
 if(SE_BITMAP)
-	target_include_directories(scratch-everywhere PRIVATE ${stb_SOURCE_DIR})
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/stb.cmake")
+	target_link_libraries(scratch-everywhere PRIVATE stb)
 endif()
 
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES})
