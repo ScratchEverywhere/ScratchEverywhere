@@ -1,4 +1,4 @@
-if(NOT TARGET renderer_interface)
+if(TARGET renderer_interface)
     return()
 endif()
 add_library(renderer_interface INTERFACE)
