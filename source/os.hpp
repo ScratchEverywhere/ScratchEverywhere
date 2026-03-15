@@ -14,6 +14,8 @@
 #include <nds.h>
 #elif defined(__WIIU__)
 #include <whb/sdcard.h>
+#elif defined(__PS2__)
+#include <kernel.h>
 #endif
 
 #if defined(_WIN32)
