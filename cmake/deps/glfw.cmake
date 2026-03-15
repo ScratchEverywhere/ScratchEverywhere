@@ -3,7 +3,7 @@ if(TARGET glfw)
 endif()
 
 if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
-	find_package(glfw3 OPTIONAL)
+	find_package(glfw3 QUIET)
 endif()
 
 if((SE_DEPS STREQUAL "fallback" AND NOT TARGET glfw) OR SE_DEPS STREQUAL "source")
