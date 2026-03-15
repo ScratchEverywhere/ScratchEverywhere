@@ -149,7 +149,7 @@ if(SE_AUDIO)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/${SE_AUDIO_ENGINE}.cmake")
 endif()
 
-option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ${SE_CMAKERC_DEFAULT})
+cmake_dependent_option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ${SE_CMAKERC_DEFAULT} "SE_ALLOW_CMAKERC" OFF)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
