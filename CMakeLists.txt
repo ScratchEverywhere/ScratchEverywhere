@@ -269,11 +269,7 @@ add_library(expected-lite INTERFACE)
 add_library(nonstd::expected-lite ALIAS expected-lite)
 target_include_directories(expected-lite INTERFACE "$<BUILD_INTERFACE:${expected-lite_SOURCE_DIR}>/include")
 
-CPMAddPackage(
-	NAME nlohmann_json
-	GITHUB_REPOSITORY nlohmann/json
-	VERSION 3.12.0
-)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/nlohmann_json.cmake")
 CPMAddPackage(
 	NAME poipole807_ryuJS
 	GITHUB_REPOSITORY poipole807/ryuJS
