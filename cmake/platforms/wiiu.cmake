@@ -36,12 +36,12 @@ macro(package_platform)
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/meta.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" @ONLY)
 
 	add_custom_target(package_wiiu
-		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/"
-		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu.rpx" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/scratch-wii.rpx"
-		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu.wuhb" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/scratch-wiiu.wuhb"
-		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/meta.xml"
-		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/hbl-icon.png" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle/icon.png"
-		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu.zip" --format=zip -- "${CMAKE_CURRENT_BINARY_DIR}/scratch-wiiu-bundle"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.rpx" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/${SE_OUTPUT_NAME}.rpx"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.wuhb" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/${SE_OUTPUT_NAME}.wuhb"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/meta.xml"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/hbl-icon.png" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/icon.png"
+		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.zip" --format=zip -- "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle"
 		DEPENDS scratch-everywhere
 		COMMENT "Packaging..."
 	)

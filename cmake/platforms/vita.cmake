@@ -33,8 +33,8 @@ macro(package_platform)
 		list(APPEND VITA_GFXFILES FILE "${file}" "${DEST_PATH}")
 	endforeach()
 
-	vita_create_self(scratch-vita.self scratch-everywhere)
-	vita_create_vpk(scratch-vita.vpk "NTXS00053" scratch-vita.self
+	vita_create_self("${SE_OUTPUT_NAME}.self" scratch-everywhere)
+	vita_create_vpk("${SE_OUTPUT_NAME}.vpk" "NTXS00053" "${SE_OUTPUT_NAME}.self"
 		VERSION "01.00"
 		NAME "Scratch Everywhere!"
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png

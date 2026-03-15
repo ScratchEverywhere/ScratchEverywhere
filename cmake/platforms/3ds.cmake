@@ -23,8 +23,8 @@ set(SE_MAKEROM makerom CACHE PATH "Path to makerom executable")
 set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
 
 macro(package_platform)
-	ctr_generate_smdh(OUTPUT scratch-3ds.smdh NAME "Scrach Everywhere!" AUTHOR "NateXS" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "Scratch 3 Games on your 3DS!")
-	ctr_create_3dsx(scratch-everywhere ROMFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs" SMDH "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.smdh")
+	ctr_generate_smdh(OUTPUT "${SE_OUTPUT_NAME}.smdh" NAME "Scrach Everywhere!" AUTHOR "NateXS" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "Scratch 3 Games on your 3DS!")
+	ctr_create_3dsx(scratch-everywhere ROMFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs" SMDH "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.smdh")
 
 	if(SE_BUILD_CIA)
 		set(3DS_ROMFS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
@@ -32,8 +32,8 @@ macro(package_platform)
 		add_custom_command(TARGET scratch-everywhere POST_BUILD
 			COMMAND ${SE_BANNERTOOL} makebanner -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.png" -a "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.wav" -o "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr"
 			COMMAND ${SE_BANNERTOOL} makesmdh -s "Scratch Everywhere!" -l "Scratch 3 Games on your 3DS!" -p "NateXS" -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" -o "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh"
-			COMMAND	${SE_MAKEROM} -f "cia" -o "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.cia" -elf "${CMAKE_CURRENT_BINARY_DIR}/scratch-3ds.elf" -rsf "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf" -banner "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr" -icon "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh" -target t -exefslogo
-			COMMENT "Building scratch-3ds.cia..."
+			COMMAND	${SE_MAKEROM} -f "cia" -o "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.cia" -elf "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.elf" -rsf "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf" -banner "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr" -icon "${CMAKE_CURRENT_BINARY_DIR}/icon.smdh" -target t -exefslogo
+			COMMENT "Building ${SE_OUTPUT_NAME}.cia..."
 		)
 	endif()
 endmacro()
