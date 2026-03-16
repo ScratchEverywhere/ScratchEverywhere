@@ -10,7 +10,7 @@ function(_check_dep_target DEP_NAME)
                 else()
                     add_library(deps::${DEP_NAME} ALIAS ${CANDIDATE})
                 endif()
-                
+
                 break()
             endif()
         endforeach()

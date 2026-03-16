@@ -56,5 +56,11 @@ function(_dep_source_libcurl)
 		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/3ds-curl.patch"
 		OPTIONS ${CURL_OPTIONS}
 	)
-	add_library(deps::libcurl ALIAS CURL::libcurl)
+
+	get_target_property(IS_ALIAS CURL::libcurl ALIASED_TARGET)
+	if(IS_ALIAS)
+		add_library(deps::libcurl ALIAS ${IS_ALIAS})
+	else()
+		add_library(deps::libcurl ALIAS CURL::libcurl)
+	endif()
 endfunction()
