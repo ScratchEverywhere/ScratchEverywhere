@@ -20,9 +20,9 @@ SpeechTextObjectSDL2::SpeechTextObjectSDL2(const std::string &text, int maxWidth
         pathFont.clear();
     }
 
-    font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf").c_str(), 16);
+    font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/ingame/fonts/NotoSans-Medium.ttf").c_str(), 16);
     if (!font) {
-        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf") + ": " + TTF_GetError());
+        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/ingame/fonts/NotoSans-Medium.ttf") + ": " + TTF_GetError());
     }
 
     platformSetText(wrapText());

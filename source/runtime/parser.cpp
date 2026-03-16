@@ -194,7 +194,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
             if (data.contains("opcode")) {
                 newBlock.opcode = data["opcode"].get<std::string>();
 
-                if (newBlock.opcode == "event_whenthisspriteclicked") newSprite->shouldDoSpriteClick = true;
+                if (newBlock.opcode == "event_whenthisspriteclicked" || newBlock.opcode == "event_whenstageclicked") newSprite->shouldDoSpriteClick = true;
             }
             if (data.contains("next") && !data["next"].is_null()) {
                 newBlock.next = data["next"].get<std::string>();

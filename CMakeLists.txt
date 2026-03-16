@@ -271,7 +271,6 @@ if(SE_MENU)
 	)
 else()
 	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/menu/LibSansN.ttf"
 	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
 	)
 endif()

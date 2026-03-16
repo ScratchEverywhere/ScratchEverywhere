@@ -129,8 +129,8 @@ class Render {
 
             float renderX;
             float renderY;
-            float spriteX = static_cast<int>(sprite->xPosition);
-            float spriteY = static_cast<int>(sprite->yPosition);
+            float spriteX = sprite->xPosition;
+            float spriteY = sprite->yPosition;
 
             int rotCenterX = sprite->rotationCenterX;
             int rotCenterY = sprite->rotationCenterY;
@@ -175,8 +175,8 @@ class Render {
                 renderX = (spriteX * renderScale) + (screenWidth >> 1);
                 renderY = (-spriteY * renderScale) + (screenHeight >> 1);
             } else {
-                renderX = static_cast<int>(spriteX + (screenWidth >> 1));
-                renderY = static_cast<int>(-spriteY + (screenHeight >> 1));
+                renderX = spriteX + (screenWidth >> 1);
+                renderY = -spriteY + (screenHeight >> 1);
             }
 
             sprite->renderInfo.renderX = renderX;

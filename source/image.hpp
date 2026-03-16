@@ -19,8 +19,8 @@ struct ImageSubrect {
 };
 
 struct ImageRenderParams {
-    int x = 0;
-    int y = 0;
+    float x = 0.0f;
+    float y = 0.0f;
     float scale = 1.0f;
     bool centered = true;
     float opacity = 1.0f;

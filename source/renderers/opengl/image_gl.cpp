@@ -14,8 +14,8 @@
 
 void Image_GL::render(ImageRenderParams &params) {
 
-    int x = params.x;
-    int y = params.y;
+    float x = params.x;
+    float y = params.y;
     double rotation = Math::radiansToDegrees(params.rotation);
     float scaleX = params.scale;
     const float scaleY = params.scale;

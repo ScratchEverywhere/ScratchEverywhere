@@ -225,7 +225,7 @@ void BlockExecutor::doSpriteClicking() {
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;
                     for (auto &data : sprite->blocks) {
-                        if (data.opcode == "event_whenthisspriteclicked") {
+                        if (data.opcode == "event_whenthisspriteclicked" || data.opcode == "event_whenstageclicked") {
                             executor.runBlock(data, sprite);
                         }
                     }
@@ -345,7 +345,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             const std::string drivePrefix = OS::getRomFSLocation();
             Unzip::filePath.replace(0, 6, drivePrefix);
         } else {
-            Unzip::filePath = Unzip::filePath;
+            Unzip::filePath = OS::getScratchFolderLocation() + Unzip::filePath;
         }
 
         if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
@@ -370,13 +370,15 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             const std::string drivePrefix = OS::getRomFSLocation();
             Unzip::filePath.replace(0, 6, drivePrefix);
         } else {
-            Unzip::filePath = Unzip::filePath;
+            Unzip::filePath = OS::getScratchFolderLocation() + Unzip::filePath;
         }
         if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
             Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
         }
         if (!OS::fileExists(Unzip::filePath + "/project.json"))
             Unzip::filePath = Unzip::filePath + ".sb3";
+
+        Unzip::filePath = OS::getScratchFolderLocation() + Unzip::filePath;
 
         Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
         Scratch::shouldStop = true;
