@@ -13,5 +13,4 @@ function(_dep_source_expected-lite)
 		GITHUB_REPOSITORY nonstd-lite/expected-lite
 		VERSION 0.10.0
 	)
-	add_library(deps::expected-lite ALIAS nonstd::expected-lite)
 endfunction()
