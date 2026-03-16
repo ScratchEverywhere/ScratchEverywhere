@@ -4,6 +4,7 @@ endfunction()
 
 function(_dep_source_SDL2_gfx)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
 	CPMAddPackage(
 		NAME SDL2_gfx
@@ -24,7 +25,5 @@ function(_dep_source_SDL2_gfx)
 	target_include_directories(SDL2_gfx PUBLIC
 		$<BUILD_INTERFACE:${SDL2_gfx_SOURCE_DIR}>
 	)
-	target_link_libraries(SDL2_gfx PUBLIC
-		SDL2::SDL2
-	)
+	se_add_dependency(SDL2_gfx SDL2)
 endfunction()
