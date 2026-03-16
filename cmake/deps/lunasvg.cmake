@@ -4,8 +4,10 @@ endfunction()
 
 function(_dep_source_lunasvg)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
+	
+	se_add_dependency(plutovg)
 
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/plutovg.cmake") # For the fixes we apply
 	CPMAddPackage(
 		NAME lunasvg
 		GITHUB_REPOSITORY sammycage/lunasvg
