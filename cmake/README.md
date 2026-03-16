@@ -66,7 +66,7 @@ endif()
 add_library(renderer_interface INTERFACE)
 ```
 
-The simply link dependencies to that interface.
+Then simply link dependencies to that interface.
 
 Renderers should also set `SE_WINDOWING_VALID_OPTIONS` and
 `SE_AUDIO_ENGINE_DEFAULT`.
