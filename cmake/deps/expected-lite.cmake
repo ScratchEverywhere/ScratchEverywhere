@@ -1,6 +1,8 @@
 function(_dep_system_expected-lite)
 	find_package(expected-lite CONFIG QUIET)
-	add_library(deps::expected-lite ALIAS nonstd::expected-lite)
+	if(TARGET nonstd::expected-lite)
+		add_library(deps::expected-lite ALIAS nonstd::expected-lite)
+	endif()
 endfunction()
 
 function(_dep_source_expected-lite)
