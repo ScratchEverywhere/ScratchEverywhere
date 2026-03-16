@@ -1,20 +1,13 @@
-if(TARGET SDL2::SDL2)
-	return()
-endif()
-
-if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback" AND PkgConfig_FOUND)
+function(_dep_system_SDL2)
 	if(NOT CMAKE_CROSSCOMPILING)
 		find_package(SDL2 QUIET)
 	endif()
 	if(NOT SDL2_FOUND)
 		pkg_check_modules(SDL2 IMPORTED_TARGET sdl2>=2.0.0)
-		if(SDL2_FOUND)
-			add_library(SDL2::SDL2 ALIAS PkgConfig::SDL2)
-		endif()
 	endif()
-endif()
+endfunction()
 
-if((SE_DEPS STREQUAL "fallback" AND NOT SDL2_FOUND) OR SE_DEPS STREQUAL "source")
+function(_dep_source_SDL2)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 	if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_CROSSCOMPILING)
@@ -31,11 +24,4 @@ if((SE_DEPS STREQUAL "fallback" AND NOT SDL2_FOUND) OR SE_DEPS STREQUAL "source"
 		GIT_TAG release-2.32.10
 		OPTIONS ${SDL2_OPTIONS}
 	)
-endif()
-
-if(NOT TARGET SDL2::SDL2)
-	message(
-		FATAL_ERROR
-		"Failed to get SDL2."
-	)
-endif()
+endfunction()

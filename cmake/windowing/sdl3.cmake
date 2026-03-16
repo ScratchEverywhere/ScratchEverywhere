@@ -3,5 +3,5 @@ if(TARGET windowing_interface)
 endif()
 add_library(windowing_interface INTERFACE)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/sdl3.cmake")
-target_link_libraries(windowing_interface INTERFACE SDL3::SDL3)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
+se_add_dependecy(windowing_interface SDL3)

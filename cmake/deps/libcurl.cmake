@@ -1,35 +1,28 @@
-if(TARGET CURL::libcurl)
-	return()
-endif()
-
 if(NINTENDO_WIIU)
 	add_library(libcurl INTERFACE)
-	add_library(CURL::libcurl ALIAS libcurl)
 	target_link_libraries(libcurl INTERFACE curl mbedtls mbedx509 mbedcrypto z wut m)
 	target_include_directories(libcurl INTERFACE "${DEVKITPRO}/portlibs/wiiu/include")
 endif()
 
-if((SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback") AND NOT TARGET CURL::libcurl)
-	if(SE_CLOUDVARS)
-		if(NOT SE_FORCE_CLOUDVARS_SOURCE_CURL)
-			find_package(CURL QUIET OPTIONAL_COMPONENTS WSS)
+function(_dep_system_libcurl)
+	if(SE_CLOUDVARS AND SE_FORCE_CLOUDVARS_SOURCE_CURL)
+		return()
+	endif()
 
-			if((NOT CURL_FOUND OR NOT CURL_WSS_FOUND) AND SE_PKGCONF_CURL AND PkgConfig_FOUND)
-				pkg_check_modules(curl IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
-				if(curl_FOUND)
-					add_library(CURL::libcurl ALIAS PkgConfig::curl)
-				endif()
-			endif()
+	if(SE_CLOUDVARS)
+		find_package(CURL QUIET OPTIONAL_COMPONENTS WSS)
+
+		if((NOT CURL_FOUND OR NOT CURL_WSS_FOUND) AND SE_PKGCONF_CURL AND PkgConfig_FOUND)
+			pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
+		else()
+			add_library(deps::libcurl ALIAS CURL::libcurl)
 		endif()
 	elseif(PkgConfig_FOUND)
-		pkg_check_modules(curl IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
-		if(curl_FOUND)
-			add_library(CURL::libcurl ALIAS PkgConfig::curl)
-		endif()
+		pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
 	endif()
-endif()
+endfunction()
 
-if((SE_DEPS STREQUAL "fallback" AND NOT TARGET CURL::libcurl) OR SE_DEPS STREQUAL "source")
+function(_dep_source_libcurl)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 	set(CURL_OPTIONS
@@ -63,11 +56,5 @@ if((SE_DEPS STREQUAL "fallback" AND NOT TARGET CURL::libcurl) OR SE_DEPS STREQUA
 		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/3ds-curl.patch"
 		OPTIONS ${CURL_OPTIONS}
 	)
-endif()
-
-if(NOT TARGET CURL::libcurl)
-	message(
-		FATAL_ERROR
-		"Failed to get libcurl."
-	)
-endif()
+	add_library(deps::libcurl ALIAS CURL::libcurl)
+endfunction()

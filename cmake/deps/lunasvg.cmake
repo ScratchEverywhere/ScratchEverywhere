@@ -1,12 +1,8 @@
-if(TARGET lunasvg::lunansvg)
-	return()
-endif()
-
-if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
+function(_dep_system_lunasvg)
 	find_package(lunasvg CONFIG QUIET)
-endif()
+endfunction()
 
-if((SE_DEPS STREQUAL "fallback" AND NOT TARGET lunasvg::lunasvg) OR SE_DEPS STREQUAL "source")
+function(_dep_source_lunasvg)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/plutovg.cmake") # For the fixes we apply
@@ -16,11 +12,4 @@ if((SE_DEPS STREQUAL "fallback" AND NOT TARGET lunasvg::lunasvg) OR SE_DEPS STRE
 		VERSION 3.5.0
 		OPTIONS "LUNASVG_BUILD_EXAMPLES OFF" "plutovg_FOUND ON"
 	)
-endif()
-
-if(NOT TARGET lunasvg::lunasvg)
-	message(
-		FATAL_ERROR
-		"Failed to get LunaSVG."
-	)
-endif()
+endfunction()

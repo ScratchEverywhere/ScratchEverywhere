@@ -3,8 +3,6 @@ if(TARGET audio_interface)
 endif()
 add_library(audio_interface INTERFACE)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/sdl3.cmake")
-target_link_libraries(audio_interface INTERFACE SDL3::SDL3)
-
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/sdl3_mixer.cmake")
-target_link_libraries(audio_interface INTERFACE SDL3_mixer::SDL3_mixer)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
+se_add_dependency(audio_interface SDL3)
+se_add_dependency(audio_interface SDL3_mixer)

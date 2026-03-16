@@ -1,12 +1,9 @@
-if(TARGET nonstd::expected-lite)
-	return()
-endif()
-
-if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
+function(_dep_system_expected-lite)
 	find_package(expected-lite CONFIG QUIET)
-endif()
+	add_library(deps::expected-lite ALIAS nonstd::expected-lite)
+endfunction()
 
-if((SE_DEPS STREQUAL "fallback" AND NOT TARGET nonstd::expected-lite) OR SE_DEPS STREQUAL "source")
+function(_dep_source_expected-lite)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 	CPMAddPackage(
@@ -14,11 +11,5 @@ if((SE_DEPS STREQUAL "fallback" AND NOT TARGET nonstd::expected-lite) OR SE_DEPS
 		GITHUB_REPOSITORY nonstd-lite/expected-lite
 		VERSION 0.10.0
 	)
-endif()
-
-if(NOT TARGET nonstd::expected-lite)
-	message(
-		FATAL_ERROR
-		"Failed to get expected-lite."
-	)
-endif()
+	add_library(deps::expected-lite ALIAS nonstd::expected-lite)
+endfunction()

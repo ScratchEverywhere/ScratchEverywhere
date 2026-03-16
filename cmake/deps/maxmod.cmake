@@ -1,8 +1,4 @@
-if(TARGET maxmod)
-	return()
-endif()
-
-if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
+function(_dep_system_maxmod)
 	include(CheckIncludeFile)
 	check_include_file(maxmod9.h HAVE_MAXMOD9_H)
 
@@ -10,9 +6,9 @@ if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
 		add_library(maxmod INTERFACE)
 		target_link_libraries(maxmod INTERFACE mm9)
 	endif()
-endif()
+endfunction()
 
-if((SE_DEPS STREQUAL "fallback" AND NOT TARGET maxmod) OR SE_DEPS STREQUAL "source")
+function(_dep_source_maxmod)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 	CPMAddPackage(
@@ -24,12 +20,5 @@ if((SE_DEPS STREQUAL "fallback" AND NOT TARGET maxmod) OR SE_DEPS STREQUAL "sour
 	)
 	file(GLOB MAXMOD_SOURCES "${maxmod_SOURCE_DIR}/source/ds/common" "${maxmod_SOURCE_DIR}/source/ds/arm9")
 	add_library(maxmod STATIC ${MAXMOD_SOURCES})
-	target_include_directories(maxmode PUBLIC "${maxmode_SOURCE_DIR}/include")
-endif()
-
-if(NOT TARGET maxmod)
-	message(
-		FATAL_ERROR
-		"Failed to get maxmod."
-	)
-endif()
+	target_include_directories(maxmod PUBLIC "${maxmode_SOURCE_DIR}/include")
+endfunction()

@@ -3,8 +3,8 @@ if(TARGET windowing_interface)
 endif()
 add_library(windowing_interface INTERFACE)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/sdl2.cmake")
-target_link_libraries(windowing_interface INTERFACE SDL2::SDL2)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
+se_add_dependency(windowing_interface SDL2)
 
 if(WIN32)
 	if(TARGET SDL2::SDL2main)

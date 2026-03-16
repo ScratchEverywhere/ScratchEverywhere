@@ -1,8 +1,4 @@
-if(TARGET stb)
-	return()
-endif()
-
-if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
+function(_dep_system_stb)
 	find_path(STB_IMAGE_INCLUDE_DIR 
 		NAMES stb_image.h
 		PATHS /usr/include /usr/include/stb
@@ -20,9 +16,9 @@ if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
 			${STB_TRUETYPE_INCLUDE_DIR}
 		)
 	endif()
-endif()
+endfunction()
 
-if((SE_DEPS STREQUAL "fallback" AND NOT TARGET stb) OR SE_DEPS STREQUAL "source")
+function(_dep_source_stb)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 	CPMAddPackage(
@@ -32,11 +28,4 @@ if((SE_DEPS STREQUAL "fallback" AND NOT TARGET stb) OR SE_DEPS STREQUAL "source"
 	)
 	add_library(stb INTERFACE)
 	target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
-endif()
-
-if(NOT TARGET stb)
-	message(
-		FATAL_ERROR
-		"Failed to get STB."
-	)
-endif()
+endfunction()

@@ -1,12 +1,8 @@
-if(TARGET nlohmann_json::nlohmann_json)
-	return()
-endif()
-
-if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback")
+function(_dep_system_nlohmann_json)
 	find_package(nlohmann_json QUIET)
-endif()
+endfunction()
 
-if((SE_DEPS STREQUAL "fallback" AND NOT TARGET nlohmann_json::nlohmann_json) OR SE_DEPS STREQUAL "source")
+function(_dep_source_nlohmann_json)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 	CPMAddPackage(
@@ -14,11 +10,4 @@ if((SE_DEPS STREQUAL "fallback" AND NOT TARGET nlohmann_json::nlohmann_json) OR 
 		GITHUB_REPOSITORY nlohmann/json
 		VERSION 3.12.0
 	)
-endif()
-
-if(NOT TARGET nlohmann_json::nlohmann_json)
-	message(
-		FATAL_ERROR
-		"Failed to get nlohmann_json."
-	)
-endif()
+endfunction()

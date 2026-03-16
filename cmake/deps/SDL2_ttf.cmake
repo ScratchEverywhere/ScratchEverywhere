@@ -1,8 +1,4 @@
-if(TARGET SDL2_ttf::SDL2_ttf)
-	return()
-endif()
-
-if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback" AND PkgConfig_FOUND)
+function(_dep_system_SDL2_ttf)
 	if(NOT CMAKE_CROSSCOMPILING)
 		find_package(SDL2_ttf QUIET)
 	endif()
@@ -16,9 +12,9 @@ if(SE_DEPS STREQUAL "system" OR SE_DEPS STREQUAL "fallback" AND PkgConfig_FOUND)
 			)
 		endif()
 	endif()
-endif()
+endfunction()
 
-if((SE_DEPS STREQUAL "fallback" AND NOT SDL2_ttf_FOUND) OR SE_DEPS STREQUAL "source")
+function(_dep_source_SDL2_ttf)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 	CPMAddPackage(
@@ -28,15 +24,4 @@ if((SE_DEPS STREQUAL "fallback" AND NOT SDL2_ttf_FOUND) OR SE_DEPS STREQUAL "sou
 		GIT_TAG release-2.24.0
 		OPTIONS "SDL2TTF_VENDORED ON"
 	)
-endif()
-
-if(NOT TARGET SDL2_ttf::SDL2_ttf AND TARGET SDL2_ttf::SDL2_ttf-static)
-	add_library(SDL2_ttf::SDL2_ttf ALIAS SDL2_ttf::SDL2_ttf-static)
-endif()
-
-if(NOT TARGET SDL2_ttf::SDL2_ttf)
-	message(
-		FATAL_ERROR
-		"Failed to get SDL2_ttf."
-	)
-endif()
+endfunction()
