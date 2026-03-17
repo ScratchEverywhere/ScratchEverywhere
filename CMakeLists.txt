@@ -228,7 +228,7 @@ if(SE_CMAKERC)
 	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT MSVC AND NOT APPLE AND NOT NINTENDO_DS AND NOT EMSCRIPTEN AND NOT NINTENDO_GAMECUBE AND NOT NINTENDO_WII AND NOT NINTENDO_WIIU AND NOT NINTENDO_3DS AND NOT PS4)
+if(SE_ASAN)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
