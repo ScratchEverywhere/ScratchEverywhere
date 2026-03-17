@@ -27,10 +27,11 @@ void ProjectSettings::init() {
         UnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
         UnpackProjectButton->text->setScale(0.75);
     }
+#ifdef __3DS__
     bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
-
+#endif
     penModeButton = new ButtonObject("Pen Mode: clicktoload", "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
     penModeButton->text->setColor(Math::color(0, 0, 0, 255));
     penModeButton->text->setScale(0.5);
@@ -57,11 +58,19 @@ void ProjectSettings::init() {
     changeControlsButton->buttonDown = UnpackProjectButton;
     changeControlsButton->buttonUp = ramButton;
     UnpackProjectButton->buttonUp = changeControlsButton;
+#ifdef __3DS__
     UnpackProjectButton->buttonDown = bottomScreenButton;
     bottomScreenButton->buttonDown = penModeButton;
     bottomScreenButton->buttonUp = UnpackProjectButton;
+#else
+    UnpackProjectButton->buttonDown = penModeButton;
+#endif
     penModeButton->buttonDown = debugVarsButton;
+#ifdef __3DS__
     penModeButton->buttonUp = bottomScreenButton;
+#else
+    penModeButton->buttonUp = UnpackProjectButton;
+#endif
     debugVarsButton->buttonDown = ramButton;
     debugVarsButton->buttonUp = penModeButton;
     ramButton->buttonDown = changeControlsButton;
@@ -70,7 +79,9 @@ void ProjectSettings::init() {
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
+#ifdef __3DS__
     settingsControl->buttonObjects.push_back(bottomScreenButton);
+#endif
     settingsControl->buttonObjects.push_back(penModeButton);
     settingsControl->buttonObjects.push_back(debugVarsButton);
     settingsControl->buttonObjects.push_back(ramButton);
@@ -79,11 +90,13 @@ void ProjectSettings::init() {
     settingsControl->setScrollLimits();
 
     nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+#ifdef __3DS__
     if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
         bottomScreenButton->text->setText("Bottom Screen: ON");
     } else {
         bottomScreenButton->text->setText("Bottom Screen: OFF");
     }
+#endif
 
     if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>()) {
         penModeButton->text->setText("Pen Mode: Accurate");
@@ -119,12 +132,14 @@ void ProjectSettings::render() {
         MenuManager::changeMenu(controlsMenu);
         return;
     }
+#ifdef __3DS__
     if (bottomScreenButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
         settings["settings"]["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
         SettingsManager::saveProjectSettings(settings, projectPath);
         bottomScreenButton->text->setText(bottomScreenButton->text->getText() == "Bottom Screen: ON" ? "Bottom Screen: OFF" : "Bottom Screen: ON");
     }
+#endif
     if (penModeButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
         settings["settings"]["accuratePen"] = penModeButton->text->getText() == "Pen Mode: Accurate" ? false : true;
@@ -192,10 +207,12 @@ void ProjectSettings::cleanup() {
         delete UnpackProjectButton;
         UnpackProjectButton = nullptr;
     }
+#ifdef __3DS__
     if (bottomScreenButton != nullptr) {
         delete bottomScreenButton;
         bottomScreenButton = nullptr;
     }
+#endif
     if (settingsControl != nullptr) {
         delete settingsControl;
         settingsControl = nullptr;
