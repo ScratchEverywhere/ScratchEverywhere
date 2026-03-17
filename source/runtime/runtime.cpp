@@ -120,10 +120,14 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
     }
 #endif
 
+#ifndef PLAYDATE
     const bool checkFPS = Render::checkFramerate();
     if (Scratch::turbo) forceRedraw = false;
 
     if (!forceRedraw || checkFPS) {
+#else
+    if (true) {
+#endif
         forceRedraw = false;
 
         float currentFPS;
@@ -136,7 +140,11 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
         Timer scriptTimer(false);
         if (debugVars) scriptTimer.start();
 
+#ifndef PLAYDATE
         if (checkFPS) Input::getInput();
+#else
+        Input::getInput();
+#endif
         BlockExecutor::runCloneStarts();
         BlockExecutor::runBroadcasts();
         BlockExecutor::runBackdrops();
@@ -152,7 +160,11 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
         if (speechManager) {
             speechManager->update();
         }
+#ifndef PLAYDATE
         if (checkFPS) {
+#else
+        if (true) {
+#endif
             Render::renderSprites();
             Scratch::flushCostumeImages();
 
@@ -256,7 +268,7 @@ void Scratch::cleanupScratchProject() {
 void Scratch::greenFlagClicked() {
     stopClicked();
     answer.clear();
-    BlockExecutor::timer.start();
+    BlockExecutor::timer->start();
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
 }
 

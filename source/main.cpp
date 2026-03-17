@@ -21,6 +21,10 @@
 #include <emscripten_browser_file.h>
 #endif
 
+#ifdef PLAYDATE
+#include <pdcpp/pdnewlib.h>
+#endif
+
 static void exitApp() {
     Render::deInit();
 }
@@ -31,8 +35,41 @@ static bool initApp() {
     if (!Render::Init()) {
         return false;
     }
+    BlockExecutor::Init();
     return true;
 }
+
+#ifdef PLAYDATE
+PlaydateAPI *pd = nullptr;
+
+static int pdUpdate(void *userdata) {
+    Scratch::stepScratchProject(); // TODO: handle exiting
+    return 1;
+}
+
+extern "C" {
+int eventHandler(PlaydateAPI *pdIn, PDSystemEvent event, uint32_t arg) {
+    eventHandler_pdnewlib(pdIn, event, arg);
+
+    pd = pdIn;
+
+    if (event == kEventInit) {
+        initApp(); // TODO: error handling
+        srand(pd->system->getCurrentTimeMilliseconds());
+
+        Unzip::load(); // TODO: error handling and menu
+        Scratch::initializeScratchProject();
+
+        pd->display->setRefreshRate(Scratch::turbo ? 0 : Scratch::FPS);
+        pd->system->setUpdateCallback(pdUpdate, nullptr);
+    } else if (event == kEventTerminate) {
+        exitApp();
+    }
+
+    return 0;
+}
+}
+#else
 
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
@@ -143,3 +180,4 @@ int main(int argc, char **argv) {
     exitApp();
     return 0;
 }
+#endif
