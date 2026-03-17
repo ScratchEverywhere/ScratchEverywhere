@@ -174,13 +174,13 @@ void ProjectSettings::render() {
         }
 
         unpackMenu.cleanup();
-        ProjectMenu *projectMenu = new ProjectMenu();
+        ProjectMenu *projectMenu = new ProjectMenu(projectPath);
         MenuManager::changeMenu(projectMenu);
         return;
     }
 
     if (backButton->isPressed({"b", "y"})) {
-        ProjectMenu *projectMenu = new ProjectMenu();
+        ProjectMenu *projectMenu = new ProjectMenu(projectPath);
         MenuManager::changeMenu(projectMenu);
         return;
     }
