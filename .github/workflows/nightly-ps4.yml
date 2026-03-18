@@ -4,6 +4,11 @@ on:
   push:
     paths:
       - CMakeLists.txt
+      - cmake/platforms/ps4.cmake
+      - cmake/renderers/sdl2.cmake
+      - cmake/windowing/sdl2.cmake
+      - cmake/audio/sdl2.cmake
+      - cmake/deps/*
       - source/runtime/**
       - source/renderers/sdl2/**
       - source/*

@@ -17,8 +17,8 @@ const uint32_t Image_C2D::rgbaToAgbr(uint32_t px) {
 
 void Image_C2D::render(ImageRenderParams &params) {
 
-    int x = params.x;
-    int y = params.y;
+    float x = params.x;
+    float y = params.y;
     float scaleX = params.scale;
     const float scaleY = params.scale;
     const int &brightness = params.brightness;

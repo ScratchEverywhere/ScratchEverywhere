@@ -7,8 +7,8 @@
 
 void Image_SDL2::render(ImageRenderParams &params) {
 
-    const int &x = params.x;
-    const int &y = params.y;
+    const float &x = params.x;
+    const float &y = params.y;
     const int &brightness = params.brightness;
     const double rotation = Math::radiansToDegrees(params.rotation);
     const float &scale = params.scale;

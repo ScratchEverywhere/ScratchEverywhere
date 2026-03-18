@@ -63,3 +63,5 @@ SCRATCH_BLOCK_NOP(event, whenkeypressed)
 SCRATCH_BLOCK_NOP(event, whenbroadcastreceived)
 
 SCRATCH_BLOCK_NOP(event, whenthisspriteclicked)
+
+SCRATCH_BLOCK_NOP(event, whenstageclicked)
