@@ -97,6 +97,8 @@ inline std::string getFilesystemRootPrefix() {
     return "";
 #elif defined(VITA)
     return "ux0:";
+#elif defined(__PS2__)
+    return "mc0:/";
 #elif defined(__PS4__)
     return "";
 #elif defined(__3DS__)
