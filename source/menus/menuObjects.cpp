@@ -209,10 +209,18 @@ void ControlObject::input() {
 
     ButtonObject *newSelection = nullptr;
 
+    if (Input::keyHeldDuration["any"] == 1) mousePriority = false;
     if (Input::keyHeldDuration["up arrow"] == 1 || Input::keyHeldDuration["u"] == 1) newSelection = selectedObject->buttonUp;
     else if (Input::keyHeldDuration["down arrow"] == 1 || Input::keyHeldDuration["h"] == 1) newSelection = selectedObject->buttonDown;
     else if (Input::keyHeldDuration["left arrow"] == 1 || Input::keyHeldDuration["g"] == 1) newSelection = selectedObject->buttonLeft;
     else if (Input::keyHeldDuration["right arrow"] == 1 || Input::keyHeldDuration["j"] == 1) newSelection = selectedObject->buttonRight;
+    else if (enableScrolling && Input::keyHeldDuration["r"] == 1) {
+        this->y += REFERENCE_HEIGHT;
+        selectedObject = getClosestObject();
+    } else if (enableScrolling && Input::keyHeldDuration["l"] == 1) {
+        this->y -= REFERENCE_HEIGHT;
+        selectedObject = getClosestObject();
+    }
 
     if (newSelection != nullptr) {
         selectedObject->isSelected = false;
@@ -220,7 +228,7 @@ void ControlObject::input() {
         selectedObject->isSelected = true;
     } else {
         for (ButtonObject *button : buttonObjects) {
-            if (button->isTouchingMouse()) {
+            if (mousePriority && button->isTouchingMouse()) {
                 selectedObject->isSelected = false;
                 selectedObject = button;
                 selectedObject->isSelected = true;
@@ -268,12 +276,16 @@ void ControlObject::setScrollLimits() {
 void ControlObject::render(double xPos, double yPos) {
     if (selectedObject == nullptr) return;
     const float lerpSpeed = 0.1f;
+    std::vector<int> touchPos = Input::getTouchPosition();
+
+    if (!lastFrameTouchPos.empty() && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
+        mousePriority = true;
+    }
 
     if (enableScrolling) {
-
         if (Input::mousePointer.isPressed) {
             // Touch scrolling
-            std::vector<int> touchPos = Input::getTouchPosition();
+
             if (!lastFrameTouchPos.empty()) {
                 float scrollAmount = lastFrameTouchPos[1] - touchPos[1];
                 scrollAmount /= guiScale;
@@ -281,7 +293,6 @@ void ControlObject::render(double xPos, double yPos) {
                 if (std::abs(scrollAmount) > 3)
                     selectedObject = getClosestObject();
             }
-            lastFrameTouchPos = touchPos;
         } else {
             lastFrameTouchPos.clear();
 
@@ -352,6 +363,8 @@ void ControlObject::render(double xPos, double yPos) {
     Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), rightX, topY, 33, 34, 36, 255);    // Top-right
     Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), leftX, bottomY, 33, 34, 36, 255);  // Bottom-left
     Render::drawBox(6 * getScaleFactor(), 6 * getScaleFactor(), rightX, bottomY, 33, 34, 36, 255); // Bottom-right
+
+    if (touchPos[0] != 0 && touchPos[1] != 0) lastFrameTouchPos = touchPos;
 }
 
 ControlObject::~ControlObject() {

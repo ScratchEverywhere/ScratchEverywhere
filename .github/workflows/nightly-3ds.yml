@@ -4,6 +4,11 @@ on:
   push:
     paths:
       - CMakeLists.txt
+      - cmake/platforms/3ds.cmake
+      - cmake/renderers/citro2d.cmake
+      - cmake/windowing/3ds.cmake
+      - cmake/audio/sdl3.cmake
+      - cmake/deps/*
       - source/runtime/**
       - source/renderers/citro2d/**
       - source/*

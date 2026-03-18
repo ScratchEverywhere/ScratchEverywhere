@@ -133,12 +133,13 @@ class ButtonObject : public MenuObject {
 class ControlObject : public MenuObject {
   private:
     Timer animationTimer;
-    int cameraX = 0;
-    int cameraY = 0;
     int minY, maxY;
     std::vector<int> lastFrameTouchPos;
+    bool mousePriority = false;
 
   public:
+    int cameraX = 0;
+    int cameraY = 0;
     std::vector<ButtonObject *> buttonObjects;
     ButtonObject *selectedObject = nullptr;
     bool enableScrolling = false;
