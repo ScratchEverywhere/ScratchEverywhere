@@ -207,7 +207,7 @@ endif()
 
 add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
 set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
-if(DEFINED SE_PLATFORM_DEFINTIONS)
+if(DEFINED SE_PLATFORM_DEFINITIONS)
 	target_compile_definitions(scratch-everywhere PRIVATE ${SE_PLATFORM_DEFINITIONS})
 endif()
 
