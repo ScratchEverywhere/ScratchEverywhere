@@ -126,7 +126,7 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
-#if defined(WEBOS) || defined(__PSP__) || defined(__PS4__)
+#if defined(WEBOS) || defined(__PSP__) || defined(__PS4__) || defined(__PS2__)
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
 #else
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
