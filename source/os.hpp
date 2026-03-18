@@ -172,6 +172,8 @@ inline std::string getPlatform() {
     return "PSP";
 #elif defined(WEBOS)
     return "webOS TV";
+#elif defined(__PS2__)
+    return "PS2";
 #else
     return "Unknown";
 #endif
