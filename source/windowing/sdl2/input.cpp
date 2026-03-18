@@ -241,7 +241,7 @@ void Input::getInput() {
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {
-#if defined(__WIIU__) || defined(__OGC__) || defined(__PS4__)
+#if defined(__WIIU__) || defined(__OGC__) || defined(__PS4__) || defined(__PS2__)
 // doesn't work on these platforms....
 #else
     std::unique_ptr<TextObject> text = createTextObject(std::string(hintText), 0, 0);

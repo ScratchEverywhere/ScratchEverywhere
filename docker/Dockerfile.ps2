@@ -15,4 +15,4 @@ RUN cmake -B build-ps2 -S . -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DCMAKE_
 FROM scratch AS exporter
 
 # TODO: change the .elf with whatever the PS2 expects later
-COPY --from=main_builder /app/build-ps2/scratch-ps2 /
+COPY --from=main_builder /app/build-ps2/scratch-ps2.elf /

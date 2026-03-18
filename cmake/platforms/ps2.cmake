@@ -24,5 +24,8 @@ add_compile_options(-fno-pic -fno-pie -mxgot -G0)
 add_link_options(-fno-pic -fno-pie)
 
 macro(package_platform)
-    # TODO: uh, do it :nategrin:
+    set_target_properties(scratch-everywhere PROPERTIES 
+        OUTPUT_NAME "${SE_OUTPUT_NAME}"
+        SUFFIX ".elf"
+    )
 endmacro()
