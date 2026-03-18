@@ -257,7 +257,7 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(WEBOS)
     return prefix + "projects/";
 #elif defined(__PS2__)
-    return prefix + "/scratch-ps2/";
+    return "mc0://scratch-ps2/";
 #else
     return "scratch-everywhere/";
 #endif
