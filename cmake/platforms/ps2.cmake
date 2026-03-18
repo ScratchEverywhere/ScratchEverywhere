@@ -18,6 +18,8 @@ set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
+set(SE_PLATFORM_DEFINITIONS "__PS2__")
+
 macro(package_platform)
     # TODO: uh, do it :nategrin:
 endmacro()

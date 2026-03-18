@@ -12,6 +12,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC and a few other things
 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
+
 include(CMakeDependentOption)
 
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
@@ -156,7 +158,6 @@ if(NOT DEFINED SE_CMAKERC_DEFAULT)
 endif()
 cmake_dependent_option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ${SE_CMAKERC_DEFAULT} "SE_ALLOW_CMAKERC" OFF)
 
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
