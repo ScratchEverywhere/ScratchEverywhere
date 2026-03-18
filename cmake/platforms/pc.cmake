@@ -23,6 +23,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DE
 else()
 	set(SE_HAS_CONTROLLER TRUE)
 endif()
+
 if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT CMAKE_CROSSCOMPILING)
 	set(SE_ASAN ON)
+endif()
+
+if(NOT BUILD_SHARED_LIBS AND MINGW)
+	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()
