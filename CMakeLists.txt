@@ -232,6 +232,13 @@ if(SE_ASAN)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
 
+if(SE_STATIC_LIBGCC)
+	target_link_options(scratch-everywhere PRIVATE "-static-libgcc")
+endif()
+if(SE_STATIC_LIBSTDCPP)
+	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++")
+endif()
+
 if(NOT BUILD_SHARED_LIBS AND MINGW)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
 endif()

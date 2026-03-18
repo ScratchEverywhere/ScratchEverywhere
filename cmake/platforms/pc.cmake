@@ -29,5 +29,6 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT CMAKE_CROSSCOMPILING)
 endif()
 
 if(NOT BUILD_SHARED_LIBS AND MINGW)
-	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
+	set(SE_STATIC_LIBGCC TRUE)
+	set(SE_STATIC_LIBSTDCPP TRUE)
 endif()
