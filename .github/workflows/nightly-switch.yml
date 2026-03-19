@@ -11,6 +11,8 @@ on:
       - cmake/deps/*
       - source/runtime/**
       - source/renderers/sdl2/**
+      - source/platforms/
+      - source/platforms/switch/**
       - source/*
       - source/menus/**
       - source/audio/sdl2/**
