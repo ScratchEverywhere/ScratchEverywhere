@@ -210,7 +210,7 @@ void Scratch::cleanupScratchProject() {
     Render::listMonitors.clear();
 
     TextObject::cleanupText();
-    Render::visibleVariables.clear();
+    Render::monitors.clear();
     Render::penClear();
 
     if (Render::getSpeechManager())
@@ -876,7 +876,7 @@ void Scratch::createDebugMonitor(const std::string &name, int x, int y) {
     newMonitor.spriteName = stageSprite->name;
     newMonitor.mode = "67"; // i dont think this matters
 
-    Render::visibleVariables[newMonitor.id] = newMonitor;
+    Render::monitors[newMonitor.id] = newMonitor;
 }
 
 void Scratch::toggleDebugVars(const bool enabled) {
@@ -889,9 +889,9 @@ void Scratch::toggleDebugVars(const bool enabled) {
         stageSprite->variables.erase("SE!__FPS");
         stageSprite->variables.erase("SE!__ScriptTime");
         stageSprite->variables.erase("SE!__RenderTime");
-        Render::visibleVariables.erase("SE!__FPS");
-        Render::visibleVariables.erase("SE!__ScriptTime");
-        Render::visibleVariables.erase("SE!__RenderTime");
+        Render::monitors.erase("SE!__FPS");
+        Render::monitors.erase("SE!__ScriptTime");
+        Render::monitors.erase("SE!__RenderTime");
         debugVars = false;
     }
 }
