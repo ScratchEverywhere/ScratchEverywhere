@@ -122,7 +122,7 @@ void Image_GL2D::renderNineslice(double xPos, double yPos, double width, double 
 ImageData Image_GL2D::getPixels(ImageSubrect rect) {
     ImageData data;
 
-    if (textureID < 0 || texture.vramPtr == nullptr || paletteData == nullptr) {
+    if (textureID < 0 || paletteData == nullptr) {
         data.format = IMAGE_FORMAT_NONE;
         return data;
     }
@@ -144,11 +144,15 @@ ImageData Image_GL2D::getPixels(ImageSubrect rect) {
     data.height = targetHeight;
     data.format = IMAGE_FORMAT_RGBA32;
     data.pitch = targetWidth * 4;
-    uint8_t *outputPixels = new uint8_t[targetWidth * targetHeight * 4];
+    data.pixels = new uint8_t[targetWidth * targetHeight * 4];
+
+    uint8_t *output = static_cast<uint8_t *>(data.pixels);
+
+    const uint8_t *vramData = (const uint8_t *)glGetTexturePointer(textureID);
 
     const int pow2Width = Math::next_pow2(imgData.width);
-    const uint8_t *vramData = (const uint8_t *)texture.vramPtr;
 
+    // 5. De-quantize VRAM (PAL8 -> RGBA32)
     for (int y = 0; y < targetHeight; ++y) {
         for (int x = 0; x < targetWidth; ++x) {
             int srcX = xStart + x;
@@ -156,28 +160,21 @@ ImageData Image_GL2D::getPixels(ImageSubrect rect) {
 
             uint8_t index = vramData[srcY * pow2Width + srcX];
 
-            uint8_t r, g, b, a;
+            int dstIdx = (y * targetWidth + x) * 4;
 
             if (index == 0) {
-                r = g = b = a = 0;
+                std::memset(&output[dstIdx], 0, 4);
             } else {
                 uint16_t color = paletteData[index];
 
-                r = (color & 0x1F) << 3;
-                g = ((color >> 5) & 0x1F) << 3;
-                b = ((color >> 10) & 0x1F) << 3;
-                a = 255;
+                output[dstIdx + 0] = (color & 0x1F) << 3;         // R
+                output[dstIdx + 1] = ((color >> 5) & 0x1F) << 3;  // G
+                output[dstIdx + 2] = ((color >> 10) & 0x1F) << 3; // B
+                output[dstIdx + 3] = 255;                         // A
             }
-
-            int dstIdx = (y * targetWidth + x) * 4;
-            outputPixels[dstIdx + 0] = r;
-            outputPixels[dstIdx + 1] = g;
-            outputPixels[dstIdx + 2] = b;
-            outputPixels[dstIdx + 3] = a;
         }
     }
 
-    data.pixels = outputPixels;
     return data;
 }
 
