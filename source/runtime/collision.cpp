@@ -6,7 +6,7 @@
 #include "sprite.hpp"
 #include <cmath>
 
-Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFacter) {
+Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Failed to find image for sprite: " + sprite->name);
@@ -15,9 +15,9 @@ Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFacter) {
     const ImageData imgData = imgFind->second->getPixels();
 
     Bitmask *bitmask = new Bitmask;
-    bitmask->width = imgData.width / scaleFacter;
-    bitmask->height = imgData.height / scaleFacter;
-    bitmask->scaleFactor = (float)scaleFacter / imgData.scale;
+    bitmask->width = imgData.width / scaleFactor;
+    bitmask->height = imgData.height / scaleFactor;
+    bitmask->scaleFactor = (float)scaleFactor / imgData.scale;
     const unsigned int rowWords = (bitmask->width + 31) / 32;
     bitmask->bits.resize(rowWords * bitmask->height, 0);
 
