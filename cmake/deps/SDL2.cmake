@@ -1,3 +1,9 @@
+if(EMSCRIPTEN)
+	add_library(SDL2 INTERFACE)
+	target_compile_options(SDL2 INTERFACE "-sUSE_SDL=2")
+	target_link_options(SDL2 INTERFACE "-sUSE_SDL=2")
+endif()
+
 function(_dep_system_SDL2)
 	if(NOT CMAKE_CROSSCOMPILING)
 		find_package(SDL2 QUIET)

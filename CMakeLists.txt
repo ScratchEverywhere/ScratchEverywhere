@@ -189,7 +189,9 @@ endforeach()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
-set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
+set(PLATFORM_DIRS ${SE_PLATFORM})
+list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_MENU)
 	list(APPEND SOURCES source/menus)

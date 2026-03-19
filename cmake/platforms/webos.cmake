@@ -11,6 +11,7 @@ set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD ON)
 
 set(SE_PLATFORM_DEFINITIONS "WEBOS")
+set(SE_PLATFORM "pc") # i dont *think* webOS would need a different implementation?
 
 set(SE_HAS_THREADS ON)
 
