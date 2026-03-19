@@ -5,6 +5,7 @@
 #include "runtime.hpp"
 #include "sprite.hpp"
 #include <cmath>
+#include <endian.h>
 
 Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
@@ -29,7 +30,11 @@ Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     for (int y = 0; y < bitmask->height; y++) {
         for (int x = 0; x < bitmask->width; x++) {
             const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
-            const uint8_t alpha = (px >> 24) & 0xFF; // TODO: Support other image formats (this only works with RGBA32), might also be little endian only
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+            const uint8_t alpha = px & 0xFF;
+#else
+            const uint8_t alpha = (px >> 24) & 0xFF;
+#endif
             if (alpha > 0) {
                 bitmask->bits[y * rowWords + (x / 32)] |= (1 << (x % 32));
 
