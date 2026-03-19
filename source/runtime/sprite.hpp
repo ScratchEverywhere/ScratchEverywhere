@@ -204,7 +204,11 @@ struct Costume {
     double rotationCenterX;
     double rotationCenterY;
 
-    Bitmask bitmask;
+    Bitmask *bitmask = nullptr;
+
+    ~Costume() {
+        if (bitmask != nullptr) delete bitmask;
+    }
 };
 
 struct Comment {
