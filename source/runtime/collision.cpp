@@ -61,7 +61,7 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y) {
         return false;
     }
 
-    const float rad = Math::degreesToRadians(-(sprite->rotation - 90));
+    const float rad = sprite->rotationStyle == Sprite::RotationStyle::NONE ? 0 : Math::degreesToRadians(-(sprite->rotation - 90));
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
 
@@ -107,13 +107,13 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
     if (overlapMinX > overlapMaxX || overlapMinY > overlapMaxY) return false;
 
-    const float radA = Math::degreesToRadians(-(a->rotation - 90));
+    const float radA = a->rotationStyle == Sprite::RotationStyle::NONE ? 0 : Math::degreesToRadians(-(a->rotation - 90));
     const float sinA = std::sin(radA);
     const float cosA = std::cos(radA);
     const float spriteScaleA = a->size / 100.0f;
     const float invScaleA = (1.0f / bitmaskA->scaleFactor);
 
-    const float radB = Math::degreesToRadians(-(b->rotation - 90));
+    const float radB = b->rotationStyle == Sprite::RotationStyle::NONE ? 0 : Math::degreesToRadians(-(b->rotation - 90));
     const float sinB = std::sin(radB);
     const float cosB = std::cos(radB);
     const float spriteScaleB = b->size / 100.0f;
@@ -169,7 +169,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
         return false;
     }
 
-    const float rad = Math::degreesToRadians(-(sprite->rotation - 90));
+    const float rad = sprite->rotationStyle == Sprite::RotationStyle::NONE ? 0 : Math::degreesToRadians(-(sprite->rotation - 90));
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
     const float spriteScale = sprite->size / 100.0f;
