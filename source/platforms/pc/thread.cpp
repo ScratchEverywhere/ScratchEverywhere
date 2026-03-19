@@ -46,7 +46,7 @@ unsigned int SE_Thread::getCurrentThreadId() {
 
 struct SE_Mutex::Impl {
 #ifdef _WIN32
-    HANDLE *mtx;
+    CRITICAL_SECTION mtx;
 #else
     std::mutex mtx;
 #endif
@@ -57,22 +57,27 @@ SE_Mutex::SE_Mutex() {
 }
 
 void SE_Mutex::init() {
-    if (!impl) impl = new Impl;
+    if (!impl) {
+        impl = new Impl;
 #ifdef _WIN32
-    impl->mtx = CreateEvent(nullptr, FALSE, TRUE, nullptr);
+        InitializeCriticalSection(&impl->mtx);
 #endif
+    }
 }
 
 SE_Mutex::~SE_Mutex() {
+    if (impl) {
 #ifdef _WIN32
-    CloseHandle(impl->mtx);
+        DeleteCriticalSection(&impl->mtx);
 #endif
-    delete impl;
+        delete impl;
+        impl = nullptr;
+    }
 }
 
 void SE_Mutex::lock() {
 #ifdef _WIN32
-    WaitForSingleObject(impl->mtx, INFINITE);
+    EnterCriticalSection(&impl->mtx);
 #else
     impl->mtx.lock();
 #endif
@@ -80,7 +85,7 @@ void SE_Mutex::lock() {
 
 void SE_Mutex::unlock() {
 #ifdef _WIN32
-    SetEvent(impl->mtx);
+    LeaveCriticalSection(&impl->mtx);
 #else
     impl->mtx.unlock();
 #endif
@@ -88,9 +93,7 @@ void SE_Mutex::unlock() {
 
 bool SE_Mutex::tryLock() {
 #ifdef _WIN32
-    // idk how to do this win the Windows API
-    SetEvent(impl->mtx);
-    return true;
+    return TryEnterCriticalSection(&impl->mtx) != 0;
 #else
     return impl->mtx.try_lock();
 #endif
