@@ -1,5 +1,6 @@
 #include "runtime.hpp"
 #include "blockExecutor.hpp"
+#include "collision.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
@@ -429,54 +430,8 @@ inline bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
 }
 
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
-    // Get collision points of the current sprite
-
     if (collisionType == "mouse") {
-        // Define a small square centered on the mouse pointer
-        double halfWidth = 0.5;
-        double halfHeight = 0.5;
-
-        std::vector<std::pair<double, double>> mousePoints = {
-            {Input::mousePointer.x - halfWidth, Input::mousePointer.y - halfHeight}, // Top-left
-            {Input::mousePointer.x + halfWidth, Input::mousePointer.y - halfHeight}, // Top-right
-            {Input::mousePointer.x + halfWidth, Input::mousePointer.y + halfHeight}, // Bottom-right
-            {Input::mousePointer.x - halfWidth, Input::mousePointer.y + halfHeight}  // Bottom-left
-        };
-
-        bool collision = true;
-
-        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
-
-        for (int i = 0; i < 4; i++) {
-            auto edge1 = std::pair{
-                currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
-                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
-            auto edge2 = std::pair{
-                mousePoints[(i + 1) % 4].first - mousePoints[i].first,
-                mousePoints[(i + 1) % 4].second - mousePoints[i].second};
-
-            double axis1X = -edge1.second, axis1Y = edge1.first;
-            double axis2X = -edge2.second, axis2Y = edge2.first;
-
-            double len1 = sqrt(axis1X * axis1X + axis1Y * axis1Y);
-            double len2 = sqrt(axis2X * axis2X + axis2Y * axis2Y);
-            if (len1 > 0) {
-                axis1X /= len1;
-                axis1Y /= len1;
-            }
-            if (len2 > 0) {
-                axis2X /= len2;
-                axis2Y /= len2;
-            }
-
-            if (isSeparated(currentSpritePoints, mousePoints, axis1X, axis1Y) ||
-                isSeparated(currentSpritePoints, mousePoints, axis2X, axis2Y)) {
-                collision = false;
-                break;
-            }
-        }
-
-        return collision;
+        return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
     } else if (collisionType == "edge") {
         double halfWidth = Scratch::projectWidth / 2.0;
         double halfHeight = Scratch::projectHeight / 2.0;

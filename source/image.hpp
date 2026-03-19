@@ -87,6 +87,9 @@ class Image {
     virtual ~Image();
 
     virtual ImageData getPixels(ImageSubrect rect);
+    inline ImageData getPixels() {
+        return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});
+    }
 
     int getWidth();
     int getHeight();
