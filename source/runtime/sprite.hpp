@@ -180,6 +180,8 @@ struct Sound {
 };
 
 struct Bitmask {
+    float maxRadius = 0;
+
     unsigned int width = 0;
     unsigned int height = 0;
     float scaleFactor = 0;

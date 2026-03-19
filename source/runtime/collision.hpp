@@ -4,6 +4,6 @@
 #include <image.hpp>
 
 namespace collision {
-Bitmask generateBitmask(Image &image, unsigned int scaleFacter = 1);
+Bitmask generateBitmask(Sprite *sprite, unsigned int scaleFacter = 1);
 bool pointInSprite(Sprite *sprite, float x, float y);
 } // namespace collision
