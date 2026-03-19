@@ -120,13 +120,64 @@ void Image_GL2D::renderNineslice(double xPos, double yPos, double width, double 
 }
 
 ImageData Image_GL2D::getPixels(ImageSubrect rect) {
-    // currently unsupported
     ImageData data;
-    data.format = IMAGE_FORMAT_NONE;
-    data.width = 0;
-    data.height = 0;
-    data.pitch = 0;
-    data.pixels = nullptr;
+
+    if (textureID < 0 || texture.vramPtr == nullptr || paletteData == nullptr) {
+        data.format = IMAGE_FORMAT_NONE;
+        return data;
+    }
+
+    int xStart = std::max(0, rect.x);
+    int yStart = std::max(0, rect.y);
+    int xEnd = std::min((int)imgData.width, rect.x + rect.w);
+    int yEnd = std::min((int)imgData.height, rect.y + rect.h);
+
+    int targetWidth = xEnd - xStart;
+    int targetHeight = yEnd - yStart;
+
+    if (targetWidth <= 0 || targetHeight <= 0) {
+        data.format = IMAGE_FORMAT_NONE;
+        return data;
+    }
+
+    data.width = targetWidth;
+    data.height = targetHeight;
+    data.format = IMAGE_FORMAT_RGBA32;
+    data.pitch = targetWidth * 4;
+    uint8_t *outputPixels = new uint8_t[targetWidth * targetHeight * 4];
+
+    const int pow2Width = Math::next_pow2(imgData.width);
+    const uint8_t *vramData = (const uint8_t *)texture.vramPtr;
+
+    for (int y = 0; y < targetHeight; ++y) {
+        for (int x = 0; x < targetWidth; ++x) {
+            int srcX = xStart + x;
+            int srcY = yStart + y;
+
+            uint8_t index = vramData[srcY * pow2Width + srcX];
+
+            uint8_t r, g, b, a;
+
+            if (index == 0) {
+                r = g = b = a = 0;
+            } else {
+                uint16_t color = paletteData[index];
+
+                r = (color & 0x1F) << 3;
+                g = ((color >> 5) & 0x1F) << 3;
+                b = ((color >> 10) & 0x1F) << 3;
+                a = 255;
+            }
+
+            int dstIdx = (y * targetWidth + x) * 4;
+            outputPixels[dstIdx + 0] = r;
+            outputPixels[dstIdx + 1] = g;
+            outputPixels[dstIdx + 2] = b;
+            outputPixels[dstIdx + 3] = a;
+        }
+    }
+
+    data.pixels = outputPixels;
     return data;
 }
 
