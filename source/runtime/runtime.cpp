@@ -406,46 +406,25 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
     return collisionPoints;
 }
 
-inline bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
-                        const std::vector<std::pair<double, double>> &poly2,
-                        double axisX, double axisY) {
-    double min1 = 1e9, max1 = -1e9;
-    double min2 = 1e9, max2 = -1e9;
-
-    // Project poly1 onto axis
-    for (const auto &point : poly1) {
-        double projection = point.first * axisX + point.second * axisY;
-        min1 = std::min(min1, projection);
-        max1 = std::max(max1, projection);
-    }
-
-    // Project poly2 onto axis
-    for (const auto &point : poly2) {
-        double projection = point.first * axisX + point.second * axisY;
-        min2 = std::min(min2, projection);
-        max2 = std::max(max2, projection);
-    }
-
-    return max1 < min2 || max2 < min1;
-}
-
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
     if (collisionType == "mouse") {
         return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
     } else if (collisionType == "edge") {
-        double halfWidth = Scratch::projectWidth / 2.0;
-        double halfHeight = Scratch::projectHeight / 2.0;
-
-        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
-
-        for (const auto &point : currentSpritePoints) {
-            if (point.first <= -halfWidth || point.first >= halfWidth ||
-                point.second <= -halfHeight || point.second >= halfHeight)
-                return true;
+        return collision::spriteOnEdge(currentSprite);
+    } else if (collisionType == "sprite") {
+        if (targetSprite == nullptr && !targetName.empty()) {
+            for (Sprite *sprite : sprites) {
+                if (sprite->name == targetName && sprite->visible) {
+                    targetSprite = sprite;
+                    break;
+                }
+            }
         }
 
-        return false;
-    } else if (collisionType == "sprite") {
+        if (targetSprite == nullptr || !targetSprite->visible || !currentSprite->visible) {
+            return false;
+        }
+
         return collision::spriteInSprite(currentSprite, targetSprite);
     } else {
         Log::logWarning("Invalid collision type " + collisionType);

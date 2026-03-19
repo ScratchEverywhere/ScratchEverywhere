@@ -149,3 +149,57 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
     return false;
 }
+
+bool collision::spriteOnEdge(Sprite *sprite) {
+    Bitmask *&bitmask = sprite->costumes[sprite->currentCostume].bitmask;
+    if (bitmask == nullptr) {
+        bitmask = generateBitmask(sprite);
+        if (bitmask == nullptr) return false;
+    }
+
+    const float halfWidth = Scratch::projectWidth / 2.0f;
+    const float halfHeight = Scratch::projectHeight / 2.0f;
+
+    const float scaledRadius = bitmask->maxRadius * (sprite->size / 100.0f);
+
+    if (sprite->xPosition - scaledRadius > -halfWidth &&
+        sprite->xPosition + scaledRadius < halfWidth &&
+        sprite->yPosition - scaledRadius > -halfHeight &&
+        sprite->yPosition + scaledRadius < halfHeight) {
+        return false;
+    }
+
+    const float rad = Math::degreesToRadians(-(sprite->rotation - 90));
+    const float s_sin = std::sin(rad);
+    const float s_cos = std::cos(rad);
+    const float spriteScale = sprite->size / 100.0f;
+    const float invScale = 1.0f / bitmask->scaleFactor;
+
+    const float minX = std::floor(sprite->xPosition - scaledRadius);
+    const float maxX = std::ceil(sprite->xPosition + scaledRadius);
+    const float minY = std::floor(sprite->yPosition - scaledRadius);
+    const float maxY = std::ceil(sprite->yPosition + scaledRadius);
+
+    for (float y = minY; y <= maxY; y++) {
+        for (float x = minX; x <= maxX; x++) {
+            if (x > -halfWidth && x < halfWidth && y > -halfHeight && y < halfHeight) continue;
+
+            const float dx = x - sprite->xPosition;
+            const float dy = y - sprite->yPosition;
+
+            if ((dx * dx + dy * dy) > (scaledRadius * scaledRadius)) continue;
+
+            const float localX = (dx * s_cos - (-dy) * s_sin) / spriteScale;
+            const float localY = (dx * s_sin + (-dy) * s_cos) / spriteScale;
+
+            const float finalX = std::round((localX + sprite->rotationCenterX) * invScale);
+            const float finalY = std::round((localY + sprite->rotationCenterY) * invScale);
+
+            if (bitmask->getPixel(finalX, finalY)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
