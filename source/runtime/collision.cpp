@@ -45,7 +45,7 @@ Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
         }
     }
 
-    bitmask->maxRadius = std::sqrt(maxDistSq) * bitmask->scaleFactor * 0.75; // idk why I'm multiplying by 0.75 here but it makes it work
+    bitmask->maxRadius = std::sqrt(maxDistSq) * bitmask->scaleFactor;
     return bitmask;
 }
 
