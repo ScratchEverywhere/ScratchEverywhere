@@ -5,7 +5,6 @@
 #include "runtime.hpp"
 #include "sprite.hpp"
 #include <cmath>
-#include <endian.h>
 
 Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
