@@ -74,7 +74,7 @@ void SE_Thread::sleep(uint16_t milliseconds) {
 }
 
 unsigned int SE_Thread::getCurrentThreadId() {
-    return static_cast<unsigned int>(reinterpret_cast<uintptr_t>(pthread_self()));
+    return static_cast<unsigned int>((uintptr_t)pthread_self());
 }
 
 struct SE_Mutex::Impl {
