@@ -48,7 +48,7 @@ Bitmask collision::generateBitmask(Sprite *sprite, unsigned int scaleFacter) {
 bool collision::pointInSprite(Sprite *sprite, float x, float y) {
     Bitmask &bitmask = sprite->costumes[sprite->currentCostume].bitmask;
     if (bitmask.width == 0 || bitmask.height == 0 || bitmask.scaleFactor == 0 || bitmask.maxRadius == 0) {
-        sprite->costumes[sprite->currentCostume].bitmask = generateBitmask(sprite);
+        bitmask = generateBitmask(sprite);
         if (bitmask.width == 0 || bitmask.height == 0 || bitmask.scaleFactor == 0 || bitmask.maxRadius == 0) return false;
     }
 
@@ -73,4 +73,79 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y) {
     const float finalY = std::round((localY + sprite->rotationCenterY) * invertedScaleFactor);
 
     return bitmask.getPixel(finalX, finalY);
+}
+
+bool collision::spriteInSprite(Sprite *a, Sprite *b) {
+    if (a == b) return false;
+
+    Bitmask &bitmaskA = a->costumes[a->currentCostume].bitmask;
+    if (bitmaskA.width == 0 || bitmaskA.height == 0 || bitmaskA.scaleFactor == 0 || bitmaskA.maxRadius == 0) {
+        bitmaskA = generateBitmask(a);
+        if (bitmaskA.width == 0 || bitmaskA.height == 0 || bitmaskA.scaleFactor == 0 || bitmaskA.maxRadius == 0) return false;
+    }
+
+    Bitmask &bitmaskB = b->costumes[b->currentCostume].bitmask;
+    if (bitmaskB.width == 0 || bitmaskB.height == 0 || bitmaskB.scaleFactor == 0 || bitmaskB.maxRadius == 0) {
+        bitmaskB = generateBitmask(b);
+        if (bitmaskB.width == 0 || bitmaskB.height == 0 || bitmaskB.scaleFactor == 0 || bitmaskB.maxRadius == 0) return false;
+    }
+
+    const float dx = a->xPosition - b->xPosition;
+    const float dy = a->yPosition - b->yPosition;
+    const float distSq = dx * dx + dy * dy;
+
+    const float radiusA = bitmaskA.maxRadius * (a->size / 100.0f);
+    const float radiusB = bitmaskB.maxRadius * (b->size / 100.0f);
+    const float combinedRadius = radiusA + radiusB;
+
+    if (distSq > (combinedRadius * combinedRadius)) return false;
+
+    const float overlapMinX = std::max(a->xPosition - radiusA, b->xPosition - radiusB);
+    const float overlapMaxX = std::min(a->xPosition + radiusA, b->xPosition + radiusB);
+    const float overlapMinY = std::max(a->yPosition - radiusA, b->yPosition - radiusB);
+    const float overlapMaxY = std::min(a->yPosition + radiusA, b->yPosition + radiusB);
+
+    if (overlapMinX > overlapMaxX || overlapMinY > overlapMaxY) return false;
+
+    const float radA = Math::degreesToRadians(-(a->rotation - 90));
+    const float sinA = std::sin(radA);
+    const float cosA = std::cos(radA);
+    const float spriteScaleA = a->size / 100.0f;
+    const float invScaleA = (1.0f / bitmaskA.scaleFactor);
+
+    const float radB = Math::degreesToRadians(-(b->rotation - 90));
+    const float sinB = std::sin(radB);
+    const float cosB = std::cos(radB);
+    const float spriteScaleB = b->size / 100.0f;
+    const float invScaleB = (1.0f / bitmaskB.scaleFactor);
+
+    for (float y = overlapMinY; y <= overlapMaxY; y++) {
+        for (float x = overlapMinX; x <= overlapMaxX; x++) {
+            const float dxA = x - a->xPosition;
+            const float dyA = y - a->yPosition;
+
+            if ((dxA * dxA + dyA * dyA) > (radiusA * radiusA)) continue;
+
+            const float localXA = (dxA * cosA - (-dyA) * sinA) / spriteScaleA;
+            const float localYA = (dxA * sinA + (-dyA) * cosA) / spriteScaleA;
+            const float finalXA = std::round((localXA + a->rotationCenterX) * invScaleA);
+            const float finalYA = std::round((localYA + a->rotationCenterY) * invScaleA);
+
+            if (!bitmaskA.getPixel(finalXA, finalYA)) continue;
+
+            const float dxB = x - b->xPosition;
+            const float dyB = y - b->yPosition;
+
+            if ((dxB * dxB + dyB * dyB) > (radiusB * radiusB)) continue;
+
+            const float localXB = (dxB * cosB - (-dyB) * sinB) / spriteScaleB;
+            const float localYB = (dxB * sinB + (-dyB) * cosB) / spriteScaleB;
+            const float finalXB = std::round((localXB + b->rotationCenterX) * invScaleB);
+            const float finalYB = std::round((localYB + b->rotationCenterY) * invScaleB);
+
+            if (bitmaskB.getPixel(finalXB, finalYB)) return true;
+        }
+    }
+
+    return false;
 }
