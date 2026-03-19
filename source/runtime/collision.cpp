@@ -61,7 +61,7 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y) {
         return false;
     }
 
-    const float rad = sprite->rotationStyle == Sprite::RotationStyle::NONE ? 0 : Math::degreesToRadians(-(sprite->rotation - 90));
+    const float rad = sprite->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(sprite->rotation - 90)) : 0;
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
 
@@ -69,8 +69,10 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y) {
     const float localY = (dx * s_sin + (-dy) * s_cos) / (sprite->size / 100.0f);
 
     const float invertedScaleFactor = 1.0f / bitmask->scaleFactor;
-    const float finalX = std::round((localX + sprite->rotationCenterX) * invertedScaleFactor);
+    float finalX = std::round((localX + sprite->rotationCenterX) * invertedScaleFactor);
     const float finalY = std::round((localY + sprite->rotationCenterY) * invertedScaleFactor);
+
+    if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT) finalX = bitmask->width - finalX;
 
     return bitmask->getPixel(finalX, finalY);
 }
@@ -107,13 +109,13 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
     if (overlapMinX > overlapMaxX || overlapMinY > overlapMaxY) return false;
 
-    const float radA = a->rotationStyle == Sprite::RotationStyle::NONE ? 0 : Math::degreesToRadians(-(a->rotation - 90));
+    const float radA = a->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(a->rotation - 90)) : 0;
     const float sinA = std::sin(radA);
     const float cosA = std::cos(radA);
     const float spriteScaleA = a->size / 100.0f;
     const float invScaleA = (1.0f / bitmaskA->scaleFactor);
 
-    const float radB = b->rotationStyle == Sprite::RotationStyle::NONE ? 0 : Math::degreesToRadians(-(b->rotation - 90));
+    const float radB = b->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(b->rotation - 90)) : 0;
     const float sinB = std::sin(radB);
     const float cosB = std::cos(radB);
     const float spriteScaleB = b->size / 100.0f;
@@ -128,8 +130,10 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
             const float localXA = (dxA * cosA - (-dyA) * sinA) / spriteScaleA;
             const float localYA = (dxA * sinA + (-dyA) * cosA) / spriteScaleA;
-            const float finalXA = std::round((localXA + a->rotationCenterX) * invScaleA);
+            float finalXA = std::round((localXA + a->rotationCenterX) * invScaleA);
             const float finalYA = std::round((localYA + a->rotationCenterY) * invScaleA);
+
+            if (a->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT) finalXA = bitmaskA->width - finalXA;
 
             if (!bitmaskA->getPixel(finalXA, finalYA)) continue;
 
@@ -140,8 +144,10 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
             const float localXB = (dxB * cosB - (-dyB) * sinB) / spriteScaleB;
             const float localYB = (dxB * sinB + (-dyB) * cosB) / spriteScaleB;
-            const float finalXB = std::round((localXB + b->rotationCenterX) * invScaleB);
+            float finalXB = std::round((localXB + b->rotationCenterX) * invScaleB);
             const float finalYB = std::round((localYB + b->rotationCenterY) * invScaleB);
+
+            if (b->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT) finalXB = bitmaskB->width - finalXB;
 
             if (bitmaskB->getPixel(finalXB, finalYB)) return true;
         }
@@ -169,7 +175,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
         return false;
     }
 
-    const float rad = sprite->rotationStyle == Sprite::RotationStyle::NONE ? 0 : Math::degreesToRadians(-(sprite->rotation - 90));
+    const float rad = sprite->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(sprite->rotation - 90)) : 0;
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
     const float spriteScale = sprite->size / 100.0f;
@@ -192,8 +198,10 @@ bool collision::spriteOnEdge(Sprite *sprite) {
             const float localX = (dx * s_cos - (-dy) * s_sin) / spriteScale;
             const float localY = (dx * s_sin + (-dy) * s_cos) / spriteScale;
 
-            const float finalX = std::round((localX + sprite->rotationCenterX) * invScale);
+            float finalX = std::round((localX + sprite->rotationCenterX) * invScale);
             const float finalY = std::round((localY + sprite->rotationCenterY) * invScale);
+
+            if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT) finalX = bitmask->width - finalX;
 
             if (bitmask->getPixel(finalX, finalY)) {
                 return true;
