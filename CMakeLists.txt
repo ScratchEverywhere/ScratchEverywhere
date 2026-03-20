@@ -243,7 +243,7 @@ if(SE_STATIC_LIBSTDCPP)
 endif()
 
 if(NOT BUILD_SHARED_LIBS AND MINGW)
-	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
+	target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
 endif()
 
 string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
