@@ -120,13 +120,61 @@ void Image_GL2D::renderNineslice(double xPos, double yPos, double width, double 
 }
 
 ImageData Image_GL2D::getPixels(ImageSubrect rect) {
-    // currently unsupported
     ImageData data;
-    data.format = IMAGE_FORMAT_NONE;
-    data.width = 0;
-    data.height = 0;
-    data.pitch = 0;
-    data.pixels = nullptr;
+
+    if (textureID < 0 || paletteData == nullptr) {
+        data.format = IMAGE_FORMAT_NONE;
+        return data;
+    }
+
+    int xStart = std::max(0, rect.x);
+    int yStart = std::max(0, rect.y);
+    int xEnd = std::min((int)imgData.width, rect.x + rect.w);
+    int yEnd = std::min((int)imgData.height, rect.y + rect.h);
+
+    int targetWidth = xEnd - xStart;
+    int targetHeight = yEnd - yStart;
+
+    if (targetWidth <= 0 || targetHeight <= 0) {
+        data.format = IMAGE_FORMAT_NONE;
+        return data;
+    }
+
+    data.width = targetWidth;
+    data.height = targetHeight;
+    data.format = IMAGE_FORMAT_RGBA32;
+    data.pitch = targetWidth * 4;
+    data.pixels = new uint8_t[targetWidth * targetHeight * 4];
+
+    uint8_t *output = static_cast<uint8_t *>(data.pixels);
+
+    const uint8_t *vramData = (const uint8_t *)glGetTexturePointer(textureID);
+
+    const int pow2Width = Math::next_pow2(imgData.width);
+
+    // 5. De-quantize VRAM (PAL8 -> RGBA32)
+    for (int y = 0; y < targetHeight; ++y) {
+        for (int x = 0; x < targetWidth; ++x) {
+            int srcX = xStart + x;
+            int srcY = yStart + y;
+
+            uint8_t index = vramData[srcY * pow2Width + srcX];
+
+            int dstIdx = (y * targetWidth + x) * 4;
+
+            if (index == 0) {
+                std::memset(&output[dstIdx], 0, 4);
+            } else {
+                uint16_t color = paletteData[index];
+
+                output[dstIdx + 0] = (color & 0x1F) << 3;         // R
+                output[dstIdx + 1] = ((color >> 5) & 0x1F) << 3;  // G
+                output[dstIdx + 2] = ((color >> 10) & 0x1F) << 3; // B
+                output[dstIdx + 3] = 255;                         // A
+            }
+        }
+    }
+
     return data;
 }
 

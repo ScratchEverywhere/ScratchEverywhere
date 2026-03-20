@@ -377,9 +377,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
             }
             if (data.contains("rotationCenterX")) {
                 newCostume.rotationCenterX = data["rotationCenterX"];
+                if (!newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterX /= 2;
             }
             if (data.contains("rotationCenterY")) {
                 newCostume.rotationCenterY = data["rotationCenterY"];
+                if (!newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterY /= 2;
             }
             newSprite->costumes.push_back(newCostume);
         }
