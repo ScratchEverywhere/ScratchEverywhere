@@ -19,6 +19,7 @@ set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
 set(SE_PLATFORM_DEFINITIONS "__PS2__")
+set(SE_PLATFORM "ps2")
 
 add_compile_options(-fno-pic -fno-pie -mxgot -G0)
 add_link_options(-fno-pic -fno-pie)
