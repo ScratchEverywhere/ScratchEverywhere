@@ -1,3 +1,9 @@
+if(EMSCRIPTEN)
+	add_library(SDL2_ttf INTERFACE)
+	target_compile_options(SDL2_ttf INTERFACE "-sUSE_SDL_TTF=2")
+	target_link_options(SDL2_ttf INTERFACE "-sUSE_SDL_TTF=2")
+endif()
+
 function(_dep_system_SDL2_ttf)
 	if(NOT CMAKE_CROSSCOMPILING)
 		find_package(SDL2_ttf QUIET)

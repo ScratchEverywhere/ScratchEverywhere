@@ -15,6 +15,8 @@ on:
       - cmake/windowing/glfw.cmake
       - cmake/deps/*
       - source/runtime/**
+      - source/platforms/
+      - source/platforms/pc/**
       - source/renderers/sdl1/**
       - source/windowing/sdl1/**
       - source/audio/sdl1/**

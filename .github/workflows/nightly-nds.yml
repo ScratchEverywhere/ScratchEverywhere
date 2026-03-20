@@ -10,6 +10,8 @@ on:
       - cmake/audio/nds.cmake
       - cmake/deps/*
       - source/runtime/**
+      - source/platforms/
+      - source/platforms/nds/**
       - source/renderers/gl2d/**
       - source/*
       - source/menus/**

@@ -473,7 +473,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         if (monitor.contains("sliderMax") && !monitor["sliderMax"].is_null())
             newMonitor.sliderMax = monitor.at("sliderMax").get<double>();
 
-        Render::visibleVariables.emplace(newMonitor.id, newMonitor);
+        Render::monitors.emplace(newMonitor.id, newMonitor);
     }
 
     // try to find the advanced project settings comment
@@ -528,7 +528,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
     bool infClones = false;
     if (!config.is_null()) {
 
-        Scratch::FPS = config.value("framerate", 0);
+        Scratch::FPS = config.value("framerate", 30);
         if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
 #if defined(RENDERER_SDL2)
             Scratch::FPS = 255; // SDL2's vsync will figure it out

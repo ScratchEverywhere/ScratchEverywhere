@@ -10,6 +10,8 @@ on:
       - cmake/audio/sdl2.cmake
       - cmake/deps/*
       - source/runtime/**
+      - source/platforms/
+      - source/platforms/gamecube/**
       - source/renderers/sdl2/**
       - source/*
       - source/menus/**

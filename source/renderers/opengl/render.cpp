@@ -36,14 +36,6 @@
 
 Window *globalWindow = nullptr;
 
-Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
-bool Render::hasFrameBegan;
-std::unordered_map<std::string, Monitor> Render::visibleVariables;
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-bool Render::debugMode = false;
-float Render::renderScale = 1.0f;
-
 SpeechManagerGL *speechManager = nullptr;
 
 static unsigned int penTexture = 0;
@@ -517,7 +509,7 @@ void Render::renderSprites() {
     }
 
     drawBlackBars(getWidth(), getHeight());
-    renderVisibleVariables();
+    renderMonitors();
 
     endFrame(true);
 }

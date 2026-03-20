@@ -104,7 +104,7 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
         }
     }
 
-    for (auto &[id, monitor] : Render::visibleVariables) {
+    for (auto &[id, monitor] : Render::monitors) {
         if (monitor.opcode == "data_variable") {
             auto it = sprite->variables.find(monitor.id);
             if (it != sprite->variables.end()) {
@@ -509,7 +509,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
 }
 
 void BlockExecutor::updateMonitors() {
-    for (auto &[id, var] : Render::visibleVariables) {
+    for (auto &[id, var] : Render::monitors) {
         if (var.visible) {
             Sprite *sprite = nullptr;
             for (auto &spr : Scratch::sprites) {

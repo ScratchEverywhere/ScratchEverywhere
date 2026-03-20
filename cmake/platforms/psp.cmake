@@ -18,6 +18,8 @@ set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
+set(SE_PLATFORM "psp")
+
 macro(package_platform)
     create_pbp_file(
         TARGET scratch-everywhere

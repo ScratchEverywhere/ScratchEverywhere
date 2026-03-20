@@ -1,3 +1,9 @@
+if(EMSCRIPTEN)
+	add_library(SDL2_gfx INTERFACE)
+	target_compile_options(SDL2_gfx INTERFACE "-sUSE_SDL_GFX=2")
+	target_link_options(SDL2_gfx INTERFACE "-sUSE_SDL_GFX=2")
+endif()
+
 function(_dep_system_SDL2_gfx)
 	pkg_check_modules(SDL2_gfx IMPORTED_TARGET SDL2_gfx>=1.0.0)
 endfunction()
