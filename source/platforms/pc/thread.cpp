@@ -1,20 +1,51 @@
 #include <chrono>
 #include <mutex>
+#include <pthread.h>
 #include <thread.hpp>
 #include <thread>
+#include <unistd.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
 struct SE_Thread::Impl {
-    std::thread thread;
+    pthread_t thread;
+    bool active = false;
 };
+
+struct PthreadData {
+    void (*entryPoint)(void *);
+    void *args;
+};
+
+static void *pthread_Wrapper(void *data) {
+    PthreadData *ctx = static_cast<PthreadData *>(data);
+    ctx->entryPoint(ctx->args);
+    delete ctx;
+    return nullptr;
+}
 
 SE_Thread::SE_Thread() : impl(nullptr) {}
 
 bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize, int prio, int coreID, const std::string &name) {
+    if (impl != nullptr) return false;
+
     impl = new Impl;
-    impl->thread = std::thread(entryPoint, args);
+
+    PthreadData *data = new PthreadData;
+    data->entryPoint = entryPoint;
+    data->args = args;
+
+    int result = pthread_create(&impl->thread, nullptr, pthread_Wrapper, data);
+
+    if (result != 0) {
+        delete data;
+        delete impl;
+        impl = nullptr;
+        return false;
+    }
+
+    impl->active = true;
     return true;
 }
 
@@ -23,25 +54,27 @@ SE_Thread::~SE_Thread() {
 }
 
 void SE_Thread::join() {
-    if (impl != nullptr && impl->thread.joinable()) {
-        impl->thread.join();
+    if (impl != nullptr && impl->active) {
+        pthread_join(impl->thread, nullptr);
+        impl->active = false;
         delete impl;
         impl = nullptr;
     }
 }
 
 void SE_Thread::detach() {
-    if (impl->thread.joinable()) {
-        impl->thread.detach();
+    if (impl != nullptr && impl->active) {
+        pthread_detach(impl->thread);
+        impl->active = false;
     }
 }
 
 void SE_Thread::sleep(uint16_t milliseconds) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+    usleep(milliseconds * 1000);
 }
 
 unsigned int SE_Thread::getCurrentThreadId() {
-    return static_cast<unsigned int>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+    return static_cast<unsigned int>((uintptr_t)pthread_self());
 }
 
 struct SE_Mutex::Impl {

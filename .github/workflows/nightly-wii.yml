@@ -13,6 +13,8 @@ on:
       - source/renderers/sdl2/**
       - source/*
       - source/menus/**
+      - source/platforms/
+      - source/platforms/wii/**
       - source/audio/sdl2/**
       - gfx/wii/**
       - gfx/menu/**

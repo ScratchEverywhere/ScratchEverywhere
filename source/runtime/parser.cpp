@@ -526,7 +526,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
     bool infClones = false;
     if (!config.is_null()) {
 
-        Scratch::FPS = config.value("framerate", 0);
+        Scratch::FPS = config.value("framerate", 30);
         if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
 #if defined(RENDERER_SDL2)
             Scratch::FPS = 255; // SDL2's vsync will figure it out

@@ -1,7 +1,7 @@
 if(EMSCRIPTEN)
 	add_library(SDL2_mixer INTERFACE)
-	target_compile_options(SDL2_mixer INTERFACE "-sUSE_SDL_MIXER=2" "-sSDL_MIXER_FORMATS='[\"ogg\",\"mp3\"]'")
-	target_link_options(SDL2_mixer INTERFACE "-sUSE_SDL_MIXER=2" "-sSDL_MIXER_FORMATS='[\"ogg\",\"mp3\"]'")
+	target_compile_options(SDL2_mixer INTERFACE "-sUSE_SDL_MIXER=2" "-sSDL2_MIXER_FORMATS='[\"ogg\",\"mp3\"]'")
+	target_link_options(SDL2_mixer INTERFACE "-sUSE_SDL_MIXER=2" "-sSDL2_MIXER_FORMATS='[\"ogg\",\"mp3\"]'")
 endif()
 
 function(_dep_system_SDL2_mixer)
