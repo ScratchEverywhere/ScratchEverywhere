@@ -65,9 +65,12 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
         int rotCenterX = sprite->rotationCenterX;
         int rotCenterY = sprite->rotationCenterY;
 
+        rotCenterX *= 2;
+        rotCenterY *= 2;
+
         // Handle if the sprite's image is not centered in the costume editor
-        if ((sprite->spriteWidth / 2) - rotCenterX != 0 ||
-            (sprite->spriteHeight / 2) - rotCenterY != 0) {
+        if (sprite->spriteWidth - rotCenterX != 0 ||
+            sprite->spriteHeight - rotCenterY != 0) {
 
             float offsetX = (sprite->spriteWidth - rotCenterX) * 0.5f;
             float offsetY = (sprite->spriteHeight - rotCenterY) * 0.5f;
