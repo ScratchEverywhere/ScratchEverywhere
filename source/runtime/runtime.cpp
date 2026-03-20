@@ -558,16 +558,17 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     float scale = (sprite->size / 100);
     if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+    const bool shouldDownscale = sprite->costumes[sprite->currentCostume].bitmapResolution == 2;
 
     if (projectType == ProjectType::UNZIPPED) {
-        auto imageOrErr = createImageFromFile(costumeName, true, true, scale);
+        auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
             onErr(imageOrErr.error());
             return;
         }
         image = imageOrErr.value();
     } else {
-        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true, scale);
+        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
             onErr(imageOrErr.error());
             return;
