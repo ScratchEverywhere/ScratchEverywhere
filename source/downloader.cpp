@@ -158,12 +158,13 @@ void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
 
     size_t lastSlash = item->filepath.find_last_of("/\\");
     if (lastSlash != std::string::npos) {
-        const std::string dir = item->filepath.substr(0, lastSlash);
-        if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
+        const std::string dir = item->filepath.substr(0, lastSlash) + "/";
+        const auto err = OS::createDirectory(dir.c_str());
+        if (!err.has_value()) {
             item->finished = true;
             item->success = false;
             item->error = "Failed to create directory";
-            Log::log("Download failed: Could not create directory");
+            Log::logWarning("Download failed: Could not create directory: " + err.error());
             curl_easy_cleanup(curl);
             return;
         }
