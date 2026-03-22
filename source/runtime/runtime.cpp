@@ -1,5 +1,6 @@
 #include "runtime.hpp"
 #include "blockExecutor.hpp"
+#include "collision.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
@@ -405,93 +406,12 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
     return collisionPoints;
 }
 
-inline bool isSeparated(const std::vector<std::pair<double, double>> &poly1,
-                        const std::vector<std::pair<double, double>> &poly2,
-                        double axisX, double axisY) {
-    double min1 = 1e9, max1 = -1e9;
-    double min2 = 1e9, max2 = -1e9;
-
-    // Project poly1 onto axis
-    for (const auto &point : poly1) {
-        double projection = point.first * axisX + point.second * axisY;
-        min1 = std::min(min1, projection);
-        max1 = std::max(max1, projection);
-    }
-
-    // Project poly2 onto axis
-    for (const auto &point : poly2) {
-        double projection = point.first * axisX + point.second * axisY;
-        min2 = std::min(min2, projection);
-        max2 = std::max(max2, projection);
-    }
-
-    return max1 < min2 || max2 < min1;
-}
-
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
-    // Get collision points of the current sprite
-
     if (collisionType == "mouse") {
-        // Define a small square centered on the mouse pointer
-        double halfWidth = 0.5;
-        double halfHeight = 0.5;
-
-        std::vector<std::pair<double, double>> mousePoints = {
-            {Input::mousePointer.x - halfWidth, Input::mousePointer.y - halfHeight}, // Top-left
-            {Input::mousePointer.x + halfWidth, Input::mousePointer.y - halfHeight}, // Top-right
-            {Input::mousePointer.x + halfWidth, Input::mousePointer.y + halfHeight}, // Bottom-right
-            {Input::mousePointer.x - halfWidth, Input::mousePointer.y + halfHeight}  // Bottom-left
-        };
-
-        bool collision = true;
-
-        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
-
-        for (int i = 0; i < 4; i++) {
-            auto edge1 = std::pair{
-                currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
-                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
-            auto edge2 = std::pair{
-                mousePoints[(i + 1) % 4].first - mousePoints[i].first,
-                mousePoints[(i + 1) % 4].second - mousePoints[i].second};
-
-            double axis1X = -edge1.second, axis1Y = edge1.first;
-            double axis2X = -edge2.second, axis2Y = edge2.first;
-
-            double len1 = sqrt(axis1X * axis1X + axis1Y * axis1Y);
-            double len2 = sqrt(axis2X * axis2X + axis2Y * axis2Y);
-            if (len1 > 0) {
-                axis1X /= len1;
-                axis1Y /= len1;
-            }
-            if (len2 > 0) {
-                axis2X /= len2;
-                axis2Y /= len2;
-            }
-
-            if (isSeparated(currentSpritePoints, mousePoints, axis1X, axis1Y) ||
-                isSeparated(currentSpritePoints, mousePoints, axis2X, axis2Y)) {
-                collision = false;
-                break;
-            }
-        }
-
-        return collision;
+        return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
     } else if (collisionType == "edge") {
-        double halfWidth = Scratch::projectWidth / 2.0;
-        double halfHeight = Scratch::projectHeight / 2.0;
-
-        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
-
-        for (const auto &point : currentSpritePoints) {
-            if (point.first <= -halfWidth || point.first >= halfWidth ||
-                point.second <= -halfHeight || point.second >= halfHeight)
-                return true;
-        }
-
-        return false;
+        return collision::spriteOnEdge(currentSprite);
     } else if (collisionType == "sprite") {
-        // Use targetSprite if provided, otherwise search by name
         if (targetSprite == nullptr && !targetName.empty()) {
             for (Sprite *sprite : sprites) {
                 if (sprite->name == targetName && sprite->visible) {
@@ -505,78 +425,7 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
             return false;
         }
 
-        // non rotated Sprite collision
-        if ((currentSprite->rotationStyle != currentSprite->ALL_AROUND || std::abs(currentSprite->rotation) == 90.0f) &&
-            (targetSprite->rotationStyle != currentSprite->ALL_AROUND || std::abs(targetSprite->rotation) == 90.0f)) {
-
-            const float currentSize = currentSprite->size * 0.01f;
-            const float targetSize = targetSprite->size * 0.01f;
-
-            const float currentLeft = (currentSprite->xPosition - currentSprite->spriteWidth / 2) * currentSize;
-            const float currentRight = (currentSprite->xPosition + currentSprite->spriteWidth / 2) * currentSize;
-            const float currentTop = (currentSprite->yPosition - currentSprite->spriteHeight / 2) * currentSize;
-            const float currentBottom = (currentSprite->yPosition + currentSprite->spriteHeight / 2) * currentSize;
-
-            const float targetLeft = (targetSprite->xPosition - targetSprite->spriteWidth / 2) * targetSize;
-            const float targetRight = (targetSprite->xPosition + targetSprite->spriteWidth / 2) * targetSize;
-            const float targetTop = (targetSprite->yPosition - targetSprite->spriteHeight / 2) * targetSize;
-            const float targetBottom = (targetSprite->yPosition + targetSprite->spriteHeight / 2) * targetSize;
-
-            if (currentRight < targetLeft || currentLeft > targetRight || currentBottom < targetTop || currentTop > targetBottom)
-                return false;
-
-            return true;
-        }
-
-        // rotated Sprite collision
-
-        // quick aabb first to save on performance
-        const int currentSize = std::max(currentSprite->spriteWidth, currentSprite->spriteHeight) * currentSprite->size * 0.01;
-        const int targetSize = std::max(targetSprite->spriteWidth, targetSprite->spriteHeight) * targetSprite->size * 0.01;
-        if (currentSprite->xPosition + currentSize < targetSprite->xPosition - targetSize ||
-            currentSprite->xPosition - currentSize > targetSprite->xPosition + targetSize ||
-            currentSprite->yPosition + currentSize < targetSprite->yPosition - targetSize ||
-            currentSprite->yPosition - currentSize > targetSprite->yPosition + targetSize) {
-            return false;
-        }
-
-        std::vector<std::pair<double, double>> currentSpritePoints = Scratch::getCollisionPoints(currentSprite);
-        std::vector<std::pair<double, double>> targetSpritePoints = Scratch::getCollisionPoints(targetSprite);
-
-        bool collision = true;
-
-        for (int i = 0; i < 4; i++) {
-
-            auto edge1 = std::pair{
-                currentSpritePoints[(i + 1) % 4].first - currentSpritePoints[i].first,
-                currentSpritePoints[(i + 1) % 4].second - currentSpritePoints[i].second};
-            auto edge2 = std::pair{
-                targetSpritePoints[(i + 1) % 4].first - targetSpritePoints[i].first,
-                targetSpritePoints[(i + 1) % 4].second - targetSpritePoints[i].second};
-
-            double axis1X = -edge1.second, axis1Y = edge1.first;
-            double axis2X = -edge2.second, axis2Y = edge2.first;
-
-            double len1 = sqrt(axis1X * axis1X + axis1Y * axis1Y);
-            if (len1 > 0) {
-                axis1X /= len1;
-                axis1Y /= len1;
-            }
-            double len2 = sqrt(axis2X * axis2X + axis2Y * axis2Y);
-            if (len2 > 0) {
-                axis2X /= len2;
-                axis2Y /= len2;
-            }
-
-            if (isSeparated(currentSpritePoints, targetSpritePoints, axis1X, axis1Y) ||
-                isSeparated(currentSpritePoints, targetSpritePoints, axis2X, axis2Y)) {
-
-                collision = false;
-                break;
-            }
-        }
-
-        return collision;
+        return collision::spriteInSprite(currentSprite, targetSprite);
     } else {
         Log::logWarning("Invalid collision type " + collisionType);
         return false;
@@ -709,16 +558,17 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     float scale = (sprite->size / 100);
     if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+    const bool shouldDownscale = sprite->costumes[sprite->currentCostume].bitmapResolution == 2;
 
     if (projectType == ProjectType::UNZIPPED) {
-        auto imageOrErr = createImageFromFile(costumeName, true, true, scale);
+        auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
             onErr(imageOrErr.error());
             return;
         }
         image = imageOrErr.value();
     } else {
-        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, true, scale);
+        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
             onErr(imageOrErr.error());
             return;

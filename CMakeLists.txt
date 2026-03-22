@@ -211,6 +211,7 @@ if(WIN32)
 endif()
 
 add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+target_include_directories(scratch-everywhere PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external-include)
 set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
 if(DEFINED SE_PLATFORM_DEFINITIONS)
 	target_compile_definitions(scratch-everywhere PRIVATE ${SE_PLATFORM_DEFINITIONS})
@@ -245,7 +246,7 @@ if(SE_STATIC_LIBSTDCPP)
 endif()
 
 if(NOT BUILD_SHARED_LIBS AND MINGW)
-	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
+	target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
 endif()
 
 string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
@@ -332,7 +333,6 @@ target_include_directories(scratch-everywhere PRIVATE ${SOURCES})
 
 # TODO: Move to cmake/platforms/wasm.cmake
 if(EMSCRIPTEN)
-	target_include_directories(scratch-everywhere PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/wasm)
 	set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
 	target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
 endif()

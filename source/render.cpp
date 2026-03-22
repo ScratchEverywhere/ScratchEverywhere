@@ -65,10 +65,8 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool &isSVG) {
         int rotCenterX = sprite->rotationCenterX;
         int rotCenterY = sprite->rotationCenterY;
 
-        if (isSVG) {
-            rotCenterX *= 2;
-            rotCenterY *= 2;
-        }
+        rotCenterX *= 2;
+        rotCenterY *= 2;
 
         // Handle if the sprite's image is not centered in the costume editor
         if (sprite->spriteWidth - rotCenterX != 0 ||
