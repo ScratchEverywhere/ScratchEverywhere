@@ -14,7 +14,7 @@
 #include <nds.h>
 #elif defined(__WIIU__)
 #include <whb/sdcard.h>
-#elif defined(ANDROID)
+#elif defined(__ANDROID__)
 #include <SDL2/SDL_system.h>
 #endif
 
