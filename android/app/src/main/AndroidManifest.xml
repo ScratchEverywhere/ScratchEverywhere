@@ -58,6 +58,8 @@
 			</intent-filter>
         </activity>
 		<activity android:name=".ProjectImportActivity"
+			android:screenOrientation="sensorLandscape"
+			android:preferMinimalPostProcessing="true"
 			android:exported="true">
 			<!-- Accept sb3 files from file managers -->
 			<intent-filter>
@@ -65,7 +67,7 @@
 				<category android:name="android.intent.category.DEFAULT" />
 				<data android:scheme="file" />
 				<data android:scheme="content" />
-				<data android:pathPattern=".*\\.sb3" />
+				<data android:pathPattern="*\\.sb3" />
 				<data android:mimeType="application/*" />
 			</intent-filter>
 			<intent-filter>

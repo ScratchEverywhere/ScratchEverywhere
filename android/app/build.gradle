@@ -2,11 +2,11 @@ apply plugin: "com.android.application"
 
 android {
     namespace "io.github.scratcheverywhere"
-    compileSdkVersion 35
+    compileSdkVersion 34
     defaultConfig {
-        minSdkVersion 14
+        minSdkVersion 9
         targetSdkVersion 34
-        versionCode 1
+        versionCode 37
         versionName "0.37"
         externalNativeBuild {
             cmake {
@@ -16,6 +16,9 @@ android {
             }
         }
     }
+	buildFeatures {
+		buildConfig true
+	}
     buildTypes {
         release {
             minifyEnabled false
@@ -40,5 +43,5 @@ android {
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
+	implementation fileTree(include: ["*.jar"], dir: "libs")
 }
