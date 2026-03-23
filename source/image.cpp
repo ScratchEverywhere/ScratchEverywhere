@@ -184,7 +184,7 @@ nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffe
         buffer[file.size()] = '\0';
         return buffer;
     }
-#elif defined(ANDROID)
+#elif defined(__ANDROID__)
     std::string path = filePath;
 
     SDL_RWops *rw = SDL_RWFromFile(path.c_str(), "rb");

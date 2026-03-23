@@ -109,7 +109,7 @@ void Input::getInput() {
         // forward: 451 | backward: 452
         // record: 453
         // play: 450
-#elif defined(ANDROID)
+#elif defined(__ANDROID__)
         else if (keyName == "ac back") keyName = "back";
 #else
         else if (keyName == "return") keyName = "enter";

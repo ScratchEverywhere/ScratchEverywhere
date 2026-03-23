@@ -273,7 +273,7 @@ std::string OS::getScratchFolderLocation() {
     return prefix + "/scratch-ds/";
 #elif defined(WEBOS)
     return prefix + "projects/";
-#elif defined(ANDROID)
+#elif defined(__ANDROID__)
     return std::string(SDL_AndroidGetExternalStoragePath()) + "/";
 #else
     return "scratch-everywhere/";
@@ -301,7 +301,7 @@ std::string OS::getConfigFolderLocation() {
     if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
         path = (std::filesystem::path(bpath.Path()) / "scratch-everywhere" / "").string();
     }
-#elif (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(ANDROID)
+#elif (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
     const char *xdgHome = std::getenv("XDG_CONFIG_HOME");
     if (xdgHome && xdgHome[0] != '\0') {
         path = (std::filesystem::path(xdgHome) / "scratch-everywhere" / "").string();
@@ -413,7 +413,7 @@ std::string OS::getUsername() {
     TCHAR username[UNLEN + 1];
     DWORD size = UNLEN + 1;
     if (GetUserName((TCHAR *)username, &size)) return std::string(username);
-#elif (defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(ANDROID)
+#elif (defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
     uid_t uid = geteuid();
     struct passwd *pw = getpwuid(uid);
     if (pw) return std::string(pw->pw_name);

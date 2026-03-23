@@ -138,7 +138,7 @@ postAccount:
     Log::log("[Vita] Running sceNetCtlInit");
     sceNetCtlInit();
 #elif defined(__PS4__)
-#elif defined(ANDROID)
+#elif defined(__ANDROID__)
     SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
     SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
 #endif
@@ -173,7 +173,7 @@ postAccount:
 
 #ifdef RENDERER_OPENGL
     flags |= SDL_WINDOW_OPENGL;
-#elif defined(ANDROID)
+#elif defined(__ANDROID__)
     flags |= SDL_WINDOW_FULLSCREEN;
 #endif
 

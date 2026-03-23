@@ -161,7 +161,7 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
         }
 
 #ifdef ENABLE_MENU
-#ifdef ANDROID
+#ifdef __ANDROID__
         // Trap the back button to act as pause button
         bool shouldPause = Input::keyHeldDuration["back"] > (FPS / 30.0f);
 #else

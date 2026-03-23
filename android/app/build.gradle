@@ -10,8 +10,8 @@ android {
         versionName "0.37"
         externalNativeBuild {
             cmake {
-                arguments "-DANDROID_STL=c++_static", "-DBUILD_SHARED_LIBS=ON", "-DCPM_SOURCE_CACHE=build/CPM"
-                abiFilters "armeabi-v7a", "arm64-v8a" // "x86", "x86_64"
+                arguments "-DANDROID_STL=c++_static", "-DBUILD_SHARED_LIBS=ON", "-DBUILD_TEST=OFF", "-DCPM_SOURCE_CACHE=build/CPM", "-DSE_DEPS=source"
+                abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
                 cppFlags "-std=c++17", "-O2"
             }
         }

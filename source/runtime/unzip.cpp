@@ -25,7 +25,7 @@
 #include <thread.hpp>
 #endif
 
-#if ANDROID
+#if __ANDROID__
 #include <SDL2/SDL_rwops.h>
 #include <sstream>
 #endif
@@ -400,7 +400,7 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
         const auto &romfsFile = fs.open(Unzip::filePath);
         initSuccess = mz_zip_reader_init_mem(&archive, romfsFile.begin(), romfsFile.size(), 0);
     } else {
-#elif defined(ANDROID)
+#elif defined(__ANDROID__)
     if (Scratch::projectType == ProjectType::EMBEDDED) {
         SDL_RWops *rw = SDL_RWFromFile(Unzip::filePath.c_str(), "rb");
         Sint64 size = SDL_RWsize(rw);
@@ -412,7 +412,7 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
     } else {
 #endif
         initSuccess = mz_zip_reader_init_file(&archive, Unzip::filePath.c_str(), 0);
-#if defined(USE_CMAKERC) || defined(ANDROID)
+#if defined(USE_CMAKERC) || defined(__ANDROID__)
     }
 #endif
     if (!initSuccess) {

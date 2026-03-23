@@ -58,7 +58,7 @@ class Image {
     static std::unordered_map<std::string, SVGFont> loadedFonts;
 #endif
 #if __ANDROID__
-    void Image::unloadFont(void *closure);
+    static void unloadFont(void *closure);
 #endif
 
     bool loadFont(const std::string &family);
