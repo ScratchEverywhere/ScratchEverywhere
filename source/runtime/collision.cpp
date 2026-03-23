@@ -6,7 +6,7 @@
 #include "sprite.hpp"
 #include <cmath>
 
-Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
+std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     const auto &costume = sprite->costumes[sprite->currentCostume];
     auto imgFind = Scratch::costumeImages.find(costume.fullName);
     if (imgFind == Scratch::costumeImages.end()) {
@@ -15,7 +15,7 @@ Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     }
     const ImageData imgData = imgFind->second->getPixels();
 
-    Bitmask *bitmask = new Bitmask;
+    std::shared_ptr<Bitmask> bitmask = std::make_shared<Bitmask>();
     bitmask->width = imgData.width / scaleFactor;
     bitmask->height = imgData.height / scaleFactor;
     bitmask->scaleFactor = (float)scaleFactor / imgData.scale;
@@ -52,7 +52,7 @@ Bitmask *collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
 
 bool collision::pointInSprite(Sprite *sprite, float x, float y) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    Bitmask *&bitmask = costume.bitmask;
+    std::shared_ptr<Bitmask> bitmask = costume.bitmask;
     if (bitmask == nullptr) {
         bitmask = generateBitmask(sprite);
         if (bitmask == nullptr) return false;
@@ -87,14 +87,14 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     if (a == b) return false;
 
     auto &costumeA = a->costumes[a->currentCostume];
-    Bitmask *&bitmaskA = costumeA.bitmask;
+    std::shared_ptr<Bitmask> bitmaskA = costumeA.bitmask;
     if (bitmaskA == nullptr) {
         bitmaskA = generateBitmask(a);
         if (bitmaskA == nullptr) return false;
     }
 
     auto &costumeB = b->costumes[b->currentCostume];
-    Bitmask *&bitmaskB = costumeB.bitmask;
+    std::shared_ptr<Bitmask> bitmaskB = costumeB.bitmask;
     if (bitmaskB == nullptr) {
         bitmaskB = generateBitmask(b);
         if (bitmaskB == nullptr) return false;
@@ -166,7 +166,7 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
 bool collision::spriteOnEdge(Sprite *sprite) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    Bitmask *&bitmask = costume.bitmask;
+    std::shared_ptr<Bitmask> bitmask = costume.bitmask;
     if (bitmask == nullptr) {
         bitmask = generateBitmask(sprite);
         if (bitmask == nullptr) return false;

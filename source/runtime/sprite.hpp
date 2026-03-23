@@ -204,11 +204,7 @@ struct Costume {
     double rotationCenterX;
     double rotationCenterY;
 
-    Bitmask *bitmask = nullptr;
-
-    ~Costume() {
-        if (bitmask != nullptr) delete bitmask;
-    }
+    std::shared_ptr<Bitmask> bitmask = nullptr;
 };
 
 struct Comment {
@@ -262,7 +258,6 @@ struct Monitor {
 class Sprite {
   public:
     std::string name;
-    std::string id;
     bool isStage;
     bool draggable;
     bool visible;
