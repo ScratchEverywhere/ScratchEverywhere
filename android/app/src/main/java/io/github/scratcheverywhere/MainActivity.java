@@ -1,14 +1,14 @@
 package io.github.scratcheverywhere;
 
 import android.os.Bundle;
-
 import org.libsdl.app.SDLActivity;
+import org.woheller69.freeDroidWarn.FreeDroidWarn;
 
 public class MainActivity extends SDLActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		nativeSetupJNI();
+		FreeDroidWarn.showWarningOnUpgrade(this, BuildConfig.VERSION_CODE);
 	}
 
 	@Override
@@ -17,6 +17,4 @@ public class MainActivity extends SDLActivity {
 			"scratch"   // Scratch Everywhere!
 		};
 	}
-
-	public static native int nativeSetupJNI();
 }
