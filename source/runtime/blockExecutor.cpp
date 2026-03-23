@@ -279,6 +279,9 @@ void BlockExecutor::runRepeatBlocks() {
         if (speechManager) {
             speechManager->clearSpeech(spr);
         }
+        Scratch::cloneQueue.erase(
+            std::remove(Scratch::cloneQueue.begin(), Scratch::cloneQueue.end(), spr),
+            Scratch::cloneQueue.end());
         delete spr;
         spr = nullptr;
     }

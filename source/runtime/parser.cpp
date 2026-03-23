@@ -130,7 +130,6 @@ void Parser::loadSprites(const nlohmann::json &json) {
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
         }
-        newSprite->id = Math::generateRandomString(15);
         if (target.contains("isStage")) {
             newSprite->isStage = target["isStage"].get<bool>();
         }
@@ -388,6 +387,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
         // set comments
         for (const auto &[id, data] : target["comments"].items()) {
+            if (!newSprite->isStage) continue;
             Comment newComment;
             newComment.id = id;
             if (data.contains("blockId") && !data["blockId"].is_null()) {
@@ -518,12 +518,13 @@ void Parser::loadSprites(const nlohmann::json &json) {
         std::string cleaned_json = json_str;
         std::size_t inf_pos;
         while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
-            cleaned_json.replace(inf_pos, 8, "1e9"); // or replace with "null", depending on your logic
+            cleaned_json.replace(inf_pos, 8, "1e9");
         }
 
         config = nlohmann::json::parse(cleaned_json, nullptr, false);
         if (!config.is_discarded()) break;
     }
+    Scratch::stageSprite->comments.clear();
     // set advanced project settings properties
     bool infClones = false;
     if (!config.is_null()) {

@@ -2,6 +2,7 @@
 
 #include "sprite.hpp"
 #include <image.hpp>
+#include <memory>
 
 #if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
 constexpr unsigned int bitmaskScaleFactor = 3;
@@ -12,7 +13,7 @@ constexpr unsigned int bitmaskScaleFactor = 1;
 #endif
 
 namespace collision {
-Bitmask *generateBitmask(Sprite *sprite, unsigned int scaleFactor = bitmaskScaleFactor);
+std::shared_ptr<Bitmask> generateBitmask(Sprite *sprite, unsigned int scaleFactor = bitmaskScaleFactor);
 bool pointInSprite(Sprite *sprite, float x, float y);
 bool spriteInSprite(Sprite *a, Sprite *b);
 bool spriteOnEdge(Sprite *sprite);
