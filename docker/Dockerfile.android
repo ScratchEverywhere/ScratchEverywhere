@@ -2,7 +2,8 @@ FROM saschpe/android-ndk:35-jdk23.0.2_7-ndk28.0.13004108-cmake3.31.5 AS main_bui
 WORKDIR /app
 
 COPY . .
-RUN cd android && ./gradlew clean exportReleaseApk
+RUN cd android && ./gradlew clean assembleRelease
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/android/scratch-android.apk /
+COPY --from=main_builder /app/build/outputs/apk/release/app-release.apk /
+RUN mv app-release.apk scratch-android.apk
