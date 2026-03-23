@@ -99,12 +99,7 @@ SCRATCH_REPORTER_BLOCK(sensing, dayssince2000) {
 }
 
 SCRATCH_REPORTER_BLOCK(sensing, current) {
-    std::string inputValue;
-    try {
-        inputValue = Scratch::getFieldValue(block, "CURRENTMENU");
-    } catch (...) {
-        return Value();
-    }
+    std::string inputValue = Scratch::getFieldValue(block, "CURRENTMENU");
 
     if (inputValue == "YEAR") return Value(Time::getYear());
     if (inputValue == "MONTH") return Value(Time::getMonth());

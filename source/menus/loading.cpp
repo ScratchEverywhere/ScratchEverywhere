@@ -1,15 +1,23 @@
 #include "loading.hpp"
+#include "image.hpp"
+#include <memory>
 #include <render.hpp>
+#include <string>
 #include <unzip.hpp>
 
 void Loading::init() {
-    try {
-        block1 = createImageFromFile("gfx/menu/block1.svg", false);
-        block2 = createImageFromFile("gfx/menu/block2.svg", false);
-        block3 = createImageFromFile("gfx/menu/block3.svg", false);
-    } catch (std::runtime_error &e) {
-        renderBlocks = false;
-    }
+    auto loadBlock = [&](const uint8_t number) -> std::shared_ptr<Image> {
+        auto image = createImageFromFile("gfx/menu/block" + std::to_string(number) + ".svg", false);
+        if (!image.has_value()) {
+            renderBlocks = false;
+            return nullptr;
+        }
+        return image.value();
+    };
+
+    block1 = loadBlock(1);
+    block2 = loadBlock(2);
+    block3 = loadBlock(3);
     loadingStateText = createTextObject("", 0, 0);
     block1Y = Render::getHeight() * 2;
     block2Y = Render::getHeight() * 2;
@@ -43,18 +51,18 @@ void Loading::render() {
     else Render::beginFrame(1, 0, 0, 0);
 
     ImageRenderParams p1 = {
-        .x = Render::getWidth() / 2,
-        .y = static_cast<int>(block1Y),
+        .x = Render::getWidth() / 2.0f,
+        .y = block1Y,
         .scale = 0.5f,
         .centered = true};
     ImageRenderParams p2 = {
-        .x = Render::getWidth() / 2,
-        .y = static_cast<int>(block2Y),
+        .x = Render::getWidth() / 2.0f,
+        .y = block2Y,
         .scale = 0.5f,
         .centered = true};
     ImageRenderParams p3 = {
-        .x = Render::getWidth() / 2,
-        .y = static_cast<int>(block3Y),
+        .x = Render::getWidth() / 2.0f,
+        .y = block3Y,
         .scale = 0.5f,
         .centered = true};
 

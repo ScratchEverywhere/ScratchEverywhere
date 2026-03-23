@@ -1,5 +1,9 @@
 #pragma once
+#include "nonstd/expected.hpp"
+#include <optional>
+#ifdef ENABLE_SVG
 #include "lunasvg.h"
+#endif
 #include <cstddef>
 #include <memory.h>
 #include <miniz.h>
@@ -15,8 +19,8 @@ struct ImageSubrect {
 };
 
 struct ImageRenderParams {
-    int x = 0;
-    int y = 0;
+    float x = 0.0f;
+    float y = 0.0f;
     float scale = 1.0f;
     bool centered = true;
     float opacity = 1.0f;
@@ -40,19 +44,30 @@ struct ImageData {
     float scale = 1;
 };
 
+#ifdef ENABLE_SVG
+struct SVGFont {
+    std::string path;
+    bool isLoaded = false;
+};
+#endif
+
 class Image {
   private:
+#ifdef ENABLE_SVG
     std::unique_ptr<lunasvg::Document> svgDocument = nullptr;
+    static std::unordered_map<std::string, SVGFont> loadedFonts;
+#endif
 
-    inline std::vector<unsigned char> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
-    inline unsigned char *loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1);
-    inline unsigned char *loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
+    bool loadFont(const std::string &family);
+    inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
+    inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1);
+    inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
     inline unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
 
   protected:
     ImageData imgData;
 
-    virtual void refreshTexture() = 0;
+    virtual nonstd::expected<void, std::string> refreshTexture() = 0;
 
     std::pair<unsigned int, unsigned int> maxTextureSize = {0, 0};
 
@@ -60,21 +75,26 @@ class Image {
     const unsigned int maxFreeTimer = 540;
     unsigned int freeTimer = maxFreeTimer;
 
-    static bool Init();
-
+    /**
+     * Set if an error occurs in the constructor.
+     */
+    std::optional<std::string> error;
     Image() {}
     Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
     Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
-    void init(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-    void init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    nonstd::expected<void, std::string> init(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
+    nonstd::expected<void, std::string> init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
     virtual ~Image();
 
     virtual ImageData getPixels(ImageSubrect rect);
+    inline ImageData getPixels() {
+        return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});
+    }
 
     int getWidth();
     int getHeight();
 
-    void resizeSVG(float scale);
+    nonstd::expected<void, std::string> resizeSVG(float scale);
 
     virtual void *getNativeTexture() = 0;
 
@@ -82,6 +102,5 @@ class Image {
     virtual void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) = 0;
 };
 
-std::shared_ptr<Image> createImageFromFile(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-
-std::shared_ptr<Image> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
+nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);

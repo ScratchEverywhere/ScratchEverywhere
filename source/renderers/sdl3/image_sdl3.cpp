@@ -1,4 +1,5 @@
 #include "image_sdl3.hpp"
+#include "nonstd/expected.hpp"
 #include "render.hpp"
 #include <algorithm>
 #include <cctype>
@@ -12,8 +13,8 @@
 #include <vector>
 
 void Image_SDL3::render(ImageRenderParams &params) {
-    const int &x = params.x;
-    const int &y = params.y;
+    const float &x = params.x;
+    const float &y = params.y;
     const int &brightness = params.brightness;
     const double rotation = Math::radiansToDegrees(params.rotation);
     const float &scale = params.scale;
@@ -137,49 +138,62 @@ void *Image_SDL3::getNativeTexture() {
     return texture;
 }
 
-void Image_SDL3::setInitialTexture() {
+nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
     if (!texture) {
-        throw std::runtime_error("Failed to create texture: " + std::string(SDL_GetError()));
+        return nonstd::make_unexpected("Failed to create texture: " + std::string(SDL_GetError()));
     }
 
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
 
     if (!SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch)) {
-        throw std::runtime_error("Failed to update texture: " + std::string(SDL_GetError()));
+        return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
     }
 
     /** some platforms may need this to be freed due to RAM limits,
      *  but they then wont be able to support Image::getPixels()
      *  */
-    free(imgData.pixels);
-    imgData.pixels = nullptr;
+    // free(imgData.pixels);
+    // imgData.pixels = nullptr;
+    return {};
 }
 
-void Image_SDL3::refreshTexture() {
+nonstd::expected<void, std::string> Image_SDL3::refreshTexture() {
     if (texture) {
         SDL_DestroyTexture(texture);
         texture = nullptr;
     }
-    setInitialTexture();
+    return setInitialTexture();
 }
 
 Image_SDL3::Image_SDL3(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
 
-    init(filePath, zip, bitmapHalfQuality, scale);
-    setInitialTexture();
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
+    const auto potentialError = setInitialTexture();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_SDL3::Image_SDL3(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
 
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
-    setInitialTexture();
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
+    const auto potentialError = setInitialTexture();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_SDL3::~Image_SDL3() {

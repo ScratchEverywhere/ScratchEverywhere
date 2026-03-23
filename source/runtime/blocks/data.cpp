@@ -19,8 +19,8 @@ SCRATCH_BLOCK(data, changevariableby) {
 SCRATCH_BLOCK(data, showvariable) {
     const std::string varId = Scratch::getFieldId(block, "VARIABLE");
 
-    const auto &it = Render::visibleVariables.find(varId);
-    if (it != Render::visibleVariables.end()) it->second.visible = true;
+    const auto &it = Render::monitors.find(varId);
+    if (it != Render::monitors.end()) it->second.visible = true;
 
     return BlockResult::CONTINUE;
 }
@@ -28,8 +28,8 @@ SCRATCH_BLOCK(data, showvariable) {
 SCRATCH_BLOCK(data, hidevariable) {
     const std::string varId = Scratch::getFieldId(block, "VARIABLE");
 
-    const auto &it = Render::visibleVariables.find(varId);
-    if (it != Render::visibleVariables.end()) it->second.visible = false;
+    const auto &it = Render::monitors.find(varId);
+    if (it != Render::monitors.end()) it->second.visible = false;
 
     return BlockResult::CONTINUE;
 }
@@ -37,8 +37,8 @@ SCRATCH_BLOCK(data, hidevariable) {
 SCRATCH_BLOCK(data, showlist) {
     const std::string varId = Scratch::getFieldId(block, "LIST");
 
-    const auto &it = Render::visibleVariables.find(varId);
-    if (it != Render::visibleVariables.end()) it->second.visible = true;
+    const auto &it = Render::monitors.find(varId);
+    if (it != Render::monitors.end()) it->second.visible = true;
 
     return BlockResult::CONTINUE;
 }
@@ -46,8 +46,8 @@ SCRATCH_BLOCK(data, showlist) {
 SCRATCH_BLOCK(data, hidelist) {
     const std::string varId = Scratch::getFieldId(block, "LIST");
 
-    const auto &it = Render::visibleVariables.find(varId);
-    if (it != Render::visibleVariables.end()) it->second.visible = false;
+    const auto &it = Render::monitors.find(varId);
+    if (it != Render::monitors.end()) it->second.visible = false;
 
     return BlockResult::CONTINUE;
 }

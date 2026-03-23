@@ -179,6 +179,21 @@ struct Sound {
     int sampleCount;
 };
 
+struct Bitmask {
+    float maxRadius = 0;
+
+    unsigned int width = 0;
+    unsigned int height = 0;
+    float scaleFactor = 0;
+    std::vector<uint32_t> bits;
+
+    bool getPixel(int x, int y) const {
+        if (x < 0 || x >= width || y < 0 || y >= height) return false;
+        int index = y * ((width + 31) / 32) + (x / 32);
+        return bits[index] & (1 << (x % 32));
+    }
+};
+
 struct Costume {
     std::string id;
     std::string name;
@@ -188,6 +203,12 @@ struct Costume {
     bool isSVG;
     double rotationCenterX;
     double rotationCenterY;
+
+    Bitmask *bitmask = nullptr;
+
+    ~Costume() {
+        if (bitmask != nullptr) delete bitmask;
+    }
 };
 
 struct Comment {
@@ -293,7 +314,8 @@ class Sprite {
     } textToSpeechData;
 
     std::unordered_map<std::string, Variable> variables;
-    std::map<std::string, Block> blocks;
+    std::vector<Block> blocks;
+    std::map<std::string, Block *> blocksMap;
     std::unordered_map<std::string, List> lists;
     std::vector<Sound> sounds;
     std::vector<Costume> costumes;
@@ -306,6 +328,7 @@ class Sprite {
     ~Sprite() {
         variables.clear();
         blocks.clear();
+        blocksMap.clear();
         lists.clear();
         sounds.clear();
         costumes.clear();

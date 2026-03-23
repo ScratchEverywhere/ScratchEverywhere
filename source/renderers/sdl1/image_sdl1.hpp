@@ -2,12 +2,12 @@
 
 #include <SDL/SDL.h>
 #include <image.hpp>
+#include <nonstd/expected.hpp>
 #include <string>
-#include <unordered_map>
 
 class Image_SDL1 : public Image {
   private:
-    void setInitialTexture();
+    nonstd::expected<void, std::string> setInitialTexture();
 
   public:
     SDL_Surface *texture;
@@ -23,5 +23,5 @@ class Image_SDL1 : public Image {
 
     void *getNativeTexture() override;
 
-    void refreshTexture() override;
+    nonstd::expected<void, std::string> refreshTexture() override;
 };

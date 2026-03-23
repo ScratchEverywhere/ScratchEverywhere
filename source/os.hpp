@@ -2,6 +2,7 @@
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <nonstd/expected.hpp>
 #include <stdexcept>
 #include <string>
 #ifdef __3DS__
@@ -131,7 +132,7 @@ std::string getScratchFolderLocation();
  * @return The location of the RomFS. On Switch, Wii U, and 3DS, this is `romfs:/`. everywhere else will be an empty string.
  */
 inline std::string getRomFSLocation() {
-#if defined(__WIIU__) || defined(__SWITCH__) || defined(__3DS__)
+#if defined(__SWITCH__) || defined(__3DS__)
     return "romfs:/";
 #elif defined(__EMSCRIPTEN__)
     return "/romfs/";
@@ -212,7 +213,7 @@ std::string getUsername();
  * Create a directory.
  * @param path The path of the directory to create.
  */
-void createDirectory(const std::string &path);
+nonstd::expected<void, std::string> createDirectory(const std::string &path);
 
 /**
  * Renames/moves a file.
@@ -225,7 +226,7 @@ void renameFile(const std::string &originalPath, const std::string &newPath);
  * Remove a directory recursively.
  * @param path The path of the directory to remove.
  */
-void removeDirectory(const std::string &path);
+nonstd::expected<void, std::string> removeDirectory(const std::string &path);
 
 /**
  * Check if a file exists.
@@ -240,129 +241,4 @@ bool fileExists(const std::string &path);
  * @return The parent path of the given path.
  */
 std::string parentPath(const std::string &path);
-
-class FilesystemError : public std::runtime_error {
-  protected:
-    std::string path1;
-    std::string path2;
-    int errorCode;
-
-  public:
-    /**
-     * Construct a FilesystemError with a message and single path.
-     * @param message The error message.
-     * @param p The path involved in the error.
-     * @param ec The system error code (errno).
-     */
-    FilesystemError(const std::string &message, const std::string &p, int ec = 0)
-        : std::runtime_error(message), path1(p), path2(""), errorCode(ec) {}
-
-    /**
-     * Construct a FilesystemError with a message and two paths.
-     * @param message The error message.
-     * @param p1 The first path involved in the error.
-     * @param p2 The second path involved in the error.
-     * @param ec The system error code (errno).
-     */
-    FilesystemError(const std::string &message, const std::string &p1, const std::string &p2, int ec = 0)
-        : std::runtime_error(message), path1(p1), path2(p2), errorCode(ec) {}
-
-    /**
-     * Get the first path involved in the error.
-     * @return The first path.
-     */
-    const std::string &path() const noexcept { return path1; }
-
-    /**
-     * Get the first path involved in the error.
-     * @return The first path.
-     */
-    const std::string &getPath1() const noexcept { return path1; }
-
-    /**
-     * Get the second path involved in the error.
-     * @return The second path.
-     */
-    const std::string &getPath2() const noexcept { return path2; }
-
-    /**
-     * Get the system error code.
-     * @return The error code.
-     */
-    int getErrorCode() const noexcept { return errorCode; }
-
-    virtual ~FilesystemError() = default;
-};
-
-/**
- * Exception thrown when a directory does not exist.
- */
-class DirectoryNotFound : public FilesystemError {
-  public:
-    DirectoryNotFound(const std::string &p, int ec = 0)
-        : FilesystemError("Directory not found: " + p, p, ec) {}
-};
-
-/**
- * Exception thrown when a file does not exist.
- */
-class FileNotFound : public FilesystemError {
-  public:
-    FileNotFound(const std::string &p, int ec = 0)
-        : FilesystemError("File not found: " + p, p, ec) {}
-};
-
-/**
- * Exception thrown when a path is not a directory.
- */
-class NotADirectory : public FilesystemError {
-  public:
-    NotADirectory(const std::string &p, int ec = 0)
-        : FilesystemError("Path is not a directory: " + p, p, ec) {}
-};
-
-/**
- * Exception thrown when a path is not a file.
- */
-class NotAFile : public FilesystemError {
-  public:
-    NotAFile(const std::string &p, int ec = 0)
-        : FilesystemError("Path is not a file: " + p, p, ec) {}
-};
-
-/**
- * Exception thrown when failing to create a directory.
- */
-class DirectoryCreationFailed : public FilesystemError {
-  public:
-    DirectoryCreationFailed(const std::string &p, int ec = 0)
-        : FilesystemError("Failed to create directory: " + p, p, ec) {}
-};
-
-/**
- * Exception thrown when failing to remove a directory.
- */
-class DirectoryRemovalFailed : public FilesystemError {
-  public:
-    DirectoryRemovalFailed(const std::string &p, int ec = 0)
-        : FilesystemError("Failed to remove directory: " + p, p, ec) {}
-};
-
-/**
- * Exception thrown when failing to remove a file.
- */
-class FileRemovalFailed : public FilesystemError {
-  public:
-    FileRemovalFailed(const std::string &p, int ec = 0)
-        : FilesystemError("Failed to remove file: " + p, p, ec) {}
-};
-
-/**
- * Exception thrown when failing to open a directory.
- */
-class DirectoryOpenFailed : public FilesystemError {
-  public:
-    DirectoryOpenFailed(const std::string &p, int ec = 0)
-        : FilesystemError("Failed to open directory: " + p, p, ec) {}
-};
 }; // namespace OS

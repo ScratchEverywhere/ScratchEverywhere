@@ -10,15 +10,6 @@
 #include <string>
 #include <vector>
 
-Input::Mouse Input::mousePointer;
-Sprite *Input::draggingSprite = nullptr;
-
-std::vector<std::string> Input::inputButtons;
-std::map<std::string, std::string> Input::inputControls;
-std::vector<std::string> Input::inputBuffer;
-std::unordered_map<std::string, int> Input::keyHeldDuration;
-std::unordered_set<std::string> Input::codePressedBlockOpcodes;
-
 #ifdef PLATFORM_HAS_CONTROLLER
 extern SDL_Joystick *controller;
 #define CONTROLLER_DEADZONE_X 10000

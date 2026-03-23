@@ -8,14 +8,10 @@
 #include <runtime.hpp>
 
 SpeechManagerGL2D::SpeechManagerGL2D() {
-    speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false);
 }
 
 SpeechManagerGL2D::~SpeechManagerGL2D() {
     cleanup();
-}
-
-void SpeechManagerGL2D::ensureImagesLoaded() {
 }
 
 double SpeechManagerGL2D::getCurrentTime() {
@@ -26,9 +22,7 @@ void SpeechManagerGL2D::createSpeechObject(Sprite *sprite, const std::string &me
     speechObjects[sprite] = std::make_unique<SpeechTextObjectGL2D>(message, 100);
 }
 
-void SpeechManagerGL2D::render() {
-    // Ensure images are loaded (they may have been cleaned up)
-    ensureImagesLoaded();
+void SpeechManagerGL2D::render(int offsetX, int offsetY) {
 
     // Get screen dimensions and scale so speech size aligns with resolution
     int screenWidth = Render::getWidth();
@@ -37,8 +31,11 @@ void SpeechManagerGL2D::render() {
     double scaleY = static_cast<double>(screenHeight) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
+    uint8_t visibleObjects = 0;
     for (auto &[sprite, obj] : speechObjects) {
         if (obj && sprite->visible) {
+            visibleObjects++;
+            if (visibleObjects == 1 && speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false).value();
             // Apply res-respecting transformations
             int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (screenWidth / 2));
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (screenHeight / 2));
@@ -95,6 +92,7 @@ void SpeechManagerGL2D::render() {
             speechObj->render(textX, textY);
         }
     }
+    if (visibleObjects == 0 && speechIndicatorImage != nullptr) speechIndicatorImage.reset();
 }
 
 void SpeechManagerGL2D::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {

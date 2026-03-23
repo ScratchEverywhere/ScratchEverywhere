@@ -34,12 +34,6 @@ SDL_Surface *penSurface = nullptr;
 
 SpeechManagerSDL1 *speechManager = nullptr;
 
-Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
-bool Render::hasFrameBegan;
-std::unordered_map<std::string, Monitor> Render::visibleVariables;
-bool Render::debugMode = false;
-float Render::renderScale = 1.0f;
-
 bool Render::Init() {
     TTF_Init();
 
@@ -80,8 +74,17 @@ void *Render::getRenderer() {
     return nullptr;
 }
 
-SpeechManager *Render::getSpeechManager() {
+bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerSDL1(static_cast<SDL_Surface *>(globalWindow->getHandle()));
+    return speechManager != nullptr;
+}
+
+void Render::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
     return speechManager;
 }
 
@@ -341,15 +344,12 @@ void Render::renderSprites() {
     }
 
     drawBlackBars(getWidth(), getHeight());
-    renderVisibleVariables();
+    renderMonitors();
 
     SDL_Flip(window);
     if (globalWindow) globalWindow->swapBuffers();
     SoundPlayer::flushAudio();
 }
-
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 
 void Render::renderPenLayer() {
     if (penSurface == nullptr) return;

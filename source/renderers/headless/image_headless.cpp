@@ -1,13 +1,18 @@
 #include "image_headless.hpp"
+#include "nonstd/expected.hpp"
 
 Image_Headless::Image_Headless(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) : Image(filePath, fromScratchProject, bitmapHalfQuality, scale) {
-    free(imgData.pixels);
-    imgData.pixels = nullptr;
+    if (imgData.pixels) {
+        free(imgData.pixels);
+        imgData.pixels = nullptr;
+    }
 }
 
 Image_Headless::Image_Headless(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
-    free(imgData.pixels);
-    imgData.pixels = nullptr;
+    if (imgData.pixels) {
+        free(imgData.pixels);
+        imgData.pixels = nullptr;
+    }
 }
 
 Image_Headless::~Image_Headless() {
@@ -23,4 +28,6 @@ void *Image_Headless::getNativeTexture() {
     return nullptr;
 }
 
-void Image_Headless::refreshTexture() {}
+nonstd::expected<void, std::string> Image_Headless::refreshTexture() {
+    return {};
+}

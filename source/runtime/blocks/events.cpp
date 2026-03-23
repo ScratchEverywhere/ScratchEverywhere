@@ -16,7 +16,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
 
     if (!fromRepeat) {
         for (Sprite *spr : Scratch::sprites) {
-            for (auto &[id, hat_block] : spr->blocks) {
+            for (auto &hat_block : spr->blocks) {
                 if (hat_block.opcode == "event_whenbroadcastreceived" && Scratch::getFieldValue(hat_block, "BROADCAST_OPTION") == broadcastName) {
                     Scratch::broadcastQueue.push_back(broadcastName);
                     BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -63,3 +63,5 @@ SCRATCH_BLOCK_NOP(event, whenkeypressed)
 SCRATCH_BLOCK_NOP(event, whenbroadcastreceived)
 
 SCRATCH_BLOCK_NOP(event, whenthisspriteclicked)
+
+SCRATCH_BLOCK_NOP(event, whenstageclicked)

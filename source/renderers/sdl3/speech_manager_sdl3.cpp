@@ -5,15 +5,10 @@
 #include <runtime.hpp>
 
 SpeechManagerSDL3::SpeechManagerSDL3(SDL_Renderer *renderer) : renderer(renderer) {
-    bubbleImage = createImageFromFile("gfx/ingame/speechbubble.svg", false);
-    speechIndicatorImage = createImageFromFile("gfx/ingame/speech.svg", false);
 }
 
 SpeechManagerSDL3::~SpeechManagerSDL3() {
     cleanup();
-}
-
-void SpeechManagerSDL3::ensureImagesLoaded() {
 }
 
 double SpeechManagerSDL3::getCurrentTime() {
@@ -25,10 +20,8 @@ void SpeechManagerSDL3::createSpeechObject(Sprite *sprite, const std::string &me
     static_cast<SpeechTextObjectSDL3 *>(speechObjects[sprite].get())->setRenderer(renderer);
 }
 
-void SpeechManagerSDL3::render() {
+void SpeechManagerSDL3::render(int offsetX, int offsetY) {
     if (!renderer) return;
-
-    ensureImagesLoaded();
 
     // Get window dimensions and scale so speech size aligns with resolution
     int windowWidth = Render::getWidth();
@@ -37,8 +30,14 @@ void SpeechManagerSDL3::render() {
     double scaleY = static_cast<double>(windowHeight) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
+    size_t visibleObjects = 0;
     for (auto &[sprite, obj] : speechObjects) {
         if (obj && sprite->visible) {
+            visibleObjects++;
+            if (visibleObjects == 1) {
+                if (bubbleImage == nullptr) bubbleImage = createImageFromFile("gfx/ingame/speechbubble.svg", false).value();
+                if (speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech.svg", false).value();
+            }
             // Apply res-respecting transformations
             int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (windowWidth / 2));
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));
@@ -89,6 +88,10 @@ void SpeechManagerSDL3::render() {
 
             speechObj->render(textX, textY);
         }
+    }
+    if (visibleObjects == 0) {
+        if (bubbleImage != nullptr) bubbleImage.reset();
+        if (speechIndicatorImage != nullptr) speechIndicatorImage.reset();
     }
 }
 

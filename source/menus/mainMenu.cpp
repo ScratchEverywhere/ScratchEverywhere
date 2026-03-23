@@ -75,7 +75,8 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
-#ifdef RENDERER_HEADLESS // let the user type what project they want to open if headless
+#if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
+    // let the user type what project they want to open
     std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
 
     const std::string ext = ".sb3";
@@ -87,6 +88,7 @@ void MainMenu::init() {
     Unzip::filePath = OS::getScratchFolderLocation() + answer + ".sb3";
 
     MenuManager::loadProject();
+    return;
 #elif defined(__NDS__)
     if (!SoundPlayer::isSoundLoaded("gfx/nds/mm_ds.wav")) {
         SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/nds/mm_ds.wav", false, false);

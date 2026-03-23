@@ -1,4 +1,5 @@
 #include "image_c2d.hpp"
+#include "nonstd/expected.hpp"
 #include <algorithm>
 #include <math.hpp>
 #include <os.hpp>
@@ -16,8 +17,8 @@ const uint32_t Image_C2D::rgbaToAgbr(uint32_t px) {
 
 void Image_C2D::render(ImageRenderParams &params) {
 
-    int x = params.x;
-    int y = params.y;
+    float x = params.x;
+    float y = params.y;
     float scaleX = params.scale;
     const float scaleY = params.scale;
     const int &brightness = params.brightness;
@@ -129,7 +130,7 @@ void Image_C2D::renderNineslice(double xPos, double yPos, double width, double h
     freeTimer = maxFreeTimer;
 }
 
-void Image_C2D::setInitialTexture() {
+nonstd::expected<void, std::string> Image_C2D::setInitialTexture() {
 
     uint32_t *rgba_raw = reinterpret_cast<uint32_t *>(imgData.pixels);
     const int texWidth = imgData.width;
@@ -155,7 +156,7 @@ void Image_C2D::setInitialTexture() {
     if (!C3D_TexInit(tex, tex->width, tex->height, GPU_RGBA8)) {
         delete tex;
         delete subtex;
-        throw std::runtime_error("Texture initializing failed!");
+        return nonstd::make_unexpected("Texture initializing failed!");
     }
 
     C3D_TexSetFilter(tex, GPU_NEAREST, GPU_LINEAR);
@@ -163,7 +164,7 @@ void Image_C2D::setInitialTexture() {
     if (!tex->data) {
         C3D_TexDelete(tex);
         delete subtex;
-        throw std::runtime_error("Texture data is null!");
+        return nonstd::make_unexpected("Texture data is null!");
     }
 
     size_t textureSize = tex->width * tex->height * 4;
@@ -186,6 +187,7 @@ void Image_C2D::setInitialTexture() {
     texture.subtex = subtex;
     free(imgData.pixels);
     imgData.pixels = nullptr;
+    return {};
 }
 
 static inline uint32_t unswizzleRGBA8(const uint32_t *swizzled, int texWidth, int x, int y) {
@@ -262,7 +264,7 @@ void *Image_C2D::getNativeTexture() {
     return &texture;
 }
 
-void Image_C2D::refreshTexture() {
+nonstd::expected<void, std::string> Image_C2D::refreshTexture() {
     if (texture.tex) {
         C3D_TexDelete(texture.tex);
         delete texture.tex;
@@ -271,19 +273,34 @@ void Image_C2D::refreshTexture() {
     if (texture.subtex) {
         delete texture.subtex;
     }
-    setInitialTexture();
+    return setInitialTexture();
 }
 
 Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
-    setInitialTexture();
+
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
+    const auto potentialError = setInitialTexture();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
-    init(filePath, zip, bitmapHalfQuality, scale);
-    setInitialTexture();
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
+    const auto potentialError = setInitialTexture();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_C2D::~Image_C2D() {

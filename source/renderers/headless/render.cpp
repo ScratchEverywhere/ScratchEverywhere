@@ -4,15 +4,6 @@
 #include <window.hpp>
 #include <windowing/headless/window.hpp>
 
-// Static member initialization
-bool Render::debugMode = false;
-bool Render::hasFrameBegan = false;
-Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-std::unordered_map<std::string, Monitor> Render::visibleVariables;
-float Render::renderScale;
-
 Window *globalWindow = nullptr;
 
 bool Render::Init() {
@@ -31,6 +22,13 @@ void Render::deInit() {
 
 void *Render::getRenderer() {
     return nullptr;
+}
+
+bool Render::createSpeechManager() {
+    return false;
+}
+
+void Render::destroySpeechManager() {
 }
 
 SpeechManager *Render::getSpeechManager() {

@@ -1,4 +1,5 @@
 #include "render.hpp"
+#include "speech_manager.hpp"
 #include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
 #include <SDL2/SDL.h>
@@ -56,12 +57,6 @@ char nickname[0x21];
 Window *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
-
-Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
-bool Render::hasFrameBegan;
-std::unordered_map<std::string, Monitor> Render::visibleVariables;
-bool Render::debugMode = false;
-float Render::renderScale = 1.0f;
 
 SpeechManagerSDL2 *speechManager = nullptr;
 
@@ -163,8 +158,17 @@ void *Render::getRenderer() {
     return static_cast<void *>(renderer);
 }
 
-SpeechManager *Render::getSpeechManager() {
+bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerSDL2(renderer);
+    return speechManager != nullptr;
+}
+
+void Render::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
     return speechManager;
 }
 
@@ -517,7 +521,7 @@ void Render::renderSprites() {
     }
 
     drawBlackBars(getWidth(), getHeight());
-    renderVisibleVariables();
+    renderMonitors();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {
@@ -535,9 +539,6 @@ void Render::renderSprites() {
     SDL_RenderPresent(renderer);
     SoundPlayer::flushAudio();
 }
-
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 
 void Render::renderPenLayer() {
 

@@ -113,19 +113,17 @@ class BlockExecutor {
 
     /**
      * Runs and executes every block currently in the `Scratch::broadcastQueue`.
-     * @return a Vector pair of every block that was run.
      */
-    static std::vector<std::pair<Block *, Sprite *>> runBroadcasts();
+    static void runBroadcasts();
 
     /**
      * Runs and executes a single broadcast
      * @param broadcastToRun string name of the broadcast you want to run.
-     * @return a Vector pair of every block that was run.
      */
-    static std::vector<std::pair<Block *, Sprite *>> runBroadcast(std::string broadcastToRun);
+    static void runBroadcast(std::string broadcastToRun);
 
-    static std::vector<std::pair<Block *, Sprite *>> runBackdrops();
-    static std::vector<std::pair<Block *, Sprite *>> runBackdrop(std::string backdropToRun);
+    static void runBackdrops();
+    static void runBackdrop(std::string backdropToRun);
 
     /**
      * Runs every "when I start as a clone" block

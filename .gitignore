@@ -5,10 +5,13 @@
 out/
 build/
 build-*/
-cmake/
 romfs/project/
 romfs/gfx
 scratch-everywhere/
+
+# CMake
+cmake/CPM.cmake
+cmake/*cache*/
 
 # legacy makefiles
 make/Makefile_vita
@@ -90,6 +93,8 @@ cloud-username.txt
 # fockerdile
 !docker/Dockerfile.nds
 
+.clangd
+
 CMakeSettings.json
 
 # Android
@@ -100,3 +105,6 @@ local.properties
 
 android/app/src/main/assets/
 android/app/src/main/java/org/libsdl/app
+
+# Debug files
+perf.data*

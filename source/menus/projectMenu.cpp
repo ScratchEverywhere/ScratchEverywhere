@@ -4,7 +4,8 @@
 #include "unpackMenu.hpp"
 #include <audio.hpp>
 
-ProjectMenu::ProjectMenu() {
+ProjectMenu::ProjectMenu(const std::string &selectedProjectName) {
+    initProjectName = selectedProjectName;
     init();
 }
 
@@ -121,6 +122,17 @@ void ProjectMenu::init() {
     isInitialized = true;
 
     settings = SettingsManager::getConfigSettings();
+
+    if (!initProjectName.empty()) {
+        for (auto &object : projectControl->buttonObjects) {
+            if (object->text->getText() == initProjectName) {
+                projectControl->y = object->y - 120;
+                projectControl->cameraY = object->y - 120;
+                projectControl->selectedObject = object;
+                break;
+            }
+        }
+    }
 }
 
 void ProjectMenu::render() {

@@ -12,15 +12,6 @@
 #include <window.hpp>
 #include <windowing/nds/window.hpp>
 
-// Static member initialization
-bool Render::debugMode = false;
-bool Render::hasFrameBegan = false;
-float Render::renderScale = 1.0f;
-Render::RenderModes Render::renderMode = Render::RenderModes::TOP_SCREEN_ONLY;
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-std::unordered_map<std::string, Monitor> Render::visibleVariables;
-
 Window *globalWindow = nullptr;
 SpeechManagerGL2D *speechManager = nullptr;
 
@@ -59,8 +50,17 @@ void *Render::getRenderer() {
     return nullptr;
 }
 
-SpeechManager *Render::getSpeechManager() {
+bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerGL2D();
+    return speechManager != nullptr;
+}
+
+void Render::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
+}
+
+SpeechManager *Render::getSpeechManager() {
     return speechManager;
 }
 
@@ -153,7 +153,7 @@ void Render::renderSprites() {
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
     }
 
-    renderVisibleVariables();
+    renderMonitors();
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
     SoundPlayer::flushAudio();

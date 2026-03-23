@@ -3,8 +3,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN make PLATFORM=ps4 -j 2
+RUN cmake -B build-ps4 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/ps4.cmake -DCMAKE_BUILD_TYPE=Release && cmake --build build-ps4 -j2
 
 FROM scratch AS exporter
 
-COPY --from=main_builder /app/build/ps4/scratch-ps4.pkg /
+COPY --from=main_builder /app/build-ps4/scratch-ps4.pkg /

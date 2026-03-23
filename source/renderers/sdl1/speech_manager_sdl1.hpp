@@ -10,7 +10,7 @@ class Image;
 class SpeechManagerSDL1 : public SpeechManager {
   private:
     SDL_Surface *window;
-    std::shared_ptr<Image> speechIndicatorImage;
+    std::shared_ptr<Image> speechIndicatorImage = nullptr;
 
   protected:
     double getCurrentTime() override;
@@ -18,11 +18,10 @@ class SpeechManagerSDL1 : public SpeechManager {
 
   private:
     void renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
-    void ensureImagesLoaded();
 
   public:
     SpeechManagerSDL1(SDL_Surface *window);
     ~SpeechManagerSDL1();
 
-    void render() override;
+    void render(int offsetX = 0, int offsetY = 0) override;
 };

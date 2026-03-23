@@ -1,4 +1,5 @@
 #pragma once
+#include "nonstd/expected.hpp"
 #include <image.hpp>
 
 class Image_Headless : public Image {
@@ -14,5 +15,5 @@ class Image_Headless : public Image {
 
     void *getNativeTexture() override;
 
-    void refreshTexture() override;
+    nonstd::expected<void, std::string> refreshTexture() override;
 };

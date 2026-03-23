@@ -5,14 +5,10 @@
 #include <3ds.h>
 
 SpeechManagerC2D::SpeechManagerC2D() {
-    speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false);
 }
 
 SpeechManagerC2D::~SpeechManagerC2D() {
     cleanup();
-}
-
-void SpeechManagerC2D::ensureImagesLoaded() {
 }
 
 double SpeechManagerC2D::getCurrentTime() {
@@ -23,19 +19,23 @@ void SpeechManagerC2D::createSpeechObject(Sprite *sprite, const std::string &mes
     speechObjects[sprite] = std::make_unique<SpeechTextObjectC2D>(message, 100);
 }
 
-void SpeechManagerC2D::render() {
-    // Ensure images are loaded (they may have been cleaned up)
-    ensureImagesLoaded();
+void SpeechManagerC2D::render(int offsetX, int offsetY) {
 
     // Get screen dimensions and scale so speech size aligns with resolution
-    const int SCREEN_WIDTH = Render::getWidth();
-    const int SCREEN_HEIGHT = Render::getHeight();
+    const int SCREEN_WIDTH = Render::renderMode == Render::BOTH_SCREENS ? 400 : Render::getWidth();
+    const int SCREEN_HEIGHT = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
     double scaleX = static_cast<double>(SCREEN_WIDTH) / static_cast<double>(Scratch::projectWidth);
     double scaleY = static_cast<double>(SCREEN_HEIGHT) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
+    size_t visibleObjects = 0;
     for (auto &[sprite, obj] : speechObjects) {
         if (obj && sprite->visible) {
+
+            // load speechmanager image
+            visibleObjects++;
+            if (visibleObjects == 1 && speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false).value();
+
             // Apply res-respecting transformations
             int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (SCREEN_WIDTH / 2));
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (SCREEN_HEIGHT / 2));
@@ -69,8 +69,8 @@ void SpeechManagerC2D::render() {
             }
 
             // ensure text stays within screen bounds
-            textX = std::max(0, std::min(textX, SCREEN_WIDTH - textWidth));
-            textY = std::max(textHeight, textY);
+            textX = std::max(0, std::min(textX, SCREEN_WIDTH - textWidth)) + offsetX;
+            textY = std::max(textHeight, textY) + offsetY;
 
             // render basic speech bubble behind text (simple rects due to performance)
             int bubblePadding = static_cast<int>(8 * scale);
@@ -91,6 +91,7 @@ void SpeechManagerC2D::render() {
             speechObj->render(textX, textY);
         }
     }
+    if (visibleObjects == 0 && speechIndicatorImage != nullptr) speechIndicatorImage.reset();
 }
 
 void SpeechManagerC2D::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {

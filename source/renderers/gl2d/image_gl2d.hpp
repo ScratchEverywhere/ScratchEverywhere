@@ -1,4 +1,5 @@
 #pragma once
+#include "nonstd/expected.hpp"
 #include <gl2d.h>
 #include <image.hpp>
 #include <nds.h>
@@ -6,7 +7,7 @@
 
 class Image_GL2D : public Image {
   private:
-    void setInitialTexture();
+    nonstd::expected<void, std::string> setInitialTexture();
     void RGBAToPAL8();
     void *resizeRGBAImage(uint16_t newWidth, uint16_t newHeight);
 
@@ -34,5 +35,5 @@ class Image_GL2D : public Image {
 
     void *getNativeTexture() override;
 
-    void refreshTexture() override;
+    nonstd::expected<void, std::string> refreshTexture() override;
 };

@@ -1,5 +1,6 @@
 #include "unzip.hpp"
 #include "input.hpp"
+#include "os.hpp"
 #include <cstring>
 #include <ctime>
 #include <errno.h>
@@ -21,20 +22,11 @@
 #endif
 
 #ifdef ENABLE_LOADSCREEN
-#ifdef RENDERER_CITRO2D
-#include <3ds.h>
-#elif defined(RENDERER_SDL1)
-#include "SDL/SDL.h"
-#elif defined(RENDERER_SDL2) || defined(WINDOWING_SDL2)
-#include "SDL2/SDL.h"
-#elif defined(RENDERER_SDL3) || defined(WINDOWING_SDL3)
-#include "SDL3/SDL.h"
-#else
-#include <thread>
-#endif
+#include <thread.hpp>
 #endif
 
 #if ANDROID
+#include <SDL2/SDL_rwops.h>
 #include <sstream>
 #endif
 
@@ -131,9 +123,8 @@ int Unzip::openFile(std::istream *&file) {
     return 1;
 }
 
-int projectLoaderThread(void *data) {
+void projectLoaderThread(void *data) {
     Unzip::openScratchProject(NULL);
-    return 0;
 }
 
 void loadInitialImages() {
@@ -145,95 +136,41 @@ void loadInitialImages() {
 }
 
 bool Unzip::load() {
-
     Unzip::threadFinished = false;
     Unzip::projectOpened = 0;
 
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
-#ifdef RENDERER_CITRO2D // create 3DS thread for loading screen
-    s32 mainPrio = 0;
-    svcGetThreadPriority(&mainPrio, CUR_THREAD_HANDLE);
+    SE_Thread projectThread;
+    if (projectThread.create(projectLoaderThread, nullptr, 0x4000, 0, -1, "ProjectLoader")) {
+        projectThread.detach();
 
-    Thread projectThread = threadCreate(
-        Unzip::openScratchProject,
-        NULL,
-        0x4000,
-        mainPrio + 1,
-        -1,
-        false);
+        Loading loading;
+        loading.init();
 
-    if (!projectThread) {
-        Unzip::threadFinished = true;
-        Unzip::projectOpened = -3;
+        while (!Unzip::threadFinished) {
+            loading.render();
+        }
+
+        projectThread.join();
+        loading.cleanup();
+
+        if (Unzip::projectOpened != 1) {
+            return false;
+        }
+    } else {
+        Unzip::openScratchProject(nullptr);
+        if (Unzip::projectOpened != 1) {
+            return false;
+        }
     }
 
-    Loading loading;
-    loading.init();
-
-    while (!Unzip::threadFinished) {
-        loading.render();
-    }
-    threadJoin(projectThread, U64_MAX);
-    threadFree(projectThread);
+#else
+    // Non-threaded loading fallback
+    Unzip::openScratchProject(nullptr);
     if (Unzip::projectOpened != 1) {
-        loading.cleanup();
         return false;
     }
-    loading.cleanup();
-    osSetSpeedupEnable(false);
-
-#elif defined(WINDOWING_SDL1) || defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(WINDOWING_SDL2) || defined(RENDERER_SDL3) || defined(WINDOWING_SDL3) // create SDL thread for loading screen
-#ifdef RENDERER_SDL1
-    SDL_Thread *thread = SDL_CreateThread(projectLoaderThread, nullptr);
-#elif defined(RENDERER_SDL2) || defined(WINDOWING_SDL2)
-    SDL_Thread *thread = SDL_CreateThreadWithStackSize(projectLoaderThread, "LoadingScreen", 0x15000, nullptr);
-#else
-    SDL_PropertiesID props = SDL_CreateProperties();
-    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER, (void *)projectLoaderThread);
-    SDL_SetStringProperty(props, SDL_PROP_THREAD_CREATE_NAME_STRING, "LoadingScreen");
-    SDL_SetNumberProperty(props, SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER, 0x15000);
-    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_USERDATA_POINTER, nullptr);
-    SDL_Thread *thread = SDL_CreateThreadWithProperties(props);
-    SDL_DestroyProperties(props);
-#endif
-
-    if (thread != NULL && thread != nullptr) {
-
-        Loading loading;
-        loading.init();
-
-        while (!Unzip::threadFinished) {
-            loading.render();
-        }
-        SDL_WaitThread(thread, nullptr);
-        loading.cleanup();
-    } else Unzip::openScratchProject(NULL);
-
-    if (Unzip::projectOpened != 1)
-        return false;
-#else // create thread for loading screen
-    std::thread thread(projectLoaderThread, nullptr);
-    if (thread.joinable()) {
-        Loading loading;
-        loading.init();
-
-        while (!Unzip::threadFinished) {
-            loading.render();
-        }
-        thread.join();
-        loading.cleanup();
-    } else Unzip::openScratchProject(NULL);
-
-    if (Unzip::projectOpened != 1)
-        return false;
-#endif
-#else
-
-    // non-threaded loading
-    Unzip::openScratchProject(NULL);
-    if (Unzip::projectOpened != 1)
-        return false;
 #endif
 
     loadInitialImages();
@@ -267,14 +204,7 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
     loadingState = "Loading Sprites";
-    try {
-        Parser::loadSprites(project_json);
-    } catch (const std::exception &e) {
-        Log::logError("Failed to parse project: " + std::string(e.what()));
-        Unzip::projectOpened = -3;
-        Unzip::threadFinished = true;
-        return;
-    }
+    Parser::loadSprites(project_json);
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
@@ -287,10 +217,8 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
 
     if (stat(directory.c_str(), &dirStat) != 0) {
         Log::logWarning("Directory does not exist! " + directory);
-        try {
-            OS::createDirectory(directory);
-        } catch (...) {
-        }
+        auto potentialError = OS::createDirectory(directory);
+        if (!potentialError.has_value()) Log::logWarning("Failed to create directory, " + directory + ", " + potentialError.error());
         return projectFiles;
     }
 
@@ -369,8 +297,9 @@ std::string Unzip::getSplashText() {
 
     std::vector<std::string> splashLines;
 #if defined(USE_CMAKERC)
-    try {
-        auto file = cmrc::romfs::get_filesystem().open(textPath);
+    auto fs = cmrc::romfs::get_filesystem();
+    if (fs.exists(textPath)) {
+        auto file = fs.open(textPath);
         std::string_view sv(file.begin(), file.size());
         std::istringstream stream{std::string(sv)};
 
@@ -380,10 +309,10 @@ std::string Unzip::getSplashText() {
                 splashLines.push_back(line);
             }
         }
-    } catch (const std::exception &e) {
+    } else {
         return fallback;
     }
-#elif defined(ANDROID)
+#elif defined(__ANDROID__)
     SDL_RWops *rw = SDL_RWFromFile(textPath.c_str(), "r");
     if (!rw) return fallback;
 
@@ -628,11 +557,9 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
         return false;
     }
 
-    try {
-
-        OS::createDirectory(destFolder + "/");
-    } catch (const std::exception &e) {
-        Log::logError(e.what());
+    auto potentialError = OS::createDirectory(destFolder + "/");
+    if (!potentialError.has_value()) {
+        Log::logError(potentialError.error());
         return false;
     }
 
@@ -647,7 +574,11 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
 
         std::string outPath = destFolder + "/" + filename;
 
-        OS::createDirectory(OS::parentPath(outPath));
+        auto potentialError = OS::createDirectory(OS::parentPath(outPath));
+        if (!potentialError.has_value()) {
+            Log::logError(potentialError.error());
+            return false;
+        }
 
         if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
             Log::logError("Failed to extract: " + outPath);
@@ -672,11 +603,10 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
         return false;
     }
 
-    try {
-        OS::removeDirectory(directory);
-        return true;
-    } catch (const OS::FilesystemError &e) {
-        Log::logError(std::string("Failed to delete folder: ") + e.what());
+    auto potentialError = OS::removeDirectory(directory);
+    if (!potentialError.has_value()) {
+        Log::logError(std::string("Failed to delete folder: ") + potentialError.error());
+        return false;
     }
 
     return true;
@@ -691,15 +621,13 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         return nlohmann::json();
     }
 
-    nlohmann::json json;
-    try {
-        file >> json;
-    } catch (const nlohmann::json::parse_error &e) {
-        Log::logError("Failed to parse JSON file: " + std::string(e.what()));
-        file.close();
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+    nlohmann::json json = nlohmann::json::parse(content, nullptr, false);
+    if (json.is_discarded()) {
+        Log::logError("Failed to parse JSON file: Syntax error.");
         return nlohmann::json();
     }
-    file.close();
 
     if (!json.contains("settings")) {
         return nlohmann::json();

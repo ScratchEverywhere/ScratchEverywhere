@@ -12,6 +12,7 @@
 #include <render.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -40,7 +41,7 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
     auto &h = getHandlers();
     auto &vh = getValueHandlers();
 
-    for (auto &[id, block] : sprite->blocks) {
+    for (auto &block : sprite->blocks) {
 
         auto it = h.find(block.opcode);
         if (it != h.end()) {
@@ -103,7 +104,7 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
         }
     }
 
-    for (auto &[id, monitor] : Render::visibleVariables) {
+    for (auto &[id, monitor] : Render::monitors) {
         if (monitor.opcode == "data_variable") {
             auto it = sprite->variables.find(monitor.id);
             if (it != sprite->variables.end()) {
@@ -151,7 +152,7 @@ void BlockExecutor::runBlock(Block &block, Sprite *sprite, bool *withoutScreenRe
         if (result == BlockResult::RETURN) return;
 
         if (currentBlock->next.empty()) return;
-        currentBlock = &sprite->blocks[currentBlock->next];
+        currentBlock = sprite->blocksMap[currentBlock->next];
         fromRepeat = false;
     }
 }
@@ -194,7 +195,7 @@ void BlockExecutor::executeKeyHats() {
 
     const std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (Sprite *currentSprite : sprToRun) {
-        for (auto &[id, data] : currentSprite->blocks) {
+        for (auto &data : currentSprite->blocks) {
             // TODO: Add a way to register these with macros
             if (data.opcode == "event_whenkeypressed") {
                 std::string key = Scratch::getFieldValue(data, "KEY_OPTION");
@@ -223,8 +224,8 @@ void BlockExecutor::doSpriteClicking() {
 
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;
-                    for (auto &[id, data] : sprite->blocks) {
-                        if (data.opcode == "event_whenthisspriteclicked") {
+                    for (auto &data : sprite->blocks) {
+                        if (data.opcode == "event_whenthisspriteclicked" || data.opcode == "event_whenstageclicked") {
                             executor.runBlock(data, sprite);
                         }
                     }
@@ -266,7 +267,7 @@ void BlockExecutor::runRepeatBlocks() {
             const std::string toRepeat = repeatList.back();
             if (toRepeat.empty()) continue;
 
-            Block *const toRun = &sprite->blocks[toRepeat];
+            Block *const toRun = sprite->blocksMap[toRepeat];
             if (toRun != nullptr) executor.runBlock(*toRun, sprite, &withoutRefresh, true);
         }
     }
@@ -310,7 +311,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             }
 
             // Get the parent of the prototype block (the definition containing all blocks)
-            Block *customBlockDefinition = &sprite->blocks[sprite->customBlockDefinitions[data.blockId]];
+            Block *customBlockDefinition = sprite->blocksMap[sprite->customBlockDefinitions[data.blockId]];
 
             callerBlock->customBlockPtr = customBlockDefinition;
 
@@ -344,7 +345,7 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             const std::string drivePrefix = OS::getRomFSLocation();
             Unzip::filePath.replace(0, 6, drivePrefix);
         } else {
-            Unzip::filePath = Unzip::filePath;
+            Unzip::filePath = OS::getScratchFolderLocation() + Unzip::filePath;
         }
 
         if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
@@ -369,13 +370,15 @@ BlockResult BlockExecutor::runCustomBlock(Sprite *sprite, Block &block, Block *c
             const std::string drivePrefix = OS::getRomFSLocation();
             Unzip::filePath.replace(0, 6, drivePrefix);
         } else {
-            Unzip::filePath = Unzip::filePath;
+            Unzip::filePath = OS::getScratchFolderLocation() + Unzip::filePath;
         }
         if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
             Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
         }
         if (!OS::fileExists(Unzip::filePath + "/project.json"))
             Unzip::filePath = Unzip::filePath + ".sb3";
+
+        Unzip::filePath = OS::getScratchFolderLocation() + Unzip::filePath;
 
         Scratch::dataNextProject = Scratch::getInputValue(block, "arg1", sprite);
         Scratch::shouldStop = true;
@@ -391,89 +394,62 @@ void BlockExecutor::runCloneStarts() {
         Scratch::cloneQueue.erase(Scratch::cloneQueue.begin());
         for (Sprite *sprite : Scratch::sprites) {
             if (cloningSprite != sprite) continue;
-            for (auto &[id, data] : cloningSprite->blocks) {
+            for (auto &data : cloningSprite->blocks) {
                 if (data.opcode == "control_start_as_clone") executor.runBlock(data, sprite);
             }
         }
     }
 }
 
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcasts() {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
+void BlockExecutor::runBroadcasts() {
     while (!Scratch::broadcastQueue.empty()) {
         std::string currentBroadcast = Scratch::broadcastQueue.front();
         Scratch::broadcastQueue.erase(Scratch::broadcastQueue.begin());
         std::transform(currentBroadcast.begin(), currentBroadcast.end(), currentBroadcast.begin(), ::tolower);
-        const auto results = runBroadcast(currentBroadcast);
-        blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
+        runBroadcast(currentBroadcast);
     }
-
-    return blocksToRun;
 }
 
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBroadcast(std::string broadcastToRun) {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
-    // find all matching "when I receive" blocks
+void BlockExecutor::runBroadcast(std::string broadcastToRun) {
     std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (auto *currentSprite : sprToRun) {
-        for (auto &[id, block] : currentSprite->blocks) {
+        for (auto &block : currentSprite->blocks) {
             if (block.opcode == "event_whenbroadcastreceived") {
                 std::string fieldValue = Scratch::getFieldValue(block, "BROADCAST_OPTION");
                 std::transform(fieldValue.begin(), fieldValue.end(), fieldValue.begin(), ::tolower);
                 if (fieldValue == broadcastToRun) {
-                    blocksToRun.push_back({&block, currentSprite});
+                    executor.runBlock(block, currentSprite);
                 }
             }
         }
     }
-
-    // run each matching block
-    for (auto &[blockPtr, spritePtr] : blocksToRun)
-        executor.runBlock(*blockPtr, spritePtr);
-
-    return blocksToRun;
 }
 
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBackdrops() {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
+void BlockExecutor::runBackdrops() {
     while (!Scratch::backdropQueue.empty()) {
         const std::string currentBackdrop = Scratch::backdropQueue.front();
         Scratch::backdropQueue.erase(Scratch::backdropQueue.begin());
-        const auto results = runBackdrop(currentBackdrop);
-        blocksToRun.insert(blocksToRun.end(), results.begin(), results.end());
+        runBackdrop(currentBackdrop);
     }
-
-    return blocksToRun;
 }
 
-std::vector<std::pair<Block *, Sprite *>> BlockExecutor::runBackdrop(std::string backdropToRun) {
-    std::vector<std::pair<Block *, Sprite *>> blocksToRun;
-
+void BlockExecutor::runBackdrop(std::string backdropToRun) {
     std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (auto *currentSprite : sprToRun) {
-        for (auto &[id, block] : currentSprite->blocks) {
+        for (auto &block : currentSprite->blocks) {
             if (block.opcode == "event_whenbackdropswitchesto" &&
                 Scratch::getFieldValue(block, "BACKDROP") == backdropToRun) {
-                blocksToRun.push_back({&block, currentSprite});
+                executor.runBlock(block, currentSprite);
             }
         }
     }
-
-    // run each matching block
-    for (auto &[blockPtr, spritePtr] : blocksToRun)
-        executor.runBlock(*blockPtr, spritePtr);
-
-    return blocksToRun;
 }
 
 void BlockExecutor::runAllBlocksByOpcode(std::string opcodeToFind) {
     // std::cout << "Running all " << opcodeToFind << " blocks." << "\n";
     std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (Sprite *currentSprite : sprToRun) {
-        for (auto &[id, data] : currentSprite->blocks) {
+        for (auto &data : currentSprite->blocks) {
             if (data.opcode != opcodeToFind) continue;
 
             executor.runBlock(data, currentSprite);
@@ -533,7 +509,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
 }
 
 void BlockExecutor::updateMonitors() {
-    for (auto &[id, var] : Render::visibleVariables) {
+    for (auto &[id, var] : Render::monitors) {
         if (var.visible) {
             Sprite *sprite = nullptr;
             for (auto &spr : Scratch::sprites) {
@@ -587,33 +563,29 @@ void BlockExecutor::updateMonitors() {
                 }
 #endif
             } else {
-                try {
-                    Block newBlock;
-                    newBlock.opcode = var.opcode;
-                    for (const auto &[paramName, paramValue] : var.parameters) {
-                        ParsedField parsedField;
-                        parsedField.value = Math::removeQuotations(paramValue);
-                        (*newBlock.parsedFields)[paramName] = parsedField;
-                    }
-                    if (var.opcode == "looks_costumenumbername")
-                        var.displayName = var.spriteName + ": costume " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
-                    else if (var.opcode == "looks_backdropnumbername")
-                        var.displayName = "backdrop " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
-                    else if (var.opcode == "sensing_current")
-                        var.displayName = std::string(MonitorDisplayNames::getCurrentMenuMonitorName(Scratch::getFieldValue(newBlock, "CURRENTMENU")));
-                    else {
-                        auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
-                        if (spriteName != var.opcode) {
-                            var.displayName = var.spriteName + ": " + std::string(spriteName);
-                        } else {
-                            auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
-                            var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
-                        }
-                    }
-                    var.value = executor.getBlockValue(newBlock, sprite);
-                } catch (...) {
-                    var.value = Value("Unknown...");
+                Block newBlock;
+                newBlock.opcode = var.opcode;
+                for (const auto &[paramName, paramValue] : var.parameters) {
+                    ParsedField parsedField;
+                    parsedField.value = Math::removeQuotations(paramValue);
+                    (*newBlock.parsedFields)[paramName] = parsedField;
                 }
+                if (var.opcode == "looks_costumenumbername")
+                    var.displayName = var.spriteName + ": costume " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
+                else if (var.opcode == "looks_backdropnumbername")
+                    var.displayName = "backdrop " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
+                else if (var.opcode == "sensing_current")
+                    var.displayName = std::string(MonitorDisplayNames::getCurrentMenuMonitorName(Scratch::getFieldValue(newBlock, "CURRENTMENU")));
+                else {
+                    auto spriteName = MonitorDisplayNames::getSpriteMonitorName(var.opcode);
+                    if (spriteName != var.opcode) {
+                        var.displayName = var.spriteName + ": " + std::string(spriteName);
+                    } else {
+                        auto simpleName = MonitorDisplayNames::getSimpleMonitorName(var.opcode);
+                        var.displayName = simpleName != var.opcode ? std::string(simpleName) : var.opcode;
+                    }
+                }
+                var.value = executor.getBlockValue(newBlock, sprite);
             }
         }
     }
