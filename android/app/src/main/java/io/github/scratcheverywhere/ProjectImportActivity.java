@@ -20,7 +20,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.Override;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ProjectImportActivity extends Activity {
 	private static final String TAG = "ProjectImportActivity";
@@ -48,14 +47,17 @@ public class ProjectImportActivity extends Activity {
 
 				// Import URI
 				try {
-					importProject(uri, fileName);
+					if (importProject(uri, fileName)) {
+						String message = String.format(getString(R.string.import_success), fileName);
+						Toast.makeText(this, message, Toast.LENGTH_SHORT)
+							.show();
+						returnToMain();
+					}
 				} catch (Exception e) {
 					Toast.makeText(this, R.string.import_failed, Toast.LENGTH_SHORT)
 						.show();
 					e.printStackTrace();
 				}
-
-				returnToMain();
 			}
 		} else if (Intent.ACTION_SEND.equals(action)) {
 			Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
@@ -65,15 +67,17 @@ public class ProjectImportActivity extends Activity {
 
 				// Import URI
 				try {
-					importProject(uri, fileName);
+					if (importProject(uri, fileName)) {
+						String message = String.format(getString(R.string.import_success), fileName);
+						Toast.makeText(this, message, Toast.LENGTH_SHORT)
+							.show();
+						returnToMain();
+					}
 				} catch (Exception e) {
 					Toast.makeText(this, R.string.import_failed, Toast.LENGTH_SHORT)
 						.show();
-
 					e.printStackTrace();
 				}
-
-				returnToMain();
 			}
 		} else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
 			ArrayList<Uri> uriList = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
@@ -87,8 +91,9 @@ public class ProjectImportActivity extends Activity {
 					Log.i(TAG, "Received import URI: " + uriList);
 
 					try {
-						importProject(uri, fileName);
-						successful++;
+						if (importProject(uri, fileName)) {
+							successful++;
+						}
 					} catch (Exception e) {
 						failed++;
 						e.printStackTrace();
@@ -130,14 +135,14 @@ public class ProjectImportActivity extends Activity {
 	}
 
 	private void showErrorDialog(int resourceId) {
-		AlertDialog.Builder dialog;
+		AlertDialog.Builder builder;
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-			dialog = new AlertDialog.Builder(this, android.R.style.Theme_Holo_Dialog);
+			builder = new AlertDialog.Builder(this, android.R.style.Theme_Holo_Dialog);
 		} else {
-			dialog = new AlertDialog.Builder(this);
+			builder = new AlertDialog.Builder(this);
 		}
 
-		dialog.setTitle(R.string.error_import_title)
+		builder.setTitle(R.string.error_import_title)
 			.setMessage(getString(resourceId))
 			.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
 				dialogInterface.dismiss();
@@ -145,10 +150,11 @@ public class ProjectImportActivity extends Activity {
 			})
 			.setCancelable(true);
 
+		AlertDialog dialog = builder.create();
 		dialog.show();
 	}
 
-	private void performImport(Uri uri, File file) {
+	private boolean performImport(Uri uri, File file) {
 		try {
 			InputStream input = getContentResolver().openInputStream(uri);
 			OutputStream output = new FileOutputStream(file);
@@ -166,38 +172,46 @@ public class ProjectImportActivity extends Activity {
 		} catch (FileNotFoundException e) {
 			Log.e(TAG, "File not found: " + e);
 			showErrorDialog(R.string.error_file_not_found);
+			return false;
 		} catch (IOException e) {
 			Log.e(TAG, "I/O error: " + e);
 			showErrorDialog(R.string.error_file_io);
+			return false;
 		}
+
+		return true;
 	}
 
-	protected void importProject(Uri uri, String fileName) {
+	protected boolean importProject(Uri uri, String fileName) {
 		// Specify our destination file
 		File dest = new File(getScratchPath() + fileName);
 		if (dest.exists()) {
 			// Create confirm view
-			AlertDialog.Builder dialog;
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-				dialog = new AlertDialog.Builder(this, android.R.style.Theme_Holo_Dialog);
-			} else {
-				dialog = new AlertDialog.Builder(this);
-			}
+			AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
-			dialog.setMessage(getString(R.string.import_exists))
+			builder.setMessage(getString(R.string.import_exists))
 				.setNegativeButton(android.R.string.cancel, (dialogInterface, i) -> {
 					dialogInterface.cancel();
+					returnToMain();
+				})
+				.setOnCancelListener((dialogInterface) -> {
+					returnToMain();
 				})
 				.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
 					dialogInterface.dismiss();
-					performImport(uri, dest);
 					Log.i(TAG, "Overwriting file " + fileName);
+
+					performImport(uri, dest);
+					returnToMain();
 				})
 				.setCancelable(true);
 
+			AlertDialog dialog = builder.create();
 			dialog.show();
+
+			return false;
 		} else {
-			performImport(uri, dest);
+			return performImport(uri, dest);
 		}
 	}
 }
