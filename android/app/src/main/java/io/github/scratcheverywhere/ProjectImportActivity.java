@@ -135,12 +135,7 @@ public class ProjectImportActivity extends Activity {
 	}
 
 	private void showErrorDialog(int resourceId) {
-		AlertDialog.Builder builder;
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-			builder = new AlertDialog.Builder(this, android.R.style.Theme_Holo_Dialog);
-		} else {
-			builder = new AlertDialog.Builder(this);
-		}
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
 		builder.setTitle(R.string.error_import_title)
 			.setMessage(getString(resourceId))
