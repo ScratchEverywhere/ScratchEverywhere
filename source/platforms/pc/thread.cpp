@@ -54,9 +54,11 @@ SE_Thread::~SE_Thread() {
 }
 
 void SE_Thread::join() {
-    if (impl != nullptr && impl->active) {
-        pthread_join(impl->thread, nullptr);
-        impl->active = false;
+    if (impl != nullptr) {
+        if (impl->active) {
+            pthread_join(impl->thread, nullptr);
+            impl->active = false;
+        }
         delete impl;
         impl = nullptr;
     }
