@@ -131,7 +131,7 @@ crashes, and things that will just not work.
 **List of Known Limitations:**
 
 - Most Extensions (e.g. music extension) are not yet supported.
-  - Only the `Pen`, `Text to Speech` (Wii U and 3DS only), and `Makey Makey`
+  - Only the `Pen`, `Text to Speech` (Wii U, 3DS, Linux, and Windows only), and `Makey Makey`
     extensions are currently supported.
 - Some blocks may lead to crashing/unintended behavior (Please open an issue if
   you know of a block that's causing problems).
