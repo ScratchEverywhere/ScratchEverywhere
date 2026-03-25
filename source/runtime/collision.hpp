@@ -6,7 +6,7 @@
 
 #if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
 constexpr unsigned int bitmaskScaleFactor = 3;
-#elif defined(__3DS__) || defined(GAMECUBE)
+#elif defined(__3DS__) || defined(WII)
 constexpr unsigned int bitmaskScaleFactor = 2;
 #else
 constexpr unsigned int bitmaskScaleFactor = 1;

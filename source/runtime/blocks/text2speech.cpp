@@ -15,7 +15,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 
     std::string voice = sprite->textToSpeechData.gender;
     std::string language = sprite->textToSpeechData.language;
-    std::string api = "https://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(inputString);
+    std::string api = "http://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(inputString);
     std::string tempDir = OS::getScratchFolderLocation() + "cache/";
     std::size_t h = std::hash<std::string>{}(api);
     std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
