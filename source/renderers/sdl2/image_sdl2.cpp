@@ -154,6 +154,26 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
 
     texture = SDL_CreateTextureFromSurface(renderer, surface);
     SDL_FreeSurface(surface);
+#elif defined(__PS2__)
+    // ps2 not-really-swizzle magic that converts 0-255 value scale to 0-128 so images don't look like they were flashbanged
+    unsigned char *px = static_cast<unsigned char *>(imgData.pixels);
+    const int pixelCount = imgData.width * imgData.height;
+
+    for (int i = 0; i < pixelCount; i++) {
+        px[i * 4 + 0] = px[i * 4 + 0] * 110 / 255;
+        px[i * 4 + 1] = px[i * 4 + 1] * 110 / 255;
+        px[i * 4 + 2] = px[i * 4 + 2] * 110 / 255;
+        px[i * 4 + 3] = px[i * 4 + 3] * 110 / 255;
+    }
+
+    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(
+        imgData.pixels, imgData.width, imgData.height,
+        32, imgData.pitch, SDL_PIXELFORMAT_RGBA32);
+    if (!surface)
+        return nonstd::make_unexpected("Failed to create surface: " + std::string(SDL_GetError()));
+
+    texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);
 #else
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 #endif
