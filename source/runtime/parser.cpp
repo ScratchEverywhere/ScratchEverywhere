@@ -578,6 +578,15 @@ void Parser::loadSprites(const nlohmann::json &json) {
         Scratch::accuratePen = true;
     else Scratch::accuratePen = false;
 
+    auto accurateCollision = Unzip::getSetting("accurateCollision");
+    if (accurateCollision.is_null()) {
+#ifdef __NDS__
+        Scratch::accurateCollision = false;
+#else
+        Scratch::accurateCollision = true;
+#endif
+    } else Scratch::accurateCollision = accurateCollision.get<bool>();
+
     auto debugVars = Unzip::getSetting("debugVars");
     if (!debugVars.is_null() && debugVars.get<bool>())
         Scratch::toggleDebugVars(true);

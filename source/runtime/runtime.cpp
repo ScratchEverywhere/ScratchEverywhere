@@ -52,6 +52,7 @@ bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
 bool Scratch::forceRedraw = false;
 bool Scratch::accuratePen = false;
+bool Scratch::accurateCollision = true;
 bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
 
@@ -408,9 +409,11 @@ std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *curre
 
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
     if (collisionType == "mouse") {
-        return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
+        if (accurateCollision) return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
+        else return collision::pointInSpriteFast(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
     } else if (collisionType == "edge") {
-        return collision::spriteOnEdge(currentSprite);
+        if (accurateCollision) return collision::spriteOnEdge(currentSprite);
+        else return collision::spriteOnEdgeFast(currentSprite);
     } else if (collisionType == "sprite") {
         if (targetSprite == nullptr && !targetName.empty()) {
             for (Sprite *sprite : sprites) {
@@ -425,7 +428,8 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
             return false;
         }
 
-        return collision::spriteInSprite(currentSprite, targetSprite);
+        if (accurateCollision) return collision::spriteInSprite(currentSprite, targetSprite);
+        else return collision::spriteInSpriteFast(currentSprite, targetSprite);
     } else {
         Log::logWarning("Invalid collision type " + collisionType);
         return false;
