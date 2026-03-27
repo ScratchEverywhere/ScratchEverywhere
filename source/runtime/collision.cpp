@@ -13,7 +13,7 @@ std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int
         Log::logWarning("Failed to find image for sprite: " + sprite->name);
         return nullptr;
     }
-    const ImageData imgData = imgFind->second->getPixels();
+    ImageData imgData = imgFind->second->getPixels();
 
     std::shared_ptr<Bitmask> bitmask = std::make_shared<Bitmask>();
     bitmask->width = imgData.width / scaleFactor;
@@ -47,6 +47,12 @@ std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int
     }
 
     bitmask->maxRadius = std::sqrt(maxDistSq) * bitmask->scaleFactor;
+
+    // they need the pixel data freed because they make new pixels instead of a reference
+#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
+    free(imgData.pixels);
+#endif
+
     return bitmask;
 }
 

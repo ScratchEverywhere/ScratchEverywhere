@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <unzip.hpp>
 
-nonstd::expected<void, std::string> Image_GL2D::setInitialTexture() {
+nonstd::expected<void, std::string> Image_GL2D::setInitialTexture(bool fromScratchProject) {
     RGBAToPAL8();
 
     const int pow2Width = Math::next_pow2(imgData.width);
@@ -23,8 +23,11 @@ nonstd::expected<void, std::string> Image_GL2D::setInitialTexture() {
         (const u16 *)paletteData,
         (const u8 *)textureData);
 
-    delete[] paletteData;
-    paletteData = nullptr;
+    if (!fromScratchProject) { // pallete data is needed for collision
+        delete[] paletteData;
+        paletteData = nullptr;
+    }
+
     delete[] textureData;
     textureData = nullptr;
 
@@ -41,7 +44,7 @@ nonstd::expected<void, std::string> Image_GL2D::setInitialTexture() {
 
 nonstd::expected<void, std::string> Image_GL2D::refreshTexture() {
     glDeleteTextures(1, &textureID);
-    return setInitialTexture();
+    return setInitialTexture(true);
 }
 
 Image_GL2D::Image_GL2D(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
@@ -53,7 +56,7 @@ Image_GL2D::Image_GL2D(std::string filePath, bool fromScratchProject, bool bitma
         return;
     }
 
-    const auto potentialError = setInitialTexture();
+    const auto potentialError = setInitialTexture(fromScratchProject);
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
@@ -66,7 +69,7 @@ Image_GL2D::Image_GL2D(std::string filePath, mz_zip_archive *zip, bool bitmapHal
         return;
     }
 
-    const auto potentialError = setInitialTexture();
+    const auto potentialError = setInitialTexture(true);
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
@@ -144,7 +147,7 @@ ImageData Image_GL2D::getPixels(ImageSubrect rect) {
     data.height = targetHeight;
     data.format = IMAGE_FORMAT_RGBA32;
     data.pitch = targetWidth * 4;
-    data.pixels = new uint8_t[targetWidth * targetHeight * 4];
+    data.pixels = (uint8_t *)malloc(targetWidth * targetHeight * 4);
 
     uint8_t *output = static_cast<uint8_t *>(data.pixels);
 
