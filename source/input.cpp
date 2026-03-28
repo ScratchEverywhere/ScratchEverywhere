@@ -97,7 +97,7 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
         if (key == "DOWN") return "down arrow";
     }
 
-    if (key == "space" || key == "left arrow" || key == "up arrow" || key == "right arrow" || key == "down arrow" || key == "enter" || key == "any") {
+    if (key == "space" || key == "left arrow" || key == "up arrow" || key == "right arrow" || key == "down arrow" || key == "back" || key == "enter" || key == "any") {
         return key;
     }
 

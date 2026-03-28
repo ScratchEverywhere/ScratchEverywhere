@@ -57,6 +57,9 @@ class Image {
     std::unique_ptr<lunasvg::Document> svgDocument = nullptr;
     static std::unordered_map<std::string, SVGFont> loadedFonts;
 #endif
+#if __ANDROID__
+    static void unloadFont(void *closure);
+#endif
 
     bool loadFont(const std::string &family);
     inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);

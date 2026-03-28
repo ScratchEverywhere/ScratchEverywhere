@@ -54,6 +54,8 @@ elseif(NINTENDO_WIIU)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/wiiu.cmake")
 elseif(WEBOS)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/webos.cmake")
+elseif(ANDROID)
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/android.cmake")
 endif()
 
 if("fallback" IN_LIST SE_DEPS_VALID_OPTIONS)
@@ -195,20 +197,35 @@ if(SE_MENU)
 	list(APPEND SOURCES source/menus)
 endif()
 
+if(ANDROID)
+    set(PROJECT_ROOT ${CMAKE_CURRENT_LIST_DIR})
+else()
+    set(PROJECT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 set(SOURCE_FILES)
 foreach(DIR IN LISTS SOURCES)
 	file(GLOB DIR_SOURCES
-		${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
+		${PROJECT_ROOT}/${DIR}/*.cpp
+        ${PROJECT_ROOT}/${DIR}/*.c
+        ${PROJECT_ROOT}/${DIR}/*.cc
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
+	message(${DIR})
 endforeach()
 if(WIN32)
-	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
+	list(APPEND SOURCE_FILES "${PROJECT_ROOT}/gfx/windows/resource.rc")
 endif()
 
-add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+if(ANDROID)
+    find_library(log-lib log)
+
+    add_library(scratch-everywhere SHARED ${SOURCE_FILES})
+    target_link_libraries(scratch-everywhere PRIVATE log)
+else()
+    add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+endif()
+
 target_include_directories(scratch-everywhere PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external-include)
 set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
 if(DEFINED SE_PLATFORM_DEFINITIONS)

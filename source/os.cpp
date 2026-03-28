@@ -33,6 +33,10 @@ extern char nickname[0x21];
 #include <ogc/conf.h>
 #elif defined(__NDS__)
 #include <nds.h>
+#elif defined(__ANDROID__)
+#include <SDL2/SDL_system.h>
+#include <android/log.h>
+#define LOGCAT_TAG "ScratchEverywhere"
 #endif
 
 #ifdef _WIN32
@@ -51,8 +55,27 @@ extern char nickname[0x21];
 #include <sys/types.h>
 #endif
 
+#if defined(__ANDROID__)
+void Log::log(std::string message, bool printToScreen) {
+    if (printToScreen)
+        __android_log_print(ANDROID_LOG_INFO, LOGCAT_TAG, "%s", message.c_str());
+    writeToFile(message);
+}
+
+void Log::logWarning(std::string message, bool printToScreen) {
+    if (printToScreen)
+        __android_log_print(ANDROID_LOG_WARN, LOGCAT_TAG, "%s", message.c_str());
+    writeToFile("Warning: " + message);
+}
+
+void Log::logError(std::string message, bool printToScreen) {
+    if (printToScreen)
+        __android_log_print(ANDROID_LOG_ERROR, LOGCAT_TAG, "%s", message.c_str());
+
+    writeToFile("Error: " + message);
+}
+#elif defined(__PS4__)
 // PS4 implementation of logging
-#ifdef __PS4__
 char logBuffer[1024];
 
 void Log::log(std::string message, bool printToScreen) {
@@ -73,12 +96,6 @@ void Log::logError(std::string message, bool printToScreen) {
         sceKernelDebugOutText(0, logBuffer);
     }
 }
-void Log::writeToFile(std::string message) {
-}
-
-void Log::deleteLogFile() {
-}
-
 #else
 void Log::log(std::string message, bool printToScreen) {
     if (printToScreen) std::cout << message << std::endl;
@@ -97,6 +114,8 @@ void Log::logError(std::string message, bool printToScreen) {
 
     writeToFile("Error: " + message);
 }
+#endif
+
 void Log::writeToFile(std::string message) {
     if (Render::debugMode) {
         std::string filePath = OS::getScratchFolderLocation() + "log.txt";
@@ -117,8 +136,6 @@ void Log::deleteLogFile() {
         Log::logError("Failed to delete log file: " + std::string(std::strerror(errno)));
     }
 }
-
-#endif
 
 // Nintendo DS Timer implementation
 #ifdef __NDS__
@@ -256,6 +273,8 @@ std::string OS::getScratchFolderLocation() {
     return prefix + "/scratch-ds/";
 #elif defined(WEBOS)
     return prefix + "projects/";
+#elif defined(__ANDROID__)
+    return std::string(SDL_AndroidGetExternalStoragePath()) + "/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -282,7 +301,7 @@ std::string OS::getConfigFolderLocation() {
     if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
         path = (std::filesystem::path(bpath.Path()) / "scratch-everywhere" / "").string();
     }
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
     const char *xdgHome = std::getenv("XDG_CONFIG_HOME");
     if (xdgHome && xdgHome[0] != '\0') {
         path = (std::filesystem::path(xdgHome) / "scratch-everywhere" / "").string();
@@ -394,7 +413,7 @@ std::string OS::getUsername() {
     TCHAR username[UNLEN + 1];
     DWORD size = UNLEN + 1;
     if (GetUserName((TCHAR *)username, &size)) return std::string(username);
-#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif (defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)) && !defined(__ANDROID__)
     uid_t uid = geteuid();
     struct passwd *pw = getpwuid(uid);
     if (pw) return std::string(pw->pw_name);

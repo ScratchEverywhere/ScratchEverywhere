@@ -14,6 +14,8 @@
 #include <nds.h>
 #elif defined(__WIIU__)
 #include <whb/sdcard.h>
+#elif defined(__ANDROID__)
+#include <SDL2/SDL_system.h>
 #endif
 
 #if defined(_WIN32)
@@ -170,6 +172,8 @@ inline std::string getPlatform() {
     return "PSP";
 #elif defined(WEBOS)
     return "webOS TV";
+#elif defined(__ANDROID__)
+    return "Android";
 #else
     return "Unknown";
 #endif

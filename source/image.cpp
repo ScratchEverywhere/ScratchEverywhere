@@ -52,6 +52,12 @@ std::unordered_map<std::string, SVGFont> Image::loadedFonts = {
 
 constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to remove scaling limit.
 
+#ifdef __ANDROID__
+void Image::unloadFont(void *closure) {
+    free(closure);
+}
+#endif
+
 bool Image::loadFont(const std::string &family) {
 #ifdef ENABLE_SVG
     auto it = loadedFonts.find(family);
@@ -63,6 +69,24 @@ bool Image::loadFont(const std::string &family) {
 #ifdef USE_CMAKERC
     const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
     if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
+#elif defined(__ANDROID__)
+    SDL_RWops *rw = SDL_RWFromFile((OS::getRomFSLocation() + path + ".ttf").c_str(), "rb");
+    if (!rw) return false;
+
+    Sint64 size = SDL_RWsize(rw);
+    void *file = malloc(size);
+
+    if (SDL_RWread(rw, file, 1, size) != size) {
+        SDL_RWclose(rw);
+        free(file);
+        return false;
+    };
+
+    SDL_RWclose(rw);
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file, size, unloadFont, file)) {
+        free(file);
+        return false;
+    };
 #else
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
@@ -160,7 +184,23 @@ nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffe
         buffer[file.size()] = '\0';
         return buffer;
     }
-#endif
+#elif defined(__ANDROID__)
+    std::string path = filePath;
+
+    SDL_RWops *rw = SDL_RWFromFile(path.c_str(), "rb");
+    if (!rw) throw std::runtime_error("Failed to open file: " + path);
+
+    Sint64 size = SDL_RWsize(rw);
+    std::vector<unsigned char> buffer(size);
+
+    if (!SDL_RWread(rw, buffer.data(), 1, size)) {
+        SDL_RWclose(rw);
+        throw std::runtime_error("Failed to read file: " + path);
+    }
+
+    SDL_RWclose(rw);
+    return buffer;
+#else
 
     std::string path = filePath;
 
@@ -183,6 +223,7 @@ nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffe
     buffer[size] = '\0';
     fclose(file);
     return buffer;
+#endif
 }
 
 nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {

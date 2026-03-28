@@ -162,8 +162,14 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
         }
 
 #ifdef ENABLE_MENU
+#ifdef __ANDROID__
+        // Trap the back button to act as pause button
+        bool shouldPause = Input::keyHeldDuration["back"] > (FPS / 30.0f);
+#else
+        bool shouldPause = Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f);
+#endif
 
-        if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
+        if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && shouldPause) {
             pauseMenu = new PauseMenu();
             MenuManager::changeMenu(pauseMenu);
             return std::make_pair(true, false);

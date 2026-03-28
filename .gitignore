@@ -37,6 +37,7 @@ main.code-workspace
 *.so
 *.dylib
 *.dll
+*.aar
 
 # Fortran module files
 *.mod
@@ -72,6 +73,8 @@ main.code-workspace
 *.ipk
 *.nds
 *.pkg
+*.apk
+*.aab
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
@@ -93,6 +96,15 @@ cloud-username.txt
 .clangd
 
 CMakeSettings.json
+
+# Android
+.gradle/
+.idea/
+.cxx/
+local.properties
+
+android/app/src/main/assets/
+android/app/src/main/java/org/libsdl/app
 
 # Debug files
 perf.data*
