@@ -359,54 +359,6 @@ void Scratch::cleanupSprites() {
     Scratch::sprites.clear();
 }
 
-std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *currentSprite) {
-    std::vector<std::pair<double, double>> collisionPoints;
-
-    Render::calculateRenderPosition(currentSprite, currentSprite->costumes[currentSprite->currentCostume].isSVG);
-    const float spriteWidth = (currentSprite->spriteWidth) * (currentSprite->size * 0.01);
-    const float spriteHeight = (currentSprite->spriteHeight) * (currentSprite->size * 0.01);
-
-    const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
-    float x = cords.first;
-    float y = cords.second;
-
-    // do rotation
-    float rotation;
-    if (currentSprite->rotationStyle == currentSprite->ALL_AROUND) {
-        rotation = Math::degreesToRadians(currentSprite->rotation - 90);
-    } else if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-        rotation = Math::degreesToRadians(-180);
-    } else rotation = 0;
-
-    // put position to top left of sprite
-    x -= spriteWidth / 2;
-    y += spriteHeight / 2;
-
-    std::vector<std::pair<double, double>> corners = {
-        {x, y},                              // Top-left
-        {x + spriteWidth, y},                // Top-right
-        {x + spriteWidth, y - spriteHeight}, // Bottom-right
-        {x, y - spriteHeight}                // Bottom-left
-    };
-
-    const float centerX = x + spriteWidth / 2;
-    const float centerY = y - spriteHeight / 2;
-
-    for (const auto &corner : corners) {
-        // center it
-        float relX = corner.first - centerX;
-        float relY = corner.second - centerY;
-
-        // rotate it
-        float rotX = relX * cos(-rotation) - relY * sin(-rotation);
-        float rotY = relX * sin(-rotation) + relY * cos(-rotation);
-
-        collisionPoints.emplace_back(centerX + rotX, centerY + rotY);
-    }
-
-    return collisionPoints;
-}
-
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
     if (collisionType == "mouse") {
         if (accurateCollision) return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
@@ -454,57 +406,32 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
-
     if (std::abs(sprite->xPosition) < Scratch::projectWidth * 0.3 && std::abs(sprite->yPosition) < Scratch::projectHeight * 0.3)
         return;
 
     if (sprite->spriteWidth == 0 || sprite->spriteHeight == 0) loadCurrentCostumeImage(sprite);
 
-    std::vector<std::pair<double, double>> points = Scratch::getCollisionPoints(sprite);
+    collision::AABB spriteBounds = collision::getSpriteBounds(sprite);
 
-    double rawMinX = std::numeric_limits<double>::max();
-    double rawMaxX = std::numeric_limits<double>::lowest();
-    double rawMinY = std::numeric_limits<double>::max();
-    double rawMaxY = std::numeric_limits<double>::lowest();
+    constexpr float inset = 15;
+    const float insetX = (spriteBounds.right - spriteBounds.left) / -2 + inset;
+    const float insetY = (spriteBounds.bottom - spriteBounds.top) / -2 + inset;
+    const collision::AABB fenceBounds = {
+        .left = -Scratch::projectWidth / 2.0f - insetX,
+        .right = Scratch::projectWidth / 2.0f + insetX,
+        .top = Scratch::projectHeight / 2.0f + insetY,
+        .bottom = -Scratch::projectHeight / 2.0f};
 
-    for (const auto &p : points) {
-        rawMinX = std::min(rawMinX, p.first);
-        rawMaxX = std::max(rawMaxX, p.first);
-        rawMinY = std::min(rawMinY, p.second);
-        rawMaxY = std::max(rawMaxY, p.second);
-    }
+    float dx = 0;
+    float dy = 0;
 
-    const float minX = std::floor(rawMinX);
-    const float maxX = std::ceil(rawMaxX);
-    const float minY = std::floor(rawMinY);
-    const float maxY = std::ceil(rawMaxY);
+    if (spriteBounds.left < fenceBounds.left) dx += fenceBounds.left - spriteBounds.left;
+    if (spriteBounds.right > fenceBounds.right) dx += fenceBounds.right - spriteBounds.right;
+    if (spriteBounds.bottom < fenceBounds.bottom) dy += fenceBounds.bottom - spriteBounds.bottom;
+    if (spriteBounds.top > fenceBounds.top) dy += fenceBounds.top - spriteBounds.top;
 
-    const float sprWidth = maxX - minX;
-    const float sprHeight = maxY - minY;
-
-    const float inset = std::floor(std::min(15.0, std::min(sprWidth, sprHeight) / 2.0));
-
-    const float distToLeft = std::floor((sprWidth - 1.0) / 2.0);
-    const float distToRight = std::floor((sprWidth - 1.0) / 2.0);
-    const float distToBottom = std::floor((sprHeight - 1.0) / 2.0);
-    const float distToTop = std::floor((sprHeight - 1.0) / 2.0);
-
-    const float stageRight = Scratch::projectWidth / 2.0;
-    const float stageLeft = -stageRight;
-    const float stageTop = Scratch::projectHeight / 2.0;
-    const float stageBottom = -stageTop;
-
-    if (minX > stageRight - inset) {
-        sprite->xPosition = (stageRight - inset) + distToLeft;
-    } else if (maxX < stageLeft + inset) {
-        sprite->xPosition = (stageLeft + inset) - distToRight;
-    }
-
-    if (minY > stageTop - inset) {
-        sprite->yPosition = (stageTop - inset) + distToBottom;
-    } else if (maxY < stageBottom + inset) {
-        sprite->yPosition = (stageBottom + inset) - distToTop;
-    }
+    sprite->xPosition += dx;
+    sprite->yPosition += dy;
 }
 
 void Scratch::setDirection(Sprite *sprite, double direction) {

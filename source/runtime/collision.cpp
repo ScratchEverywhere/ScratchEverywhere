@@ -227,11 +227,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
     return false;
 }
 
-struct AABB {
-    float left, right, top, bottom;
-};
-
-static inline AABB getSpriteBounds(Sprite *sprite) {
+collision::AABB collision::getSpriteBounds(Sprite *sprite) {
     float x = sprite->xPosition;
     float y = sprite->yPosition;
 

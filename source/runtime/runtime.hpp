@@ -60,13 +60,6 @@ class Scratch {
     static Block *findBlock(std::string blockId, Sprite *sprite);
 
     /**
-     * Gets the Sprite's box collision points.
-     * @param sprite
-     * @return Each point stored in a `std::pair`, where `[0]` is X, `[1]` is Y.
-     */
-    static std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite);
-
-    /**
      * Frees every Sprite from memory.
      */
     static void cleanupSprites();
