@@ -1,12 +1,12 @@
-if(NINTENDO_WIIU)
-	add_library(libcurl INTERFACE)
-	target_link_libraries(libcurl INTERFACE curl mbedtls mbedx509 mbedcrypto z wut m)
-	target_include_directories(libcurl INTERFACE "${DEVKITPRO}/portlibs/wiiu/include")
-endif()
-
 function(_dep_system_libcurl)
 	if(SE_CLOUDVARS AND SE_FORCE_CLOUDVARS_SOURCE_CURL)
 		return()
+	endif()
+
+	if(NINTENDO_WIIU)
+		add_library(libcurl INTERFACE)
+		target_link_libraries(libcurl INTERFACE curl mbedtls mbedx509 mbedcrypto z wut m)
+		target_include_directories(libcurl INTERFACE "${DEVKITPRO}/portlibs/wiiu/include")
 	endif()
 
 	if(SE_CLOUDVARS)
@@ -38,6 +38,7 @@ function(_dep_source_libcurl)
 		"CURL_USE_LIBSSH2 OFF"
 		"CURL_USE_LIBPSL OFF"
 		"CURL_USE_OPENSSL OFF"
+		"CURL_DISABLE_NTLM ON"
 	)
 	if(WEBOS)
 		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
@@ -47,13 +48,16 @@ function(_dep_source_libcurl)
 	if(WIN32 OR WEBOS)
 		list(APPEND CURL_OPTIONS "CURL_ENABLE_SSL OFF")
 	endif()
+	if(NINTENDO_WIIU)
+		list(APPEND CURL_OPTIONS "ENABLE_THREADED_RESOLVER OFF" "ENABLE_IPV6 OFF" "ENABLE_UNIX_SOCKETS OFF" "CURL_DISABLE_SOCKETPAIR ON")
+	endif()
 
 	CPMAddPackage(
 		NAME curl
 		GIT_REPOSITORY "https://github.com/curl/curl.git"
 		GIT_TAG "curl-8_15_0"
 		VERSION 8.15.0
-		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/3ds-curl.patch"
+		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/libcurl.patch"
 		OPTIONS ${CURL_OPTIONS}
 	)
 
