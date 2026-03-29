@@ -46,7 +46,7 @@ function(_dep_source_lua51)
 		file(GLOB lua_sources ${lua51_SOURCE_DIR}/*.c)
 		list(REMOVE_ITEM lua_sources "${lua_SOURCE_DIR}/lua.c" "${lua_SOURCE_DIR}/luac.c") # We only need the lib
 		add_library(lua51 STATIC ${lua_sources})
-		target_include_directories(lua SYSTEM PUBLIC $<BUILD_INTERFACE:${lua_SOURCE_DIR}>)
+		target_include_directories(lua51 SYSTEM PUBLIC $<BUILD_INTERFACE:${lua_SOURCE_DIR}>)
 
 		target_compile_definitions(lua51 INTERFACE USE_LUA51)
 		set(SE_USED_LUA "lua51")
