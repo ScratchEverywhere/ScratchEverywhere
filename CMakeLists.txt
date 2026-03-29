@@ -332,6 +332,7 @@ se_add_dependency(scratch-everywhere miniz)
 se_add_dependency(scratch-everywhere expected-lite)
 
 if(SE_CUSTOM_EXTENSIONS)
+	se_add_dependency(scratch-everywhere lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
 	se_add_dependency(scratch-everywhere sol2)
 endif()
 
