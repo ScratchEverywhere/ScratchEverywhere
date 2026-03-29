@@ -1,5 +1,4 @@
 #include "parser.hpp"
-#include <extensions/meta.hpp>
 #include <input.hpp>
 #include <limits>
 #include <math.hpp>
@@ -10,6 +9,10 @@
 #include <unzip.hpp>
 #if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
 #include <whb/sdcard.h>
+#endif
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/meta.hpp>
 #endif
 
 #ifdef ENABLE_CLOUDVARS
@@ -622,6 +625,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
 }
 
 void Parser::loadExtensions(const nlohmann::json &json) {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
     // TODO: Actually implement
     std::ifstream in = std::ifstream(OS::getScratchFolderLocation() + "extensions/utilities.see", std::ios::binary | std::ios::in);
     nonstd::expected<extensions::Extension, std::string> extensionData = extensions::parseMetadate(in);
@@ -631,6 +635,7 @@ void Parser::loadExtensions(const nlohmann::json &json) {
     }
 
     Log::log(extensionData.value().description);
+#endif
 }
 
 std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, std::string *outID) {
