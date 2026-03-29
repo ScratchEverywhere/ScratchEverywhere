@@ -30,7 +30,7 @@ class Scratch {
      * Runs a single step of execution.
      * @return First bool for if loop should be continued, second bool for exit code
      */
-    static std::pair<bool, bool> stepScratchProject();
+    static std::pair<bool, bool> stepScratchProject(ScriptThread &monitorDisplayThread);
     static bool startScratchProject();
     static void cleanupScratchProject();
 
@@ -43,7 +43,6 @@ class Scratch {
     static std::string getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
-
 
     /**
      * Gets the Sprite's box collision points.
@@ -86,6 +85,8 @@ class Scratch {
     static bool miscellaneousLimits;
     static bool shouldStop;
     static bool forceRedraw;
+    static int withoutScreenRefreshLimit;
+
 
     static bool debugVars;
     static bool sb3InRam;

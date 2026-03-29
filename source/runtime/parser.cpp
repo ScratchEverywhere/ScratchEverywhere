@@ -321,24 +321,40 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 loadInputs(*newBlock, newSprite, id, target["blocks"], 2);
                 loadFields(*newBlock, id, target["blocks"], 2);
 
-                if (!data.contains("next") || data["next"].is_null()) {
-                    Parser::log("\t\t\t! No next block");
-                    delete newBlock;
-                    continue;
-                }
-
                 Scratch::blocks.push_back(newBlock);
                 newSprite->hats[opcode].insert(newBlock);
 
-                std::string nextBlockKey = data["next"].get<std::string>();
-                newBlock->nextBlock = loadBlock(newSprite, nextBlockKey, target["blocks"], nullptr, 2);
+                if (!data.contains("next") || data["next"].is_null()) {
+                    Parser::log("\t\t\t! No next block");
+                } else {
+                    std::string nextBlockKey = data["next"].get<std::string>();
+                    newBlock->nextBlock = loadBlock(newSprite, nextBlockKey, target["blocks"], nullptr, 2);
+                }
             }
 
             for (const std::string &id : procedureCallBlocks) {
                 const auto &data = target["blocks"][id];
 
-                // TODO: Check if "inputs", "custom_block", etc exists
-                const auto &prototype = target["blocks"][data["inputs"]["custom_block"][1]];
+                if (!data.contains("inputs") || !data["inputs"].contains("custom_block") ||
+                    !data["inputs"]["custom_block"].is_array() || data["inputs"]["custom_block"].size() < 2) {
+                    Parser::log("\t\t! procedures_call without custom_block input");
+                    continue;
+                }
+
+                std::string prototypeId;
+                if (data["inputs"]["custom_block"][1].is_string()) {
+                    prototypeId = data["inputs"]["custom_block"][1].get<std::string>();
+                } else {
+                    Parser::log("\t\t! procedures_call prototype block ID is not a string");
+                    continue;
+                }
+
+                if (!target["blocks"].contains(prototypeId)) {
+                    Parser::log("\t\t! procedures_call prototype block not found");
+                    continue;
+                }
+
+                const auto &prototype = target["blocks"][prototypeId];
                 if (!prototype.contains("mutation")) {
                     Parser::log("\t\t! procedures_call without mutation");
                     continue;
@@ -558,6 +574,11 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
         Scratch::accuratePen = true;
     else Scratch::accuratePen = false;
 
+    auto withoutScreenRefreshLimit = Unzip::getSetting("withoutScreenRefreshLimit");
+    if (!withoutScreenRefreshLimit.is_null() && withoutScreenRefreshLimit.is_number_integer())
+        Scratch::withoutScreenRefreshLimit = withoutScreenRefreshLimit.get<int>();
+    else Scratch::withoutScreenRefreshLimit = 4096;
+
     auto debugVars = Unzip::getSetting("debugVars");
     if (!debugVars.is_null() && debugVars.get<bool>())
         Scratch::toggleDebugVars(true);
@@ -637,85 +658,111 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
     if (!blockDatas.contains(id)) return parentBlock;
     if (!blockDatas[id].contains("opcode")) return parentBlock;
 
-    Block *newBlock = new Block();
+    Block *firstBlock = nullptr;
+    Block *currentBlock = nullptr;
+    std::string currentId = id;
 
-    const nlohmann::json &blockData = blockDatas[id];
-    newBlock->opcode = blockData["opcode"].get<std::string>();
-
-    std::string indentStr(indent, '\t');
-    Parser::log(indentStr + newBlock->opcode);
-
-    if (newBlock->opcode == "sensing_kkeypressed") {
-        newSprite->shouldDoSpriteClick = true;
-    }
-
-    loadInputs(*newBlock, newSprite, id, blockDatas, indent);
-    loadFields(*newBlock, id, blockDatas, indent);
-
-    if (BlockExecutor::getHandlers().count(newBlock->opcode) > 0) {
-        newBlock->blockFunction = BlockExecutor::getHandlers()[newBlock->opcode];
-    } else {
-        Parser::log(indentStr + "No handler found for opcode: " + newBlock->opcode);
-        newBlock->blockFunction = BlockExecutor::getHandlers()["coreExample_exampleOpcode"];
-    }
-
-    if (newBlock->opcode == "procedures_call") {
-        if (blockData.contains("mutation") && blockData.is_object() &&
-            blockData["mutation"].contains("tagName") &&
-            blockData["mutation"]["tagName"].get<std::string>() == "mutation") {
-
-            std::string rawArgumentIds = blockData["mutation"]["argumentids"];
-            nlohmann::json parsedArgIds = nlohmann::json::parse(rawArgumentIds);
-            newBlock->argumentIDs = parsedArgIds.get<std::vector<std::string>>();
-
-            if (blockData["mutation"].contains("proccode")) {
-                Parser::log(indentStr + "\tproccode: " + blockData["mutation"]["proccode"].get<std::string>());
+    while (true) {
+        if (!blockDatas.contains(currentId) || !blockDatas[currentId].contains("opcode")) {
+            if (currentBlock) {
+                currentBlock->nextBlock = parentBlock;
             }
+            break;
+        }
 
-            if (!newBlock->argumentIDs.empty()) {
-                Parser::log(indentStr + "\targuments: " + std::to_string(newBlock->argumentIDs.size()));
+        Block *newBlock = new Block();
+        if (!firstBlock) firstBlock = newBlock;
+
+        const nlohmann::json &blockData = blockDatas[currentId];
+        newBlock->opcode = blockData["opcode"].get<std::string>();
+
+        std::string indentStr(indent, '\t');
+        Parser::log(indentStr + newBlock->opcode);
+
+        if (newBlock->opcode == "sensing_kkeypressed") {
+            newSprite->shouldDoSpriteClick = true;
+        }
+
+        loadInputs(*newBlock, newSprite, currentId, blockDatas, indent);
+        loadFields(*newBlock, currentId, blockDatas, indent);
+
+        if (BlockExecutor::getHandlers().count(newBlock->opcode) > 0) {
+            newBlock->blockFunction = BlockExecutor::getHandlers()[newBlock->opcode];
+        } else {
+            Parser::log(indentStr + "No handler found for opcode: " + newBlock->opcode);
+            newBlock->blockFunction = BlockExecutor::getHandlers()["coreExample_exampleOpcode"];
+        }
+
+        if (newBlock->opcode == "procedures_call") {
+            if (blockData.contains("mutation") && blockData.is_object() &&
+                blockData["mutation"].contains("tagName") &&
+                blockData["mutation"]["tagName"].get<std::string>() == "mutation") {
+
+                std::string rawArgumentIds = blockData["mutation"]["argumentids"];
+                nlohmann::json parsedArgIds = nlohmann::json::parse(rawArgumentIds);
+                newBlock->argumentIDs = parsedArgIds.get<std::vector<std::string>>();
+
+                if (blockData["mutation"].contains("proccode")) {
+                    Parser::log(indentStr + "\tproccode: " + blockData["mutation"]["proccode"].get<std::string>());
+                }
+
+                if (!newBlock->argumentIDs.empty()) {
+                    Parser::log(indentStr + "\targuments: " + std::to_string(newBlock->argumentIDs.size()));
+                }
+                std::string procode = blockData["mutation"]["proccode"];
+
+                if (procode == "\u200B\u200Blog\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
+                else if (procode == "\u200B\u200Bwarn\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
+                else if (procode == "\u200B\error\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
+                else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3"];
+                else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3withData"];
+
+                else {
+                    if (Parser::costumeHatBlock.count(procode) == 0) Parser::costumeHatBlock[procode] = new Block();
+                    newBlock->MyBlockDefinitionID = Parser::costumeHatBlock[procode];
+                    newBlock->MyBlockWithoutScreenRefresh = blockData["mutation"]["warp"] == "true";
+                }
             }
-            std::string procode = blockData["mutation"]["proccode"];
+        }
 
-            if (procode == "\u200B\u200Blog\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
-            else if (procode == "\u200B\u200Bwarn\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
-            else if (procode == "\u200B\error\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
-            else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3"];
-            else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3withData"];
+        if (newBlock->opcode == "argument_reporter_boolean") {
+            std::string name = Scratch::getFieldValue(*newBlock, "VALUE");
+            if (name == "is Scratch Everywhere!?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isScratchEverywhere"];
+            if (name == "is New 3DS?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isNew3DS"];
+            if (name == "is DSi?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isDSi"];
+        } else if (newBlock->opcode == "argument_reporter_string_number") {
+            std::string name = Scratch::getFieldValue(*newBlock, "VALUE");
+            if (name == "Scratch Everywhere! platform") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_platform"];
+            if (name == "Scratch Everywhere! controller") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_controller"];
 
-            else {
-                if (Parser::costumeHatBlock.count(procode) == 0) Parser::costumeHatBlock[procode] = new Block();
-                newBlock->MyBlockDefinitionID = Parser::costumeHatBlock[procode];
-                newBlock->MyBlockWithoutScreenRefresh = blockData["mutation"]["warp"] == "true";
-            }
+            if (name == "\u200B\u200Breceived data\u200B\u200B") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_receivedData"];
+        }
+
+        Scratch::blocks.push_back(newBlock);
+
+        if (currentBlock) {
+            currentBlock->nextBlock = newBlock;
+        }
+        currentBlock = newBlock;
+
+        std::string nextId;
+        bool hasNext = false;
+        if (blockData.contains("next") && !blockData["next"].is_null()) {
+            nextId = blockData["next"].get<std::string>();
+            hasNext = true;
+        }
+
+        if (!blockDatas[currentId].contains("shadow") || !blockDatas[currentId]["shadow"].get<bool>()) {
+            newBlock->opcode.clear();
+        }
+
+        if (hasNext) {
+            currentId = nextId;
+        } else {
+            newBlock->nextBlock = parentBlock;
+            break;
         }
     }
 
-    if (newBlock->opcode == "argument_reporter_boolean") {
-        std::string name = Scratch::getFieldValue(*newBlock, "VALUE");
-        if (name == "is Scratch Everywhere!?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isScratchEverywhere"];
-        if (name == "is New 3DS?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isNew3DS"];
-        if (name == "is DSi?") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_isDSi"];
-    } else if (newBlock->opcode == "argument_reporter_string_number") {
-        std::string name = Scratch::getFieldValue(*newBlock, "VALUE");
-        if (name == "Scratch Everywhere! platform") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_platform"];
-        if (name == "Scratch Everywhere! controller") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_controller"];
-
-        if (name == "\u200B\u200Breceived data\u200B\u200B") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_receivedData"];
-    }
-
-    Scratch::blocks.push_back(newBlock);
-
-    if (blockData.contains("next") && !blockData["next"].is_null()) {
-        std::string nextBlockKey = blockData["next"].get<std::string>();
-        newBlock->nextBlock = loadBlock(newSprite, nextBlockKey, blockDatas, parentBlock, indent);
-    } else {
-        newBlock->nextBlock = parentBlock;
-    }
-
-    if (!blockDatas[id].contains("shadow") || !blockDatas[id]["shadow"].get<bool>()) {
-        newBlock->opcode.clear();
-    }
-
-    return newBlock;
+    return firstBlock;
 }

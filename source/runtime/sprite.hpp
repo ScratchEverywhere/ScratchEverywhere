@@ -93,6 +93,7 @@ struct ScriptThread {
             state.second->clear();
         }
         states.clear();
+        MyBlocksVariablen.clear();
     }
 };
 
@@ -139,13 +140,14 @@ using BlockFunc = BlockResult (*)(Block *, ScriptThread *, Sprite *, Value *);
 struct Block {
     Block *nextBlock = nullptr;
     std::string opcode = "";
-    BlockFunc blockFunction;
+    BlockFunc blockFunction = nullptr;
 
-    Block *MyBlockDefinitionID;
+    Block *MyBlockDefinitionID = nullptr;
     std::vector<std::string> argumentIDs;
     std::vector<std::string> argumentNames;
     std::vector<Value> argumentDefaults;
-    bool MyBlockWithoutScreenRefresh;
+    bool MyBlockWithoutScreenRefresh = false;
+    bool hasReturnValue = false;
 
     std::unordered_map<std::string, ParsedInput> inputs;
     std::unordered_map<std::string, ParsedField> fields;

@@ -1,4 +1,5 @@
 #include "blockUtils.hpp"
+#include <cmath>
 #include <render.hpp>
 #include <sprite.hpp>
 #include <value.hpp>
@@ -66,6 +67,7 @@ SCRATCH_BLOCK(data, addtolist) {
 
     if (items && items->size() < MAX_LIST_ITEMS) items->push_back(item);
 
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -77,30 +79,35 @@ SCRATCH_BLOCK(data, deleteoflist) {
 
     if (!items) return BlockResult::CONTINUE;
 
-    if (index.isNumeric()) {
-        const double ind = std::floor(index.asDouble()) - 1; // Convert to 0-based index
+    std::string indexStr = index.asString();
+    if (indexStr == "last" && !items->empty()) {
+        items->pop_back();
+        Scratch::forceRedraw = true;
+        return BlockResult::CONTINUE;
+    }
+
+    if (indexStr == "all") {
+        items->clear();
+        Scratch::forceRedraw = true;
+        return BlockResult::CONTINUE;
+    }
+
+    if ((indexStr == "random" || indexStr == "any") && !items->empty()) {
+        int idx = rand() % items->size();
+        items->erase(items->begin() + idx);
+        Scratch::forceRedraw = true;
+        return BlockResult::CONTINUE;
+    }
+
+    double d = index.asDouble();
+    if (std::isfinite(d)) {
+        const double ind = std::floor(d) - 1; // Convert to 0-based index
 
         // Check if the index is within bounds
         if (ind >= 0 && ind < static_cast<double>(items->size())) {
             items->erase(items->begin() + ind); // Remove the item at the index
+            Scratch::forceRedraw = true;
         }
-
-        return BlockResult::CONTINUE;
-    }
-
-    if (index.asString() == "last") {
-        items->pop_back();
-        return BlockResult::CONTINUE;
-    }
-
-    if (index.asString() == "all") {
-        items->clear();
-        return BlockResult::CONTINUE;
-    }
-
-    if ((index.asString() == "random" || index.asString() == "any")) {
-        int idx = rand() % items->size();
-        items->erase(items->begin() + idx);
     }
 
     return BlockResult::CONTINUE;
@@ -109,6 +116,7 @@ SCRATCH_BLOCK(data, deleteoflist) {
 SCRATCH_BLOCK(data, deletealloflist) {
     auto items = Scratch::getListItems(*block, sprite);
     if (items) items->clear();
+    Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
 
@@ -122,24 +130,29 @@ SCRATCH_BLOCK(data, insertatlist) {
 
     if (!items || items->size() >= MAX_LIST_ITEMS) return BlockResult::CONTINUE;
 
-    if (index.isNumeric()) {
-        const double idx = std::floor(index.asDouble()) - 1; // Convert to 0-based index
+    std::string indexStr = index.asString();
+    if (indexStr == "last") {
+        items->push_back(item);
+        Scratch::forceRedraw = true;
+        return BlockResult::CONTINUE;
+    }
+
+    if (indexStr == "random" || indexStr == "any") {
+        int idx = rand() % (items->size() + 1);
+        items->insert(items->begin() + idx, item);
+        Scratch::forceRedraw = true;
+        return BlockResult::CONTINUE;
+    }
+
+    double d = index.asDouble();
+    if (std::isfinite(d)) {
+        const double idx = std::floor(d) - 1; // Convert to 0-based index
 
         // Check if the index is within bounds
         if (idx >= 0 && idx <= static_cast<double>(items->size())) {
             items->insert(items->begin() + idx, item); // Insert the item at the index
+            Scratch::forceRedraw = true;
         }
-
-        return BlockResult::CONTINUE;
-    }
-
-    if (index.asString() == "last") {
-        items->push_back(item);
-    }
-
-    if (index.asString() == "random" || index.asString() == "any") {
-        int idx = rand() % (items->size() + 1);
-        items->insert(items->begin() + idx, item);
     }
 
     return BlockResult::CONTINUE;
@@ -155,42 +168,56 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
 
     if (!items || items->empty()) return BlockResult::CONTINUE;
 
-    if (index.isNumeric()) {
-        double idx = std::floor(index.asDouble()) - 1;
-
-        if (idx >= 0 && idx < static_cast<double>(items->size())) {
-            (*items)[idx] = item;
-        }
-
+    std::string indexStr = index.asString();
+    if (indexStr == "last") {
+        items->back() = item;
+        Scratch::forceRedraw = true;
         return BlockResult::CONTINUE;
     }
 
-    if (index.asString() == "last") items->back() = item;
-
-    if ((index.asString() == "random" || index.asString() == "any")) {
+    if ((indexStr == "random" || indexStr == "any")) {
         (*items)[rand() % items->size()] = item;
+        Scratch::forceRedraw = true;
+        return BlockResult::CONTINUE;
+    }
+
+    double d = index.asDouble();
+    if (std::isfinite(d)) {
+        double idx = std::floor(d) - 1;
+
+        if (idx >= 0 && idx < static_cast<double>(items->size())) {
+            (*items)[idx] = item;
+            Scratch::forceRedraw = true;
+        }
     }
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(data, itemoflist) {
-    Value indexStr;
-    if (!Scratch::getInput(block, "INDEX", thread, sprite, indexStr)) return BlockResult::REPEAT;
+    Value indexStrVal;
+    if (!Scratch::getInput(block, "INDEX", thread, sprite, indexStrVal)) return BlockResult::REPEAT;
     
     const auto &items = Scratch::getListItems(*block, sprite);
 
-    if (items->empty()) *outValue = Value();
+    if (!items || items->empty()) {
+        *outValue = Value();
+        return BlockResult::CONTINUE;
+    }
 
-    else if (indexStr.asString() == "last") *outValue = items->back();
+    std::string indexStr = indexStrVal.asString();
+    if (indexStr == "last") *outValue = items->back();
 
-    else if (indexStr.asString() == "random" || indexStr.asString() == "any") {
+    else if (indexStr == "random" || indexStr == "any") {
         int idx = rand() % items->size();
         *outValue = (*items)[idx];
     } else {
-        double index = std::floor(indexStr.asDouble()) - 1;
-        if (index >= 0 && index < static_cast<double>(items->size())) {
-            *outValue = (*items)[index];
+        double d = indexStrVal.asDouble();
+        if (std::isfinite(d)) {
+            double index = std::floor(d) - 1;
+            if (index >= 0 && index < static_cast<double>(items->size())) {
+                *outValue = (*items)[index];
+            } else *outValue = Value();
         } else *outValue = Value();
     }
 
@@ -240,12 +267,6 @@ SCRATCH_BLOCK(data, listcontainsitem) {
         }
     }
 
-    for (const auto &item : *items) {
-        if (item == itemToFind) {
-            *outValue = Value(true);
-            return BlockResult::CONTINUE;
-        }
-    }
     *outValue = Value(false);
     return BlockResult::CONTINUE;
 }

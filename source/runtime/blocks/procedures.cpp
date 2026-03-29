@@ -16,6 +16,11 @@ SCRATCH_BLOCK(procedures, call) {
     }
 
     if (state->completedSteps == 0) {
+        if (block->MyBlockDefinitionID == nullptr ||
+            block->MyBlockDefinitionID->blockFunction == nullptr) {
+            return BlockResult::CONTINUE;
+        }
+
         ScriptThread *newThread;
         if (!Pools::threads.empty()) {
             newThread = Pools::threads.back();
@@ -27,6 +32,7 @@ SCRATCH_BLOCK(procedures, call) {
         newThread->nextBlock = block->MyBlockDefinitionID;
         newThread->withoutScreenRefresh = block->MyBlockWithoutScreenRefresh;
         newThread->finished = false;
+        newThread->returnValue = Value();
         newThread->MyBlocksVariablen.clear();
         state->threads.push_back(newThread);
         state->completedSteps = 1;
@@ -41,29 +47,43 @@ SCRATCH_BLOCK(procedures, call) {
         state->completedSteps++;
     }
 
-    
     state->completedSteps = -2;
     return BlockResult::REPEAT;
 }
+
 SCRATCH_BLOCK(procedures, prototype) {
     for (size_t i = 0; i < block->argumentIDs.size(); i++) {
-        const std::string &argId   = block->argumentIDs[i];
+        const std::string &argId = block->argumentIDs[i];
         const std::string &argName = (i < block->argumentNames.size())
-                                     ? block->argumentNames[i] : argId;
+                                         ? block->argumentNames[i]
+                                         : argId;
 
         auto it = thread->MyBlocksVariablen.find(argId);
         if (it != thread->MyBlocksVariablen.end()) {
             thread->MyBlocksVariablen[argName] = std::move(it->second);
-        
+
             if (argName != argId)
                 thread->MyBlocksVariablen.erase(argId);
         } else {
             thread->MyBlocksVariablen[argName] = (i < block->argumentDefaults.size())
-                                                  ? block->argumentDefaults[i]
-                                                  : Value("");
+                                                     ? block->argumentDefaults[i]
+                                                     : Value("");
         }
     }
     return BlockResult::CONTINUE_IMIDIATELY;
+}
+
+BlockResult block_procedures_return_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue);
+static uint8_t block_procedures_return_reg_ =
+    (BlockExecutor::getHandlers()["procedures_return"] = block_procedures_return_, 0);
+BlockResult block_procedures_return_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) {
+    Value returnVal;
+    if (!Scratch::getInput(block, "VALUE", thread, sprite, returnVal))
+        return BlockResult::REPEAT;
+
+    thread->returnValue = returnVal;
+    thread->finished = true;
+    return BlockResult::RETURN;
 }
 
 SCRATCH_BLOCK(argument, reporter_string_number) {

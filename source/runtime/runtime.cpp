@@ -54,6 +54,7 @@ bool Scratch::forceRedraw = false;
 bool Scratch::accuratePen = false;
 bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
+int Scratch::withoutScreenRefreshLimit = 4096;
 
 Timer Scratch::fpsTimer(false);
 
@@ -82,11 +83,11 @@ void Scratch::initializeScratchProject() {
 #ifdef ENABLE_MENU
     Scratch::pauseMenu = nullptr;
 #endif
-//#ifdef ENABLE_CACHING
-//    for (auto &sprite : sprites) {
-//        BlockExecutor::linkPointers(sprite);
-//    }
-//#endif
+    // #ifdef ENABLE_CACHING
+    //     for (auto &sprite : sprites) {
+    //         BlockExecutor::linkPointers(sprite);
+    //     }
+    // #endif
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird
@@ -99,8 +100,7 @@ void Scratch::initializeScratchProject() {
     if (debugVars) fpsTimer.start();
 }
 
-std::pair<bool, bool> Scratch::stepScratchProject() {
-    ScriptThread monitorDisplayThread;
+std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
     if (!Render::appShouldRun()) {
 #ifdef ENABLE_MENU
         if (pauseMenu != nullptr) {
@@ -185,8 +185,9 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
 bool Scratch::startScratchProject() {
     std::pair<bool, bool> code;
     initializeScratchProject();
+    ScriptThread monitorDisplayThread;
     while (true) {
-        code = stepScratchProject();
+        code = stepScratchProject(monitorDisplayThread);
         if (!code.first) {
             cleanupScratchProject();
             return code.second;
@@ -223,7 +224,7 @@ void Scratch::cleanupScratchProject() {
 
     // Reset Runtime
     for (auto &state : Pools::states) {
-        state->clear(); //states could contain threads, otherwise we would have a memory leak
+        state->clear(); // states could contain threads, otherwise we would have a memory leak
         delete state;
     }
     for (auto &thread : Pools::threads) {
@@ -253,6 +254,7 @@ void Scratch::cleanupScratchProject() {
     nextProject = false;
     useCustomUsername = false;
     sb3InRam = true;
+    withoutScreenRefreshLimit = 4096;
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 
@@ -330,7 +332,7 @@ void Scratch::stopClicked() {
     Scratch::cloneCount = 0;
     std::vector<Sprite *> toDelete;
     for (Sprite *currentSprite : Scratch::sprites) {
-        for (auto thread :currentSprite->pendingThreads) {
+        for (auto thread : currentSprite->pendingThreads) {
             thread->clear();
             Pools::threads.push_back(thread);
         }
@@ -830,7 +832,6 @@ void Scratch::freeUnusedCostumeImages() {
         costumeImages.erase(id);
     }
 }
-
 
 std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
     auto fieldFind = block.fields.find(fieldName);

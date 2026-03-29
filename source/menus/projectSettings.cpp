@@ -44,6 +44,11 @@ void ProjectSettings::init() {
     ramButton->text->setScale(0.5);
     ramButton->shouldNineslice = true;
 
+    refreshLimitButton = new ButtonObject("No Refresh Limit: clicktoload", "gfx/menu/projectBox.svg", 200, 280, "gfx/menu/Ubuntu-Bold");
+    refreshLimitButton->text->setColor(Math::color(0, 0, 0, 255));
+    refreshLimitButton->text->setScale(0.5);
+    refreshLimitButton->shouldNineslice = true;
+
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
@@ -55,7 +60,7 @@ void ProjectSettings::init() {
 
     // link buttons
     changeControlsButton->buttonDown = UnpackProjectButton;
-    changeControlsButton->buttonUp = ramButton;
+    changeControlsButton->buttonUp = refreshLimitButton;
     UnpackProjectButton->buttonUp = changeControlsButton;
     UnpackProjectButton->buttonDown = bottomScreenButton;
     bottomScreenButton->buttonDown = penModeButton;
@@ -64,8 +69,10 @@ void ProjectSettings::init() {
     penModeButton->buttonUp = bottomScreenButton;
     debugVarsButton->buttonDown = ramButton;
     debugVarsButton->buttonUp = penModeButton;
-    ramButton->buttonDown = changeControlsButton;
+    ramButton->buttonDown = refreshLimitButton;
     ramButton->buttonUp = debugVarsButton;
+    refreshLimitButton->buttonDown = changeControlsButton;
+    refreshLimitButton->buttonUp = ramButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
@@ -74,6 +81,7 @@ void ProjectSettings::init() {
     settingsControl->buttonObjects.push_back(penModeButton);
     settingsControl->buttonObjects.push_back(debugVarsButton);
     settingsControl->buttonObjects.push_back(ramButton);
+    settingsControl->buttonObjects.push_back(refreshLimitButton);
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -106,6 +114,12 @@ void ProjectSettings::init() {
         ramButton->text->setText("Keep Project In RAM: ON");
 #endif
     }
+
+    int currentLimit = 4096;
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["withoutScreenRefreshLimit"].is_null()) {
+        currentLimit = settings["settings"]["withoutScreenRefreshLimit"].get<int>();
+    }
+    refreshLimitButton->text->setText("No Refresh Limit: " + std::to_string(currentLimit));
 
     isInitialized = true;
 }
@@ -142,6 +156,22 @@ void ProjectSettings::render() {
         settings["settings"]["sb3InRam"] = ramButton->text->getText() == "Keep Project In RAM: ON" ? false : true;
         SettingsManager::saveProjectSettings(settings, projectPath);
         ramButton->text->setText(ramButton->text->getText() == "Keep Project In RAM: ON" ? "Keep Project In RAM: OFF" : "Keep Project In RAM: ON");
+    }
+    if (refreshLimitButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        int currentLimit = 4096;
+        if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["withoutScreenRefreshLimit"].is_null()) {
+            currentLimit = settings["settings"]["withoutScreenRefreshLimit"].get<int>();
+        }
+        int newLimit = 4096;
+        if (currentLimit <= 1024) newLimit = 4096;
+        else if (currentLimit <= 4096) newLimit = 16384;
+        else if (currentLimit <= 16384) newLimit = 32768;
+        else newLimit = 1024;
+
+        settings["settings"]["withoutScreenRefreshLimit"] = newLimit;
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        refreshLimitButton->text->setText("No Refresh Limit: " + std::to_string(newLimit));
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
@@ -215,6 +245,10 @@ void ProjectSettings::cleanup() {
     if (ramButton != nullptr) {
         delete ramButton;
         ramButton = nullptr;
+    }
+    if (refreshLimitButton != nullptr) {
+        delete refreshLimitButton;
+        refreshLimitButton = nullptr;
     }
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);

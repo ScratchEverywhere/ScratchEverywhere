@@ -21,8 +21,16 @@ SCRATCH_BLOCK(event, whenthisspriteclicked) {
 SCRATCH_BLOCK(event, broadcast) {
     Value broadcast;
     if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
-    Scratch::newBroadcast = broadcast.asString();
-    BlockExecutor::runAllBlocksByOpcode("event_whenbroadcastreceived");
+    std::string broadcastStr = broadcast.asString();
+    
+    for (auto &spr : Scratch::sprites) {
+        if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
+        for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
+            if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
+                BlockExecutor::startThread(spr, hat);
+            }
+        }
+    }
     
     return BlockResult::CONTINUE_IMIDIATELY;
 }
@@ -32,11 +40,17 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     if (state->completedSteps == 0 ) {
         Value broadcastValue;
         if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcastValue)) return BlockResult::REPEAT;
-        Scratch::newBroadcast = broadcastValue.asString();
+        std::string broadcastStr = broadcastValue.asString();
         
-        std::vector<ScriptThread *> *out;
-        BlockExecutor::runAllBlocksByOpcode("event_whenbroadcastreceived", out);
-        state->threads = *out;
+        for (auto &spr : Scratch::sprites) {
+            if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
+            for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
+                if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
+                    state->threads.push_back(BlockExecutor::startThread(spr, hat));
+                }
+            }
+        }
+        
         state->completedSteps = 1;
         if (state->threads.empty()) {
             thread->eraseState(block);
@@ -54,19 +68,11 @@ SCRATCH_BLOCK(event, broadcastandwait) {
 }
 // TODO: This is currently very poorly optimized. Please fix it, thank you.
 SCRATCH_BLOCK(event, whenkeypressed) {
-    std::string key = Scratch::getFieldValue(*block, "KEY_OPTION");
-    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && (Input::keyHeldDuration.find(key)->second == 1 || Input::keyHeldDuration.find(key)->second > 15 * (Scratch::FPS / 30.0f))) {
-        return BlockResult::CONTINUE_IMIDIATELY;
-    }
-    return BlockResult::RETURN;
+    return BlockResult::CONTINUE_IMIDIATELY;
 }
 
 SCRATCH_BLOCK(event, whenbroadcastreceived) {
-    std::string key = Scratch::getFieldValue(*block, "KEY_OPTION");
-    if (Scratch::newBroadcast == Scratch::getFieldValue(*block, "BROADCAST_OPTION")) {
-        return BlockResult();
-    }
-    return BlockResult::RETURN;
+    return BlockResult::CONTINUE_IMIDIATELY;
 }
 
 

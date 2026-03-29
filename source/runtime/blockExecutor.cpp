@@ -139,6 +139,23 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
 */
 
 ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
+    for (auto thread : sprite->threads) {
+        if (thread->blockHat == block) {
+            thread->clear();
+            thread->nextBlock = block;
+            thread->finished = false;
+            return thread;
+        }
+    }
+    for (auto thread : sprite->pendingThreads) {
+        if (thread->blockHat == block) {
+            thread->clear();
+            thread->nextBlock = block;
+            thread->finished = false;
+            return thread;
+        }
+    }
+
     ScriptThread *newThread = nullptr;
     if (Pools::threads.empty()) newThread = new ScriptThread();
     else {
@@ -191,17 +208,25 @@ void BlockExecutor::runThreads() {
 BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value *outValue) {
     if (thread.nextBlock == nullptr) return BlockResult::RETURN;
     BlockResult var = BlockResult::CONTINUE;
+    int executedBlocks = 0;
+    int executionCount = 0;
     do {
         Block *currentBlock = thread.nextBlock;
         thread.nextBlock = currentBlock->nextBlock;
 
-        var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);//runBlock(currentBlock, thread, sprite, outValue);
+        var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
             Scratch::resetInput(thread.nextBlock); //just for safety
             Scratch::resetInput(currentBlock);
         }
-    } while ((var == BlockResult::CONTINUE_IMIDIATELY || (thread.withoutScreenRefresh && var == BlockResult::CONTINUE)) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
+        
+        executionCount++;
+        if (thread.withoutScreenRefresh && var != BlockResult::CONTINUE_IMIDIATELY) executedBlocks++;
+        if (thread.withoutScreenRefresh && executionCount >= Scratch::withoutScreenRefreshLimit) break;
+        if (!thread.withoutScreenRefresh && executionCount >= 1024) break;
+
+    } while ((var == BlockResult::CONTINUE_IMIDIATELY || (thread.withoutScreenRefresh && var == BlockResult::CONTINUE && executedBlocks < Scratch::withoutScreenRefreshLimit)) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
     return var;
 }
 
@@ -270,18 +295,15 @@ void BlockExecutor::executeKeyHats() {
 
     const std::vector<Sprite *> sprToRun = Scratch::sprites;
     for (Sprite *currentSprite : sprToRun) {
-        BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenkeypressed", currentSprite);
+        if (!currentSprite->hats["event_whenkeypressed"].empty()) {
+            for (Block *block : currentSprite->hats["event_whenkeypressed"]) {
+                std::string key = Scratch::getFieldValue(*block, "KEY_OPTION");
+                if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && (Input::keyHeldDuration.find(key)->second == 1 || Input::keyHeldDuration.find(key)->second > 15 * (Scratch::FPS / 30.0f))) {
+                    BlockExecutor::startThread(currentSprite, block);
+                }
+            }
+        }
         BlockExecutor::runAllBlocksByOpcodeInSprite("makeymakey_whenMakeyKeyPressed", currentSprite);
-        // TODO: Add a way to register these with macros
-        // if (data.opcode == "event_whenkeypressed") {
-        //    std::string key = Scratch::getFieldValue(data, "KEY_OPTION");
-        //    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && (Input::keyHeldDuration.find(key)->second == 1 || Input::keyHeldDuration.find(key)->second > 15 * (Scratch::FPS / 30.0f)))
-        //        executor.runBlock(data, currentSprite);
-        //} else if (data.opcode == "makeymakey_whenMakeyKeyPressed") {
-        //    std::string key = Input::convertToKey(Scratch::getInputValue(data, "KEY", currentSprite), true);
-        //    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0)
-        //        executor.runBlock(data, currentSprite);
-        //}
     }
     BlockExecutor::runAllBlocksByOpcode("makeymakey_whenCodePressed");
 }
