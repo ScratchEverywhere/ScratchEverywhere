@@ -119,7 +119,9 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
 endfunction()
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
-set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+if(NOT DEFINED SE_RENDERER_PRIORITY)
+	set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
 
