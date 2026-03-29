@@ -30,13 +30,7 @@ std::unique_ptr<MistConnection> cloudConnection = nullptr;
 void Parser::initMist() {
     OS::initWifi();
 
-#ifdef __WIIU__
-    std::ostringstream usernameFilenameStream;
-    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
-    std::string usernameFilename = usernameFilenameStream.str();
-#else
-    std::string usernameFilename = "cloud-username.txt";
-#endif
+    const std::string usernameFilename = OS::getScratchFolderLocation() + "cloud-username.txt";
 
     std::ifstream fileStream(usernameFilename.c_str());
     if (!fileStream.good()) {
