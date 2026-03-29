@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.38 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.38.1 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -121,7 +121,9 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
 endfunction()
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
-set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+if(NOT DEFINED SE_RENDERER_PRIORITY)
+	set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
 
@@ -253,6 +255,10 @@ string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
 string(TOUPPER "WINDOWING_${SE_WINDOWING}" WINDOWING_DEFINITION)
 target_compile_definitions(scratch-everywhere PRIVATE ${RENDERER_DEFINITION} ${WINDOWING_DEFINITION})
 
+if(TARGET threads_interface)
+	target_link_libraries(scratch-everywhere PRIVATE threads_interface)
+endif()
+
 target_link_libraries(scratch-everywhere PRIVATE renderer_interface)
 target_link_libraries(scratch-everywhere PRIVATE windowing_interface)
 if(SE_AUDIO)
@@ -273,8 +279,6 @@ if(SE_LOADSCREEN)
 endif()
 if(SE_DOWNLOAD)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_DOWNLOAD)
-	find_package(Threads REQUIRED)
-	target_link_libraries(scratch-everywhere PRIVATE Threads::Threads)
 	se_add_dependency(scratch-everywhere libcurl)
 endif()
 if(SE_CLOUDVARS)

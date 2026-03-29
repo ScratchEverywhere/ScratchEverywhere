@@ -1,5 +1,6 @@
 #pragma once
 #include "mainMenu.hpp"
+#include "menuObjects.hpp"
 
 class ProjectSettings : public Menu {
   private:
@@ -12,6 +13,7 @@ class ProjectSettings : public Menu {
     ButtonObject *penModeButton = nullptr;
     ButtonObject *debugVarsButton = nullptr;
     ButtonObject *ramButton = nullptr;
+    ButtonObject *collisionButton = nullptr;
 
     bool canUnpacked = true;
     bool shouldGoBack = false;

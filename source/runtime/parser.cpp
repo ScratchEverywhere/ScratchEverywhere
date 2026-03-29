@@ -30,13 +30,7 @@ std::unique_ptr<MistConnection> cloudConnection = nullptr;
 void Parser::initMist() {
     OS::initWifi();
 
-#ifdef __WIIU__
-    std::ostringstream usernameFilenameStream;
-    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
-    std::string usernameFilename = usernameFilenameStream.str();
-#else
-    std::string usernameFilename = "cloud-username.txt";
-#endif
+    const std::string usernameFilename = OS::getScratchFolderLocation() + "cloud-username.txt";
 
     std::ifstream fileStream(usernameFilename.c_str());
     if (!fileStream.good()) {
@@ -89,10 +83,10 @@ void Parser::initMist() {
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
     Log::log("Connecting to cloud variables with id: " + projectID.str());
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(WEBOS) // These platforms require Mist++ 0.2.0 or later.
-    cloudConnection->connect(false);
-#else // These platforms require Mist++ 0.1.4 or later.
+#if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
     cloudConnection->connect();
+#else
+    cloudConnection->connect(false);
 #endif
 }
 #endif
@@ -577,6 +571,15 @@ void Parser::loadSprites(const nlohmann::json &json) {
     if (!accuratePen.is_null() && accuratePen.get<bool>())
         Scratch::accuratePen = true;
     else Scratch::accuratePen = false;
+
+    auto accurateCollision = Unzip::getSetting("accurateCollision");
+    if (accurateCollision.is_null()) {
+#ifdef __NDS__
+        Scratch::accurateCollision = false;
+#else
+        Scratch::accurateCollision = true;
+#endif
+    } else Scratch::accurateCollision = accurateCollision.get<bool>();
 
     auto debugVars = Unzip::getSetting("debugVars");
     if (!debugVars.is_null() && debugVars.get<bool>())

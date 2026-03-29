@@ -13,7 +13,7 @@ std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int
         Log::logWarning("Failed to find image for sprite: " + sprite->name);
         return nullptr;
     }
-    const ImageData imgData = imgFind->second->getPixels();
+    ImageData imgData = imgFind->second->getPixels();
 
     std::shared_ptr<Bitmask> bitmask = std::make_shared<Bitmask>();
     bitmask->width = imgData.width / scaleFactor;
@@ -47,6 +47,12 @@ std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int
     }
 
     bitmask->maxRadius = std::sqrt(maxDistSq) * bitmask->scaleFactor;
+
+    // they need the pixel data freed because they make new pixels instead of a reference
+#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
+    free(imgData.pixels);
+#endif
+
     return bitmask;
 }
 
@@ -219,4 +225,63 @@ bool collision::spriteOnEdge(Sprite *sprite) {
     }
 
     return false;
+}
+
+collision::AABB collision::getSpriteBounds(Sprite *sprite) {
+    float x = sprite->xPosition;
+    float y = sprite->yPosition;
+
+    float scale = sprite->size * 0.01f;
+
+    int rotCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
+    int rotCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
+
+    float offsetX = (sprite->spriteWidth / 2.0f) - rotCenterX;
+    float offsetY = (sprite->spriteHeight / 2.0f) - rotCenterY;
+
+    offsetX *= scale;
+    offsetY *= scale;
+
+    float finalX = x + offsetX;
+    float finalY = y - offsetY;
+
+    float halfW = (sprite->spriteWidth * scale) / 2.0f;
+    float halfH = (sprite->spriteHeight * scale) / 2.0f;
+
+    return {
+        finalX - halfW,
+        finalX + halfW,
+        finalY + halfH,
+        finalY - halfH};
+}
+
+bool collision::pointInSpriteFast(Sprite *sprite, float x, float y) {
+    AABB box = getSpriteBounds(sprite);
+
+    return (x >= box.left && x <= box.right &&
+            y >= box.bottom && y <= box.top);
+}
+
+bool collision::spriteInSpriteFast(Sprite *a, Sprite *b) {
+    AABB boxA = getSpriteBounds(a);
+    AABB boxB = getSpriteBounds(b);
+
+    return (boxA.left <= boxB.right) &&
+           (boxA.right >= boxB.left) &&
+           (boxA.bottom <= boxB.top) &&
+           (boxA.top >= boxB.bottom);
+}
+
+bool collision::spriteOnEdgeFast(Sprite *sprite) {
+    AABB box = getSpriteBounds(sprite);
+
+    const float rightEdge = Scratch::projectWidth / 2.0f;
+    const float leftEdge = -rightEdge;
+    const float topEdge = Scratch::projectHeight / 2.0f;
+    const float bottomEdge = -topEdge;
+
+    return (box.right >= rightEdge) ||
+           (box.left <= leftEdge) ||
+           (box.top >= topEdge) ||
+           (box.bottom <= bottomEdge);
 }
