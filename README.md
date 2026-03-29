@@ -32,24 +32,67 @@ over to 6-8th-generation console and handheld platforms (and more)!
 
 ### Mouse
 
-**3DS:** Glide your finger/stylus on the bottom screen to move the mouse, and
-tap the bottom screen to click.
-
-**Wii U GamePad:** Use the touchscreen on the GamePad.
+**3DS, PS Vita, Wii U GamePad:** Use the touchscreen.
 
 **Wii Remote:** Use the Wii sensor bar to control the mouse.
 
-**PS Vita:** Use the front touchscreen.
-
 **Other Controllers:** Enter Mouse Mode by holding L. Use the D-pad to move the
 mouse, and press R to click.
+
+## SE! Project Settings
+
+### Change Controls
+
+- Allows you to change the default controls of a project to your liking.
+
+### Unpack Project
+
+- Allows you to unzip a project and run it in its unzipped state.
+- An unzipped project is displayed as a yellow box with a lightning icon.
+- Unzipping a project has the benefit of not needing the full project and its
+  assets stored in RAM, which is useful depending on the device.
+- Note: you will have to unzip the project every time you make changes to it.
+
+### [3DS, NDS] Bottom Screen Only Mode
+
+- `Off` by default.
+- Makes a project use the bottom screen instead of the top screen.
+
+### Pen Mode
+
+- Options: `Fast`, `Accurate`.
+- `Fast` by default.
+- Setting it to `Accurate` gives the Scratch-Accurate pen look.
+- Setting it to `Fast` can give a significant improvement to Pen performance, at
+  the cost of pen lines being rectangular instead of circular.
+
+### Collision Mode
+
+- Options: `Fast`, `Accurate`.
+- `Accurate` by default on all platforms except for NDS.
+- Setting it to `Accurate` gives the `touching ___` block Scratch-Accurate
+  bitmask collision.
+- Setting it to `Fast` gives the `touching ___` block simple rectangle
+  collision, which gives a significant improvement to performance at the cost of
+  accuracy.
+
+### Show FPS
+
+- `Off` by default.
+- Turning this on shows debug Monitors, giving you FPS and Frametime
+  information.
+
+### Keep Project In RAM
+
+- `On` by default on all platforms except for NDS, PSP and GameCube.
+- Similar to the `Unpack Project` setting, turning this off has the benefit of
+  not needing the full project and its assets stored in RAM.
+- Turning this off will make assets take longer to load.
 
 ## Unique Features
 
 ### 3DS Screen Modes
 
-- Any scratch project with an unmodified resolution setting will be displayed on
-  the top screen only.
 - If using a modded Scratch client like TurboWarp, you can go into the projects'
   Advanced Settings and change the resolution.
   - Setting it to `400x480` will enable both the top and bottom screen.
@@ -87,10 +130,8 @@ mouse, and press R to click.
 
 ### Differently Implemented Blocks
 
-- The `Username` block returns the 3DS's nickname, and the Wii U's current Mii
-  name.
-- The `Touching __?` block uses simpler box collision, which may lead to
-  projects working incorrectly.
+- The `Username` block returns the System name / Nickname.
+  - You can also set a custom username in SE! settings.
 
 ### Special Custom Blocks
 
@@ -136,17 +177,14 @@ crashes, and things that will just not work.
 - Some blocks may lead to crashing/unintended behavior (Please open an issue if
   you know of a block that's causing problems).
 - Performance is poor when using many (~50+) clones (memory management issue).
-- **[Wii, Switch, PSP, Vita, PS4]** Cloud Variables aren't currently supported,
-  but likely will be in the future.
+- **[Switch, PSP, Vita, PS4]** Cloud Variables aren't currently supported, but
+  likely will be in the future.
 - **[Wii, Wii U, GameCube, Switch]** The first controller connected will be the
   only one that will work.
-- **[Wii]** If you're using a PAL Wii, you must use 50Hz.
-- **[GameCube]** Cloud Variables will not be supported.
-- **[GameCube, NDS]** These platforms have very little memory, so try to keep
-  projects small.
+- **[Wii, GameCube]** Cloud Variables will not be supported.
+- **[GameCube, NDS, PSP]** These platforms have very little memory, so try to
+  keep projects small.
 - **[NDS]** Dual screen mode will not be supported.
-- **[3DS]** Performace is poor when lots of blocks are running at once.
-- **[3DS]** If you have a bunch of large images, some may not load.
 - **[PSP]** Images cannot be over 512x512.
 - **[Vita]** Back touch will not be supported.
 - **[PS4]** The software keyboard isn't currently supported.
@@ -168,12 +206,11 @@ crashes, and things that will just not work.
 - Bug fixing and Scratch parity
 - Get all blocks working
 - Support most TurboWarp extensions
-  ([#210](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/210))
+  ([#594](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/594))
 
 ### Wii U
 
-- Dual screen support
-- Improved controller support (multiple controllers)
+- Dual screen support (May not happen due to SDL2 limitations)
 
 ### SDL2 Platforms
 
@@ -189,13 +226,10 @@ crashes, and things that will just not work.
 
 ### Other
 
-- Make vector images not/less pixelated
 - Download projects from the Scratch website (previously
   [#331](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/331))
 - Translations (see
   [#333](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/333))
-- Improved Collision (previously
-  [#375](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/375)/[#57](https://github.com/ScratchEverywhere/ScratchEverywhere/pull/57))
 - ~~Browser extension to send projects directly to a testing device from the
   editor~~ (not really possible to my understanding)
 
