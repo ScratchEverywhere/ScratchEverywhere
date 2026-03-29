@@ -14,8 +14,8 @@
 
 void Image_GL::render(ImageRenderParams &params) {
 
-    int x = params.x;
-    int y = params.y;
+    float x = params.x;
+    float y = params.y;
     double rotation = Math::radiansToDegrees(params.rotation);
     float scaleX = params.scale;
     const float scaleY = params.scale;
@@ -157,8 +157,8 @@ void Image_GL::setInitialTexture() {
     /** some platforms may need this to be freed due to RAM limits,
      *  but they then wont be able to support Image::getPixels()
      *  */
-    free(imgData.pixels);
-    imgData.pixels = nullptr;
+    // free(imgData.pixels);
+    // imgData.pixels = nullptr;
 }
 
 nonstd::expected<void, std::string> Image_GL::refreshTexture() {
@@ -173,7 +173,12 @@ Image_GL::Image_GL(std::string filePath, bool fromScratchProject, bool bitmapHal
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
     maxTextureSize = {glMaxTextureSize, glMaxTextureSize};
 
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
     setInitialTexture();
 }
 
@@ -182,7 +187,12 @@ Image_GL::Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQua
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
     maxTextureSize = {glMaxTextureSize, glMaxTextureSize};
 
-    init(filePath, zip, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
+
     setInitialTexture();
 }
 

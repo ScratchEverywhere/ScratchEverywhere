@@ -83,7 +83,13 @@ void mainLoop() {
     }
 }
 
+#ifdef WINDOWING_SDL1
+#include <SDL.h>
+
+extern "C" int main(int argc, char **argv) {
+#else
 int main(int argc, char **argv) {
+#endif
     if (!initApp()) {
         exitApp();
         return 1;

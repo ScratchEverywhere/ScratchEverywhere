@@ -4,7 +4,19 @@ on:
   push:
     paths:
       - CMakeLists.txt
+      - cmake/platforms/pc.cmake
+      - cmake/renderers/sdl2.cmake
+      - cmake/windowing/sdl2.cmake
+      - cmake/audio/sdl2.cmake
+      - cmake/renderers/sdl1.cmake
+      - cmake/windowing/sdl1.cmake
+      - cmake/audio/sdl1.cmake
+      - cmake/renderers/opengl.cmake
+      - cmake/windowing/glfw.cmake
+      - cmake/deps/*
       - source/runtime/**
+      - source/platforms/
+      - source/platforms/pc/**
       - source/renderers/sdl1/**
       - source/windowing/sdl1/**
       - source/audio/sdl1/**

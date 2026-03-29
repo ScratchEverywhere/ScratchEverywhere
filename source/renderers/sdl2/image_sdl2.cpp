@@ -7,8 +7,8 @@
 
 void Image_SDL2::render(ImageRenderParams &params) {
 
-    const int &x = params.x;
-    const int &y = params.y;
+    const float &x = params.x;
+    const float &y = params.y;
     const int &brightness = params.brightness;
     const double rotation = Math::radiansToDegrees(params.rotation);
     const float &scale = params.scale;
@@ -172,8 +172,8 @@ nonstd::expected<void, std::string> Image_SDL2::setInitialTexture() {
     /** some platforms may need this to be freed due to RAM limits,
      *  but they then wont be able to support Image::getPixels()
      *  */
-    free(imgData.pixels);
-    imgData.pixels = nullptr;
+    // free(imgData.pixels);
+    // imgData.pixels = nullptr;
 
     return {};
 }
@@ -192,7 +192,11 @@ Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHal
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 
-    init(filePath, zip, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
@@ -204,7 +208,11 @@ Image_SDL2::Image_SDL2(std::string filePath, bool fromScratchProject, bool bitma
         maxTextureSize = {info.max_texture_width, info.max_texture_height};
     }
 
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();

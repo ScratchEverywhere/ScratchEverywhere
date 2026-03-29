@@ -19,8 +19,8 @@ struct ImageSubrect {
 };
 
 struct ImageRenderParams {
-    int x = 0;
-    int y = 0;
+    float x = 0.0f;
+    float y = 0.0f;
     float scale = 1.0f;
     bool centered = true;
     float opacity = 1.0f;
@@ -87,6 +87,9 @@ class Image {
     virtual ~Image();
 
     virtual ImageData getPixels(ImageSubrect rect);
+    inline ImageData getPixels() {
+        return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});
+    }
 
     int getWidth();
     int getHeight();

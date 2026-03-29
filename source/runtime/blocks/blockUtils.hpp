@@ -34,6 +34,9 @@ BlockResult nopBlock(Block &block, Sprite *sprite, ScriptThread *thread);
     static uint8_t block_##category##_##id##_reg_ = (BlockExecutor::getHandlers()[#category "_" #id] = block_##category##_##id##_, 0); \
     BlockResult block_##category##_##id##_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue)
 
-#define SCRATCH_SHADOW_BLOCK(opcode, fieldId)                                                                        \
-    BlockResult block_##opcode##_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) {*outValue = Value(Scratch::getFieldValue(*block, #fieldId)); return BlockResult::CONTINUE; } \
+#define SCRATCH_SHADOW_BLOCK(opcode, fieldId)                                                            \
+    BlockResult block_##opcode##_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) { \
+        *outValue = Value(Scratch::getFieldValue(*block, #fieldId));                                     \
+        return BlockResult::CONTINUE;                                                                    \
+    }                                                                                                    \
     static uint8_t block_##opcode##_reg_ = (BlockExecutor::getHandlers()[#opcode] = block_##opcode##_, 0);

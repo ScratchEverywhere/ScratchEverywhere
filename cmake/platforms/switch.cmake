@@ -1,0 +1,25 @@
+set(SE_DEFAULT_OUTPUT_NAME "scratch-nx")
+
+set(SE_RENDERER_VALID_OPTIONS "sdl2")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
+set(SE_DEPS_VALID_OPTIONS "fallback" "system")
+
+set(SE_CACHING_DEFAULT ON)
+
+set(SE_ALLOW_CMAKERC OFF)
+set(SE_ALLOW_CLOUDVARS OFF)
+set(SE_ALLOW_DOWNLOAD OFF)
+
+set(SE_HAS_THREADS ON)
+
+set(SE_HAS_TOUCH TRUE)
+set(SE_HAS_MOUSE FALSE)
+set(SE_HAS_KEYBOARD FALSE)
+set(SE_HAS_CONTROLLER TRUE)
+
+set(SE_PLATFORM "switch")
+
+macro(package_platform)
+	nx_generate_nacp(OUTPUT "${SE_OUTPUT_NAME}.nacp" NAME "Scratch Everywhere!" AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
+	nx_create_nro(scratch-everywhere OUTPUT "${SE_OUTPUT_NAME}.nro" ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/switch-icon.jpg" NACP "${SE_OUTPUT_NAME}.nacp")
+endmacro()

@@ -67,7 +67,6 @@ SCRATCH_BLOCK(control, create_clone_of) {
     if (!original) return BlockResult();
     Sprite *spriteToClone = new Sprite();
     spriteToClone->name = original->name;
-    spriteToClone->id = Math::generateRandomString(15);
     spriteToClone->isStage = false;
     spriteToClone->draggable = original->draggable;
     spriteToClone->visible = original->visible;

@@ -9,7 +9,6 @@
 #include "value.hpp"
 #include <string>
 
-
 SCRATCH_SHADOW_BLOCK(text2speech_menu_voices, voices)
 SCRATCH_SHADOW_BLOCK(text2speech_menu_languages, languages)
 
@@ -20,12 +19,12 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 
         Value words;
         if (!Scratch::getInput(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
-        
+
         std::string inputString = words.asString();
 
         std::string voice = sprite->textToSpeechData.gender;
         std::string language = sprite->textToSpeechData.language;
-        state->name = "https://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(inputString);
+        state->name = "http://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(inputString);
         std::string tempDir = OS::getScratchFolderLocation() + "cache/";
         std::size_t h = std::hash<std::string>{}(state->name);
         std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
@@ -82,7 +81,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 SCRATCH_BLOCK(text2speech, setVoice) {
     Value voice;
     if (!Scratch::getInput(block, "VOICE", thread, sprite, voice)) return BlockResult::REPEAT;
-    
+
     std::string voiceString = voice.asString();
     if (voiceString == "tenor" || voiceString == "giant") {
         voiceString = "male";
@@ -97,7 +96,7 @@ SCRATCH_BLOCK(text2speech, setVoice) {
 SCRATCH_BLOCK(text2speech, setLanguage) {
     Value language;
     if (!Scratch::getInput(block, "LANGUAGE", thread, sprite, language)) return BlockResult::REPEAT;
-    
+
     std::string languageString = language.asString();
     sprite->textToSpeechData.language = languageString;
     return BlockResult::CONTINUE;

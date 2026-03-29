@@ -5,14 +5,13 @@
 #include <unzip.hpp>
 #include <value.hpp>
 
-
 SCRATCH_BLOCK(sound, playuntildone) {
 #ifdef ENABLE_AUDIO
     BlockState *state = thread->getState(block);
     if (state->completedSteps == 0) {
         Value soundValue;
         if (!Scratch::getInput(block, "SOUND_MENU", thread, sprite, soundValue)) return BlockResult::REPEAT;
-        
+
         // Find sound by name first
         bool soundFound = false;
 
@@ -59,7 +58,6 @@ SCRATCH_BLOCK(sound, play) {
 #ifdef ENABLE_AUDIO
     Value soundValue;
     if (!Scratch::getInput(block, "SOUND_MENU", thread, sprite, soundValue)) return BlockResult::REPEAT;
-    
 
     // Find sound by name first
     std::string soundFullName;
@@ -108,7 +106,7 @@ SCRATCH_BLOCK(sound, stopallsounds) {
 SCRATCH_BLOCK(sound, changeeffectby) {
     Value amount;
     if (!Scratch::getInput(block, "VALUE", thread, sprite, amount)) return BlockResult::REPEAT;
-    
+
     const std::string effect = Scratch::getFieldValue(*block, "EFFECT");
 
     if (effect == "PITCH") {
@@ -130,7 +128,7 @@ SCRATCH_BLOCK(sound, changeeffectby) {
 SCRATCH_BLOCK(sound, seteffectto) {
     Value amount;
     if (!Scratch::getInput(block, "VALUE", thread, sprite, amount)) return BlockResult::REPEAT;
-    
+
     const std::string effect = Scratch::getFieldValue(*block, "EFFECT");
 
     if (effect == "PITCH") {
@@ -162,7 +160,7 @@ SCRATCH_BLOCK(sound, cleareffects) {
 SCRATCH_BLOCK(sound, changevolumeby) {
     Value volume;
     if (!Scratch::getInput(block, "VOLUME", thread, sprite, volume)) return BlockResult::REPEAT;
-    
+
     double inputValue = volume.asDouble();
     inputValue = std::clamp(inputValue, 0.0, 100.0);
     for (Sound sound : sprite->sounds) {
@@ -175,14 +173,13 @@ SCRATCH_BLOCK(sound, changevolumeby) {
 SCRATCH_BLOCK(sound, setvolumeto) {
     Value volume;
     if (!Scratch::getInput(block, "VOLUME", thread, sprite, volume)) return BlockResult::REPEAT;
-    
-        const double inputValue = std::clamp(volume.asDouble(), 0.0, 100.0);
-        for (Sound sound : sprite->sounds) {
-            SoundPlayer::setSoundVolume(sound.fullName, inputValue);
-        }
-        sprite->volume = inputValue;
-        return BlockResult::CONTINUE;
 
+    const double inputValue = std::clamp(volume.asDouble(), 0.0, 100.0);
+    for (Sound sound : sprite->sounds) {
+        SoundPlayer::setSoundVolume(sound.fullName, inputValue);
+    }
+    sprite->volume = inputValue;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(sound, volume) {

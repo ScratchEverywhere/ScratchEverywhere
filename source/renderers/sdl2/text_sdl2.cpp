@@ -22,7 +22,7 @@ TextObjectSDL2::TextObjectSDL2(std::string txt, double posX, double posY, std::s
 
     // get font
     if (fontPath.empty()) {
-        fontPath = "gfx/menu/LibSansN";
+        fontPath = "gfx/ingame/fonts/NotoSans-Medium";
     }
     fontPath = OS::getRomFSLocation() + fontPath;
     fontPath = fontPath + ".ttf";

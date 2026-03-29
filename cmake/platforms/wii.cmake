@@ -1,0 +1,42 @@
+set(SE_DEFAULT_OUTPUT_NAME "scratch-wii")
+
+set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2")
+set(SE_DEPS_VALID_OPTIONS "fallback" "system")
+
+set(SE_CACHING_DEFAULT OFF)
+set(SE_CMAKERC_DEFAULT ON)
+
+set(SE_ALLOW_CMAKERC ON)
+set(SE_ALLOW_CLOUDVARS OFF)
+set(SE_ALLOW_DOWNLOAD OFF)
+
+set(SE_PLATFORM_DEFINITIONS "__OGC__" "WII")
+set(SE_PLATFORM "wii")
+
+set(SE_HAS_THREADS ON)
+
+set(SE_HAS_TOUCH FALSE)
+set(SE_HAS_MOUSE TRUE)
+set(SE_HAS_KEYBOARD FALSE)
+set(SE_HAS_CONTROLLER TRUE)
+
+macro(package_platform)
+	ogc_create_dol(scratch-everywhere)
+
+	execute_process(
+		COMMAND date "+%Y%m%d%H%M%S"
+		OUTPUT_VARIABLE WII_RELEASE_DATE
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/wii/meta.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" @ONLY)
+
+	add_custom_command(TARGET scratch-everywhere POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/apps/${SE_OUTPUT_NAME}"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.dol" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/apps/${SE_OUTPUT_NAME}/boot.dol"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/apps/${SE_OUTPUT_NAME}/meta.xml"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wii/icon.png" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/apps/${SE_OUTPUT_NAME}/icon.png"
+		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.zip" --format=zip -- "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}-bundle/apps"
+		COMMENT "Packaging..."
+	)
+endmacro()

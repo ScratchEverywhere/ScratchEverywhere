@@ -30,13 +30,7 @@ std::unique_ptr<MistConnection> cloudConnection = nullptr;
 void Parser::initMist() {
     OS::initWifi();
 
-#ifdef __WIIU__
-    std::ostringstream usernameFilenameStream;
-    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
-    std::string usernameFilename = usernameFilenameStream.str();
-#else
-    std::string usernameFilename = "cloud-username.txt";
-#endif
+    const std::string usernameFilename = OS::getScratchFolderLocation() + "cloud-username.txt";
 
     std::ifstream fileStream(usernameFilename.c_str());
     if (!fileStream.good()) {
@@ -89,10 +83,10 @@ void Parser::initMist() {
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
     Log::log("Connecting to cloud variables with id: " + projectID.str());
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(WEBOS) // These platforms require Mist++ 0.2.0 or later.
-    cloudConnection->connect(false);
-#else // These platforms require Mist++ 0.1.4 or later.
+#if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
     cloudConnection->connect();
+#else
+    cloudConnection->connect(false);
 #endif
 }
 #endif
@@ -144,8 +138,6 @@ void Parser::loadSprites(const nlohmann::json &json) {
         if (target.contains("name")) {
             newSprite->name = target["name"].get<std::string>();
         }
-        newSprite->id = Math::generateRandomString(15);
-
         if (target.contains("isStage")) {
             newSprite->isStage = target["isStage"].get<bool>();
             if (newSprite->isStage) loadAdvancedProjectSettings(target);
@@ -269,9 +261,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 }
                 if (data.contains("rotationCenterX")) {
                     newCostume.rotationCenterX = data["rotationCenterX"];
+                    if (!newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterX /= 2;
                 }
                 if (data.contains("rotationCenterY")) {
                     newCostume.rotationCenterY = data["rotationCenterY"];
+                    if (!newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterY /= 2;
                 }
                 newSprite->costumes.push_back(newCostume);
                 Parser::log("\t\t" + newCostume.name);
@@ -462,14 +456,14 @@ void Parser::loadSprites(const nlohmann::json &json) {
             if (monitor.contains("sliderMax") && !monitor["sliderMax"].is_null())
                 newMonitor.sliderMax = monitor.at("sliderMax").get<double>();
 
-            Render::visibleVariables.emplace(newMonitor.id, newMonitor);
+            Render::monitors.emplace(newMonitor.id, newMonitor);
         }
+
+        Unzip::loadingState = "Finishing up!";
+
+        Input::applyControls(Unzip::filePath + ".json");
+        Parser::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
     }
-
-    Unzip::loadingState = "Finishing up!";
-
-    Input::applyControls(Unzip::filePath + ".json");
-    Parser::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
 }
 
 void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
@@ -510,7 +504,7 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
 
         std::string json_str = text.substr(json_start, json_end - json_start);
 
-        // Ersetze Infinity
+        // Replace inifity with null, since the json cant handle infinity
         std::string cleaned_json = json_str;
         std::size_t inf_pos;
         while ((inf_pos = cleaned_json.find("Infinity")) != std::string::npos) {
@@ -520,12 +514,11 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
         config = nlohmann::json::parse(cleaned_json, nullptr, false);
         if (!config.is_discarded()) break;
     }
-
-    // Advanced project settings
+    // set advanced project settings properties
     bool infClones = false;
     if (!config.is_null()) {
 
-        Scratch::FPS = config.value("framerate", 0);
+        Scratch::FPS = config.value("framerate", 30);
         if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
 #if defined(RENDERER_SDL2)
             Scratch::FPS = 255; // SDL2's vsync will figure it out
@@ -574,15 +567,24 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
         Scratch::accuratePen = true;
     else Scratch::accuratePen = false;
 
-    auto withoutScreenRefreshLimit = Unzip::getSetting("withoutScreenRefreshLimit");
-    if (!withoutScreenRefreshLimit.is_null() && withoutScreenRefreshLimit.is_number_integer())
-        Scratch::withoutScreenRefreshLimit = withoutScreenRefreshLimit.get<int>();
-    else Scratch::withoutScreenRefreshLimit = 4096;
+    auto accurateCollision = Unzip::getSetting("accurateCollision");
+    if (accurateCollision.is_null()) {
+#ifdef __NDS__
+        Scratch::accurateCollision = false;
+#else
+        Scratch::accurateCollision = true;
+#endif
+    } else Scratch::accurateCollision = accurateCollision.get<bool>();
 
     auto debugVars = Unzip::getSetting("debugVars");
     if (!debugVars.is_null() && debugVars.get<bool>())
         Scratch::toggleDebugVars(true);
     else Scratch::toggleDebugVars(false);
+
+    auto withoutScreenRefreshLimit = Unzip::getSetting("withoutScreenRefreshLimit");
+    if (!withoutScreenRefreshLimit.is_null() && withoutScreenRefreshLimit.is_number_integer())
+        Scratch::withoutScreenRefreshLimit = withoutScreenRefreshLimit.get<int>();
+    else Scratch::withoutScreenRefreshLimit = 4096;
 
     if (infClones) Scratch::maxClones = std::numeric_limits<int>::max();
     else Scratch::maxClones = 300;
@@ -679,7 +681,7 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
         std::string indentStr(indent, '\t');
         Parser::log(indentStr + newBlock->opcode);
 
-        if (newBlock->opcode == "sensing_kkeypressed") {
+        if (newBlock->opcode == "event_whenthisspriteclicked" || newBlock->opcode == "event_whenstageclicked") {
             newSprite->shouldDoSpriteClick = true;
         }
 

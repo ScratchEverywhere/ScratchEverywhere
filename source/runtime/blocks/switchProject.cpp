@@ -9,7 +9,7 @@ SCRATCH_BLOCK(switchProject, receivedData) {
 SCRATCH_BLOCK(switchProject, openSB3) {
     Value arg0;
     if (!Scratch::getInput(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
-    
+
     Log::log("Open next Project with Block");
     Scratch::nextProject = true;
     Unzip::filePath = arg0.asString();
@@ -20,7 +20,7 @@ SCRATCH_BLOCK(switchProject, openSB3) {
         const std::string drivePrefix = OS::getRomFSLocation();
         Unzip::filePath.replace(0, 6, drivePrefix);
     } else {
-        Unzip::filePath = Unzip::filePath;
+        Unzip::filePath = OS::getScratchFolderLocation() + Unzip::filePath;
     }
 
     if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
@@ -38,7 +38,7 @@ SCRATCH_BLOCK(switchProject, openSB3withData) {
     Value arg0, arg1;
     if (!Scratch::getInput(block, "arg0", thread, sprite, arg0) ||
         !Scratch::getInput(block, "arg0", thread, sprite, arg1)) return BlockResult::REPEAT;
-    
+
     Log::log("Open next Project with Block and data");
     Scratch::nextProject = true;
     Unzip::filePath = arg0.asString();
@@ -50,7 +50,7 @@ SCRATCH_BLOCK(switchProject, openSB3withData) {
         const std::string drivePrefix = OS::getRomFSLocation();
         Unzip::filePath.replace(0, 6, drivePrefix);
     } else {
-        Unzip::filePath = Unzip::filePath;
+        Unzip::filePath = OS::getScratchFolderLocation() + Unzip::filePath;
     }
     if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
         Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);

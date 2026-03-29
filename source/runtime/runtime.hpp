@@ -45,13 +45,6 @@ class Scratch {
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
 
     /**
-     * Gets the Sprite's box collision points.
-     * @param sprite
-     * @return Each point stored in a `std::pair`, where `[0]` is X, `[1]` is Y.
-     */
-    static std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite);
-
-    /**
      * Frees every Sprite from memory.
      */
     static void cleanupSprites();
@@ -82,11 +75,11 @@ class Scratch {
     static bool fencing;
     static bool hqpen;
     static bool accuratePen;
+    static bool accurateCollision;
     static bool miscellaneousLimits;
     static bool shouldStop;
     static bool forceRedraw;
     static int withoutScreenRefreshLimit;
-
 
     static bool debugVars;
     static bool sb3InRam;

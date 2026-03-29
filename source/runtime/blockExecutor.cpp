@@ -100,7 +100,7 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
         }
     }
 
-    for (auto &[id, monitor] : Render::visibleVariables) {
+    for (auto &[id, monitor] : Render::monitors) {
         if (monitor.opcode == "data_variable") {
             auto it = sprite->variables.find(monitor.id);
             if (it != sprite->variables.end()) {
@@ -217,10 +217,10 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
-            Scratch::resetInput(thread.nextBlock); //just for safety
+            Scratch::resetInput(thread.nextBlock); // just for safety
             Scratch::resetInput(currentBlock);
         }
-        
+
         executionCount++;
         if (thread.withoutScreenRefresh && var != BlockResult::CONTINUE_IMIDIATELY) executedBlocks++;
         if (thread.withoutScreenRefresh && executionCount >= Scratch::withoutScreenRefreshLimit) break;
@@ -230,7 +230,7 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
     return var;
 }
 
-//old thingy  
+// old thingy
 /*BlockResult BlockExecutor::runBlock(Block *block, ScriptThread &thread, Sprite &sprite, Value *outValue) {
     bool finished = true;
     BlockResult executedBlock;
@@ -271,7 +271,7 @@ void BlockExecutor::runAllBlocksByOpcodeInSprite(const std::string &opcode, Spri
     }
 }
 
-//ToDo: That could be optimized, but it works for now and i want to move on to other stuff
+// ToDo: That could be optimized, but it works for now and i want to move on to other stuff
 void BlockExecutor::executeKeyHats() {
     for (const auto &key : Input::keyHeldDuration) {
         if (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), key.first) == Input::inputButtons.end()) {
@@ -322,6 +322,7 @@ void BlockExecutor::doSpriteClicking() {
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;
                     BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenthisspriteclicked", sprite);
+                    if (sprite->isStage) BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenstageclicked", sprite);
                 }
             }
             // start dragging a sprite
@@ -383,7 +384,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
 }
 */
 
-//that was the old variant without caching, with caching would need a rewrite to work properly again
+// that was the old variant without caching, with caching would need a rewrite to work properly again
 void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
     // Set sprite variable
     const auto it = sprite->variables.find(variableId);
@@ -404,7 +405,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
 
 // same goes for this one, rewrite would be needed for caching (BUT I have ideas on how to do it, so it shouldnt be too bad, just not my priority right now)
 void BlockExecutor::updateMonitors(ScriptThread *thread) {
-    for (auto &[id, var] : Render::visibleVariables) {
+    for (auto &[id, var] : Render::monitors) {
         if (var.visible) {
 
             Sprite *sprite = nullptr;
@@ -471,16 +472,16 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
 }
 
 Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *sprite) {
-//#ifdef ENABLE_CACHING
-//    if (block != nullptr && block->variable != nullptr) return block->variable->value;
-//#endif
+    // #ifdef ENABLE_CACHING
+    //     if (block != nullptr && block->variable != nullptr) return block->variable->value;
+    // #endif
 
     // Check sprite variables
     const auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) {
-//#ifdef ENABLE_CACHING
-//        if (block != nullptr && block->variable == nullptr) block->variable = &it->second;
-//#endif
+        // #ifdef ENABLE_CACHING
+        //         if (block != nullptr && block->variable == nullptr) block->variable = &it->second;
+        // #endif
         return it->second.value;
     }
 
@@ -505,9 +506,9 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
     // Check global variables
     const auto globalIt = Scratch::stageSprite->variables.find(variableId);
     if (globalIt != Scratch::stageSprite->variables.end()) {
-//#ifdef ENABLE_CACHING
-//        if (block != nullptr && block->variable == nullptr) block->variable = &globalIt->second;
-//#endif
+        // #ifdef ENABLE_CACHING
+        //         if (block != nullptr && block->variable == nullptr) block->variable = &globalIt->second;
+        // #endif
         return globalIt->second.value;
     }
 
@@ -534,14 +535,10 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
 
 #ifdef ENABLE_CLOUDVARS
 void BlockExecutor::handleCloudVariableChange(const std::string &name, const std::string &value) {
-    for (const auto &currentSprite : Scratch::sprites) {
-        if (currentSprite->isStage) {
-            for (auto it = currentSprite->variables.begin(); it != currentSprite->variables.end(); ++it) {
-                if (it->second.name != name) continue;
-                it->second.value = Value(value);
-                return;
-            }
-        }
+    for (auto it = Scratch::stageSprite->variables.begin(); it != Scratch::stageSprite->variables.end(); ++it) {
+        if (it->second.name != name) continue;
+        it->second.value = Value(value);
+        return;
     }
 }
 #endif

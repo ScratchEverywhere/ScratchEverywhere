@@ -98,8 +98,23 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string str) {
     if (base == 0) {
         conversion = std::strtod(str.c_str(), &endptr);
     } else {
-        unsigned long long val = std::strtoull(str.c_str(), &endptr, base);
-        conversion = static_cast<double>(val);
+        int power = 0;
+        int digit = 0;
+        char c;
+        for (int i = str.length() - 1; i >= 0; i--) {
+            c = str[i];
+            if (c >= '0' && c <= '9') {
+                digit = c - '0';
+            } else if (c >= 'A' && c <= 'F') {
+                digit = c - 'A' + 10;
+            } else if (c >= 'a' && c <= 'f') {
+                digit = c - 'a' + 10;
+            } else {
+                return nonstd::make_unexpected("Invalid Argument");
+            }
+            conversion += digit * std::pow(base, power);
+            power++;
+        }
     }
     if (errno == ERANGE) {
         if (str[0] == '-') return -std::numeric_limits<double>::infinity();

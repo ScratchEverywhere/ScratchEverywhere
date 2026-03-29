@@ -22,7 +22,7 @@ SCRATCH_BLOCK(event, broadcast) {
     Value broadcast;
     if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
     std::string broadcastStr = broadcast.asString();
-    
+
     for (auto &spr : Scratch::sprites) {
         if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
         for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
@@ -31,17 +31,17 @@ SCRATCH_BLOCK(event, broadcast) {
             }
         }
     }
-    
+
     return BlockResult::CONTINUE_IMIDIATELY;
 }
 
 SCRATCH_BLOCK(event, broadcastandwait) {
     BlockState *state = thread->getState(block);
-    if (state->completedSteps == 0 ) {
+    if (state->completedSteps == 0) {
         Value broadcastValue;
         if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcastValue)) return BlockResult::REPEAT;
         std::string broadcastStr = broadcastValue.asString();
-        
+
         for (auto &spr : Scratch::sprites) {
             if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
             for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
@@ -50,7 +50,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
                 }
             }
         }
-        
+
         state->completedSteps = 1;
         if (state->threads.empty()) {
             thread->eraseState(block);
@@ -75,5 +75,6 @@ SCRATCH_BLOCK(event, whenbroadcastreceived) {
     return BlockResult::CONTINUE_IMIDIATELY;
 }
 
-
 SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)
+
+SCRATCH_SHADOW_BLOCK(event, whenstageclicked)

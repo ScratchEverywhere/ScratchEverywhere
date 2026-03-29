@@ -17,8 +17,8 @@ const uint32_t Image_C2D::rgbaToAgbr(uint32_t px) {
 
 void Image_C2D::render(ImageRenderParams &params) {
 
-    int x = params.x;
-    int y = params.y;
+    float x = params.x;
+    float y = params.y;
     float scaleX = params.scale;
     const float scaleY = params.scale;
     const int &brightness = params.brightness;
@@ -234,7 +234,7 @@ ImageData Image_C2D::getPixels(ImageSubrect rect) {
     const int bytesPerPixel = 4;
     const int dstPitch = rect.w * bytesPerPixel;
 
-    uint32_t *dstPixels = new uint32_t[rect.w * rect.h];
+    uint32_t *dstPixels = (uint32_t *)malloc(rect.w * rect.h * sizeof(uint32_t));
     const uint32_t *src = (const uint32_t *)texture.tex->data;
 
     int texWidth = texture.tex->width;
@@ -278,7 +278,13 @@ nonstd::expected<void, std::string> Image_C2D::refreshTexture() {
 
 Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
-    init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+
+    const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
+
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
@@ -286,7 +292,12 @@ Image_C2D::Image_C2D(std::string filePath, bool fromScratchProject, bool bitmapH
 
 Image_C2D::Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
-    init(filePath, zip, bitmapHalfQuality, scale);
+    const auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
+
+    if (!initResult.has_value()) {
+        error = initResult.error();
+        return;
+    }
 
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();

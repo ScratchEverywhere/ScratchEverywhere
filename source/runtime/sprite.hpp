@@ -163,6 +163,21 @@ struct Sound {
     int sampleCount;
 };
 
+struct Bitmask {
+    float maxRadius = 0;
+
+    unsigned int width = 0;
+    unsigned int height = 0;
+    float scaleFactor = 0;
+    std::vector<uint32_t> bits;
+
+    bool getPixel(int x, int y) const {
+        if (x < 0 || x >= width || y < 0 || y >= height) return false;
+        int index = y * ((width + 31) / 32) + (x / 32);
+        return bits[index] & (1 << (x % 32));
+    }
+};
+
 struct Costume {
     std::string id;
     std::string name;
@@ -172,6 +187,8 @@ struct Costume {
     bool isSVG;
     double rotationCenterX;
     double rotationCenterY;
+
+    std::shared_ptr<Bitmask> bitmask = nullptr;
 };
 
 struct Broadcast {
@@ -222,7 +239,6 @@ struct List {
 class Sprite {
   public:
     std::string name;
-    std::string id;
     bool isStage;
     bool draggable;
     bool visible;

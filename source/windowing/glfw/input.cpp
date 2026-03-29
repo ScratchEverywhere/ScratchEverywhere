@@ -5,15 +5,6 @@
 #include <string>
 #include <text.hpp>
 #include <vector>
-
-Input::Mouse Input::mousePointer;
-Sprite *Input::draggingSprite = nullptr;
-std::vector<std::string> Input::inputButtons;
-std::map<std::string, std::string> Input::inputControls;
-std::vector<std::string> Input::inputBuffer;
-std::unordered_map<std::string, int> Input::keyHeldDuration;
-std::unordered_set<Block *> Input::codePressedBlockOpcodes;
-
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
 extern bool cloudProject;
