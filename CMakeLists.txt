@@ -91,6 +91,8 @@ endif()
 
 cmake_dependent_option(SE_LOADSCREEN "Enables SE!'s load screen." ON "SE_MENU;SE_HAS_THREADS" OFF)
 
+option(SE_CUSTOM_EXTENSIONS "Enables support for custom extensions." ON)
+
 option(SE_SVG "Enable support for SVG images." ON)
 option(SE_BITMAP "Enable support for Bitmap images." ON)
 
@@ -191,8 +193,12 @@ set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
+if(SE_CUSTOM_EXTENSIONS)
+	list(APPEND SOURCES "source/runtime/extensions")
+endif()
+
 if(SE_MENU)
-	list(APPEND SOURCES source/menus)
+	list(APPEND SOURCES "source/menus")
 endif()
 
 set(SOURCE_FILES)
@@ -282,6 +288,10 @@ if(SE_CLOUDVARS)
 	se_add_dependency(scratch-everywhere mist++)
 endif()
 
+if(SE_CUSTOM_EXTENSIONS)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CUSTOM_EXTENSIONS)
+endif()
+
 if(SE_BITMAP)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_BITMAP)
 endif()
@@ -320,6 +330,10 @@ target_link_libraries(scratch-everywhere PRIVATE ryuJS)
 se_add_dependency(scratch-everywhere nlohmann_json)
 se_add_dependency(scratch-everywhere miniz)
 se_add_dependency(scratch-everywhere expected-lite)
+
+if(SE_CUSTOM_EXTENSIONS)
+	se_add_dependency(scratch-everywhere sol2)
+endif()
 
 if(SE_SVG)
 	se_add_dependency(scratch-everywhere lunasvg)

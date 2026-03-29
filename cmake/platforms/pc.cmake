@@ -3,6 +3,7 @@ set(SE_DEFAULT_OUTPUT_NAME "scratch-everywhere")
 set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2" "sdl3" "opengl")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "source" "fallback" "system")
+set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51" "luajit")
 
 set(SE_CACHING_DEFAULT ON)
 set(SE_CMAKERC_DEFAULT ON)

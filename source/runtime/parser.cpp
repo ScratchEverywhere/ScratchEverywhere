@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include <extensions/meta.hpp>
 #include <input.hpp>
 #include <limits>
 #include <math.hpp>
@@ -618,6 +619,18 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     Input::applyControls(Unzip::filePath + ".json");
     Log::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
+}
+
+void Parser::loadExtensions(const nlohmann::json &json) {
+    // TODO: Actually implement
+    std::ifstream in = std::ifstream(OS::getScratchFolderLocation() + "extensions/utilities.see", std::ios::binary | std::ios::in);
+    nonstd::expected<extensions::Extension, std::string> extensionData = extensions::parseMetadate(in);
+    if (!extensionData.has_value()) {
+        Log::logError("Error loading extension 'utilities': " + extensionData.error());
+        return;
+    }
+
+    Log::log(extensionData.value().description);
 }
 
 std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, std::string *outID) {

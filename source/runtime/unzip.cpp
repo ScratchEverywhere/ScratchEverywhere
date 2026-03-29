@@ -1,6 +1,7 @@
 #include "unzip.hpp"
 #include "input.hpp"
 #include "os.hpp"
+#include "parser.hpp"
 #include <cstring>
 #include <ctime>
 #include <errno.h>
@@ -198,8 +199,12 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
+
     loadingState = "Loading Sprites";
     Parser::loadSprites(project_json);
+
+    loadingState = "Loading Extensions";
+    Parser::loadExtensions(project_json);
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
