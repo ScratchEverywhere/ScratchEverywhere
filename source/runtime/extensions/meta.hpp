@@ -11,11 +11,9 @@
 
 #define SOL_ALL_SAFETIES_ON 1
 #define SOL_LUA_VERSION 501
-
 #ifdef USE_LUAJIT
 #define SOL_USE_LUAJIT 1
 #endif
-
 #include <sol/sol.hpp>
 
 namespace extensions {
