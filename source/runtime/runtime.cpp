@@ -638,9 +638,9 @@ std::string Scratch::getListName(Block &block) {
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
-#ifdef ENABLE_CACHING
-    if (block.list != nullptr) return &block.list->items;
-#endif
+    // #ifdef ENABLE_CACHING
+    //     if (block.list != nullptr) return &block.list->items;
+    // #endif
 
     std::string listId = Scratch::getFieldId(block, "LIST");
     Sprite *targetSprite = nullptr;
