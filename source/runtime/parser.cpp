@@ -83,7 +83,7 @@ void Parser::initMist() {
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
     Log::log("Connecting to cloud variables with id: " + projectID.str());
-#if defined(__PC__)
+#if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
     cloudConnection->connect();
 #else
     cloudConnection->connect(false);
