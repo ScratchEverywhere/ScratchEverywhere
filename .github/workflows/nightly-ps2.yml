@@ -5,10 +5,10 @@ on:
     paths:
       - CMakeLists.txt
       - source/runtime/**
-      - source/renderers/sdl2/**
+      - source/renderers/sdl3/**
       - source/*
       - source/menus/**
-      - source/audio/sdl2/**
+      - source/audio/sdl3/**
       - gfx/ps2/**
       - gfx/menu/**
       - include/**

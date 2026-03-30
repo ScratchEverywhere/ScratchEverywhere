@@ -1,8 +1,9 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-ps2")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl2")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
+set(SE_RENDERER_VALID_OPTIONS "sdl2" "sdl3")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
+set(SE_RENDERER_PRIORITY "sdl3" "sdl2" "headless")
 
 set(SE_CACHING_DEFAULT OFF)
 set(SE_CMAKERC_DEFAULT ON)

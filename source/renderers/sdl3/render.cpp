@@ -42,6 +42,9 @@ char nickname[0x21];
 #include <psp2/touch.h>
 #endif
 
+#ifdef PS2
+#include <kernel.h>
+
 Window *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
@@ -56,9 +59,13 @@ bool Render::Init() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
+#elif defined(__PS2__)
+    int windowWidth = 640;
+    int windowHeight = 480;
 #else
     int windowWidth = 540;
     int windowHeight = 405;
+
 #endif
 
     TTF_Init();
