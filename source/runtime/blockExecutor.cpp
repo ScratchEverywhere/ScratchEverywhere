@@ -25,6 +25,8 @@ extern std::unique_ptr<MistConnection> cloudConnection;
 Timer BlockExecutor::timer;
 int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
+bool BlockExecutor::sortSprites = false;
+bool BlockExecutor::stopClicked = false;
 
 std::unordered_map<std::string, BlockFunc> &BlockExecutor::getHandlers() {
     static std::unordered_map<std::string, BlockFunc> handlers;
@@ -176,57 +178,76 @@ void BlockExecutor::runThreads() {
         }
         Scratch::pendingSprites.clear();
     }
-    Scratch::sprites.erase(
-        std::remove_if(Scratch::sprites.begin(), Scratch::sprites.end(),
-                       [](Sprite *s) { return s->toDelete; }),
-        Scratch::sprites.end());
+
     for (auto &sprite : Scratch::sprites) {
         if (!sprite->pendingThreads.empty()) {
             sprite->threads.insert(sprite->threads.end(), sprite->pendingThreads.begin(), sprite->pendingThreads.end());
             sprite->pendingThreads.clear();
         }
-        auto it = sprite->threads.begin();
-        while (it != sprite->threads.end()) {
-            ScriptThread *thread;
+        size_t i = sprite->threads.size();
+        while (i > 0) {
+            i--;
+            ScriptThread *thread = sprite->threads[i];
             BlockResult var;
-            thread = *it;
 
             if (thread->finished) {
                 thread->clear();
                 Pools::threads.push_back(thread);
-                it = sprite->threads.erase(it);
+                sprite->threads.erase(sprite->threads.begin() + i);
                 continue;
             }
             var = runThread(*thread, *sprite, nullptr);
             if (Scratch::shouldStop) return;
-            ++it;
         }
+        if (stopClicked) break;
     }
-    return;
+    Scratch::sprites.erase(
+        std::remove_if(Scratch::sprites.begin(), Scratch::sprites.end(),
+                       [](Sprite *s) {
+                           if (s->toDelete) {
+                               sortSprites = true;
+                               delete s;
+                               return true;
+                           }
+                           return false;
+                       }),
+        Scratch::sprites.end());
+
+    if (sortSprites) {
+        Scratch::sortSprites();
+        sortSprites = false;
+    }
+    if (stopClicked) {
+        Scratch::stopClicked();
+    }
 }
 
 BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value *outValue) {
     if (thread.nextBlock == nullptr) return BlockResult::RETURN;
     BlockResult var = BlockResult::CONTINUE;
-    int executedBlocks = 0;
-    int executionCount = 0;
+    unsigned int executedBlocks = 0;
+    unsigned int executionCount = 0;
+    Block *currentBlock = nullptr;
     do {
-        Block *currentBlock = thread.nextBlock;
+        currentBlock = thread.nextBlock;
         thread.nextBlock = currentBlock->nextBlock;
 
         var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
-            Scratch::resetInput(thread.nextBlock); // just for safety
+            // if (thread.nextBlock != nullptr) Scratch::resetInput(thread.nextBlock); // just for safety
             Scratch::resetInput(currentBlock);
         }
 
         executionCount++;
         if (thread.withoutScreenRefresh && var != BlockResult::CONTINUE_IMIDIATELY) executedBlocks++;
-        if (thread.withoutScreenRefresh && executionCount >= Scratch::withoutScreenRefreshLimit) break;
-        if (!thread.withoutScreenRefresh && executionCount >= 1024) break;
 
-    } while ((var == BlockResult::CONTINUE_IMIDIATELY || (thread.withoutScreenRefresh && var == BlockResult::CONTINUE && executedBlocks < Scratch::withoutScreenRefreshLimit)) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
+        // TODO: re-add (currently makes execution slow, maybe could use a Timer instead?)
+        // if (thread.withoutScreenRefresh && executionCount >= Scratch::withoutScreenRefreshLimit) break;
+        // if (!thread.withoutScreenRefresh && executionCount >= 1024) break;
+
+    } while ((var == BlockResult::CONTINUE_IMIDIATELY || (var == BlockResult::CONTINUE && !currentBlock->isEndBlock || thread.withoutScreenRefresh)) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
+    if (currentBlock == nullptr || (var != BlockResult::REPEAT && currentBlock->nextBlock == nullptr)) thread.finished = true;
     return var;
 }
 

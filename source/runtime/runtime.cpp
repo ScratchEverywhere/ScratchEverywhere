@@ -188,6 +188,7 @@ bool Scratch::startScratchProject() {
     std::pair<bool, bool> code;
     initializeScratchProject();
     ScriptThread monitorDisplayThread;
+    if (debugVars) toggleDebugVars(true);
     while (true) {
         code = stepScratchProject(monitorDisplayThread);
         if (!code.first) {
@@ -225,16 +226,28 @@ void Scratch::cleanupScratchProject() {
     DownloadManager::deinit();
 
     // Reset Runtime
-    for (auto &state : Pools::states) {
-        state->clear(); // states could contain threads, otherwise we would have a memory leak
-        delete state;
-    }
-    for (auto &thread : Pools::threads) {
-        thread->clear();
-        delete thread;
-    }
-    for (auto &block : blocks) {
-        delete block;
+    std::unordered_set<BlockState *> deletedStates;
+    std::unordered_set<ScriptThread *> deletedThreads;
+
+    while (!Pools::states.empty() || !Pools::threads.empty()) {
+
+        if (!Pools::states.empty()) {
+            BlockState *state = Pools::states.back();
+            Pools::states.pop_back();
+            if (deletedStates.insert(state).second) {
+                state->clear();
+                delete state;
+            }
+        }
+
+        if (!Pools::threads.empty()) {
+            ScriptThread *thread = Pools::threads.back();
+            Pools::threads.pop_back();
+            if (deletedThreads.insert(thread).second) {
+                thread->clear();
+                delete thread;
+            }
+        }
     }
 
     blocks.clear();
@@ -268,7 +281,6 @@ bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread
             outValue = Value(block->fields[inputName].value);
             return true;
         }
-        Log::logError("getInput: input '" + inputName + "' not found in block");
         return true;
     }
     ParsedInput &input = block->inputs.at(inputName);
@@ -314,6 +326,9 @@ void Scratch::resetInput(Block *block, std::string inputName) {
     if (inputName.empty()) {
         for (auto &[name, input] : block->inputs) {
             input.calculated = false;
+            if (input.inputType == ParsedInput::InputType::BLOCK && input.block != nullptr) {
+                Scratch::resetInput(input.block, "");
+            }
         }
         return;
     }
@@ -324,23 +339,31 @@ void Scratch::resetInput(Block *block, std::string inputName) {
 
 void Scratch::greenFlagClicked() {
     stopClicked();
+    BlockExecutor::stopClicked = false;
     answer.clear();
     BlockExecutor::timer.start();
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
 }
 
 void Scratch::stopClicked() {
+    for (auto &pair : Scratch::pendingSprites) {
+        delete pair.first;
+    }
+    Scratch::pendingSprites.clear();
     Scratch::cloneCount = 0;
+
     std::vector<Sprite *> toDelete;
     for (Sprite *currentSprite : Scratch::sprites) {
         for (auto thread : currentSprite->pendingThreads) {
             thread->clear();
             Pools::threads.push_back(thread);
         }
+        currentSprite->pendingThreads.clear();
         for (auto thread : currentSprite->threads) {
             thread->clear();
             Pools::threads.push_back(thread);
         }
+        currentSprite->threads.clear();
         if (Render::getSpeechManager()) {
             Render::getSpeechManager()->clearSpeech(currentSprite);
         }
@@ -355,9 +378,9 @@ void Scratch::stopClicked() {
             SoundPlayer::stopSound(sound.fullName);
     }
     for (auto *spr : toDelete) {
-        delete spr;
         Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
                                Scratch::sprites.end());
+        delete spr;
     }
 }
 

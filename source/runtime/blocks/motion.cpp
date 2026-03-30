@@ -16,7 +16,7 @@ SCRATCH_BLOCK(motion, movesteps) {
     const double steps = stepsValue.asDouble();
     const double angle = Math::degreesToRadians(90 - sprite->rotation);
     Scratch::gotoXY(sprite, sprite->xPosition + std::cos(angle) * steps, sprite->yPosition + std::sin(angle) * steps);
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -37,7 +37,7 @@ SCRATCH_BLOCK(motion, goto) {
             }
         }
     }
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -46,7 +46,7 @@ SCRATCH_BLOCK(motion, gotoxy) {
     if (!Scratch::getInput(block, "X", thread, sprite, xValue) ||
         !Scratch::getInput(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
     Scratch::gotoXY(sprite, xValue.asDouble(), yValue.asDouble());
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -54,7 +54,7 @@ SCRATCH_BLOCK(motion, turnleft) {
     Value dirValue;
     if (!Scratch::getInput(block, "DEGREES", thread, sprite, dirValue)) return BlockResult::REPEAT;
     Scratch::setDirection(sprite, sprite->rotation - dirValue.asDouble());
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -62,7 +62,7 @@ SCRATCH_BLOCK(motion, turnright) {
     Value dirValue;
     if (!Scratch::getInput(block, "DEGREES", thread, sprite, dirValue)) return BlockResult::REPEAT;
     Scratch::setDirection(sprite, sprite->rotation + dirValue.asDouble());
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -70,7 +70,7 @@ SCRATCH_BLOCK(motion, pointindirection) {
     Value dirValue;
     if (!Scratch::getInput(block, "DIRECTION", thread, sprite, dirValue)) return BlockResult::REPEAT;
     Scratch::setDirection(sprite, dirValue.asDouble());
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -78,7 +78,7 @@ SCRATCH_BLOCK(motion, changexby) {
     Value dxValue;
     if (!Scratch::getInput(block, "DX", thread, sprite, dxValue)) return BlockResult::REPEAT;
     Scratch::gotoXY(sprite, sprite->xPosition + dxValue.asDouble(), sprite->yPosition);
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -86,7 +86,7 @@ SCRATCH_BLOCK(motion, changeyby) {
     Value dyValue;
     if (!Scratch::getInput(block, "DY", thread, sprite, dyValue)) return BlockResult::REPEAT;
     Scratch::gotoXY(sprite, sprite->xPosition, sprite->yPosition + dyValue.asDouble());
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -95,7 +95,7 @@ SCRATCH_BLOCK(motion, setx) {
     if (!Scratch::getInput(block, "X", thread, sprite, xValue)) return BlockResult::REPEAT;
     const double X = xValue.asDouble();
     Scratch::gotoXY(sprite, X, sprite->yPosition);
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -104,7 +104,7 @@ SCRATCH_BLOCK(motion, sety) {
     if (!Scratch::getInput(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
     const double Y = yValue.asDouble();
     Scratch::gotoXY(sprite, sprite->xPosition, Y);
-    
+
     return BlockResult::CONTINUE;
 }
 
@@ -156,7 +156,7 @@ SCRATCH_BLOCK(motion, glideto) {
     state->glideEndX = positionXStr;
     state->glideEndY = positionYStr;
     state->completedSteps = 1;
-    
+    return BlockResult::REPEAT;
 }
 
 SCRATCH_BLOCK(motion, glidesecstoxy) {
@@ -183,7 +183,7 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
     state->waitTimer.start();
     state->glideStartX = sprite->xPosition;
     state->glideStartY = sprite->yPosition;
-    
+
     return BlockResult::REPEAT;
 }
 
@@ -191,7 +191,7 @@ SCRATCH_BLOCK(motion, pointtowards) {
     Value towardsValue;
     if (!Scratch::getInput(block, "TOWARDS", thread, sprite, towardsValue)) return BlockResult::REPEAT;
     const std::string objectName = towardsValue.asString();
-    
+
     double targetX = 0;
     double targetY = 0;
 
@@ -225,7 +225,6 @@ SCRATCH_BLOCK(motion, setrotationstyle) {
     Value rotationTypeValue;
     if (!Scratch::getInput(block, "STYLE", thread, sprite, rotationTypeValue)) return BlockResult::REPEAT;
     const std::string rotationType = rotationTypeValue.asString();
-        
 
     if (rotationType == "left-right")
         sprite->rotationStyle = sprite->LEFT_RIGHT;
@@ -313,7 +312,6 @@ SCRATCH_BLOCK(motion, ifonedgebounce) {
     return BlockResult::CONTINUE;
 }
 
-
 SCRATCH_BLOCK(motion, xposition) {
     double rounded = std::round(sprite->xPosition);
     double delta = std::fabs(sprite->xPosition - rounded);
@@ -336,4 +334,3 @@ SCRATCH_BLOCK(motion, direction) {
 SCRATCH_SHADOW_BLOCK(motion_goto_menu, TO)
 SCRATCH_SHADOW_BLOCK(motion_glideto_menu, TO)
 SCRATCH_SHADOW_BLOCK(motion_pointtowards_menu, TOWARDS)
-

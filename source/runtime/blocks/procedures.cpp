@@ -6,8 +6,9 @@ SCRATCH_BLOCK(procedures, call) {
     BlockState *state = thread->getState(block);
 
     if (state->completedSteps == -2) {
+    executeBlock:
         BlockResult result = BlockExecutor::runThread(*state->threads[0], *sprite, nullptr);
-        if (result == BlockResult::RETURN) {
+        if (result == BlockResult::RETURN || state->threads[0]->finished) {
             if (outValue) *outValue = state->threads[0]->returnValue;
             thread->eraseState(block);
             return BlockResult::CONTINUE;
@@ -48,6 +49,7 @@ SCRATCH_BLOCK(procedures, call) {
     }
 
     state->completedSteps = -2;
+    goto executeBlock;
     return BlockResult::REPEAT;
 }
 

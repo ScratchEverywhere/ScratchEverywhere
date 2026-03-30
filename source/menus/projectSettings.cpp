@@ -50,7 +50,7 @@ void ProjectSettings::init() {
     ramButton->text->setScale(0.5);
     ramButton->shouldNineslice = true;
 
-    refreshLimitButton = new ButtonObject("No Refresh Limit: clicktoload", "gfx/menu/projectBox.svg", 200, 280, "gfx/menu/Ubuntu-Bold");
+    refreshLimitButton = new ButtonObject("No Refresh Limit: clicktoload", "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold");
     refreshLimitButton->text->setColor(Math::color(0, 0, 0, 255));
     refreshLimitButton->text->setScale(0.5);
     refreshLimitButton->shouldNineslice = true;

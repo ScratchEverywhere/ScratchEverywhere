@@ -52,20 +52,23 @@ inline std::string_view getCurrentMenuMonitorName(std::string_view menuValue) {
 }
 } // namespace MonitorDisplayNames
 
-
-
 class BlockExecutor {
   public:
-    static std::unordered_map<std::string, BlockFunc> &getHandlers(); //every type of block is stored here (no differentiation between blocks, values, etc.) 
+    static std::unordered_map<std::string, BlockFunc> &getHandlers(); // every type of block is stored here (no differentiation between blocks, values, etc.)
 
     static void executeKeyHats();
     static void doSpriteClicking();
 
-    //NEW STUFF :)
-    static ScriptThread *startThread(Sprite *sprite, Block* blockID);
+    // NEW STUFF :)
+    static ScriptThread *startThread(Sprite *sprite, Block *blockID);
     static void runThreads();
     static BlockResult runThread(ScriptThread &thread, Sprite &sprite, Value *outValue);
 
+    // If true, all sprites will be sorted at the end of the frame.
+    static bool sortSprites;
+
+    // If true, the project will stop at the end of the frame.
+    static bool stopClicked;
 
     /**
      * Goes through every `block` in every `sprite` to find and run a block with the specified `opCode`.

@@ -22,11 +22,22 @@ struct RenderInfo {
     bool forceUpdate = false;
 };
 
-enum class BlockResult {
-    CONTINUE,            // Next Block
-    CONTINUE_IMIDIATELY, // Next Block, but don't wait for the next screen refresh (used for things like loops)
-    REPEAT,              // Repeat blocks
-    RETURN,              // Stop thread, don't continue to next block
+enum class BlockResult : uint8_t {
+
+    /**
+     * Continues to the next block.
+     * If the current block is last in a loop, it will yield for a screen refresh and run the block at the top of the loop.
+     */
+    CONTINUE,
+
+    // Continues to the next block, but never waits for the next screen refresh (used for things like loops)
+    CONTINUE_IMIDIATELY,
+
+    // Yield for a screen refresh and re-run current block.
+    REPEAT,
+
+    // Stop the thread, and don't continue.
+    RETURN,
 };
 struct BlockState;
 struct ScriptThread;
@@ -148,11 +159,11 @@ struct Block {
     std::vector<Value> argumentDefaults;
     bool MyBlockWithoutScreenRefresh = false;
     bool hasReturnValue = false;
+    bool isEndBlock = false;
 
     std::unordered_map<std::string, ParsedInput> inputs;
     std::unordered_map<std::string, ParsedField> fields;
 };
-
 
 struct Sound {
     std::string id;
@@ -301,7 +312,8 @@ class Sprite {
     std::unordered_map<std::string, std::unordered_set<Block *>> hats;
 
     ~Sprite() {
-        for (auto thread: pendingThreads) delete thread;
+        for (auto thread : pendingThreads)
+            delete thread;
         for (auto thread : costumeBlockThreads) {
             thread->clear();
             Pools::threads.push_back(thread);
@@ -310,7 +322,6 @@ class Sprite {
             thread->clear();
             Pools::threads.push_back(thread);
         }
-
 
         variables.clear();
         lists.clear();

@@ -125,7 +125,7 @@ void Parser::log(const std::string &message) {
 }
 
 void Parser::loadSprites(const nlohmann::json &json) {
-    Parser::logParsing = true; // ToDo: Activate it via Settings (Only if Logs in generall are enabled)
+    Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in generall are enabled)
     Parser::log("Loading sprites:");
     const nlohmann::json &spritesData = json["targets"];
     int spriteAmount = spritesData.size();
@@ -578,8 +578,8 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
 
     auto debugVars = Unzip::getSetting("debugVars");
     if (!debugVars.is_null() && debugVars.get<bool>())
-        Scratch::toggleDebugVars(true);
-    else Scratch::toggleDebugVars(false);
+        debugVars = true;
+    else debugVars = false;
 
     auto withoutScreenRefreshLimit = Unzip::getSetting("withoutScreenRefreshLimit");
     if (!withoutScreenRefreshLimit.is_null() && withoutScreenRefreshLimit.is_number_integer())
@@ -755,15 +755,43 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
         }
 
         if (!blockDatas[currentId].contains("shadow") || !blockDatas[currentId]["shadow"].get<bool>()) {
-            newBlock->opcode.clear();
+            // newBlock->opcode.clear();
         }
 
         if (hasNext) {
             currentId = nextId;
         } else {
+            newBlock->isEndBlock = true;
             newBlock->nextBlock = parentBlock;
             break;
         }
+    }
+
+    // set the last block inside of an if block to the if block's next block
+    Block *fixBlock = firstBlock;
+    while (fixBlock != nullptr) {
+
+        if (fixBlock->opcode == "control_if" || fixBlock->opcode == "control_if_else") {
+
+            std::vector<std::string> substacks = {"SUBSTACK", "SUBSTACK2"};
+            for (const std::string &stackName : substacks) {
+                if (fixBlock->inputs.count(stackName) && fixBlock->inputs[stackName].block != nullptr) {
+                    Block *sub = fixBlock->inputs[stackName].block;
+
+                    while (sub->nextBlock != nullptr && sub->nextBlock != fixBlock) {
+                        sub = sub->nextBlock;
+                    }
+
+                    if (sub->nextBlock == fixBlock) {
+                        sub->nextBlock = fixBlock->nextBlock;
+                        sub->isEndBlock = fixBlock->isEndBlock;
+                    }
+                }
+            }
+        }
+
+        if (fixBlock->isEndBlock) break;
+        fixBlock = fixBlock->nextBlock;
     }
 
     return firstBlock;
