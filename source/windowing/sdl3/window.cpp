@@ -30,6 +30,7 @@ extern char nickname[0x21];
 
 #ifdef PS2
 #include <kernel.h>
+#endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
 SDL_Gamepad *controller = nullptr;

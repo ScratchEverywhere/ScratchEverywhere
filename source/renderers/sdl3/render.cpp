@@ -44,6 +44,7 @@ char nickname[0x21];
 
 #ifdef PS2
 #include <kernel.h>
+#endif
 
 Window *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
