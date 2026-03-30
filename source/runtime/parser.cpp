@@ -12,6 +12,7 @@
 #endif
 
 #ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/interface.hpp>
 #include <extensions/meta.hpp>
 #endif
 
@@ -628,13 +629,20 @@ void Parser::loadExtensions(const nlohmann::json &json) {
 #ifdef ENABLE_CUSTOM_EXTENSIONS
     // TODO: Actually implement
     std::ifstream in = std::ifstream(OS::getScratchFolderLocation() + "extensions/utilities.see", std::ios::binary | std::ios::in);
-    nonstd::expected<extensions::Extension, std::string> extensionData = extensions::parseMetadate(in);
-    if (!extensionData.has_value()) {
-        Log::logError("Error loading extension 'utilities': " + extensionData.error());
+    nonstd::expected<extensions::Extension, std::string> extension = extensions::parseMetadate(in);
+    if (!extension.has_value()) {
+        Log::logError("Error loading extension 'utilities': " + extension.error());
         return;
     }
 
-    Log::log(extensionData.value().description);
+    extensions::loadLua(extension.value(), in);
+    sol::protected_function func = extension.value().luaState["blocks"]["pi"];
+    sol::protected_function_result result = func();
+    if (!result.valid()) {
+        Log::logError(std::string("Error running block 'utilities_pi': ") + static_cast<sol::error>(result).what());
+        return;
+    }
+    Log::log(std::to_string(result.get<double>()));
 #endif
 }
 

@@ -82,6 +82,10 @@ struct Extension {
     std::map<std::string, ExtensionSetting> settings;
 
     sol::state luaState;
+
+    inline bool hasPermission(const ExtensionPermission permission) {
+        return std::find(permissions.begin(), permissions.end(), permission) != permissions.end();
+    }
 };
 
 nonstd::expected<Extension, std::string> parseMetadate(std::istream &data);
