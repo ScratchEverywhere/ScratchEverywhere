@@ -16,7 +16,12 @@ function(_dep_system_lua51)
 	if(SE_LUA_BACKEND STREQUAL "fallback" OR SE_LUA_BACKEND STREQUAL "luajit")
 		pkg_check_modules(luajit IMPORTED_TARGET luajit>=2.0.0)
 		if(TARGET PkgConfig::luajit)
-			add_library(deps::lua51 ALIAS PkgConfig::luajit)
+			add_library(deps::lua51 INTERFACE IMPORTED)
+			target_link_libraries(deps::lua51 INTERFACE PkgConfig::luajit)
+			if(VITA) # Needed by the vita's libdl, idk why these aren't in the pkg-config stuff
+				target_link_libraries(deps::lua51 INTERFACE SceSblSsMgr_stub taihen_stub)
+			endif()
+
 			set(SE_USED_LUA "luajit" PPARENT_SCOPE)
 			return()
 		endif()
