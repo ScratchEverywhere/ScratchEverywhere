@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 0.38 LANGUAGES CXX C)
 
@@ -91,7 +91,12 @@ endif()
 
 cmake_dependent_option(SE_LOADSCREEN "Enables SE!'s load screen." ON "SE_MENU;SE_HAS_THREADS" OFF)
 
-option(SE_CUSTOM_EXTENSIONS "Enables support for custom extensions." ON)
+if(SE_LUA_BACKEND_VALID_OPTIONS)
+	set(SE_ALLOW_CUSTOM_EXTENSIONS TRUE)
+else()
+	set(SE_ALLOW_CUSTOM_EXTENSIONS FALSE)
+endif()
+cmake_dependent_option(SE_CUSTOM_EXTENSIONS "Enables support for custom extensions." ON "SE_ALLOW_CUSTOM_EXTENSIONS" OFF)
 
 option(SE_SVG "Enable support for SVG images." ON)
 option(SE_BITMAP "Enable support for Bitmap images." ON)
