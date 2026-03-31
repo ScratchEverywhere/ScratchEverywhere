@@ -382,6 +382,12 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     for (const auto &item : parsedAD)
                         definitionBlock->argumentDefaults.push_back(Value::fromJson(item));
                 }
+                if (prototype["mutation"].contains("warp")) {
+                    const auto &warp = prototype["mutation"]["warp"];
+                    definitionBlock->MyBlockWithoutScreenRefresh = (warp.is_string() && warp.get<std::string>() == "true") || (warp.is_boolean() && warp.get<bool>());
+                } else {
+                    definitionBlock->MyBlockWithoutScreenRefresh = false;
+                }
 
                 if (data.contains("next") && !data["next"].is_null()) {
                     std::string nextKey = data["next"].get<std::string>();
@@ -389,6 +395,12 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     Parser::log("\t\t! Procedure body loaded from: " + nextKey);
                 }
                 setSubstack(definitionBlock);
+            }
+            for (Block *block : Scratch::blocks) {
+                if (block->opcode == "procedures_call" && block->MyBlockDefinitionID != nullptr) {
+                    block->MyBlockWithoutScreenRefresh =
+                        block->MyBlockDefinitionID->MyBlockWithoutScreenRefresh;
+                }
             }
         }
 
@@ -723,7 +735,6 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
                 else {
                     if (newSprite->customHatBlock.count(procode) == 0) newSprite->customHatBlock[procode] = new Block();
                     newBlock->MyBlockDefinitionID = newSprite->customHatBlock[procode];
-                    newBlock->MyBlockWithoutScreenRefresh = blockData["mutation"]["warp"] == "true";
                 }
             }
         }

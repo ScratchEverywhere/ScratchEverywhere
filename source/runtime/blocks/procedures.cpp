@@ -37,7 +37,7 @@ SCRATCH_BLOCK(procedures, call) {
         }
         newThread->blockHat = block->MyBlockDefinitionID;
         newThread->nextBlock = block->MyBlockDefinitionID;
-        newThread->withoutScreenRefresh = block->MyBlockWithoutScreenRefresh;
+        newThread->withoutScreenRefresh = !thread->withoutScreenRefresh ? block->MyBlockWithoutScreenRefresh : true;
         newThread->finished = false;
         newThread->returnValue = Value();
         newThread->MyBlocksVariablen.clear();
