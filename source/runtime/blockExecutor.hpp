@@ -60,13 +60,10 @@ enum class BlockResult : uint8_t {
     RETURN,
 };
 
-using BlockHandlerPtr = BlockResult (*)(Block &, Sprite *, bool *, bool);
-using ValueHandlerPtr = Value (*)(Block &, Sprite *);
-
 class BlockExecutor {
   public:
-    static std::unordered_map<std::string, BlockHandlerPtr> &getHandlers();
-    static std::unordered_map<std::string, ValueHandlerPtr> &getValueHandlers();
+    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> &getHandlers();
+    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &getValueHandlers();
 
 #ifdef ENABLE_CACHING
     static void linkPointers(Sprite *sprite);

@@ -26,13 +26,13 @@ Timer BlockExecutor::timer;
 int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
 
-std::unordered_map<std::string, BlockHandlerPtr> &BlockExecutor::getHandlers() {
-    static std::unordered_map<std::string, BlockHandlerPtr> handlers;
+std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> &BlockExecutor::getHandlers() {
+    static std::unordered_map<std::string, std::function<BlockResult(Block &, Sprite *, bool *, bool)>> handlers;
     return handlers;
 }
 
-std::unordered_map<std::string, ValueHandlerPtr> &BlockExecutor::getValueHandlers() {
-    static std::unordered_map<std::string, ValueHandlerPtr> valueHandlers;
+std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> &BlockExecutor::getValueHandlers() {
+    static std::unordered_map<std::string, std::function<Value(Block &, Sprite *)>> valueHandlers;
     return valueHandlers;
 }
 

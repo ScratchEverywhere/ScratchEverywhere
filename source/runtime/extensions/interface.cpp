@@ -1,6 +1,8 @@
 #include "interface.hpp"
+#include "blockExecutor.hpp"
 #include "meta.hpp"
 #include <os.hpp>
+#include <runtime.hpp>
 #include <sol/sol.hpp>
 
 void extensions::loadLua(Extension *extension, std::istream &data) {
@@ -37,4 +39,35 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
 
     sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
     if (!result.valid()) Log::logError("Error while running lua bytecode for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+}
+
+void extensions::registerHandlers(Extension *extension) {
+    for (const auto &extensionBlock : extension->blockTypes) {
+        std::string blockId;
+        if (extension->core) blockId = extensionBlock.first;
+        else blockId = extension->id + "_" + extensionBlock.first;
+
+        switch (extensionBlock.second) {
+        case ExtensionBlockType::COMMAND:
+            BlockExecutor::getHandlers()[blockId] = [extension, extensionBlock](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) -> BlockResult {
+                sol::protected_function func = extension->luaState["blocks"][extensionBlock.first];
+                sol::protected_function_result result = func();
+                if (!result.valid()) Log::logError("Error running extension block '" + block.opcode + "': " + static_cast<sol::error>(result).what());
+                return BlockResult::CONTINUE;
+            };
+            break;
+        case ExtensionBlockType::BOOLEAN:
+        case ExtensionBlockType::REPORTER:
+            break;
+        case ExtensionBlockType::HAT:
+        case ExtensionBlockType::EVENT:
+            break;
+        }
+    }
+}
+
+void extensions::registerHandlers() {
+    for (const auto &extension : Scratch::extensions) {
+        registerHandlers(extension.get());
+    }
 }

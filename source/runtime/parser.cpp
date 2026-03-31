@@ -671,6 +671,8 @@ void Parser::loadExtensions(const nlohmann::json &json) {
         Scratch::extensions.push_back(std::move(loadedExt));
         in.close();
     }
+
+    extensions::registerHandlers(); // I want to run it on the already moved pointer which is why i'm doing it here and not in the main loop
 #endif
 }
 
