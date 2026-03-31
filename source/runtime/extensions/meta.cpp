@@ -10,10 +10,10 @@ static nonstd::expected<std::string, std::string> readNullTerminatedString(std::
     return nonstd::make_unexpected("I/O Error.");
 }
 
-nonstd::expected<extensions::Extension, std::string> extensions::parseMetadate(std::istream &data) {
+nonstd::expected<std::unique_ptr<extensions::Extension>, std::string> extensions::parseMetadata(std::istream &data) {
     constexpr std::string_view magicString = "SE! EXTENSION";
 
-    Extension out = {};
+    std::unique_ptr<Extension> out = std::make_unique<Extension>();
 
     // Magic String
     std::array<char, magicString.length()> magicBuffer;
@@ -23,36 +23,36 @@ nonstd::expected<extensions::Extension, std::string> extensions::parseMetadate(s
     // Version Stuff
     char formatVersion;
     if (!data.read(&formatVersion, 1)) return nonstd::make_unexpected("Could not read 1 byte for file format version. File too short or I/O error.");
-    if (!data.read(reinterpret_cast<char *>(&out.minApiVersion.major), 1)) return nonstd::make_unexpected("Could not read 1 byte for major API version. File too short or I/O error.");
-    if (!data.read(reinterpret_cast<char *>(&out.minApiVersion.minor), 1)) return nonstd::make_unexpected("Could not read 1 byte for minor API version. File too short or I/O error.");
+    if (!data.read(reinterpret_cast<char *>(&out->minApiVersion.major), 1)) return nonstd::make_unexpected("Could not read 1 byte for major API version. File too short or I/O error.");
+    if (!data.read(reinterpret_cast<char *>(&out->minApiVersion.minor), 1)) return nonstd::make_unexpected("Could not read 1 byte for minor API version. File too short or I/O error.");
 
     // Core
-    if (!data.read(reinterpret_cast<char *>(&out.core), 1)) return nonstd::make_unexpected("Could not read 1 byte for core flag. File too short or I/O error.");
+    if (!data.read(reinterpret_cast<char *>(&out->core), 1)) return nonstd::make_unexpected("Could not read 1 byte for core flag. File too short or I/O error.");
 
     // Info
     auto id = readNullTerminatedString(data);
     if (!id.has_value()) return nonstd::make_unexpected("Error parsing ID: " + id.error());
-    out.id = id.value();
+    out->id = id.value();
 
     auto name = readNullTerminatedString(data);
     if (!name.has_value()) return nonstd::make_unexpected("Error parsing name: " + name.error());
-    out.name = name.value();
+    out->name = name.value();
 
     auto description = readNullTerminatedString(data);
     if (!description.has_value()) return nonstd::make_unexpected("Error parsing ID: " + description.error());
-    out.description = description.value();
+    out->description = description.value();
 
     // Perms
     char permissionBytes[2];
     if (!data.read(permissionBytes, 2)) return nonstd::make_unexpected("Could not read 2 bytes for permissions. Fille too short or I/O error.");
     for (unsigned int i = 0; i < 10; i++) // Update as more permissions are added
-        if ((((permissionBytes[0] << 8) | permissionBytes[1]) >> i) & 1) out.permissions.push_back(static_cast<ExtensionPermission>(i));
+        if ((((permissionBytes[0] << 8) | permissionBytes[1]) >> i) & 1) out->permissions.push_back(static_cast<ExtensionPermission>(i));
 
     // Platforms
     char platformBytes[2];
     if (!data.read(platformBytes, 2)) return nonstd::make_unexpected("Could not read 2 bytes for supported platforms. Fille too short or I/O error.");
     for (unsigned int i = 0; i < 12; i++) // Update as more platforms are added
-        if ((((platformBytes[0] << 8) | platformBytes[1]) >> i) & 1) out.platforms.push_back(static_cast<ExtensionPlatform>(i));
+        if ((((platformBytes[0] << 8) | platformBytes[1]) >> i) & 1) out->platforms.push_back(static_cast<ExtensionPlatform>(i));
 
     // Settings
     char numSettings;
@@ -96,7 +96,7 @@ nonstd::expected<extensions::Extension, std::string> extensions::parseMetadate(s
         }
         }
 
-        out.settings[id.value()] = setting;
+        out->settings[id.value()] = setting;
     }
 
     // Block Types
@@ -119,7 +119,7 @@ nonstd::expected<extensions::Extension, std::string> extensions::parseMetadate(s
         blockIds.push_back(id.value());
     }
 
-    std::transform(blockIds.begin(), blockIds.end(), blockTypes.begin(), std::inserter(out.blockTypes, out.blockTypes.end()), [](const std::string &id, ExtensionBlockType type) { return std::make_pair(id, type); });
+    std::transform(blockIds.begin(), blockIds.end(), blockTypes.begin(), std::inserter(out->blockTypes, out->blockTypes.end()), [](const std::string &id, ExtensionBlockType type) { return std::make_pair(id, type); });
 
     return out;
 }

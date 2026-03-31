@@ -2,6 +2,7 @@
 
 #include <istream>
 #include <map>
+#include <memory>
 #include <nonstd/expected.hpp>
 #include <optional>
 #include <stdint.h>
@@ -88,5 +89,5 @@ struct Extension {
     }
 };
 
-nonstd::expected<Extension, std::string> parseMetadate(std::istream &data);
+nonstd::expected<std::unique_ptr<Extension>, std::string> parseMetadata(std::istream &data);
 } // namespace extensions

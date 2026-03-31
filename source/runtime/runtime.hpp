@@ -1,6 +1,7 @@
 #pragma once
 #include "blockExecutor.hpp"
 #include "sprite.hpp"
+#include <extensions/meta.hpp>
 #include <image.hpp>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -22,6 +23,10 @@ extern BlockExecutor executor;
 
 class Scratch {
   public:
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    static std::vector<std::unique_ptr<extensions::Extension>> extensions;
+#endif
+
     static void initializeScratchProject();
 
     /**
