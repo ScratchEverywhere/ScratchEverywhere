@@ -579,8 +579,8 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
 
     auto debugVars = Unzip::getSetting("debugVars");
     if (!debugVars.is_null() && debugVars.get<bool>())
-        debugVars = true;
-    else debugVars = false;
+        Scratch::debugVars = true;
+    else Scratch::debugVars = false;
 
     auto withoutScreenRefreshLimit = Unzip::getSetting("withoutScreenRefreshLimit");
     if (!withoutScreenRefreshLimit.is_null() && withoutScreenRefreshLimit.is_number_integer())

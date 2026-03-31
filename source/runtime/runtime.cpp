@@ -188,7 +188,7 @@ bool Scratch::startScratchProject() {
     std::pair<bool, bool> code;
     initializeScratchProject();
     ScriptThread monitorDisplayThread;
-    if (debugVars) toggleDebugVars(true);
+    toggleDebugVars(debugVars);
     while (true) {
         code = stepScratchProject(monitorDisplayThread);
         if (!code.first) {
@@ -705,14 +705,14 @@ void Scratch::createDebugMonitor(const std::string &name, int x, int y) {
     newMonitor.visible = true;
     newMonitor.x = x;
     newMonitor.y = y;
-    newMonitor.spriteName = stageSprite->name;
+    newMonitor.spriteName = "";
     newMonitor.mode = "67"; // i dont think this matters
 
     Render::monitors[newMonitor.id] = newMonitor;
 }
 
 void Scratch::toggleDebugVars(const bool enabled) {
-    if (enabled && !debugVars) {
+    if (enabled) {
         createDebugMonitor("SE!__FPS", 0, 0);
         createDebugMonitor("SE!__ScriptTime", 0, 30);
         createDebugMonitor("SE!__RenderTime", 0, 60);
