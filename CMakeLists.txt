@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.26)
 
 project(ScratchEverywhere VERSION 0.38 LANGUAGES CXX C)
 
