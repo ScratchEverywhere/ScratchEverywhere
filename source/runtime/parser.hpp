@@ -4,7 +4,6 @@
 
 struct Parser {
 
-    static std::unordered_map<std::string, Block *> costumeHatBlock;
     static bool logParsing;
 
     static void loadUsernameFromSettings();
@@ -21,5 +20,6 @@ struct Parser {
     static void loadFields(Block &block, std::string blockKey, const nlohmann::json &blockDatas, int indent);
     static void loadInputs(Block &block, Sprite *newSprite, std::string blockKey, const nlohmann::json &blockDatas, int indent);
     static void loadAdvancedProjectSettings(const nlohmann::json &json);
+    static void setSubstack(Block *startBlock, Block *stopBlock = nullptr);
 
 }; // namespace Parser

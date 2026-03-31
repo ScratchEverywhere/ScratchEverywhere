@@ -162,10 +162,9 @@ SCRATCH_BLOCK(sound, changevolumeby) {
     if (!Scratch::getInput(block, "VOLUME", thread, sprite, volume)) return BlockResult::REPEAT;
 
     double inputValue = volume.asDouble();
-    inputValue = std::clamp(inputValue, 0.0, 100.0);
+    sprite->volume = std::clamp(sprite->volume + inputValue, 0.0, 100.0);
     for (Sound sound : sprite->sounds) {
         SoundPlayer::setSoundVolume(sound.fullName, sprite->volume + inputValue);
-        sprite->volume = SoundPlayer::getSoundVolume(sound.fullName);
     }
     return BlockResult::CONTINUE;
 }

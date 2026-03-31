@@ -57,12 +57,14 @@ struct BlockState {
     std::string name;
 
     Timer waitTimer;
-    std::vector<ScriptThread *> threads;
+    std::vector<uint64_t> threads;
+    ScriptThread *myBlockThread;
 
     void clear();
 };
 
 struct ScriptThread {
+    uint64_t id;
     Block *blockHat;
     Block *nextBlock;
     std::unordered_map<Block *, BlockState *> states;
@@ -98,13 +100,30 @@ struct ScriptThread {
     }
 
     void clear() {
-        finished = true;
-        for (auto state : states) {
-            Pools::states.push_back(state.second);
-            state.second->clear();
+        std::vector<ScriptThread *> threadStack;
+        threadStack.push_back(this);
+
+        while (!threadStack.empty()) {
+            ScriptThread *curr = threadStack.back();
+            threadStack.pop_back();
+
+            curr->finished = true;
+            curr->withoutScreenRefresh = false;
+            curr->returnValue = Value();
+            curr->MyBlocksVariablen.clear();
+
+            for (auto &pair : curr->states) {
+                BlockState *state = pair.second;
+
+                state->clear();
+                Pools::states.push_back(state);
+            }
+            curr->states.clear();
+
+            if (curr != this) {
+                Pools::threads.push_back(curr);
+            }
         }
-        states.clear();
-        MyBlocksVariablen.clear();
     }
 };
 
@@ -115,13 +134,8 @@ inline void BlockState::clear() {
     glideStartX = glideStartY = glideEndX = glideEndY = 0;
     waitTimer = Timer();
     name = "";
-
-    for (auto thread : threads) {
-        thread->clear();
-        Pools::threads.push_back(thread);
-    }
-
     threads.clear();
+    myBlockThread = nullptr;
 }
 
 struct ParsedInput {
@@ -308,13 +322,11 @@ class Sprite {
 
     std::vector<ScriptThread *> pendingThreads;
     std::vector<ScriptThread *> threads;
-    std::vector<ScriptThread *> costumeBlockThreads;
     std::unordered_map<std::string, std::unordered_set<Block *>> hats;
+    std::unordered_map<std::string, Block *> customHatBlock;
 
     ~Sprite() {
-        for (auto thread : pendingThreads)
-            delete thread;
-        for (auto thread : costumeBlockThreads) {
+        for (auto thread : pendingThreads) {
             thread->clear();
             Pools::threads.push_back(thread);
         }

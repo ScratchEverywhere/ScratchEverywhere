@@ -7,9 +7,15 @@ SCRATCH_BLOCK(procedures, call) {
 
     if (state->completedSteps == -2) {
     executeBlock:
-        BlockResult result = BlockExecutor::runThread(*state->threads[0], *sprite, nullptr);
-        if (result == BlockResult::RETURN || state->threads[0]->finished) {
-            if (outValue) *outValue = state->threads[0]->returnValue;
+        BlockResult result = BlockExecutor::runThread(*state->myBlockThread, *sprite, nullptr);
+        if (result == BlockResult::RETURN || state->myBlockThread->finished) {
+            if (outValue) *outValue = state->myBlockThread->returnValue;
+
+            state->myBlockThread->clear();
+
+            // delete instead of putting into thread pool, since otherwise it would just grow each time a call is made
+            delete state->myBlockThread;
+
             thread->eraseState(block);
             return BlockResult::CONTINUE;
         }
@@ -17,8 +23,8 @@ SCRATCH_BLOCK(procedures, call) {
     }
 
     if (state->completedSteps == 0) {
-        if (block->MyBlockDefinitionID == nullptr ||
-            block->MyBlockDefinitionID->blockFunction == nullptr) {
+        if (block->MyBlockDefinitionID == nullptr || block->MyBlockDefinitionID->blockFunction == nullptr) {
+            thread->eraseState(block);
             return BlockResult::CONTINUE;
         }
 
@@ -35,7 +41,7 @@ SCRATCH_BLOCK(procedures, call) {
         newThread->finished = false;
         newThread->returnValue = Value();
         newThread->MyBlocksVariablen.clear();
-        state->threads.push_back(newThread);
+        state->myBlockThread = newThread;
         state->completedSteps = 1;
     }
 
@@ -44,7 +50,7 @@ SCRATCH_BLOCK(procedures, call) {
         Value argVal;
         if (!Scratch::getInput(block, block->argumentIDs[argIdx], thread, sprite, argVal))
             return BlockResult::REPEAT;
-        state->threads[0]->MyBlocksVariablen[block->argumentIDs[argIdx]] = argVal;
+        state->myBlockThread->MyBlocksVariablen[block->argumentIDs[argIdx]] = argVal;
         state->completedSteps++;
     }
 

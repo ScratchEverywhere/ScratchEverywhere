@@ -141,6 +141,7 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
 */
 
 ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
+    static uint64_t id = 0;
     for (auto thread : sprite->threads) {
         if (thread->blockHat == block) {
             thread->clear();
@@ -167,6 +168,7 @@ ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
     newThread->blockHat = block;
     newThread->nextBlock = block;
     newThread->finished = false;
+    newThread->id = ++id;
     sprite->pendingThreads.push_back(newThread);
     return newThread;
 }
@@ -246,7 +248,7 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         // if (thread.withoutScreenRefresh && executionCount >= Scratch::withoutScreenRefreshLimit) break;
         // if (!thread.withoutScreenRefresh && executionCount >= 1024) break;
 
-    } while ((var == BlockResult::CONTINUE_IMIDIATELY || (var == BlockResult::CONTINUE && !currentBlock->isEndBlock || thread.withoutScreenRefresh)) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
+    } while ((var == BlockResult::CONTINUE_IMIDIATELY || (var == BlockResult::CONTINUE && (!currentBlock->isEndBlock || thread.withoutScreenRefresh))) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
     if (currentBlock == nullptr || (var != BlockResult::REPEAT && currentBlock->nextBlock == nullptr)) thread.finished = true;
     return var;
 }

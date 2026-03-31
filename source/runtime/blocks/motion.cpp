@@ -31,10 +31,9 @@ SCRATCH_BLOCK(motion, goto) {
         Scratch::gotoXY(sprite, Input::mousePointer.x, Input::mousePointer.y);
     } else {
         for (Sprite *currentSprite : Scratch::sprites) {
-            if (currentSprite->name == object) {
-                Scratch::gotoXY(sprite, currentSprite->xPosition, currentSprite->yPosition);
-                break;
-            }
+            if (currentSprite->isClone || currentSprite->name != object) continue;
+            Scratch::gotoXY(sprite, currentSprite->xPosition, currentSprite->yPosition);
+            break;
         }
     }
 
@@ -146,7 +145,7 @@ SCRATCH_BLOCK(motion, glideto) {
         positionYStr = Input::mousePointer.y;
     } else {
         for (auto &currentSprite : Scratch::sprites) {
-            if (currentSprite->name != input) continue;
+            if (currentSprite->isClone || currentSprite->name != input) continue;
             positionXStr = currentSprite->xPosition;
             positionYStr = currentSprite->yPosition;
             break;
@@ -205,7 +204,7 @@ SCRATCH_BLOCK(motion, pointtowards) {
         targetY = Input::mousePointer.y;
     } else {
         for (Sprite *currentSprite : Scratch::sprites) {
-            if (currentSprite->name == objectName) {
+            if (!currentSprite->isClone && currentSprite->name == objectName) {
                 targetX = currentSprite->xPosition;
                 targetY = currentSprite->yPosition;
                 break;
@@ -222,9 +221,7 @@ SCRATCH_BLOCK(motion, pointtowards) {
 }
 
 SCRATCH_BLOCK(motion, setrotationstyle) {
-    Value rotationTypeValue;
-    if (!Scratch::getInput(block, "STYLE", thread, sprite, rotationTypeValue)) return BlockResult::REPEAT;
-    const std::string rotationType = rotationTypeValue.asString();
+    const std::string rotationType = Scratch::getFieldValue(*block, "STYLE");
 
     if (rotationType == "left-right")
         sprite->rotationStyle = sprite->LEFT_RIGHT;
@@ -328,6 +325,16 @@ SCRATCH_BLOCK(motion, yposition) {
 
 SCRATCH_BLOCK(motion, direction) {
     *outValue = Value(sprite->rotation);
+    return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK(motion, xscroll) {
+    *outValue = Value(Undefined{});
+    return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK(motion, yscroll) {
+    *outValue = Value(Undefined{});
     return BlockResult::CONTINUE;
 }
 

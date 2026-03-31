@@ -31,8 +31,16 @@ SCRATCH_BLOCK(event, broadcast) {
             }
         }
     }
+    for (auto &spr : Scratch::pendingSprites) {
+        if (spr.first->hats["event_whenbroadcastreceived"].empty()) continue;
+        for (Block *hat : spr.first->hats["event_whenbroadcastreceived"]) {
+            if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
+                BlockExecutor::startThread(spr.first, hat);
+            }
+        }
+    }
 
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(event, broadcastandwait) {
@@ -46,7 +54,15 @@ SCRATCH_BLOCK(event, broadcastandwait) {
             if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
             for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
                 if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
-                    state->threads.push_back(BlockExecutor::startThread(spr, hat));
+                    state->threads.push_back(BlockExecutor::startThread(spr, hat)->id);
+                }
+            }
+        }
+        for (auto &spr : Scratch::pendingSprites) {
+            if (spr.first->hats["event_whenbroadcastreceived"].empty()) continue;
+            for (Block *hat : spr.first->hats["event_whenbroadcastreceived"]) {
+                if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
+                    state->threads.push_back(BlockExecutor::startThread(spr.first, hat)->id);
                 }
             }
         }
@@ -58,9 +74,13 @@ SCRATCH_BLOCK(event, broadcastandwait) {
         }
         return BlockResult::REPEAT;
     }
+
     for (Sprite *spr : Scratch::sprites) {
-        for (auto &t : state->threads) {
-            if (!t->finished) return BlockResult::REPEAT;
+        for (auto &stateID : state->threads) {
+            for (auto &spriteThread : spr->threads) {
+                if (spriteThread->id != stateID) continue;
+                if (!spriteThread->finished) return BlockResult::REPEAT;
+            }
         }
     }
     thread->eraseState(block);

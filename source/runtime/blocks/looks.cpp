@@ -206,13 +206,21 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
                 }
             }
         }
-        std::vector<ScriptThread *> *newthreads;
-        BlockExecutor::runAllBlocksByOpcode("event_whenbackdropswitchesto", newthreads);
-        state->threads = *newthreads;
+        std::vector<ScriptThread *> newthreads;
+        BlockExecutor::runAllBlocksByOpcode("event_whenbackdropswitchesto", &newthreads);
+        for (ScriptThread *t : newthreads) {
+            state->threads.push_back(t->id);
+        }
         state->completedSteps = 1;
+        return BlockResult::REPEAT;
     }
-    for (auto &t : state->threads) {
-        if (!t->finished) return BlockResult::REPEAT;
+    for (Sprite *spr : Scratch::sprites) {
+        for (auto &stateID : state->threads) {
+            for (auto &spriteThread : spr->threads) {
+                if (spriteThread->id != stateID) continue;
+                if (!spriteThread->finished) return BlockResult::REPEAT;
+            }
+        }
     }
     return BlockResult::CONTINUE;
 }

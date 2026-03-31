@@ -117,7 +117,6 @@ void Parser::loadUsernameFromSettings() {
 
 bool Parser::logParsing = false;
 
-std::unordered_map<std::string, Block *> Parser::costumeHatBlock;
 void Parser::log(const std::string &message) {
     if (Parser::logParsing) {
         Log::log(message);
@@ -324,6 +323,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     std::string nextBlockKey = data["next"].get<std::string>();
                     newBlock->nextBlock = loadBlock(newSprite, nextBlockKey, target["blocks"], nullptr, 2);
                 }
+                setSubstack(newBlock);
             }
 
             for (const std::string &id : procedureCallBlocks) {
@@ -355,12 +355,12 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 }
                 std::string proccode = prototype["mutation"]["proccode"];
 
-                if (Parser::costumeHatBlock.find(proccode) == Parser::costumeHatBlock.end()) {
+                if (newSprite->customHatBlock.find(proccode) == newSprite->customHatBlock.end()) {
+                    newSprite->customHatBlock[proccode] = new Block();
                     Parser::log("\t\t! Unknown procedure: '" + proccode + "'");
-                    continue;
                 }
                 Parser::log("\t\t! Procedure '" + proccode + "' found");
-                Block *definitionBlock = Parser::costumeHatBlock[proccode];
+                Block *definitionBlock = newSprite->customHatBlock[proccode];
                 definitionBlock->blockFunction = BlockExecutor::getHandlers()["procedures_prototype"];
 
                 if (prototype["mutation"].contains("argumentnames") &&
@@ -388,6 +388,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     definitionBlock->nextBlock = loadBlock(newSprite, nextKey, target["blocks"], nullptr, 2);
                     Parser::log("\t\t! Procedure body loaded from: " + nextKey);
                 }
+                setSubstack(definitionBlock);
             }
         }
 
@@ -720,8 +721,8 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
                 else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3withData"];
 
                 else {
-                    if (Parser::costumeHatBlock.count(procode) == 0) Parser::costumeHatBlock[procode] = new Block();
-                    newBlock->MyBlockDefinitionID = Parser::costumeHatBlock[procode];
+                    if (newSprite->customHatBlock.count(procode) == 0) newSprite->customHatBlock[procode] = new Block();
+                    newBlock->MyBlockDefinitionID = newSprite->customHatBlock[procode];
                     newBlock->MyBlockWithoutScreenRefresh = blockData["mutation"]["warp"] == "true";
                 }
             }
@@ -766,33 +767,41 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
             break;
         }
     }
+    return firstBlock;
+}
 
-    // set the last block inside of an if block to the if block's next block
-    Block *fixBlock = firstBlock;
-    while (fixBlock != nullptr) {
+void Parser::setSubstack(Block *startBlock, Block *stopBlock) {
+    Block *current = startBlock;
 
-        if (fixBlock->opcode == "control_if" || fixBlock->opcode == "control_if_else") {
+    while (current != nullptr && current != stopBlock) {
 
-            std::vector<std::string> substacks = {"SUBSTACK", "SUBSTACK2"};
-            for (const std::string &stackName : substacks) {
-                if (fixBlock->inputs.count(stackName) && fixBlock->inputs[stackName].block != nullptr) {
-                    Block *sub = fixBlock->inputs[stackName].block;
+        bool isIf = (current->opcode == "control_if" || current->opcode == "control_if_else");
 
-                    while (sub->nextBlock != nullptr && sub->nextBlock != fixBlock) {
-                        sub = sub->nextBlock;
+        std::vector<std::string> substacks = {"SUBSTACK", "SUBSTACK2"};
+        for (const std::string &stackName : substacks) {
+            if (current->inputs.count(stackName) && current->inputs[stackName].block != nullptr) {
+                Block *firstSubBlock = current->inputs[stackName].block;
+                Block *sub = firstSubBlock;
+
+                // go to end of substack
+                while (sub->nextBlock != nullptr && sub->nextBlock != current) {
+                    sub = sub->nextBlock;
+                }
+
+                if (isIf) {
+                    // go to the block after the if block
+                    if (sub->nextBlock == current) {
+                        sub->nextBlock = current->nextBlock;
+                        sub->isEndBlock = current->isEndBlock;
                     }
-
-                    if (sub->nextBlock == fixBlock) {
-                        sub->nextBlock = fixBlock->nextBlock;
-                        sub->isEndBlock = fixBlock->isEndBlock;
-                    }
+                    setSubstack(firstSubBlock, current->nextBlock);
+                } else {
+                    setSubstack(firstSubBlock, current);
                 }
             }
         }
 
-        if (fixBlock->isEndBlock) break;
-        fixBlock = fixBlock->nextBlock;
+        if (current->isEndBlock) break;
+        current = current->nextBlock;
     }
-
-    return firstBlock;
 }

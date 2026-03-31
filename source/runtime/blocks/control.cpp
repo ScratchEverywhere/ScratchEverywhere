@@ -61,7 +61,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
         }
     }
 
-    if (!original) return BlockResult();
+    if (!original) return BlockResult::CONTINUE;
     Sprite *spriteToClone = new Sprite();
     spriteToClone->name = original->name;
     spriteToClone->isStage = false;
@@ -107,7 +107,7 @@ SCRATCH_BLOCK(control, delete_this_clone) {
     if (!sprite->isClone) return BlockResult::CONTINUE;
     sprite->toDelete = true;
     Scratch::cloneCount--;
-    return BlockResult::CONTINUE;
+    return BlockResult::RETURN;
 }
 
 SCRATCH_BLOCK(control, stop) {
@@ -125,6 +125,10 @@ SCRATCH_BLOCK(control, stop) {
     };
     if (stopType == "other scripts in sprite") {
         for (ScriptThread *t : sprite->threads) {
+            if (thread == t) continue;
+            t->finished = true;
+        }
+        for (ScriptThread *t : sprite->pendingThreads) {
             if (thread == t) continue;
             t->finished = true;
         }
@@ -146,6 +150,7 @@ SCRATCH_BLOCK(control, forever) {
     Block *substack = block->inputs["SUBSTACK"].block;
     if (substack != nullptr)
         thread->nextBlock = substack;
+    else return BlockResult::REPEAT;
     return BlockResult::CONTINUE_IMIDIATELY;
 }
 
@@ -172,6 +177,7 @@ SCRATCH_BLOCK(control, wait) {
     state->waitDuration = duration.asDouble() * 1000;
 
     state->waitTimer.start();
+    Scratch::forceRedraw = true;
     state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
@@ -190,10 +196,13 @@ SCRATCH_BLOCK(control, repeat) {
         return BlockResult::CONTINUE;
     }
 
+    state->repeatTimes--;
+
     Block *substack = block->inputs["SUBSTACK"].block;
     if (substack != nullptr)
         thread->nextBlock = substack;
-    state->repeatTimes--;
+    else return BlockResult::REPEAT;
+
     return BlockResult::CONTINUE_IMIDIATELY;
 }
 
@@ -206,6 +215,10 @@ SCRATCH_BLOCK(control, while) {
     Block *substack = block->inputs["SUBSTACK"].block;
     if (substack != nullptr)
         thread->nextBlock = substack;
+    else {
+        Scratch::resetInput(block);
+        return BlockResult::REPEAT;
+    }
     Scratch::resetInput(block);
     return BlockResult::CONTINUE_IMIDIATELY;
 }
@@ -219,6 +232,10 @@ SCRATCH_BLOCK(control, repeat_until) {
     Block *substack = block->inputs["SUBSTACK"].block;
     if (substack != nullptr)
         thread->nextBlock = substack;
+    else {
+        Scratch::resetInput(block);
+        return BlockResult::REPEAT;
+    }
     Scratch::resetInput(block);
     return BlockResult::CONTINUE_IMIDIATELY;
 }
@@ -242,7 +259,7 @@ SCRATCH_BLOCK(control, for_each) {
     BlockState *state = thread->getState(block);
     if (state->completedSteps != 1) {
         Value upperBound;
-        if (!Scratch::getInput(block, "DURATION", thread, sprite, upperBound)) return BlockResult::REPEAT;
+        if (!Scratch::getInput(block, "VALUE", thread, sprite, upperBound)) return BlockResult::REPEAT;
         state->repeatTimes = 0;
         state->waitDuration = upperBound.asDouble();
         state->completedSteps = 1;
@@ -254,9 +271,12 @@ SCRATCH_BLOCK(control, for_each) {
     }
     BlockExecutor::setVariableValue(Scratch::getFieldId(*block, "VARIABLE"), Value(state->repeatTimes + 1), sprite);
 
+    state->repeatTimes++;
+
     Block *substack = block->inputs["SUBSTACK"].block;
     if (substack != nullptr)
         thread->nextBlock = substack;
-    state->repeatTimes++;
-    return BlockResult();
+    else return BlockResult::REPEAT;
+
+    return BlockResult::CONTINUE_IMIDIATELY;
 }

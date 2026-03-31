@@ -121,6 +121,10 @@ SCRATCH_BLOCK(operator, mod) {
 SCRATCH_BLOCK(operator, round) {
     Value num;
     if (!Scratch::getInput(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
+    if (!num.isNumeric()) {
+        *outValue = Value(0);
+        return BlockResult::CONTINUE;
+    }
 
     *outValue = Value(std::round(num.asDouble()));
     return BlockResult::CONTINUE;
@@ -129,6 +133,12 @@ SCRATCH_BLOCK(operator, round) {
 SCRATCH_BLOCK(operator, mathop) {
     Value num;
     if (!Scratch::getInput(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
+
+    if (!num.isNumeric()) {
+        *outValue = Value(0);
+        return BlockResult::CONTINUE;
+    }
+
     const std::string operation = Scratch::getFieldValue(*block, "OPERATOR");
 
     const double value = num.asDouble();
