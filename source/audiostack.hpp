@@ -10,6 +10,10 @@
 #include <thread.hpp>
 #include <unordered_map>
 
+#if defined(__NDS__)
+#define NO_VORBIS
+#endif
+
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
     SoundStreamWAV,
@@ -32,7 +36,9 @@ class SoundStream {
   public:
     drwav wav;
     drmp3 mp3;
+#if !defined(NO_VORBIS)
     stb_vorbis *vorbis;
+#endif
 
     int type;
 
