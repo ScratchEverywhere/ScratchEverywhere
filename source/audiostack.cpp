@@ -15,31 +15,6 @@ CMRC_DECLARE(romfs);
 #include <iostream>
 #include <vector>
 
-#ifdef SOUND_DUMMY_MUTEX
-void SoundDummyMutex::lock() {}
-void SoundDummyMutex::unlock() {}
-#endif
-
-#ifdef SOUND_WIN32_MUTEX
-#include <windows.h>
-
-void SoundWin32Mutex::lock() {
-    WaitForSingleObject((HANDLE)this->handle, INFINITE);
-}
-
-void SoundWin32Mutex::unlock() {
-    SetEvent((HANDLE)this->handle);
-}
-
-SoundWin32Mutex::SoundWin32Mutex() {
-    this->handle = (void *)CreateEvent(nullptr, FALSE, TRUE, nullptr);
-}
-
-SoundWin32Mutex::~SoundWin32Mutex() {
-    CloseHandle((HANDLE)this->handle);
-}
-#endif
-
 /* TODO: Oh no! this does not check errors from dr_libs. Please anyone,
  * think me a best way to check them. I don't know enough C++ to do this.
  */
@@ -224,7 +199,7 @@ int SoundStream::read(float *output, int frames) {
 }
 
 std::unordered_map<std::string, SoundStream *> Mixer::streams;
-MUTEX Mixer::mutex;
+SE_Mutex Mixer::mutex;
 int Mixer::rate = 48000;
 
 void Mixer::requestSound(short *output, int frames) {

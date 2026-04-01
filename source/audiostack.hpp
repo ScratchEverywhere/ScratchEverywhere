@@ -8,35 +8,7 @@
 #include <stb_vorbis.c>
 #include <string>
 #include <unordered_map>
-
-#if defined(__NDS__)
-class SoundDummyMutex {
-  public:
-    void lock();
-    void unlock();
-};
-
-#define MUTEX SoundDummyMutex
-#define SOUND_DUMMY_MUTEX
-#elif defined(_WIN32)
-class SoundWin32Mutex {
-    void *handle;
-
-  public:
-    void lock();
-    void unlock();
-
-    SoundWin32Mutex();
-    ~SoundWin32Mutex();
-};
-
-#define MUTEX SoundWin32Mutex
-#define SOUND_WIN32_MUTEX
-#else
-#include <mutex>
-
-#define MUTEX std::mutex
-#endif
+#include <thread.hpp>
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
@@ -85,7 +57,7 @@ class SoundStream {
 
 class Mixer {
   public:
-    static MUTEX mutex;
+    static SE_Mutex mutex;
     static std::unordered_map<std::string, SoundStream *> streams;
     static int rate;
     static void requestSound(short *output, int frames); /* expects stereo */
