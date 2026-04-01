@@ -1,4 +1,5 @@
 #include "blockUtils.hpp"
+#include "runtime.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
 #include <math.hpp>
@@ -41,7 +42,16 @@ SCRATCH_BLOCK(sound, playuntildone) {
             else
                 SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, soundFullName);
 #else
-            SoundStream *strm = new SoundStream(&Unzip::zipArchive, soundFullName);
+            if (Mixer::isSoundPlaying(soundFullName)) {
+                // nothing
+            } else {
+                SoundStream *strm;
+                if (Scratch::projectType == ProjectType::UNZIPPED)
+                    strm = new SoundStream(soundFullName);
+                else
+                    strm = new SoundStream(&Unzip::zipArchive, soundFullName);
+            }
+
 #endif
         }
 
@@ -109,7 +119,11 @@ SCRATCH_BLOCK(sound, play) {
         else
             SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, soundFullName);
 #else
-        SoundStream *strm = new SoundStream(&Unzip::zipArchive, soundFullName);
+        SoundStream *strm;
+        if (Scratch::projectType == ProjectType::UNZIPPED)
+            strm = new SoundStream(soundFullName, false);
+        else
+            strm = new SoundStream(&Unzip::zipArchive, soundFullName);
 
         Mixer::mutex.lock();
         strm->auto_clean = true;

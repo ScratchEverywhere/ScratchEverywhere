@@ -93,29 +93,12 @@ void SoundStream::loadFromBuffer() {
     this->no_lock = false;
 }
 
-SoundStream::SoundStream(std::string path) {
-    std::ifstream ifs(path, std::ios::binary);
-
-    if (!ifs) return;
-
-    ifs.seekg(0, std::ios::end);
-    this->buffer_size = ifs.tellg();
-    ifs.seekg(0);
-
-    this->buffer = (unsigned char *)malloc(this->buffer_size);
-    ifs.read((char *)this->buffer, this->buffer_size);
-
-    ifs.close();
-
-    loadFromBuffer();
-
-    Mixer::mutex.lock();
-    Mixer::streams[path] = this;
-    Mixer::mutex.unlock();
-}
-
 SoundStream::SoundStream(std::string path, bool cached) {
-    if (!cached) path = OS::getRomFSLocation() + path;
+    std::string prefix;
+    if (!cached && !Unzip::UnpackedInSD) prefix = OS::getRomFSLocation();
+    else if (Unzip::UnpackedInSD) prefix = Unzip::filePath;
+
+    path = prefix + path;
 
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD) {
@@ -214,13 +197,13 @@ int SoundStream::read(float *output, int frames) {
     return 0;
 }
 
-std::unordered_map<std::string, SoundStream*> Mixer::streams;
+std::unordered_map<std::string, SoundStream *> Mixer::streams;
 SE_Mutex Mixer::mutex;
 
 void Mixer::requestSound(short *output, int frames) {
     float *tmp = new float[2 * frames]; /* we use float to store sound, because it's easier to deal with it */
     int i;
-    std::vector<SoundStream*> clean_queue;
+    std::vector<SoundStream *> clean_queue;
 
     for (i = 0; i < 2 * frames; i++)
         tmp[i] = 0;
@@ -279,7 +262,7 @@ void Mixer::requestSound(short *output, int frames) {
 
     Mixer::mutex.lock();
     for (int i = 0; i < clean_queue.size(); i++) {
-	clean_queue[i]->no_lock = true;
+        clean_queue[i]->no_lock = true;
 
         delete clean_queue[i];
     }

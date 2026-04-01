@@ -59,8 +59,7 @@ class SoundStream {
     bool auto_clean;
     bool no_lock;
 
-    SoundStream(std::string path);
-    SoundStream(std::string path, bool cached);
+    SoundStream(std::string path, bool cached = false);
     SoundStream(mz_zip_archive *zip, std::string path);
 
     ~SoundStream();
@@ -77,7 +76,7 @@ class Mixer {
 #endif
 
     static SE_Mutex mutex;
-    static std::unordered_map<std::string, SoundStream*> streams;
+    static std::unordered_map<std::string, SoundStream *> streams;
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);
