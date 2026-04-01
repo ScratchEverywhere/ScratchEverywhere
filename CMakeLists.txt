@@ -197,12 +197,17 @@ if(SE_MENU)
 	list(APPEND SOURCES source/menus)
 endif()
 
+set(ABSOLUTE_SOURCES "")
+foreach(src IN LISTS SOURCES)
+    list(APPEND ABSOLUTE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+endforeach()
+
 set(SOURCE_FILES)
-foreach(DIR IN LISTS SOURCES)
+foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 	file(GLOB DIR_SOURCES
-		${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
+		${DIR}/*.cpp
+        ${DIR}/*.c
+        ${DIR}/*.cc
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
@@ -237,6 +242,9 @@ if(SE_ASAN)
 	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
 endif()
+
+set_target_properties(scratch-everywhere PROPERTIES ENABLE_EXPORTS TRUE)
+target_link_options(scratch-everywhere PRIVATE "-rdynamic") # may be unnecessary
 
 if(SE_STATIC_LIBGCC)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc")
@@ -342,3 +350,5 @@ endif()
 if(COMMAND package_platform)
 	package_platform()
 endif()
+
+add_subdirectory(native-extension)

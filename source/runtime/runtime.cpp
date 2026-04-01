@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <dlfcn.h>
 #include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
@@ -73,6 +74,12 @@ std::string Scratch::customUsername;
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
 void Scratch::initializeScratchProject() {
+    // Magic custom extensions testing code
+    void *extensionHandle = dlopen("build/native-extension/libnative-extension.so", RTLD_NOW | RTLD_GLOBAL);
+    if (!extensionHandle) {
+        Log::logError(std::string("Failed to load native extension handle: ") + dlerror());
+    }
+
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) Parser::initMist();
