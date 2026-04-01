@@ -35,4 +35,5 @@ void SoundPlayer::cleanupAudio() {
 void SoundPlayer::deinit() {
     cleanupAudio();
 }
-void SoundPlayer::flushAudio() {}
+void SoundPlayer::flushAudio() {
+}

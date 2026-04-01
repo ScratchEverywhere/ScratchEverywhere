@@ -1,18 +1,23 @@
+#if defined(__NDS__)
+#define NO_VORBIS
+#define NO_MP3
+#endif
+
 #pragma once
 #ifndef STB_VORBIS_IMPLEMENTATION
 #define STB_VORBIS_HEADER_ONLY
 #endif
+#if !defined(NO_MP3)
 #include <dr_mp3.h>
+#endif
 #include <dr_wav.h>
 #include <miniz.h>
+#if !defined(NO_VORBIS)
 #include <stb_vorbis.c>
+#endif
 #include <string>
 #include <thread.hpp>
 #include <unordered_map>
-
-#if defined(__NDS__)
-#define NO_VORBIS
-#endif
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
@@ -35,7 +40,9 @@ class SoundStream {
 
   public:
     drwav wav;
+#if !defined(NO_MP3)
     drmp3 mp3;
+#endif
 #if !defined(NO_VORBIS)
     stb_vorbis *vorbis;
 #endif
@@ -70,7 +77,7 @@ class Mixer {
 #endif
 
     static SE_Mutex mutex;
-    static std::unordered_map<std::string, SoundStream *> streams;
+    static std::unordered_map<std::string, SoundStream*> streams;
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);

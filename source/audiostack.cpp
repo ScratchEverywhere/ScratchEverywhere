@@ -31,6 +31,7 @@ void SoundStream::loadAsWAV() {
     this->channels = this->wav.channels;
 }
 
+#if !defined(NO_MP3)
 void SoundStream::loadAsMP3() {
     if (!drmp3_init_memory(&this->mp3, this->buffer, this->buffer_size, nullptr)) {
         /* TODO: handle error */
@@ -42,6 +43,7 @@ void SoundStream::loadAsMP3() {
     this->rate = this->mp3.sampleRate;
     this->channels = this->mp3.channels;
 }
+#endif
 
 #if !defined(NO_VORBIS)
 void SoundStream::loadAsVorbis() {
@@ -69,10 +71,12 @@ void SoundStream::loadFromBuffer() {
 
     if (this->buffer_size >= 4 && memcmp(this->buffer, "RIFF", 4) == 0) {
         loadAsWAV();
+#if !defined(NO_MP3)
     } else if (this->buffer_size >= 3 && memcmp(this->buffer, "ID3", 3) == 0) {
         loadAsMP3();
     } else if (this->buffer_size >= 2 && this->buffer[0] == 0xff && (this->buffer[1] == 0xfb || this->buffer[1] == 0xf3 || this->buffer[1] == 0xf2)) {
         loadAsMP3();
+#endif
 #if !defined(NO_VORBIS)
     } else if (this->buffer_size >= 4 && memcmp(this->buffer, "OggS", 4) == 0) {
         loadAsVorbis();
@@ -182,8 +186,10 @@ SoundStream::~SoundStream() {
 
     if (this->type == SoundStreamWAV) {
         drwav_uninit(&this->wav);
+#if !defined(NO_MP3)
     } else if (this->type == SoundStreamMP3) {
         drmp3_uninit(&this->mp3);
+#endif
 #if !defined(NO_VORBIS)
     } else if (this->type == SoundStreamVorbis) {
         stb_vorbis_close(this->vorbis);
@@ -196,8 +202,10 @@ SoundStream::~SoundStream() {
 int SoundStream::read(float *output, int frames) {
     if (this->type == SoundStreamWAV) {
         return drwav_read_pcm_frames_f32(&this->wav, frames, output);
+#if !defined(NO_MP3)
     } else if (this->type == SoundStreamMP3) {
         return drmp3_read_pcm_frames_f32(&this->mp3, frames, output);
+#endif
 #if !defined(NO_VORBIS)
     } else if (this->type == SoundStreamVorbis) {
         return stb_vorbis_get_samples_float_interleaved(this->vorbis, this->channels, output, frames * this->channels);
@@ -206,13 +214,13 @@ int SoundStream::read(float *output, int frames) {
     return 0;
 }
 
-std::unordered_map<std::string, SoundStream *> Mixer::streams;
+std::unordered_map<std::string, SoundStream*> Mixer::streams;
 SE_Mutex Mixer::mutex;
 
 void Mixer::requestSound(short *output, int frames) {
     float *tmp = new float[2 * frames]; /* we use float to store sound, because it's easier to deal with it */
     int i;
-    std::vector<SoundStream *> clean_queue;
+    std::vector<SoundStream*> clean_queue;
 
     for (i = 0; i < 2 * frames; i++)
         tmp[i] = 0;
@@ -271,11 +279,9 @@ void Mixer::requestSound(short *output, int frames) {
 
     Mixer::mutex.lock();
     for (int i = 0; i < clean_queue.size(); i++) {
-        SoundStream *s = clean_queue[i];
+	clean_queue[i]->no_lock = true;
 
-        s->no_lock = true;
-
-        delete s;
+        delete clean_queue[i];
     }
     Mixer::mutex.unlock();
 
