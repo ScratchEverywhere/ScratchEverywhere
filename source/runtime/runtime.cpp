@@ -413,22 +413,20 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
 
     collision::AABB spriteBounds = collision::getSpriteBounds(sprite);
 
-    constexpr float inset = 15;
-    const float insetX = (spriteBounds.right - spriteBounds.left) / -2 + inset;
-    const float insetY = (spriteBounds.bottom - spriteBounds.top) / -2 + inset;
+    constexpr float inset = 15.0f;
     const collision::AABB fenceBounds = {
-        .left = -Scratch::projectWidth / 2.0f - insetX,
-        .right = Scratch::projectWidth / 2.0f + insetX,
-        .top = Scratch::projectHeight / 2.0f + insetY,
-        .bottom = -Scratch::projectHeight / 2.0f};
+        .left = (-Scratch::projectWidth / 2.0f) + inset,
+        .right = (Scratch::projectWidth / 2.0f) - inset,
+        .top = (Scratch::projectHeight / 2.0f) - inset,
+        .bottom = (-Scratch::projectHeight / 2.0f) + inset};
 
     float dx = 0;
     float dy = 0;
 
-    if (spriteBounds.left < fenceBounds.left) dx += fenceBounds.left - spriteBounds.left;
-    if (spriteBounds.right > fenceBounds.right) dx += fenceBounds.right - spriteBounds.right;
-    if (spriteBounds.bottom < fenceBounds.bottom) dy += fenceBounds.bottom - spriteBounds.bottom;
-    if (spriteBounds.top > fenceBounds.top) dy += fenceBounds.top - spriteBounds.top;
+    if (spriteBounds.right < fenceBounds.left) dx = fenceBounds.left - spriteBounds.right;
+    else if (spriteBounds.left > fenceBounds.right) dx = fenceBounds.right - spriteBounds.left;
+    if (spriteBounds.top < fenceBounds.bottom) dy = fenceBounds.bottom - spriteBounds.top;
+    else if (spriteBounds.bottom > fenceBounds.top) dy = fenceBounds.top - spriteBounds.bottom;
 
     sprite->xPosition += dx;
     sprite->yPosition += dy;
