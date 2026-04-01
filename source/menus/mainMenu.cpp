@@ -158,7 +158,7 @@ void MainMenu::render() {
 #endif
 #else
 #ifdef __NDS__
-        if (!Mixer::isSoundPlaying("gfx/menu/mm_ds.wav")) {
+        if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream(
                 "gfx/nds/mm_ds.wav");
             Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
