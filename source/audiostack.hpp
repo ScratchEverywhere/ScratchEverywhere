@@ -7,8 +7,8 @@
 #include <miniz.h>
 #include <stb_vorbis.c>
 #include <string>
-#include <unordered_map>
 #include <thread.hpp>
+#include <unordered_map>
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
@@ -57,9 +57,14 @@ class SoundStream {
 
 class Mixer {
   public:
+#ifdef __NDS__
+    static constexpr unsigned int rate = 16000; // This is what maxmod's example uses.
+#else
+    static constexpr unsigned int rate = 48000;
+#endif
+
     static SE_Mutex mutex;
     static std::unordered_map<std::string, SoundStream *> streams;
-    static int rate;
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);

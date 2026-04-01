@@ -200,7 +200,6 @@ int SoundStream::read(float *output, int frames) {
 
 std::unordered_map<std::string, SoundStream *> Mixer::streams;
 SE_Mutex Mixer::mutex;
-int Mixer::rate = 48000;
 
 void Mixer::requestSound(short *output, int frames) {
     float *tmp = new float[2 * frames]; /* we use float to store sound, because it's easier to deal with it */
