@@ -17,7 +17,7 @@ SCRATCH_BLOCK(makemakey, whenMakeyKeyPressed) {
     
     std::string key = Input::convertToKey(keyValue, true);
     if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0){
-        return BlockResult::CONTINUE_IMIDIATELY;
+        return BlockResult::CONTINUE_IMMEDIATELY;
     }
     return BlockResult::RETURN;
 }
@@ -43,11 +43,11 @@ SCRATCH_BLOCK(makemakey, whenCodePressed) {
     std::transform(key.begin(), key.end(), key.begin(), ::tolower);
     keySequence.push_back(key);
 
-    if (keySequence.size() <= 1) return BlockResult::CONTINUE_IMIDIATELY;
+    if (keySequence.size() <= 1) return BlockResult::CONTINUE_IMMEDIATELY;
 
     if (Input::checkSequenceMatch(keySequence)) {
         Input::codePressedBlockOpcodes.insert(block);
-        return BlockResult::CONTINUE_IMIDIATELY;
+        return BlockResult::CONTINUE_IMMEDIATELY;
     }
     return BlockResult::RETURN;
 }

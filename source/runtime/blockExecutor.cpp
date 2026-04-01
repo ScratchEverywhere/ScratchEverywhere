@@ -242,13 +242,13 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         }
 
         executionCount++;
-        if (thread.withoutScreenRefresh && var != BlockResult::CONTINUE_IMIDIATELY) executedBlocks++;
+        if (thread.withoutScreenRefresh && var != BlockResult::CONTINUE_IMMEDIATELY) executedBlocks++;
 
         // TODO: re-add (currently makes execution slow, maybe could use a Timer instead?)
         // if (thread.withoutScreenRefresh && executionCount >= Scratch::withoutScreenRefreshLimit) break;
         // if (!thread.withoutScreenRefresh && executionCount >= 1024) break;
 
-    } while ((var == BlockResult::CONTINUE_IMIDIATELY || (var == BlockResult::CONTINUE && (!currentBlock->isEndBlock || thread.withoutScreenRefresh))) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
+    } while ((var == BlockResult::CONTINUE_IMMEDIATELY || (var == BlockResult::CONTINUE && (!currentBlock->isEndBlock || thread.withoutScreenRefresh))) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
     if (currentBlock == nullptr || (var != BlockResult::REPEAT && currentBlock->nextBlock == nullptr)) thread.finished = true;
     return var;
 }

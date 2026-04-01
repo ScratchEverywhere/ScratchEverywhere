@@ -4,18 +4,18 @@
 
 SCRATCH_BLOCK(event, whenflagclicked) {
     thread->finished = false;
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(event, whenbackdropswitchesto) {
     if (Scratch::getFieldValue(*block, "BACKDROP") == Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name) {
-        return BlockResult::CONTINUE_IMIDIATELY;
+        return BlockResult::CONTINUE_IMMEDIATELY;
     }
     return BlockResult::RETURN;
 }
 
 SCRATCH_BLOCK(event, whenthisspriteclicked) {
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(event, broadcast) {
@@ -70,7 +70,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
         state->completedSteps = 1;
         if (state->threads.empty()) {
             thread->eraseState(block);
-            return BlockResult::CONTINUE_IMIDIATELY;
+            return BlockResult::CONTINUE_IMMEDIATELY;
         }
         return BlockResult::REPEAT;
     }
@@ -84,15 +84,15 @@ SCRATCH_BLOCK(event, broadcastandwait) {
         }
     }
     thread->eraseState(block);
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 // TODO: This is currently very poorly optimized. Please fix it, thank you.
 SCRATCH_BLOCK(event, whenkeypressed) {
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(event, whenbroadcastreceived) {
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)

@@ -20,7 +20,7 @@ SCRATCH_BLOCK(control, if) {
         Block *substack = block->inputs["SUBSTACK"].block;
         if (substack != nullptr) {
             thread->nextBlock = substack;
-            return BlockResult::CONTINUE_IMIDIATELY;
+            return BlockResult::CONTINUE_IMMEDIATELY;
         }
         return BlockResult::CONTINUE;
     }
@@ -38,7 +38,7 @@ SCRATCH_BLOCK(control, if_else) {
     Block *substack = block->inputs[key].block;
     if (substack != nullptr) {
         thread->nextBlock = substack;
-        return BlockResult::CONTINUE_IMIDIATELY;
+        return BlockResult::CONTINUE_IMMEDIATELY;
     }
 
     return BlockResult::CONTINUE;
@@ -151,7 +151,7 @@ SCRATCH_BLOCK(control, forever) {
     if (substack != nullptr)
         thread->nextBlock = substack;
     else return BlockResult::REPEAT;
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(control, wait_until) {
@@ -168,7 +168,7 @@ SCRATCH_BLOCK(control, wait) {
     if (state->completedSteps == 1) {
         if (state->waitTimer.hasElapsed(state->waitDuration)) {
             thread->eraseState(block);
-            return BlockResult::CONTINUE_IMIDIATELY;
+            return BlockResult::CONTINUE_IMMEDIATELY;
         }
         return BlockResult::REPEAT;
     }
@@ -203,7 +203,7 @@ SCRATCH_BLOCK(control, repeat) {
         thread->nextBlock = substack;
     else return BlockResult::REPEAT;
 
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(control, while) {
@@ -220,7 +220,7 @@ SCRATCH_BLOCK(control, while) {
         return BlockResult::REPEAT;
     }
     Scratch::resetInput(block);
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(control, repeat_until) {
@@ -237,7 +237,7 @@ SCRATCH_BLOCK(control, repeat_until) {
         return BlockResult::REPEAT;
     }
     Scratch::resetInput(block);
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(control, get_counter) {
@@ -278,5 +278,5 @@ SCRATCH_BLOCK(control, for_each) {
         thread->nextBlock = substack;
     else return BlockResult::REPEAT;
 
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }

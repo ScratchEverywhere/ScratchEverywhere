@@ -115,7 +115,7 @@ SCRATCH_BLOCK(motion, glideto) {
         if (elapsedTime >= state->waitDuration) {
             Scratch::gotoXY(sprite, state->glideEndX, state->glideEndY);
             thread->eraseState(block);
-            return BlockResult::CONTINUE_IMIDIATELY;
+            return BlockResult::CONTINUE_IMMEDIATELY;
         }
 
         const double progress = static_cast<double>(elapsedTime) / state->waitDuration;
@@ -166,7 +166,7 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
         if (elapsedTime >= state->waitDuration) {
             Scratch::gotoXY(sprite, state->glideEndX, state->glideEndY);
             thread->eraseState(block);
-            return BlockResult::CONTINUE_IMIDIATELY;
+            return BlockResult::CONTINUE_IMMEDIATELY;
         }
         double progress = static_cast<double>(elapsedTime) / state->waitDuration;
         Scratch::gotoXY(sprite, state->glideStartX + (state->glideEndX - state->glideStartX) * progress, state->glideStartY + (state->glideEndY - state->glideStartY) * progress);

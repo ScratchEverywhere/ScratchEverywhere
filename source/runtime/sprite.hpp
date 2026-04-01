@@ -31,7 +31,7 @@ enum class BlockResult : uint8_t {
     CONTINUE,
 
     // Continues to the next block, but never waits for the next screen refresh (used for things like loops)
-    CONTINUE_IMIDIATELY,
+    CONTINUE_IMMEDIATELY,
 
     // Yield for a screen refresh and re-run current block.
     REPEAT,

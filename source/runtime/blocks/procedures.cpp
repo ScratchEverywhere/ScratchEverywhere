@@ -78,7 +78,7 @@ SCRATCH_BLOCK(procedures, prototype) {
                                                      : Value("");
         }
     }
-    return BlockResult::CONTINUE_IMIDIATELY;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 BlockResult block_procedures_return_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue);
