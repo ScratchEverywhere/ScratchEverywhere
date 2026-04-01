@@ -2,7 +2,6 @@
 #include "blockExecutor.hpp"
 #include "collision.hpp"
 #include "math.hpp"
-#include "meta.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
 #include "sprite.hpp"
@@ -32,7 +31,12 @@
 #include <emscripten.h>
 #endif
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/meta.hpp>
+
 std::vector<std::unique_ptr<extensions::Extension>> Scratch::extensions;
+#endif
+
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
 std::vector<std::string> Scratch::broadcastQueue;

@@ -1,13 +1,16 @@
 #pragma once
 #include "blockExecutor.hpp"
 #include "sprite.hpp"
-#include <extensions/meta.hpp>
 #include <image.hpp>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <time.hpp>
 #include <unordered_map>
 #include <vector>
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/meta.hpp>
+#endif
 
 enum class ProjectType {
     UNZIPPED,
