@@ -104,7 +104,7 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
         }
     }
 
-    for (auto &[id, monitor] : Render::visibleVariables) {
+    for (auto &[id, monitor] : Render::monitors) {
         if (monitor.opcode == "data_variable") {
             auto it = sprite->variables.find(monitor.id);
             if (it != sprite->variables.end()) {
@@ -279,6 +279,9 @@ void BlockExecutor::runRepeatBlocks() {
         if (speechManager) {
             speechManager->clearSpeech(spr);
         }
+        Scratch::cloneQueue.erase(
+            std::remove(Scratch::cloneQueue.begin(), Scratch::cloneQueue.end(), spr),
+            Scratch::cloneQueue.end());
         delete spr;
         spr = nullptr;
     }
@@ -509,7 +512,7 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
 }
 
 void BlockExecutor::updateMonitors() {
-    for (auto &[id, var] : Render::visibleVariables) {
+    for (auto &[id, var] : Render::monitors) {
         if (var.visible) {
             Sprite *sprite = nullptr;
             for (auto &spr : Scratch::sprites) {
@@ -655,14 +658,10 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
 
 #ifdef ENABLE_CLOUDVARS
 void BlockExecutor::handleCloudVariableChange(const std::string &name, const std::string &value) {
-    for (const auto &currentSprite : Scratch::sprites) {
-        if (currentSprite->isStage) {
-            for (auto it = currentSprite->variables.begin(); it != currentSprite->variables.end(); ++it) {
-                if (it->second.name != name) continue;
-                it->second.value = Value(value);
-                return;
-            }
-        }
+    for (auto it = Scratch::stageSprite->variables.begin(); it != Scratch::stageSprite->variables.end(); ++it) {
+        if (it->second.name != name) continue;
+        it->second.value = Value(value);
+        return;
     }
 }
 #endif

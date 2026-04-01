@@ -8,6 +8,8 @@ on:
       - cmake/renderers/citro2d.cmake
       - cmake/windowing/3ds.cmake
       - cmake/audio/sdl3.cmake
+      - source/platforms/
+      - source/platforms/3ds/**
       - cmake/deps/*
       - source/runtime/**
       - source/renderers/citro2d/**

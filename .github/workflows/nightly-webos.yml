@@ -13,6 +13,8 @@ on:
       - webos_manifest.json
       - source/runtime/**
       - source/renderers/sdl2/**
+      - source/platforms/
+      - source/platforms/pc/**
       - source/*
       - source/menus/**
       - source/audio/sdl2/**

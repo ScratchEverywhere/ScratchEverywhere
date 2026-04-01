@@ -12,6 +12,8 @@ on:
       - source/runtime/**
       - source/renderers/sdl2/**
       - source/*
+      - source/platforms/
+      - source/platforms/vita/**
       - source/menus/**
       - source/audio/sdl2/**
       - gfx/vita/**

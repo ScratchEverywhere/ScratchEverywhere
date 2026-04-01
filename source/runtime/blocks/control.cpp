@@ -96,7 +96,6 @@ SCRATCH_BLOCK(control, create_clone_of) {
     clonedSprite->isClone = true;
     clonedSprite->toDelete = false;
     clonedSprite->renderInfo.forceUpdate = true;
-    clonedSprite->id = Math::generateRandomString(15);
 
     // Regenerate blocksMap
     clonedSprite->blocksMap.clear();
@@ -125,9 +124,9 @@ SCRATCH_BLOCK(control, delete_this_clone) {
     if (sprite->isClone) {
         sprite->toDelete = true;
         Scratch::cloneCount--;
-        for (auto &[id, chain] : sprite->blockChains) {
-            chain.blocksToRepeat.clear();
-        }
+        // for (auto &[id, chain] : sprite->blockChains) {
+        //     chain.blocksToRepeat.clear();
+        // }
         return BlockResult::RETURN;
     }
     return BlockResult::CONTINUE;

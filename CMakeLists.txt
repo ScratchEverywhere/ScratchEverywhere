@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.37 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.38.1 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -11,6 +11,8 @@ endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC and a few other things
+
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 
 include(CMakeDependentOption)
 
@@ -117,7 +119,9 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
 endfunction()
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
-set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+if(NOT DEFINED SE_RENDERER_PRIORITY)
+	set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
 
@@ -154,7 +158,6 @@ if(NOT DEFINED SE_CMAKERC_DEFAULT)
 endif()
 cmake_dependent_option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ${SE_CMAKERC_DEFAULT} "SE_ALLOW_CMAKERC" OFF)
 
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
 # Copy graphics files to romfs
@@ -186,7 +189,9 @@ endforeach()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
-set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
+set(PLATFORM_DIRS ${SE_PLATFORM})
+list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_MENU)
 	list(APPEND SOURCES source/menus)
@@ -207,6 +212,7 @@ if(WIN32)
 endif()
 
 add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+target_include_directories(scratch-everywhere PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external-include)
 set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
 if(DEFINED SE_PLATFORM_DEFINITIONS)
 	target_compile_definitions(scratch-everywhere PRIVATE ${SE_PLATFORM_DEFINITIONS})
@@ -241,12 +247,16 @@ if(SE_STATIC_LIBSTDCPP)
 endif()
 
 if(NOT BUILD_SHARED_LIBS AND MINGW)
-	target_link_options(scratch-everywhere PRIVATE "-static-libgcc" "-static-libstdc++")
+	target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
 endif()
 
 string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
 string(TOUPPER "WINDOWING_${SE_WINDOWING}" WINDOWING_DEFINITION)
 target_compile_definitions(scratch-everywhere PRIVATE ${RENDERER_DEFINITION} ${WINDOWING_DEFINITION})
+
+if(TARGET threads_interface)
+	target_link_libraries(scratch-everywhere PRIVATE threads_interface)
+endif()
 
 target_link_libraries(scratch-everywhere PRIVATE renderer_interface)
 target_link_libraries(scratch-everywhere PRIVATE windowing_interface)
@@ -270,8 +280,6 @@ if(SE_LOADSCREEN)
 endif()
 if(SE_DOWNLOAD)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_DOWNLOAD)
-	find_package(Threads REQUIRED)
-	target_link_libraries(scratch-everywhere PRIVATE Threads::Threads)
 	se_add_dependency(scratch-everywhere libcurl)
 endif()
 if(SE_CLOUDVARS)
@@ -330,7 +338,6 @@ target_include_directories(scratch-everywhere PRIVATE ${SOURCES})
 
 # TODO: Move to cmake/platforms/wasm.cmake
 if(EMSCRIPTEN)
-	target_include_directories(scratch-everywhere PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/wasm)
 	set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
 	target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
 endif()

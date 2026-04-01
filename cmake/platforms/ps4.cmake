@@ -17,6 +17,8 @@ set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
+set(SE_PLATFORM "ps4")
+
 macro(package_platform)
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/sce_module"

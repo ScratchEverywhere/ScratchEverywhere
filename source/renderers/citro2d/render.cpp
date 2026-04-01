@@ -22,21 +22,14 @@ C3D_RenderTarget *bottomScreen = nullptr;
 constexpr u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
 constexpr u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
 constexpr u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-bool Render::debugMode = false;
 static bool isConsoleInit = false;
-float Render::renderScale = 1.0f;
 
 C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget;
 Tex3DS_SubTexture penSubtex;
 C3D_Tex *penTex;
 
-Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
-bool Render::hasFrameBegan;
 static int currentScreen = 0;
-std::unordered_map<std::string, Monitor> Render::visibleVariables;
 
 enum class FastPenType {
     DOT,
@@ -473,7 +466,7 @@ void Render::renderSprites() {
         if (speechManager) {
             speechManager->render();
         }
-        renderVisibleVariables();
+        renderMonitors();
         // Draw mouse pointer
         if (Input::mousePointer.isMoving) {
             C2D_DrawRectSolid((Input::mousePointer.x * renderScale) + (screenWidth * 0.5),
@@ -534,7 +527,7 @@ void Render::renderSprites() {
         if (speechManager) {
             speechManager->render();
         }
-        renderVisibleVariables();
+        renderMonitors();
 
         if (Render::renderMode != Render::BOTH_SCREENS)
             drawBlackBars(screenWidth, screenHeight);
@@ -594,9 +587,9 @@ void Render::renderSprites() {
 
         if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(bottomScreenWidth, screenHeight);
-            renderVisibleVariables();
+            renderMonitors();
         } else {
-            renderVisibleVariables(-40, -240);
+            renderMonitors(-40, -240);
         }
     }
 

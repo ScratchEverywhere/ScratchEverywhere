@@ -487,6 +487,7 @@ ImageData Image::getPixels(ImageSubrect rect) {
 
     out.width = rect.w;
     out.height = rect.h;
+    out.scale = imgData.scale;
     out.format = IMAGE_FORMAT_RGBA32;
     out.pitch = imgData.pitch;
     out.pixels = base;

@@ -7,7 +7,7 @@
 
 class Image_GL2D : public Image {
   private:
-    nonstd::expected<void, std::string> setInitialTexture();
+    nonstd::expected<void, std::string> setInitialTexture(bool fromScratchProject);
     void RGBAToPAL8();
     void *resizeRGBAImage(uint16_t newWidth, uint16_t newHeight);
 
