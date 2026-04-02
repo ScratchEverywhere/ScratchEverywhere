@@ -79,7 +79,7 @@ class Scratch {
     static bool miscellaneousLimits;
     static bool shouldStop;
     static bool forceRedraw;
-    static int withoutScreenRefreshLimit;
+    static bool warpTimer;
 
     static bool debugVars;
     static bool sb3InRam;

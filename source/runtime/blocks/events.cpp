@@ -18,6 +18,10 @@ SCRATCH_BLOCK(event, whenthisspriteclicked) {
     return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
+SCRATCH_BLOCK(event, whenstageclicked) {
+    return BlockResult::CONTINUE_IMMEDIATELY;
+}
+
 SCRATCH_BLOCK(event, broadcast) {
     Value broadcast;
     if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
@@ -96,5 +100,3 @@ SCRATCH_BLOCK(event, whenbroadcastreceived) {
 }
 
 SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)
-
-SCRATCH_SHADOW_BLOCK(event, whenstageclicked)

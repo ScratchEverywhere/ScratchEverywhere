@@ -145,11 +145,11 @@ void ProjectSettings::init() {
 #endif
     }
 
-    int currentLimit = 4096;
-    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["withoutScreenRefreshLimit"].is_null()) {
-        currentLimit = settings["settings"]["withoutScreenRefreshLimit"].get<int>();
-    }
-    refreshLimitButton->text->setText("No Refresh Limit: " + std::to_string(currentLimit));
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["warpTimer"].is_null()) {
+        if (settings["settings"]["warpTimer"].get<bool>())
+            refreshLimitButton->text->setText("Warp Timer: ON");
+        else refreshLimitButton->text->setText("Warp Timer: OFF");
+    } else refreshLimitButton->text->setText("Warp Timer: ON");
 
     isInitialized = true;
 }
@@ -197,19 +197,9 @@ void ProjectSettings::render() {
     }
     if (refreshLimitButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        int currentLimit = 4096;
-        if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["withoutScreenRefreshLimit"].is_null()) {
-            currentLimit = settings["settings"]["withoutScreenRefreshLimit"].get<int>();
-        }
-        int newLimit = 4096;
-        if (currentLimit <= 1024) newLimit = 4096;
-        else if (currentLimit <= 4096) newLimit = 16384;
-        else if (currentLimit <= 16384) newLimit = 32768;
-        else newLimit = 1024;
-
-        settings["settings"]["withoutScreenRefreshLimit"] = newLimit;
+        settings["settings"]["warpTimer"] = refreshLimitButton->text->getText() == "Warp Timer: ON" ? false : true;
         SettingsManager::saveProjectSettings(settings, projectPath);
-        refreshLimitButton->text->setText("No Refresh Limit: " + std::to_string(newLimit));
+        refreshLimitButton->text->setText(refreshLimitButton->text->getText() == "Warp Timer: ON" ? "Warp Timer: OFF" : "Warp Timer: ON");
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();

@@ -299,7 +299,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 Block *newBlock = new Block();
 
                 newBlock->opcode = opcode;
-                if (newBlock->opcode == "event_whenthisspriteclicked") {
+                if (newBlock->opcode == "event_whenthisspriteclicked" || newBlock->opcode == "event_whenstageclicked") {
                     newSprite->shouldDoSpriteClick = true;
                 }
 
@@ -594,10 +594,10 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
         Scratch::debugVars = true;
     else Scratch::debugVars = false;
 
-    auto withoutScreenRefreshLimit = Unzip::getSetting("withoutScreenRefreshLimit");
-    if (!withoutScreenRefreshLimit.is_null() && withoutScreenRefreshLimit.is_number_integer())
-        Scratch::withoutScreenRefreshLimit = withoutScreenRefreshLimit.get<int>();
-    else Scratch::withoutScreenRefreshLimit = 4096;
+    auto withoutScreenRefreshLimit = Unzip::getSetting("warpTimer");
+    if (!withoutScreenRefreshLimit.is_null() && withoutScreenRefreshLimit.is_boolean())
+        Scratch::warpTimer = withoutScreenRefreshLimit.get<bool>();
+    else Scratch::warpTimer = true;
 
     if (infClones) Scratch::maxClones = std::numeric_limits<int>::max();
     else Scratch::maxClones = 300;

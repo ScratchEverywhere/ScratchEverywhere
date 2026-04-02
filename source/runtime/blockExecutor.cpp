@@ -257,8 +257,8 @@ void BlockExecutor::runThreads() {
 BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value *outValue) {
     if (thread.nextBlock == nullptr) return BlockResult::RETURN;
     BlockResult var = BlockResult::CONTINUE;
-    unsigned int executedBlocks = 0;
-    unsigned int executionCount = 0;
+    Timer executionTimer(false);
+    if (Scratch::warpTimer) executionTimer.start();
     Block *currentBlock = nullptr;
     do {
         currentBlock = thread.nextBlock;
@@ -267,45 +267,17 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
-            // if (thread.nextBlock != nullptr) Scratch::resetInput(thread.nextBlock); // just for safety
             Scratch::resetInput(currentBlock);
         }
 
-        executionCount++;
-        if (thread.withoutScreenRefresh && var != BlockResult::CONTINUE_IMMEDIATELY) executedBlocks++;
-
-        // TODO: re-add (currently makes execution slow, maybe could use a Timer instead?)
-        // if (thread.withoutScreenRefresh && executionCount >= Scratch::withoutScreenRefreshLimit) break;
-        // if (!thread.withoutScreenRefresh && executionCount >= 1024) break;
+        if (Scratch::warpTimer && thread.withoutScreenRefresh && executionTimer.getTimeMs() > 500) {
+            break;
+        }
 
     } while ((var == BlockResult::CONTINUE_IMMEDIATELY || (var == BlockResult::CONTINUE && (!currentBlock->isEndBlock || thread.withoutScreenRefresh))) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
     if (currentBlock == nullptr || (var != BlockResult::REPEAT && currentBlock->nextBlock == nullptr)) thread.finished = true;
     return var;
 }
-
-// old thingy
-/*BlockResult BlockExecutor::runBlock(Block *block, ScriptThread &thread, Sprite &sprite, Value *outValue) {
-    bool finished = true;
-    BlockResult executedBlock;
-    do {
-        bool finished = true;
-        for (auto &input : block->inputs) {
-            if (input.second.needed && !input.second.calculated) {
-
-                if (Scratch::getInput(block, input.first, &thread, &sprite, input.second.value)) {
-                    input.second.calculated = true;
-                    input.second.needed = false;
-                } else {
-                    finished = false;
-                }
-                if (Scratch::shouldStop) return BlockResult::CONTINUE;
-            }
-            if (!finished) return BlockResult::REPEAT;
-        }
-
-    } while ((executedBlock = block->blockFunction(block, &thread, &sprite, outValue)) == BlockResult::GET_INPUTS);
-    return executedBlock;
-}*/
 
 void BlockExecutor::runAllBlocksByOpcode(const std::string &opcode, std::vector<ScriptThread *> *out) {
     for (auto &sprite : Scratch::sprites) {
@@ -316,6 +288,7 @@ void BlockExecutor::runAllBlocksByOpcode(const std::string &opcode, std::vector<
         }
     }
 }
+
 void BlockExecutor::runAllBlocksByOpcodeInSprite(const std::string &opcode, Sprite *sprite, std::vector<ScriptThread *> *out) {
     if (sprite->hats[opcode].empty()) return;
     for (auto &hat : sprite->hats[opcode]) {

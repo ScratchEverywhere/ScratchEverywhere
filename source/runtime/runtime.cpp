@@ -56,7 +56,7 @@ bool Scratch::accuratePen = false;
 bool Scratch::accurateCollision = true;
 bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
-int Scratch::withoutScreenRefreshLimit = 4096;
+bool Scratch::warpTimer = true;
 
 Timer Scratch::fpsTimer(false);
 
@@ -268,7 +268,7 @@ void Scratch::cleanupScratchProject() {
     forceRedraw = false;
     useCustomUsername = false;
     sb3InRam = true;
-    withoutScreenRefreshLimit = 4096;
+    warpTimer = true;
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 
