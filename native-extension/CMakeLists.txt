@@ -1,7 +1,6 @@
 if(APPLE)
-	add_library(native-extension MODULE main.cpp)
+	add_library(native-extension SHARED main.cpp)
 	target_link_options(native-extension PRIVATE -undefined dynamic_lookup)
-	set_target_properties(native-extension PROPERTIES BUNDLE TRUE)
 else()
 	add_library(native-extension SHARED main.cpp)
 endif()
