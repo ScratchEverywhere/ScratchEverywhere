@@ -647,7 +647,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
     }
 }
 
-void Parser::loadFields(Block &block, std::string blockKey, const nlohmann::json &blockDatas, int indent) {
+void Parser::loadFields(Block &block, const std::string &blockKey, const nlohmann::json &blockDatas, int indent) {
     auto &blockData = blockDatas[blockKey];
     if (!blockData.contains("fields") || blockData["fields"].empty()) return;
 
@@ -728,7 +728,7 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
 
                 if (procode == "\u200B\u200Blog\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
                 else if (procode == "\u200B\u200Bwarn\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
-                else if (procode == "\u200B\error\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
+                else if (procode == "\u200B\u200Berror\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
                 else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3"];
                 else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3withData"];
 

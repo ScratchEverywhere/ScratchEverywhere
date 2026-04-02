@@ -250,6 +250,9 @@ void Scratch::cleanupScratchProject() {
         }
     }
 
+    for (Block *block : blocks) {
+        delete block;
+    }
     blocks.clear();
     stageSprite = nullptr;
     answer.clear();
