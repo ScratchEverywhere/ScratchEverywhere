@@ -37,11 +37,12 @@ enum ImageFormat {
 };
 
 struct ImageData {
-    int width, height;
-    ImageFormat format;
-    int pitch;
+    int width = 0;
+    int height = 0;
+    ImageFormat format = IMAGE_FORMAT_NONE;
+    int pitch = 0;
     void *pixels = nullptr;
-    float scale = 1;
+    float scale = 1.0f;
 };
 
 #ifdef ENABLE_SVG
