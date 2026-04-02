@@ -1,8 +1,8 @@
+add_library(native-extension SHARED main.cpp)
+
 if(APPLE)
-	add_library(native-extension SHARED main.cpp)
 	target_link_options(native-extension PRIVATE -undefined dynamic_lookup)
-else()
-	add_library(native-extension SHARED main.cpp)
+	set_target_properties(native-extension PROPERTIES BUNDLE TRUE)
 endif()
 
 target_include_directories(native-extension PRIVATE ${ABSOLUTE_SOURCES}) # I'm testing this pre-library so uh i just have to use the source dirs as include dirs
