@@ -85,11 +85,11 @@ void Scratch::initializeScratchProject() {
 #ifdef ENABLE_MENU
     Scratch::pauseMenu = nullptr;
 #endif
-    // #ifdef ENABLE_CACHING
-    //     for (auto &sprite : sprites) {
-    //         BlockExecutor::linkPointers(sprite);
-    //     }
-    // #endif
+#ifdef ENABLE_CACHING
+    for (auto &sprite : sprites) {
+        BlockExecutor::linkPointers(sprite);
+    }
+#endif
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird
@@ -293,8 +293,14 @@ bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread
             outValue = input.value;
             return true;
         }
+
         input.calculated = true;
+#ifdef ENABLE_CACHING
+        if (input.variable != nullptr) input.value = input.variable->value;
+        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+#else
         input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
+#endif
         outValue = input.value;
         return true;
     case ParsedInput::InputType::BLOCK: {
@@ -659,10 +665,6 @@ std::string Scratch::getListName(Block &block) {
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
-    // #ifdef ENABLE_CACHING
-    //     if (block.list != nullptr) return &block.list->items;
-    // #endif
-
     std::string listId = Scratch::getFieldId(block, "LIST");
     Sprite *targetSprite = nullptr;
     if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;

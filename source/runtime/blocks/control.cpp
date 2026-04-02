@@ -96,6 +96,9 @@ SCRATCH_BLOCK(control, create_clone_of) {
     spriteToClone->broadcasts = original->broadcasts;
     spriteToClone->renderInfo.forceUpdate = true;
     spriteToClone->hats = original->hats;
+#ifdef ENABLE_CACHING
+    BlockExecutor::linkPointers(spriteToClone);
+#endif
     Scratch::forceRedraw = true;
     Scratch::pendingSprites.push_back(std::make_pair(spriteToClone, original));
     BlockExecutor::runAllBlocksByOpcodeInSprite("control_start_as_clone", spriteToClone);

@@ -56,6 +56,8 @@ class BlockExecutor {
   public:
     static std::unordered_map<std::string, BlockFunc> &getHandlers(); // every type of block is stored here (no differentiation between blocks, values, etc.)
 
+    static void linkPointers(Sprite *sprite);
+
     static void executeKeyHats();
     static void doSpriteClicking();
 

@@ -140,6 +140,21 @@ inline void BlockState::clear() {
     myBlockThread = nullptr;
 }
 
+struct Variable {
+    std::string id;
+    std::string name;
+#ifdef ENABLE_CLOUDVARS
+    bool cloud;
+#endif
+    Value value;
+};
+
+struct List {
+    std::string id;
+    std::string name;
+    std::vector<Value> items;
+};
+
 struct ParsedInput {
     enum InputType {
         VALUE,
@@ -155,6 +170,10 @@ struct ParsedInput {
     explicit ParsedInput(Value value) : value(value) { inputType = InputType::VALUE; }
     explicit ParsedInput(Block *block) : block(block) { inputType = InputType::BLOCK; }
     explicit ParsedInput(std::string variableID) : variableId(variableID) { inputType = InputType::VARIABLE; }
+
+#ifdef ENABLE_CACHING
+    Variable *variable = nullptr;
+#endif
 };
 
 struct ParsedField {
@@ -247,21 +266,13 @@ struct Monitor {
     double sliderMin;
     double sliderMax;
     bool isDiscrete;
-};
 
-struct Variable {
-    std::string id;
-    std::string name;
-#ifdef ENABLE_CLOUDVARS
-    bool cloud;
+#ifdef ENABLE_CACHING
+    union {
+        Variable *variablePtr = nullptr;
+        List *listPtr;
+    };
 #endif
-    Value value;
-};
-
-struct List {
-    std::string id;
-    std::string name;
-    std::vector<Value> items;
 };
 
 class Sprite {
