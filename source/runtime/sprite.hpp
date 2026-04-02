@@ -69,6 +69,7 @@ struct ScriptThread {
     Block *nextBlock;
     std::unordered_map<Block *, BlockState *> states;
     int finished = true;
+    bool yieldedThisFrame = false;
     bool withoutScreenRefresh = false;
 
     std::unordered_map<std::string, Value> MyBlocksVariablen;
@@ -109,6 +110,7 @@ struct ScriptThread {
 
             curr->finished = true;
             curr->withoutScreenRefresh = false;
+            curr->yieldedThisFrame = false;
             curr->returnValue = Value();
             curr->MyBlocksVariablen.clear();
 

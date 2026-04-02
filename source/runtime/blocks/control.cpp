@@ -168,7 +168,7 @@ SCRATCH_BLOCK(control, wait) {
     if (state->completedSteps == 1) {
         if (state->waitTimer.hasElapsed(state->waitDuration)) {
             thread->eraseState(block);
-            return BlockResult::CONTINUE_IMMEDIATELY;
+            return BlockResult::CONTINUE;
         }
         return BlockResult::REPEAT;
     }

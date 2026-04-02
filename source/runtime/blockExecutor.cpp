@@ -174,35 +174,65 @@ ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
 }
 
 void BlockExecutor::runThreads() {
-    if (!Scratch::pendingSprites.empty()) {
-        for (auto &sprite : Scratch::pendingSprites) {
-            Scratch::addCloneBehind(sprite.second, sprite.first);
-        }
-        Scratch::pendingSprites.clear();
-    }
-
     for (auto &sprite : Scratch::sprites) {
-        if (!sprite->pendingThreads.empty()) {
-            sprite->threads.insert(sprite->threads.end(), sprite->pendingThreads.begin(), sprite->pendingThreads.end());
-            sprite->pendingThreads.clear();
+        for (auto &thread : sprite->threads) {
+            thread->yieldedThisFrame = false;
         }
-        size_t i = sprite->threads.size();
-        while (i > 0) {
-            i--;
-            ScriptThread *thread = sprite->threads[i];
-            BlockResult var;
-
-            if (thread->finished) {
-                thread->clear();
-                Pools::threads.push_back(thread);
-                sprite->threads.erase(sprite->threads.begin() + i);
-                continue;
-            }
-            var = runThread(*thread, *sprite, nullptr);
-            if (Scratch::shouldStop) return;
-        }
-        if (stopClicked) break;
     }
+
+    bool threadsAddedThisTick;
+    do {
+
+        threadsAddedThisTick = false;
+
+        if (!Scratch::pendingSprites.empty()) {
+            for (auto &sprite : Scratch::pendingSprites) {
+                Scratch::addCloneBehind(sprite.second, sprite.first);
+            }
+            Scratch::pendingSprites.clear();
+        }
+
+        for (auto &sprite : Scratch::sprites) {
+            if (!sprite->pendingThreads.empty()) {
+                sprite->threads.insert(sprite->threads.end(), sprite->pendingThreads.begin(), sprite->pendingThreads.end());
+                sprite->pendingThreads.clear();
+                threadsAddedThisTick = true;
+            }
+            size_t i = sprite->threads.size();
+            while (i > 0) {
+                i--;
+                ScriptThread *thread = sprite->threads[i];
+                BlockResult var;
+
+                if (thread->finished) {
+                    thread->clear();
+                    Pools::threads.push_back(thread);
+                    sprite->threads.erase(sprite->threads.begin() + i);
+                    continue;
+                }
+                if (thread->yieldedThisFrame) continue;
+
+                var = runThread(*thread, *sprite, nullptr);
+
+                if (!thread->finished) {
+                    thread->yieldedThisFrame = true;
+                }
+
+                if (Scratch::shouldStop) return;
+            }
+            if (stopClicked) break;
+        }
+
+        for (auto &sprite : Scratch::sprites) {
+            if (!sprite->pendingThreads.empty()) {
+                sprite->threads.insert(sprite->threads.end(), sprite->pendingThreads.begin(), sprite->pendingThreads.end());
+                sprite->pendingThreads.clear();
+                threadsAddedThisTick = true;
+            }
+        }
+
+    } while (threadsAddedThisTick && !stopClicked && !Scratch::shouldStop);
+
     Scratch::sprites.erase(
         std::remove_if(Scratch::sprites.begin(), Scratch::sprites.end(),
                        [](Sprite *s) {

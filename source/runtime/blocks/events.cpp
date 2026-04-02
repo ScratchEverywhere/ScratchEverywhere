@@ -70,7 +70,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
         state->completedSteps = 1;
         if (state->threads.empty()) {
             thread->eraseState(block);
-            return BlockResult::CONTINUE_IMMEDIATELY;
+            return BlockResult::CONTINUE;
         }
         return BlockResult::REPEAT;
     }
@@ -84,7 +84,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
         }
     }
     thread->eraseState(block);
-    return BlockResult::CONTINUE_IMMEDIATELY;
+    return BlockResult::CONTINUE;
 }
 // TODO: This is currently very poorly optimized. Please fix it, thank you.
 SCRATCH_BLOCK(event, whenkeypressed) {

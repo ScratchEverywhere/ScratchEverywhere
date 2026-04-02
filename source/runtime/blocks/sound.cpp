@@ -51,7 +51,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
     }
     thread->eraseState(block);
 #endif
-    return BlockResult::CONTINUE_IMMEDIATELY;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(sound, play) {
