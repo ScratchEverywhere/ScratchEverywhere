@@ -75,7 +75,12 @@ std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
 void Scratch::initializeScratchProject() {
     // Magic custom extensions testing code
-    void *extensionHandle = dlopen("build/native-extension/libnative-extension.so", RTLD_NOW | RTLD_GLOBAL);
+#ifdef __APPLE__
+    constexpr std::string_view libraryExtension = "dylib";
+#else
+    constexpr std::string_view libraryExtension = "so";
+#endif
+    void *extensionHandle = dlopen(("./libnative-extension." + std::string(libraryExtension)).c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!extensionHandle) {
         Log::logError(std::string("Failed to load native extension handle: ") + dlerror());
     }
