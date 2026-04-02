@@ -244,7 +244,6 @@ if(SE_ASAN)
 endif()
 
 set_target_properties(scratch-everywhere PROPERTIES ENABLE_EXPORTS TRUE)
-target_link_options(scratch-everywhere PRIVATE "-rdynamic") # may be unnecessary
 
 if(SE_STATIC_LIBGCC)
 	target_link_options(scratch-everywhere PRIVATE "-static-libgcc")
