@@ -767,7 +767,7 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
         }
 
         if (!blockDatas[currentId].contains("shadow") || !blockDatas[currentId]["shadow"].get<bool>()) {
-            // newBlock->opcode.clear();
+            newBlock->shadow = true;
         }
 
         if (hasNext) {
@@ -812,6 +812,7 @@ void Parser::setSubstack(Block *startBlock, Block *stopBlock) {
             }
         }
 
+        if (!current->shadow) current->opcode.clear();
         if (current->isEndBlock) break;
         current = current->nextBlock;
     }

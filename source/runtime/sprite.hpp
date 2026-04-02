@@ -176,6 +176,7 @@ struct Block {
     bool MyBlockWithoutScreenRefresh = false;
     bool hasReturnValue = false;
     bool isEndBlock = false;
+    bool shadow = false;
 
     std::unordered_map<std::string, ParsedInput> inputs;
     std::unordered_map<std::string, ParsedField> fields;
