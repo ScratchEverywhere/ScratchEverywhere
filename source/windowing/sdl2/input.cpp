@@ -56,18 +56,21 @@ extern std::string customUsername;
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos = {0, 0};
     int rawMouseX, rawMouseY;
-    if (touchActive) {
 #ifdef PLATFORM_HAS_TOUCH
+    if (touchActive) {
         pos[0] = touchPosition.x;
         pos[1] = touchPosition.y;
-#endif
+
     } else {
+#endif
 #ifdef PLATFORM_HAS_MOUSE
         SDL_GetMouseState(&rawMouseX, &rawMouseY);
         pos[0] = rawMouseX;
         pos[1] = rawMouseY;
 #endif
+#ifdef PLATFORM_HAS_TOUCH
     }
+#endif
 
     return pos;
 }
