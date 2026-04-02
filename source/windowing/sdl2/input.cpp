@@ -56,7 +56,7 @@ extern std::string customUsername;
 std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos = {0, 0};
     int rawMouseX, rawMouseY;
-    if (SDL_GetNumTouchDevices() > 0 && SDL_GetNumTouchFingers(SDL_GetTouchDevice(0))) {
+    if (touchActive) {
 #ifdef PLATFORM_HAS_TOUCH
         pos[0] = touchPosition.x;
         pos[1] = touchPosition.y;
@@ -202,7 +202,7 @@ void Input::getInput() {
     BlockExecutor::executeKeyHats();
 
 #ifdef PLATFORM_HAS_TOUCH
-    if (SDL_GetNumTouchDevices() > 0 && SDL_GetNumTouchFingers(SDL_GetTouchDevice(0))) {
+    if (touchActive) {
         // Transform touch coordinates to Scratch space
         auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
         mousePointer.x = coords.first;
