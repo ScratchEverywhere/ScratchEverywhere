@@ -137,6 +137,7 @@ inline void BlockState::clear() {
     waitTimer = Timer();
     name = "";
     threads.clear();
+    if (myBlockThread != nullptr) delete myBlockThread;
     myBlockThread = nullptr;
 }
 
@@ -348,6 +349,10 @@ class Sprite {
             thread->clear();
             Pools::threads.push_back(thread);
         }
+        for (auto const &[proccode, blockPtr] : customHatBlock) {
+            delete blockPtr;
+        }
+        customHatBlock.clear();
 
         variables.clear();
         lists.clear();

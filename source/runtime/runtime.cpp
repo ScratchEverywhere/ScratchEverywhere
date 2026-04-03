@@ -465,6 +465,15 @@ void Scratch::cleanupSprites() {
         }
     }
     Scratch::sprites.clear();
+    for (auto &pair : Scratch::pendingSprites) {
+        if (pair.first) {
+            if (speechManager) {
+                speechManager->clearSpeech(pair.first);
+            }
+            delete pair.first;
+        }
+    }
+    Scratch::pendingSprites.clear();
 }
 
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {

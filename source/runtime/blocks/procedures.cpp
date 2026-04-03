@@ -15,6 +15,7 @@ SCRATCH_BLOCK(procedures, call) {
 
             // delete instead of putting into thread pool, since otherwise it would just grow each time a call is made
             delete state->myBlockThread;
+            state->myBlockThread = nullptr;
 
             thread->eraseState(block);
             return BlockResult::CONTINUE;
