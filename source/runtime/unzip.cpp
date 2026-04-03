@@ -167,7 +167,6 @@ bool Unzip::load() {
         return false;
     }
 #endif
-
     loadInitialImages();
     return true;
 }

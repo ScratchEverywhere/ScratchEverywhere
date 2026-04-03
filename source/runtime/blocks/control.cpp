@@ -11,275 +11,241 @@
 #include <value.hpp>
 
 SCRATCH_BLOCK(control, if) {
-    const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    const bool condition = conditionValue.asBoolean();
-    const auto it = block.parsedInputs->find("SUBSTACK");
-    Block *const subBlock = it == block.parsedInputs->end() ? nullptr : sprite->blocksMap[it->second.blockId];
-    std::vector<std::string> blockID;
-    Block *repeatBlock;
+    Value conditionValue;
+    if (!Scratch::getInput(block, "CONDITION", thread, sprite, conditionValue)) return BlockResult::REPEAT;
 
-    if (!fromRepeat) {
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-    } else {
-        goto end;
+    const bool condition = conditionValue.asBoolean();
+
+    if (condition) {
+        Block *substack = block->inputs["SUBSTACK"].block;
+        if (substack != nullptr) {
+            thread->nextBlock = substack;
+            return BlockResult::CONTINUE_IMMEDIATELY;
+        }
+        return BlockResult::CONTINUE;
     }
 
-    if (!condition || subBlock == nullptr) goto end;
-    executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
-    blockID = sprite->blockChains[block.blockChainID].blocksToRepeat;
-    if (blockID.empty()) return BlockResult::RETURN;
-    repeatBlock = sprite->blocksMap[blockID.back()];
-    if (!repeatBlock || repeatBlock != &block) return BlockResult::RETURN;
-
-end:
-    BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(control, if_else) {
-    const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
+    Value conditionValue;
+    if (!Scratch::getInput(block, "CONDITION", thread, sprite, conditionValue)) return BlockResult::REPEAT;
+
     const bool condition = conditionValue.asBoolean();
     const std::string key = condition ? "SUBSTACK" : "SUBSTACK2";
-    const auto it = block.parsedInputs->find(key);
-    std::vector<std::string> blockID;
-    Block *repeatBlock;
 
-    if (!fromRepeat) {
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-    } else {
-        BlockExecutor::removeFromRepeatQueue(sprite, &block);
-        return BlockResult::CONTINUE;
+    Block *substack = block->inputs[key].block;
+    if (substack != nullptr) {
+        thread->nextBlock = substack;
+        return BlockResult::CONTINUE_IMMEDIATELY;
     }
 
-    if (it == block.parsedInputs->end()) {
-        BlockExecutor::removeFromRepeatQueue(sprite, &block);
-        return BlockResult::CONTINUE;
-    }
-    Block *const subBlock = sprite->blocksMap[it->second.blockId];
-    if (subBlock == nullptr) goto end;
-    executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
-    blockID = sprite->blockChains[block.blockChainID].blocksToRepeat;
-    if (blockID.empty()) return BlockResult::RETURN;
-    repeatBlock = sprite->blocksMap[blockID.back()];
-    if (!repeatBlock || repeatBlock != &block) return BlockResult::RETURN;
-
-end:
-    BlockExecutor::removeFromRepeatQueue(sprite, &block);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(control, create_clone_of) {
     if (Scratch::cloneCount >= Scratch::maxClones) return BlockResult::CONTINUE;
-    const Value inputValue = Scratch::getInputValue(block, "CLONE_OPTION", sprite);
+    Value input;
+    if (!Scratch::getInput(block, "CLONE_OPTION", thread, sprite, input)) return BlockResult::REPEAT;
 
-    Sprite *clonedSprite = new Sprite();
-    Sprite *targetSprite = nullptr;
-    if (inputValue.asString() == "_myself_") {
-        targetSprite = sprite;
+    Sprite *original = nullptr;
+    if (input.asString() == "_myself_") {
+        original = sprite;
     } else {
         for (Sprite *currentSprite : Scratch::sprites) {
-            if (!currentSprite->isClone && !currentSprite->isStage && currentSprite->name == inputValue.asString()) {
-                targetSprite = currentSprite;
+            if (!currentSprite->isClone && !currentSprite->isStage && currentSprite->name == input.asString()) {
+                original = currentSprite;
                 break;
             }
         }
     }
 
-    if (targetSprite == nullptr) {
-        delete clonedSprite;
-        return BlockResult::CONTINUE;
-    }
-
-    *clonedSprite = *targetSprite;
-    clonedSprite->blockChains.clear();
-    clonedSprite->isClone = true;
-    clonedSprite->toDelete = false;
-    clonedSprite->renderInfo.forceUpdate = true;
-
-    // Regenerate blocksMap
-    clonedSprite->blocksMap.clear();
-    for (auto &block : clonedSprite->blocks) {
-        clonedSprite->blocksMap[block.id] = &block;
-    }
-
+    if (!original) return BlockResult::CONTINUE;
+    Sprite *spriteToClone = new Sprite();
+    spriteToClone->name = original->name;
+    spriteToClone->isStage = false;
+    spriteToClone->draggable = original->draggable;
+    spriteToClone->visible = original->visible;
+    spriteToClone->isClone = true;
+    spriteToClone->toDelete = false;
+    spriteToClone->shouldDoSpriteClick = original->shouldDoSpriteClick;
+    spriteToClone->currentCostume = original->currentCostume;
+    spriteToClone->xPosition = original->xPosition;
+    spriteToClone->yPosition = original->yPosition;
+    spriteToClone->rotationCenterX = original->rotationCenterX;
+    spriteToClone->rotationCenterY = original->rotationCenterY;
+    spriteToClone->size = original->size;
+    spriteToClone->rotation = original->rotation;
+    spriteToClone->layer = original->layer;
+    spriteToClone->rotationStyle = original->rotationStyle;
+    spriteToClone->spriteWidth = original->spriteWidth;
+    spriteToClone->spriteHeight = original->spriteHeight;
+    spriteToClone->ghostEffect = original->ghostEffect;
+    spriteToClone->brightnessEffect = original->brightnessEffect;
+    spriteToClone->colorEffect = original->colorEffect;
+    spriteToClone->volume = original->volume;
+    spriteToClone->pitch = original->pitch;
+    spriteToClone->pan = original->pan;
+    spriteToClone->penData = original->penData;
+    spriteToClone->textToSpeechData = original->textToSpeechData;
+    spriteToClone->variables = original->variables;
+    spriteToClone->lists = original->lists;
+    spriteToClone->sounds = original->sounds;
+    spriteToClone->costumes = original->costumes;
+    spriteToClone->broadcasts = original->broadcasts;
+    spriteToClone->renderInfo.forceUpdate = true;
+    spriteToClone->hats = original->hats;
 #ifdef ENABLE_CACHING
-    BlockExecutor::linkPointers(clonedSprite);
+    BlockExecutor::linkPointers(spriteToClone);
 #endif
-
-    const int sourceIndex = (Scratch::sprites.size() - 1) - targetSprite->layer;
-    auto it = Scratch::sprites.insert(Scratch::sprites.begin() + sourceIndex + 1, clonedSprite);
-
-    for (size_t i = 0; i < sourceIndex + 1; i++) {
-        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
-    }
-
-    Scratch::cloneQueue.push_back(*it);
+    Scratch::forceRedraw = true;
+    Scratch::pendingSprites.push_back(std::make_pair(spriteToClone, original));
+    BlockExecutor::runAllBlocksByOpcodeInSprite("control_start_as_clone", spriteToClone);
     Scratch::cloneCount++;
-
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(control, delete_this_clone) {
-    if (sprite->isClone) {
-        sprite->toDelete = true;
-        Scratch::cloneCount--;
-        // for (auto &[id, chain] : sprite->blockChains) {
-        //     chain.blocksToRepeat.clear();
-        // }
-        return BlockResult::RETURN;
-    }
-    return BlockResult::CONTINUE;
+    if (!sprite->isClone) return BlockResult::CONTINUE;
+    sprite->toDelete = true;
+    Scratch::cloneCount--;
+    return BlockResult::RETURN;
 }
 
 SCRATCH_BLOCK(control, stop) {
-    const std::string stopType = Scratch::getFieldValue(block, "STOP_OPTION");
-    if (stopType == "all") {
-        Scratch::stopClicked();
-        return BlockResult::RETURN;
-    }
-    if (stopType == "this script") {
-        sprite->blockChains[block.blockChainID].blocksToRepeat.clear();
-        return BlockResult::RETURN;
-    }
+    Value stopTypeV;
+    if (!Scratch::getInput(block, "STOP_OPTION", thread, sprite, stopTypeV)) return BlockResult::REPEAT;
+    std::string stopType = stopTypeV.asString();
 
+    if (stopType == "all") {
+        BlockExecutor::stopClicked = true;
+        return BlockResult::RETURN;
+    };
+    if (stopType == "this script") {
+        thread->finished = true;
+        return BlockResult::RETURN;
+    };
     if (stopType == "other scripts in sprite") {
-        for (auto &[id, chain] : sprite->blockChains) {
-            if (id == block.blockChainID) continue;
-            chain.blocksToRepeat.clear();
+        for (ScriptThread *t : sprite->threads) {
+            if (thread == t) continue;
+            t->finished = true;
+        }
+        for (ScriptThread *t : sprite->pendingThreads) {
+            if (thread == t) continue;
+            t->finished = true;
         }
         for (Sound sound : sprite->sounds)
-            SoundPlayer::stopSound(sound.fullName);
-        return BlockResult::CONTINUE;
+            SoundPlayer::stopSound(sound.fullName); // does it also stop the sound from the current thread?
     }
-
-    return BlockResult::RETURN;
+    return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK_NOP(control, start_as_clone)
-
-SCRATCH_BLOCK(control, wait) {
-    if (!fromRepeat) {
-        const Value duration = Scratch::getInputValue(block, "DURATION", sprite);
-        block.waitDuration = duration.asDouble() * 1000;
-
-        block.waitTimer.start();
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-
-        return BlockResult::RETURN;
-    }
-
-    if (!block.waitTimer.hasElapsed(block.waitDuration)) return BlockResult::RETURN;
-    BlockExecutor::removeFromRepeatQueue(sprite, &block);
-    Scratch::forceRedraw = true;
+SCRATCH_BLOCK(control, start_as_clone) {
+    if (!sprite->isClone) return BlockResult::CONTINUE;
+    thread->finished = false;
     return BlockResult::CONTINUE;
+}
+
+SCRATCH_SHADOW_BLOCK(control_create_clone_of_menu, CLONE_OPTION)
+
+SCRATCH_BLOCK(control, forever) {
+    Block *substack = block->inputs["SUBSTACK"].block;
+    if (substack != nullptr)
+        thread->nextBlock = substack;
+    else return BlockResult::REPEAT;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(control, wait_until) {
-    if (!fromRepeat) {
-        BlockExecutor::addToRepeatQueue(sprite, &block);
+    Value condition;
+    if (!Scratch::getInput(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
+
+    if (condition.asBoolean()) return BlockResult::CONTINUE;
+    Scratch::resetInput(block);
+    return BlockResult::REPEAT;
+}
+
+SCRATCH_BLOCK(control, wait) {
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps == 1) {
+        if (state->waitTimer.hasElapsed(state->waitDuration)) {
+            thread->eraseState(block);
+            return BlockResult::CONTINUE;
+        }
+        return BlockResult::REPEAT;
     }
+    Value duration;
+    if (!Scratch::getInput(block, "DURATION", thread, sprite, duration)) return BlockResult::REPEAT;
+    state->waitDuration = duration.asDouble() * 1000;
 
-    const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    const bool conditionMet = conditionValue.asBoolean();
-
-    if (!conditionMet) return BlockResult::RETURN;
-    BlockExecutor::removeFromRepeatQueue(sprite, &block);
-    return BlockResult::CONTINUE;
+    state->waitTimer.start();
+    Scratch::forceRedraw = true;
+    state->completedSteps = 1;
+    return BlockResult::REPEAT;
 }
 
 SCRATCH_BLOCK(control, repeat) {
-    if (!fromRepeat) {
-        block.repeatTimes = std::round(Scratch::getInputValue(block, "TIMES", sprite).asDouble());
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-    }
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps == 0) { // start
+        Value repeatTimesValue;
+        if (!Scratch::getInput(block, "TIMES", thread, sprite, repeatTimesValue)) return BlockResult::REPEAT;
+        state->repeatTimes = std::round(repeatTimesValue.asDouble());
 
-    if (block.repeatTimes <= 0) {
-        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+        state->completedSteps = 1;
+    }
+    if (state->repeatTimes <= 0) { // end
+        thread->eraseState(block);
         return BlockResult::CONTINUE;
     }
-    const auto it = block.parsedInputs->find("SUBSTACK");
-    if (it != block.parsedInputs->end()) {
-        Block *const subBlock = sprite->blocksMap[it->second.blockId];
-        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
-    }
 
-    // Countdown
-    block.repeatTimes--;
-    return BlockResult::RETURN;
+    state->repeatTimes--;
+
+    Block *substack = block->inputs["SUBSTACK"].block;
+    if (substack != nullptr)
+        thread->nextBlock = substack;
+    else return BlockResult::REPEAT;
+
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(control, while) {
-    if (!fromRepeat) {
-        BlockExecutor::addToRepeatQueue(sprite, &block);
+    Value condition;
+    if (!Scratch::getInput(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
+
+    if (!condition.asBoolean()) return BlockResult::CONTINUE;
+
+    Block *substack = block->inputs["SUBSTACK"].block;
+    if (substack != nullptr)
+        thread->nextBlock = substack;
+    else {
+        Scratch::resetInput(block);
+        return BlockResult::REPEAT;
     }
-
-    const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    const bool condition = conditionValue.asBoolean();
-
-    if (!condition) {
-        BlockExecutor::removeFromRepeatQueue(sprite, &block);
-        return BlockResult::CONTINUE;
-    }
-
-    const auto it = block.parsedInputs->find("SUBSTACK");
-    if (it == block.parsedInputs->end()) return BlockResult::RETURN;
-
-    const std::string &blockId = it->second.blockId;
-    const auto blockIt = sprite->blocksMap.find(blockId);
-    if (blockIt != sprite->blocksMap.end()) {
-        Block *subBlock = blockIt->second;
-        executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
-    } else {
-        Log::logError("Invalid blockId: " + blockId);
-    }
-
-    return BlockResult::RETURN;
+    Scratch::resetInput(block);
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
 SCRATCH_BLOCK(control, repeat_until) {
-    if (!fromRepeat) {
-        BlockExecutor::addToRepeatQueue(sprite, &block);
+    Value condition;
+    if (!Scratch::getInput(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
+
+    if (condition.asBoolean()) return BlockResult::CONTINUE;
+
+    Block *substack = block->inputs["SUBSTACK"].block;
+    if (substack != nullptr)
+        thread->nextBlock = substack;
+    else {
+        Scratch::resetInput(block);
+        return BlockResult::REPEAT;
     }
-
-    const Value conditionValue = Scratch::getInputValue(block, "CONDITION", sprite);
-    const bool condition = conditionValue.asBoolean();
-
-    if (condition) {
-        BlockExecutor::removeFromRepeatQueue(sprite, &block);
-
-        return BlockResult::CONTINUE;
-    }
-
-    const auto it = block.parsedInputs->find("SUBSTACK");
-    if (it == block.parsedInputs->end()) return BlockResult::RETURN;
-
-    const std::string &blockId = it->second.blockId;
-    auto blockIt = sprite->blocksMap.find(blockId);
-    if (blockIt != sprite->blocksMap.end()) {
-        Block *subBlock = blockIt->second;
-        executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
-    } else {
-        Log::logError("Invalid blockId: " + blockId);
-    }
-
-    return BlockResult::RETURN;
+    Scratch::resetInput(block);
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
-SCRATCH_BLOCK(control, forever) {
-    if (!fromRepeat) {
-        BlockExecutor::addToRepeatQueue(sprite, &block);
-    }
-
-    const auto it = block.parsedInputs->find("SUBSTACK");
-    if (it != block.parsedInputs->end()) {
-        Block *const subBlock = sprite->blocksMap[it->second.blockId];
-        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
-    }
-    return BlockResult::RETURN;
-}
-
-SCRATCH_REPORTER_BLOCK(control, get_counter) {
-    return Value(Scratch::counter);
+SCRATCH_BLOCK(control, get_counter) {
+    *outValue = Value(Scratch::counter);
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(control, incr_counter) {
@@ -293,25 +259,27 @@ SCRATCH_BLOCK(control, clear_counter) {
 }
 
 SCRATCH_BLOCK(control, for_each) {
-    double upperBound = Scratch::getInputValue(block, "VALUE", sprite).asDouble();
-    if (!fromRepeat) {
-        block.repeatTimes = 0;
-        BlockExecutor::addToRepeatQueue(sprite, &block);
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps != 1) {
+        Value upperBound;
+        if (!Scratch::getInput(block, "VALUE", thread, sprite, upperBound)) return BlockResult::REPEAT;
+        state->repeatTimes = 0;
+        state->waitDuration = upperBound.asDouble();
+        state->completedSteps = 1;
     }
 
-    if (block.repeatTimes >= upperBound) {
-        BlockExecutor::removeFromRepeatQueue(sprite, &block);
+    if (state->repeatTimes >= state->waitDuration) {
+        thread->eraseState(block);
         return BlockResult::CONTINUE;
     }
+    BlockExecutor::setVariableValue(Scratch::getFieldId(*block, "VARIABLE"), Value(state->repeatTimes + 1), sprite);
 
-    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Value(block.repeatTimes + 1), sprite);
+    state->repeatTimes++;
 
-    const auto it = block.parsedInputs->find("SUBSTACK");
-    if (it != block.parsedInputs->end()) {
-        Block *subBlock = sprite->blocksMap[it->second.blockId];
-        if (subBlock) executor.runBlock(*subBlock, sprite, withoutScreenRefresh, false);
-    }
+    Block *substack = block->inputs["SUBSTACK"].block;
+    if (substack != nullptr)
+        thread->nextBlock = substack;
+    else return BlockResult::REPEAT;
 
-    block.repeatTimes++;
-    return BlockResult::RETURN;
+    return BlockResult::CONTINUE_IMMEDIATELY;
 }
