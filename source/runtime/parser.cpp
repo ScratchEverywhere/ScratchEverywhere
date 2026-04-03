@@ -1,4 +1,4 @@
-#include "parser.hpp"
+#include <dlfcn.h>
 #include <input.hpp>
 #include <limits>
 #include <math.hpp>
@@ -612,6 +612,24 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     Input::applyControls(Unzip::filePath + ".json");
     Log::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
+}
+
+void Parser::loadExtensions(const nlohmann::json &json) {
+#ifdef __APPLE__
+    constexpr const char *libraryExtension = ".dylib";
+#else
+    constexpr const char *libraryExtension = ".so";
+#endif
+
+    for (const std::string &extension : json["extensions"]) {
+        const std::string &path = OS::getScratchFolderLocation() + "extensions/" + extension + libraryExtension;
+        if (OS::fileExists(path)) {
+            void *extensionHandle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+            if (!extensionHandle) {
+                Log::logError("Failed to load native extension, '" + extension + "', dlerror: " + dlerror());
+            }
+        }
+    }
 }
 
 std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, std::string *outID) {
