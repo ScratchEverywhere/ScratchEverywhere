@@ -46,7 +46,6 @@ SCRATCH_BLOCK(sound, playuntildone) {
                     strm = new SoundStream(&Unzip::zipArchive, soundFullName);
             }
 
-#endif
         }
 
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -110,7 +109,6 @@ SCRATCH_BLOCK(sound, play) {
             strm = new SoundStream(&Unzip::zipArchive, soundFullName);
 
 	Mixer::setAutoClean(soundFullName, true);
-#endif
     }
 #endif
     return BlockResult::CONTINUE;
