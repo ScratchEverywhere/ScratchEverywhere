@@ -1,4 +1,3 @@
-#include <dlfcn.h>
 #include <input.hpp>
 #include <limits>
 #include <math.hpp>
@@ -9,6 +8,10 @@
 #include <unzip.hpp>
 #if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
 #include <whb/sdcard.h>
+#endif
+
+#ifdef ENABLE_NATIVE_EXTENSIONS
+#include <dlfcn.h>
 #endif
 
 #ifdef ENABLE_CLOUDVARS
@@ -615,6 +618,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
 }
 
 void Parser::loadExtensions(const nlohmann::json &json) {
+#ifdef ENABLE_NATIVE_EXTENSIONS
 #ifdef __APPLE__
     constexpr const char *libraryExtension = ".dylib";
 #else
@@ -630,6 +634,7 @@ void Parser::loadExtensions(const nlohmann::json &json) {
             }
         }
     }
+#endif
 }
 
 std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, std::string *outID) {
