@@ -15,18 +15,6 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
-#ifdef OLD_AUDIO_CODE
-#if defined(__NDS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/nds/mm_ds.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/nds/mm_ds.wav", false, false);
-    }
-#else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-    }
-#endif
-#endif
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -143,17 +131,6 @@ void ProjectMenu::render() {
     projectControl->input();
 
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
-#ifdef OLD_AUDIO_CODE
-#ifdef __NDS__
-        if (!SoundPlayer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
-            SoundPlayer::playSound("gfx/nds/mm_ds.wav");
-        }
-#else
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-            SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
-        }
-#endif
-#else
 #ifdef __NDS__
         if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream(
@@ -166,7 +143,6 @@ void ProjectMenu::render() {
                 "gfx/menu/mm_splash.ogg");
             Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
         }
-#endif
 #endif
     }
 
