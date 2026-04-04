@@ -1,6 +1,7 @@
 #include "unzip.hpp"
 #include "input.hpp"
 #include "os.hpp"
+#include "runtime.hpp"
 #include <cstring>
 #include <ctime>
 #include <errno.h>
@@ -578,27 +579,42 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
 
 nlohmann::json Unzip::getSetting(const std::string &settingName) {
     std::string folderPath = filePath + ".json";
+    std::string content;
 
-    std::ifstream file(folderPath);
-    if (!file.good()) {
-        Log::logWarning("Project settings file not found: " + folderPath);
-        return nlohmann::json();
+#ifdef USE_CMAKERC
+    if (Scratch::projectType != ProjectType::UNEMBEDDED) {
+        const auto &fs = cmrc::romfs::get_filesystem();
+
+        if (!fs.exists(folderPath)) {
+            Log::logWarning("Project settings file not found: romfs:/" + folderPath);
+            return nlohmann::json();
+        }
+
+        const auto &file = fs.open(folderPath);
+        content.assign(file.begin(), file.end());
+    } else {
+#endif
+        std::ifstream file(folderPath);
+        if (!file.is_open()) {
+            Log::logWarning("Project settings file not found: " + folderPath);
+            return nlohmann::json();
+        }
+        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+#ifdef USE_CMAKERC
     }
+#endif
 
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
     nlohmann::json json = nlohmann::json::parse(content, nullptr, false);
+
     if (json.is_discarded()) {
         Log::logError("Failed to parse JSON file: Syntax error.");
         return nlohmann::json();
     }
 
-    if (!json.contains("settings")) {
-        return nlohmann::json();
-    }
-    if (!json["settings"].contains(settingName)) {
-        return nlohmann::json();
+    if (json.contains("settings") && json["settings"].contains(settingName)) {
+        return json["settings"][settingName];
     }
 
-    return json["settings"][settingName];
+    return nlohmann::json();
 }
