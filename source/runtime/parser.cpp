@@ -326,14 +326,16 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // set Lists
-        for (const auto &[id, data] : target["lists"].items()) {
-            auto result = newSprite->lists.try_emplace(id).first;
-            List &newList = result->second;
-            newList.id = id;
-            newList.name = data[0];
-            newList.items.reserve(data[1].size());
-            for (const auto &listItem : data[1])
-                newList.items.push_back(Value::fromJson(listItem));
+        if (target.contains("lists") && target["lists"].is_array()) {
+            for (const auto &[id, data] : target["lists"].items()) {
+                auto result = newSprite->lists.try_emplace(id).first;
+                List &newList = result->second;
+                newList.id = id;
+                newList.name = data[0];
+                newList.items.reserve(data[1].size());
+                for (const auto &listItem : data[1])
+                    newList.items.push_back(Value::fromJson(listItem));
+            }
         }
 
         // set Sounds
@@ -380,29 +382,32 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // set comments
-        for (const auto &[id, data] : target["comments"].items()) {
-            if (!newSprite->isStage) continue;
-            Comment newComment;
-            newComment.id = id;
-            if (data.contains("blockId") && !data["blockId"].is_null()) {
-                newComment.blockId = data["blockId"];
+        if (target.contains("comments") && target["comments"].is_array()) {
+            for (const auto &[id, data] : target["comments"].items()) {
+                if (!newSprite->isStage) continue;
+                Comment newComment;
+                newComment.id = id;
+                if (data.contains("blockId") && !data["blockId"].is_null()) {
+                    newComment.blockId = data["blockId"];
+                }
+                newComment.width = data["width"];
+                newComment.height = data["height"];
+                newComment.minimized = data["minimized"];
+                newComment.x = data["x"].is_null() ? 0 : data["x"].get<int>();
+                newComment.y = data["y"].is_null() ? 0 : data["y"].get<int>();
+                newComment.text = data["text"];
+                newSprite->comments[newComment.id] = newComment;
             }
-            newComment.width = data["width"];
-            newComment.height = data["height"];
-            newComment.minimized = data["minimized"];
-            newComment.x = data["x"].is_null() ? 0 : data["x"].get<int>();
-            newComment.y = data["y"].is_null() ? 0 : data["y"].get<int>();
-            newComment.text = data["text"];
-            newSprite->comments[newComment.id] = newComment;
         }
 
         // set Broadcasts
-        for (const auto &[id, data] : target["broadcasts"].items()) {
-            Broadcast newBroadcast;
-            newBroadcast.id = id;
-            newBroadcast.name = data;
-            newSprite->broadcasts[newBroadcast.id] = newBroadcast;
-            // std::cout<<"broadcast name = "<< newBroadcast.name << std::endl;
+        if (target.contains("broadcasts") && target["broadcasts"].is_array()) {
+            for (const auto &[id, data] : target["broadcasts"].items()) {
+                Broadcast newBroadcast;
+                newBroadcast.id = id;
+                newBroadcast.name = data;
+                newSprite->broadcasts[newBroadcast.id] = newBroadcast;
+            }
         }
 
         Scratch::sprites.push_back(newSprite);
@@ -411,63 +416,65 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     Scratch::sortSprites();
 
-    for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
-        Monitor newMonitor;
+    if (json.contains("monitors") && json["monitors"].is_array()) {
+        for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
+            Monitor newMonitor;
 
-        if (monitor.contains("id") && !monitor["id"].is_null())
-            newMonitor.id = monitor.at("id").get<std::string>();
+            if (monitor.contains("id") && !monitor["id"].is_null())
+                newMonitor.id = monitor.at("id").get<std::string>();
 
-        if (monitor.contains("mode") && !monitor["mode"].is_null())
-            newMonitor.mode = monitor.at("mode").get<std::string>();
+            if (monitor.contains("mode") && !monitor["mode"].is_null())
+                newMonitor.mode = monitor.at("mode").get<std::string>();
 
-        if (monitor.contains("opcode") && !monitor["opcode"].is_null())
-            newMonitor.opcode = monitor.at("opcode").get<std::string>();
+            if (monitor.contains("opcode") && !monitor["opcode"].is_null())
+                newMonitor.opcode = monitor.at("opcode").get<std::string>();
 
-        if (monitor.contains("params") && monitor["params"].is_object()) {
-            for (const auto &param : monitor["params"].items()) {
-                std::string key = param.key();
-                std::string value = param.value().dump();
-                newMonitor.parameters[key] = value;
+            if (monitor.contains("params") && monitor["params"].is_object()) {
+                for (const auto &param : monitor["params"].items()) {
+                    std::string key = param.key();
+                    std::string value = param.value().dump();
+                    newMonitor.parameters[key] = value;
+                }
             }
+
+            if (monitor.contains("spriteName") && monitor["spriteName"].is_string())
+                newMonitor.spriteName = monitor.at("spriteName").get<std::string>();
+            else
+                newMonitor.spriteName = "";
+
+            if (monitor.contains("value") && !monitor["value"].is_null())
+                newMonitor.value = Value(Math::removeQuotations(monitor.at("value").dump()));
+
+            if (monitor.contains("x") && !monitor["x"].is_null())
+                newMonitor.x = monitor.at("x").get<int>();
+
+            if (monitor.contains("y") && !monitor["y"].is_null())
+                newMonitor.y = monitor.at("y").get<int>();
+
+            if (monitor.contains("width") && !(monitor["width"].is_null() || monitor.at("width").get<int>() == 0))
+                newMonitor.width = monitor.at("width").get<int>();
+            else
+                newMonitor.width = 110;
+
+            if (monitor.contains("height") && !(monitor["height"].is_null() || monitor.at("height").get<int>() == 0))
+                newMonitor.height = monitor.at("height").get<int>();
+            else
+                newMonitor.height = 200;
+
+            if (monitor.contains("visible") && !monitor["visible"].is_null())
+                newMonitor.visible = monitor.at("visible").get<bool>();
+
+            if (monitor.contains("isDiscrete") && !monitor["isDiscrete"].is_null())
+                newMonitor.isDiscrete = monitor.at("isDiscrete").get<bool>();
+
+            if (monitor.contains("sliderMin") && !monitor["sliderMin"].is_null())
+                newMonitor.sliderMin = monitor.at("sliderMin").get<double>();
+
+            if (monitor.contains("sliderMax") && !monitor["sliderMax"].is_null())
+                newMonitor.sliderMax = monitor.at("sliderMax").get<double>();
+
+            Render::monitors.emplace(newMonitor.id, newMonitor);
         }
-
-        if (monitor.contains("spriteName") && monitor["spriteName"].is_string())
-            newMonitor.spriteName = monitor.at("spriteName").get<std::string>();
-        else
-            newMonitor.spriteName = "";
-
-        if (monitor.contains("value") && !monitor["value"].is_null())
-            newMonitor.value = Value(Math::removeQuotations(monitor.at("value").dump()));
-
-        if (monitor.contains("x") && !monitor["x"].is_null())
-            newMonitor.x = monitor.at("x").get<int>();
-
-        if (monitor.contains("y") && !monitor["y"].is_null())
-            newMonitor.y = monitor.at("y").get<int>();
-
-        if (monitor.contains("width") && !(monitor["width"].is_null() || monitor.at("width").get<int>() == 0))
-            newMonitor.width = monitor.at("width").get<int>();
-        else
-            newMonitor.width = 110;
-
-        if (monitor.contains("height") && !(monitor["height"].is_null() || monitor.at("height").get<int>() == 0))
-            newMonitor.height = monitor.at("height").get<int>();
-        else
-            newMonitor.height = 200;
-
-        if (monitor.contains("visible") && !monitor["visible"].is_null())
-            newMonitor.visible = monitor.at("visible").get<bool>();
-
-        if (monitor.contains("isDiscrete") && !monitor["isDiscrete"].is_null())
-            newMonitor.isDiscrete = monitor.at("isDiscrete").get<bool>();
-
-        if (monitor.contains("sliderMin") && !monitor["sliderMin"].is_null())
-            newMonitor.sliderMin = monitor.at("sliderMin").get<double>();
-
-        if (monitor.contains("sliderMax") && !monitor["sliderMax"].is_null())
-            newMonitor.sliderMax = monitor.at("sliderMax").get<double>();
-
-        Render::monitors.emplace(newMonitor.id, newMonitor);
     }
 
     // try to find the advanced project settings comment
