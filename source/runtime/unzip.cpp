@@ -205,7 +205,7 @@ void Unzip::openScratchProject(void *arg) {
     Parser::loadSprites(project_json);
 
     loadingState = "Loading Extensions";
-    Parser::loadExtensions(project_json);
+    Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;

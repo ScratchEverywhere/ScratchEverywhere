@@ -1,3 +1,4 @@
+#include "parser.hpp"
 #include <input.hpp>
 #include <limits>
 #include <math.hpp>
@@ -617,7 +618,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
     Log::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
 }
 
-void Parser::loadExtensions(const nlohmann::json &json) {
+bool Parser::loadExtensions(const nlohmann::json &json) {
+    bool hasExts = false;
 #ifdef ENABLE_NATIVE_EXTENSIONS
 #ifdef __APPLE__
     constexpr const char *libraryExtension = ".dylib";
@@ -631,10 +633,14 @@ void Parser::loadExtensions(const nlohmann::json &json) {
             void *extensionHandle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
             if (!extensionHandle) {
                 Log::logError("Failed to load native extension, '" + extension + "', dlerror: " + dlerror());
+            } else {
+                Log::log("Loaded extension: " + path);
+                hasExts = true;
             }
-        }
+        } else Log::logWarning("Couldn't find native extension: " + path);
     }
 #endif
+    return hasExts;
 }
 
 std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, std::string *outID) {

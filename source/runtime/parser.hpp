@@ -8,7 +8,7 @@ void loadUsernameFromSettings();
 
 void loadSprites(const nlohmann::json &json);
 
-void loadExtensions(const nlohmann::json &json);
+bool loadExtensions(const nlohmann::json &json);
 
 /**
  * Gets a Chain of Blocks with a specified `blockId`.
