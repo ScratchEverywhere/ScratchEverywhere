@@ -14,6 +14,7 @@
 #include <image.hpp>
 #include <input.hpp>
 #include <math.h>
+#include <memory>
 #include <os.hpp>
 #include <render.hpp>
 #include <set>
@@ -28,6 +29,12 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/meta.hpp>
+
+std::vector<std::unique_ptr<extensions::Extension>> Scratch::extensions;
 #endif
 
 std::vector<Sprite *> Scratch::sprites;

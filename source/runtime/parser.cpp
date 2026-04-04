@@ -11,6 +11,11 @@
 #include <whb/sdcard.h>
 #endif
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/interface.hpp>
+#include <extensions/meta.hpp>
+#endif
+
 #ifdef ENABLE_CLOUDVARS
 #include <fstream>
 #include <mist/mist.hpp>
@@ -612,6 +617,57 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     Input::applyControls(Unzip::filePath + ".json");
     Log::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
+}
+
+constexpr std::array<std::string_view, 12> builtInExtensions = {"music", "pen", "videoSensing", "text2speech", "translate", "makeymakey", "microbit", "ev3", "boost", "wedo2", "goDirect", "coreExtensions"};
+
+void Parser::loadExtensions(const nlohmann::json &json) {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    for (const auto &extensionJSON : json["extensions"]) {
+        const std::string targetID = extensionJSON.get<std::string>();
+
+        if (std::find(builtInExtensions.begin(), builtInExtensions.end(), targetID) != builtInExtensions.end()) continue;
+
+        const std::string folder = OS::getScratchFolderLocation() + "extensions/";
+        const std::string targetPath = folder + targetID + ".see";
+
+        std::unique_ptr<extensions::Extension> loadedExt = nullptr;
+        std::ifstream in;
+
+        if (OS::fileExists(targetPath)) {
+            in.open(targetPath, std::ios::binary | std::ios::in);
+            auto result = extensions::parseMetadata(in);
+            if (result.has_value() && result.value()->id == targetID) loadedExt = std::move(result.value());
+            else in.close();
+        }
+
+        if (!loadedExt) {
+            for (const auto &entry : std::filesystem::directory_iterator(folder)) { // TODO: Remove std::filesystem usage
+                if (!entry.is_regular_file()) continue;
+
+                in.open(entry.path(), std::ios::binary | std::ios::in);
+                auto result = extensions::parseMetadata(in);
+
+                if (result.has_value() && result.value()->id == targetID) {
+                    loadedExt = std::move(result.value());
+                    break;
+                }
+                in.close();
+                in.clear();
+            }
+        }
+
+        if (!loadedExt) {
+            Log::logWarning("Could not find extension with ID: " + targetID);
+            continue;
+        }
+        extensions::loadLua(loadedExt.get(), in);
+        Scratch::extensions.push_back(std::move(loadedExt));
+        in.close();
+    }
+
+    extensions::registerHandlers(); // I want to run it on the already moved pointer which is why i'm doing it here and not in the main loop
+#endif
 }
 
 std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, std::string *outID) {

@@ -1,5 +1,6 @@
 #pragma once
 #include "value.hpp"
+#include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <os.hpp>
@@ -76,8 +77,8 @@ struct Block {
     bool topLevel;
 
 #ifdef ENABLE_CACHING
-    BlockResult (*handler)(Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) = nullptr;
-    Value (*valueHandler)(Block &block, Sprite *sprite) = nullptr;
+    std::function<BlockResult(Block &, Sprite *, bool *, bool)> handler = nullptr;
+    std::function<Value(Block &, Sprite *)> valueHandler = nullptr;
 
     union {
         Variable *variable = nullptr;
