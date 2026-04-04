@@ -10,7 +10,7 @@ class Image_SDL1 : public Image {
     nonstd::expected<void, std::string> setInitialTexture();
 
   public:
-    SDL_Surface *texture;
+    SDL_Surface *texture = nullptr;
 
     Image_SDL1(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
