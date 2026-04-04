@@ -101,7 +101,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
 #error "Image backend not defined."
 #endif
 
-    if (rawImg->error.has_value()) return nonstd::make_unexpected(rawImg->error.value());
+    if (rawImg->error.has_value()) {
+        const std::string errMessage = rawImg->error.value();
+        delete rawImg;
+        return nonstd::make_unexpected(errMessage);
+    }
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
         images.erase(filePath);
@@ -140,7 +144,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #error "Image backend not defined."
 #endif
 
-    if (rawImg->error.has_value()) return nonstd::make_unexpected(rawImg->error.value());
+    if (rawImg->error.has_value()) {
+        const std::string errMessage = rawImg->error.value();
+        delete rawImg;
+        return nonstd::make_unexpected(errMessage);
+    }
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
         images.erase(filePath);

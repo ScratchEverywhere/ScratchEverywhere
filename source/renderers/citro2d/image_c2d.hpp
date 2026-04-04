@@ -13,7 +13,7 @@ class Image_C2D : public Image {
     void renderSubrect(C2D_Image img, uint16_t srcX, uint16_t srcY, uint16_t srcW, uint16_t srcH, float destX, float destY, float destW, float destH, C2D_ImageTint *tint);
 
   public:
-    C2D_Image texture;
+    C2D_Image texture{};
 
     Image_C2D(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 

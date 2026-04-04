@@ -658,14 +658,10 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
 
 #ifdef ENABLE_CLOUDVARS
 void BlockExecutor::handleCloudVariableChange(const std::string &name, const std::string &value) {
-    for (const auto &currentSprite : Scratch::sprites) {
-        if (currentSprite->isStage) {
-            for (auto it = currentSprite->variables.begin(); it != currentSprite->variables.end(); ++it) {
-                if (it->second.name != name) continue;
-                it->second.value = Value(value);
-                return;
-            }
-        }
+    for (auto it = Scratch::stageSprite->variables.begin(); it != Scratch::stageSprite->variables.end(); ++it) {
+        if (it->second.name != name) continue;
+        it->second.value = Value(value);
+        return;
     }
 }
 #endif

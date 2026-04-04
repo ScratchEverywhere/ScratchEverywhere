@@ -35,13 +35,7 @@ std::unique_ptr<MistConnection> cloudConnection = nullptr;
 void Parser::initMist() {
     OS::initWifi();
 
-#ifdef __WIIU__
-    std::ostringstream usernameFilenameStream;
-    usernameFilenameStream << WHBGetSdCardMountPath() << "/wiiu/scratch-wiiu/cloud-username.txt";
-    std::string usernameFilename = usernameFilenameStream.str();
-#else
-    std::string usernameFilename = "cloud-username.txt";
-#endif
+    const std::string usernameFilename = OS::getScratchFolderLocation() + "cloud-username.txt";
 
     std::ifstream fileStream(usernameFilename.c_str());
     if (!fileStream.good()) {
@@ -94,10 +88,10 @@ void Parser::initMist() {
     cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
 
     Log::log("Connecting to cloud variables with id: " + projectID.str());
-#if defined(__WIIU__) || defined(__3DS__) || defined(VITA) || defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(WEBOS) // These platforms require Mist++ 0.2.0 or later.
-    cloudConnection->connect(false);
-#else // These platforms require Mist++ 0.1.4 or later.
+#if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
     cloudConnection->connect();
+#else
+    cloudConnection->connect(false);
 #endif
 }
 #endif
@@ -442,7 +436,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
             }
         }
 
-        if (monitor.contains("spriteName") && !monitor["spriteName"].is_null())
+        if (monitor.contains("spriteName") && monitor["spriteName"].is_string())
             newMonitor.spriteName = monitor.at("spriteName").get<std::string>();
         else
             newMonitor.spriteName = "";
