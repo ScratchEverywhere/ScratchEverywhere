@@ -11,6 +11,10 @@
 #include <whb/sdcard.h>
 #endif
 
+#ifdef ENABLE_NATIVE_EXTENSIONS
+#include <dlfcn.h>
+#endif
+
 #ifdef ENABLE_CLOUDVARS
 #include <fstream>
 #include <mist/mist.hpp>
@@ -612,6 +616,31 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     Input::applyControls(Unzip::filePath + ".json");
     Log::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");
+}
+
+bool Parser::loadExtensions(const nlohmann::json &json) {
+    bool hasExts = false;
+#ifdef ENABLE_NATIVE_EXTENSIONS
+#ifdef __APPLE__
+    constexpr const char *libraryExtension = ".dylib";
+#else
+    constexpr const char *libraryExtension = ".so";
+#endif
+
+    for (const std::string &extension : json["extensions"]) {
+        const std::string &path = OS::getScratchFolderLocation() + "extensions/" + extension + libraryExtension;
+        if (OS::fileExists(path)) {
+            void *extensionHandle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+            if (!extensionHandle) {
+                Log::logError("Failed to load native extension, '" + extension + "', dlerror: " + dlerror());
+            } else {
+                Log::log("Loaded extension: " + path);
+                hasExts = true;
+            }
+        } else Log::logWarning("Couldn't find native extension: " + path);
+    }
+#endif
+    return hasExts;
 }
 
 std::vector<Block *> Parser::getBlockChain(std::string blockId, Sprite *sprite, std::string *outID) {

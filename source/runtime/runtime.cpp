@@ -24,6 +24,7 @@
 #include <vector>
 #ifdef ENABLE_MENU
 #include <pauseMenu.hpp>
+#include <popupMenu.hpp>
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -39,6 +40,8 @@ std::string Scratch::answer;
 ProjectType Scratch::projectType;
 
 BlockExecutor executor;
+
+bool Scratch::hasNativeExtensions = false;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -188,6 +191,24 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
 }
 
 bool Scratch::startScratchProject() {
+
+#ifdef ENABLE_MENU
+
+    if (hasNativeExtensions) {
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, "Warning! This project contains Native Extensions. Native Extensions have full access to your device.");
+        MenuManager::changeMenu(popupMenu);
+        while (Render::appShouldRun() && popupMenu->accepted == -1) {
+            MenuManager::render();
+        }
+        popupMenu->cleanup();
+        if (popupMenu->accepted == 0) {
+            cleanupScratchProject();
+            return false;
+        }
+    }
+
+#endif
+
     std::pair<bool, bool> code;
 
     initializeScratchProject();
@@ -241,6 +262,7 @@ void Scratch::cleanupScratchProject() {
     maxClones = 300;
     FPS = 30;
     counter = 0;
+    hasNativeExtensions = false;
     turbo = false;
     hqpen = false;
     fencing = true;
