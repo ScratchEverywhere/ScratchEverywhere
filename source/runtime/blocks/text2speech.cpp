@@ -1,4 +1,5 @@
-#include "../audio.hpp"
+#include "../../audio.hpp"
+#include "../../audiostack.hpp"
 #include "blockUtils.hpp"
 #include "downloader.hpp"
 #include "math.hpp"
@@ -26,17 +27,10 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
     }
 
     if (block.repeatTimes == -2) {
-        if (SoundPlayer::isSoundPlaying(tempFile)) {
+        if (Mixer::isSoundPlaying(tempFile)) {
             Log::log("T2S: Currently speaking on other block, skipping");
             BlockExecutor::removeFromRepeatQueue(sprite, &block);
             return BlockResult::CONTINUE;
-        }
-        if (SoundPlayer::isSoundLoaded(tempFile)) {
-            Log::log("T2S: sound loaded, playing");
-            SoundPlayer::playSound(tempFile);
-            BlockExecutor::addToRepeatQueue(sprite, &block);
-            block.repeatTimes = -4;
-            return BlockResult::RETURN;
         }
         block.repeatTimes = -3;
     }
@@ -44,7 +38,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         if (!DownloadManager::init()) return BlockResult::CONTINUE;
         if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(api)) {
             Log::log("T2S audio already downloaded: " + inputString);
-            SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, tempFile, false, false, true);
+            SoundStream *strm = new SoundStream(tempFile);
             BlockExecutor::addToRepeatQueue(sprite, &block);
             block.repeatTimes = -4;
             return BlockResult::RETURN;
@@ -60,7 +54,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         } else if (DownloadManager::isDownloading(api)) return BlockResult::RETURN;
     }
     if (block.repeatTimes == -4) {
-        if (SoundPlayer::isSoundPlaying(tempFile)) return BlockResult::RETURN;
+        if (Mixer::isSoundPlaying(tempFile)) return BlockResult::RETURN;
     }
 
     BlockExecutor::removeFromRepeatQueue(sprite, &block);

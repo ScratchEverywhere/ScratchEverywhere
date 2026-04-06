@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "collision.hpp"
 #include "math.hpp"
@@ -283,7 +284,7 @@ void Scratch::stopClicked() {
         currentSprite->brightnessEffect = 0.0f;
         currentSprite->colorEffect = 0.0f;
         for (Sound sound : currentSprite->sounds)
-            SoundPlayer::stopSound(sound.fullName);
+            Mixer::stopSound(sound.fullName);
     }
     for (auto *spr : toDelete) {
         delete spr;

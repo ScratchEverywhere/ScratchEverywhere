@@ -1,5 +1,7 @@
 #include "blockUtils.hpp"
+#include "runtime.hpp"
 #include <audio.hpp>
+#include <audiostack.hpp>
 #include <math.hpp>
 #include <sprite.hpp>
 #include <unzip.hpp>
@@ -34,10 +36,16 @@ SCRATCH_BLOCK(sound, playuntildone) {
         }
 
         if (soundFound) {
-            if (SoundPlayer::isSoundLoaded(soundFullName))
-                SoundPlayer::playSound(soundFullName);
-            else
-                SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, soundFullName);
+            if (Mixer::isSoundPlaying(soundFullName)) {
+                // nothing
+            } else {
+                SoundStream *strm;
+                if (Scratch::projectType == ProjectType::UNZIPPED)
+                    strm = new SoundStream(soundFullName);
+                else
+                    strm = new SoundStream(&Unzip::zipArchive, soundFullName);
+            }
+
         }
 
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -57,7 +65,9 @@ SCRATCH_BLOCK(sound, playuntildone) {
         checkSoundName = sprite->sounds[soundIndex].fullName;
     }
 
-    if (!checkSoundName.empty() && SoundPlayer::isSoundPlaying(checkSoundName)) return BlockResult::RETURN;
+    if (!checkSoundName.empty() && Mixer::isSoundPlaying(checkSoundName)) return BlockResult::RETURN;
+
+    Mixer::setAutoClean(checkSoundName, true);
 
     BlockExecutor::removeFromRepeatQueue(sprite, &block);
 #endif
@@ -92,10 +102,13 @@ SCRATCH_BLOCK(sound, play) {
     }
 
     if (soundFound) {
-        if (SoundPlayer::isSoundLoaded(soundFullName))
-            SoundPlayer::playSound(soundFullName);
+        SoundStream *strm;
+        if (Scratch::projectType == ProjectType::UNZIPPED)
+            strm = new SoundStream(soundFullName, false);
         else
-            SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, soundFullName);
+            strm = new SoundStream(&Unzip::zipArchive, soundFullName);
+
+	Mixer::setAutoClean(soundFullName, true);
     }
 #endif
     return BlockResult::CONTINUE;
@@ -105,7 +118,8 @@ SCRATCH_BLOCK(sound, stopallsounds) {
 #ifdef ENABLE_AUDIO
     for (auto &currentSprite : Scratch::sprites) {
         for (Sound sound : currentSprite->sounds) {
-            SoundPlayer::stopSound(sound.fullName);
+            Mixer::setAutoClean(sound.fullName, true);
+            Mixer::stopSound(sound.fullName);
         }
     }
 #endif
@@ -121,13 +135,13 @@ SCRATCH_BLOCK(sound, changeeffectby) {
             sprite->pitch += amount.asDouble();
             sprite->pitch = std::clamp(sprite->pitch, -360.0f, 360.0f);
             for (Sound sound : sprite->sounds) {
-                SoundPlayer::setPitch(sound.fullName, sprite->pitch - 100.0f);
+                Mixer::setPitch(sound.fullName, sprite->pitch - 100.0f);
             }
         } else if (effect == "PAN") {
             sprite->pan += amount.asDouble();
             sprite->pan = std::clamp(sprite->pan, -100.0f, 100.0f);
             for (Sound sound : sprite->sounds) {
-                SoundPlayer::setPan(sound.fullName, sprite->pan - 100.0f);
+                Mixer::setPan(sound.fullName, sprite->pan - 100.0f);
             }
         }
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -146,13 +160,13 @@ SCRATCH_BLOCK(sound, seteffectto) {
             sprite->pitch = amount.asDouble();
             sprite->pitch = std::clamp(sprite->pitch, -360.0f, 360.0f);
             for (Sound sound : sprite->sounds) {
-                SoundPlayer::setPitch(sound.fullName, sprite->pitch - 100.0f);
+                Mixer::setPitch(sound.fullName, sprite->pitch - 100.0f);
             }
         } else if (effect == "PAN") {
             sprite->pan = amount.asDouble();
             sprite->pan = std::clamp(sprite->pan, -100.0f, 100.0f);
             for (Sound sound : sprite->sounds) {
-                SoundPlayer::setPan(sound.fullName, sprite->pan - 100.0f);
+                Mixer::setPan(sound.fullName, sprite->pan - 100.0f);
             }
         }
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -166,8 +180,8 @@ SCRATCH_BLOCK(sound, cleareffects) {
     sprite->pitch = 100.0f;
     sprite->pan = 100.0f;
     for (Sound sound : sprite->sounds) {
-        SoundPlayer::setPitch(sound.fullName, sprite->pitch - 100.0f);
-        SoundPlayer::setPan(sound.fullName, sprite->pan - 100.0f);
+        Mixer::setPitch(sound.fullName, sprite->pitch - 100.0f);
+        Mixer::setPan(sound.fullName, sprite->pan - 100.0f);
     }
     return BlockResult::CONTINUE;
 }
@@ -177,8 +191,8 @@ SCRATCH_BLOCK(sound, changevolumeby) {
         double inputValue = Scratch::getInputValue(block, "VOLUME", sprite).asDouble();
         inputValue = std::clamp(inputValue, 0.0, 100.0);
         for (Sound sound : sprite->sounds) {
-            SoundPlayer::setSoundVolume(sound.fullName, sprite->volume + inputValue);
-            sprite->volume = SoundPlayer::getSoundVolume(sound.fullName);
+            Mixer::setSoundVolume(sound.fullName, sprite->volume + inputValue);
+            sprite->volume = Mixer::getSoundVolume(sound.fullName);
         }
         BlockExecutor::addToRepeatQueue(sprite, &block);
         return BlockResult::RETURN;
@@ -191,7 +205,7 @@ SCRATCH_BLOCK(sound, setvolumeto) {
     if (!fromRepeat) {
         const double inputValue = std::clamp(Scratch::getInputValue(block, "VOLUME", sprite).asDouble(), 0.0, 100.0);
         for (Sound sound : sprite->sounds) {
-            SoundPlayer::setSoundVolume(sound.fullName, inputValue);
+            Mixer::setSoundVolume(sound.fullName, inputValue);
         }
         sprite->volume = inputValue;
         BlockExecutor::addToRepeatQueue(sprite, &block);
