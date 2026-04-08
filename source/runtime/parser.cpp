@@ -410,10 +410,9 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
     Scratch::sortSprites();
 
-    // Monitors
-    if (json.contains("monitors") && !json["monitors"].empty()) {
+    if (json.contains("monitors") && json["monitors"].is_array()) {
         Parser::log("Loading monitors:");
-        for (const auto &monitor : json["monitors"]) {
+        for (const auto &monitor : json["monitors"]) { // "monitor" is any variable shown on screen
             Monitor newMonitor;
 
             if (monitor.contains("id") && !monitor["id"].is_null())
@@ -433,7 +432,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 }
             }
 
-            if (monitor.contains("spriteName") && !monitor["spriteName"].is_null())
+            if (monitor.contains("spriteName") && monitor["spriteName"].is_string())
                 newMonitor.spriteName = monitor.at("spriteName").get<std::string>();
             else
                 newMonitor.spriteName = "";
