@@ -1,12 +1,12 @@
 #include "blockUtils.hpp"
 #include "unzip.hpp"
 
-SCRATCH_BLOCK(switchProject, receivedData) {
+SCRATCH_BLOCK(sceneManager, receivedData) {
     *outValue = Scratch::dataNextProject;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(switchProject, openSB3) {
+SCRATCH_BLOCK(sceneManager, openSB3) {
     Value arg0;
     if (!Scratch::getInput(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
 
@@ -34,15 +34,14 @@ SCRATCH_BLOCK(switchProject, openSB3) {
     return BlockResult::RETURN;
 }
 
-SCRATCH_BLOCK(switchProject, openSB3withData) {
+SCRATCH_BLOCK(sceneManager, openSB3withData) {
     Value arg0, arg1;
     if (!Scratch::getInput(block, "arg0", thread, sprite, arg0) ||
-        !Scratch::getInput(block, "arg0", thread, sprite, arg1)) return BlockResult::REPEAT;
+        !Scratch::getInput(block, "arg1", thread, sprite, arg1)) return BlockResult::REPEAT;
 
     Log::log("Open next Project with Block and data");
     Scratch::nextProject = true;
     Unzip::filePath = arg0.asString();
-    // if filepath contains sd:/ at the beginning and only at the beginning, replace it with sdmc:/
     if (Unzip::filePath.rfind("sd:", 0) == 0) {
         const std::string drivePrefix = OS::getFilesystemRootPrefix();
         Unzip::filePath.replace(0, 3, drivePrefix);

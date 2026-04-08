@@ -728,8 +728,8 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
                 if (procode == "\u200B\u200Blog\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
                 else if (procode == "\u200B\u200Bwarn\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
                 else if (procode == "\u200B\u200Berror\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
-                else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3"];
-                else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_openSB3withData"];
+                else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
+                else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
 
                 else {
                     if (newSprite->customHatBlock.count(procode) == 0) newSprite->customHatBlock[procode] = new Block();
@@ -748,7 +748,7 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann
             if (name == "Scratch Everywhere! platform") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_platform"];
             if (name == "Scratch Everywhere! controller") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_controller"];
 
-            if (name == "\u200B\u200Breceived data\u200B\u200B") newBlock->blockFunction = BlockExecutor::getHandlers()["switchProject_receivedData"];
+            if (name == "\u200B\u200Breceived data\u200B\u200B") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_receivedData"];
         }
 
         Scratch::blocks.push_back(newBlock);
