@@ -100,7 +100,15 @@ SCRATCH_BLOCK(control, create_clone_of) {
     BlockExecutor::linkPointers(spriteToClone);
 #endif
     Scratch::forceRedraw = true;
-    Scratch::pendingSprites.push_back(std::make_pair(spriteToClone, original));
+
+    const int sourceIndex = (Scratch::sprites.size() - 1) - original->layer;
+    auto it = Scratch::sprites.insert(Scratch::sprites.begin() + sourceIndex + 1, spriteToClone);
+
+    for (size_t i = 0; i < sourceIndex + 1; i++) {
+        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
+    }
+    BlockExecutor::sortSprites = true;
+
     BlockExecutor::runAllBlocksByOpcodeInSprite("control_start_as_clone", spriteToClone);
     Scratch::cloneCount++;
     return BlockResult::CONTINUE;
@@ -127,12 +135,8 @@ SCRATCH_BLOCK(control, stop) {
         return BlockResult::RETURN;
     };
     if (stopType == "other scripts in sprite") {
-        for (ScriptThread *t : sprite->threads) {
-            if (thread == t) continue;
-            t->finished = true;
-        }
-        for (ScriptThread *t : sprite->pendingThreads) {
-            if (thread == t) continue;
+        for (ScriptThread *t : BlockExecutor::threads) {
+            if (thread == t || t->sprite != sprite) continue;
             t->finished = true;
         }
         for (Sound sound : sprite->sounds)

@@ -35,14 +35,6 @@ SCRATCH_BLOCK(event, broadcast) {
             }
         }
     }
-    for (auto &spr : Scratch::pendingSprites) {
-        if (spr.first->hats["event_whenbroadcastreceived"].empty()) continue;
-        for (Block *hat : spr.first->hats["event_whenbroadcastreceived"]) {
-            if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
-                BlockExecutor::startThread(spr.first, hat);
-            }
-        }
-    }
 
     return BlockResult::CONTINUE;
 }
@@ -62,14 +54,6 @@ SCRATCH_BLOCK(event, broadcastandwait) {
                 }
             }
         }
-        for (auto &spr : Scratch::pendingSprites) {
-            if (spr.first->hats["event_whenbroadcastreceived"].empty()) continue;
-            for (Block *hat : spr.first->hats["event_whenbroadcastreceived"]) {
-                if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
-                    state->threads.push_back(BlockExecutor::startThread(spr.first, hat)->id);
-                }
-            }
-        }
 
         state->completedSteps = 1;
         if (state->threads.empty()) {
@@ -79,17 +63,16 @@ SCRATCH_BLOCK(event, broadcastandwait) {
         return BlockResult::REPEAT;
     }
 
-    for (Sprite *spr : Scratch::sprites) {
-        for (auto &stateID : state->threads) {
-            for (auto &spriteThread : spr->threads) {
-                if (spriteThread->id != stateID) continue;
-                if (!spriteThread->finished) return BlockResult::REPEAT;
-            }
+    for (auto &stateID : state->threads) {
+        for (auto &spriteThread : BlockExecutor::threads) {
+            if (spriteThread->id != stateID) continue;
+            if (!spriteThread->finished) return BlockResult::REPEAT;
         }
     }
     thread->eraseState(block);
     return BlockResult::CONTINUE;
 }
+
 // TODO: This is currently very poorly optimized. Please fix it, thank you.
 SCRATCH_BLOCK(event, whenkeypressed) {
     return BlockResult::CONTINUE_IMMEDIATELY;

@@ -27,6 +27,7 @@ int BlockExecutor::dragPositionOffsetX;
 int BlockExecutor::dragPositionOffsetY;
 bool BlockExecutor::sortSprites = false;
 bool BlockExecutor::stopClicked = false;
+std::vector<ScriptThread *> BlockExecutor::threads;
 
 std::unordered_map<std::string, BlockFunc> &BlockExecutor::getHandlers() {
     static std::unordered_map<std::string, BlockFunc> handlers;
@@ -96,20 +97,10 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
 
 ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
     static uint64_t id = 0;
-    for (auto thread : sprite->threads) {
-        if (thread->blockHat == block) {
-            thread->clear();
-            thread->nextBlock = block;
-            thread->finished = false;
-            return thread;
-        }
-    }
-    for (auto thread : sprite->pendingThreads) {
-        if (thread->blockHat == block) {
-            thread->clear();
-            thread->nextBlock = block;
-            thread->finished = false;
-            return thread;
+    for (auto thread : threads) {
+        if (thread->blockHat == block && sprite == thread->sprite) {
+            thread->finished = true;
+            break;
         }
     }
 
@@ -123,74 +114,39 @@ ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
     newThread->nextBlock = block;
     newThread->finished = false;
     newThread->id = ++id;
-    sprite->pendingThreads.push_back(newThread);
+    newThread->sprite = sprite;
+    threads.push_back(newThread);
     return newThread;
 }
 
 void BlockExecutor::runThreads() {
-    for (auto &sprite : Scratch::sprites) {
-        for (auto &thread : sprite->threads) {
-            thread->yieldedThisFrame = false;
+    size_t i = 0;
+    while (i < threads.size()) {
+        ScriptThread *thread = threads[i];
+        BlockResult var;
+
+        if (thread->finished) {
+            thread->clear();
+            Pools::threads.push_back(thread);
+            threads.erase(threads.begin() + i);
+            continue;
         }
+
+        var = runThread(*thread, *thread->sprite, nullptr);
+
+        if (Scratch::shouldStop) return;
+        i++;
     }
-
-    bool threadsAddedThisTick;
-    do {
-
-        threadsAddedThisTick = false;
-
-        if (!Scratch::pendingSprites.empty()) {
-            for (auto &sprite : Scratch::pendingSprites) {
-                Scratch::addCloneBehind(sprite.second, sprite.first);
-            }
-            Scratch::pendingSprites.clear();
-        }
-
-        for (auto &sprite : Scratch::sprites) {
-            if (!sprite->pendingThreads.empty()) {
-                sprite->threads.insert(sprite->threads.end(), sprite->pendingThreads.begin(), sprite->pendingThreads.end());
-                sprite->pendingThreads.clear();
-                threadsAddedThisTick = true;
-            }
-            size_t i = sprite->threads.size();
-            while (i > 0) {
-                i--;
-                ScriptThread *thread = sprite->threads[i];
-                BlockResult var;
-
-                if (thread->finished) {
-                    thread->clear();
-                    Pools::threads.push_back(thread);
-                    sprite->threads.erase(sprite->threads.begin() + i);
-                    continue;
-                }
-                if (thread->yieldedThisFrame) continue;
-
-                var = runThread(*thread, *sprite, nullptr);
-
-                if (!thread->finished) {
-                    thread->yieldedThisFrame = true;
-                }
-
-                if (Scratch::shouldStop) return;
-            }
-            if (stopClicked) break;
-        }
-
-        for (auto &sprite : Scratch::sprites) {
-            if (!sprite->pendingThreads.empty()) {
-                sprite->threads.insert(sprite->threads.end(), sprite->pendingThreads.begin(), sprite->pendingThreads.end());
-                sprite->pendingThreads.clear();
-                threadsAddedThisTick = true;
-            }
-        }
-
-    } while (threadsAddedThisTick && !stopClicked && !Scratch::shouldStop);
 
     Scratch::sprites.erase(
         std::remove_if(Scratch::sprites.begin(), Scratch::sprites.end(),
                        [](Sprite *s) {
                            if (s->toDelete) {
+                               for (auto &thread : threads) {
+                                   if (thread->sprite == s) {
+                                       thread->finished = true;
+                                   }
+                               }
                                sortSprites = true;
                                delete s;
                                return true;
@@ -200,7 +156,9 @@ void BlockExecutor::runThreads() {
         Scratch::sprites.end());
 
     if (sortSprites) {
-        Scratch::sortSprites();
+        for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
+            Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
+        }
         sortSprites = false;
     }
     if (stopClicked) {
@@ -234,14 +192,17 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
 }
 
 void BlockExecutor::runAllBlocksByOpcode(const std::string &opcode, std::vector<ScriptThread *> *out) {
-    for (auto &sprite : Scratch::sprites) {
+    for (auto *sprite : Scratch::sprites) {
         runAllBlocksByOpcodeInSprite(opcode, sprite);
     }
 }
 
 void BlockExecutor::runAllBlocksByOpcodeInSprite(const std::string &opcode, Sprite *sprite, std::vector<ScriptThread *> *out) {
     if (sprite->hats[opcode].empty()) return;
-    for (auto &hat : sprite->hats[opcode]) {
+    std::vector<Block *> tempHats(sprite->hats[opcode].begin(), sprite->hats[opcode].end());
+    for (auto it = tempHats.rbegin(); it != tempHats.rend(); ++it) {
+        auto &hat = *it;
+
         ScriptThread *thread = BlockExecutor::startThread(sprite, hat);
         if (out) out->push_back(thread);
     }

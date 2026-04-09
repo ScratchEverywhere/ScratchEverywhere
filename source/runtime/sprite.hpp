@@ -65,11 +65,11 @@ struct BlockState {
 
 struct ScriptThread {
     uint64_t id;
+    Sprite *sprite;
     Block *blockHat;
     Block *nextBlock;
     std::unordered_map<Block *, BlockState *> states;
     int finished = true;
-    bool yieldedThisFrame = false;
     bool withoutScreenRefresh = false;
 
     std::unordered_map<std::string, Value> MyBlocksVariablen;
@@ -110,7 +110,6 @@ struct ScriptThread {
 
             curr->finished = true;
             curr->withoutScreenRefresh = false;
-            curr->yieldedThisFrame = false;
             curr->returnValue = Value();
             curr->MyBlocksVariablen.clear();
 
@@ -335,20 +334,10 @@ class Sprite {
     std::vector<Costume> costumes;
     std::unordered_map<std::string, Broadcast> broadcasts;
 
-    std::vector<ScriptThread *> pendingThreads;
-    std::vector<ScriptThread *> threads;
     std::unordered_map<std::string, std::unordered_set<Block *>> hats;
     std::unordered_map<std::string, Block *> customHatBlock;
 
     ~Sprite() {
-        for (auto thread : pendingThreads) {
-            thread->clear();
-            Pools::threads.push_back(thread);
-        }
-        for (auto thread : threads) {
-            thread->clear();
-            Pools::threads.push_back(thread);
-        }
         for (auto const &[proccode, blockPtr] : customHatBlock) {
             delete blockPtr;
         }
@@ -360,8 +349,6 @@ class Sprite {
         costumes.clear();
         broadcasts.clear();
         collisionPoints.clear();
-        pendingThreads.clear();
-        threads.clear();
         hats.clear();
     }
 };

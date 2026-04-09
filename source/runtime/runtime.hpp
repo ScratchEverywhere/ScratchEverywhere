@@ -55,7 +55,6 @@ class Scratch {
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
     static void sortSprites();
-    static void addCloneBehind(Sprite *original, Sprite *clone);
     static void moveLayer(Sprite *s, int layers);
 
     static std::unordered_map<std::string, std::shared_ptr<Image>> costumeImages;
@@ -97,7 +96,6 @@ class Scratch {
 #endif
 
     static std::vector<Sprite *> sprites;
-    static std::vector<std::pair<Sprite *, Sprite *>> pendingSprites;
     static Sprite *stageSprite;
     static std::vector<Block *> blocks;
     static std::string answer;

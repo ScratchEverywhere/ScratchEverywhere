@@ -214,12 +214,10 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
         state->completedSteps = 1;
         return BlockResult::REPEAT;
     }
-    for (Sprite *spr : Scratch::sprites) {
-        for (auto &stateID : state->threads) {
-            for (auto &spriteThread : spr->threads) {
-                if (spriteThread->id != stateID) continue;
-                if (!spriteThread->finished) return BlockResult::REPEAT;
-            }
+    for (auto &stateID : state->threads) {
+        for (auto &spriteThread : BlockExecutor::threads) {
+            if (spriteThread->id != stateID) continue;
+            if (!spriteThread->finished) return BlockResult::REPEAT;
         }
     }
     return BlockResult::CONTINUE;
@@ -247,6 +245,12 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
 
     if (targetIndex == currentIndex) return BlockResult::CONTINUE;
 
+    if (targetIndex < currentIndex) {
+        std::rotate(Scratch::sprites.begin() + targetIndex, Scratch::sprites.begin() + currentIndex, Scratch::sprites.begin() + currentIndex + 1);
+    } else {
+        std::rotate(Scratch::sprites.begin() + currentIndex, Scratch::sprites.begin() + currentIndex + 1, Scratch::sprites.begin() + targetIndex + 1);
+    }
+
     for (int i = std::min(currentIndex, targetIndex); i <= std::max(currentIndex, targetIndex); i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
@@ -263,13 +267,23 @@ SCRATCH_BLOCK(looks, gotofrontback) {
 
     const int currentIndex = (Scratch::sprites.size() - 1) - sprite->layer;
     const int targetIndex = value == "front" ? 0 : (Scratch::sprites.size() - 2);
+
     if (currentIndex == targetIndex) return BlockResult::CONTINUE;
+
+    if (targetIndex < currentIndex) {
+        std::rotate(Scratch::sprites.begin() + targetIndex,
+                    Scratch::sprites.begin() + currentIndex,
+                    Scratch::sprites.begin() + currentIndex + 1);
+    } else {
+        std::rotate(Scratch::sprites.begin() + currentIndex,
+                    Scratch::sprites.begin() + currentIndex + 1,
+                    Scratch::sprites.begin() + targetIndex + 1);
+    }
 
     for (int i = std::min(currentIndex, targetIndex); i <= std::max(currentIndex, targetIndex); i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
     BlockExecutor::sortSprites = true;
-
     return BlockResult::CONTINUE;
 }
 

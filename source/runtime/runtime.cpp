@@ -32,7 +32,6 @@
 
 std::vector<Block *> Scratch::blocks;
 std::vector<Sprite *> Scratch::sprites;
-std::vector<std::pair<Sprite *, Sprite *>> Scratch::pendingSprites;
 Sprite *Scratch::stageSprite;
 std::string Scratch::answer;
 ProjectType Scratch::projectType;
@@ -355,24 +354,15 @@ void Scratch::greenFlagClicked() {
 }
 
 void Scratch::stopClicked() {
-    for (auto &pair : Scratch::pendingSprites) {
-        delete pair.first;
-    }
-    Scratch::pendingSprites.clear();
     Scratch::cloneCount = 0;
 
     std::vector<Sprite *> toDelete;
-    for (Sprite *currentSprite : Scratch::sprites) {
-        for (auto thread : currentSprite->pendingThreads) {
-            thread->clear();
-            Pools::threads.push_back(thread);
-        }
-        currentSprite->pendingThreads.clear();
-        for (auto thread : currentSprite->threads) {
-            thread->clear();
-            Pools::threads.push_back(thread);
-        }
-        currentSprite->threads.clear();
+    for (auto thread : BlockExecutor::threads) {
+        thread->clear();
+        Pools::threads.push_back(thread);
+    }
+    BlockExecutor::threads.clear();
+    for (Sprite *currentSprite : sprites) {
         if (Render::getSpeechManager()) {
             Render::getSpeechManager()->clearSpeech(currentSprite);
         }
@@ -389,8 +379,14 @@ void Scratch::stopClicked() {
     for (auto *spr : toDelete) {
         Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
                                Scratch::sprites.end());
+        for (ScriptThread *thread : BlockExecutor::threads) {
+            if (thread->sprite == spr) {
+                thread->finished = true;
+            }
+        }
         delete spr;
     }
+    BlockExecutor::sortSprites = true;
 }
 
 std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
@@ -444,16 +440,6 @@ std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float scre
     return std::make_pair(scratchX, scratchY);
 }
 
-void Scratch::addCloneBehind(Sprite *original, Sprite *clone) {
-    auto it = std::find(sprites.begin(), sprites.end(), original);
-
-    if (it != sprites.end()) {
-        sprites.insert(it, clone);
-    } else {
-        sprites.push_back(clone);
-    }
-}
-
 void Scratch::cleanupSprites() {
     SpeechManager *speechManager = Render::getSpeechManager();
     for (Sprite *sprite : Scratch::sprites) {
@@ -465,15 +451,6 @@ void Scratch::cleanupSprites() {
         }
     }
     Scratch::sprites.clear();
-    for (auto &pair : Scratch::pendingSprites) {
-        if (pair.first) {
-            if (speechManager) {
-                speechManager->clearSpeech(pair.first);
-            }
-            delete pair.first;
-        }
-    }
-    Scratch::pendingSprites.clear();
 }
 
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
