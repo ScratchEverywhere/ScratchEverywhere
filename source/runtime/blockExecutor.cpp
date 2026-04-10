@@ -100,7 +100,6 @@ ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
     for (auto thread : threads) {
         if (thread->blockHat == block && sprite == thread->sprite) {
             thread->finished = true;
-            break;
         }
     }
 
