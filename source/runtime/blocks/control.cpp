@@ -101,7 +101,10 @@ SCRATCH_BLOCK(control, create_clone_of) {
 #endif
     Scratch::forceRedraw = true;
 
-    const int sourceIndex = (Scratch::sprites.size() - 1) - original->layer;
+    int sourceIndex = (Scratch::sprites.size() - 1) - original->layer;
+    if (sourceIndex < 0) sourceIndex = 0;
+    if (sourceIndex >= (int)Scratch::sprites.size()) sourceIndex = Scratch::sprites.size() - 1;
+
     auto it = Scratch::sprites.insert(Scratch::sprites.begin() + sourceIndex + 1, spriteToClone);
 
     for (size_t i = 0; i < sourceIndex + 1; i++) {

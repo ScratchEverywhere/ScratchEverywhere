@@ -386,7 +386,15 @@ void Scratch::stopClicked() {
         }
         delete spr;
     }
-    BlockExecutor::sortSprites = true;
+
+    //ToDo: This fixes a crash that can occur when the maximum number of layers is higher than the number of sprites 
+    // (due to cloning and layer shifting, or when re-executing "when flag clicked" blocks).
+    // However, this could potentially break projects logically if the content isn't currently sorted correctly.
+    // I'm too lazy to test that right now.
+    for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
+        Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
+    }
+    BlockExecutor::sortSprites = false;
 }
 
 std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
