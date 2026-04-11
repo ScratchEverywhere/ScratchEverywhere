@@ -24,13 +24,19 @@ SCRATCH_BLOCK(event, whenstageclicked) {
 
 SCRATCH_BLOCK(event, broadcast) {
     Value broadcast;
+
     if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
     std::string broadcastStr = broadcast.asString();
+    std::transform(broadcastStr.begin(), broadcastStr.end(), broadcastStr.begin(), ::tolower);
 
     for (auto &spr : Scratch::sprites) {
         if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
         for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
-            if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
+
+            std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
+            std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
+
+            if (broadcastOption == broadcastStr) {
                 BlockExecutor::startThread(spr, hat);
             }
         }
@@ -43,13 +49,19 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     BlockState *state = thread->getState(block);
     if (state->completedSteps == 0) {
         Value broadcastValue;
+
         if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcastValue)) return BlockResult::REPEAT;
         std::string broadcastStr = broadcastValue.asString();
+        std::transform(broadcastStr.begin(), broadcastStr.end(), broadcastStr.begin(), ::tolower);
 
         for (auto &spr : Scratch::sprites) {
             if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
             for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
-                if (Scratch::getFieldValue(*hat, "BROADCAST_OPTION") == broadcastStr) {
+
+                std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
+                std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
+
+                if (broadcastOption == broadcastStr) {
                     state->threads.push_back(BlockExecutor::startThread(spr, hat)->id);
                 }
             }
