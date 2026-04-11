@@ -69,10 +69,10 @@ SCRATCH_BLOCK(procedures, prototype) {
 
         auto it = thread->MyBlocksVariablen.find(argId);
         if (it != thread->MyBlocksVariablen.end()) {
-            thread->MyBlocksVariablen[argName] = std::move(it->second);
-
-            if (argName != argId)
+            if (argName != argId) {
+                thread->MyBlocksVariablen[argName] = std::move(it->second);
                 thread->MyBlocksVariablen.erase(argId);
+            }
         } else {
             thread->MyBlocksVariablen[argName] = (i < block->argumentDefaults.size())
                                                      ? block->argumentDefaults[i]
