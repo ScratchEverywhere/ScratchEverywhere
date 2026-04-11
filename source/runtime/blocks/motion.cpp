@@ -183,6 +183,9 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
     state->glideStartX = sprite->xPosition;
     state->glideStartY = sprite->yPosition;
 
+    if (state->waitDuration <= 0) return BlockResult::CONTINUE;
+    state->completedSteps = 1;
+
     return BlockResult::REPEAT;
 }
 
