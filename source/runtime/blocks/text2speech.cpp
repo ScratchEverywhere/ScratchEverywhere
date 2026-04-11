@@ -38,9 +38,12 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         if (!DownloadManager::init()) return BlockResult::CONTINUE;
         if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(api)) {
             Log::log("T2S audio already downloaded: " + inputString);
-            SoundStream *strm = new SoundStream(tempFile);
+            SoundStream *strm = new SoundStream(tempFile, false, true);
             BlockExecutor::addToRepeatQueue(sprite, &block);
             block.repeatTimes = -4;
+
+	    std::cout << Mixer::isSoundPlaying(tempFile) << std::endl;
+
             return BlockResult::RETURN;
         }
 

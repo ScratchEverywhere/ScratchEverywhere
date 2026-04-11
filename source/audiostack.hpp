@@ -59,7 +59,7 @@ class SoundStream {
     bool auto_clean;
     bool no_lock;
 
-    SoundStream(std::string path, bool cached = false);
+    SoundStream(std::string path, bool cached = false, bool on_disk = false);
     SoundStream(mz_zip_archive *zip, std::string path);
 
     ~SoundStream();

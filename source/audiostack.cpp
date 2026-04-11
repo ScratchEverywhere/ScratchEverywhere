@@ -93,15 +93,13 @@ void SoundStream::loadFromBuffer() {
     this->no_lock = false;
 }
 
-SoundStream::SoundStream(std::string path, bool cached) {
-    std::string prefix;
-    if (!cached && !Unzip::UnpackedInSD) prefix = OS::getRomFSLocation();
-    else if (Unzip::UnpackedInSD) prefix = Unzip::filePath;
-
-    path = prefix + path;
+SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
+    std::string prefix = "";
+    if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
+    else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
 #ifdef USE_CMAKERC
-    if (cached || Unzip::UnpackedInSD) {
+    if (cached || Unzip::UnpackedInSD || on_disk) {
 #endif
         std::ifstream ifs(path, std::ios::binary);
 
