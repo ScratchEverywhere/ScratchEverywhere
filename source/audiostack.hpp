@@ -26,6 +26,15 @@ enum SoundStreamTypes {
     SoundStreamVorbis
 };
 
+class SoundConfig {
+  public:
+    float volume;
+    float pan;
+    float pitch;
+
+    SoundConfig();
+};
+
 /* TODO: maybe make this modular? but it's not like we're going to support
  * more than wav/mp3
  */
@@ -37,6 +46,7 @@ class SoundStream {
     void loadAsMP3();
     void loadAsVorbis();
     void loadFromBuffer();
+    void commonInit();
 
   public:
     drwav wav;
@@ -47,13 +57,13 @@ class SoundStream {
     stb_vorbis *vorbis;
 #endif
 
+    std::string name;
+
     int type;
 
     int channels;
     int rate;
-    float volume;
-    float pan;
-    float pitch;
+    SoundConfig config;
 
     bool paused;
     bool auto_clean;
@@ -77,6 +87,7 @@ class Mixer {
 
     static SE_Mutex mutex;
     static std::unordered_map<std::string, SoundStream *> streams;
+    static std::unordered_map<std::string, SoundConfig> configs;
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);

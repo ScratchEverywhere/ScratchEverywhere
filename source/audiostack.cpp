@@ -15,6 +15,12 @@ CMRC_DECLARE(romfs);
 #include <iostream>
 #include <vector>
 
+SoundConfig::SoundConfig() {
+    this->volume = 100;
+    this->pan = 0;
+    this->pitch = 1;
+}
+
 /* TODO: Oh no! this does not check errors from dr_libs. Please anyone,
  * think me a best way to check them. I don't know enough C++ to do this.
  */
@@ -64,6 +70,18 @@ void SoundStream::loadAsVorbis() {
 }
 #endif
 
+void SoundStream::commonInit() {
+    Mixer::mutex.lock();
+
+    auto e = Mixer::configs.find(this->name);
+
+    if (e != Mixer::configs.end()) {
+        this->config = e->second;
+    }
+
+    Mixer::mutex.unlock();
+}
+
 void SoundStream::loadFromBuffer() {
     this->type = SoundStreamUnknown;
 
@@ -85,9 +103,6 @@ void SoundStream::loadFromBuffer() {
         return;
     }
 
-    this->volume = 100;
-    this->pan = 0;
-
     this->paused = false;
     this->auto_clean = false;
     this->no_lock = false;
@@ -98,12 +113,10 @@ SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
-    path = prefix + path;
-
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
 #endif
-        std::ifstream ifs(path, std::ios::binary);
+        std::ifstream ifs(prefix + path, std::ios::binary);
 
         ifs.seekg(0, std::ios::end);
         this->buffer_size = ifs.tellg();
@@ -117,7 +130,7 @@ SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
         ifs.close();
 #ifdef USE_CMAKERC
     } else {
-        const auto &file = cmrc::romfs::get_filesystem().open(path);
+        const auto &file = cmrc::romfs::get_filesystem().open(prefix + path);
 
         this->buffer_size = file.size();
 
@@ -125,6 +138,9 @@ SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
         memcpy(this->buffer, file.begin(), this->buffer_size);
     }
 #endif
+
+    this->name = path;
+    commonInit();
 
     loadFromBuffer();
 
@@ -147,6 +163,9 @@ SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
     } else {
         this->buffer = (unsigned char *)Unzip::getFileInSB3(path, &this->buffer_size);
     }
+
+    this->name = path;
+    commonInit();
 
     loadFromBuffer();
 
@@ -198,6 +217,7 @@ int SoundStream::read(float *output, int frames) {
 }
 
 std::unordered_map<std::string, SoundStream *> Mixer::streams;
+std::unordered_map<std::string, SoundConfig> Mixer::configs;
 SE_Mutex Mixer::mutex;
 
 void Mixer::requestSound(short *output, int frames) {
@@ -215,7 +235,7 @@ void Mixer::requestSound(short *output, int frames) {
             continue;
         }
 
-        int pairs = frames * e.second->rate / Mixer::rate;
+        int pairs = frames * (e.second->rate * e.second->config.pitch) / Mixer::rate;
         float *buffer = new float[e.second->channels * pairs];
         float *stereo = new float[2 * pairs];
         float *stereo_resampled = new float[2 * frames];
@@ -251,8 +271,19 @@ void Mixer::requestSound(short *output, int frames) {
                 stereo_resampled[2 * i + j] = stereo[2 * (i * pairs / frames) + j];
         }
 
-        for (int i = 0; i < 2 * frames; i++)
-            tmp[i] += stereo_resampled[i] * e.second->volume / 100;
+        for (int i = 0; i < frames; i++) {
+            double l = stereo_resampled[2 * i + 0] * e.second->config.volume / 100;
+            double r = stereo_resampled[2 * i + 1] * e.second->config.volume / 100;
+            float p = e.second->config.pan / 100;
+            float pl = -std::clamp(p, -1.0f, 0.0f);
+            float pr = std::clamp(p, 0.0f, 1.0f);
+
+            l -= l * pr;
+            r -= r * pl;
+
+            tmp[2 * i + 0] += l;
+            tmp[2 * i + 1] += r;
+        }
 
         delete[] stereo_resampled;
         delete[] stereo;
@@ -295,8 +326,10 @@ void Mixer::cleanupAudio() {
         delete streams[i];
 }
 
-#define FIND                     \
+#define FIND(blk)                \
     Mixer::mutex.lock();         \
+                                 \
+    blk;                         \
                                  \
     auto e = streams.find(name); \
     if (e != streams.end()) {
@@ -306,8 +339,20 @@ void Mixer::cleanupAudio() {
             \
     Mixer::mutex.unlock();
 
+#define PRESERVE(x)                    \
+    {                                  \
+        SoundConfig config;            \
+	auto e = Mixer::configs.find(name); \
+	\
+	if(e != Mixer::configs.end()) config = e->second; \
+                                       \
+        config.x = x;                  \
+                                       \
+        Mixer::configs[name] = config; \
+    }
+
 void Mixer::stopSound(std::string name) {
-    FIND;
+    FIND({});
 
     e->second->paused = true;
 
@@ -317,7 +362,7 @@ void Mixer::stopSound(std::string name) {
 bool Mixer::isSoundPlaying(std::string name) {
     bool b = false;
 
-    FIND;
+    FIND({});
 
     b = !e->second->paused;
 
@@ -327,25 +372,27 @@ bool Mixer::isSoundPlaying(std::string name) {
 }
 
 void Mixer::setPitch(std::string name, float pitch) {
-    FIND;
+    pitch = pow(2, pitch / 120.0);
 
-    e->second->pitch = pitch;
+    FIND(PRESERVE(pitch));
+
+    e->second->config.pitch = pitch;
 
     END;
 }
 
 void Mixer::setPan(std::string name, float pan) {
-    FIND;
+    FIND(PRESERVE(pan));
 
-    e->second->pan = pan;
+    e->second->config.pan = pan;
 
     END;
 }
 
 void Mixer::setSoundVolume(std::string name, float volume) {
-    FIND;
+    FIND(PRESERVE(volume));
 
-    e->second->volume = volume;
+    e->second->config.volume = volume;
 
     END;
 }
@@ -353,9 +400,9 @@ void Mixer::setSoundVolume(std::string name, float volume) {
 float Mixer::getSoundVolume(std::string name) {
     float v;
 
-    FIND;
+    FIND({});
 
-    v = e->second->volume;
+    v = e->second->config.volume;
 
     END;
 
@@ -363,7 +410,7 @@ float Mixer::getSoundVolume(std::string name) {
 }
 
 void Mixer::setAutoClean(std::string name, bool toggle) {
-    FIND;
+    FIND({});
 
     e->second->auto_clean = toggle;
 

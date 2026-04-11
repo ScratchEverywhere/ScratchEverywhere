@@ -135,13 +135,13 @@ SCRATCH_BLOCK(sound, changeeffectby) {
             sprite->pitch += amount.asDouble();
             sprite->pitch = std::clamp(sprite->pitch, -360.0f, 360.0f);
             for (Sound sound : sprite->sounds) {
-                Mixer::setPitch(sound.fullName, sprite->pitch - 100.0f);
+                Mixer::setPitch(sound.fullName, sprite->pitch);
             }
         } else if (effect == "PAN") {
             sprite->pan += amount.asDouble();
             sprite->pan = std::clamp(sprite->pan, -100.0f, 100.0f);
             for (Sound sound : sprite->sounds) {
-                Mixer::setPan(sound.fullName, sprite->pan - 100.0f);
+                Mixer::setPan(sound.fullName, sprite->pan);
             }
         }
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -160,13 +160,13 @@ SCRATCH_BLOCK(sound, seteffectto) {
             sprite->pitch = amount.asDouble();
             sprite->pitch = std::clamp(sprite->pitch, -360.0f, 360.0f);
             for (Sound sound : sprite->sounds) {
-                Mixer::setPitch(sound.fullName, sprite->pitch - 100.0f);
+                Mixer::setPitch(sound.fullName, sprite->pitch);
             }
         } else if (effect == "PAN") {
             sprite->pan = amount.asDouble();
             sprite->pan = std::clamp(sprite->pan, -100.0f, 100.0f);
             for (Sound sound : sprite->sounds) {
-                Mixer::setPan(sound.fullName, sprite->pan - 100.0f);
+                Mixer::setPan(sound.fullName, sprite->pan);
             }
         }
         BlockExecutor::addToRepeatQueue(sprite, &block);
@@ -177,11 +177,11 @@ SCRATCH_BLOCK(sound, seteffectto) {
 }
 
 SCRATCH_BLOCK(sound, cleareffects) {
-    sprite->pitch = 100.0f;
-    sprite->pan = 100.0f;
+    sprite->pitch = 0.0f;
+    sprite->pan = 0.0f;
     for (Sound sound : sprite->sounds) {
-        Mixer::setPitch(sound.fullName, sprite->pitch - 100.0f);
-        Mixer::setPan(sound.fullName, sprite->pan - 100.0f);
+        Mixer::setPitch(sound.fullName, sprite->pitch);
+        Mixer::setPan(sound.fullName, sprite->pan);
     }
     return BlockResult::CONTINUE;
 }

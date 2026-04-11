@@ -42,8 +42,6 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
             BlockExecutor::addToRepeatQueue(sprite, &block);
             block.repeatTimes = -4;
 
-	    std::cout << Mixer::isSoundPlaying(tempFile) << std::endl;
-
             return BlockResult::RETURN;
         }
 
