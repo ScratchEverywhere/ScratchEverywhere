@@ -50,7 +50,7 @@ struct Pools {
 
 struct BlockState {
     int completedSteps = 0;
-    int repeatTimes = -1;
+    double repeatTimes = -1;
     double waitDuration = 0;
     double glideStartX = 0, glideStartY = 0;
     double glideEndX = 0, glideEndY = 0;
