@@ -99,7 +99,6 @@ SCRATCH_BLOCK(control, create_clone_of) {
 #ifdef ENABLE_CACHING
     BlockExecutor::linkPointers(spriteToClone);
 #endif
-    Scratch::forceRedraw = true;
 
     int sourceIndex = (Scratch::sprites.size() - 1) - original->layer;
     if (sourceIndex < 0) sourceIndex = 0;
