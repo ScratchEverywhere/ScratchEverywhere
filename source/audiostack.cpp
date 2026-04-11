@@ -98,6 +98,8 @@ SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
+    path = prefix + path;
+
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
 #endif
