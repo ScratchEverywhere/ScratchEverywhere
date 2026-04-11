@@ -3,23 +3,19 @@
 #include <sprite.hpp>
 
 SCRATCH_BLOCK(event, whenflagclicked) {
-    thread->finished = false;
-    return BlockResult::CONTINUE_IMMEDIATELY;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(event, whenbackdropswitchesto) {
-    if (Scratch::getFieldValue(*block, "BACKDROP") == Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name) {
-        return BlockResult::CONTINUE_IMMEDIATELY;
-    }
-    return BlockResult::RETURN;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(event, whenthisspriteclicked) {
-    return BlockResult::CONTINUE_IMMEDIATELY;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(event, whenstageclicked) {
-    return BlockResult::CONTINUE_IMMEDIATELY;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(event, broadcast) {
@@ -87,11 +83,11 @@ SCRATCH_BLOCK(event, broadcastandwait) {
 
 // TODO: This is currently very poorly optimized. Please fix it, thank you.
 SCRATCH_BLOCK(event, whenkeypressed) {
-    return BlockResult::CONTINUE_IMMEDIATELY;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(event, whenbroadcastreceived) {
-    return BlockResult::CONTINUE_IMMEDIATELY;
+    return BlockResult::CONTINUE;
 }
 
 SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)

@@ -104,6 +104,9 @@ SCRATCH_BLOCK(sound, stopallsounds) {
 }
 
 SCRATCH_BLOCK(sound, changeeffectby) {
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps != 0) return BlockResult::CONTINUE;
+
     Value amount;
     if (!Scratch::getInput(block, "VALUE", thread, sprite, amount)) return BlockResult::REPEAT;
 
@@ -122,7 +125,8 @@ SCRATCH_BLOCK(sound, changeeffectby) {
             SoundPlayer::setPan(sound.fullName, sprite->pan - 100.0f);
         }
     }
-    return BlockResult::CONTINUE;
+    state->completedSteps = 1;
+    return BlockResult::REPEAT;
 }
 
 SCRATCH_BLOCK(sound, seteffectto) {
@@ -158,6 +162,9 @@ SCRATCH_BLOCK(sound, cleareffects) {
 }
 
 SCRATCH_BLOCK(sound, changevolumeby) {
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps != 0) return BlockResult::CONTINUE;
+
     Value volume;
     if (!Scratch::getInput(block, "VOLUME", thread, sprite, volume)) return BlockResult::REPEAT;
 
@@ -166,10 +173,15 @@ SCRATCH_BLOCK(sound, changevolumeby) {
     for (Sound sound : sprite->sounds) {
         SoundPlayer::setSoundVolume(sound.fullName, sprite->volume + inputValue);
     }
-    return BlockResult::CONTINUE;
+
+    state->completedSteps = 1;
+    return BlockResult::REPEAT;
 }
 
 SCRATCH_BLOCK(sound, setvolumeto) {
+    BlockState *state = thread->getState(block);
+    if (state->completedSteps != 0) return BlockResult::CONTINUE;
+
     Value volume;
     if (!Scratch::getInput(block, "VOLUME", thread, sprite, volume)) return BlockResult::REPEAT;
 
@@ -178,7 +190,9 @@ SCRATCH_BLOCK(sound, setvolumeto) {
         SoundPlayer::setSoundVolume(sound.fullName, inputValue);
     }
     sprite->volume = inputValue;
-    return BlockResult::CONTINUE;
+
+    state->completedSteps = 1;
+    return BlockResult::REPEAT;
 }
 
 SCRATCH_BLOCK(sound, volume) {

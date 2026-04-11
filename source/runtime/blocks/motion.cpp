@@ -110,6 +110,7 @@ SCRATCH_BLOCK(motion, sety) {
 SCRATCH_BLOCK(motion, glideto) {
     BlockState *state = thread->getState(block);
     if (state->completedSteps == 1) {
+    glide:
         const int elapsedTime = state->waitTimer.getTimeMs();
 
         if (elapsedTime >= state->waitDuration) {
@@ -155,6 +156,7 @@ SCRATCH_BLOCK(motion, glideto) {
     state->glideEndX = positionXStr;
     state->glideEndY = positionYStr;
     state->completedSteps = 1;
+    goto glide;
     return BlockResult::REPEAT;
 }
 
@@ -162,6 +164,7 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
     BlockState *state = thread->getState(block);
 
     if (state->completedSteps == 1) {
+    glide:
         const int elapsedTime = state->waitTimer.getTimeMs();
         if (elapsedTime >= state->waitDuration) {
             Scratch::gotoXY(sprite, state->glideEndX, state->glideEndY);
@@ -186,6 +189,7 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
     if (state->waitDuration <= 0) return BlockResult::CONTINUE;
     state->completedSteps = 1;
 
+    goto glide;
     return BlockResult::REPEAT;
 }
 

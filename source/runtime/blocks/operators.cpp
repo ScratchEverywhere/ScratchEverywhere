@@ -150,10 +150,11 @@ SCRATCH_BLOCK(operator, mathop) {
     else if (operation == "cos") *outValue = Value(std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10);
     else if (operation == "tan") {
         double modAngle = std::fmod(value, 360.0);
-        if (modAngle < -180.0) modAngle += 360.0;
-        else if (modAngle > 180.0) modAngle -= 360.0;
 
-        else if (modAngle == 90.0 || modAngle == -270.0) *outValue = Value(std::numeric_limits<double>::infinity());
+        if (modAngle < -180.0) modAngle += 360.0;
+        if (modAngle > 180.0) modAngle -= 360.0;
+
+        if (modAngle == 90.0 || modAngle == -270.0) *outValue = Value(std::numeric_limits<double>::infinity());
         else if (modAngle == -90.0 || modAngle == 270.0) *outValue = Value(-std::numeric_limits<double>::infinity());
         else *outValue = Value(std::round(std::tan(Math::degreesToRadians(value)) * 1e10) / 1e10);
     } else if (operation == "asin") *outValue = Value(Math::radiansToDegrees(asin(value)));

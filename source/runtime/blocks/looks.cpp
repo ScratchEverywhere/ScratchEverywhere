@@ -24,6 +24,7 @@ SCRATCH_BLOCK(looks, say) {
 
     return BlockResult::CONTINUE;
 }
+
 SCRATCH_BLOCK(looks, sayforsecs) {
     BlockState *state = thread->getState(block);
     if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
@@ -37,14 +38,17 @@ SCRATCH_BLOCK(looks, sayforsecs) {
         state->waitTimer.start();
         speechManager->showSpeech(sprite, message.asString(), seconds.asDouble(), "say");
         state->completedSteps = 1;
+        return BlockResult::REPEAT;
     }
 
-    if (state->waitTimer.hasElapsed(state->waitDuration)) {
+    if (state->waitTimer.getTimeMs() >= state->waitDuration) {
         thread->eraseState(block);
+        speechManager->showSpeech(sprite, "", 0.01, "say");
         return BlockResult::CONTINUE;
     }
     return BlockResult::REPEAT;
 }
+
 SCRATCH_BLOCK(looks, think) {
     if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
     SpeechManager *speechManager = Render::getSpeechManager();
@@ -168,7 +172,16 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
     }
 
 end:
-    BlockExecutor::runAllBlocksByOpcode("event_whenbackdropswitchesto");
+    std::string currentBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
+    for (auto &spr : Scratch::sprites) {
+        if (spr->hats["event_whenbackdropswitchesto"].empty()) continue;
+        for (Block *hat : spr->hats["event_whenbackdropswitchesto"]) {
+
+            if (Scratch::getFieldValue(*hat, "BACKDROP") == currentBackdrop) {
+                BlockExecutor::startThread(spr, hat);
+            }
+        }
+    }
     return BlockResult::CONTINUE;
 }
 
@@ -179,7 +192,9 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
         if (!Scratch::getInput(block, "BACKDROP", thread, sprite, backdrop)) return BlockResult::REPEAT;
 
         if (backdrop.isDouble()) {
-            Scratch::switchCostume(Scratch::stageSprite, backdrop.isNaN() ? 0 : backdrop.asDouble() - 1);
+            const double bk = backdrop.isNaN() ? 0 : backdrop.asDouble() - 1;
+            if (bk < 0 || bk >= sprite->costumes.size()) return BlockResult::CONTINUE;
+            Scratch::switchCostume(Scratch::stageSprite, bk);
         } else {
             bool found = false;
             for (size_t i = 0; i < Scratch::stageSprite->costumes.size(); i++) {
@@ -193,21 +208,37 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
             if (!found) {
                 if (backdrop.asString() == "next backdrop") {
                     Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
+                    found = true;
                 } else if (backdrop.asString() == "previous backdrop") {
                     Scratch::switchCostume(Scratch::stageSprite, --Scratch::stageSprite->currentCostume);
+                    found = true;
                 } else if (backdrop.asString() == "random backdrop") {
                     if (Scratch::stageSprite->costumes.size() > 1) {
                         int randomIndex = std::rand() % (Scratch::stageSprite->costumes.size() - 1);
                         if (randomIndex >= Scratch::stageSprite->currentCostume) randomIndex++;
                         Scratch::switchCostume(Scratch::stageSprite, randomIndex);
+                        found = true;
                     }
                 } else if (backdrop.isNumeric()) {
                     Scratch::switchCostume(Scratch::stageSprite, backdrop.asDouble() - 1);
+                    found = true;
+                }
+            }
+            if (!found) return BlockResult::CONTINUE;
+        }
+        std::vector<ScriptThread *> newthreads;
+
+        std::string currentBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
+        for (auto &spr : Scratch::sprites) {
+            if (spr->hats["event_whenbackdropswitchesto"].empty()) continue;
+            for (Block *hat : spr->hats["event_whenbackdropswitchesto"]) {
+
+                if (Scratch::getFieldValue(*hat, "BACKDROP") == currentBackdrop) {
+                    BlockExecutor::startThread(spr, hat);
                 }
             }
         }
-        std::vector<ScriptThread *> newthreads;
-        BlockExecutor::runAllBlocksByOpcode("event_whenbackdropswitchesto", &newthreads);
+
         for (ScriptThread *t : newthreads) {
             state->threads.push_back(t->id);
         }
@@ -225,7 +256,16 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
 
 SCRATCH_BLOCK(looks, nextbackdrop) {
     Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
-    BlockExecutor::runAllBlocksByOpcode("event_whenbackdropswitchesto");
+    std::string currentBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
+    for (auto &spr : Scratch::sprites) {
+        if (spr->hats["event_whenbackdropswitchesto"].empty()) continue;
+        for (Block *hat : spr->hats["event_whenbackdropswitchesto"]) {
+
+            if (Scratch::getFieldValue(*hat, "BACKDROP") == currentBackdrop) {
+                BlockExecutor::startThread(spr, hat);
+            }
+        }
+    }
     return BlockResult::CONTINUE;
 }
 

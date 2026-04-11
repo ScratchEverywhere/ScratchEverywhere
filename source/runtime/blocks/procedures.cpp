@@ -76,7 +76,7 @@ SCRATCH_BLOCK(procedures, prototype) {
         } else {
             thread->MyBlocksVariablen[argName] = (i < block->argumentDefaults.size())
                                                      ? block->argumentDefaults[i]
-                                                     : Value("");
+                                                     : Value();
         }
     }
     return BlockResult::CONTINUE_IMMEDIATELY;
@@ -99,7 +99,7 @@ SCRATCH_BLOCK(argument, reporter_string_number) {
     std::string name = Scratch::getFieldValue(*block, "VALUE");
     auto it = thread->MyBlocksVariablen.find(name);
     if (outValue)
-        *outValue = (it != thread->MyBlocksVariablen.end()) ? it->second : Value("");
+        *outValue = (it != thread->MyBlocksVariablen.end()) ? it->second : Value();
     return BlockResult::CONTINUE;
 }
 

@@ -267,18 +267,20 @@ SCRATCH_BLOCK(control, clear_counter) {
 
 SCRATCH_BLOCK(control, for_each) {
     BlockState *state = thread->getState(block);
+
+    Value upperBound;
+    if (!Scratch::getInput(block, "VALUE", thread, sprite, upperBound)) return BlockResult::REPEAT;
+
     if (state->completedSteps != 1) {
-        Value upperBound;
-        if (!Scratch::getInput(block, "VALUE", thread, sprite, upperBound)) return BlockResult::REPEAT;
         state->repeatTimes = 0;
-        state->waitDuration = upperBound.asDouble();
         state->completedSteps = 1;
     }
 
-    if (state->repeatTimes >= state->waitDuration) {
+    if (state->repeatTimes >= upperBound.asDouble()) {
         thread->eraseState(block);
         return BlockResult::CONTINUE;
     }
+
     BlockExecutor::setVariableValue(Scratch::getFieldId(*block, "VARIABLE"), Value(state->repeatTimes + 1), sprite);
 
     state->repeatTimes++;
