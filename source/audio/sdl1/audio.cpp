@@ -1,5 +1,4 @@
 #include "audio.hpp"
-#include "SDL3/SDL_error.h"
 #include "audiostack.hpp"
 #include "os.hpp"
 #include <SDL/SDL.h>
