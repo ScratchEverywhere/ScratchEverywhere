@@ -1,4 +1,5 @@
 #include "blockUtils.hpp"
+#include <cmath>
 #include <render.hpp>
 #include <sprite.hpp>
 #include <value.hpp>
@@ -6,18 +7,24 @@
 constexpr unsigned int MAX_LIST_ITEMS = 200000;
 
 SCRATCH_BLOCK(data, setvariableto) {
-    BlockExecutor::setVariableValue(Scratch::getFieldId(block, "VARIABLE"), Scratch::getInputValue(block, "VALUE", sprite), sprite, &block);
+    Value value;
+    if (!Scratch::getInput(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
+
+    BlockExecutor::setVariableValue(Scratch::getFieldId(*block, "VARIABLE"), value, sprite);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(data, changevariableby) {
-    const std::string varId = Scratch::getFieldId(block, "VARIABLE");
-    BlockExecutor::setVariableValue(varId, Value(Scratch::getInputValue(block, "VALUE", sprite) + BlockExecutor::getVariableValue(varId, sprite, &block)), sprite, &block);
+    Value value;
+    if (!Scratch::getInput(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
+
+    const std::string varId = Scratch::getFieldId(*block, "VARIABLE");
+    BlockExecutor::setVariableValue(varId, value + BlockExecutor::getVariableValue(varId, sprite), sprite);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(data, showvariable) {
-    const std::string varId = Scratch::getFieldId(block, "VARIABLE");
+    const std::string varId = Scratch::getFieldId(*block, "VARIABLE");
 
     const auto &it = Render::monitors.find(varId);
     if (it != Render::monitors.end()) it->second.visible = true;
@@ -26,7 +33,7 @@ SCRATCH_BLOCK(data, showvariable) {
 }
 
 SCRATCH_BLOCK(data, hidevariable) {
-    const std::string varId = Scratch::getFieldId(block, "VARIABLE");
+    const std::string varId = Scratch::getFieldId(*block, "VARIABLE");
 
     const auto &it = Render::monitors.find(varId);
     if (it != Render::monitors.end()) it->second.visible = false;
@@ -35,7 +42,7 @@ SCRATCH_BLOCK(data, hidevariable) {
 }
 
 SCRATCH_BLOCK(data, showlist) {
-    const std::string varId = Scratch::getFieldId(block, "LIST");
+    const std::string varId = Scratch::getFieldId(*block, "LIST");
 
     const auto &it = Render::monitors.find(varId);
     if (it != Render::monitors.end()) it->second.visible = true;
@@ -44,7 +51,7 @@ SCRATCH_BLOCK(data, showlist) {
 }
 
 SCRATCH_BLOCK(data, hidelist) {
-    const std::string varId = Scratch::getFieldId(block, "LIST");
+    const std::string varId = Scratch::getFieldId(*block, "LIST");
 
     const auto &it = Render::monitors.find(varId);
     if (it != Render::monitors.end()) it->second.visible = false;
@@ -53,181 +60,210 @@ SCRATCH_BLOCK(data, hidelist) {
 }
 
 SCRATCH_BLOCK(data, addtolist) {
-    const Value val = Scratch::getInputValue(block, "ITEM", sprite);
-    auto items = Scratch::getListItems(block, sprite);
+    Value item;
+    if (!Scratch::getInput(block, "ITEM", thread, sprite, item)) return BlockResult::REPEAT;
 
-    if (items && items->size() < MAX_LIST_ITEMS) items->push_back(val);
+    auto items = Scratch::getListItems(*block, sprite);
+
+    if (items && items->size() < MAX_LIST_ITEMS) items->push_back(item);
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(data, deleteoflist) {
-    const Value val = Scratch::getInputValue(block, "INDEX", sprite);
-    auto items = Scratch::getListItems(block, sprite);
+    Value index;
+    if (!Scratch::getInput(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
+
+    auto items = Scratch::getListItems(*block, sprite);
 
     if (!items) return BlockResult::CONTINUE;
 
-    if (val.isNumeric()) {
-        const double index = std::floor(val.asDouble()) - 1; // Convert to 0-based index
-
-        // Check if the index is within bounds
-        if (index >= 0 && index < static_cast<double>(items->size())) {
-            items->erase(items->begin() + index); // Remove the item at the index
-        }
-
-        return BlockResult::CONTINUE;
-    }
-
-    if (val.asString() == "last") {
+    std::string indexStr = index.asString();
+    if (indexStr == "last" && !items->empty()) {
         items->pop_back();
         return BlockResult::CONTINUE;
     }
 
-    if (val.asString() == "all") {
+    if (indexStr == "all") {
         items->clear();
         return BlockResult::CONTINUE;
     }
 
-    if ((val.asString() == "random" || val.asString() == "any")) {
+    if ((indexStr == "random" || indexStr == "any") && !items->empty()) {
         int idx = rand() % items->size();
         items->erase(items->begin() + idx);
+        return BlockResult::CONTINUE;
+    }
+
+    double d = index.asDouble();
+    if (std::isfinite(d)) {
+        const double ind = std::floor(d) - 1; // Convert to 0-based index
+
+        // Check if the index is within bounds
+        if (ind >= 0 && ind < static_cast<double>(items->size())) {
+            items->erase(items->begin() + ind); // Remove the item at the index
+        }
     }
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(data, deletealloflist) {
-    auto items = Scratch::getListItems(block, sprite);
+    auto items = Scratch::getListItems(*block, sprite);
     if (items) items->clear();
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(data, insertatlist) {
-    const Value val = Scratch::getInputValue(block, "ITEM", sprite);
-    const Value index = Scratch::getInputValue(block, "INDEX", sprite);
+    Value item, index;
+    if (!Scratch::getInput(block, "ITEM", thread, sprite, item) ||
+        !Scratch::getInput(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
 
-    auto items = Scratch::getListItems(block, sprite);
+    auto items = Scratch::getListItems(*block, sprite);
 
     if (!items || items->size() >= MAX_LIST_ITEMS) return BlockResult::CONTINUE;
 
-    if (index.isNumeric()) {
-        const double idx = std::floor(index.asDouble()) - 1; // Convert to 0-based index
-
-        // Check if the index is within bounds
-        if (idx >= 0 && idx <= static_cast<double>(items->size())) {
-            items->insert(items->begin() + idx, val); // Insert the item at the index
-        }
-
+    std::string indexStr = index.asString();
+    if (indexStr == "last") {
+        items->push_back(item);
         return BlockResult::CONTINUE;
     }
 
-    if (index.asString() == "last") {
-        items->push_back(val);
+    if (indexStr == "random" || indexStr == "any") {
+        int idx = rand() % (items->size() + 1);
+        items->insert(items->begin() + idx, item);
+        return BlockResult::CONTINUE;
     }
 
-    if (index.asString() == "random" || index.asString() == "any") {
-        int idx = rand() % (items->size() + 1);
-        items->insert(items->begin() + idx, val);
+    double d = index.asDouble();
+    if (std::isfinite(d)) {
+        const double idx = std::floor(d) - 1; // Convert to 0-based index
+
+        // Check if the index is within bounds
+        if (idx >= 0 && idx <= static_cast<double>(items->size())) {
+            items->insert(items->begin() + idx, item); // Insert the item at the index
+        }
     }
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(data, replaceitemoflist) {
-    Value val = Scratch::getInputValue(block, "ITEM", sprite);
-    Value index = Scratch::getInputValue(block, "INDEX", sprite);
+    Value item, index;
+    if (!Scratch::getInput(block, "ITEM", thread, sprite, item) ||
+        !Scratch::getInput(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
 
-    auto items = Scratch::getListItems(block, sprite);
+    auto items = Scratch::getListItems(*block, sprite);
 
     if (!items || items->empty()) return BlockResult::CONTINUE;
 
-    if (index.isNumeric()) {
-        double idx = std::floor(index.asDouble()) - 1;
-
-        if (idx >= 0 && idx < static_cast<double>(items->size())) {
-            (*items)[idx] = val;
-        }
-
+    std::string indexStr = index.asString();
+    if (indexStr == "last") {
+        items->back() = item;
         return BlockResult::CONTINUE;
     }
 
-    if (index.asString() == "last") items->back() = val;
+    if ((indexStr == "random" || indexStr == "any")) {
+        (*items)[rand() % items->size()] = item;
+        return BlockResult::CONTINUE;
+    }
 
-    if ((index.asString() == "random" || index.asString() == "any")) {
-        (*items)[rand() % items->size()] = val;
+    double d = index.asDouble();
+    if (std::isfinite(d)) {
+        double idx = std::floor(d) - 1;
+
+        if (idx >= 0 && idx < static_cast<double>(items->size())) {
+            (*items)[idx] = item;
+        }
     }
 
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_REPORTER_BLOCK(data, itemoflist) {
-    const Value indexStr = Scratch::getInputValue(block, "INDEX", sprite);
-    const auto &items = Scratch::getListItems(block, sprite);
+SCRATCH_BLOCK(data, itemoflist) {
+    Value indexStrVal;
+    if (!Scratch::getInput(block, "INDEX", thread, sprite, indexStrVal)) return BlockResult::REPEAT;
 
-    if (items->empty()) return Value();
+    const auto &items = Scratch::getListItems(*block, sprite);
 
-    if (indexStr.asString() == "last") return items->back();
+    if (!items || items->empty()) {
+        *outValue = Value();
+        return BlockResult::CONTINUE;
+    }
 
-    if (indexStr.asString() == "random" || indexStr.asString() == "any") {
+    std::string indexStr = indexStrVal.asString();
+    if (indexStr == "last") *outValue = items->back();
+
+    else if (indexStr == "random" || indexStr == "any") {
         int idx = rand() % items->size();
-        return (*items)[idx];
+        *outValue = (*items)[idx];
+    } else {
+        double d = indexStrVal.asDouble();
+        if (std::isfinite(d)) {
+            double index = std::floor(d) - 1;
+            if (index >= 0 && index < static_cast<double>(items->size())) {
+                *outValue = (*items)[index];
+            } else *outValue = Value();
+        } else *outValue = Value();
     }
 
-    double index = std::floor(indexStr.asDouble()) - 1;
-    if (index >= 0 && index < static_cast<double>(items->size())) {
-        return (*items)[index];
-    }
-
-    return Value();
+    return BlockResult::CONTINUE;
 }
 
-SCRATCH_REPORTER_BLOCK(data, itemnumoflist) {
-    const Value itemToFind = Scratch::getInputValue(block, "ITEM", sprite);
-    const auto &items = Scratch::getListItems(block, sprite);
+SCRATCH_BLOCK(data, itemnumoflist) {
+    Value itemToFind;
+    if (!Scratch::getInput(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
+
+    const auto &items = Scratch::getListItems(*block, sprite);
 
     if (items) {
         int index = 1;
         for (auto &item : *items) {
             if (item == itemToFind) {
-                return Value(index);
+                *outValue = Value(index);
+                return BlockResult::CONTINUE;
             }
             index++;
         }
     }
 
-    return Value(0);
+    *outValue = Value(0);
+    return BlockResult::CONTINUE;
 }
 
-SCRATCH_REPORTER_BLOCK(data, lengthoflist) {
-    const auto &items = Scratch::getListItems(block, sprite);
-    if (items) return Value(static_cast<double>(items->size()));
-    return Value();
+SCRATCH_BLOCK(data, lengthoflist) {
+    const auto &items = Scratch::getListItems(*block, sprite);
+    if (items) *outValue = Value(static_cast<double>(items->size()));
+    else *outValue = Value();
+    return BlockResult::CONTINUE;
 }
 
-SCRATCH_REPORTER_BLOCK(data, listcontainsitem) {
-    const Value itemToFind = Scratch::getInputValue(block, "ITEM", sprite);
-    const auto &items = Scratch::getListItems(block, sprite);
+SCRATCH_BLOCK(data, listcontainsitem) {
+    Value itemToFind;
+    if (!Scratch::getInput(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
+
+    const auto &items = Scratch::getListItems(*block, sprite);
 
     if (items) {
         for (const auto &item : *items) {
             if (item == itemToFind) {
-                return Value(true);
+                *outValue = Value(true);
+                return BlockResult::CONTINUE;
             }
         }
     }
 
-    for (const auto &item : *items) {
-        if (item == itemToFind) return Value(true);
-    }
-    return Value(false);
+    *outValue = Value(false);
+    return BlockResult::CONTINUE;
 }
 
-SCRATCH_REPORTER_BLOCK(data, variable) {
-    return Value(BlockExecutor::getVariableValue(Scratch::getFieldId(block, "VARIABLE"), sprite, &block));
+SCRATCH_BLOCK(data, variable) {
+    *outValue = Value(BlockExecutor::getVariableValue(Scratch::getFieldId(*block, "VARIABLE"), sprite));
+    return BlockResult::CONTINUE;
 }
 
-SCRATCH_REPORTER_BLOCK(data, listcontents) {
-    const auto &items = Scratch::getListItems(block, sprite);
+SCRATCH_BLOCK(data, listcontents) {
+    const auto &items = Scratch::getListItems(*block, sprite);
     std::string ret = "";
     bool allSingle = true;
 
@@ -252,5 +288,6 @@ SCRATCH_REPORTER_BLOCK(data, listcontents) {
         }
     }
 
-    return Value(ret);
+    *outValue = Value(ret);
+    return BlockResult::CONTINUE;
 }
