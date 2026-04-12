@@ -37,16 +37,11 @@ SCRATCH_BLOCK(sound, playuntildone) {
         }
 
         if (soundFound) {
-            if (Mixer::isSoundPlaying(soundFullName)) {
-                // nothing
-            } else {
-                SoundStream *strm;
-                if (Scratch::projectType == ProjectType::UNZIPPED)
-                    strm = new SoundStream(soundFullName);
-                else
-                    strm = new SoundStream(&Unzip::zipArchive, soundFullName);
-            }
-
+            SoundStream *strm;
+            if (Scratch::projectType == ProjectType::UNZIPPED)
+                strm = new SoundStream(state->name);
+            else
+                strm = new SoundStream(&Unzip::zipArchive, state->name);
         }
 
         state->completedSteps = 1;
@@ -54,7 +49,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
     }
     std::string checkSoundName = state->name;
 
-    if (!checkSoundName.empty() && SoundPlayer::isSoundPlaying(checkSoundName)) {
+    if (!checkSoundName.empty() && Mixer::isSoundPlaying(checkSoundName)) {
         return BlockResult::REPEAT;
     }
 
@@ -102,7 +97,7 @@ SCRATCH_BLOCK(sound, play) {
         else
             strm = new SoundStream(&Unzip::zipArchive, soundFullName);
 
-	Mixer::setAutoClean(soundFullName, true);
+        Mixer::setAutoClean(soundFullName, true);
     }
 #endif
     return BlockResult::CONTINUE;
