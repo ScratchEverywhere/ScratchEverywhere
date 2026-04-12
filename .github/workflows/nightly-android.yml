@@ -1,0 +1,81 @@
+name: Android Nightly Build
+
+on:
+  push:
+    paths:
+      - CMakeLists.txt
+      - cmake/platforms/android.cmake
+      - cmake/renderers/sdl2.cmake
+      - cmake/windowing/sdl2.cmake
+      - cmake/audio/sdl2.cmake
+      - cmake/deps/*
+      - source/runtime/**
+      - source/platforms/
+      - source/platforms/android/**
+      - source/renderers/sdl2/**
+      - source/windowing/sdl2/**
+      - source/audio/sdl2/**
+      - source/*
+      - source/menus/**
+      - gfx/menu/**
+      - include/**
+      - .github/workflows/nightly-android.yml
+      - docker/Dockerfile.android
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  android-armv8:
+    name: Android ARM64-v8a Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.android
+          target: exporter
+          outputs: type=local,dest=.
+          build-args: |
+            ABIS=arm64-v8a
+
+      - name: Upload Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Everywhere! Android ARM64-v8a Nightly
+          path: scratch-android_arm64-v8a.apk
+  android-armv8:
+    name: Android ARMeabi-v7a Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.android
+          target: exporter
+          outputs: type=local,dest=.
+          build-args: |
+            ABIS=armeabi-v7a
+
+      - name: Upload Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Everywhere! Android ARMeabi-v7a Nightly
+          path: scratch-android_armeabi-v7a.apk
