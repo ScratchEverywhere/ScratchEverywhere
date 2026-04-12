@@ -152,9 +152,8 @@ void SettingsMenu::render() {
     Render::beginFrame(1, 96, 90, 105);
 
     if (ClearCache->isPressed({"a"})) {
-        // clear folder: OS::getScratchFolderLocation() + "cache/"
-        std::filesystem::remove_all(OS::getScratchFolderLocation() + "cache/");
-        std::filesystem::create_directory(OS::getScratchFolderLocation() + "cache/");
+        OS::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        OS::createDirectory(OS::getScratchFolderLocation() + "cache/");
     }
 
     if (EnableMenuMusic->isPressed({"a"})) {
