@@ -1,14 +1,20 @@
 #include <audio.hpp>
 #include <audiostack.hpp>
+#ifdef ENABLE_AUDIO
 #include <maxmod9.h>
+#endif
 #include <nds.h>
 
+#ifdef ENABLE_AUDIO
 static mm_word streamingCallback(mm_word length, mm_addr dest, mm_stream_formats format) {
+
     Mixer::requestSound((short *)dest, length);
     return length;
 }
+#endif
 
 void SoundPlayer::init() {
+#ifdef ENABLE_AUDIO
     mm_ds_system mmSys =
         {
             .mod_count = 0,
@@ -27,10 +33,14 @@ void SoundPlayer::init() {
             .manual = false,
         };
     mmStreamOpen(&stream);
+#endif
 }
+
 void SoundPlayer::cleanupAudio() {
+#ifdef ENABLE_AUDIO
     mmStreamClose();
     Mixer::cleanupAudio();
+#endif
 }
 void SoundPlayer::deinit() {
     cleanupAudio();
