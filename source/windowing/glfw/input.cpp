@@ -5,7 +5,6 @@
 #include <string>
 #include <text.hpp>
 #include <vector>
-
 #ifdef ENABLE_CLOUDVARS
 extern std::string cloudUsername;
 extern bool cloudProject;
