@@ -48,6 +48,7 @@ SCRATCH_BLOCK(translate, getTranslate) {
         std::string words = wordsInput.asString();
         if (std::all_of(words.begin(), words.end(), ::isdigit)) {
             *outValue = wordsInput;
+            thread->eraseState(block);
             return BlockResult::CONTINUE;
         }
 
@@ -73,6 +74,7 @@ SCRATCH_BLOCK(translate, getTranslate) {
                 start += 10;
                 size_t end = content.find("\"", start);
                 *outValue = Value(content.substr(start, end - start));
+                thread->eraseState(block);
                 return BlockResult::CONTINUE;
             }
         }
