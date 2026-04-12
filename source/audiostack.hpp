@@ -7,14 +7,16 @@
 #ifndef STB_VORBIS_IMPLEMENTATION
 #define STB_VORBIS_HEADER_ONLY
 #endif
+#ifdef ENABLE_AUDIO
 #if !defined(NO_MP3)
 #include <dr_mp3.h>
 #endif
 #include <dr_wav.h>
-#include <miniz.h>
 #if !defined(NO_VORBIS)
 #include <stb_vorbis.c>
 #endif
+#endif
+#include <miniz.h>
 #include <string>
 #include <thread.hpp>
 #include <unordered_map>
@@ -49,12 +51,14 @@ class SoundStream {
     void commonInit();
 
   public:
+#ifdef ENABLE_AUDIO
     drwav wav;
 #if !defined(NO_MP3)
     drmp3 mp3;
 #endif
 #if !defined(NO_VORBIS)
     stb_vorbis *vorbis;
+#endif
 #endif
 
     std::string name;

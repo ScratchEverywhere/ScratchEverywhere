@@ -26,6 +26,7 @@ SoundConfig::SoundConfig() {
  */
 
 void SoundStream::loadAsWAV() {
+#ifdef ENABLE_AUDIO
     if (!drwav_init_memory(&this->wav, this->buffer, this->buffer_size, nullptr)) {
         /* TODO: handle error */
         return;
@@ -35,10 +36,12 @@ void SoundStream::loadAsWAV() {
 
     this->rate = this->wav.sampleRate;
     this->channels = this->wav.channels;
+#endif
 }
 
 #if !defined(NO_MP3)
 void SoundStream::loadAsMP3() {
+#ifdef ENABLE_AUDIO
     if (!drmp3_init_memory(&this->mp3, this->buffer, this->buffer_size, nullptr)) {
         /* TODO: handle error */
         return;
@@ -48,11 +51,13 @@ void SoundStream::loadAsMP3() {
 
     this->rate = this->mp3.sampleRate;
     this->channels = this->mp3.channels;
+#endif
 }
 #endif
 
 #if !defined(NO_VORBIS)
 void SoundStream::loadAsVorbis() {
+#ifdef ENABLE_AUDIO
     int err;
     stb_vorbis_info info;
 
@@ -67,10 +72,12 @@ void SoundStream::loadAsVorbis() {
 
     this->rate = info.sample_rate;
     this->channels = info.channels;
+#endif
 }
 #endif
 
 void SoundStream::commonInit() {
+#ifdef ENABLE_AUDIO
     Mixer::mutex.lock();
 
     auto e = Mixer::configs.find(this->name);
@@ -80,9 +87,11 @@ void SoundStream::commonInit() {
     }
 
     Mixer::mutex.unlock();
+#endif
 }
 
 void SoundStream::loadFromBuffer() {
+#ifdef ENABLE_AUDIO
     this->type = SoundStreamUnknown;
 
     if (this->buffer == nullptr || this->buffer_size <= 0) return;
@@ -106,9 +115,11 @@ void SoundStream::loadFromBuffer() {
     this->paused = false;
     this->auto_clean = false;
     this->no_lock = false;
+#endif
 }
 
 SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
+#ifdef ENABLE_AUDIO
     std::string prefix = "";
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
@@ -147,9 +158,11 @@ SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     Mixer::mutex.lock();
     Mixer::streams[path] = this;
     Mixer::mutex.unlock();
+#endif
 }
 
 SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
+#ifdef ENABLE_AUDIO
     if (zip != nullptr) {
         int file_index = mz_zip_reader_locate_file(zip, path.c_str(), nullptr, 0);
 
@@ -172,9 +185,11 @@ SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
     Mixer::mutex.lock();
     Mixer::streams[path] = this;
     Mixer::mutex.unlock();
+#endif
 }
 
 SoundStream::~SoundStream() {
+#ifdef ENABLE_AUDIO
     int i;
 
     if (!this->no_lock) Mixer::mutex.lock();
@@ -199,9 +214,11 @@ SoundStream::~SoundStream() {
     }
 
     if (this->buffer != nullptr) free(this->buffer);
+#endif
 }
 
 int SoundStream::read(float *output, int frames) {
+#ifdef ENABLE_AUDIO
     if (this->type == SoundStreamWAV) {
         return drwav_read_pcm_frames_f32(&this->wav, frames, output);
 #if !defined(NO_MP3)
@@ -213,6 +230,7 @@ int SoundStream::read(float *output, int frames) {
         return stb_vorbis_get_samples_float_interleaved(this->vorbis, this->channels, output, frames * this->channels);
 #endif
     }
+#endif
     return 0;
 }
 
@@ -221,6 +239,7 @@ std::unordered_map<std::string, SoundConfig> Mixer::configs;
 SE_Mutex Mixer::mutex;
 
 void Mixer::requestSound(short *output, int frames) {
+#ifdef ENABLE_AUDIO
     float *tmp = new float[2 * frames]; /* we use float to store sound, because it's easier to deal with it */
     int i;
     std::vector<SoundStream *> clean_queue;
@@ -312,9 +331,11 @@ void Mixer::requestSound(short *output, int frames) {
     }
 
     delete[] tmp;
+#endif
 }
 
 void Mixer::cleanupAudio() {
+#ifdef ENABLE_AUDIO
     std::vector<SoundStream *> streams;
     int i;
 
@@ -324,7 +345,10 @@ void Mixer::cleanupAudio() {
 
     for (i = 0; i < streams.size(); i++)
         delete streams[i];
+#endif
 }
+
+#ifdef ENABLE_AUDIO
 
 #define FIND(blk)                \
     Mixer::mutex.lock();         \
@@ -339,27 +363,31 @@ void Mixer::cleanupAudio() {
             \
     Mixer::mutex.unlock();
 
-#define PRESERVE(x)                    \
-    {                                  \
-        SoundConfig config;            \
-	auto e = Mixer::configs.find(name); \
-	\
-	if(e != Mixer::configs.end()) config = e->second; \
-                                       \
-        config.x = x;                  \
-                                       \
-        Mixer::configs[name] = config; \
+#define PRESERVE(x)                                        \
+    {                                                      \
+        SoundConfig config;                                \
+        auto e = Mixer::configs.find(name);                \
+                                                           \
+        if (e != Mixer::configs.end()) config = e->second; \
+                                                           \
+        config.x = x;                                      \
+                                                           \
+        Mixer::configs[name] = config;                     \
     }
 
+#endif
 void Mixer::stopSound(std::string name) {
+#ifdef ENABLE_AUDIO
     FIND({});
 
     e->second->paused = true;
 
     END;
+#endif
 }
 
 bool Mixer::isSoundPlaying(std::string name) {
+#ifdef ENABLE_AUDIO
     bool b = false;
 
     FIND({});
@@ -369,9 +397,12 @@ bool Mixer::isSoundPlaying(std::string name) {
     END;
 
     return b;
+#endif
+    return false;
 }
 
 void Mixer::setPitch(std::string name, float pitch) {
+#ifdef ENABLE_AUDIO
     pitch = pow(2, pitch / 120.0);
 
     FIND(PRESERVE(pitch));
@@ -379,25 +410,31 @@ void Mixer::setPitch(std::string name, float pitch) {
     e->second->config.pitch = pitch;
 
     END;
+#endif
 }
 
 void Mixer::setPan(std::string name, float pan) {
+#ifdef ENABLE_AUDIO
     FIND(PRESERVE(pan));
 
     e->second->config.pan = pan;
 
     END;
+#endif
 }
 
 void Mixer::setSoundVolume(std::string name, float volume) {
+#ifdef ENABLE_AUDIO
     FIND(PRESERVE(volume));
 
     e->second->config.volume = volume;
 
     END;
+#endif
 }
 
 float Mixer::getSoundVolume(std::string name) {
+#ifdef ENABLE_AUDIO
     float v;
 
     FIND({});
@@ -407,12 +444,16 @@ float Mixer::getSoundVolume(std::string name) {
     END;
 
     return v;
+#endif
+    return 0.0f;
 }
 
 void Mixer::setAutoClean(std::string name, bool toggle) {
+#ifdef ENABLE_AUDIO
     FIND({});
 
     e->second->auto_clean = toggle;
 
     END;
+#endif
 }
