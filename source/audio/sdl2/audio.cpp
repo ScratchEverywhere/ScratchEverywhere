@@ -1,5 +1,7 @@
 #include "audio.hpp"
+#include "SDL3/SDL_error.h"
 #include "audiostack.hpp"
+#include "os.hpp"
 #include <SDL2/SDL.h>
 #include <vector>
 
@@ -9,28 +11,30 @@ extern "C" void SDLCALL callback(void *ptr, Uint8 *stream, int len) {
     Mixer::requestSound((short *)stream, len / 2 / 2);
 }
 
-void SoundPlayer::init() {
+bool SoundPlayer::init() {
 #ifdef ENABLE_AUDIO
-    SDL_AudioSpec spec;
+    SDL_AudioSpec spac;
 
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
-        /* TODO: Handle error */
-        return;
+        Log::logError("Failed to init SDL2 Audio: " + std::string(SDL_GetError()));
+        return false;
     }
 
-    spec.freq = Mixer::rate;
-    spec.format = AUDIO_S16SYS;
-    spec.channels = 2;
-    spec.samples = 2048;
-    spec.callback = callback;
+    spac.freq = Mixer::rate;
+    spac.format = AUDIO_S16SYS;
+    spac.channels = 2;
+    spac.samples = 2048;
+    spac.callback = callback;
 
-    if ((device = SDL_OpenAudioDevice(NULL, 0, &spec, NULL, 0)) == 0) {
-        /* TODO: Handle error */
-        return;
+    if ((device = SDL_OpenAudioDevice(NULL, 0, &spac, NULL, 0)) == 0) {
+        Log::logError("Failed to open SDL2 audio device: " + std::string(SDL_GetError()));
+        return false;
     }
 
     SDL_PauseAudioDevice(device, 0);
+    return true;
 #endif
+    return false;
 }
 
 void SoundPlayer::cleanupAudio() {
@@ -43,6 +47,9 @@ void SoundPlayer::cleanupAudio() {
 #endif
 
     Mixer::cleanupAudio();
+#if !defined(RENDERER_SDL2) && !defined(WINDOWING_SDL2)
+    SDL_Quit();
+#endif
 }
 
 void SoundPlayer::flushAudio() {

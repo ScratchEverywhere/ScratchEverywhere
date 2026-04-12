@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "os.hpp"
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
@@ -102,7 +103,9 @@ int main(int argc, char **argv) {
     srand(time(NULL));
 
 #ifdef ENABLE_AUDIO
-    SoundPlayer::init();
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+    }
 #endif
 
     if (argc > 1) {

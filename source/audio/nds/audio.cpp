@@ -13,7 +13,7 @@ static mm_word streamingCallback(mm_word length, mm_addr dest, mm_stream_formats
 }
 #endif
 
-void SoundPlayer::init() {
+bool SoundPlayer::init() {
 #ifdef ENABLE_AUDIO
     mm_ds_system mmSys =
         {
@@ -33,7 +33,9 @@ void SoundPlayer::init() {
             .manual = false,
         };
     mmStreamOpen(&stream);
+    return true;
 #endif
+    return false;
 }
 
 void SoundPlayer::cleanupAudio() {

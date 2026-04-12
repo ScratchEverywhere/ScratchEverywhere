@@ -42,6 +42,10 @@ SCRATCH_BLOCK(sound, playuntildone) {
                 strm = new SoundStream(state->name);
             else
                 strm = new SoundStream(&Unzip::zipArchive, state->name);
+            if (strm->error.has_value()) {
+                Log::logError(strm->error.value());
+                delete strm;
+            }
         }
 
         state->completedSteps = 1;
@@ -96,6 +100,11 @@ SCRATCH_BLOCK(sound, play) {
             strm = new SoundStream(soundFullName, false);
         else
             strm = new SoundStream(&Unzip::zipArchive, soundFullName);
+        if (strm->error.has_value()) {
+            Log::logError(strm->error.value());
+            delete strm;
+            return BlockResult::CONTINUE;
+        }
 
         Mixer::setAutoClean(soundFullName, true);
     }
