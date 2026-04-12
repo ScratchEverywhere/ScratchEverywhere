@@ -73,8 +73,6 @@ SCRATCH_BLOCK(control, create_clone_of) {
     spriteToClone->currentCostume = original->currentCostume;
     spriteToClone->xPosition = original->xPosition;
     spriteToClone->yPosition = original->yPosition;
-    spriteToClone->rotationCenterX = original->rotationCenterX;
-    spriteToClone->rotationCenterY = original->rotationCenterY;
     spriteToClone->size = original->size;
     spriteToClone->rotation = original->rotation;
     spriteToClone->layer = original->layer;

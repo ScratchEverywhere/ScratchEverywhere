@@ -387,10 +387,10 @@ void Scratch::stopClicked() {
         delete spr;
     }
 
-    //ToDo: This fixes a crash that can occur when the maximum number of layers is higher than the number of sprites 
-    // (due to cloning and layer shifting, or when re-executing "when flag clicked" blocks).
-    // However, this could potentially break projects logically if the content isn't currently sorted correctly.
-    // I'm too lazy to test that right now.
+    // ToDo: This fixes a crash that can occur when the maximum number of layers is higher than the number of sprites
+    //  (due to cloning and layer shifting, or when re-executing "when flag clicked" blocks).
+    //  However, this could potentially break projects logically if the content isn't currently sorted correctly.
+    //  I'm too lazy to test that right now.
     for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
@@ -589,7 +589,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     float scale = (sprite->size / 100);
     if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-    const bool shouldDownscale = sprite->costumes[sprite->currentCostume].bitmapResolution == 2;
+    const bool shouldDownscale = bitmapHalfQuality;
 
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);

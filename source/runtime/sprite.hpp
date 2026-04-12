@@ -287,8 +287,6 @@ class Sprite {
     int currentCostume;
     float xPosition;
     float yPosition;
-    int rotationCenterX;
-    int rotationCenterY;
     float size;
     float rotation;
     int layer;

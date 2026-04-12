@@ -243,7 +243,8 @@ SCRATCH_BLOCK(motion, ifonedgebounce) {
     const double halfWidth = Scratch::projectWidth / 2.0;
     const double halfHeight = Scratch::projectHeight / 2.0;
 
-    const double scale = sprite->size / 100.0;
+    const Costume &costume = sprite->costumes[sprite->currentCostume];
+    const double scale = (sprite->size / 100.0) / costume.bitmapResolution;
     const double spriteHalfWidth = (sprite->spriteWidth * scale) / 2.0;
     const double spriteHalfHeight = (sprite->spriteHeight * scale) / 2.0;
 
