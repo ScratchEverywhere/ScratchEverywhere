@@ -186,6 +186,11 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 
 bool Scratch::startScratchProject() {
     std::pair<bool, bool> code;
+#ifdef ENABLE_AUDIO
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+    }
+#endif
     initializeScratchProject();
     ScriptThread monitorDisplayThread;
     toggleDebugVars(debugVars);

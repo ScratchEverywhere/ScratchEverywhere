@@ -102,12 +102,6 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-#ifdef ENABLE_AUDIO
-    if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
-    }
-#endif
-
     if (argc > 1) {
 #if defined(__EMSCRIPTEN__)
         while (!OS::fileExists("/romfs/project.sb3")) {

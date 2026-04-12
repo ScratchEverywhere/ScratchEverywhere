@@ -44,7 +44,6 @@ void MenuManager::render() {
 
 bool MenuManager::loadProject() {
     cleanup();
-    // Image::cleanupImages();
     SoundPlayer::cleanupAudio();
 
     if (!Unzip::load()) {
@@ -76,6 +75,13 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
+
+#ifdef ENABLE_AUDIO
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+    }
+#endif
+
 #if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
     // let the user type what project they want to open
     std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
