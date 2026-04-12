@@ -18,6 +18,7 @@
 #endif
 #include "nonstd/expected.hpp"
 #include <miniz.h>
+#include <optional>
 #include <string>
 #include <thread.hpp>
 #include <unordered_map>
