@@ -1,4 +1,5 @@
-#include "../audio.hpp"
+#include "../../audio.hpp"
+#include "../../audiostack.hpp"
 #include "blockUtils.hpp"
 #include "downloader.hpp"
 #include "math.hpp"
@@ -29,20 +30,15 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         std::size_t h = std::hash<std::string>{}(state->name);
         std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
         std::string tempFile = tempDir + safeName;
-        if (SoundPlayer::isSoundPlaying(tempFile)) {
+        if (Mixer::isSoundPlaying(tempFile)) {
             thread->eraseState(block);
             return BlockResult::CONTINUE;
         }
         state->completedSteps = 2;
-        if (SoundPlayer::isSoundLoaded(tempFile)) {
-            Log::log("T2S: sound loaded, playing");
-            SoundPlayer::playSound(tempFile);
-            return BlockResult::REPEAT;
-        }
         if (!DownloadManager::init()) return BlockResult::CONTINUE;
         if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
             Log::log("T2S audio already downloaded: " + inputString);
-            SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, tempFile, false, false, true);
+            SoundStream *strm = new SoundStream(tempFile, false, true);
             return BlockResult::REPEAT;
         }
         if (!DownloadManager::isDownloading(state->name)) {
@@ -62,13 +58,13 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 
         if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
             Log::log("T2S audio already downloaded");
-            SoundPlayer::startSoundLoaderThread(sprite, &Unzip::zipArchive, tempFile, false, false, true);
+            SoundStream *strm = new SoundStream(tempFile, false, true);
             state->completedSteps = 2;
             return BlockResult::RETURN;
         }
     }
     if (state->completedSteps == 2) {
-        if (SoundPlayer::isSoundPlaying(tempFile)) return BlockResult::REPEAT;
+        if (Mixer::isSoundPlaying(tempFile)) return BlockResult::REPEAT;
     }
     thread->eraseState(block);
 #else

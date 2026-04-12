@@ -7,16 +7,15 @@
     if (!Scratch::getInput(block, "NUM1", thread, sprite, num1) ||
         !Scratch::getInput(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
     *outValue = num1 + num2;
-    
+
 
 */
 SCRATCH_BLOCK(makemakey, whenMakeyKeyPressed) {
     Value keyValue;
     if (!Scratch::getInput(block, "KEY", thread, sprite, keyValue)) return BlockResult::REPEAT;
-    
-    
+
     std::string key = Input::convertToKey(keyValue, true);
-    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0){
+    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0) {
         return BlockResult::CONTINUE_IMMEDIATELY;
     }
     return BlockResult::RETURN;
@@ -26,7 +25,7 @@ SCRATCH_BLOCK(makemakey, whenCodePressed) {
     if (Input::codePressedBlockOpcodes.find(block) != Input::codePressedBlockOpcodes.end()) return BlockResult::RETURN;
     Value sequence;
     if (!Scratch::getInput(block, "SEQUENCE", thread, sprite, sequence)) return BlockResult::REPEAT;
-    
+
     std::string input = sequence.asString();
     std::vector<std::string> keySequence;
     size_t start = 0;
@@ -51,7 +50,6 @@ SCRATCH_BLOCK(makemakey, whenCodePressed) {
     }
     return BlockResult::RETURN;
 }
-
 
 SCRATCH_SHADOW_BLOCK(makeymakey_menu_KEY, KEY)
 SCRATCH_SHADOW_BLOCK(makeymakey_menu_SEQUENCE, SEQUENCE)

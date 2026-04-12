@@ -1,3 +1,4 @@
+#include "audiostack.hpp"
 #include "blockUtils.hpp"
 #include "runtime.hpp"
 #include "runtime/blockExecutor.hpp"
@@ -140,7 +141,7 @@ SCRATCH_BLOCK(control, stop) {
             t->finished = true;
         }
         for (Sound sound : sprite->sounds)
-            SoundPlayer::stopSound(sound.fullName); // does it also stop the sound from the current thread?
+            Mixer::stopSound(sound.fullName);
     }
     return BlockResult::CONTINUE;
 }
