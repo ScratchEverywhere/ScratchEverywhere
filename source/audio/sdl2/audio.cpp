@@ -19,7 +19,7 @@ void SoundPlayer::init() {
     }
 
     spec.freq = Mixer::rate;
-    spec.format = AUDIO_S16;
+    spec.format = AUDIO_S16SYS;
     spec.channels = 2;
     spec.samples = 2048;
     spec.callback = callback;
