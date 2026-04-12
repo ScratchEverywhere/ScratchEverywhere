@@ -80,6 +80,12 @@ class Scratch {
     static bool forceRedraw;
     static bool warpTimer;
 
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
+    constexpr static bool bitmapHalfQuality = true;
+#else
+    constexpr static bool bitmapHalfQuality = false;
+#endif
+
     static bool debugVars;
     static bool sb3InRam;
 

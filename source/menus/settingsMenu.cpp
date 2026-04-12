@@ -37,6 +37,10 @@ void SettingsMenu::init() {
     EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
     EnableMenuMusic->text->setScale(0.5);
 
+    ClearCache = new ButtonObject("Clear Cache", "gfx/menu/projectBox.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
+    ClearCache->text->setColor(Math::color(0, 0, 0, 255));
+    ClearCache->text->setScale(0.5);
+
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
     EnableUsername->isSelected = true;
@@ -81,6 +85,7 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(EnableCustomFolderPath);
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
+    settingsControl->buttonObjects.push_back(ClearCache);
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -93,8 +98,10 @@ void SettingsMenu::updateButtonStates() {
     ChangeUsername->buttonDown = EnableCustomFolderPath;
     ChangeFolderPath->buttonUp = EnableCustomFolderPath;
     ChangeFolderPath->buttonDown = EnableMenuMusic;
-    EnableUsername->buttonUp = EnableMenuMusic;
-    EnableMenuMusic->buttonDown = EnableUsername;
+    EnableUsername->buttonUp = ClearCache;
+    EnableMenuMusic->buttonDown = ClearCache;
+    ClearCache->buttonUp = EnableMenuMusic;
+    ClearCache->buttonDown = EnableUsername;
 
     if (UseCostumeUsername) {
         EnableUsername->text->setText("Username: Enabled");
@@ -143,6 +150,11 @@ void SettingsMenu::render() {
 
     Render::beginFrame(0, 96, 90, 105);
     Render::beginFrame(1, 96, 90, 105);
+
+    if (ClearCache->isPressed({"a"})) {
+        OS::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        OS::createDirectory(OS::getScratchFolderLocation() + "cache/");
+    }
 
     if (EnableMenuMusic->isPressed({"a"})) {
         menuMusic = !menuMusic;

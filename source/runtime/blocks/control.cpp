@@ -1,3 +1,4 @@
+#include "audiostack.hpp"
 #include "blockUtils.hpp"
 #include "runtime.hpp"
 #include "runtime/blockExecutor.hpp"
@@ -73,8 +74,6 @@ SCRATCH_BLOCK(control, create_clone_of) {
     spriteToClone->currentCostume = original->currentCostume;
     spriteToClone->xPosition = original->xPosition;
     spriteToClone->yPosition = original->yPosition;
-    spriteToClone->rotationCenterX = original->rotationCenterX;
-    spriteToClone->rotationCenterY = original->rotationCenterY;
     spriteToClone->size = original->size;
     spriteToClone->rotation = original->rotation;
     spriteToClone->layer = original->layer;
@@ -142,7 +141,7 @@ SCRATCH_BLOCK(control, stop) {
             t->finished = true;
         }
         for (Sound sound : sprite->sounds)
-            SoundPlayer::stopSound(sound.fullName); // does it also stop the sound from the current thread?
+            Mixer::stopSound(sound.fullName);
     }
     return BlockResult::CONTINUE;
 }

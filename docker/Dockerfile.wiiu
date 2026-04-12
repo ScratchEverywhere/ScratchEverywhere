@@ -1,9 +1,8 @@
-FROM devkitpro/devkitppc:20260127 AS main_builder
-WORKDIR /app
+FROM dkosmari/devkitppc-wiiu-debian:latest AS main_builder
 
 COPY . .
 
-RUN /opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-cmake -B build-wiiu -DCMAKE_BUILD_TYPE=Release -DSE_FORCE_CLOUDVARS_SOURCE_CURL=ON && cmake --build build-wiiu -j2 && cmake --build build-wiiu --target package_wiiu
+RUN sudo -E /opt/devkitpro/portlibs/wiiu/bin/powerpc-eabi-cmake -B build-wiiu -DCMAKE_BUILD_TYPE=Release && sudo -E cmake --build build-wiiu -j2 && sudo -E cmake --build build-wiiu --target package_wiiu
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build-wiiu/scratch-wiiu.zip /
+COPY --from=main_builder /project/build-wiiu/scratch-wiiu.zip /

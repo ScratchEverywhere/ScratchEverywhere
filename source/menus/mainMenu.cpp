@@ -3,6 +3,7 @@
 #include "settings.hpp"
 #include "settingsMenu.hpp"
 #include <audio.hpp>
+#include <audiostack.hpp>
 #include <cctype>
 #include <cmath>
 #include <image.hpp>
@@ -89,15 +90,6 @@ void MainMenu::init() {
 
     MenuManager::loadProject();
     return;
-#elif defined(__NDS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/nds/mm_ds.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/nds/mm_ds.wav", false, false);
-    }
-#else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-    }
 #endif
 
     Input::applyControls();
@@ -107,7 +99,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 38.1", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 39", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -142,12 +134,16 @@ void MainMenu::render() {
 
     if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
-        if (!SoundPlayer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
-            SoundPlayer::playSound("gfx/nds/mm_ds.wav");
+        if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
+            SoundStream *strm = new SoundStream(
+                "gfx/nds/mm_ds.wav");
+            Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-            SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+            SoundStream *strm = new SoundStream(
+                "gfx/menu/mm_splash.ogg");
+            Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
         }
 #endif
     }

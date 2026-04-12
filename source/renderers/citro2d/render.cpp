@@ -445,8 +445,6 @@ void Render::renderSprites() {
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
-                    currentSprite->rotationCenterX = costume.rotationCenterX;
-                    currentSprite->rotationCenterY = costume.rotationCenterY;
 
                     size_t totalSprites = Scratch::sprites.size();
                     float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
@@ -506,8 +504,6 @@ void Render::renderSprites() {
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
-                    currentSprite->rotationCenterX = costume.rotationCenterX;
-                    currentSprite->rotationCenterY = costume.rotationCenterY;
 
                     size_t totalSprites = Scratch::sprites.size();
                     float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
@@ -564,8 +560,6 @@ void Render::renderSprites() {
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
-                    currentSprite->rotationCenterX = costume.rotationCenterX;
-                    currentSprite->rotationCenterY = costume.rotationCenterY;
 
                     renderImage(
                         currentSprite,

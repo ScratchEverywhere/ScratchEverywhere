@@ -8,6 +8,10 @@
 #include <runtime.hpp>
 #include <unzip.hpp>
 
+#ifdef ENABLE_AUDIO
+#include <audio.hpp>
+#endif
+
 #ifdef __SWITCH__
 #include <switch.h>
 #endif
@@ -96,6 +100,10 @@ int main(int argc, char **argv) {
     }
 
     srand(time(NULL));
+
+#ifdef ENABLE_AUDIO
+    SoundPlayer::init();
+#endif
 
     if (argc > 1) {
 #if defined(__EMSCRIPTEN__)
