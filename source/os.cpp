@@ -274,7 +274,7 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(WEBOS)
     return prefix + "projects/";
 #elif defined(__ANDROID__)
-    return std::string(SDL_AndroidGetExternalStoragePath()) + "/";
+    return prefix + "/scratch-everywhere/";
 #else
     return "scratch-everywhere/";
 #endif
@@ -313,6 +313,8 @@ std::string OS::getConfigFolderLocation() {
         }
         if (home) path = (std::filesystem::path(home) / ".config" / "scratch-everywhere" / "").string();
     }
+#elif defined(__ANDROID__)
+    return std::string(SDL_AndroidGetExternalStoragePath());
 #endif
     return path;
 }

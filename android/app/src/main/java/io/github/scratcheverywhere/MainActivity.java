@@ -1,5 +1,8 @@
 package io.github.scratcheverywhere;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import org.libsdl.app.SDLActivity;
 import org.woheller69.freeDroidWarn.FreeDroidWarn;
@@ -8,6 +11,7 @@ public class MainActivity extends SDLActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		requestWritePermission();
 		FreeDroidWarn.showWarningOnUpgrade(this, BuildConfig.VERSION_CODE);
 	}
 

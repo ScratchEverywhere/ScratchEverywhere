@@ -14,8 +14,6 @@
 #include <nds.h>
 #elif defined(__WIIU__)
 #include <whb/sdcard.h>
-#elif defined(__ANDROID__)
-#include <SDL2/SDL_system.h>
 #endif
 
 #if defined(_WIN32)
@@ -107,6 +105,8 @@ inline std::string getFilesystemRootPrefix() {
     return isDSi() ? "sd:" : "fat:";
 #elif defined(_WIN32) || defined(_WIN64)
     return std::filesystem::path(std::getenv("SystemDrive")).string();
+#elif defined(__ANDROID__)
+    return "/storage/emulated/0";
 #else
     return "";
 #endif

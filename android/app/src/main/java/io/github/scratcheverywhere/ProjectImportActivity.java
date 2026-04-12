@@ -1,12 +1,10 @@
 package io.github.scratcheverywhere;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.util.Log;
@@ -23,6 +21,7 @@ import java.util.ArrayList;
 
 public class ProjectImportActivity extends Activity {
 	private static final String TAG = "ProjectImportActivity";
+	private static native String getScratchFolder();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -123,32 +122,6 @@ public class ProjectImportActivity extends Activity {
 		return fileName;
 	}
 
-	private String getScratchPath() {
-		// TODO: support config.json custom paths
-		return getExternalFilesDir(null).getAbsolutePath() + "/";
-	}
-
-	private void returnToMain() {
-		Intent redirectIntent = new Intent(this, MainActivity.class);
-		startActivity(redirectIntent);
-		finish();
-	}
-
-	private void showErrorDialog(int resourceId) {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-		builder.setTitle(R.string.error_import_title)
-			.setMessage(getString(resourceId))
-			.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
-				dialogInterface.dismiss();
-				returnToMain();
-			})
-			.setCancelable(true);
-
-		AlertDialog dialog = builder.create();
-		dialog.show();
-	}
-
 	private boolean performImport(Uri uri, File file) {
 		try {
 			InputStream input = getContentResolver().openInputStream(uri);
@@ -179,7 +152,7 @@ public class ProjectImportActivity extends Activity {
 
 	protected boolean importProject(Uri uri, String fileName) {
 		// Specify our destination file
-		File dest = new File(getScratchPath() + fileName);
+		File dest = new File(getScratchFolder() + fileName);
 		if (dest.exists()) {
 			// Create confirm view
 			AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -208,5 +181,26 @@ public class ProjectImportActivity extends Activity {
 		} else {
 			return performImport(uri, dest);
 		}
+	}
+
+	private void returnToMain() {
+		Intent redirectIntent = new Intent(this, MainActivity.class);
+		startActivity(redirectIntent);
+		finish();
+	}
+
+	private void showErrorDialog(int resourceId) {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+		builder.setTitle(R.string.error_import_title)
+			.setMessage(getString(resourceId))
+			.setPositiveButton(android.R.string.ok, (dialogInterface, i) -> {
+				dialogInterface.dismiss();
+				returnToMain();
+			})
+			.setCancelable(true);
+
+		AlertDialog dialog = builder.create();
+		dialog.show();
 	}
 }
