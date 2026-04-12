@@ -233,6 +233,14 @@ std::vector<float> TextObjectGL::getSize() {
     return {width * scale, height * scale};
 }
 
+std::vector<float> TextObjectGL::getStringSize(const std::string &txt) {
+    const std::string oldText = getText();
+    setText(txt);
+    std::vector<float> size = getSize();
+    setText(oldText);
+    return size;
+}
+
 void TextObjectGL::cleanupText() {
     for (auto &[id, data] : fonts) {
         glDeleteTextures(1, &data->textureID);

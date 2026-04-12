@@ -50,6 +50,11 @@ void ProjectSettings::init() {
     ramButton->text->setScale(0.5);
     ramButton->shouldNineslice = true;
 
+    refreshLimitButton = new ButtonObject("No Refresh Limit: clicktoload", "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold");
+    refreshLimitButton->text->setColor(Math::color(0, 0, 0, 255));
+    refreshLimitButton->text->setScale(0.5);
+    refreshLimitButton->shouldNineslice = true;
+
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
@@ -61,7 +66,7 @@ void ProjectSettings::init() {
 
     // link buttons
     changeControlsButton->buttonDown = UnpackProjectButton;
-    changeControlsButton->buttonUp = ramButton;
+    changeControlsButton->buttonUp = refreshLimitButton;
     UnpackProjectButton->buttonUp = changeControlsButton;
 #if defined(__3DS__) || defined(__NDS__)
     UnpackProjectButton->buttonDown = bottomScreenButton;
@@ -80,8 +85,10 @@ void ProjectSettings::init() {
 #endif
     debugVarsButton->buttonDown = ramButton;
     debugVarsButton->buttonUp = penModeButton;
-    ramButton->buttonDown = changeControlsButton;
+    ramButton->buttonDown = refreshLimitButton;
     ramButton->buttonUp = debugVarsButton;
+    refreshLimitButton->buttonDown = changeControlsButton;
+    refreshLimitButton->buttonUp = ramButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
@@ -93,6 +100,7 @@ void ProjectSettings::init() {
     settingsControl->buttonObjects.push_back(collisionButton);
     settingsControl->buttonObjects.push_back(debugVarsButton);
     settingsControl->buttonObjects.push_back(ramButton);
+    settingsControl->buttonObjects.push_back(refreshLimitButton);
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -137,6 +145,12 @@ void ProjectSettings::init() {
 #endif
     }
 
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["warpTimer"].is_null()) {
+        if (settings["settings"]["warpTimer"].get<bool>())
+            refreshLimitButton->text->setText("Warp Timer: ON");
+        else refreshLimitButton->text->setText("Warp Timer: OFF");
+    } else refreshLimitButton->text->setText("Warp Timer: ON");
+
     isInitialized = true;
 }
 void ProjectSettings::render() {
@@ -180,6 +194,12 @@ void ProjectSettings::render() {
         settings["settings"]["sb3InRam"] = ramButton->text->getText() == "Keep Project In RAM: ON" ? false : true;
         SettingsManager::saveProjectSettings(settings, projectPath);
         ramButton->text->setText(ramButton->text->getText() == "Keep Project In RAM: ON" ? "Keep Project In RAM: OFF" : "Keep Project In RAM: ON");
+    }
+    if (refreshLimitButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["warpTimer"] = refreshLimitButton->text->getText() == "Warp Timer: ON" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        refreshLimitButton->text->setText(refreshLimitButton->text->getText() == "Warp Timer: ON" ? "Warp Timer: OFF" : "Warp Timer: ON");
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
@@ -259,6 +279,10 @@ void ProjectSettings::cleanup() {
     if (collisionButton != nullptr) {
         delete collisionButton;
         collisionButton = nullptr;
+    }
+    if (refreshLimitButton != nullptr) {
+        delete refreshLimitButton;
+        refreshLimitButton = nullptr;
     }
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);

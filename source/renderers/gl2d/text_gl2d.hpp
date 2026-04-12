@@ -39,4 +39,5 @@ class TextObjectGL2D : public TextObject {
     void render(int xPos, int yPos) override;
     static void cleanupText();
     std::vector<float> getSize() override;
+    std::vector<float> getStringSize(const std::string &txt) override;
 };

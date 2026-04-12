@@ -65,5 +65,7 @@ body:
       options:
         - label: I have searched existing issues and confirmed this bug has not been reported before.
           required: true
-        - label: I have checked the known issues/roadmap and this is not a known limitation or planned fix.
+        - label: I have checked the known issues/roadmap and confirmed this is not a known limitation or planned fix.
+          required: true
+        - label: I have checked that I have the latest version of Scratch Everywhere!.
           required: true
