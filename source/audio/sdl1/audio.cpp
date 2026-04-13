@@ -1,5 +1,6 @@
 #include "audio.hpp"
 #include "audiostack.hpp"
+#include "os.hpp"
 #include <SDL/SDL.h>
 #include <vector>
 
@@ -7,13 +8,13 @@ extern "C" void SDLCALL callback(void *ptr, Uint8 *stream, int len) {
     Mixer::requestSound((short *)stream, len / 2 / 2);
 }
 
-void SoundPlayer::init() {
+bool SoundPlayer::init() {
 #ifdef ENABLE_AUDIO
     SDL_AudioSpec spec;
 
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
-        /* TODO: Handle error */
-        return;
+        Log::logError("Failed to init SDL audio: " + std::string(SDL_GetError()));
+        return false;
     }
 
     spec.freq = Mixer::rate;
@@ -23,12 +24,14 @@ void SoundPlayer::init() {
     spec.callback = callback;
 
     if (SDL_OpenAudio(&spec, NULL) < 0) {
-        /* TODO: Handle error */
-        return;
+        Log::logError("Failed to open SDL audio device: " + std::string(SDL_GetError()));
+        return false;
     }
 
     SDL_PauseAudio(0);
+    return true;
 #endif
+    return false;
 }
 
 void SoundPlayer::cleanupAudio() {
@@ -40,6 +43,9 @@ void SoundPlayer::cleanupAudio() {
 #endif
 
     Mixer::cleanupAudio();
+#if !defined(RENDERER_SDL1) && !defined(WINDOWING_SDL1)
+    SDL_Quit();
+#endif
 }
 
 void SoundPlayer::flushAudio() {

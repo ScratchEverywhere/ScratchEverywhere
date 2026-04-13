@@ -39,6 +39,10 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
             Log::log("T2S audio already downloaded: " + inputString);
             SoundStream *strm = new SoundStream(tempFile, false, true);
+            if (strm->error.has_value()) {
+                Log::logError(strm->error.value());
+                delete strm;
+            }
             return BlockResult::REPEAT;
         }
         if (!DownloadManager::isDownloading(state->name)) {
@@ -59,6 +63,10 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
             Log::log("T2S audio already downloaded");
             SoundStream *strm = new SoundStream(tempFile, false, true);
+            if (strm->error.has_value()) {
+                Log::logError(strm->error.value());
+                delete strm;
+            }
             state->completedSteps = 2;
             return BlockResult::RETURN;
         }

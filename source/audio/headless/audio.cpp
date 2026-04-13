@@ -1,6 +1,6 @@
 #include <audio.hpp>
 
-void SoundPlayer::init() {}
+bool SoundPlayer::init() { return false; }
 void SoundPlayer::cleanupAudio() {}
 void SoundPlayer::deinit() {}
 void SoundPlayer::flushAudio() {}

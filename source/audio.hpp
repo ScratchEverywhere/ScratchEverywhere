@@ -2,7 +2,7 @@
 
 class SoundPlayer {
   public:
-    static void init();
+    static bool init();
     static void cleanupAudio();
     static void deinit();
     static void flushAudio();

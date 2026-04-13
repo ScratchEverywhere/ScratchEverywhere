@@ -44,7 +44,6 @@ void MenuManager::render() {
 
 bool MenuManager::loadProject() {
     cleanup();
-    // Image::cleanupImages();
     SoundPlayer::cleanupAudio();
 
     if (!Unzip::load()) {
@@ -76,6 +75,13 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
+
+#ifdef ENABLE_AUDIO
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+    }
+#endif
+
 #if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
     // let the user type what project they want to open
     std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
@@ -135,15 +141,21 @@ void MainMenu::render() {
     if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
         if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
-            SoundStream *strm = new SoundStream(
-                "gfx/nds/mm_ds.wav");
-            Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
+            SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
+            if (strm->error.has_value()) {
+                Log::log(strm->error.value());
+                delete strm;
+            } else
+                Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
         if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-            SoundStream *strm = new SoundStream(
-                "gfx/menu/mm_splash.ogg");
-            Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
+            SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
+            if (strm->error.has_value()) {
+                Log::log(strm->error.value());
+                delete strm;
+            } else
+                Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
         }
 #endif
     }

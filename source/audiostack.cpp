@@ -1,3 +1,4 @@
+#include "nonstd/expected.hpp"
 #define DR_MP3_IMPLEMENTATION
 #define DR_WAV_IMPLEMENTATION
 #include "audiostack.hpp"
@@ -25,45 +26,49 @@ SoundConfig::SoundConfig() {
  * think me a best way to check them. I don't know enough C++ to do this.
  */
 
-void SoundStream::loadAsWAV() {
+bool SoundStream::loadAsWAV() {
 #ifdef ENABLE_AUDIO
     if (!drwav_init_memory(&this->wav, this->buffer, this->buffer_size, nullptr)) {
-        /* TODO: handle error */
-        return;
+        Log::logError("Failed to load WAV file.");
+        return false;
     }
 
     this->type = SoundStreamWAV;
 
     this->rate = this->wav.sampleRate;
     this->channels = this->wav.channels;
+    return true;
 #endif
+    return false;
 }
 
 #if !defined(NO_MP3)
-void SoundStream::loadAsMP3() {
+bool SoundStream::loadAsMP3() {
 #ifdef ENABLE_AUDIO
     if (!drmp3_init_memory(&this->mp3, this->buffer, this->buffer_size, nullptr)) {
-        /* TODO: handle error */
-        return;
+        Log::logError("Failed to load MP3 file.");
+        return false;
     }
 
     this->type = SoundStreamMP3;
 
     this->rate = this->mp3.sampleRate;
     this->channels = this->mp3.channels;
+    return true;
 #endif
+    return false;
 }
 #endif
 
 #if !defined(NO_VORBIS)
-void SoundStream::loadAsVorbis() {
+bool SoundStream::loadAsVorbis() {
 #ifdef ENABLE_AUDIO
     int err;
     stb_vorbis_info info;
 
     if ((this->vorbis = stb_vorbis_open_memory(this->buffer, this->buffer_size, &err, nullptr)) == nullptr) {
-        /* TODO: handle error */
-        return;
+        Log::logError("Failed to load OGG file.");
+        return false;
     }
 
     info = stb_vorbis_get_info(this->vorbis);
@@ -72,7 +77,9 @@ void SoundStream::loadAsVorbis() {
 
     this->rate = info.sample_rate;
     this->channels = info.channels;
+    return true;
 #endif
+    return false;
 }
 #endif
 
@@ -90,35 +97,40 @@ void SoundStream::commonInit() {
 #endif
 }
 
-void SoundStream::loadFromBuffer() {
+bool SoundStream::loadFromBuffer() {
 #ifdef ENABLE_AUDIO
     this->type = SoundStreamUnknown;
 
-    if (this->buffer == nullptr || this->buffer_size <= 0) return;
-
+    if (this->buffer == nullptr || this->buffer_size <= 0) {
+        Log::logError("Audio buffer is null.");
+        return false;
+    }
+    bool success = false;
     if (this->buffer_size >= 4 && memcmp(this->buffer, "RIFF", 4) == 0) {
-        loadAsWAV();
+        success = loadAsWAV();
 #if !defined(NO_MP3)
     } else if (this->buffer_size >= 3 && memcmp(this->buffer, "ID3", 3) == 0) {
-        loadAsMP3();
+        success = loadAsMP3();
     } else if (this->buffer_size >= 2 && this->buffer[0] == 0xff && (this->buffer[1] == 0xfb || this->buffer[1] == 0xf3 || this->buffer[1] == 0xf2)) {
-        loadAsMP3();
+        success = loadAsMP3();
 #endif
 #if !defined(NO_VORBIS)
     } else if (this->buffer_size >= 4 && memcmp(this->buffer, "OggS", 4) == 0) {
-        loadAsVorbis();
+        success = loadAsVorbis();
 #endif
     } else {
-        return;
+        Log::logError("Unkown audio format.");
+        return false;
     }
 
     this->paused = false;
     this->auto_clean = false;
     this->no_lock = false;
+    return success;
 #endif
 }
 
-SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
+nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cached, bool on_disk) {
 #ifdef ENABLE_AUDIO
     std::string prefix = "";
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
@@ -133,7 +145,7 @@ SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
         this->buffer_size = ifs.tellg();
         ifs.seekg(0);
 
-        if (!ifs) return;
+        if (!ifs) return nonstd::make_unexpected("Could not open audio file.");
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         ifs.read((char *)this->buffer, this->buffer_size);
@@ -153,23 +165,31 @@ SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     this->name = path;
     commonInit();
 
-    loadFromBuffer();
+    if (!loadFromBuffer()) {
+        return nonstd::make_unexpected("Failed to load sound.");
+    }
 
     Mixer::mutex.lock();
     Mixer::streams[path] = this;
     Mixer::mutex.unlock();
+    return {};
 #endif
+    return nonstd::make_unexpected("Audio not enabled.");
 }
 
-SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
+SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
+    auto potentialError = init(path, cached, on_disk);
+    if (error.has_value()) error = potentialError.error();
+}
+
+nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::string path) {
+
 #ifdef ENABLE_AUDIO
     if (zip != nullptr) {
         int file_index = mz_zip_reader_locate_file(zip, path.c_str(), nullptr, 0);
 
         if (file_index < 0) {
-            /* TODO: do something */
-            Log::logWarning("Audio not found in zip: " + path);
-            return;
+            return nonstd::make_unexpected("Audio not found in zip");
         }
 
         this->buffer = (unsigned char *)mz_zip_reader_extract_to_heap(zip, file_index, &this->buffer_size, 0);
@@ -180,12 +200,22 @@ SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
     this->name = path;
     commonInit();
 
-    loadFromBuffer();
+    if (!loadFromBuffer()) {
+        return nonstd::make_unexpected("Failed to load sound.");
+    }
 
     Mixer::mutex.lock();
     Mixer::streams[path] = this;
     Mixer::mutex.unlock();
+    return {};
 #endif
+    return nonstd::make_unexpected("Audio not enabled.");
+}
+
+SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
+
+    auto potentialError = init(zip, path);
+    if (error.has_value()) error = potentialError.error();
 }
 
 SoundStream::~SoundStream() {

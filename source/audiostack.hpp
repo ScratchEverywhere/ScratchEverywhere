@@ -16,7 +16,9 @@
 #include <stb_vorbis.c>
 #endif
 #endif
+#include "nonstd/expected.hpp"
 #include <miniz.h>
+#include <optional>
 #include <string>
 #include <thread.hpp>
 #include <unordered_map>
@@ -44,10 +46,10 @@ class SoundStream {
     unsigned char *buffer;
     size_t buffer_size;
 
-    void loadAsWAV();
-    void loadAsMP3();
-    void loadAsVorbis();
-    void loadFromBuffer();
+    bool loadAsWAV();
+    bool loadAsMP3();
+    bool loadAsVorbis();
+    bool loadFromBuffer();
     void commonInit();
 
   public:
@@ -73,8 +75,16 @@ class SoundStream {
     bool auto_clean;
     bool no_lock;
 
+    /**
+     * Set if an error occurs in the constructor.
+     */
+    std::optional<std::string> error;
+
     SoundStream(std::string path, bool cached = false, bool on_disk = false);
     SoundStream(mz_zip_archive *zip, std::string path);
+
+    nonstd::expected<void, std::string> init(std::string path, bool cached = false, bool on_disk = false);
+    nonstd::expected<void, std::string> init(mz_zip_archive *zip, std::string path);
 
     ~SoundStream();
 

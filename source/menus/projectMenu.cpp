@@ -133,15 +133,21 @@ void ProjectMenu::render() {
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
         if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
-            SoundStream *strm = new SoundStream(
-                "gfx/nds/mm_ds.wav");
-            Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
+            SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
+            if (strm->error.has_value()) {
+                Log::log(strm->error.value());
+                delete strm;
+            } else
+                Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
         if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-            SoundStream *strm = new SoundStream(
-                "gfx/menu/mm_splash.ogg");
-            Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
+            SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
+            if (strm->error.has_value()) {
+                Log::log(strm->error.value());
+                delete strm;
+            } else
+                Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
         }
 #endif
     }
