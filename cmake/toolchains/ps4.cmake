@@ -191,16 +191,6 @@ function(add_pkg target title-id title version)
     # export pkg name for end user
     set(PKG_OUT_NAME "${content_id}.pkg" CACHE STRING "ps4 pkg name" FORCE)
 
-    set(attribute 0)
-    if(${ARGC} GREATER 5)
-        set(attribute ${ARGV5})
-    endif()
-
-    set(category "gde")
-    if(${ARGC} GREATER 6)
-        set(category "${ARGV6}")
-    endif()
-  
 	set(PKGTOOL "${OPENORBIS}/bin/${PS4_CDIR}/PkgTool.Core" CACHE STRING "PKGTOOL" FORCE)
     set(DOTFIX "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1" CACHE STRING "DOTFIX" FORCE)
   
@@ -210,8 +200,8 @@ function(add_pkg target title-id title version)
 			COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_new ${CMAKE_BINARY_DIR}/sce_sys/param.sfo
             COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo APP_TYPE --type Integer --maxsize 4 --value 1
             COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo APP_VER --type Utf8 --maxsize 8 --value "${verclean}"
-            COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo ATTRIBUTE --type Integer --maxsize 4 --value ${attribute}
-            COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo CATEGORY --type Utf8 --maxsize 4 --value "${category}"
+            COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo ATTRIBUTE --type Integer --maxsize 4 --value 0
+            COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo CATEGORY --type Utf8 --maxsize 4 --value "gde"
             COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo FORMAT --type Utf8 --maxsize 4 --value "obs"
             COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo CONTENT_ID --type Utf8 --maxsize 48 --value "${content_id}"
             COMMAND ${CMAKE_COMMAND} -E env ${DOTFIX} ${PKGTOOL} sfo_setentry ${CMAKE_BINARY_DIR}/sce_sys/param.sfo DOWNLOAD_DATA_SIZE --type Integer --maxsize 4 --value 0
