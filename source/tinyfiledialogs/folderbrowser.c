@@ -7,11 +7,11 @@ int main(int argc, char **argv) {
     printf("%s", lTheSelectFolderName ? lTheSelectFolderName : "");
 	if (lTheSelectFolderName && strlen(lTheSelectFolderName)) {
 #ifdef _WIN32
-        if (lTheSelectFolderName[strlen(lTheSelectFolderName) - 1] == '\\') {
+        if (lTheSelectFolderName[strlen(lTheSelectFolderName) - 1] != '\\') {
             printf("\\");
 		}
 #else
-        if (lTheSelectFolderName[strlen(lTheSelectFolderName) - 1] == '/') {
+        if (lTheSelectFolderName[strlen(lTheSelectFolderName) - 1] != '/') {
             printf("/");
         }
 #endif
