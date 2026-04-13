@@ -1,0 +1,19 @@
+[Desktop Entry]
+Comment[en_US]=A custom Scratch runtime written in C++!
+Comment=A custom Scratch runtime written in C++!
+Exec=scratch-everywhere
+GenericName[en_US]=Scratch Runtime
+GenericName=Scratch Runtime
+Icon=scratch-everywhere-symbolic
+MimeType=application/x.scratch.sb3;
+Name[en_US]=Scratch Everywhere
+Name=Scratch Everywhere
+NoDisplay=false
+Path=
+PrefersNonDefaultGPU=false
+StartupNotify=true
+Terminal=false
+TerminalOptions=
+Type=Application
+X-KDE-SubstituteUID=false
+X-KDE-Username=
