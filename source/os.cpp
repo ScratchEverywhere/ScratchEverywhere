@@ -51,6 +51,10 @@ extern char nickname[0x21];
 #include <sys/types.h>
 #endif
 
+#ifdef NULLIFY_STDERR
+#include "process/process.hpp"
+#endif
+
 // PS4 implementation of logging
 #ifdef __PS4__
 char logBuffer[1024];
@@ -233,6 +237,43 @@ std::string OS::getScratchFolderLocation() {
         if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string() && json.contains("UseProjectsPath") && json["UseProjectsPath"].is_boolean() && json["UseProjectsPath"] == true) customProjectsPath = new std::string(json["ProjectsPath"].get<std::string>());
     }
 
+#ifdef NULLIFY_STDERR
+    static bool init;
+    if (!init) {
+        init = true;
+        std::string exe = ngs::ps::exe_from_proc_id(ngs::ps::proc_id_from_self());
+#ifdef _WIN32
+        std::size_t fp = exe.find_last_of("\\");
+#else
+        std::size_t fp = exe.find_last_of("/");
+#endif
+        exe = exe.substr(0, fp + 1);
+#ifdef _WIN32
+        ngs::ps::NGS_PROCID pid = ngs::ps::spawn_child_proc_id(std::string("\"") + exe + std::string("external\\filedialogs.exe\" --get-directory-alt \"Select a Scratch project directory...\" \"\""), true);
+#else
+        ngs::ps::NGS_PROCID pid = ngs::ps::spawn_child_proc_id(std::string("\"") + exe + std::string("external/filedialogs\" --get-directory-alt \"Select a Scratch project directory...\" \"\""), true);
+#endif
+        if (pid > 0) {
+            static std::string result = ngs::ps::read_from_stdout_for_child_proc_id(pid);
+            ngs::ps::free_stdout_for_child_proc_id(pid);
+            ngs::ps::free_stdin_for_child_proc_id(pid);
+            std::size_t pos = result.find_first_of("\r\n");
+            if (pos != std::string::npos) {
+                static std::string result_trimmed = result.substr(0, pos);
+                if (result_trimmed.empty()) {
+                    exit(0);
+                }
+                customProjectsPath = &result_trimmed;
+            } else {
+                if (result.empty()) {
+                    exit(0);
+                }
+                customProjectsPath = &result;
+            }
+        }
+    }
+#endif
+
     if (customProjectsPath != nullptr) return *customProjectsPath;
 
     const std::string prefix = getFilesystemRootPrefix();
@@ -257,7 +298,11 @@ std::string OS::getScratchFolderLocation() {
 #elif defined(WEBOS)
     return prefix + "projects/";
 #else
+#ifdef _WIN32
+    return "scratch-everywhere\\";
+#else
     return "scratch-everywhere/";
+#endif
 #endif
 }
 
