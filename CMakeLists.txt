@@ -251,6 +251,7 @@ if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
 
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/external")
 add_executable(folderbrowser WIN32 ${DLG_SOURCES})
 set_target_properties(folderbrowser PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/external")
 
