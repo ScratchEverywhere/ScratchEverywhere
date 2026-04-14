@@ -229,11 +229,10 @@ bool toExit = false;
 }
 
 std::string OS::getScratchFolderLocation() {
-    nlohmann::json json;
     if (!loadedSettings) {
         loadedSettings = true;
 
-        json = SettingsManager::getConfigSettings();
+        nlohmann::json json = SettingsManager::getConfigSettings();
 
         if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string() && json.contains("UseProjectsPath") && json["UseProjectsPath"].is_boolean() && json["UseProjectsPath"] == true) {
             customProjectsPath = new std::string(json["ProjectsPath"].get<std::string>());
