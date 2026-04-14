@@ -259,8 +259,14 @@ std::string OS::getScratchFolderLocation() {
                     std::size_t pos = result.find_first_of("\r\n");
                     if (pos != std::string::npos) {
                         static std::string result_trimmed = result.substr(0, pos);
+						if (result_trimmed.empty()) {
+                            exit(0);
+                        }
                         customProjectsPath = &result_trimmed;
                     } else {
+						if (result.empty()) {
+                            exit(0);
+                        }
                         customProjectsPath = &result;
                     }
                 }
