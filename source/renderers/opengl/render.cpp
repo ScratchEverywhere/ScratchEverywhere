@@ -86,7 +86,7 @@ void Render::deInit() {
         glDeleteTextures(1, &penTexture);
         penTexture = 0;
     }
-    SoundPlayer::cleanupAudio();
+    SoundPlayer::deinit();
     TextObject::cleanupText();
 
     if (speechManager) {

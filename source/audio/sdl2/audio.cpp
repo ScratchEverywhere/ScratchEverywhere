@@ -38,16 +38,7 @@ bool SoundPlayer::init() {
 
 void SoundPlayer::cleanupAudio() {
 #ifdef ENABLE_AUDIO
-    std::vector<SoundStream *> streams;
-
-    SDL_PauseAudioDevice(device, 1);
-    SDL_ClearQueuedAudio(device);
-    SDL_CloseAudioDevice(device);
-#endif
-
     Mixer::cleanupAudio();
-#if !defined(RENDERER_SDL2) && !defined(WINDOWING_SDL2)
-    SDL_Quit();
 #endif
 }
 
@@ -55,5 +46,14 @@ void SoundPlayer::flushAudio() {
 }
 
 void SoundPlayer::deinit() {
+#ifdef ENABLE_AUDIO
     cleanupAudio();
+    SDL_PauseAudioDevice(device, 1);
+    SDL_ClearQueuedAudio(device);
+    SDL_CloseAudioDevice(device);
+
+#if !defined(RENDERER_SDL2) && !defined(WINDOWING_SDL2)
+    SDL_Quit();
+#endif
+#endif
 }

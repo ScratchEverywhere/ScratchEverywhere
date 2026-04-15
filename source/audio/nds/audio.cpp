@@ -40,12 +40,14 @@ bool SoundPlayer::init() {
 
 void SoundPlayer::cleanupAudio() {
 #ifdef ENABLE_AUDIO
-    mmStreamClose();
     Mixer::cleanupAudio();
 #endif
 }
 void SoundPlayer::deinit() {
+#ifdef ENABLE_AUDIO
     cleanupAudio();
+    mmStreamClose();
+#endif
 }
 void SoundPlayer::flushAudio() {
 }

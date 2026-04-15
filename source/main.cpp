@@ -36,6 +36,9 @@ static bool initApp() {
     if (!Render::Init()) {
         return false;
     }
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+    }
     return true;
 }
 

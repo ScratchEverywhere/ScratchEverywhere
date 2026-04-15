@@ -44,6 +44,7 @@ void Render::deInit() {
         delete globalWindow;
         globalWindow = nullptr;
     }
+    SoundPlayer::deinit();
 }
 
 void *Render::getRenderer() {
