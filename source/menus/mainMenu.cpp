@@ -44,7 +44,7 @@ void MenuManager::render() {
 
 bool MenuManager::loadProject() {
     cleanup();
-    SoundPlayer::cleanupAudio();
+    Mixer::cleanupAudio();
 
     if (!Unzip::load()) {
         Log::logWarning("Could not load project: " + Unzip::filePath + ". closing app.");

@@ -43,18 +43,9 @@ bool SoundPlayer::init() {
     return false;
 }
 
-void SoundPlayer::cleanupAudio() {
-#ifdef ENABLE_AUDIO
-    Mixer::cleanupAudio();
-#endif
-}
-
-void SoundPlayer::flushAudio() {
-}
-
 void SoundPlayer::deinit() {
 #ifdef ENABLE_AUDIO
-    cleanupAudio();
+    Mixer::cleanupAudio();
     // TODO: figure out why this crashes
     //    SDL_PauseAudioStreamDevice(sdl_stream);
     //    SDL_DestroyAudioStream(sdl_stream);

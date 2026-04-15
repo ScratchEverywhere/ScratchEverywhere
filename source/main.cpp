@@ -36,9 +36,12 @@ static bool initApp() {
     if (!Render::Init()) {
         return false;
     }
+#ifdef ENABLE_AUDIO
     if (!SoundPlayer::init()) {
         Log::logError("Failed to initialize audio.");
+        return false;
     }
+#endif
     return true;
 }
 

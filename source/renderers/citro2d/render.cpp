@@ -589,9 +589,6 @@ void Render::renderSprites() {
 
     C3D_FrameEnd(0);
     C2D_Flush();
-#ifdef ENABLE_AUDIO
-    SoundPlayer::flushAudio();
-#endif
     osSetSpeedupEnable(true);
     hasFrameBegan = false;
 }
@@ -606,8 +603,6 @@ void Render::deInit() {
         C3D_RenderTargetDelete(penRenderTarget);
         C3D_TexDelete(penImage.tex);
     }
-
-    SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SoundPlayer::deinit();
 

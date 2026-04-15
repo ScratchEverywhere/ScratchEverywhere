@@ -34,18 +34,9 @@ bool SoundPlayer::init() {
     return false;
 }
 
-void SoundPlayer::cleanupAudio() {
-#ifdef ENABLE_AUDIO
-    Mixer::cleanupAudio();
-#endif
-}
-
-void SoundPlayer::flushAudio() {
-}
-
 void SoundPlayer::deinit() {
 #ifdef ENABLE_AUDIO
-    cleanupAudio();
+    Mixer::cleanupAudio();
 
     SDL_PauseAudio(1);
     SDL_CloseAudio();

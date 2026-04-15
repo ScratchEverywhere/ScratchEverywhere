@@ -204,7 +204,7 @@ bool Scratch::startScratchProject() {
 void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
     costumeImages.clear();
-    SoundPlayer::cleanupAudio();
+    Mixer::cleanupAudio();
     Render::monitorTexts.clear();
     Render::listMonitors.clear();
 
