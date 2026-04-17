@@ -4,6 +4,7 @@
 #include <menus/mainMenu.hpp>
 #endif
 #include <cstdlib>
+#include <inspector.hpp>
 #include <menus/mainMenu.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
@@ -62,6 +63,9 @@ bool activateMainMenu() {
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);
 #endif
+#ifdef ENABLE_INSPECTOR
+        Inspector::processCommands();
+#endif
     }
 #endif
     return false;
@@ -107,6 +111,9 @@ int main(int argc, char **argv) {
     }
 
     srand(time(NULL));
+#ifdef ENABLE_INSPECTOR
+    Inspector::init();
+#endif
 
     if (argc > 1) {
 #if defined(__EMSCRIPTEN__)
