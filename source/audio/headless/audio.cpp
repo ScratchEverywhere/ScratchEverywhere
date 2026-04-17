@@ -1,6 +1,9 @@
 #include <audio.hpp>
+#include <audiostack.hpp>
 
 bool SoundPlayer::init() { return false; }
-void SoundPlayer::cleanupAudio() {}
-void SoundPlayer::deinit() {}
-void SoundPlayer::flushAudio() {}
+void SoundPlayer::deinit() {
+#ifdef ENABLE_AUDIO
+    Mixer::cleanupAudio();
+#endif
+}

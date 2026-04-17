@@ -87,7 +87,6 @@ void Render::deInit() {
     }
     if (penTexture != nullptr) SDL_DestroyTexture(penTexture);
 
-    SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SDL_DestroyRenderer(renderer);
 
@@ -483,7 +482,6 @@ void Render::renderSprites() {
 #endif
 
     SDL_RenderPresent(renderer);
-    SoundPlayer::flushAudio();
 }
 
 void Render::renderPenLayer() {

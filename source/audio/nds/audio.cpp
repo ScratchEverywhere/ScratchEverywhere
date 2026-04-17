@@ -38,14 +38,9 @@ bool SoundPlayer::init() {
     return false;
 }
 
-void SoundPlayer::cleanupAudio() {
-#ifdef ENABLE_AUDIO
-    mmStreamClose();
-    Mixer::cleanupAudio();
-#endif
-}
 void SoundPlayer::deinit() {
-    cleanupAudio();
-}
-void SoundPlayer::flushAudio() {
+#ifdef ENABLE_AUDIO
+    Mixer::cleanupAudio();
+    mmStreamClose();
+#endif
 }

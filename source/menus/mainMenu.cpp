@@ -44,7 +44,7 @@ void MenuManager::render() {
 
 bool MenuManager::loadProject() {
     cleanup();
-    SoundPlayer::cleanupAudio();
+    Mixer::cleanupAudio();
 
     if (!Unzip::load()) {
         Log::logWarning("Could not load project: " + Unzip::filePath + ". closing app.");
@@ -75,13 +75,6 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
-
-#ifdef ENABLE_AUDIO
-    if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
-    }
-#endif
-
 #if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
     // let the user type what project they want to open
     std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
@@ -105,7 +98,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 39", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 39.1", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
