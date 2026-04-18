@@ -17,6 +17,21 @@ static SE_Thread cliThread;
 static std::queue<std::string> commandQueue;
 static SE_Mutex queueMutex;
 
+static std::string parseArg(std::stringstream &ss, bool restOfLine = false) {
+    ss >> std::ws;
+    std::string result;
+    if (ss.peek() == '"') {
+        ss.get();
+        std::getline(ss, result, '"');
+    } else if (restOfLine) {
+        std::getline(ss, result);
+    } else {
+        ss >> result;
+    }
+    if (!result.empty() && result.back() == '\r') result.pop_back();
+    return result;
+}
+
 static void loop(void *arg) {
     std::string line;
     std::cout << "Inspector active. Type 'help' for commands.\n";
@@ -77,9 +92,7 @@ void processCommands() {
                   << "Threads running: " << BlockExecutor::threads.size() << "\n"
                   << "Turbo mode: " << (Scratch::turbo ? "ON" : "OFF") << "\n";
     } else if (cmd == "inspect") {
-        std::string spriteName;
-        std::getline(ss >> std::ws, spriteName);
-        if (!spriteName.empty() && spriteName.back() == '\r') spriteName.pop_back();
+        std::string spriteName = parseArg(ss, true);
 
         Sprite *target = nullptr;
         for (Sprite *s : Scratch::sprites) {
@@ -120,10 +133,8 @@ void processCommands() {
             }
         }
     } else if (cmd == "set") {
-        std::string varName, valStr;
-        ss >> varName;
-        std::getline(ss >> std::ws, valStr);
-        if (!valStr.empty() && valStr.back() == '\r') valStr.pop_back();
+        std::string varName = parseArg(ss, false);
+        std::string valStr = parseArg(ss, true);
 
         bool found = false;
         if (Scratch::stageSprite) {
@@ -140,10 +151,9 @@ void processCommands() {
             std::cout << "Global variable '" << varName << "' not found.\n";
         }
     } else if (cmd == "setlocal") {
-        std::string spriteName, varName, valStr;
-        ss >> spriteName >> varName;
-        std::getline(ss >> std::ws, valStr);
-        if (!valStr.empty() && valStr.back() == '\r') valStr.pop_back();
+        std::string spriteName = parseArg(ss, false);
+        std::string varName = parseArg(ss, false);
+        std::string valStr = parseArg(ss, true);
 
         Sprite *target = nullptr;
         for (Sprite *s : Scratch::sprites) {
