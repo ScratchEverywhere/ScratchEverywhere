@@ -264,8 +264,17 @@ void processCommands() {
             }
         } else if (cmd == "broadcast") {
             std::string name = parseArg(ss, true);
-            Scratch::newBroadcast = name;
-            BlockExecutor::runAllBlocksByOpcode("event_whenbroadcastreceived");
+            std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+            for (auto &spr : Scratch::sprites) {
+                if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
+                for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
+                    std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
+                    std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
+                    if (broadcastOption == name) {
+                        BlockExecutor::startThread(spr, hat);
+                    }
+                }
+            }
             std::cout << "Broadcasted '" << name << "'.\n";
         } else if (cmd == "dist") {
             std::string s1Name = parseArg(ss, false), s2Name = parseArg(ss, false);
