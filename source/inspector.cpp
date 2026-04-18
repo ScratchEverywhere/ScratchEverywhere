@@ -119,7 +119,8 @@ void processCommands() {
             if (subCmd.empty()) {
                 std::cout << "\nInspector Commands (use 'help <cmd>' for more)\n"
                           << "[General]\n"
-                          << "  help, status, sprites    - Help, project status, active sprites\n"
+                          << "  help, status,    - Help, project status\n"
+                          << "  sprites, clones,    - List all sprites and clones\n"
                           << "[Inspection]\n"
                           << "  inspect, inspectext      - Basic vs extended sprite data\n"
                           << "  dist, touching           - Spatial & collision checks\n"
@@ -150,10 +151,12 @@ void processCommands() {
             } else {
                 std::cout << "No extra info for '" << subCmd << "'.\n";
             }
-        } else if (cmd == "sprites") {
+        } else if (cmd == "sprites" || cmd == "clones") {
+            bool onlyClones = (cmd == "clones");
             std::cout << "Sprites (front to back):\n";
             SpeechManager *sm = Render::getSpeechManager();
             for (Sprite *s : Scratch::sprites) {
+                if (onlyClones && !s->isClone) continue;
                 std::cout << s->name << " | Vis: " << (s->visible ? "true" : "false") << " | Pos: (" << s->xPosition << ", " << s->yPosition << ") | Layer: " << s->layer;
                 if (sm) {
                     std::string text = sm->getSpeechText(s);
