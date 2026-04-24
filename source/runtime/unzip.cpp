@@ -201,11 +201,11 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
 
-    loadingState = "Loading Sprites";
-    Parser::loadSprites(project_json);
-
     loadingState = "Loading Extensions";
     Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
+
+    loadingState = "Loading Sprites";
+    Parser::loadSprites(project_json);
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
