@@ -445,8 +445,6 @@ void Render::renderSprites() {
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
-                    currentSprite->rotationCenterX = costume.rotationCenterX;
-                    currentSprite->rotationCenterY = costume.rotationCenterY;
 
                     size_t totalSprites = Scratch::sprites.size();
                     float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
@@ -506,8 +504,6 @@ void Render::renderSprites() {
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
-                    currentSprite->rotationCenterX = costume.rotationCenterX;
-                    currentSprite->rotationCenterY = costume.rotationCenterY;
 
                     size_t totalSprites = Scratch::sprites.size();
                     float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
@@ -564,8 +560,6 @@ void Render::renderSprites() {
             int costumeIndex = 0;
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
-                    currentSprite->rotationCenterX = costume.rotationCenterX;
-                    currentSprite->rotationCenterY = costume.rotationCenterY;
 
                     renderImage(
                         currentSprite,
@@ -595,9 +589,6 @@ void Render::renderSprites() {
 
     C3D_FrameEnd(0);
     C2D_Flush();
-#ifdef ENABLE_AUDIO
-    SoundPlayer::flushAudio();
-#endif
     osSetSpeedupEnable(true);
     hasFrameBegan = false;
 }
@@ -612,8 +603,6 @@ void Render::deInit() {
         C3D_RenderTargetDelete(penRenderTarget);
         C3D_TexDelete(penImage.tex);
     }
-
-    SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SoundPlayer::deinit();
 

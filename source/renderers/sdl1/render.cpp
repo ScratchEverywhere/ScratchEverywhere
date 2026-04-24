@@ -56,7 +56,6 @@ void Render::deInit() {
 
     SDL_FreeSurface(penSurface);
 
-    SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
 
     if (globalWindow) {
@@ -348,7 +347,6 @@ void Render::renderSprites() {
 
     SDL_Flip(window);
     if (globalWindow) globalWindow->swapBuffers();
-    SoundPlayer::flushAudio();
 }
 
 void Render::renderPenLayer() {

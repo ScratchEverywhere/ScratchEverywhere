@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Scratch Everywhere!
+GenericName=Scratch Runtime
+GenericName[en_US]=Scratch Runtime
+Comment=A custom Scratch runtime written in C++!
+Comment[en_US]=A custom Scratch runtime written in C++!
+Keywords=scratch;se;scratch runtime;everywhere
+Exec=scratch-everywhere %f
+Icon=scratch-everywhere
+Type=Application
+Terminal=false
+PrefersNonDefaultGPU=true
+Categories=Games
+MimeType=application/x.scratch.sb3;

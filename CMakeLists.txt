@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.38.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 0.39.1 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -211,6 +211,7 @@ foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
+
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
@@ -268,6 +269,10 @@ target_link_libraries(scratch-everywhere PRIVATE renderer_interface)
 target_link_libraries(scratch-everywhere PRIVATE windowing_interface)
 if(SE_AUDIO)
 	target_link_libraries(scratch-everywhere PRIVATE audio_interface)
+	if(NOT NINTENDO_DS)
+		se_add_dependency(scratch-everywhere stb_vorbis)
+	endif()
+	se_add_dependency(scratch-everywhere dr_libs)
 endif()
 
 if(SE_ALLOW_NATIVE_EXTENSIONS)
@@ -338,7 +343,7 @@ if(SE_SVG)
 endif()
 
 if(SE_BITMAP)
-	se_add_dependency(scratch-everywhere stb)
+	se_add_dependency(scratch-everywhere stb_image)
 endif()
 
 target_include_directories(scratch-everywhere PRIVATE ${SOURCES})

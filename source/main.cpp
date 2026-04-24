@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "os.hpp"
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
@@ -7,6 +8,10 @@
 #include <render.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
+
+#ifdef ENABLE_AUDIO
+#include <audio.hpp>
+#endif
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -31,6 +36,12 @@ static bool initApp() {
     if (!Render::Init()) {
         return false;
     }
+#ifdef ENABLE_AUDIO
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+        return false;
+    }
+#endif
     return true;
 }
 

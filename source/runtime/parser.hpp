@@ -2,25 +2,25 @@
 #include <nlohmann/json.hpp>
 #include <sprite.hpp>
 
-namespace Parser {
+struct Parser {
 
-void loadUsernameFromSettings();
+    static bool logParsing;
 
-void loadSprites(const nlohmann::json &json);
+    static void loadUsernameFromSettings();
 
-bool loadExtensions(const nlohmann::json &json);
-
-/**
- * Gets a Chain of Blocks with a specified `blockId`.
- * @param blockId ID of the block you want the chain for.
- * @param sprite The sprite to limit the search to.
- * @param outId a `std::string*` for if you want to get the ID of the chain. Can leave empty.
- * @return An `std::vector` of every `Block*` in the chain.
- */
-std::vector<Block *> getBlockChain(std::string blockId, Sprite *sprite, std::string *outID = nullptr);
+    static void loadSprites(const nlohmann::json &json);
+    static bool loadExtensions(const nlohmann::json &json);
 
 #ifdef ENABLE_CLOUDVARS
-void initMist();
+    static void initMist();
 #endif
+  private:
+    static void log(const std::string &message);
+
+    static Block *loadBlock(Sprite *newSprite, const std::string id, const nlohmann::json &blockDatas, Block *parentBlock, int indent);
+    static void loadFields(Block &block, const std::string &blockKey, const nlohmann::json &blockDatas, int indent);
+    static void loadInputs(Block &block, Sprite *newSprite, std::string blockKey, const nlohmann::json &blockDatas, int indent);
+    static void loadAdvancedProjectSettings(const nlohmann::json &json);
+    static void setSubstack(Block *startBlock, Block *stopBlock = nullptr);
 
 }; // namespace Parser
