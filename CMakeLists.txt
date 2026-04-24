@@ -84,7 +84,7 @@ cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to do
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
 #  disable menu if a project is in RomFS
-if(EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/romfs/project.sb3")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3")
 	set(SE_MENU OFF)
 	set(SE_LOADSCREEN OFF)
 endif()
@@ -163,12 +163,12 @@ set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 # Copy graphics files to romfs
 if(SE_MENU)
 	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
-	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
 	)
 else()
 	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
 	)
 endif()
 
