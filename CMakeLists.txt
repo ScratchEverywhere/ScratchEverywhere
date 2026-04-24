@@ -357,5 +357,3 @@ endif()
 if(COMMAND package_platform)
 	package_platform()
 endif()
-
-add_subdirectory(native-extension)
