@@ -334,7 +334,7 @@ if(SE_SVG)
 endif()
 
 if(SE_INSPECTOR)
-	target_compile_definitions(se-interface PRIVATE ENABLE_INSPECTOR)
+	target_compile_definitions(se-interface INTERFACE ENABLE_INSPECTOR)
 endif()
 
 if(SE_HAS_TOUCH)
