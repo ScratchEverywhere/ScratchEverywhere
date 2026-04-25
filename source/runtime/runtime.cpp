@@ -26,6 +26,9 @@
 #ifdef ENABLE_MENU
 #include <pauseMenu.hpp>
 #endif
+#ifdef ENABLE_INSPECTOR
+#include <inspector.hpp>
+#endif
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -141,6 +144,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 
         if (checkFPS) Input::getInput();
         BlockExecutor::runThreads();
+
+#ifdef ENABLE_INSPECTOR
+        Inspector::processCommands();
+#endif
 
         if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
 

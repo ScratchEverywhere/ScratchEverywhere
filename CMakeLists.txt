@@ -118,6 +118,8 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
     set_property(CACHE ${var_name} PROPERTY STRINGS ${valid_options_list})
 endfunction()
 
+cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLATFORM STREQUAL pc" OFF)
+
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NOT DEFINED SE_RENDERER_PRIORITY)
 	set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
@@ -295,6 +297,10 @@ endif()
 
 if(SE_SVG)
 	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_SVG)
+endif()
+
+if(SE_INSPECTOR)
+	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_INSPECTOR)
 endif()
 
 if(SE_HAS_TOUCH)
