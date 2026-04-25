@@ -19,6 +19,8 @@ function(_check_dep_target DEP_NAME)
 	endforeach()
 endfunction()
 
+set(_DEPS_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
 function(se_add_dependency FIRST_ARG)
 	if(${ARGC} EQUAL 1)
         set(TARGET_NAME "")
@@ -44,7 +46,7 @@ function(se_add_dependency FIRST_ARG)
 		return()
 	endif()
 
-	set(DEP_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/${DEP_NAME}.cmake")
+	set(DEP_SCRIPT "${_DEPS_DIR}/${DEP_NAME}.cmake")
 	if(NOT EXISTS ${DEP_SCRIPT})
         message(FATAL_ERROR "Dependency definition not found at ${DEP_SCRIPT}")
     endif()
