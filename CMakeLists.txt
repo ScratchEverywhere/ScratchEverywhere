@@ -72,6 +72,8 @@ endif()
 
 set(SE_OUTPUT_NAME "${SE_DEFAULT_OUTPUT_NAME}" CACHE STRING "File name of the outputed executable")
 
+option(SE_EXECUTABLE "Build the main executable." ${PROJECT_IS_TOP_LEVEL})
+
 option(SE_AUDIO "Enables audio in SE!" ON)
 
 option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
@@ -217,9 +219,35 @@ if(WIN32)
 endif()
 
 add_library(se-interface INTERFACE)
-add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
-set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
-target_link_libraries(scratch-everywhere PRIVATE se-interface)
+if(SE_EXECUTABLE)
+	add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
+	target_link_libraries(scratch-everywhere PRIVATE se-interface)
+
+	if(SE_ASAN)
+		target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+		target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
+	endif()
+
+	set_target_properties(scratch-everywhere PROPERTIES ENABLE_EXPORTS TRUE)
+
+	if(SE_STATIC_LIBGCC)
+		target_link_options(scratch-everywhere PRIVATE "-static-libgcc")
+	endif()
+	if(SE_STATIC_LIBSTDCPP)
+		target_link_options(scratch-everywhere PRIVATE "-static-libstdc++")
+	endif()
+
+	if(NOT BUILD_SHARED_LIBS AND MINGW)
+		target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
+	endif()
+
+	# TODO: Move to cmake/platforms/wasm.cmake
+	if(EMSCRIPTEN)
+		set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
+		target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
+	endif()
+endif()
 
 target_include_directories(se-interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/external-include)
 if(DEFINED SE_PLATFORM_DEFINITIONS)
@@ -240,24 +268,6 @@ if(SE_CMAKERC)
 	cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
 	target_link_libraries(se-interface INTERFACE romfs::rc)
 	target_compile_definitions(se-interface INTERFACE USE_CMAKERC)
-endif()
-
-if(SE_ASAN)
-	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
-endif()
-
-set_target_properties(scratch-everywhere PROPERTIES ENABLE_EXPORTS TRUE)
-
-if(SE_STATIC_LIBGCC)
-	target_link_options(scratch-everywhere PRIVATE "-static-libgcc")
-endif()
-if(SE_STATIC_LIBSTDCPP)
-	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++")
-endif()
-
-if(NOT BUILD_SHARED_LIBS AND MINGW)
-	target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
 endif()
 
 string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
@@ -350,12 +360,6 @@ if(SE_BITMAP)
 endif()
 
 target_include_directories(se-interface INTERFACE ${ABSOLUTE_SOURCES})
-
-# TODO: Move to cmake/platforms/wasm.cmake
-if(EMSCRIPTEN)
-	set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
-	target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
-endif()
 
 if(COMMAND package_platform)
 	package_platform()
