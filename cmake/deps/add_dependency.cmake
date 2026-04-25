@@ -44,7 +44,7 @@ function(se_add_dependency FIRST_ARG)
 		return()
 	endif()
 
-	set(DEP_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/${DEP_NAME}.cmake")
+	set(DEP_SCRIPT "${CMAKE_CURRENT_LIST_DIR}/${DEP_NAME}.cmake")
 	if(NOT EXISTS ${DEP_SCRIPT})
         message(FATAL_ERROR "Dependency definition not found at ${DEP_SCRIPT}")
     endif()
