@@ -357,3 +357,5 @@ endif()
 if(COMMAND package_platform)
 	package_platform()
 endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/add_extension.cmake")
