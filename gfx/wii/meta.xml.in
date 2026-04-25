@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<app version="@CMAKE_PROJECT_VERSION@">
-	<name>Scratch Everywhere!</name>
-	<coder>NateXS</coder>
-	<version>@CMAKE_PROJECT_VERSION@</version>
+<app version="@SE_APP_VERSION@">
+	<name>@SE_APP_NAME@</name>
+	<coder>@SE_APP_AUTHOR@</coder>
+	<version>@SE_APP_AUTHOR@</version>
 	<release_date>@WII_RELEASE_DATE@</release_date>
-	<short_description>Play Scratch games on the Wii!</short_description>
-	<long_description>A custom Runtime that allows you to play most Scratch 3 projects on your Wii!</long_description>
+	<short_description>@SE_APP_DESCRIPTION@</short_description>
+	<long_description>@SE_APP_DESCRIPTION@</long_description>
 </app>

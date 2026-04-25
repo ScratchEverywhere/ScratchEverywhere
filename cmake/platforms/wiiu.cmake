@@ -26,8 +26,8 @@ set(SE_HAS_CONTROLLER TRUE)
 macro(package_platform)
 	wut_create_rpx(scratch-everywhere)
 	wut_create_wuhb(scratch-everywhere
-		NAME "Scratch Everywhere!"
-		AUTHOR "NateXS and Grady Link"
+		NAME "${SE_APP_NAME}"
+		AUTHOR "${SE_APP_AUTHOR}"
 		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/icon.png"
 		TVSPLASH "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/tv-splash.png"
 		DRCSPLASH "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wiiu/drc-splash.png"

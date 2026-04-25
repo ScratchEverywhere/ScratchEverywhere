@@ -33,5 +33,5 @@ macro(package_platform)
 	file(GLOB_RECURSE ROMFS_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
 
 	add_self(scratch-everywhere)
-	add_pkg(scratch-everywhere "NTXS10053" "Scratch Everywhere!" ${CMAKE_PROJECT_VERSION} ${ROMFS_FILES})
+	add_pkg(scratch-everywhere "${SE_APP_TITLEID}" "${SE_APP_NAME}" "${SE_APP_VERSION}" ${ROMFS_FILES})
 endmacro()
