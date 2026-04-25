@@ -11,6 +11,10 @@
 #include <whb/sdcard.h>
 #endif
 
+#ifdef ENABLE_NATIVE_EXTENSIONS
+#include <dlfcn.h>
+#endif
+
 #ifdef ENABLE_CLOUDVARS
 #include <fstream>
 #include <mist/mist.hpp>
@@ -667,6 +671,31 @@ void Parser::loadFields(Block &block, const std::string &blockKey, const nlohman
         }
         block.fields[name] = parsedField;
     }
+}
+
+bool Parser::loadExtensions(const nlohmann::json &json) {
+    bool hasExts = false;
+#ifdef ENABLE_NATIVE_EXTENSIONS
+#ifdef __APPLE__
+    constexpr const char *libraryExtension = ".dylib";
+#else
+    constexpr const char *libraryExtension = ".so";
+#endif
+
+    for (const std::string &extension : json["extensions"]) {
+        const std::string &path = OS::getScratchFolderLocation() + "extensions/" + extension + libraryExtension;
+        if (OS::fileExists(path)) {
+            void *extensionHandle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+            if (!extensionHandle) {
+                Log::logError("Failed to load native extension, '" + extension + "', dlerror: " + dlerror());
+            } else {
+                Log::log("Loaded extension: " + path);
+                hasExts = true;
+            }
+        } else Log::logWarning("Couldn't find native extension: " + path);
+    }
+#endif
+    return hasExts;
 }
 
 Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {
