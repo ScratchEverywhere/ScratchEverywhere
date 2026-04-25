@@ -37,7 +37,7 @@ if(VITA)
 	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
 else()
 	set(SE_APP_TITLEID "NTXS10053" CACHE STRING "Title ID of the outputed app.")
-elseif()
+endif()
 
 find_package(PkgConfig QUIET)
 
