@@ -1,3 +1,5 @@
+set(_SE_DEPS_DIR "${CMAKE_CURRENT_LIST_DIR}" CACHE INTERNAL "internal stuff idk")
+
 function(_check_dep_target DEP_NAME)
     if(TARGET deps::${DEP_NAME})
 		return()
@@ -18,8 +20,6 @@ function(_check_dep_target DEP_NAME)
 		endif()
 	endforeach()
 endfunction()
-
-set(_DEPS_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 function(se_add_dependency FIRST_ARG)
 	if(${ARGC} EQUAL 1)
@@ -46,7 +46,7 @@ function(se_add_dependency FIRST_ARG)
 		return()
 	endif()
 
-	set(DEP_SCRIPT "${_DEPS_DIR}/${DEP_NAME}.cmake")
+	set(DEP_SCRIPT "${_SE_DEPS_DIR}/${DEP_NAME}.cmake")
 	if(NOT EXISTS ${DEP_SCRIPT})
         message(FATAL_ERROR "Dependency definition not found at ${DEP_SCRIPT}")
     endif()
