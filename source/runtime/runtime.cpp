@@ -544,24 +544,32 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     if (sprite->spriteWidth == 0 || sprite->spriteHeight == 0) loadCurrentCostumeImage(sprite);
 
     collision::AABB spriteBounds = collision::getSpriteBounds(sprite);
+    constexpr float fenceWidth = 15.0f;
 
-    constexpr float inset = 15.0f;
-    const collision::AABB fenceBounds = {
-        .left = (-Scratch::projectWidth / 2.0f) + inset,
-        .right = (Scratch::projectWidth / 2.0f) - inset,
-        .top = (Scratch::projectHeight / 2.0f) - inset,
-        .bottom = (-Scratch::projectHeight / 2.0f) + inset};
+    const float width = spriteBounds.right - spriteBounds.left;
+    const float height = spriteBounds.top - spriteBounds.bottom;
+    const float inset = std::floor(std::min(width, height) * 0.5f);
 
-    float dx = 0;
-    float dy = 0;
+    const float sx = (Scratch::projectWidth * 0.5f) - std::min(fenceWidth, inset);
+    const float sy = (Scratch::projectHeight * 0.5f) - std::min(fenceWidth, inset);
 
-    if (spriteBounds.right < fenceBounds.left) dx = fenceBounds.left - spriteBounds.right;
-    else if (spriteBounds.left > fenceBounds.right) dx = fenceBounds.right - spriteBounds.left;
-    if (spriteBounds.top < fenceBounds.bottom) dy = fenceBounds.bottom - spriteBounds.top;
-    else if (spriteBounds.bottom > fenceBounds.top) dy = fenceBounds.top - spriteBounds.bottom;
+    float x = sprite->xPosition;
+    float y = sprite->yPosition;
 
-    sprite->xPosition += dx;
-    sprite->yPosition += dy;
+    if (spriteBounds.right < -sx) {
+        x = std::ceil(sprite->xPosition - (sx + spriteBounds.right));
+    } else if (spriteBounds.left > sx) {
+        x = std::floor(sprite->xPosition + (sx - spriteBounds.left));
+    }
+
+    if (spriteBounds.top < -sy) {
+        y = std::ceil(sprite->yPosition - (sy + spriteBounds.top));
+    } else if (spriteBounds.bottom > sy) {
+        y = std::floor(sprite->yPosition + (sy - spriteBounds.bottom));
+    }
+
+    sprite->xPosition = x;
+    sprite->yPosition = y;
 }
 
 void Scratch::setDirection(Sprite *sprite, double direction) {
