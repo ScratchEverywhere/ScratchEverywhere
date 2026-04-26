@@ -95,11 +95,12 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
 }
 #endif
 
-ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block) {
+ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block, bool shouldRestart) {
     static uint64_t id = 0;
     for (auto thread : threads) {
         if (thread->blockHat == block && sprite == thread->sprite) {
-            thread->finished = true;
+            if (shouldRestart) thread->finished = true;
+            else return nullptr;
         }
     }
 
@@ -235,7 +236,7 @@ void BlockExecutor::executeKeyHats() {
             for (Block *block : currentSprite->hats["event_whenkeypressed"]) {
                 std::string key = Scratch::getFieldValue(*block, "KEY_OPTION");
                 if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && (Input::keyHeldDuration.find(key)->second == 1 || Input::keyHeldDuration.find(key)->second > 15 * (Scratch::FPS / 30.0f))) {
-                    BlockExecutor::startThread(currentSprite, block);
+                    BlockExecutor::startThread(currentSprite, block, false);
                 }
             }
         }
