@@ -1,30 +1,21 @@
-<p align="center">
-  <img src="gfx/menu/logo.png" alt="Scratch Everywhere! logo" />
-</p>
+<div align="center">
 
-<p align="center">
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-3ds.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-3ds.yml/badge.svg" alt="3DS Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-nds.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-nds.yml/badge.svg" alt="NDS Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wiiu.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wiiu.yml/badge.svg" alt="Wii U Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wii.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-wii.yml/badge.svg" alt="Wii Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-gamecube.yml/badge.svg" alt="GameCube Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-switch.yml/badge.svg" alt="Switch Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-vita.yml/badge.svg" alt="Vita Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-psp.yml/badge.svg" alt="PSP Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-ps4.yml/badge.svg" alt="PS4 Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-pc.yml/badge.svg" alt="PC Nightly Build"></a>
-	<a href="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-webos.yml"><img src="https://github.com/ScratchEverywhere/ScratchEverywhere/actions/workflows/nightly-webos.yml/badge.svg" alt="webOS Nightly Build"></a>
-	<a href="https://discord.gg/Y2gf5vZHpJ"><img alt="Discord" src="https://img.shields.io/discord/1408875318248345612?style=flat&logo=discord&label=Discord%20Server&link=https%3A%2F%2Fdiscord.gg%2FY2gf5vZHpJ"></a>
-</p>
+![YT-DLP](https://raw.githubusercontent.com/ScratchEverywhere/ScratchEverywhere/master/gfx/menu/logo.png)
+
+![Release version](https://img.shields.io/github/v/release/ScratchEverywhere/ScratchEverywhere?color=brightgreen&label=Download&style=for-the-badge)
+![Discord](https://img.shields.io/discord/1408875318248345612?color=blue&labelColor=555555&label=&logo=discord&style=for-the-badge)
+![Commits](https://img.shields.io/github/commit-activity/m/ScratchEverywhere/ScratchEverywhere?label=commits&style=for-the-badge)
+![Last Commit](https://img.shields.io/github/last-commit/ScratchEverywhere/ScratchEverywhere?label=&style=for-the-badge&display_timestamp=committer)
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects
-over to 6-8th-generation console and handheld platforms (and more)!
+over to 6-8th-generation gaming consoles, handheld platforms, and more!
 
-<p align="center">
-	<img alt="Runtime running a Scratch project on Wii U, Wii, and 3DS" src="docs/demo.gif" />
-	<br>
-	<sub>(Game shown is <a href="https://scratch.mit.edu/projects/1184969400">Hopper Heros</a> by pepper-prepper)</sub>
-</p>
+
+<img alt="Runtime running a Scratch project on Wii U, Wii, and 3DS" src="docs/demo.gif" />
+<br>
+<sub>(Game shown is <a href="https://scratch.mit.edu/projects/1184969400">Hopper Heros</a> by pepper-prepper)</sub>
+
+</div>
 
 ## Controls
 
