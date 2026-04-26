@@ -187,7 +187,7 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         }
 
     } while ((var == BlockResult::CONTINUE_IMMEDIATELY || (var == BlockResult::CONTINUE && (!currentBlock->isEndBlock || thread.withoutScreenRefresh))) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
-    if (currentBlock == nullptr || (var != BlockResult::REPEAT && currentBlock->nextBlock == nullptr)) thread.finished = true;
+    if (currentBlock == nullptr || var == BlockResult::RETURN || (var != BlockResult::REPEAT && currentBlock->nextBlock == nullptr)) thread.finished = true;
     return var;
 }
 
@@ -230,8 +230,7 @@ void BlockExecutor::executeKeyHats() {
         if (Input::inputBuffer.size() == 101) Input::inputBuffer.erase(Input::inputBuffer.begin());
     }
 
-    const std::vector<Sprite *> sprToRun = Scratch::sprites;
-    for (Sprite *currentSprite : sprToRun) {
+    for (Sprite *currentSprite : Scratch::sprites) {
         if (!currentSprite->hats["event_whenkeypressed"].empty()) {
             for (Block *block : currentSprite->hats["event_whenkeypressed"]) {
                 std::string key = Scratch::getFieldValue(*block, "KEY_OPTION");
