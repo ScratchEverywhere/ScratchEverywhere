@@ -195,7 +195,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         newSprite->isClone = false;
 
         // Variables
-        if (!target["variables"].empty()) {
+        if (target.contains("variables") && !target["variables"].empty()) {
             Parser::log("\tVariables:");
             for (const auto &[id, data] : target["variables"].items()) {
                 Variable newVariable;
@@ -212,7 +212,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // Lists
-        if (!target["lists"].empty()) {
+        if (target.contains("lists") && !target["lists"].empty()) {
             Parser::log("\tLists:");
             for (const auto &[id, data] : target["lists"].items()) {
                 auto result = newSprite->lists.try_emplace(id).first;
@@ -228,7 +228,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // Sounds
-        if (!target["sounds"].empty()) {
+        if (target.contains("sounds") && !target["sounds"].empty()) {
             Parser::log("\tSounds:");
             for (const auto &[id, data] : target["sounds"].items()) {
                 Sound newSound;
@@ -244,7 +244,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // Costumes
-        if (!target["costumes"].empty()) {
+        if (target.contains("costumes") && !target["costumes"].empty()) {
             Parser::log("\tCostumes:");
             for (const auto &[id, data] : target["costumes"].items()) {
                 Costume newCostume;
@@ -277,7 +277,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // Broadcasts
-        if (!target["broadcasts"].empty()) {
+        if (target.contains("broadcasts") && !target["broadcasts"].empty()) {
             for (const auto &[id, data] : target["broadcasts"].items()) {
                 Broadcast newBroadcast;
                 newBroadcast.id = id;
@@ -288,7 +288,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
         std::vector<std::string> procedureCallBlocks;
 
-        if (!target["blocks"].empty()) {
+        if (target.contains("blocks") && !target["blocks"].empty()) {
             Parser::log("\tBlocks:");
 
             for (const auto &[id, data] : target["blocks"].items()) {
@@ -484,6 +484,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
 }
 
 void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
+    if (!json.contains("comments")) return;
+
     nlohmann::json config;
 
     for (const auto &[id, data] : json["comments"].items()) {
@@ -681,7 +683,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
 #else
     constexpr const char *libraryExtension = ".so";
 #endif
-
+    if (!json.contains("extensions")) return hasExts;
     for (const std::string &extension : json["extensions"]) {
         const std::string &path = OS::getScratchFolderLocation() + "extensions/" + extension + libraryExtension;
         if (OS::fileExists(path)) {
