@@ -95,7 +95,7 @@ SCRATCH_BLOCK(looks, show) {
 }
 
 SCRATCH_BLOCK(looks, hide) {
-    sprite->visible = false;
+    if (!sprite->isStage) sprite->visible = false;
     return BlockResult::CONTINUE;
 }
 

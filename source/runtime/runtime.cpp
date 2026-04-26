@@ -25,6 +25,10 @@
 #include <vector>
 #ifdef ENABLE_MENU
 #include <pauseMenu.hpp>
+#include <popupMenu.hpp>
+#endif
+#ifdef ENABLE_INSPECTOR
+#include <inspector.hpp>
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -40,6 +44,8 @@ ProjectType Scratch::projectType;
 std::vector<BlockState *> Pools::states;
 std::vector<ScriptThread *> Pools::threads;
 BlockExecutor executor;
+
+bool Scratch::hasNativeExtensions = false;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -142,6 +148,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         if (checkFPS) Input::getInput();
         BlockExecutor::runThreads();
 
+#ifdef ENABLE_INSPECTOR
+        Inspector::processCommands();
+#endif
+
         if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
 
         Timer renderTimer(false);
@@ -185,12 +195,25 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 }
 
 bool Scratch::startScratchProject() {
-    std::pair<bool, bool> code;
-#ifdef ENABLE_AUDIO
-    if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
+
+#ifdef ENABLE_MENU
+
+    if (hasNativeExtensions) {
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, "Warning! This project contains Native Extensions. Native Extensions have full access to your device.");
+        MenuManager::changeMenu(popupMenu);
+        while (Render::appShouldRun() && popupMenu->accepted == -1) {
+            MenuManager::render();
+        }
+        popupMenu->cleanup();
+        if (popupMenu->accepted == 0) {
+            cleanupScratchProject();
+            return false;
+        }
     }
+
 #endif
+
+    std::pair<bool, bool> code;
     initializeScratchProject();
     ScriptThread monitorDisplayThread;
     toggleDebugVars(debugVars);
@@ -209,7 +232,7 @@ bool Scratch::startScratchProject() {
 void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
     costumeImages.clear();
-    SoundPlayer::cleanupAudio();
+    Mixer::cleanupAudio();
     Render::monitorTexts.clear();
     Render::listMonitors.clear();
 
@@ -268,6 +291,7 @@ void Scratch::cleanupScratchProject() {
     maxClones = 300;
     FPS = 30;
     counter = 0;
+    hasNativeExtensions = false;
     turbo = false;
     hqpen = false;
     fencing = true;

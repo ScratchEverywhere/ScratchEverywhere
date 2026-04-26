@@ -4,6 +4,7 @@
 #include <menus/mainMenu.hpp>
 #endif
 #include <cstdlib>
+#include <inspector.hpp>
 #include <menus/mainMenu.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
@@ -36,6 +37,12 @@ static bool initApp() {
     if (!Render::Init()) {
         return false;
     }
+#ifdef ENABLE_AUDIO
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+        return false;
+    }
+#endif
     return true;
 }
 
@@ -55,6 +62,9 @@ bool activateMainMenu() {
 
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);
+#endif
+#ifdef ENABLE_INSPECTOR
+        Inspector::processCommands();
 #endif
     }
 #endif
@@ -102,8 +112,24 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-    if (argc > 1) {
+    bool enableInspector = false;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--inspector") {
+            enableInspector = true;
+        } else if (Unzip::filePath.empty()) {
+#if defined(__PC__)
+            Unzip::filePath = arg;
+#endif
+        }
+    }
+
+#ifdef ENABLE_INSPECTOR
+    if (enableInspector) Inspector::init();
+#endif
+
 #if defined(__EMSCRIPTEN__)
+    if (argc > 1) {
         while (!OS::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
@@ -111,11 +137,8 @@ int main(int argc, char **argv) {
             }
             emscripten_sleep(0);
         }
-#elif defined(__PC__)
-        Unzip::filePath = std::string(argv[1]);
-#else
-#endif
     }
+#endif
 
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {

@@ -1,6 +1,7 @@
 #include "unzip.hpp"
 #include "input.hpp"
 #include "os.hpp"
+#include "parser.hpp"
 #include "runtime.hpp"
 #include <cstring>
 #include <ctime>
@@ -198,6 +199,10 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
+
+    loadingState = "Loading Extensions";
+    Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
+
     loadingState = "Loading Sprites";
     Parser::loadSprites(project_json);
 

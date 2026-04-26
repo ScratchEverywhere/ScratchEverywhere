@@ -43,22 +43,14 @@ bool SoundPlayer::init() {
     return false;
 }
 
-void SoundPlayer::cleanupAudio() {
+void SoundPlayer::deinit() {
 #ifdef ENABLE_AUDIO
-// TODO: figure out why this crashes
-//    SDL_PauseAudioStreamDevice(sdl_stream);
-//    SDL_DestroyAudioStream(sdl_stream);
-#endif
+    Mixer::cleanupAudio();
+    // TODO: figure out why this crashes
+    //    SDL_PauseAudioStreamDevice(sdl_stream);
+    //    SDL_DestroyAudioStream(sdl_stream);
 #if !defined(RENDERER_SDL3) && !defined(WINDOWING_SDL3)
     SDL_Quit();
 #endif
-
-    Mixer::cleanupAudio();
-}
-
-void SoundPlayer::flushAudio() {
-}
-
-void SoundPlayer::deinit() {
-    cleanupAudio();
+#endif
 }

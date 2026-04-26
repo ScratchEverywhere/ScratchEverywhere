@@ -61,8 +61,13 @@ class BlockExecutor {
     static void executeKeyHats();
     static void doSpriteClicking();
 
-    // NEW STUFF :)
-    static ScriptThread *startThread(Sprite *sprite, Block *blockID);
+    /**
+     * Starts a new thread
+     * @param sprite pointer of the Sprite
+     * @param blockID pointer of the hat block
+     * @param shouldRestart if the specified hat block already has threads running, setting this to `true` will end those threads and start a new one. `false` will not start a new thread and let the running ones finish.
+     */
+    static ScriptThread *startThread(Sprite *sprite, Block *blockID, bool shouldRestart = true);
     static void runThreads();
     static BlockResult runThread(ScriptThread &thread, Sprite &sprite, Value *outValue);
     static std::vector<ScriptThread *> threads;

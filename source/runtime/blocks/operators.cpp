@@ -83,10 +83,35 @@ SCRATCH_BLOCK(operator, letter_of) {
     if (!letter.isNumeric() || str == "") {
         return BlockResult::CONTINUE;
     }
-    const int index = std::floor(letterValue) - 1;
-    if (index >= 0 && index < static_cast<int>(str.size())) {
-        *outValue = Value(std::string(1, str[index]));
+    const int targetIndex = std::floor(letterValue) - 1;
+    if (targetIndex < 0) return BlockResult::CONTINUE;
+
+    int currentCharIndex = 0;
+    size_t byteIndex = 0;
+
+    while (byteIndex < str.size()) {
+        size_t charLength = 1;
+        unsigned char c = str[byteIndex];
+
+        if ((c & 0x80) == 0x00) charLength = 1;
+        else if ((c & 0xE0) == 0xC0) charLength = 2;
+        else if ((c & 0xF0) == 0xE0) charLength = 3;
+        else if ((c & 0xF8) == 0xF0) charLength = 4;
+
+        if (currentCharIndex == targetIndex) {
+            if (byteIndex + charLength > str.size()) {
+                charLength = str.size() - byteIndex;
+            }
+
+            *outValue = Value(str.substr(byteIndex, charLength));
+            return BlockResult::CONTINUE;
+        }
+
+        currentCharIndex++;
+        byteIndex += charLength;
     }
+
+    *outValue = Value("");
     return BlockResult::CONTINUE;
 }
 
