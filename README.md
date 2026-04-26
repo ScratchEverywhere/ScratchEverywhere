@@ -1,6 +1,6 @@
 <div align="center">
 
-![YT-DLP](https://raw.githubusercontent.com/ScratchEverywhere/ScratchEverywhere/master/gfx/menu/logo.png)
+![Scratch Everywhere!](https://raw.githubusercontent.com/ScratchEverywhere/ScratchEverywhere/master/gfx/menu/logo.png)
 
 ![Release version](https://img.shields.io/github/v/release/ScratchEverywhere/ScratchEverywhere?color=brightgreen&label=Download&style=for-the-badge)
 ![Discord](https://img.shields.io/discord/1408875318248345612?color=blue&labelColor=555555&label=&logo=discord&style=for-the-badge)
@@ -9,7 +9,6 @@
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects
 over to 6-8th-generation gaming consoles, handheld platforms, and more!
-
 
 <img alt="Runtime running a Scratch project on Wii U, Wii, and 3DS" src="docs/demo.gif" />
 <br>
