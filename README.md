@@ -2,8 +2,8 @@
 
 ![Scratch Everywhere!](https://raw.githubusercontent.com/ScratchEverywhere/ScratchEverywhere/master/gfx/menu/logo.png)
 
-![Release version](https://img.shields.io/github/v/release/ScratchEverywhere/ScratchEverywhere?color=brightgreen&label=Download&style=for-the-badge)
-![Discord](https://img.shields.io/discord/1408875318248345612?color=blue&labelColor=555555&label=&logo=discord&style=for-the-badge)
+[![Release version](https://img.shields.io/github/v/release/ScratchEverywhere/ScratchEverywhere?color=brightgreen&label=Download&style=for-the-badge)](#installation "Installation")
+[![Discord](https://img.shields.io/discord/1408875318248345612?color=blue&labelColor=555555&label=&logo=discord&style=for-the-badge)](https://discord.gg/vTXdvBuPMQ "Discord")
 ![Commits](https://img.shields.io/github/commit-activity/m/ScratchEverywhere/ScratchEverywhere?label=commits&style=for-the-badge)
 ![Last Commit](https://img.shields.io/github/last-commit/ScratchEverywhere/ScratchEverywhere?label=&style=for-the-badge&display_timestamp=committer)
 
