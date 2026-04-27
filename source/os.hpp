@@ -14,6 +14,8 @@
 #include <nds.h>
 #elif defined(__WIIU__)
 #include <whb/sdcard.h>
+#elif defined(__PS2__)
+#include <kernel.h>
 #endif
 
 #if defined(_WIN32)
@@ -95,6 +97,8 @@ inline std::string getFilesystemRootPrefix() {
     return "";
 #elif defined(VITA)
     return "ux0:";
+#elif defined(__PS2__)
+    return "mass:";
 #elif defined(__PS4__)
     return "";
 #elif defined(__3DS__)
@@ -170,6 +174,8 @@ inline std::string getPlatform() {
     return "PSP";
 #elif defined(WEBOS)
     return "webOS TV";
+#elif defined(__PS2__)
+    return "PS2";
 #else
     return "Unknown";
 #endif

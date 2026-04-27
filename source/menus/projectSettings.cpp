@@ -138,7 +138,7 @@ void ProjectSettings::init() {
     if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["sb3InRam"].is_null()) {
         ramButton->text->setText(settings["settings"]["sb3InRam"].get<bool>() ? "Keep Project In RAM: ON" : "Keep Project In RAM: OFF");
     } else {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__PS2__)
         ramButton->text->setText("Keep Project In RAM: OFF");
 #else
         ramButton->text->setText("Keep Project In RAM: ON");
