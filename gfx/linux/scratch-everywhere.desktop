@@ -10,5 +10,5 @@ Icon=scratch-everywhere
 Type=Application
 Terminal=false
 PrefersNonDefaultGPU=true
-Categories=Games
+Categories=Game
 MimeType=application/x.scratch.sb3;
