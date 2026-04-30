@@ -5,7 +5,6 @@
 [![Release version](https://img.shields.io/github/v/release/ScratchEverywhere/ScratchEverywhere?color=brightgreen&label=Download&style=for-the-badge)](#installation "Installation")
 [![Discord](https://img.shields.io/discord/1408875318248345612?color=blue&labelColor=555555&label=&logo=discord&style=for-the-badge)](https://discord.gg/Y2gf5vZHpJ "Discord")
 ![Commits](https://img.shields.io/github/commit-activity/m/ScratchEverywhere/ScratchEverywhere?label=commits&style=for-the-badge)
-![Last Commit](https://img.shields.io/github/last-commit/ScratchEverywhere/ScratchEverywhere?label=&style=for-the-badge&display_timestamp=committer)
 
 A work-in-progress runtime made in C++ aimed to bring most Scratch 3 projects
 over to 6-8th-generation gaming consoles, handheld platforms, and more!
