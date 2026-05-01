@@ -48,7 +48,12 @@ SCRATCH_BLOCK(operator, random) {
         !Scratch::getInput(block, "TO", thread, sprite, toValue)) return BlockResult::REPEAT;
     const double a = fromValue.asDouble();
     const double b = toValue.asDouble();
-    if (a == b) {
+	if (a > b) {
+		a=a+b;
+		b=a-b;
+		a=a-b;
+	}
+	if (a == b) {
         *outValue = fromValue;
 
         return BlockResult::CONTINUE;
