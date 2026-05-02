@@ -10,12 +10,18 @@
 #include <text.hpp>
 
 static retro_video_refresh_t video_refresh_cb;
+static retro_input_poll_t input_poll_cb;
+
+extern "C" void retro_set_input_poll(retro_input_poll_t cb) {
+    input_poll_cb = cb;
+}
+
 extern "C" void retro_set_video_refresh(retro_video_refresh_t cb) {
     video_refresh_cb = cb;
 }
 
 bool WindowRetroarch::init(int w, int h, const std::string &title) {
-  resize(w, h);	
+    resize(w, h);
 
     return true;
 }
@@ -28,10 +34,11 @@ bool WindowRetroarch::shouldClose() {
 }
 
 void WindowRetroarch::pollEvents() {
+    input_poll_cb();
 }
 
 void WindowRetroarch::swapBuffers() {
-    	video_refresh_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
+    video_refresh_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 }
 
 void WindowRetroarch::resize(int width, int height) {

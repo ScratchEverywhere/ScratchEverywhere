@@ -5,8 +5,6 @@ static struct retro_hw_render_callback hw_render;
 static retro_audio_sample_t audio_sample_cb;
 static retro_audio_sample_batch_t audio_sample_batch_cb;
 static retro_environment_t environ_cb;
-static retro_input_poll_t input_poll_cb;
-static retro_input_state_t input_state_cb;
 
 #include <cstring>
 
@@ -20,8 +18,8 @@ static retro_input_state_t input_state_cb;
 #include <audio.hpp>
 #endif
 
-#define WIDTH 480
-#define HEIGHT 360
+#define WIDTH 540
+#define HEIGHT 405
 
 #ifndef GL_FRAMEBUFFER
 #define GL_FRAMEBUFFER 0x8D40
@@ -78,21 +76,11 @@ void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) {
     audio_sample_batch_cb = cb;
 }
 
-void retro_set_input_poll(retro_input_poll_t cb) {
-    input_poll_cb = cb;
-}
-
-void retro_set_input_state(retro_input_state_t cb) {
-    input_state_cb = cb;
-}
-
 void retro_run(void) {
     std::pair<bool, bool> code;
     int samples = 0.06 * Mixer::rate;
     short stream[samples * 2];
     int i;
-
-    input_poll_cb();
 
     Mixer::requestSound(stream, samples);
 
@@ -107,8 +95,23 @@ void retro_run(void) {
     }
 }
 
+/* this actually stinks to do this here but libretro does not let me do this outside of this function */
 static void context_reset(void) {
     se_glBindFramebuffer = (SE_PFNGLBINDFRAMEBUFFERPROC)hw_render.get_proc_address("glBindFramebuffer");
+
+    if (!Unzip::load()) return;
+
+    if (!Render::Init()) {
+        return;
+    }
+
+#ifdef ENABLE_AUDIO
+    if (!SoundPlayer::init()) {
+        return;
+    }
+#endif
+
+    Scratch::initializeScratchProject();
 }
 
 static void context_destroy(void) {
@@ -129,9 +132,7 @@ static bool init_hw_context(void) {
 
 bool retro_load_game(const struct retro_game_info *info) {
     enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
-
     Unzip::filePath = info->path;
-    if (!Unzip::load()) return false;
 
     if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt)) {
         fprintf(stderr, "XRGB8888 is not supported.\n");
@@ -141,17 +142,6 @@ bool retro_load_game(const struct retro_game_info *info) {
     if (!init_hw_context()) {
         return false;
     }
-
-    if (!Render::Init()) {
-        return false;
-    }
-#ifdef ENABLE_AUDIO
-    if (!SoundPlayer::init()) {
-        return false;
-    }
-#endif
-
-    Scratch::initializeScratchProject();
 
     return true;
 }
