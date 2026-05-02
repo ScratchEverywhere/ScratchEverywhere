@@ -1,4 +1,6 @@
 #include "window.hpp"
+#include <libretro.h>
+
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -6,6 +8,11 @@
 #include <render.hpp>
 #include <renderers/opengl/render.hpp>
 #include <text.hpp>
+
+static retro_video_refresh_t video_refresh_cb;
+extern "C" void retro_set_video_refresh(retro_video_refresh_t cb) {
+    video_refresh_cb = cb;
+}
 
 bool WindowRetroarch::init(int w, int h, const std::string &title) {
     return true;
@@ -22,6 +29,7 @@ void WindowRetroarch::pollEvents() {
 }
 
 void WindowRetroarch::swapBuffers() {
+    video_refresh_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 }
 
 void WindowRetroarch::resize(int width, int height) {

@@ -59,7 +59,14 @@ bool Render::Init() {
 #error "No windowing backend defined"
 #endif
 
-    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+    if (!globalWindow->init(
+#ifdef WINDOWING_RETROARCH
+            480, 360
+#else
+            540, 405
+#endif
+            ,
+            "Scratch Everywhere!")) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;
@@ -345,6 +352,7 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    printf("?\n");
     if (!hasFrameBegan) {
         glViewport(0, 0, getWidth(), getHeight());
         glMatrixMode(GL_PROJECTION);
@@ -354,6 +362,7 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
         glLoadIdentity();
 
         glClearColor(colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, 1.0f);
+        glClearColor(1.0, 0, 0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
         hasFrameBegan = true;
     }
