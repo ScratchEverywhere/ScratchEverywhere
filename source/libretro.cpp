@@ -1,6 +1,13 @@
 #ifdef RETROARCH
 #include <libretro.h>
 
+static struct retro_hw_render_callback hw_render;
+static retro_audio_sample_t audio_sample_cb;
+static retro_audio_sample_batch_t audio_sample_batch_cb;
+static retro_environment_t environ_cb;
+static retro_input_poll_t input_poll_cb;
+static retro_input_state_t input_state_cb;
+
 #include <cstring>
 
 #include <audiostack.hpp>
@@ -19,13 +26,6 @@
 #ifndef GL_FRAMEBUFFER
 #define GL_FRAMEBUFFER 0x8D40
 #endif
-
-static struct retro_hw_render_callback hw_render;
-static retro_audio_sample_t audio_sample_cb;
-static retro_audio_sample_batch_t audio_sample_batch_cb;
-static retro_environment_t environ_cb;
-static retro_input_poll_t input_poll_cb;
-static retro_input_state_t input_state_cb;
 
 static ScriptThread monitorDisplayThread;
 
@@ -92,6 +92,8 @@ void retro_run(void) {
     short stream[samples * 2];
     int i;
 
+    input_poll_cb();
+
     Mixer::requestSound(stream, samples);
 
     for (i = 0; i < samples; i++)
@@ -116,7 +118,8 @@ static bool init_hw_context(void) {
     hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
     hw_render.context_reset = context_reset;
     hw_render.context_destroy = context_destroy;
-    hw_render.depth = true;
+    hw_render.depth = false;
+    hw_render.bottom_left_origin = true;
 
     if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
         return false;
@@ -125,8 +128,9 @@ static bool init_hw_context(void) {
 }
 
 bool retro_load_game(const struct retro_game_info *info) {
-    Unzip::filePath = info->path;
     enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
+
+    Unzip::filePath = info->path;
     if (!Unzip::load()) return false;
 
     if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt)) {
@@ -148,7 +152,6 @@ bool retro_load_game(const struct retro_game_info *info) {
 #endif
 
     Scratch::initializeScratchProject();
-    monitorDisplayThread = ScriptThread();
 
     return true;
 }

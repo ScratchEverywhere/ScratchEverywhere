@@ -7,6 +7,7 @@ set(SE_AUDIO_ENGINE_VALID_OPTIONS "retroarch")
 
 set(SE_WINDOWING "retroarch")
 set(SE_AUDIO_ENGINE "retroarch")
+set(SE_AUDIO_ENGINE_DEFAULT "retroarch")
 set(SE_PLATFORM "retraorch")
 
 list(APPEND SE_PLATFORM_DEFINITIONS "RETROARCH")

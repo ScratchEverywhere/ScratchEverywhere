@@ -352,7 +352,6 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
-    printf("?\n");
     if (!hasFrameBegan) {
         glViewport(0, 0, getWidth(), getHeight());
         glMatrixMode(GL_PROJECTION);
