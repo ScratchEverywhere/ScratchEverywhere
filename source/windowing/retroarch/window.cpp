@@ -15,6 +15,8 @@ extern "C" void retro_set_video_refresh(retro_video_refresh_t cb) {
 }
 
 bool WindowRetroarch::init(int w, int h, const std::string &title) {
+  resize(w, h);	
+
     return true;
 }
 
@@ -29,7 +31,7 @@ void WindowRetroarch::pollEvents() {
 }
 
 void WindowRetroarch::swapBuffers() {
-    video_refresh_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
+    	video_refresh_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 }
 
 void WindowRetroarch::resize(int width, int height) {
