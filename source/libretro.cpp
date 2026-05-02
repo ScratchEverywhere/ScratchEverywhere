@@ -1,4 +1,4 @@
-#ifdef RETROARCH
+#ifdef LIBRETRO
 #include <libretro.h>
 
 static struct retro_hw_render_callback hw_render;

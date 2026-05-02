@@ -20,28 +20,28 @@ extern "C" void retro_set_video_refresh(retro_video_refresh_t cb) {
     video_refresh_cb = cb;
 }
 
-bool WindowRetroarch::init(int w, int h, const std::string &title) {
+bool WindowLibretro::init(int w, int h, const std::string &title) {
     resize(w, h);
 
     return true;
 }
 
-void WindowRetroarch::cleanup() {
+void WindowLibretro::cleanup() {
 }
 
-bool WindowRetroarch::shouldClose() {
+bool WindowLibretro::shouldClose() {
     return false;
 }
 
-void WindowRetroarch::pollEvents() {
+void WindowLibretro::pollEvents() {
     input_poll_cb();
 }
 
-void WindowRetroarch::swapBuffers() {
+void WindowLibretro::swapBuffers() {
     video_refresh_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 }
 
-void WindowRetroarch::resize(int width, int height) {
+void WindowLibretro::resize(int width, int height) {
     this->width = width;
     this->height = height;
 
@@ -49,14 +49,14 @@ void WindowRetroarch::resize(int width, int height) {
     Render::resizeSVGs();
 }
 
-int WindowRetroarch::getWidth() const {
+int WindowLibretro::getWidth() const {
     return width;
 }
 
-int WindowRetroarch::getHeight() const {
+int WindowLibretro::getHeight() const {
     return height;
 }
 
-void *WindowRetroarch::getHandle() {
+void *WindowLibretro::getHandle() {
     return nullptr;
 }
