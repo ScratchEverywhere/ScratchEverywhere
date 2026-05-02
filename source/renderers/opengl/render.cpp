@@ -10,6 +10,8 @@
 #include <windowing/sdl2/window.hpp>
 #elif defined(WINDOWING_SDL3)
 #include <windowing/sdl3/window.hpp>
+#elif defined(WINDOWING_RETROARCH)
+#include <windowing/retroarch/window.hpp>
 #else
 #error "No windowing backend defined"
 #endif
@@ -51,6 +53,8 @@ bool Render::Init() {
     globalWindow = new WindowSDL2();
 #elif defined(WINDOWING_SDL3)
     globalWindow = new WindowSDL3();
+#elif defined(WINDOWING_RETROARCH)
+    globalWindow = new WindowRetroarch();
 #else
 #error "No windowing backend defined"
 #endif
