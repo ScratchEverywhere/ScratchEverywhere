@@ -101,7 +101,7 @@ cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to do
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
 #  disable menu if a project is in RomFS
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3" OR LIBRETRO)
 	set(SE_MENU OFF)
 	set(SE_LOADSCREEN OFF)
 endif()
