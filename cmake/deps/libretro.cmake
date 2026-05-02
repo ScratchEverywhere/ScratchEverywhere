@@ -8,6 +8,7 @@ function(_dep_source_libretro)
 		NAME libretro
 		GITHUB_REPOSITORY libretro/libretro-common
 		GIT_TAG master
+		DOWNLOAD_ONLY ON
 	)
 
 	add_library(libretro INTERFACE)
