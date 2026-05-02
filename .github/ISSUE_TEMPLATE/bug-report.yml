@@ -47,6 +47,7 @@ body:
         - PC
         - Web
         - PS4
+        - Libretro
     validations:
       required: true
   - type: textarea
