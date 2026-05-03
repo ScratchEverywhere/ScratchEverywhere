@@ -103,7 +103,7 @@ void MainMenu::init() {
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
-    splashText = createTextObject(Unzip::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
+    splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(255, 255, 255, 128));
     if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
