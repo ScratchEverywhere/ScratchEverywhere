@@ -101,6 +101,7 @@ jobs:
           target: exporter
           outputs: type=local,dest=.
           build-args: |
+            BUILD_TYPE=release
             KEYSTORE_PATH=release.keystore
             KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
             KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
