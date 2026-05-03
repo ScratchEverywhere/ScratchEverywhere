@@ -4,22 +4,23 @@ WORKDIR /app
 ARG ABIS="arm64-v8a,armeabi-v7a,x86,x86_64"
 ARG BUILD_TYPE="debug"
 ARG KEYSTORE_PATH
-ARG KEYSTORE_PASSWORD
-ARG KEY_ALIAS
-ARG KEY_PASSWORD
 
 COPY . .
 
-RUN cd android && \
-    if [ "${BUILD_TYPE}" = "release" ]; then \
+RUN \
+    --mount=type=secret,id=KEYSTORE_PASSWORD,env=KEYSTORE_PASSWORD \
+    --mount=type=secret,id=KEY_ALIAS,env=KEY_ALIAS \
+    --mount=type=secret,id=KEY_PASSWORD,env=KEY_PASSWORD \
+    cd android && \
+    if [ "${BUILD_TYPE}" == "release" ]; then \
         ./gradlew assembleRelease \ 
             -Pabis=${ABIS} \
             -Pandroid.injected.signing.store.file=$KEYSTORE_PATH \
             -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
             -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-            -Pandroid.injected.signing.key.password=$KEY_PASSWORD \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD; \
     else \
-        ./gradlew assembleDebug -Pabis=${ABIS} \
+        ./gradlew assembleDebug -Pabis=${ABIS}; \
     fi
 
 FROM scratch AS exporter

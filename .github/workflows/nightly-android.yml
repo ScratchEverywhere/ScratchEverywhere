@@ -103,6 +103,7 @@ jobs:
           build-args: |
             BUILD_TYPE=release
             KEYSTORE_PATH=release.keystore
+          secrets: |
             KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
             KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
             KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
