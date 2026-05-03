@@ -2,26 +2,18 @@
 #include <input.hpp>
 #include <sprite.hpp>
 
-/*
-    Value num1, num2;
-    if (!Scratch::getInput(block, "NUM1", thread, sprite, num1) ||
-        !Scratch::getInput(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
-    *outValue = num1 + num2;
-
-
-*/
-SCRATCH_BLOCK(makemakey, whenMakeyKeyPressed) {
+SCRATCH_BLOCK(makeymakey, whenMakeyKeyPressed) {
     Value keyValue;
     if (!Scratch::getInput(block, "KEY", thread, sprite, keyValue)) return BlockResult::REPEAT;
 
     std::string key = Input::convertToKey(keyValue, true);
     if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0) {
-        return BlockResult::CONTINUE_IMMEDIATELY;
+        return BlockResult::CONTINUE;
     }
     return BlockResult::RETURN;
 }
 
-SCRATCH_BLOCK(makemakey, whenCodePressed) {
+SCRATCH_BLOCK(makeymakey, whenCodePressed) {
     if (Input::codePressedBlockOpcodes.find(block) != Input::codePressedBlockOpcodes.end()) return BlockResult::RETURN;
     Value sequence;
     if (!Scratch::getInput(block, "SEQUENCE", thread, sprite, sequence)) return BlockResult::REPEAT;
@@ -42,11 +34,11 @@ SCRATCH_BLOCK(makemakey, whenCodePressed) {
     std::transform(key.begin(), key.end(), key.begin(), ::tolower);
     keySequence.push_back(key);
 
-    if (keySequence.size() <= 1) return BlockResult::CONTINUE_IMMEDIATELY;
+    if (keySequence.size() <= 1) return BlockResult::CONTINUE;
 
     if (Input::checkSequenceMatch(keySequence)) {
         Input::codePressedBlockOpcodes.insert(block);
-        return BlockResult::CONTINUE_IMMEDIATELY;
+        return BlockResult::CONTINUE;
     }
     return BlockResult::RETURN;
 }

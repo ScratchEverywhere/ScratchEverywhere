@@ -22,9 +22,9 @@ set(SE_HAS_CONTROLLER TRUE)
 
 macro(package_platform)
 	nds_create_rom(scratch-everywhere
-		NAME "Scratch Everywhere!"
-		SUBTITLE "Scratch 3 Games on your DS!"
-		AUTHOR "NateXS"
+		NAME "${SE_APP_NAME}"
+		SUBTITLE "${SE_APP_DESCRIPTION}"
+		AUTHOR "${SE_APP_AUTHOR}"
 		ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/icon.bmp"
 		NITROFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs"
 	)

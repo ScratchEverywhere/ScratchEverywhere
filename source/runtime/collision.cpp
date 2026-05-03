@@ -216,7 +216,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
             if ((dx * dx + dy * dy) > (scaledRadius * scaledRadius)) continue;
 
             const float localX = (dx * s_cos - (-dy) * s_sin) / spriteScale;
-            const float localY = (dx * s_sin + (-dy) * s_cos) / spriteScale;
+            const float localY = (dx * s_sin + dy * s_cos) / spriteScale;
 
             float finalX = std::round((localX + costume.rotationCenterX) * invScale);
             const float finalY = std::round((localY + costume.rotationCenterY) * invScale);

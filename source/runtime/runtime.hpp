@@ -65,6 +65,8 @@ class Scratch {
     static void createDebugMonitor(const std::string &name, int x, int y);
     static void toggleDebugVars(const bool enabled);
 
+    static bool hasNativeExtensions;
+
     static int projectWidth;
     static int projectHeight;
     static int FPS;

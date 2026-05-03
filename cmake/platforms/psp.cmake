@@ -27,7 +27,7 @@ macro(package_platform)
         BACKGROUND_PATH NULL
         PREVIEW_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
         TITLE scratch-everywhere
-        VERSION ${CMAKE_PROJECT_VERSION}
+		VERSION "${SE_APP_VERSION}"
     )
 	# package the EBOOT.pbp
 	add_custom_command(TARGET scratch-everywhere POST_BUILD

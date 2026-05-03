@@ -1,4 +1,6 @@
 #include "parser.hpp"
+#include "sprite.hpp"
+#include <algorithm>
 #include <input.hpp>
 #include <limits>
 #include <math.hpp>
@@ -9,6 +11,10 @@
 #include <unzip.hpp>
 #if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
 #include <whb/sdcard.h>
+#endif
+
+#ifdef ENABLE_NATIVE_EXTENSIONS
+#include <dlfcn.h>
 #endif
 
 #ifdef ENABLE_CLOUDVARS
@@ -191,7 +197,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         newSprite->isClone = false;
 
         // Variables
-        if (!target["variables"].empty()) {
+        if (target.contains("variables") && !target["variables"].empty()) {
             Parser::log("\tVariables:");
             for (const auto &[id, data] : target["variables"].items()) {
                 Variable newVariable;
@@ -208,7 +214,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // Lists
-        if (!target["lists"].empty()) {
+        if (target.contains("lists") && !target["lists"].empty()) {
             Parser::log("\tLists:");
             for (const auto &[id, data] : target["lists"].items()) {
                 auto result = newSprite->lists.try_emplace(id).first;
@@ -224,7 +230,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // Sounds
-        if (!target["sounds"].empty()) {
+        if (target.contains("sounds") && !target["sounds"].empty()) {
             Parser::log("\tSounds:");
             for (const auto &[id, data] : target["sounds"].items()) {
                 Sound newSound;
@@ -240,7 +246,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // Costumes
-        if (!target["costumes"].empty()) {
+        if (target.contains("costumes") && !target["costumes"].empty()) {
             Parser::log("\tCostumes:");
             for (const auto &[id, data] : target["costumes"].items()) {
                 Costume newCostume;
@@ -273,7 +279,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
 
         // Broadcasts
-        if (!target["broadcasts"].empty()) {
+        if (target.contains("broadcasts") && !target["broadcasts"].empty()) {
             for (const auto &[id, data] : target["broadcasts"].items()) {
                 Broadcast newBroadcast;
                 newBroadcast.id = id;
@@ -284,7 +290,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
         std::vector<std::string> procedureCallBlocks;
 
-        if (!target["blocks"].empty()) {
+        if (target.contains("blocks") && !target["blocks"].empty()) {
             Parser::log("\tBlocks:");
 
             for (const auto &[id, data] : target["blocks"].items()) {
@@ -480,6 +486,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
 }
 
 void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
+    if (!json.contains("comments")) return;
+
     nlohmann::json config;
 
     for (const auto &[id, data] : json["comments"].items()) {
@@ -640,7 +648,24 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
             } else {
                 if (!inputValue.is_null()) {
                     Parser::log(indentStr + "\t" + inputName + ":");
-                    block.inputs[inputName] = ParsedInput(loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2));
+                    Block *newBlock = loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
+
+                    // Constant folding :)
+#define CHECK_NUM_CONSTANT_FOLDING(OPCODE, OPERATOR)                                                                                                                                 \
+    if (newBlock->opcode == #OPCODE && newBlock->inputs["NUM1"].inputType == ParsedInput::InputType::VALUE && newBlock->inputs["NUM2"].inputType == ParsedInput::InputType::VALUE) { \
+        block.inputs[inputName] = ParsedInput(newBlock->inputs["NUM1"].value OPERATOR newBlock->inputs["NUM2"].value);                                                               \
+        if (Scratch::blocks.back() == newBlock) Scratch::blocks.pop_back();                                                                                                          \
+        else Scratch::blocks.erase(std::remove(Scratch::blocks.begin(), Scratch::blocks.end(), newBlock), Scratch::blocks.end());                                                    \
+        delete newBlock;                                                                                                                                                             \
+        Log::log("folded!");                                                                                                                                                         \
+        continue;                                                                                                                                                                    \
+    }
+
+                    CHECK_NUM_CONSTANT_FOLDING(operator_add, +)
+                    CHECK_NUM_CONSTANT_FOLDING(operator_multiply, *)
+                    CHECK_NUM_CONSTANT_FOLDING(operator_divide, /)
+                    CHECK_NUM_CONSTANT_FOLDING(operator_subtract, -)
+                    block.inputs[inputName] = ParsedInput(newBlock);
                 }
             }
         }
@@ -667,6 +692,31 @@ void Parser::loadFields(Block &block, const std::string &blockKey, const nlohman
         }
         block.fields[name] = parsedField;
     }
+}
+
+bool Parser::loadExtensions(const nlohmann::json &json) {
+    bool hasExts = false;
+#ifdef ENABLE_NATIVE_EXTENSIONS
+#ifdef __APPLE__
+    constexpr const char *libraryExtension = ".dylib";
+#else
+    constexpr const char *libraryExtension = ".so";
+#endif
+    if (!json.contains("extensions")) return hasExts;
+    for (const std::string &extension : json["extensions"]) {
+        const std::string &path = OS::getScratchFolderLocation() + "extensions/" + extension + libraryExtension;
+        if (OS::fileExists(path)) {
+            void *extensionHandle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+            if (!extensionHandle) {
+                Log::logError("Failed to load native extension, '" + extension + "', dlerror: " + dlerror());
+            } else {
+                Log::log("Loaded extension: " + path);
+                hasExts = true;
+            }
+        } else Log::logWarning("Couldn't find native extension: " + path);
+    }
+#endif
+    return hasExts;
 }
 
 Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {

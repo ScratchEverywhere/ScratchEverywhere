@@ -25,6 +25,10 @@
 #include <vector>
 #ifdef ENABLE_MENU
 #include <pauseMenu.hpp>
+#include <popupMenu.hpp>
+#endif
+#ifdef ENABLE_INSPECTOR
+#include <inspector.hpp>
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -40,6 +44,8 @@ ProjectType Scratch::projectType;
 std::vector<BlockState *> Pools::states;
 std::vector<ScriptThread *> Pools::threads;
 BlockExecutor executor;
+
+bool Scratch::hasNativeExtensions = false;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -142,6 +148,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         if (checkFPS) Input::getInput();
         BlockExecutor::runThreads();
 
+#ifdef ENABLE_INSPECTOR
+        Inspector::processCommands();
+#endif
+
         if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
 
         Timer renderTimer(false);
@@ -185,6 +195,24 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 }
 
 bool Scratch::startScratchProject() {
+
+#ifdef ENABLE_MENU
+
+    if (hasNativeExtensions) {
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, "Warning! This project contains Native Extensions. Native Extensions have full access to your device.");
+        MenuManager::changeMenu(popupMenu);
+        while (Render::appShouldRun() && popupMenu->accepted == -1) {
+            MenuManager::render();
+        }
+        popupMenu->cleanup();
+        if (popupMenu->accepted == 0) {
+            cleanupScratchProject();
+            return false;
+        }
+    }
+
+#endif
+
     std::pair<bool, bool> code;
     initializeScratchProject();
     ScriptThread monitorDisplayThread;
@@ -263,6 +291,7 @@ void Scratch::cleanupScratchProject() {
     maxClones = 300;
     FPS = 30;
     counter = 0;
+    hasNativeExtensions = false;
     turbo = false;
     hqpen = false;
     fencing = true;
@@ -515,24 +544,32 @@ void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
     if (sprite->spriteWidth == 0 || sprite->spriteHeight == 0) loadCurrentCostumeImage(sprite);
 
     collision::AABB spriteBounds = collision::getSpriteBounds(sprite);
+    constexpr float fenceWidth = 15.0f;
 
-    constexpr float inset = 15.0f;
-    const collision::AABB fenceBounds = {
-        .left = (-Scratch::projectWidth / 2.0f) + inset,
-        .right = (Scratch::projectWidth / 2.0f) - inset,
-        .top = (Scratch::projectHeight / 2.0f) - inset,
-        .bottom = (-Scratch::projectHeight / 2.0f) + inset};
+    const float width = spriteBounds.right - spriteBounds.left;
+    const float height = spriteBounds.top - spriteBounds.bottom;
+    const float inset = std::floor(std::min(width, height) * 0.5f);
 
-    float dx = 0;
-    float dy = 0;
+    const float sx = (Scratch::projectWidth * 0.5f) - std::min(fenceWidth, inset);
+    const float sy = (Scratch::projectHeight * 0.5f) - std::min(fenceWidth, inset);
 
-    if (spriteBounds.right < fenceBounds.left) dx = fenceBounds.left - spriteBounds.right;
-    else if (spriteBounds.left > fenceBounds.right) dx = fenceBounds.right - spriteBounds.left;
-    if (spriteBounds.top < fenceBounds.bottom) dy = fenceBounds.bottom - spriteBounds.top;
-    else if (spriteBounds.bottom > fenceBounds.top) dy = fenceBounds.top - spriteBounds.bottom;
+    float x = sprite->xPosition;
+    float y = sprite->yPosition;
 
-    sprite->xPosition += dx;
-    sprite->yPosition += dy;
+    if (spriteBounds.right < -sx) {
+        x = std::ceil(sprite->xPosition - (sx + spriteBounds.right));
+    } else if (spriteBounds.left > sx) {
+        x = std::floor(sprite->xPosition + (sx - spriteBounds.left));
+    }
+
+    if (spriteBounds.top < -sy) {
+        y = std::ceil(sprite->yPosition - (sy + spriteBounds.top));
+    } else if (spriteBounds.bottom > sy) {
+        y = std::floor(sprite->yPosition + (sy - spriteBounds.bottom));
+    }
+
+    sprite->xPosition = x;
+    sprite->yPosition = y;
 }
 
 void Scratch::setDirection(Sprite *sprite, double direction) {

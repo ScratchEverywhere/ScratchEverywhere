@@ -85,8 +85,8 @@ void PauseMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 71, 49, 71);
-    Render::beginFrame(1, 71, 49, 71);
+    Render::beginFrame(0, 50, 77, 83);
+    Render::beginFrame(1, 50, 77, 83);
 
     pauseControl->render();
     backButton->render();

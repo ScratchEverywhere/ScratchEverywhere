@@ -270,97 +270,73 @@ SE_Mutex Mixer::mutex;
 
 void Mixer::requestSound(short *output, int frames) {
 #ifdef ENABLE_AUDIO
-    float *tmp = new float[2 * frames]; /* we use float to store sound, because it's easier to deal with it */
-    int i;
-    std::vector<SoundStream *> clean_queue;
-
-    for (i = 0; i < 2 * frames; i++)
-        tmp[i] = 0;
+    const int channels_out = 2;
+    std::vector<float> mixBuffer(frames * channels_out, 0.0f);
 
     Mixer::mutex.lock();
-    for (auto e : streams) {
-        if (e.second->paused) {
-            if (e.second->auto_clean) clean_queue.push_back(e.second);
+
+    for (auto &entry : streams) {
+        SoundStream *s = entry.second;
+        if (s->paused) continue;
+
+        const float pitch = s->config.pitch;
+        const float volume = s->config.volume / 100.0f;
+        const float step = (float)s->rate * pitch / (float)Mixer::rate;
+        int maxFramesNeeded = (int)(frames * step) + 2;
+
+        std::vector<float> decodeBuffer(maxFramesNeeded * s->channels, 0.0f);
+
+        int decoded = s->read(decodeBuffer.data(), maxFramesNeeded);
+        if (decoded <= 0) {
+            s->paused = true;
             continue;
         }
 
-        int pairs = frames * (e.second->rate * e.second->config.pitch) / Mixer::rate;
-        float *buffer = new float[e.second->channels * pairs];
-        float *stereo = new float[2 * pairs];
-        float *stereo_resampled = new float[2 * frames];
-        int n;
+        float pos = 0.0f;
 
-        for (int i = 0; i < e.second->channels * pairs; i++)
-            buffer[i] = 0;
-        for (int i = 0; i < 2 * pairs; i++)
-            stereo[i] = 0;
-        for (int i = 0; i < 2 * frames; i++)
-            stereo_resampled[i] = 0;
+        for (int i = 0; i < frames; i++) {
+            int i0 = (int)pos;
+            int i1 = std::min(i0 + 1, decoded - 1);
+            float frac = pos - i0;
 
-        if ((n = e.second->read(buffer, pairs)) == 0) {
-            delete[] stereo_resampled;
-            delete[] stereo;
-            delete[] buffer;
-            e.second->paused = true;
-            continue;
-        }
+            float left = 0.0f;
+            float right = 0.0f;
 
-        for (int i = 0; i < pairs; i++) {
-            if (e.second->channels == 1) {
-                stereo[2 * i + 0] = buffer[i];
-                stereo[2 * i + 1] = buffer[i];
-            } else if (e.second->channels == 2) {
-                stereo[2 * i + 0] = buffer[2 * i + 0];
-                stereo[2 * i + 1] = buffer[2 * i + 1];
+            if (s->channels == 1) {
+                float a = decodeBuffer[i0];
+                float b = decodeBuffer[i1];
+                float sample = a + (b - a) * frac;
+                left = right = sample;
+            } else {
+                float aL = decodeBuffer[2 * i0 + 0];
+                float aR = decodeBuffer[2 * i0 + 1];
+                float bL = decodeBuffer[2 * i1 + 0];
+                float bR = decodeBuffer[2 * i1 + 1];
+
+                left  = aL + (bL - aL) * frac;
+                right = aR + (bR - aR) * frac;
             }
+
+            float p = std::clamp(s->config.pan / 100.0f, -1.0f, 1.0f);
+            float panL = (p <= 0.0f) ? 1.0f : 1.0f - p;
+            float panR = (p >= 0.0f) ? 1.0f : 1.0f + p;
+
+            left *= panL * volume;
+            right *= panR * volume;
+
+            mixBuffer[2 * i + 0] += left;
+            mixBuffer[2 * i + 1] += right;
+
+            pos += step;
         }
-
-        for (int i = 0; i < frames; i++) {
-            for (int j = 0; j < 2; j++)
-                stereo_resampled[2 * i + j] = stereo[2 * (i * pairs / frames) + j];
-        }
-
-        for (int i = 0; i < frames; i++) {
-            double l = stereo_resampled[2 * i + 0] * e.second->config.volume / 100;
-            double r = stereo_resampled[2 * i + 1] * e.second->config.volume / 100;
-            float p = e.second->config.pan / 100;
-            float pl = -std::clamp(p, -1.0f, 0.0f);
-            float pr = std::clamp(p, 0.0f, 1.0f);
-
-            l -= l * pr;
-            r -= r * pl;
-
-            tmp[2 * i + 0] += l;
-            tmp[2 * i + 1] += r;
-        }
-
-        delete[] stereo_resampled;
-        delete[] stereo;
-        delete[] buffer;
     }
+
     Mixer::mutex.unlock();
 
-    Mixer::mutex.lock();
-    for (int i = 0; i < clean_queue.size(); i++) {
-        clean_queue[i]->no_lock = true;
-
-        delete clean_queue[i];
+    for (int i = 0; i < frames * 2; i++) {
+        float x = std::clamp(mixBuffer[i], -1.0f, 1.0f);
+        output[i] = (short)(x * 32767.0f);
     }
-    Mixer::mutex.unlock();
-
-    for (int i = 0; i < 2 * frames; i++) {
-        /* some magic i don't know how it works */
-        if (tmp[i] <= -1.25) {
-            tmp[i] = -0.984375;
-        } else if (tmp[i] >= 1.25) {
-            tmp[i] = 0.984375;
-        } else {
-            tmp[i] = 1.1 * tmp[i] - 0.2 * tmp[i] * tmp[i] * tmp[i];
-        }
-        output[i] = tmp[i] * 32767;
-    }
-
-    delete[] tmp;
 #endif
 }
 
