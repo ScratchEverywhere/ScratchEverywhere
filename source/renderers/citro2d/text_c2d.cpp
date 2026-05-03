@@ -72,6 +72,19 @@ std::vector<float> TextObjectC2D::getSize() {
     return {width, height};
 }
 
+std::vector<float> TextObjectC2D::getStringSize(const std::string &txt) {
+    C2D_Text tempText;
+    C2D_TextBuf tempBuffer = C2D_TextBufNew(200);
+    C2D_TextFontParse(&tempText, *textClass.font, tempBuffer, text.c_str());
+    C2D_TextOptimize(&tempText);
+
+    float w, h;
+    C2D_TextGetDimensions(&tempText, scale, scale, &w, &h);
+
+    C2D_TextBufDelete(tempBuffer);
+    return {w * scale, h * scale};
+}
+
 void TextObjectC2D::render(int xPos, int yPos) {
     u32 flags = C2D_WithColor;
     if (centerAligned) {

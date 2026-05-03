@@ -2,11 +2,23 @@
 #include <input.hpp>
 #include <sprite.hpp>
 
-SCRATCH_BLOCK_NOP(makemakey, whenMakeyKeyPressed)
+SCRATCH_BLOCK(makeymakey, whenMakeyKeyPressed) {
+    Value keyValue;
+    if (!Scratch::getInput(block, "KEY", thread, sprite, keyValue)) return BlockResult::REPEAT;
 
-SCRATCH_BLOCK(makemakey, whenCodePressed) {
-    if (Input::codePressedBlockOpcodes.find(block.id) != Input::codePressedBlockOpcodes.end()) return BlockResult::RETURN;
-    std::string input = Scratch::getInputValue(block, "SEQUENCE", sprite).asString();
+    std::string key = Input::convertToKey(keyValue, true);
+    if (Input::keyHeldDuration.find(key) != Input::keyHeldDuration.end() && Input::keyHeldDuration.find(key)->second > 0) {
+        return BlockResult::CONTINUE;
+    }
+    return BlockResult::RETURN;
+}
+
+SCRATCH_BLOCK(makeymakey, whenCodePressed) {
+    if (Input::codePressedBlockOpcodes.find(block) != Input::codePressedBlockOpcodes.end()) return BlockResult::RETURN;
+    Value sequence;
+    if (!Scratch::getInput(block, "SEQUENCE", thread, sprite, sequence)) return BlockResult::REPEAT;
+
+    std::string input = sequence.asString();
     std::vector<std::string> keySequence;
     size_t start = 0;
     size_t end = input.find(' ');
@@ -22,11 +34,14 @@ SCRATCH_BLOCK(makemakey, whenCodePressed) {
     std::transform(key.begin(), key.end(), key.begin(), ::tolower);
     keySequence.push_back(key);
 
-    if (keySequence.size() <= 1) return BlockResult::RETURN;
+    if (keySequence.size() <= 1) return BlockResult::CONTINUE;
 
     if (Input::checkSequenceMatch(keySequence)) {
-        Input::codePressedBlockOpcodes.insert(block.id);
+        Input::codePressedBlockOpcodes.insert(block);
         return BlockResult::CONTINUE;
     }
     return BlockResult::RETURN;
 }
+
+SCRATCH_SHADOW_BLOCK(makeymakey_menu_KEY, KEY)
+SCRATCH_SHADOW_BLOCK(makeymakey_menu_SEQUENCE, SEQUENCE)

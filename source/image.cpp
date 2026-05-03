@@ -52,12 +52,6 @@ std::unordered_map<std::string, SVGFont> Image::loadedFonts = {
 
 constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to remove scaling limit.
 
-#ifdef __ANDROID__
-void Image::unloadFont(void *closure) {
-    free(closure);
-}
-#endif
-
 bool Image::loadFont(const std::string &family) {
 #ifdef ENABLE_SVG
     auto it = loadedFonts.find(family);
@@ -83,7 +77,19 @@ bool Image::loadFont(const std::string &family) {
     };
 
     SDL_RWclose(rw);
-    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file, size, unloadFont, file)) {
+    bool loaded = lunasvg_add_font_face_from_data(
+        family.c_str(),
+        false,
+        false,
+        file,
+        size,
+        [](void* closure) {
+            free(closure);
+        },
+        file
+    );
+
+    if (!loaded) {
         free(file);
         return false;
     };
@@ -125,7 +131,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
 #error "Image backend not defined."
 #endif
 
-    if (rawImg->error.has_value()) return nonstd::make_unexpected(rawImg->error.value());
+    if (rawImg->error.has_value()) {
+        const std::string errMessage = rawImg->error.value();
+        delete rawImg;
+        return nonstd::make_unexpected(errMessage);
+    }
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
         images.erase(filePath);
@@ -164,7 +174,11 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 #error "Image backend not defined."
 #endif
 
-    if (rawImg->error.has_value()) return nonstd::make_unexpected(rawImg->error.value());
+    if (rawImg->error.has_value()) {
+        const std::string errMessage = rawImg->error.value();
+        delete rawImg;
+        return nonstd::make_unexpected(errMessage);
+    }
 
     auto img = std::shared_ptr<Image>(rawImg, [filePath](Image *p) {
         images.erase(filePath);

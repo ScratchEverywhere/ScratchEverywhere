@@ -87,7 +87,6 @@ void Render::deInit() {
     }
     if (penTexture != nullptr) SDL_DestroyTexture(penTexture);
 
-    SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SDL_DestroyRenderer(renderer);
 
@@ -307,6 +306,8 @@ void Render::penStamp(Sprite *sprite) {
         return;
     }
 
+    const Costume &costume = sprite->costumes[sprite->currentCostume];
+
     SDL_SetRenderTarget(renderer, penTexture);
 
     // clear line draw queue so stamp can be rendered on top
@@ -317,7 +318,7 @@ void Render::penStamp(Sprite *sprite) {
 
     Image_SDL3 *image = reinterpret_cast<Image_SDL3 *>(imgFind->second.get());
 
-    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
+    const bool isSVG = costume.isSVG;
     calculateRenderPosition(sprite, isSVG);
 
     // Pen mapping stuff
@@ -336,7 +337,7 @@ void Render::penStamp(Sprite *sprite) {
         penY *= scale;
         penScale = sprite->renderInfo.renderScaleY;
     } else {
-        penScale = sprite->size / 100.0f;
+        penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
     }
 
     ImageRenderParams params;
@@ -481,7 +482,6 @@ void Render::renderSprites() {
 #endif
 
     SDL_RenderPresent(renderer);
-    SoundPlayer::flushAudio();
 }
 
 void Render::renderPenLayer() {

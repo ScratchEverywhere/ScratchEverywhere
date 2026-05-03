@@ -27,6 +27,8 @@ class TextObject : public Object {
     TextObject(std::string txt, double posX, double posY, std::string fontPath = "");
     virtual ~TextObject() = default;
 
+    std::string wrap(int maxWidth);
+
     /**
      * Cleans up and frees every text currently in memory, as well as frees every font in memory.
      */
@@ -79,6 +81,8 @@ class TextObject : public Object {
      * @return Vector containing width and height
      */
     virtual std::vector<float> getSize() = 0;
+
+    virtual std::vector<float> getStringSize(const std::string &txt) = 0;
 
     virtual void setRenderer(void *renderer) {}
 };

@@ -231,6 +231,14 @@ std::vector<float> TextObjectSDL1::getSize() {
     return {(float)textWidth * scale, (float)textHeight * scale};
 }
 
+std::vector<float> TextObjectSDL1::getStringSize(const std::string &txt) {
+    if (!font) return {0.0f, 0.0f};
+
+    int w, h;
+    TTF_SizeUTF8(font, text.c_str(), &w, &h);
+    return {w * scale, h * scale};
+}
+
 void TextObjectSDL1::setRenderer(void *r) {
     renderer = static_cast<SDL_Surface *>(r);
     updateTexture();

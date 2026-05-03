@@ -15,6 +15,7 @@ class SettingsMenu : public Menu {
     ButtonObject *EnableCustomFolderPath = nullptr;
     ButtonObject *ChangeFolderPath = nullptr;
     ButtonObject *EnableMenuMusic = nullptr;
+    ButtonObject *ClearCache = nullptr;
 
     bool UseCostumeUsername = false;
     std::string username;

@@ -44,6 +44,7 @@ void Render::deInit() {
         delete globalWindow;
         globalWindow = nullptr;
     }
+    SoundPlayer::deinit();
 }
 
 void *Render::getRenderer() {
@@ -66,7 +67,6 @@ SpeechManager *Render::getSpeechManager() {
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (hasFrameBegan) return;
-    SoundPlayer::flushAudio();
     glBegin2D();
     int r5 = colorR >> 3;
     int g5 = colorG >> 3;
@@ -156,7 +156,6 @@ void Render::renderSprites() {
     renderMonitors();
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
-    SoundPlayer::flushAudio();
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {

@@ -1,0 +1,13 @@
+FROM gcc:14 AS main_builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl1-mesa-dev
+
+COPY . .
+
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DLIBRETRO=ON && cmake --build . -j 2
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build/scratch-everywhere.so /

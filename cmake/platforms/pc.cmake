@@ -33,3 +33,10 @@ if(NOT BUILD_SHARED_LIBS AND MINGW)
 	set(SE_STATIC_LIBGCC TRUE)
 	set(SE_STATIC_LIBSTDCPP TRUE)
 endif()
+
+include(CheckSymbolExists)
+check_symbol_exists(dlopen "dlfcn.h" SE_ALLOW_NATIVE_EXTENSIONS)
+
+add_library(threads_interface INTERFACE)
+find_package(Threads REQUIRED)
+target_link_libraries(threads_interface INTERFACE Threads::Threads)

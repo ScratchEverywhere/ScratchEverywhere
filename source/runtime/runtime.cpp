@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "collision.hpp"
 #include "math.hpp"
@@ -24,21 +25,27 @@
 #include <vector>
 #ifdef ENABLE_MENU
 #include <pauseMenu.hpp>
+#include <popupMenu.hpp>
+#endif
+#ifdef ENABLE_INSPECTOR
+#include <inspector.hpp>
 #endif
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
 
+std::vector<Block *> Scratch::blocks;
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
-std::vector<std::string> Scratch::broadcastQueue;
-std::vector<std::string> Scratch::backdropQueue;
-std::vector<Sprite *> Scratch::cloneQueue;
 std::string Scratch::answer;
 ProjectType Scratch::projectType;
 
+std::vector<BlockState *> Pools::states;
+std::vector<ScriptThread *> Pools::threads;
 BlockExecutor executor;
+
+bool Scratch::hasNativeExtensions = false;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -52,8 +59,10 @@ bool Scratch::miscellaneousLimits = true;
 bool Scratch::shouldStop = false;
 bool Scratch::forceRedraw = false;
 bool Scratch::accuratePen = false;
+bool Scratch::accurateCollision = true;
 bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
+bool Scratch::warpTimer = true;
 
 Timer Scratch::fpsTimer(false);
 
@@ -65,6 +74,7 @@ double Scratch::counter = 0;
 
 bool Scratch::nextProject = false;
 Value Scratch::dataNextProject;
+std::string Scratch::newBroadcast; // Once a broadcast block is executed, it stores the message here and starts all Hat blocks.
 
 bool Scratch::useCustomUsername = false;
 std::string Scratch::customUsername;
@@ -81,7 +91,6 @@ void Scratch::initializeScratchProject() {
 #ifdef ENABLE_MENU
     Scratch::pauseMenu = nullptr;
 #endif
-
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
         BlockExecutor::linkPointers(sprite);
@@ -90,7 +99,6 @@ void Scratch::initializeScratchProject() {
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird
-    BlockExecutor::updateMonitors();
     Render::renderSprites();
 #endif
     Render::setRenderScale();
@@ -100,7 +108,7 @@ void Scratch::initializeScratchProject() {
     if (debugVars) fpsTimer.start();
 }
 
-std::pair<bool, bool> Scratch::stepScratchProject() {
+std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
     if (!Render::appShouldRun()) {
 #ifdef ENABLE_MENU
         if (pauseMenu != nullptr) {
@@ -138,17 +146,18 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
         if (debugVars) scriptTimer.start();
 
         if (checkFPS) Input::getInput();
-        BlockExecutor::runCloneStarts();
-        BlockExecutor::runBroadcasts();
-        BlockExecutor::runBackdrops();
-        BlockExecutor::runRepeatBlocks();
+        BlockExecutor::runThreads();
+
+#ifdef ENABLE_INSPECTOR
+        Inspector::processCommands();
+#endif
 
         if (debugVars) stageSprite->variables["SE!__ScriptTime"].value = Value(std::to_string(scriptTimer.getTimeMsDouble()) + " ms");
 
         Timer renderTimer(false);
         if (debugVars) renderTimer.start();
 
-        BlockExecutor::updateMonitors();
+        BlockExecutor::updateMonitors(&monitorDisplayThread);
         SpeechManager *speechManager = Render::getSpeechManager();
         if (speechManager) {
             speechManager->update();
@@ -159,7 +168,6 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
         }
-
 #ifdef ENABLE_MENU
 #ifdef __ANDROID__
         // Trap the back button to act as pause button
@@ -193,12 +201,30 @@ std::pair<bool, bool> Scratch::stepScratchProject() {
 }
 
 bool Scratch::startScratchProject() {
+
+#ifdef ENABLE_MENU
+
+    if (hasNativeExtensions) {
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, "Warning! This project contains Native Extensions. Native Extensions have full access to your device.");
+        MenuManager::changeMenu(popupMenu);
+        while (Render::appShouldRun() && popupMenu->accepted == -1) {
+            MenuManager::render();
+        }
+        popupMenu->cleanup();
+        if (popupMenu->accepted == 0) {
+            cleanupScratchProject();
+            return false;
+        }
+    }
+
+#endif
+
     std::pair<bool, bool> code;
-
     initializeScratchProject();
-
+    ScriptThread monitorDisplayThread;
+    toggleDebugVars(debugVars);
     while (true) {
-        code = stepScratchProject();
+        code = stepScratchProject(monitorDisplayThread);
         if (!code.first) {
             cleanupScratchProject();
             return code.second;
@@ -212,7 +238,7 @@ bool Scratch::startScratchProject() {
 void Scratch::cleanupScratchProject() {
     Scratch::cleanupSprites();
     costumeImages.clear();
-    SoundPlayer::cleanupAudio();
+    Mixer::cleanupAudio();
     Render::monitorTexts.clear();
     Render::listMonitors.clear();
 
@@ -234,9 +260,34 @@ void Scratch::cleanupScratchProject() {
     DownloadManager::deinit();
 
     // Reset Runtime
+    std::unordered_set<BlockState *> deletedStates;
+    std::unordered_set<ScriptThread *> deletedThreads;
 
-    broadcastQueue.clear();
-    cloneQueue.clear();
+    while (!Pools::states.empty() || !Pools::threads.empty()) {
+
+        if (!Pools::states.empty()) {
+            BlockState *state = Pools::states.back();
+            Pools::states.pop_back();
+            if (deletedStates.insert(state).second) {
+                state->clear();
+                delete state;
+            }
+        }
+
+        if (!Pools::threads.empty()) {
+            ScriptThread *thread = Pools::threads.back();
+            Pools::threads.pop_back();
+            if (deletedThreads.insert(thread).second) {
+                thread->clear();
+                delete thread;
+            }
+        }
+    }
+
+    for (Block *block : blocks) {
+        delete block;
+    }
+    blocks.clear();
     stageSprite = nullptr;
     answer.clear();
     customUsername.clear();
@@ -246,6 +297,7 @@ void Scratch::cleanupScratchProject() {
     maxClones = 300;
     FPS = 30;
     counter = 0;
+    hasNativeExtensions = false;
     turbo = false;
     hqpen = false;
     fencing = true;
@@ -254,14 +306,84 @@ void Scratch::cleanupScratchProject() {
     forceRedraw = false;
     useCustomUsername = false;
     sb3InRam = true;
+    warpTimer = true;
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 
     Log::log("Cleaned up Scratch project.");
 }
 
+bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
+    if (block->inputs.find(inputName) == block->inputs.end()) {
+        if (block->fields.find(inputName) != block->fields.end()) {
+            outValue = Value(block->fields[inputName].value);
+            return true;
+        }
+        return true;
+    }
+    ParsedInput &input = block->inputs.at(inputName);
+    switch (input.inputType) {
+    case ParsedInput::InputType::VALUE:
+        outValue = input.value;
+        return true;
+    case ParsedInput::InputType::VARIABLE:
+        if (input.calculated) {
+            outValue = input.value;
+            return true;
+        }
+
+        input.calculated = true;
+#ifdef ENABLE_CACHING
+        if (input.variable != nullptr) input.value = input.variable->value;
+        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+#else
+        input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
+#endif
+        outValue = input.value;
+        return true;
+    case ParsedInput::InputType::BLOCK: {
+        if (input.calculated) {
+            outValue = input.value;
+            return true;
+        };
+        if (input.block == nullptr) {
+            return true;
+        }
+        Block *targetBlock = input.block;
+        input.value = Value();
+
+        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input.value));
+        if (res != BlockResult::REPEAT) {
+            input.calculated = true;
+            outValue = input.value;
+            return true;
+        }
+        return false;
+        return true;
+    }
+    }
+
+    return true;
+};
+
+void Scratch::resetInput(Block *block, std::string inputName) {
+    if (inputName.empty()) {
+        for (auto &[name, input] : block->inputs) {
+            input.calculated = false;
+            if (input.inputType == ParsedInput::InputType::BLOCK && input.block != nullptr) {
+                Scratch::resetInput(input.block, "");
+            }
+        }
+        return;
+    }
+    if (block->inputs.find(inputName) == block->inputs.end()) return;
+    ParsedInput &input = block->inputs.at(inputName);
+    input.calculated = false;
+}
+
 void Scratch::greenFlagClicked() {
     stopClicked();
+    BlockExecutor::stopClicked = false;
     answer.clear();
     BlockExecutor::timer.start();
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
@@ -269,14 +391,14 @@ void Scratch::greenFlagClicked() {
 
 void Scratch::stopClicked() {
     Scratch::cloneCount = 0;
-    backdropQueue.clear();
-    broadcastQueue.clear();
-    cloneQueue.clear();
+
     std::vector<Sprite *> toDelete;
-    for (Sprite *currentSprite : Scratch::sprites) {
-        for (auto &[id, chain] : currentSprite->blockChains) {
-            chain.blocksToRepeat.clear();
-        }
+    for (auto thread : BlockExecutor::threads) {
+        thread->clear();
+        Pools::threads.push_back(thread);
+    }
+    BlockExecutor::threads.clear();
+    for (Sprite *currentSprite : sprites) {
         if (Render::getSpeechManager()) {
             Render::getSpeechManager()->clearSpeech(currentSprite);
         }
@@ -288,16 +410,27 @@ void Scratch::stopClicked() {
         currentSprite->brightnessEffect = 0.0f;
         currentSprite->colorEffect = 0.0f;
         for (Sound sound : currentSprite->sounds)
-            SoundPlayer::stopSound(sound.fullName);
+            Mixer::stopSound(sound.fullName);
     }
     for (auto *spr : toDelete) {
-        delete spr;
         Scratch::sprites.erase(std::remove(Scratch::sprites.begin(), Scratch::sprites.end(), spr),
                                Scratch::sprites.end());
+        for (ScriptThread *thread : BlockExecutor::threads) {
+            if (thread->sprite == spr) {
+                thread->finished = true;
+            }
+        }
+        delete spr;
     }
+
+    // ToDo: This fixes a crash that can occur when the maximum number of layers is higher than the number of sprites
+    //  (due to cloning and layer shifting, or when re-executing "when flag clicked" blocks).
+    //  However, this could potentially break projects logically if the content isn't currently sorted correctly.
+    //  I'm too lazy to test that right now.
     for (unsigned int i = 0; i < Scratch::sprites.size(); i++) {
         Scratch::sprites[i]->layer = (Scratch::sprites.size() - 1) - i;
     }
+    BlockExecutor::sortSprites = false;
 }
 
 std::pair<float, float> Scratch::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
@@ -364,59 +497,13 @@ void Scratch::cleanupSprites() {
     Scratch::sprites.clear();
 }
 
-std::vector<std::pair<double, double>> Scratch::getCollisionPoints(Sprite *currentSprite) {
-    std::vector<std::pair<double, double>> collisionPoints;
-
-    Render::calculateRenderPosition(currentSprite, currentSprite->costumes[currentSprite->currentCostume].isSVG);
-    const float spriteWidth = (currentSprite->spriteWidth) * (currentSprite->size * 0.01);
-    const float spriteHeight = (currentSprite->spriteHeight) * (currentSprite->size * 0.01);
-
-    const auto &cords = Scratch::screenToScratchCoords(currentSprite->renderInfo.renderX, currentSprite->renderInfo.renderY, Render::getWidth(), Render::getHeight());
-    float x = cords.first;
-    float y = cords.second;
-
-    // do rotation
-    float rotation;
-    if (currentSprite->rotationStyle == currentSprite->ALL_AROUND) {
-        rotation = Math::degreesToRadians(currentSprite->rotation - 90);
-    } else if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-        rotation = Math::degreesToRadians(-180);
-    } else rotation = 0;
-
-    // put position to top left of sprite
-    x -= spriteWidth / 2;
-    y += spriteHeight / 2;
-
-    std::vector<std::pair<double, double>> corners = {
-        {x, y},                              // Top-left
-        {x + spriteWidth, y},                // Top-right
-        {x + spriteWidth, y - spriteHeight}, // Bottom-right
-        {x, y - spriteHeight}                // Bottom-left
-    };
-
-    const float centerX = x + spriteWidth / 2;
-    const float centerY = y - spriteHeight / 2;
-
-    for (const auto &corner : corners) {
-        // center it
-        float relX = corner.first - centerX;
-        float relY = corner.second - centerY;
-
-        // rotate it
-        float rotX = relX * cos(-rotation) - relY * sin(-rotation);
-        float rotY = relX * sin(-rotation) + relY * cos(-rotation);
-
-        collisionPoints.emplace_back(centerX + rotX, centerY + rotY);
-    }
-
-    return collisionPoints;
-}
-
 bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
     if (collisionType == "mouse") {
-        return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
+        if (accurateCollision) return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
+        else return collision::pointInSpriteFast(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
     } else if (collisionType == "edge") {
-        return collision::spriteOnEdge(currentSprite);
+        if (accurateCollision) return collision::spriteOnEdge(currentSprite);
+        else return collision::spriteOnEdgeFast(currentSprite);
     } else if (collisionType == "sprite") {
         if (targetSprite == nullptr && !targetName.empty()) {
             for (Sprite *sprite : sprites) {
@@ -431,7 +518,8 @@ bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Spri
             return false;
         }
 
-        return collision::spriteInSprite(currentSprite, targetSprite);
+        if (accurateCollision) return collision::spriteInSprite(currentSprite, targetSprite);
+        else return collision::spriteInSpriteFast(currentSprite, targetSprite);
     } else {
         Log::logWarning("Invalid collision type " + collisionType);
         return false;
@@ -456,57 +544,38 @@ void Scratch::gotoXY(Sprite *sprite, double x, double y) {
 }
 
 void Scratch::fenceSpriteWithinBounds(Sprite *sprite) {
-
     if (std::abs(sprite->xPosition) < Scratch::projectWidth * 0.3 && std::abs(sprite->yPosition) < Scratch::projectHeight * 0.3)
         return;
 
     if (sprite->spriteWidth == 0 || sprite->spriteHeight == 0) loadCurrentCostumeImage(sprite);
 
-    std::vector<std::pair<double, double>> points = Scratch::getCollisionPoints(sprite);
+    collision::AABB spriteBounds = collision::getSpriteBounds(sprite);
+    constexpr float fenceWidth = 15.0f;
 
-    double rawMinX = std::numeric_limits<double>::max();
-    double rawMaxX = std::numeric_limits<double>::lowest();
-    double rawMinY = std::numeric_limits<double>::max();
-    double rawMaxY = std::numeric_limits<double>::lowest();
+    const float width = spriteBounds.right - spriteBounds.left;
+    const float height = spriteBounds.top - spriteBounds.bottom;
+    const float inset = std::floor(std::min(width, height) * 0.5f);
 
-    for (const auto &p : points) {
-        rawMinX = std::min(rawMinX, p.first);
-        rawMaxX = std::max(rawMaxX, p.first);
-        rawMinY = std::min(rawMinY, p.second);
-        rawMaxY = std::max(rawMaxY, p.second);
+    const float sx = (Scratch::projectWidth * 0.5f) - std::min(fenceWidth, inset);
+    const float sy = (Scratch::projectHeight * 0.5f) - std::min(fenceWidth, inset);
+
+    float x = sprite->xPosition;
+    float y = sprite->yPosition;
+
+    if (spriteBounds.right < -sx) {
+        x = std::ceil(sprite->xPosition - (sx + spriteBounds.right));
+    } else if (spriteBounds.left > sx) {
+        x = std::floor(sprite->xPosition + (sx - spriteBounds.left));
     }
 
-    const float minX = std::floor(rawMinX);
-    const float maxX = std::ceil(rawMaxX);
-    const float minY = std::floor(rawMinY);
-    const float maxY = std::ceil(rawMaxY);
-
-    const float sprWidth = maxX - minX;
-    const float sprHeight = maxY - minY;
-
-    const float inset = std::floor(std::min(15.0, std::min(sprWidth, sprHeight) / 2.0));
-
-    const float distToLeft = std::floor((sprWidth - 1.0) / 2.0);
-    const float distToRight = std::floor((sprWidth - 1.0) / 2.0);
-    const float distToBottom = std::floor((sprHeight - 1.0) / 2.0);
-    const float distToTop = std::floor((sprHeight - 1.0) / 2.0);
-
-    const float stageRight = Scratch::projectWidth / 2.0;
-    const float stageLeft = -stageRight;
-    const float stageTop = Scratch::projectHeight / 2.0;
-    const float stageBottom = -stageTop;
-
-    if (minX > stageRight - inset) {
-        sprite->xPosition = (stageRight - inset) + distToLeft;
-    } else if (maxX < stageLeft + inset) {
-        sprite->xPosition = (stageLeft + inset) - distToRight;
+    if (spriteBounds.top < -sy) {
+        y = std::ceil(sprite->yPosition - (sy + spriteBounds.top));
+    } else if (spriteBounds.bottom > sy) {
+        y = std::floor(sprite->yPosition + (sy - spriteBounds.bottom));
     }
 
-    if (minY > stageTop - inset) {
-        sprite->yPosition = (stageTop - inset) + distToBottom;
-    } else if (maxY < stageBottom + inset) {
-        sprite->yPosition = (stageBottom + inset) - distToTop;
-    }
+    sprite->xPosition = x;
+    sprite->yPosition = y;
 }
 
 void Scratch::setDirection(Sprite *sprite, double direction) {
@@ -564,7 +633,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     float scale = (sprite->size / 100);
     if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-    const bool shouldDownscale = sprite->costumes[sprite->currentCostume].bitmapResolution == 2;
+    const bool shouldDownscale = bitmapHalfQuality;
 
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
@@ -612,83 +681,31 @@ void Scratch::freeUnusedCostumeImages() {
     }
 }
 
-Block *Scratch::findBlock(std::string blockId, Sprite *sprite) {
-    auto block = sprite->blocksMap.find(blockId);
-    if (block == sprite->blocksMap.end()) {
-        return nullptr;
-    }
-    return block->second;
-}
-
-Block *Scratch::getBlockParent(const Block *block, Sprite *sprite) {
-    Block *parentBlock;
-    const Block *currentBlock = block;
-    while (currentBlock->parent != "null") {
-        parentBlock = findBlock(currentBlock->parent, sprite);
-        if (parentBlock != nullptr) {
-            currentBlock = parentBlock;
-        } else {
-            break;
-        }
-    }
-    return const_cast<Block *>(currentBlock);
-}
-
-Value Scratch::getInputValue(Block &block, const std::string &inputName, Sprite *sprite) {
-    auto parsedFind = block.parsedInputs->find(inputName);
-
-    if (parsedFind == block.parsedInputs->end()) {
-        return Value(0.0);
-    }
-
-    const ParsedInput &input = parsedFind->second;
-    switch (input.inputType) {
-
-    case ParsedInput::LITERAL:
-        return input.literalValue;
-
-    case ParsedInput::VARIABLE:
-#ifdef ENABLE_CACHING
-        if (input.variable != nullptr) return input.variable->value;
-#endif
-        return BlockExecutor::getVariableValue(input.variableId, sprite);
-
-    case ParsedInput::BLOCK:
-        return executor.getBlockValue(*findBlock(input.blockId, sprite), sprite);
-    }
-
-    return Value();
-}
-
 std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
-    auto fieldFind = block.parsedFields->find(fieldName);
-    if (fieldFind == block.parsedFields->end()) {
+    auto fieldFind = block.fields.find(fieldName);
+    if (fieldFind == block.fields.end()) {
         return "";
     }
     return fieldFind->second.value;
 }
 
 std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
-    auto fieldFind = block.parsedFields->find(fieldName);
-    if (fieldFind == block.parsedFields->end()) {
+    auto fieldFind = block.fields.find(fieldName);
+    if (fieldFind == block.fields.end()) {
         return "";
     }
     return fieldFind->second.id;
 }
 
 std::string Scratch::getListName(Block &block) {
-    auto fieldFind = block.parsedFields->find("LIST");
-    if (fieldFind == block.parsedFields->end()) {
+    auto fieldFind = block.fields.find("LIST");
+    if (fieldFind == block.fields.end()) {
         return "";
     }
     return fieldFind->second.value;
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
-#ifdef ENABLE_CACHING
-    if (block.list != nullptr) return &block.list->items;
-#endif
-
     std::string listId = Scratch::getFieldId(block, "LIST");
     Sprite *targetSprite = nullptr;
     if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
@@ -729,14 +746,14 @@ void Scratch::createDebugMonitor(const std::string &name, int x, int y) {
     newMonitor.visible = true;
     newMonitor.x = x;
     newMonitor.y = y;
-    newMonitor.spriteName = stageSprite->name;
+    newMonitor.spriteName = "";
     newMonitor.mode = "67"; // i dont think this matters
 
     Render::monitors[newMonitor.id] = newMonitor;
 }
 
 void Scratch::toggleDebugVars(const bool enabled) {
-    if (enabled && !debugVars) {
+    if (enabled) {
         createDebugMonitor("SE!__FPS", 0, 0);
         createDebugMonitor("SE!__ScriptTime", 0, 30);
         createDebugMonitor("SE!__RenderTime", 0, 60);

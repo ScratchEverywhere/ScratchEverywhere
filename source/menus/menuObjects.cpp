@@ -1,4 +1,5 @@
 #include "menuObjects.hpp"
+#include "text.hpp"
 #include <input.hpp>
 #include <render.hpp>
 
@@ -199,6 +200,42 @@ void MenuImage::render(double xPos, double yPos) {
 
 MenuImage::~MenuImage() {
     // delete image;
+}
+
+MenuText::MenuText(std::string txt, double xPos, double yPos) {
+    x = xPos;
+    y = yPos;
+    scale = 1.0;
+    text = createTextObject(txt, xPos, yPos);
+    text->setCenterAligned(false);
+    originalText = txt;
+}
+
+void MenuText::setText(const std::string &txt) {
+    text->setText(txt);
+    originalText = txt;
+}
+
+void MenuText::render(double xPos, double yPos) {
+    if (xPos == 0) xPos = x;
+    if (yPos == 0) yPos = y;
+
+    const double proportionX = static_cast<double>(xPos) / REFERENCE_WIDTH;
+    const double proportionY = static_cast<double>(yPos) / REFERENCE_HEIGHT;
+
+    renderX = proportionX * Render::getWidth();
+    renderY = proportionY * Render::getHeight();
+
+    const float renderScale = scale * getScaleFactor();
+    std::string wrapped = text->wrap(Render::getWidth());
+    text->setText(wrapped);
+
+    text->setScale(renderScale);
+    text->render(renderX, renderY);
+    text->setText(originalText);
+}
+
+MenuText::~MenuText() {
 }
 
 ControlObject::ControlObject() {

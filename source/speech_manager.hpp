@@ -34,5 +34,16 @@ class SpeechManager {
     void update();
     void cleanup();
 
+    std::string getSpeechText(Sprite *sprite) {
+        auto it = speechObjects.find(sprite);
+        if (it != speechObjects.end()) return it->second->getText();
+        return "";
+    }
+    std::string getSpeechStyle(Sprite *sprite) {
+        auto it = speechStyles.find(sprite);
+        if (it != speechStyles.end()) return it->second;
+        return "";
+    }
+
     virtual void render(int offsetX = 0, int offsetY = 0) = 0;
 };

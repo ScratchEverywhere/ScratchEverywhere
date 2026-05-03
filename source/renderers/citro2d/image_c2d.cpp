@@ -234,7 +234,7 @@ ImageData Image_C2D::getPixels(ImageSubrect rect) {
     const int bytesPerPixel = 4;
     const int dstPitch = rect.w * bytesPerPixel;
 
-    uint32_t *dstPixels = new uint32_t[rect.w * rect.h];
+    uint32_t *dstPixels = (uint32_t *)malloc(rect.w * rect.h * sizeof(uint32_t));
     const uint32_t *src = (const uint32_t *)texture.tex->data;
 
     int texWidth = texture.tex->width;

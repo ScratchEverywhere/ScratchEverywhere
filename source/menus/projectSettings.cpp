@@ -27,7 +27,7 @@ void ProjectSettings::init() {
         UnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
         UnpackProjectButton->text->setScale(0.75);
     }
-#ifdef __3DS__
+#if defined(__3DS__) || defined(__NDS__)
     bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
@@ -36,14 +36,24 @@ void ProjectSettings::init() {
     penModeButton->text->setColor(Math::color(0, 0, 0, 255));
     penModeButton->text->setScale(0.5);
 
-    debugVarsButton = new ButtonObject("Show FPS: clicktoload", "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
+    collisionButton = new ButtonObject("Collision Mode: clicktoload", "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
+    collisionButton->text->setColor(Math::color(0, 0, 0, 255));
+    collisionButton->text->setScale(0.5);
+    collisionButton->shouldNineslice = true;
+
+    debugVarsButton = new ButtonObject("Show FPS: clicktoload", "gfx/menu/projectBox.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
     debugVarsButton->text->setColor(Math::color(0, 0, 0, 255));
     debugVarsButton->text->setScale(0.5);
 
-    ramButton = new ButtonObject("Keep Project In RAM: clicktoload", "gfx/menu/projectBox.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
+    ramButton = new ButtonObject("Keep Project In RAM: clicktoload", "gfx/menu/projectBox.svg", 200, 280, "gfx/menu/Ubuntu-Bold");
     ramButton->text->setColor(Math::color(0, 0, 0, 255));
     ramButton->text->setScale(0.5);
     ramButton->shouldNineslice = true;
+
+    refreshLimitButton = new ButtonObject("No Refresh Limit: clicktoload", "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold");
+    refreshLimitButton->text->setColor(Math::color(0, 0, 0, 255));
+    refreshLimitButton->text->setScale(0.5);
+    refreshLimitButton->shouldNineslice = true;
 
     settingsControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -56,41 +66,47 @@ void ProjectSettings::init() {
 
     // link buttons
     changeControlsButton->buttonDown = UnpackProjectButton;
-    changeControlsButton->buttonUp = ramButton;
+    changeControlsButton->buttonUp = refreshLimitButton;
     UnpackProjectButton->buttonUp = changeControlsButton;
-#ifdef __3DS__
+#if defined(__3DS__) || defined(__NDS__)
     UnpackProjectButton->buttonDown = bottomScreenButton;
     bottomScreenButton->buttonDown = penModeButton;
     bottomScreenButton->buttonUp = UnpackProjectButton;
 #else
     UnpackProjectButton->buttonDown = penModeButton;
 #endif
-    penModeButton->buttonDown = debugVarsButton;
-#ifdef __3DS__
+    penModeButton->buttonDown = collisionButton;
+    collisionButton->buttonDown = debugVarsButton;
+    collisionButton->buttonUp = penModeButton;
+#if defined(__3DS__) || defined(__NDS__)
     penModeButton->buttonUp = bottomScreenButton;
 #else
     penModeButton->buttonUp = UnpackProjectButton;
 #endif
     debugVarsButton->buttonDown = ramButton;
     debugVarsButton->buttonUp = penModeButton;
-    ramButton->buttonDown = changeControlsButton;
+    ramButton->buttonDown = refreshLimitButton;
     ramButton->buttonUp = debugVarsButton;
+    refreshLimitButton->buttonDown = changeControlsButton;
+    refreshLimitButton->buttonUp = ramButton;
 
     // add buttons to control
     settingsControl->buttonObjects.push_back(changeControlsButton);
     settingsControl->buttonObjects.push_back(UnpackProjectButton);
-#ifdef __3DS__
+#if defined(__3DS__) || defined(__NDS__)
     settingsControl->buttonObjects.push_back(bottomScreenButton);
 #endif
     settingsControl->buttonObjects.push_back(penModeButton);
+    settingsControl->buttonObjects.push_back(collisionButton);
     settingsControl->buttonObjects.push_back(debugVarsButton);
     settingsControl->buttonObjects.push_back(ramButton);
+    settingsControl->buttonObjects.push_back(refreshLimitButton);
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
 
     nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-#ifdef __3DS__
+#if defined(__3DS__) || defined(__NDS__)
     if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
         bottomScreenButton->text->setText("Bottom Screen: ON");
     } else {
@@ -102,6 +118,15 @@ void ProjectSettings::init() {
         penModeButton->text->setText("Pen Mode: Accurate");
     } else {
         penModeButton->text->setText("Pen Mode: Fast");
+    }
+    if (settings.is_null() || settings["settings"].is_null() || settings["settings"]["accurateCollision"].is_null()) {
+#if defined(__NDS__)
+        collisionButton->text->setText("Collision Mode: Fast");
+#else
+        collisionButton->text->setText("Collision Mode: Accurate");
+#endif
+    } else {
+        collisionButton->text->setText(settings["settings"]["accurateCollision"].get<bool>() ? "Collision Mode: Accurate" : "Collision Mode: Fast");
     }
 
     if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["debugVars"].is_null() && settings["settings"]["debugVars"].get<bool>()) {
@@ -120,6 +145,12 @@ void ProjectSettings::init() {
 #endif
     }
 
+    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["warpTimer"].is_null()) {
+        if (settings["settings"]["warpTimer"].get<bool>())
+            refreshLimitButton->text->setText("Warp Timer: ON");
+        else refreshLimitButton->text->setText("Warp Timer: OFF");
+    } else refreshLimitButton->text->setText("Warp Timer: ON");
+
     isInitialized = true;
 }
 void ProjectSettings::render() {
@@ -132,7 +163,7 @@ void ProjectSettings::render() {
         MenuManager::changeMenu(controlsMenu);
         return;
     }
-#ifdef __3DS__
+#if defined(__3DS__) || defined(__NDS__)
     if (bottomScreenButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
         settings["settings"]["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
@@ -146,6 +177,12 @@ void ProjectSettings::render() {
         SettingsManager::saveProjectSettings(settings, projectPath);
         penModeButton->text->setText(penModeButton->text->getText() == "Pen Mode: Accurate" ? "Pen Mode: Fast" : "Pen Mode: Accurate");
     }
+    if (collisionButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["accurateCollision"] = collisionButton->text->getText() == "Collision Mode: Accurate" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        collisionButton->text->setText(collisionButton->text->getText() == "Collision Mode: Accurate" ? "Collision Mode: Fast" : "Collision Mode: Accurate");
+    }
     if (debugVarsButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
         settings["settings"]["debugVars"] = debugVarsButton->text->getText() == "Show FPS: ON" ? false : true;
@@ -157,6 +194,12 @@ void ProjectSettings::render() {
         settings["settings"]["sb3InRam"] = ramButton->text->getText() == "Keep Project In RAM: ON" ? false : true;
         SettingsManager::saveProjectSettings(settings, projectPath);
         ramButton->text->setText(ramButton->text->getText() == "Keep Project In RAM: ON" ? "Keep Project In RAM: OFF" : "Keep Project In RAM: ON");
+    }
+    if (refreshLimitButton->isPressed()) {
+        nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
+        settings["settings"]["warpTimer"] = refreshLimitButton->text->getText() == "Warp Timer: ON" ? false : true;
+        SettingsManager::saveProjectSettings(settings, projectPath);
+        refreshLimitButton->text->setText(refreshLimitButton->text->getText() == "Warp Timer: ON" ? "Warp Timer: OFF" : "Warp Timer: ON");
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();
@@ -185,8 +228,8 @@ void ProjectSettings::render() {
         return;
     }
 
-    Render::beginFrame(0, 96, 90, 105);
-    Render::beginFrame(1, 96, 90, 105);
+    Render::beginFrame(0, 50, 77, 83);
+    Render::beginFrame(1, 50, 77, 83);
 
     // changeControlsButton->render();
     // if (canUnpacked) UnpackProjectButton->render();
@@ -207,7 +250,7 @@ void ProjectSettings::cleanup() {
         delete UnpackProjectButton;
         UnpackProjectButton = nullptr;
     }
-#ifdef __3DS__
+#if defined(__3DS__) || defined(__NDS__)
     if (bottomScreenButton != nullptr) {
         delete bottomScreenButton;
         bottomScreenButton = nullptr;
@@ -232,6 +275,14 @@ void ProjectSettings::cleanup() {
     if (ramButton != nullptr) {
         delete ramButton;
         ramButton = nullptr;
+    }
+    if (collisionButton != nullptr) {
+        delete collisionButton;
+        collisionButton = nullptr;
+    }
+    if (refreshLimitButton != nullptr) {
+        delete refreshLimitButton;
+        refreshLimitButton = nullptr;
     }
     // Render::beginFrame(0, 147, 138, 168);
     // Render::beginFrame(1, 147, 138, 168);

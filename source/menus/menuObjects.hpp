@@ -94,6 +94,28 @@ class MenuImage : public MenuObject {
     double renderY;
 };
 
+class MenuText : public MenuObject {
+  private:
+    std::string originalText;
+
+  public:
+    std::unique_ptr<TextObject> text;
+    void render(double xPos = 0, double yPos = 0) override;
+    void setText(const std::string &txt);
+
+    /*
+     * Similar to Text class, but with auto scaling and positioning.
+     * @param filePath
+     * @param xPosition
+     * @param yPosition
+     */
+    MenuText(std::string txt, double xPos, double yPos);
+    virtual ~MenuText();
+
+    double renderX;
+    double renderY;
+};
+
 class ButtonObject : public MenuObject {
   private:
     bool pressedLastFrame = false;
