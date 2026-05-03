@@ -2,7 +2,7 @@
 <app version="@SE_APP_VERSION@">
 	<name>@SE_APP_NAME@</name>
 	<coder>@SE_APP_AUTHOR@</coder>
-	<version>@SE_APP_AUTHOR@</version>
+	<version>@SE_APP_VERSION@</version>
 	<release_date>@WII_RELEASE_DATE@</release_date>
 	<short_description>@SE_APP_DESCRIPTION@</short_description>
 	<long_description>@SE_APP_DESCRIPTION@</long_description>
