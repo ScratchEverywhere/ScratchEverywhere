@@ -1,6 +1,7 @@
 #include "settingsMenu.hpp"
 #include "menuObjects.hpp"
 #include "settings.hpp"
+#include "translation.hpp"
 
 SettingsMenu::SettingsMenu() {
     init();
@@ -19,25 +20,25 @@ void SettingsMenu::init() {
     // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     // Credits->text->setColor(Math::color(0, 0, 0, 255));
     // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
+    EnableUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.username"), "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
     EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
     EnableUsername->text->setScale(0.5);
-    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
+    ChangeUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.name") + "Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
     ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
     ChangeUsername->text->setScale(0.5);
 
-    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
+    EnableCustomFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.path"), "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
     EnableCustomFolderPath->text->setColor(Math::color(0, 0, 0, 255));
     EnableCustomFolderPath->text->setScale(0.5);
-    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
+    ChangeFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.changePath"), "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
     ChangeFolderPath->text->setColor(Math::color(0, 0, 0, 255));
     ChangeFolderPath->text->setScale(0.5);
 
-    EnableMenuMusic = new ButtonObject("Menu Music: clickToLoad", "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
+    EnableMenuMusic = new ButtonObject(TranslationManager::getTranslation("ui.settings.music"), "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
     EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
     EnableMenuMusic->text->setScale(0.5);
 
-    ClearCache = new ButtonObject("Clear Cache", "gfx/menu/projectBox.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
+    ClearCache = new ButtonObject(TranslationManager::getTranslation("ui.settings.cache"), "gfx/menu/projectBox.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
     ClearCache->text->setColor(Math::color(0, 0, 0, 255));
     ClearCache->text->setScale(0.5);
 
@@ -104,15 +105,15 @@ void SettingsMenu::updateButtonStates() {
     ClearCache->buttonDown = EnableUsername;
 
     if (UseCostumeUsername) {
-        EnableUsername->text->setText("Username: Enabled");
-        ChangeUsername->text->setText("Name: " + username);
+        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.on"));
+        ChangeUsername->text->setText(TranslationManager::getTranslation("ui.settings.name") + ": " + username);
         ChangeUsername->canBeClicked = true;
         ChangeUsername->hidden = false;
 
         EnableUsername->buttonDown = ChangeUsername;
         EnableCustomFolderPath->buttonUp = ChangeUsername;
     } else {
-        EnableUsername->text->setText("Username: Disabled");
+        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.off"));
         ChangeUsername->canBeClicked = false;
         ChangeUsername->hidden = true;
 
@@ -121,14 +122,14 @@ void SettingsMenu::updateButtonStates() {
     }
 
     if (UseProjectsPath) {
-        EnableCustomFolderPath->text->setText("Custom Path: Enabled");
+        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.on"));
         ChangeFolderPath->canBeClicked = true;
         ChangeFolderPath->hidden = false;
 
         EnableCustomFolderPath->buttonDown = ChangeFolderPath;
         EnableMenuMusic->buttonUp = ChangeFolderPath;
     } else {
-        EnableCustomFolderPath->text->setText("Custom Path: Disabled");
+        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.off"));
         ChangeFolderPath->canBeClicked = false;
         ChangeFolderPath->hidden = true;
 
@@ -136,7 +137,7 @@ void SettingsMenu::updateButtonStates() {
         EnableMenuMusic->buttonUp = EnableCustomFolderPath;
     }
 
-    EnableMenuMusic->text->setText("Menu Music: " + std::string(menuMusic ? "Enabled" : "Disabled"));
+    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music") + ": " + (menuMusic ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")));
 }
 
 void SettingsMenu::render() {
@@ -152,8 +153,12 @@ void SettingsMenu::render() {
     Render::beginFrame(1, 96, 90, 105);
 
     if (ClearCache->isPressed({"a"})) {
-        OS::removeDirectory(OS::getScratchFolderLocation() + "cache/");
-        OS::createDirectory(OS::getScratchFolderLocation() + "cache/");
+        const auto &result1 = OS::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        if (!result1.has_value()) Log::logError("Failed to delete cache directory.");
+        else {
+            const auto &result2 = OS::createDirectory(OS::getScratchFolderLocation() + "cache/");
+            if (!result2.has_value()) Log::logError("Failed to recreate cache directory.");
+        }
     }
 
     if (EnableMenuMusic->isPressed({"a"})) {

@@ -1,5 +1,6 @@
 #include "image.hpp"
 #include "os.hpp"
+#include "translation.hpp"
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
@@ -31,6 +32,7 @@ static void exitApp() {
 }
 
 static bool initApp() {
+    TranslationManager::loadLanguage("en_us");
     Log::deleteLogFile();
     Render::debugMode = true;
     if (!Render::Init()) {

@@ -2,6 +2,7 @@
 #include "input.hpp"
 #include "os.hpp"
 #include "runtime.hpp"
+#include "translation.hpp"
 #include <cstring>
 #include <ctime>
 #include <errno.h>
@@ -124,7 +125,7 @@ void projectLoaderThread(void *data) {
 }
 
 void loadInitialImages() {
-    Unzip::loadingState = "Loading images";
+    Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
     for (auto &currentSprite : Scratch::sprites) {
         if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
         Scratch::loadCurrentCostumeImage(currentSprite);
@@ -173,7 +174,7 @@ bool Unzip::load() {
 }
 
 void Unzip::openScratchProject(void *arg) {
-    loadingState = "Opening Scratch project";
+    loadingState = TranslationManager::getTranslation("ui.loading.opening");
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 
@@ -189,7 +190,7 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
-    loadingState = "Unzipping Scratch project";
+    loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
     nlohmann::json project_json = unzipProject(file);
     delete file;
     if (project_json.empty()) {
@@ -198,7 +199,7 @@ void Unzip::openScratchProject(void *arg) {
         Unzip::threadFinished = true;
         return;
     }
-    loadingState = "Loading Sprites";
+    loadingState = TranslationManager::getTranslation("ui.loading.sprites");
     Parser::loadSprites(project_json);
 
     Unzip::projectOpened = 1;

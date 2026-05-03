@@ -1,6 +1,7 @@
 #include "projectMenu.hpp"
 #include "projectSettings.hpp"
 #include "settings.hpp"
+#include "translation.hpp"
 #include "unpackMenu.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
@@ -85,12 +86,12 @@ void ProjectMenu::init() {
         noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
         projectControl->selectedObject = noProjectsButton;
         projectControl->selectedObject->isSelected = true;
-        noProjectsText = createTextObject("No Scratch projects found!", 0, 0);
+        noProjectsText = createTextObject(TranslationManager::getTranslation("ui.projects.noProjects"), 0, 0);
         noProjectsText->setCenterAligned(true);
         noProjectInfo = createTextObject("a", 0, 0);
         noProjectInfo->setCenterAligned(true);
 
-        noProjectInfo->setText("Put projects in " + OS::getScratchFolderLocation());
+        noProjectInfo->setText(TranslationManager::getTranslation("ui.projects.path") + OS::getScratchFolderLocation());
 
         if (noProjectInfo->getSize()[0] > Render::getWidth() * 0.85) {
             float scale = (float)Render::getWidth() / (noProjectInfo->getSize()[0] * 1.15);

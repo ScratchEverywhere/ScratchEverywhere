@@ -8,6 +8,7 @@
 #include <cmath>
 #include <image.hpp>
 #include <parser.hpp>
+#include <translation.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -77,7 +78,7 @@ MainMenu::~MainMenu() {
 void MainMenu::init() {
 #if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
     // let the user type what project they want to open
-    std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
+    std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt"));
 
     const std::string ext = ".sb3";
     if (answer.size() >= ext.size() &&
@@ -98,7 +99,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 39.1", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.beta") + " 39.1", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 

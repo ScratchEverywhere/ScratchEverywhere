@@ -2,6 +2,7 @@
 #include "controlsMenu.hpp"
 #include "projectMenu.hpp"
 #include "settings.hpp"
+#include "translation.hpp"
 #include "unpackMenu.hpp"
 
 ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
@@ -14,43 +15,52 @@ ProjectSettings::~ProjectSettings() {
     cleanup();
 }
 
+enum class SettingType {
+    Accuracy,
+    Boolean
+};
+
+static const std::string createSettingsText(std::string translationKey, bool condition, SettingType type = SettingType::Boolean) {
+    return TranslationManager::getTranslation(translationKey) + ": " + (type == SettingType::Boolean ? (condition ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")) : (condition ? TranslationManager::getTranslation("ui.settings.accurate") : TranslationManager::getTranslation("ui.settings.fast")));
+}
+
 void ProjectSettings::init() {
     // initialize
 
-    changeControlsButton = new ButtonObject("Change Controls", "gfx/menu/projectBox.svg", 200, 40, "gfx/menu/Ubuntu-Bold");
+    changeControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.controls"), "gfx/menu/projectBox.svg", 200, 40, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
     if (canUnpacked) {
-        UnpackProjectButton = new ButtonObject("Unpack Project", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.unpack"), "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
     } else {
-        UnpackProjectButton = new ButtonObject("Delete Unpacked Project", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.deleteUnpacked"), "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
         UnpackProjectButton->text->setScale(0.75);
     }
 #if defined(__3DS__) || defined(__NDS__)
-    bottomScreenButton = new ButtonObject("Bottom Screen", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
+    bottomScreenButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.bottom"), "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
 #endif
-    penModeButton = new ButtonObject("Pen Mode: clicktoload", "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
+    penModeButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.penMode"), "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
     penModeButton->text->setColor(Math::color(0, 0, 0, 255));
     penModeButton->text->setScale(0.5);
 
-    collisionButton = new ButtonObject("Collision Mode: clicktoload", "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
+    collisionButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.collisionMode"), "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
     collisionButton->text->setColor(Math::color(0, 0, 0, 255));
     collisionButton->text->setScale(0.5);
     collisionButton->shouldNineslice = true;
 
-    debugVarsButton = new ButtonObject("Show FPS: clicktoload", "gfx/menu/projectBox.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
+    debugVarsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.fps"), "gfx/menu/projectBox.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
     debugVarsButton->text->setColor(Math::color(0, 0, 0, 255));
     debugVarsButton->text->setScale(0.5);
 
-    ramButton = new ButtonObject("Keep Project In RAM: clicktoload", "gfx/menu/projectBox.svg", 200, 280, "gfx/menu/Ubuntu-Bold");
+    ramButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.keepProjectInRam"), "gfx/menu/projectBox.svg", 200, 280, "gfx/menu/Ubuntu-Bold");
     ramButton->text->setColor(Math::color(0, 0, 0, 255));
     ramButton->text->setScale(0.5);
     ramButton->shouldNineslice = true;
 
-    refreshLimitButton = new ButtonObject("No Refresh Limit: clicktoload", "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold");
+    refreshLimitButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.warp"), "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold");
     refreshLimitButton->text->setColor(Math::color(0, 0, 0, 255));
     refreshLimitButton->text->setScale(0.5);
     refreshLimitButton->shouldNineslice = true;
@@ -107,49 +117,36 @@ void ProjectSettings::init() {
 
     nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
 #if defined(__3DS__) || defined(__NDS__)
-    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()) {
-        bottomScreenButton->text->setText("Bottom Screen: ON");
-    } else {
-        bottomScreenButton->text->setText("Bottom Screen: OFF");
-    }
+    bottomScreenButton->text->setText(createSettingsText("ui.setting.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
 #endif
 
-    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>()) {
-        penModeButton->text->setText("Pen Mode: Accurate");
-    } else {
-        penModeButton->text->setText("Pen Mode: Fast");
-    }
-    if (settings.is_null() || settings["settings"].is_null() || settings["settings"]["accurateCollision"].is_null()) {
+    penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
+
+    if (settings["settings"]["accurateCollision"].is_null()) {
 #if defined(__NDS__)
-        collisionButton->text->setText("Collision Mode: Fast");
+        collisionButton->text->setText(createSettingsText("ui.settings.collisionMode", false, SettingType::Accuracy));
 #else
-        collisionButton->text->setText("Collision Mode: Accurate");
+        collisionButton->text->setText(createSettingsText("ui.settings.collisionMode", true, SettingType::Accuracy));
 #endif
     } else {
-        collisionButton->text->setText(settings["settings"]["accurateCollision"].get<bool>() ? "Collision Mode: Accurate" : "Collision Mode: Fast");
+        collisionButton->text->setText(createSettingsText("ui.settings.collisionMode", settings["settings"]["accurateCollision"].get<bool>(), SettingType::Accuracy));
     }
 
-    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["debugVars"].is_null() && settings["settings"]["debugVars"].get<bool>()) {
-        debugVarsButton->text->setText("Show FPS: ON");
-    } else {
-        debugVarsButton->text->setText("Show FPS: OFF");
-    }
+    debugVarsButton->text->setText(createSettingsText("ui.settings.fps", !settings["settings"]["debugVars"].is_null() && settings["settings"]["debugVars"].get<bool>()));
 
-    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["sb3InRam"].is_null()) {
-        ramButton->text->setText(settings["settings"]["sb3InRam"].get<bool>() ? "Keep Project In RAM: ON" : "Keep Project In RAM: OFF");
+    if (!settings["settings"]["sb3InRam"].is_null()) {
+        ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", settings["settings"]["sb3InRam"].get<bool>()));
     } else {
 #if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
-        ramButton->text->setText("Keep Project In RAM: OFF");
+        ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", false));
 #else
-        ramButton->text->setText("Keep Project In RAM: ON");
+        ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", true));
 #endif
     }
 
-    if (!settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["warpTimer"].is_null()) {
-        if (settings["settings"]["warpTimer"].get<bool>())
-            refreshLimitButton->text->setText("Warp Timer: ON");
-        else refreshLimitButton->text->setText("Warp Timer: OFF");
-    } else refreshLimitButton->text->setText("Warp Timer: ON");
+    if (!settings["settings"]["warpTimer"].is_null()) {
+        refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", settings["settings"]["warpTimer"].get<bool>()));
+    } else refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", true));
 
     isInitialized = true;
 }
@@ -166,40 +163,48 @@ void ProjectSettings::render() {
 #if defined(__3DS__) || defined(__NDS__)
     if (bottomScreenButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        settings["settings"]["bottomScreen"] = bottomScreenButton->text->getText() == "Bottom Screen: ON" ? false : true;
+        settings["settings"]["bottomScreen"] = !settings["settings"].value("bottomScreen", false);
         SettingsManager::saveProjectSettings(settings, projectPath);
-        bottomScreenButton->text->setText(bottomScreenButton->text->getText() == "Bottom Screen: ON" ? "Bottom Screen: OFF" : "Bottom Screen: ON");
+        bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", settings["settings"]["bottomScreen"]));
     }
 #endif
     if (penModeButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        settings["settings"]["accuratePen"] = penModeButton->text->getText() == "Pen Mode: Accurate" ? false : true;
+        settings["settings"]["accuratePen"] = !settings["settings"].value("accuratePen", true);
         SettingsManager::saveProjectSettings(settings, projectPath);
-        penModeButton->text->setText(penModeButton->text->getText() == "Pen Mode: Accurate" ? "Pen Mode: Fast" : "Pen Mode: Accurate");
+        penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"], SettingType::Accuracy));
     }
     if (collisionButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        settings["settings"]["accurateCollision"] = collisionButton->text->getText() == "Collision Mode: Accurate" ? false : true;
+#ifdef __NDS__
+        settings["settings"]["accurateCollision"] = !settings["settings"].value("accurateCollision", false);
+#else
+        settings["settings"]["accurateCollision"] = !settings["settings"].value("accurateCollision", true);
+#endif
         SettingsManager::saveProjectSettings(settings, projectPath);
-        collisionButton->text->setText(collisionButton->text->getText() == "Collision Mode: Accurate" ? "Collision Mode: Fast" : "Collision Mode: Accurate");
+        collisionButton->text->setText(createSettingsText("ui.settings.collisionMode", settings["settings"]["accurateCollision"], SettingType::Accuracy));
     }
     if (debugVarsButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        settings["settings"]["debugVars"] = debugVarsButton->text->getText() == "Show FPS: ON" ? false : true;
+        settings["settings"]["debugVars"] = !settings["settings"].value("debugVars", false);
         SettingsManager::saveProjectSettings(settings, projectPath);
-        debugVarsButton->text->setText(debugVarsButton->text->getText() == "Show FPS: ON" ? "Show FPS: OFF" : "Show FPS: ON");
+        debugVarsButton->text->setText(createSettingsText("ui.settings.fps", settings["settings"]["debugVars"]));
     }
     if (ramButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        settings["settings"]["sb3InRam"] = ramButton->text->getText() == "Keep Project In RAM: ON" ? false : true;
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+        settings["settings"]["sb3InRam"] = !settings["settings"].value("sb3InRam", false);
+#else
+        settings["settings"]["sb3InRam"] = !settings["settings"].value("sb3InRam", true);
+#endif
         SettingsManager::saveProjectSettings(settings, projectPath);
-        ramButton->text->setText(ramButton->text->getText() == "Keep Project In RAM: ON" ? "Keep Project In RAM: OFF" : "Keep Project In RAM: ON");
+        ramButton->text->setText(createSettingsText("ui.settings.keepProjectInRam", settings["settings"]["sb3InRam"]));
     }
     if (refreshLimitButton->isPressed()) {
         nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-        settings["settings"]["warpTimer"] = refreshLimitButton->text->getText() == "Warp Timer: ON" ? false : true;
+        settings["settings"]["warpTimer"] = !settings["settings"].value("warpTimer", true);
         SettingsManager::saveProjectSettings(settings, projectPath);
-        refreshLimitButton->text->setText(refreshLimitButton->text->getText() == "Warp Timer: ON" ? "Warp Timer: OFF" : "Warp Timer: ON");
+        refreshLimitButton->text->setText(createSettingsText("ui.settings.warp", settings["settings"]["warpTimer"]));
     }
     if (UnpackProjectButton->isPressed({"a"})) {
         cleanup();

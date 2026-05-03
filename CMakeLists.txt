@@ -163,12 +163,14 @@ set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 # Copy graphics files to romfs
 if(SE_MENU)
 	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
-	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+	    "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 else()
 	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 endif()
 
