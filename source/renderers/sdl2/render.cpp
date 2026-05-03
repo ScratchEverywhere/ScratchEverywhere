@@ -80,7 +80,7 @@ bool Render::Init() {
     int windowHeight = 272;
 #elif defined(__PS2__)
     int windowWidth = 640;
-    int windowHeight = 480;
+    int windowHeight = 448;
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
