@@ -27,8 +27,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  android-armv8:
-    name: Android ARM64-v8a Build
+  android-arm:
+    name: Android ARM Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -45,16 +45,16 @@ jobs:
           target: exporter
           outputs: type=local,dest=.
           build-args: |
-            ABIS=arm64-v8a
+            ABIS="arm64-v8a,armeabi-v7a"
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch Everywhere! Android ARM64-v8a Nightly
-          path: scratch-android_arm64-v8a.apk
-  android-armv8:
-    name: Android ARMeabi-v7a Build
+          name: Scratch Everywhere! Android ARM Nightly
+          path: scratch-android_arm.apk
+  android-x86:
+    name: Android x86 Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -71,11 +71,44 @@ jobs:
           target: exporter
           outputs: type=local,dest=.
           build-args: |
-            ABIS=armeabi-v7a
+            ABIS="x86,x86_64"
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: Scratch Everywhere! Android ARMeabi-v7a Nightly
-          path: scratch-android_armeabi-v7a.apk
+          name: Scratch Everywhere! Android x86 Nightly
+          path: scratch-android_x86.apk
+  android-universal:
+    name: Android Universal (Release)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Decode Keystore
+        run: |
+          echo ${{ secrets.ANDROID_KEYSTORE_B64 }} | base64 -d > release.keystore
+
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.android
+          target: exporter
+          outputs: type=local,dest=.
+          build-args: |
+            KEYSTORE_PATH=release.keystore
+            KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+            KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
+            KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Upload Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Everywhere! Android Universal
+          path: scratch-android.apk

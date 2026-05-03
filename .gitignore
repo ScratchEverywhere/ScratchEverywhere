@@ -101,8 +101,8 @@ CMakeSettings.json
 .gradle/
 .idea/
 .cxx/
+*.keystore
 local.properties
-
 android/app/src/main/assets/
 android/app/src/main/java/org/libsdl/app
 
