@@ -78,7 +78,7 @@ MainMenu::~MainMenu() {
 void MainMenu::init() {
 #if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
     // let the user type what project they want to open
-    std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt"));
+    std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
 
     const std::string ext = ".sb3";
     if (answer.size() >= ext.size() &&
