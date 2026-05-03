@@ -148,8 +148,8 @@ void SettingsMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 96, 90, 105);
-    Render::beginFrame(1, 96, 90, 105);
+    Render::beginFrame(0, 71, 107, 115);
+    Render::beginFrame(1, 71, 107, 115);
 
     if (ClearCache->isPressed({"a"})) {
         OS::removeDirectory(OS::getScratchFolderLocation() + "cache/");
