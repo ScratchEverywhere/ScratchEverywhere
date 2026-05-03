@@ -4,6 +4,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <random>
+#include <sstream>
 
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
