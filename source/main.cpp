@@ -34,7 +34,7 @@ static void exitApp() {
 }
 
 static bool initApp() {
-    TranslationManager::loadLanguage("en_us");
+    TranslationManager::loadLanguage();
     Log::deleteLogFile();
     Render::debugMode = true;
     if (!Render::Init()) {

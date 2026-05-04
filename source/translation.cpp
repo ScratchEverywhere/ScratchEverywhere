@@ -2,6 +2,7 @@
 #include "os.hpp"
 #include "settings.hpp"
 #include <fstream>
+#include <map>
 #include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
@@ -14,8 +15,38 @@ CMRC_DECLARE(romfs);
 
 static nlohmann::json translationKeys = nullptr;
 static std::vector<std::string> splashTexts;
+static TranslationManager::LanguageInfo loadedLanguage;
 
-void TranslationManager::loadLanguage(const std::string &language) {
+const TranslationManager::LanguageInfo &TranslationManager::getLoadedLanguage() {
+    return loadedLanguage;
+}
+
+const std::vector<TranslationManager::LanguageInfo> TranslationManager::getLanguages() {
+    std::vector<LanguageInfo> ret;
+
+    const std::string path = OS::getRomFSLocation() + "gfx/translations/languages.json";
+#ifdef USE_CMAKERC
+    const auto &file = cmrc::romfs::get_filesystem().open(path);
+    nlohmann::json json = nlohmann::json::parse(file.begin(), file.begin() + file.size());
+#else
+    nlohmann::json json;
+    std::ifstream file(path);
+    file >> json;
+#endif
+
+    for (const auto &[key, name] : json.items()) {
+        ret.push_back({static_cast<unsigned int>(ret.size()), key, name});
+    }
+
+    return ret;
+}
+
+void TranslationManager::loadLanguage(std::string language) {
+    if (language == "") language = SettingsManager::getConfigSettings().value("Language", "en_us");
+
+    const auto &languages = getLanguages();
+    loadedLanguage = *std::find_if(languages.begin(), languages.end(), [&language](LanguageInfo info) { return info.key == language; });
+
     const std::string path = OS::getRomFSLocation() + "gfx/translations/" + language + ".json";
     const std::string splashPath = OS::getRomFSLocation() + "gfx/translations/" + language + ".splashes.txt";
 
