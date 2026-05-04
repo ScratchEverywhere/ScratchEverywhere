@@ -5,7 +5,7 @@
   "ui.projects.path": "Put projects in ",
   "ui.settings.controls": "Change Controls",
   "ui.settings.unpack": "Unpack Project",
-  "ui.settings.deletedUnpacked": "Delete Unpacked Project",
+  "ui.settings.deleteUnpacked": "Delete Unpacked Project",
   "ui.settings.bottom": "Bottom Screen",
   "ui.settings.penMode": "Pen Mode",
   "ui.settings.collisionMode": "Collision Mode",

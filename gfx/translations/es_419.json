@@ -5,7 +5,7 @@
   "ui.projects.path": "Coloca proyectos en ",
   "ui.settings.controls": "Cambiar controles",
   "ui.settings.unpack": "Desempacar proyecto",
-  "ui.settings.deletedUnpacked": "Eliminar proyecto desempacado",
+  "ui.settings.deleteUnpacked": "Eliminar proyecto desempacado",
   "ui.settings.bottom": "Pantalla inferior",
   "ui.settings.penMode": "Modo de lápiz",
   "ui.settings.collisionMode": "Modo de colisión",
@@ -37,3 +37,4 @@
   "version.prefix.releaseCanidate": "Lanzamiento candidato",
   "version.prefix.nightly": "Nocturno"
 }
+
