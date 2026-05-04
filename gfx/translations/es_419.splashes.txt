@@ -13,7 +13,7 @@ Sí, ¡¡EN TODOS LADOS!!
 ¡Directo desde tu {PlatformName}!
 ¡En tu {PlatformName}!
 ¡Oooh, lindo {PlatformName} tienes ahí! ¿Puedo tenerlo?
-¡{PlatformName} en Scratch! ... Espera así no era.
+¡{PlatformName} en Scratch! ... Espera así no es.
 ...¡hasta en tu {PlatformName}!
 ¡Edición {PlatformName}!
 {PlatformName}!
@@ -28,7 +28,7 @@ Un kumquat malvado se comió este texto splash.
 uiText.titleScreen.splashText14
 TEXTO SPLASH DIVERTIDO Y/O INGENIOSO
 ¡Te encantará!
-¡Mágia!
+¡Magia!
 ¡¡¡¡Pruébalo, {UserName}!!!!
 Tengo picazón en todos lados, que debería- ah, sí...
 ¡Únete al servidor de Discord!
@@ -79,7 +79,7 @@ BAAANG OTRO DÍA EN LA OFICINA BABY
 OTRO DÍA EN LA OFICINA BABY
 ¡¡¡¡¡BAAAAANG!!!!!
 SABÍA QUE SE VOLVERÍA A ROMPER
-AHORA CON UNA MEJORA ENORME DE RENDIMIENTO
+CON UNA MEJORA ENORME DE RENDIMIENTO
 ¡No se incluyen bugs!
 ¡Comemos todos los bugs!
 ¡Arreglamos todos los bugs!
@@ -87,12 +87,12 @@ AHORA CON UNA MEJORA ENORME DE RENDIMIENTO
 ¡Está libre de bugs!
 ¡Sin bugs en tu {PlatformName}!
 ¡Está libre de bugs en tu {PlatformName}!
-decomp edge
+edge decomp
 wow este chico nate hace buenos flipnotes
 ¡Hopper Heroes!
 ¡Puede ejecutar Hopper Heroes!
 ¡Puede ejecutarlo todo!
-¡Lo que sea!
+¡Cualquier cosa!
 ¿Qué está haciendo la luna?
 ¿Qué está haciendo Itchy?
 ¿Qué está haciendo {UserName}?
@@ -110,12 +110,12 @@ Miau...
 Mrow...
 ¡Meeow!
 28245 AC ¿purr mreow mrow meow?
-¡2 de mayo, el día que empezó todo!
+¡2 de mayo, el día en el que empezó todo!
 ¡Los sueños nunca mueren!
-¡NO es para Atari!
-¡NO es para tu calculadora!
+¡NO para Atari!
+¡NO para tu calculadora!
 ¡NO está en tu tostadora!
-¡Es demasiado para tu tostadora!
+¡Demasiado para tu tostadora!
 ¡NateXS!
 ¡Grady Link!
 ¡PwL!
@@ -128,3 +128,4 @@ Mrow...
 ¡Extrems!
 ¡DevelopCMD!
 ¡poipole!
+pongan electro
