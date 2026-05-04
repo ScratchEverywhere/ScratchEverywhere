@@ -105,6 +105,8 @@ inline std::string getFilesystemRootPrefix() {
     return isDSi() ? "sd:" : "fat:";
 #elif defined(_WIN32) || defined(_WIN64)
     return std::filesystem::path(std::getenv("SystemDrive")).string();
+#elif defined(__ANDROID__)
+    return "/storage/emulated/0";
 #else
     return "";
 #endif
@@ -170,6 +172,8 @@ inline std::string getPlatform() {
     return "PSP";
 #elif defined(WEBOS)
     return "webOS TV";
+#elif defined(__ANDROID__)
+    return "Android";
 #else
     return "Unknown";
 #endif
