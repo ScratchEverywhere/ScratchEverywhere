@@ -99,7 +99,7 @@ It can run anything!
 Anything!
 What's the moon doing?
 What's Itchy doing?
-What is {Username} doing?
+What is {UserName} doing?
 What's your {PlatformName} doing?
 What are you doing?
 Many commits and counting!
