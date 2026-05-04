@@ -1,4 +1,6 @@
 #include "parser.hpp"
+#include "sprite.hpp"
+#include <algorithm>
 #include <input.hpp>
 #include <limits>
 #include <math.hpp>
@@ -646,7 +648,24 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
             } else {
                 if (!inputValue.is_null()) {
                     Parser::log(indentStr + "\t" + inputName + ":");
-                    block.inputs[inputName] = ParsedInput(loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2));
+                    Block *newBlock = loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
+
+                    // Constant folding :)
+#define CHECK_NUM_CONSTANT_FOLDING(OPCODE, OPERATOR)                                                                                                                                 \
+    if (newBlock->opcode == #OPCODE && newBlock->inputs["NUM1"].inputType == ParsedInput::InputType::VALUE && newBlock->inputs["NUM2"].inputType == ParsedInput::InputType::VALUE) { \
+        block.inputs[inputName] = ParsedInput(newBlock->inputs["NUM1"].value OPERATOR newBlock->inputs["NUM2"].value);                                                               \
+        if (Scratch::blocks.back() == newBlock) Scratch::blocks.pop_back();                                                                                                          \
+        else Scratch::blocks.erase(std::remove(Scratch::blocks.begin(), Scratch::blocks.end(), newBlock), Scratch::blocks.end());                                                    \
+        delete newBlock;                                                                                                                                                             \
+        Log::log("folded!");                                                                                                                                                         \
+        continue;                                                                                                                                                                    \
+    }
+
+                    CHECK_NUM_CONSTANT_FOLDING(operator_add, +)
+                    CHECK_NUM_CONSTANT_FOLDING(operator_multiply, *)
+                    CHECK_NUM_CONSTANT_FOLDING(operator_divide, /)
+                    CHECK_NUM_CONSTANT_FOLDING(operator_subtract, -)
+                    block.inputs[inputName] = ParsedInput(newBlock);
                 }
             }
         }

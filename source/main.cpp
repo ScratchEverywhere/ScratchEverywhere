@@ -1,3 +1,4 @@
+#ifndef LIBRETRO
 #include "image.hpp"
 #include "os.hpp"
 #ifdef ENABLE_MENU
@@ -177,3 +178,4 @@ int main(int argc, char **argv) {
     exitApp();
     return 0;
 }
+#endif

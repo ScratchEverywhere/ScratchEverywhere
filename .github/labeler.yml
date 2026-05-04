@@ -30,3 +30,6 @@ Web:
 
 PS4:
   - '### Device\(s\)\s*.*PS4'
+
+Libretro:
+  - '### Device\(s\)\s*.*Libretro'

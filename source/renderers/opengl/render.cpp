@@ -10,6 +10,8 @@
 #include <windowing/sdl2/window.hpp>
 #elif defined(WINDOWING_SDL3)
 #include <windowing/sdl3/window.hpp>
+#elif defined(WINDOWING_LIBRETRO)
+#include <windowing/libretro/window.hpp>
 #else
 #error "No windowing backend defined"
 #endif
@@ -51,6 +53,8 @@ bool Render::Init() {
     globalWindow = new WindowSDL2();
 #elif defined(WINDOWING_SDL3)
     globalWindow = new WindowSDL3();
+#elif defined(WINDOWING_LIBRETRO)
+    globalWindow = new WindowLibretro();
 #else
 #error "No windowing backend defined"
 #endif
@@ -350,6 +354,7 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
         glLoadIdentity();
 
         glClearColor(colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, 1.0f);
+        glClearColor(1.0, 0, 0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
         hasFrameBegan = true;
     }
