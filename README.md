@@ -382,7 +382,7 @@ Then it should be as simple as opening the app on your PS4 from the XMB!
 ### Get up and running for PS2
 
 Download the `scratch-ps2.elf` file from the releases tab or
-[nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-ps4/main/Scratch%20Everywhere!%20PS2%20Nightly.zip),
+[nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-ps2/main/Scratch%20Everywhere!%20PS2%20Nightly.zip),
 
 Place your Scratch projects in `scratch-ps2` on your USB drive,
 
