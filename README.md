@@ -379,6 +379,15 @@ create it.
 
 Then it should be as simple as opening the app on your PS4 from the XMB!
 
+### Get up and running for PS2
+
+Download the `scratch-ps2.elf` file from the releases tab or
+[nightly build](https://nightly.link/ScratchEverywhere/ScratchEverywhere/workflows/nightly-ps2/main/Scratch%20Everywhere!%20PS2%20Nightly.zip),
+
+Place your Scratch projects in `scratch-ps2` on your USB drive,
+
+Then it should be as simple as opening the app on your PS2!
+
 ### Get up and running for webOS
 
 Get your TV into [dev mode](https://www.webosbrew.org/devmode/) or
@@ -453,6 +462,9 @@ installed is Docker and Buildx.
 - To compile for the **PS4**, run
   `docker build -f docker/Dockerfile.ps4 --target exporter -o . .`.
 
+- To compile for the **PS2**, run
+  `docker build -f docker/Dockerfile.ps2 --target exporter -o . .`.
+
 #### Manual
 
 > [!WARNING]
@@ -498,6 +510,7 @@ version of libcurl (instructions in mistpp-packages repo) installed.
   [webosbrew Native SDK](https://github.com/webosbrew/native-toolchain/)
   installed to your home directory and
   [ares-cli](https://webostv.developer.lge.com/develop/tools/cli-installation).
+- **For the PS2**, you will need [ps2sdk](https://ps2dev.github.io/) and [ps2sdk-ports](https://github.com/ps2dev/ps2sdk-ports). It includes every SDL2 thing you might need.
 
 > [!NOTE]
 > DevkitPro's install instructions are available at:
@@ -542,6 +555,7 @@ Then you need to compile the projects into proper Homebrew packages.
   `cmake -B build/webos -S . -DCMAKE_TOOLCHAIN_FILE="~/arm-webos-linux-gnueabi_sdk-buildroot/share/buildroot/toolchainfile.cmake" -DSE_CLOUDVARS=OFF -DWEBOS=ON -DSE_RENDERER=sdl2 && make -C build/webos all package`,
   then find the `.ipk` file at
   `build/webos/io.github.scratcheverywhere_0.0.1_arm.ipk`.
+- **For the PS2**, you will need to run `cmake -B build-ps2 -S . -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DCMAKE_BUILD_TYPE=Release -DPS2=ON && make -C build-ps2 -j 2`, then find the `.elf` file at `build/ps2/scratch-ps2.elf`.
 
 #### Compilation Flags
 
