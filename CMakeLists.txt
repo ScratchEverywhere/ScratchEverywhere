@@ -184,7 +184,7 @@ set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 if(SE_MENU)
 	file(GLOB_RECURSE GFXFILES
 		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
-	  "${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
 		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 else()
@@ -198,6 +198,10 @@ if(NOT SE_SVG)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
 endif()
 
+if(NINTENDO_DS)
+	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
+endif()
+
 foreach(file IN LISTS GFXFILES)
 	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
@@ -208,6 +212,10 @@ foreach(file IN LISTS GFXFILES)
 
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
+
+if(NINTENDO_DS)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
+endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
