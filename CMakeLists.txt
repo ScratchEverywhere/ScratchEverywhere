@@ -328,6 +328,7 @@ if(SE_CLOUDVARS)
 endif()
 
 if(SE_DECTALK)
+	target_compile_definitions(se-interface INTERFACE ENABLE_DECTALK)
 	se_add_dependency(se-interface dtc)
 endif()
 
