@@ -1,6 +1,7 @@
 #include "text_sdl3.hpp"
 #include "SDL3_ttf/SDL_ttf.h"
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 #include <ostream>
 #include <render.hpp>

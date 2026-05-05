@@ -2,6 +2,8 @@
 #include "menuObjects.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
+#include <filesystem.hpp>
+#include <log.hpp>
 
 SettingsMenu::SettingsMenu() {
     init();
@@ -158,12 +160,8 @@ void SettingsMenu::render() {
     Render::beginFrame(1, 71, 107, 115);
 
     if (ClearCache->isPressed({"a"})) {
-        const auto &result1 = OS::removeDirectory(OS::getScratchFolderLocation() + "cache/");
-        if (!result1.has_value()) Log::logError("Failed to delete cache directory.");
-        else {
-            const auto &result2 = OS::createDirectory(OS::getScratchFolderLocation() + "cache/");
-            if (!result2.has_value()) Log::logError("Failed to recreate cache directory.");
-        }
+        FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
     }
 
     if (EnableMenuMusic->isPressed({"a"})) {

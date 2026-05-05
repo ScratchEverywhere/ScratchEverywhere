@@ -91,7 +91,7 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string str) {
         }
     }
 
-    double conversion;
+    double conversion = 0;
     char *endptr = nullptr;
 
     errno = 0;

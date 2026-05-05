@@ -3,13 +3,13 @@
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <audio.hpp>
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
 #include <image_sdl3.hpp>
 #include <input.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>

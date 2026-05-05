@@ -1,5 +1,6 @@
 #include <input.hpp>
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 
 std::vector<int> Input::getTouchPosition() {

@@ -1,8 +1,10 @@
 #include "parser.hpp"
 #include "sprite.hpp"
 #include <algorithm>
+#include <filesystem.hpp>
 #include <input.hpp>
 #include <limits>
+#include <log.hpp>
 #include <math.hpp>
 #include <os.hpp>
 #include <render.hpp>
@@ -705,7 +707,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
     if (!json.contains("extensions")) return hasExts;
     for (const std::string &extension : json["extensions"]) {
         const std::string &path = OS::getScratchFolderLocation() + "extensions/" + extension + libraryExtension;
-        if (OS::fileExists(path)) {
+        if (FileSystem::fileExists(path)) {
             void *extensionHandle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
             if (!extensionHandle) {
                 Log::logError("Failed to load native extension, '" + extension + "', dlerror: " + dlerror());

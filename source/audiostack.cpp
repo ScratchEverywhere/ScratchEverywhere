@@ -5,6 +5,7 @@
 #include "os.hpp"
 #include "runtime.hpp"
 #include "unzip.hpp"
+#include <log.hpp>
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -313,7 +314,7 @@ void Mixer::requestSound(short *output, int frames) {
                 float bL = decodeBuffer[2 * i1 + 0];
                 float bR = decodeBuffer[2 * i1 + 1];
 
-                left  = aL + (bL - aL) * frac;
+                left = aL + (bL - aL) * frac;
                 right = aR + (bR - aR) * frac;
             }
 

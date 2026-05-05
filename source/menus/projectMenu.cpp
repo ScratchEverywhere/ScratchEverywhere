@@ -5,6 +5,7 @@
 #include "unpackMenu.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
+#include <log.hpp>
 
 ProjectMenu::ProjectMenu(const std::string &selectedProjectName) {
     initProjectName = selectedProjectName;

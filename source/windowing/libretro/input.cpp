@@ -2,6 +2,7 @@
 #include <blockExecutor.hpp>
 #include <input.hpp>
 #include <libretro.h>
+#include <log.hpp>
 #include <render.hpp>
 #include <string>
 #include <text.hpp>

@@ -4,6 +4,7 @@
 #include "settings.hpp"
 #include "translation.hpp"
 #include "unpackMenu.hpp"
+#include <log.hpp>
 
 ProjectSettings::ProjectSettings(std::string projPath, bool existUnpacked) {
     Log::log(existUnpacked ? "Project exists Unpacked" : "Project does not exist Unpacked");

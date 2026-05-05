@@ -7,6 +7,8 @@
 #include "unzip.hpp"
 #include "value.hpp"
 #include <algorithm>
+#include <filesystem.hpp>
+#include <log.hpp>
 #include <string>
 #include <unordered_map>
 
@@ -64,7 +66,7 @@ SCRATCH_BLOCK(translate, getTranslate) {
         if (!DownloadManager::init()) return BlockResult::CONTINUE;
 
         // Check cache
-        if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
+        if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
             std::ifstream file(tempFile);
             std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
             file.close();

@@ -1,5 +1,7 @@
 #include "unpackMenu.hpp"
 #include "translation.hpp"
+#include <filesystem.hpp>
+#include <log.hpp>
 
 UnpackMenu::UnpackMenu() {
     init();
@@ -52,7 +54,7 @@ void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &
 
     j["items"].push_back(value);
 
-    OS::createDirectory(OS::parentPath(filePath));
+    FileSystem::createDirectory(FileSystem::parentPath(filePath));
 
     std::ofstream outFile(filePath);
     if (!outFile) {

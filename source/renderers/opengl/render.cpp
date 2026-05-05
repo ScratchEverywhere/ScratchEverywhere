@@ -1,6 +1,7 @@
 #include "render.hpp"
 #include "speech_manager_gl.hpp"
 #include <image_gl.hpp>
+#include <log.hpp>
 #include <window.hpp>
 #if defined(WINDOWING_GLFW)
 #include <windowing/glfw/window.hpp>

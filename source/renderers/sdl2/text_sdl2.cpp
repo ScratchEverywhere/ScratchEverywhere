@@ -1,5 +1,6 @@
 #include "text_sdl2.hpp"
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 #include <ostream>
 #include <render.hpp>

@@ -6,12 +6,12 @@
 #include <SDL/SDL_rotozoom.h>
 #include <algorithm>
 #include <audio.hpp>
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
 #include <image_sdl1.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
