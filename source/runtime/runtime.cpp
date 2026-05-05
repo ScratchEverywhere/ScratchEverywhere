@@ -86,11 +86,29 @@ std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
-void Scratch::initializeScratchProject() {
-#if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+bool Scratch::initializeRuntime() {
+    Log::deleteLogFile();
+    Render::debugMode = true;
+
+    if (!OS::init()) {
+        return false;
+    }
+    if (!Render::Init()) {
+        return false;
+    }
+#ifdef ENABLE_AUDIO
+#ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();
 #endif
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+        return false;
+    }
+#endif
+    return true;
+}
 
+void Scratch::initializeScratchProject() {
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) Parser::initMist();
