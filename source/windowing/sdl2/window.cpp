@@ -91,7 +91,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     resize(dw, dh);
 #else
     int dw, dh;
-#ifdef __PS4__
+#if defined(__PS4__) || defined(WEBOS)
     SDL_GetWindowSize(window, &dw, &dh);
 #else
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
