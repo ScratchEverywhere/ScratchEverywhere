@@ -35,6 +35,10 @@
 #include <emscripten.h>
 #endif
 
+#if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#include <epsonapi.h>
+#endif
+
 std::vector<Block *> Scratch::blocks;
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
@@ -82,6 +86,10 @@ std::string Scratch::customUsername;
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
 void Scratch::initializeScratchProject() {
+#if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+    TextToSpeechSafeInit();
+#endif
+
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
     if (cloudProject) Parser::initMist();
