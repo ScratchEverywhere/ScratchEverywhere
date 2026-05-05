@@ -1,16 +1,18 @@
 #include "settings.hpp"
-#include "os.hpp"
+#include <filesystem.hpp>
 #include <fstream>
+#include <log.hpp>
+#include <os.hpp>
 
 void SettingsManager::migrate() {
-    auto potentialError = OS::createDirectory(OS::getConfigFolderLocation());
+    auto potentialError = FileSystem::createDirectory(OS::getConfigFolderLocation());
     if (!potentialError.has_value()) {
         Log::logError("Could not make config directory: " + potentialError.error());
         return;
     }
 
-    if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation() && OS::fileExists(OS::getScratchFolderLocation() + "Settings.json")) {
-        OS::renameFile(OS::getScratchFolderLocation() + "Settings.json", OS::getConfigFolderLocation() + "Settings.json");
+    if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation() && FileSystem::fileExists(OS::getScratchFolderLocation() + "Settings.json")) {
+        FileSystem::renameFile(OS::getScratchFolderLocation() + "Settings.json", OS::getConfigFolderLocation() + "Settings.json");
     }
 }
 

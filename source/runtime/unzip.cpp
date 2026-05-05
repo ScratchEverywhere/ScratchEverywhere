@@ -6,9 +6,11 @@
 #include <cstring>
 #include <ctime>
 #include <errno.h>
+#include <filesystem.hpp>
 #include <fstream>
 #include <image.hpp>
 #include <istream>
+#include <log.hpp>
 #include <menus/loading.hpp>
 #include <random>
 #include <settings.hpp>
@@ -217,7 +219,7 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
 
     if (stat(directory.c_str(), &dirStat) != 0) {
         Log::logWarning("Directory does not exist! " + directory);
-        auto potentialError = OS::createDirectory(directory);
+        auto potentialError = FileSystem::createDirectory(directory);
         if (!potentialError.has_value()) Log::logWarning("Failed to create directory, " + directory + ", " + potentialError.error());
         return projectFiles;
     }
@@ -526,7 +528,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
         return false;
     }
 
-    auto potentialError = OS::createDirectory(destFolder + "/");
+    auto potentialError = FileSystem::createDirectory(destFolder + "/");
     if (!potentialError.has_value()) {
         Log::logError(potentialError.error());
         return false;
@@ -543,7 +545,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
 
         std::string outPath = destFolder + "/" + filename;
 
-        auto potentialError = OS::createDirectory(OS::parentPath(outPath));
+        auto potentialError = FileSystem::createDirectory(FileSystem::parentPath(outPath));
         if (!potentialError.has_value()) {
             Log::logError(potentialError.error());
             return false;
@@ -572,7 +574,7 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
         return false;
     }
 
-    auto potentialError = OS::removeDirectory(directory);
+    auto potentialError = FileSystem::removeDirectory(directory);
     if (!potentialError.has_value()) {
         Log::logError(std::string("Failed to delete folder: ") + potentialError.error());
         return false;

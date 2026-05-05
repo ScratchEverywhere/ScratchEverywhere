@@ -1,6 +1,8 @@
 #include "settingsMenu.hpp"
 #include "menuObjects.hpp"
 #include "settings.hpp"
+#include <filesystem.hpp>
+#include <log.hpp>
 
 SettingsMenu::SettingsMenu() {
     init();
@@ -152,8 +154,8 @@ void SettingsMenu::render() {
     Render::beginFrame(1, 71, 107, 115);
 
     if (ClearCache->isPressed({"a"})) {
-        OS::removeDirectory(OS::getScratchFolderLocation() + "cache/");
-        OS::createDirectory(OS::getScratchFolderLocation() + "cache/");
+        FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
     }
 
     if (EnableMenuMusic->isPressed({"a"})) {

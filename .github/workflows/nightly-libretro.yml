@@ -1,0 +1,50 @@
+name: Libretro Nightly Build
+
+on:
+  push:
+    paths:
+      - CMakeLists.txt
+      - cmake/platforms/libretro.cmake
+      - cmake/renderers/opengl.cmake
+      - cmake/windowing/libretro.cmake
+      - cmake/audio/libretro.cmake
+      - cmake/deps/*
+      - source/runtime/**
+      - source/renderers/opengl/**
+      - source/*
+      - source/menus/**
+      - source/platforms/
+      - source/platforms/libretro/**
+      - source/audio/libretro/**
+      - gfx/ingame/**
+      - include/**
+      - .github/workflows/nightly-libretro.yml
+      - docker/Dockerfile.libretro
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create `romfs` directory
+        run: mkdir romfs
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.libretro
+          target: exporter
+          outputs: type=local,dest=.
+      - name: Upload Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Everywhere! Libretro Nightly
+          path: scratch-everywhere.so

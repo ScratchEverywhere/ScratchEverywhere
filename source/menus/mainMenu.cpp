@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cmath>
 #include <image.hpp>
+#include <log.hpp>
 #include <parser.hpp>
 
 #include <nlohmann/json.hpp>

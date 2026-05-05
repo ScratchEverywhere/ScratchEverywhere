@@ -1,5 +1,7 @@
+#ifndef LIBRETRO
 #include "image.hpp"
-#include "os.hpp"
+// #include "os.hpp"
+#include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
@@ -29,11 +31,15 @@
 
 static void exitApp() {
     Render::deInit();
+    OS::deinit();
 }
 
 static bool initApp() {
     Log::deleteLogFile();
     Render::debugMode = true;
+    if (!OS::init()) {
+        return false;
+    }
     if (!Render::Init()) {
         return false;
     }
@@ -146,7 +152,7 @@ int main(int argc, char **argv) {
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
                 *(bool *)userdata = true;
-                if (!OS::fileExists(OS::getScratchFolderLocation())) OS::createDirectory(OS::getScratchFolderLocation());
+                if (!OS::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();
@@ -177,3 +183,4 @@ int main(int argc, char **argv) {
     exitApp();
     return 0;
 }
+#endif

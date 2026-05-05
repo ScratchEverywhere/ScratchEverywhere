@@ -1,5 +1,6 @@
 #include "image_gl2d.hpp"
 #include "nonstd/expected.hpp"
+#include <log.hpp>
 #include <stdexcept>
 #include <unzip.hpp>
 

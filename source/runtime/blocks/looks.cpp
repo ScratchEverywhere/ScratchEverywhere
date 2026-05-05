@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <image.hpp>
+#include <log.hpp>
 #include <render.hpp>
 #include <set>
 #include <speech_manager.hpp>

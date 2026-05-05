@@ -1,4 +1,5 @@
 #include "controlsMenu.hpp"
+#include <log.hpp>
 #include <settings.hpp>
 
 ControlsMenu::ControlsMenu(std::string projPath) {

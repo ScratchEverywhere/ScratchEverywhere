@@ -5,6 +5,7 @@
 #include "os.hpp"
 #include "runtime.hpp"
 #include "unzip.hpp"
+#include <log.hpp>
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 

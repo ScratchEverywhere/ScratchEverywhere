@@ -8,6 +8,8 @@
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
+#include <filesystem.hpp>
+#include <log.hpp>
 #include <string>
 
 #if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
@@ -181,7 +183,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         }
         state->completedSteps = 2;
         if (!DownloadManager::init()) return BlockResult::CONTINUE;
-        if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
+        if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
             Log::log("T2S audio already downloaded: " + inputString);
             SoundStream *strm = new SoundStream(tempFile, false, true);
             if (strm->error.has_value()) {
@@ -205,7 +207,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
     if (state->completedSteps == 1) {
         if (DownloadManager::isDownloading(state->name)) return BlockResult::REPEAT;
 
-        if (OS::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
+        if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
             Log::log("T2S audio already downloaded");
             SoundStream *strm = new SoundStream(tempFile, false, true);
             if (strm->error.has_value()) {

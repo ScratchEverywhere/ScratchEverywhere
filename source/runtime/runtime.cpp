@@ -14,6 +14,7 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
+#include <log.hpp>
 #include <math.h>
 #include <os.hpp>
 #include <render.hpp>

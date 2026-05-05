@@ -1,6 +1,7 @@
 #include "audio.hpp"
 #include "audiostack.hpp"
 #include <SDL3/SDL.h>
+#include <log.hpp>
 #include <os.hpp>
 #include <string>
 #include <vector>
