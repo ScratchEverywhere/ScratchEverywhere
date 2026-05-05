@@ -260,7 +260,7 @@ SoundStream::~SoundStream() {
 #endif
     }
 
-    if (this->buffer != nullptr) free(this->buffer);
+    if (this->type != SoundStreamStream && this->buffer != nullptr) free(this->buffer);
 #endif
 }
 
