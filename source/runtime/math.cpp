@@ -131,6 +131,7 @@ bool Math::isNumber(const std::string &str) {
 std::string Math::toString(double number) {
     if (std::isnan(number)) return "NaN";
     if (std::isinf(number)) return std::signbit(number) ? "-Infinity" : "Infinity";
+    if (number == 0) return "0";
     char buffer[32];
     d2s_buffered(number, buffer);
     return std::string(buffer);
