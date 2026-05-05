@@ -82,20 +82,22 @@ static int dtc_callback(SoundStream *strm, float *iwave, int length) {
 
 SCRATCH_BLOCK(text2speech, speakAndWait) {
 #if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#define STREAM SoundStream *strm = new SoundStream("dtc:" + name, dtc_callback, 1, 11025)
+
     BlockState *state = thread->getState(block);
     std::size_t h = std::hash<std::string>{}(state->name);
     std::string name = std::to_string(h);
     if (state->completedSteps == 0) {
         Value words;
         tts_value *v;
-	std::string g;
+        std::string g;
         if (!Scratch::getInput(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
 
-	if(sprite->textToSpeechData.gender == "male"){
-		g = "[:np]";
-	}else{
-		g = "[:nb]";
-	}
+        if (sprite->textToSpeechData.gender == "male") {
+            g = "[:np]";
+        } else {
+            g = "[:nb]";
+        }
 
         v = new tts_value();
         v->finished = false;
@@ -110,7 +112,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
             state->completedSteps = 1;
 
 #ifdef ENABLE_DECTALK_STREAM
-            SoundStream *strm = new SoundStream("dtc:" + name, dtc_callback, 1, 11025);
+            STREAM;
 #endif
         } else {
             dtc_generate(v);
@@ -132,10 +134,10 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         if (tts[name]->threaded) {
             tts[name]->thread.join();
 #ifndef ENABLE_DECTALK_STREAM
-            SoundStream *strm = new SoundStream("dtc:" + name, dtc_callback, 1, 11025);
+            STREAM;
 #endif
         } else {
-            SoundStream *strm = new SoundStream("dtc:" + name, dtc_callback, 1, 11025);
+            STREAM;
         }
 
         tts_lookup.erase(tts_lookup.find(tts[name]->tts));
