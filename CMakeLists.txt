@@ -213,7 +213,7 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if(NINTENDO_DS)
+if(NINTENDO_DS AND SE_MENU)
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
 endif()
 
