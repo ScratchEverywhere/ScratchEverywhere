@@ -1,6 +1,6 @@
 #ifndef LIBRETRO
 #include "image.hpp"
-// #include "os.hpp"
+#include "translation.hpp"
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>

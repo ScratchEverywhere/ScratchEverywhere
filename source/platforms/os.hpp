@@ -40,7 +40,7 @@ inline std::string getCustomScratchFolderLocation() {
         if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string() && json.contains("UseProjectsPath") && json["UseProjectsPath"].is_boolean() && json["UseProjectsPath"] == true) customProjectsPath = new std::string(json["ProjectsPath"].get<std::string>());
     }
 
-    if (customProjectsPath != nullptr) return *customProjectsPath;
+    if (customProjectsPath != nullptr) return customProjectsPath->back() == '/' ? *customProjectsPath : *customProjectsPath + "/";
     else return "";
 }
 

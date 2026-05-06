@@ -162,7 +162,9 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
 #ifdef USE_CMAKERC
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
-        auto file = cmrc::romfs::get_filesystem().open(filePath);
+        auto fs = cmrc::romfs::get_filesystem();
+        if (!fs.exists(filePath)) return nonstd::make_unexpected("File not found: " + filePath);
+        auto file = fs.open(filePath);
         std::vector<unsigned char> buffer(file.size() + 1);
         std::copy(file.begin(), file.end(), buffer.begin());
         buffer[file.size()] = '\0';

@@ -6,6 +6,7 @@
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
 #include "sprite.hpp"
+#include "translation.hpp"
 #include "unzip.hpp"
 #include <audio.hpp>
 #include <cmath>
@@ -226,7 +227,7 @@ bool Scratch::startScratchProject() {
 #ifdef ENABLE_MENU
 
     if (hasNativeExtensions) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, "Warning! This project contains Native Extensions. Native Extensions have full access to your device.");
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
         MenuManager::changeMenu(popupMenu);
         while (Render::appShouldRun() && popupMenu->accepted == -1) {
             MenuManager::render();

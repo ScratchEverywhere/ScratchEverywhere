@@ -50,8 +50,10 @@ bool OS::isEnhancedPlatform() {
     return isDSiMode();
 }
 
+static std::string filesystemRoot = "";
 std::string OS::getFilesystemRootPrefix() {
-    return "fat:";
+    if (filesystemRoot == "") filesystemRoot = std::string(fatGetDefaultDrive());
+    return filesystemRoot;
 }
 
 std::string OS::getConfigFolderLocation() {

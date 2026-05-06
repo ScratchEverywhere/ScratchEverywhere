@@ -1,4 +1,6 @@
 #include <os.hpp>
+#include <pwd.h>
+#include <unistd.h>
 
 namespace OS {
 bool toExit = false;
@@ -55,5 +57,9 @@ void OS::deInitWifi() {
 }
 
 std::string OS::getUsername() {
+    uid_t uid = geteuid();
+    struct passwd *pw = getpwuid(uid);
+    if (pw) return std::string(pw->pw_name);
+
     return "Player";
 }
