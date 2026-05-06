@@ -50,6 +50,8 @@ void TranslationManager::loadLanguage(std::string language) {
     const std::string path = OS::getRomFSLocation() + "gfx/translations/" + language + ".json";
     const std::string splashPath = OS::getRomFSLocation() + "gfx/translations/" + language + ".splashes.txt";
 
+    splashTexts.clear();
+
 #ifdef USE_CMAKERC
     const auto &fs = cmrc::romfs::get_filesystem();
 
