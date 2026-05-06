@@ -19,7 +19,7 @@ void SettingsManager::migrate() {
 nlohmann::json SettingsManager::getConfigSettings() {
     migrate();
 
-    nlohmann::json json;
+    nlohmann::json json = nlohmann::json::object();
 
     std::ifstream file(OS::getConfigFolderLocation() + "Settings.json");
     if (!file.good()) {
