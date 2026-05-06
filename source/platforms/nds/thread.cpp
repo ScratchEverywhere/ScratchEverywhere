@@ -16,7 +16,7 @@ void SE_Thread::detach() {}
 
 void SE_Thread::sleep(uint16_t milliseconds) {}
 
-unsigned int SE_Thread::getCurrentThreadId() { return 0; }
+unsigned int SE_Thread::getCurrentThreadId() {}
 
 struct SE_Mutex::Impl {};
 

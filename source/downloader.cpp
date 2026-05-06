@@ -6,10 +6,8 @@
 #include "os.hpp"
 #include <atomic>
 #include <curl/curl.h>
-#include <filesystem.hpp>
 #include <fstream>
 #include <iostream>
-#include <log.hpp>
 #include <mutex>
 #include <sys/stat.h>
 
@@ -161,7 +159,7 @@ void DownloadManager::performDownload(std::shared_ptr<DownloadItem> item) {
     size_t lastSlash = item->filepath.find_last_of("/\\");
     if (lastSlash != std::string::npos) {
         const std::string dir = item->filepath.substr(0, lastSlash) + "/";
-        const auto err = FileSystem::createDirectory(dir.c_str());
+        const auto err = OS::createDirectory(dir.c_str());
         if (!err.has_value()) {
             item->finished = true;
             item->success = false;

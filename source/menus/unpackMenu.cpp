@@ -1,7 +1,4 @@
 #include "unpackMenu.hpp"
-#include "translation.hpp"
-#include <filesystem.hpp>
-#include <log.hpp>
 
 UnpackMenu::UnpackMenu() {
     init();
@@ -14,10 +11,10 @@ UnpackMenu::~UnpackMenu() {
 void UnpackMenu::init() {
     Render::renderMode = Render::BOTH_SCREENS;
 
-    infoText = createTextObject(TranslationManager::getTranslation("ui.unpack.wait"), 200.0, 100.0);
+    infoText = createTextObject("Please wait a moment", 200.0, 100.0);
     infoText->setScale(1.5f);
     infoText->setCenterAligned(true);
-    descText = createTextObject(TranslationManager::getTranslation("ui.unpack.warning"), 200.0, 150.0);
+    descText = createTextObject("Do not turn off the device", 200.0, 150.0);
     descText->setScale(0.8f);
     descText->setCenterAligned(true);
 }
@@ -54,7 +51,7 @@ void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &
 
     j["items"].push_back(value);
 
-    FileSystem::createDirectory(FileSystem::parentPath(filePath));
+    OS::createDirectory(OS::parentPath(filePath));
 
     std::ofstream outFile(filePath);
     if (!outFile) {

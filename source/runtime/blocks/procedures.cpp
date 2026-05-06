@@ -44,7 +44,6 @@ SCRATCH_BLOCK(procedures, call) {
         newThread->MyBlocksVariablen.clear();
         state->myBlockThread = newThread;
         state->completedSteps = 1;
-        Scratch::resetInput(block);
     }
 
     while ((size_t)(state->completedSteps - 1) < block->argumentIDs.size()) {

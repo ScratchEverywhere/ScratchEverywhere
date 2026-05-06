@@ -11,8 +11,8 @@ section before making your contribution. It will make it a lot easier for us
 maintainers and smooth out the experience for all involved. The community looks
 forward to your contributions. 🎉
 
-> If you like the project, but just don't have time to contribute, that's fine
-> as well. There are other easy ways to support the project and show your
+> And if you like the project, but just don't have time to contribute, that's
+> fine. There are other easy ways to support the project and show your
 > appreciation, which we would also be very happy about:
 >
 > - Star the project
@@ -68,7 +68,7 @@ We will then take care of the issue as soon as possible.
 
 When contributing to this project, you must agree that you have authored 100% of
 the content, that you have the necessary rights to the content and that the
-content you contribute may be provided under the project license.
+content you contribute may be provided under the project licence.
 
 ### Reporting Bugs
 
@@ -184,11 +184,10 @@ Enhancement suggestions are tracked as
 ### Your First Code Contribution
 
 Pretty much our only requirement, is that you need to run `clang-format` before
-committing your code.
+comitting your code.
 
 The development environment is pretty simple for most platforms. The
-instructions are the same as the build instructions found on the
-[website](https://ScratchEverywhere.github.io/build).
+instructions are the same as the build instructions in the [README](/README.md).
 
 <!-- omit in toc -->
 
@@ -207,21 +206,19 @@ Nate's style goes like `[Affect Code] Change` so some examples are:
 
 ### Markdown
 
-For our Markdown style, we use capitalized headings. In addition, in lists
-containing information about specific platforms, we encase the platform names in
-brackets at the beginning of the list item:
+We use capatilized headings and well tbh that's the main thing. Also for lists
+containing info about specifc platforms we use this syntax:
 
 ```markdown
 - **[Wii U, 3DS]** Some Feature
 - **[Vita]** Another thing
 ```
 
-We also use `deno fmt` to format our Markdown. You should probably set up
-formatting on save for convenience.
+We also now use `deno fmt` to format our Markdown. I recommend you setup
+formating on save.
 
 <!-- omit in toc -->
 
 ## Attribution
 
-This guide is based on the
-[contributing.md generator](https://contributing.md/generator)!
+This guide is based on the [contributing.md](https://contributing.md/generator)!

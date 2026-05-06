@@ -6,10 +6,10 @@
 #include <SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <audio.hpp>
+#include <chrono>
 #include <cmath>
 #include <image.hpp>
 #include <input.hpp>
-#include <log.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <string>
@@ -78,6 +78,9 @@ bool Render::Init() {
 #elif defined(__PSP__)
     int windowWidth = 480;
     int windowHeight = 272;
+#elif defined(__PS2__)
+    int windowWidth = 640;
+    int windowHeight = 448;
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
@@ -117,7 +120,7 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
-#if defined(WEBOS) || defined(__PSP__) || defined(__PS4__)
+#if defined(WEBOS) || defined(__PSP__) || defined(__PS4__) || defined(__PS2__)
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
 #else
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;

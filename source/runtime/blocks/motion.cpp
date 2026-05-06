@@ -156,7 +156,6 @@ SCRATCH_BLOCK(motion, glideto) {
     state->glideEndX = positionXStr;
     state->glideEndY = positionYStr;
     state->completedSteps = 1;
-    Scratch::resetInput(block);
     goto glide;
     return BlockResult::REPEAT;
 }
@@ -188,7 +187,6 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
     state->glideStartY = sprite->yPosition;
 
     state->completedSteps = 1;
-    Scratch::resetInput(block);
 
     goto glide;
     return BlockResult::REPEAT;

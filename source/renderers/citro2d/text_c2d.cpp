@@ -1,6 +1,5 @@
 #include "text_c2d.hpp"
 #include <3ds.h>
-#include <log.hpp>
 #include <os.hpp>
 
 std::unordered_map<std::string, C2D_Font> TextObjectC2D::fonts;

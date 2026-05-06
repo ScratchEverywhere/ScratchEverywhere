@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
-#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <renderers/opengl/render.hpp>

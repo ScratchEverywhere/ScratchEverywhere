@@ -1,5 +1,5 @@
 #include "blockUtils.hpp"
-#include <log.hpp>
+#include "os.hpp"
 
 SCRATCH_BLOCK(logs, log) {
     Value arg0;

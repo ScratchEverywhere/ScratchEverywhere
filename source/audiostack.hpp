@@ -25,10 +25,9 @@
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
-    SoundStreamStream,
     SoundStreamWAV,
     SoundStreamMP3,
-    SoundStreamVorbis,
+    SoundStreamVorbis
 };
 
 class SoundConfig {
@@ -46,7 +45,6 @@ class SoundConfig {
 class SoundStream {
     unsigned char *buffer;
     size_t buffer_size;
-    int (*callback)(SoundStream *strm, float *iwave, int length);
 
     bool loadAsWAV();
     bool loadAsMP3();
@@ -84,7 +82,6 @@ class SoundStream {
 
     SoundStream(std::string path, bool cached = false, bool on_disk = false);
     SoundStream(mz_zip_archive *zip, std::string path);
-    SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate);
 
     nonstd::expected<void, std::string> init(std::string path, bool cached = false, bool on_disk = false);
     nonstd::expected<void, std::string> init(mz_zip_archive *zip, std::string path);

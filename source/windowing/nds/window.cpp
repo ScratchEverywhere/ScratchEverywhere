@@ -1,13 +1,28 @@
 #include "window.hpp"
-#include "os.hpp"
 #include <fat.h>
 #include <filesystem.h>
 #include <input.hpp>
-#include <log.hpp>
 #include <nds/arm9/dldi.h>
 #include <render.hpp>
 
 bool WindowNDS::init(int w, int h, const std::string &title) {
+    cpuStartTiming(0);
+    consoleDemoInit();
+
+    if (!OS::isDSi()) {
+        dldiSetMode(DLDI_MODE_AUTODETECT);
+        if (!fatInitDefault()) {
+            Log::logError("FAT init failed!\nUsing an emulator? Be sure to\nenable SD card emulation in your emulator settings!");
+            while (1)
+                swiWaitForVBlank();
+        }
+    }
+
+    if (!nitroFSInit(NULL)) {
+        Log::logError("NitroFS init failed!");
+        while (1)
+            swiWaitForVBlank();
+    }
     glScreen2D();
     videoSetMode(MODE_0_3D);
     vramSetBankA(VRAM_A_TEXTURE);

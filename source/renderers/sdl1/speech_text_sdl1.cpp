@@ -2,7 +2,6 @@
 #include "text.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_ttf.h>
-#include <log.hpp>
 #include <os.hpp>
 
 #ifdef USE_CMAKERC

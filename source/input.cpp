@@ -1,5 +1,4 @@
 #include "input.hpp"
-#include <log.hpp>
 
 std::vector<std::string> Input::inputButtons;
 std::map<std::string, std::string> Input::inputControls;

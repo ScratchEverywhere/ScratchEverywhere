@@ -1,7 +1,6 @@
 #include "menuObjects.hpp"
 #include "text.hpp"
 #include <input.hpp>
-#include <log.hpp>
 #include <render.hpp>
 
 #define REFERENCE_WIDTH 400

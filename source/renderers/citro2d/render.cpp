@@ -3,7 +3,6 @@
 #include <audio.hpp>
 #include <downloader.hpp>
 #include <input.hpp>
-#include <log.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <text.hpp>
@@ -26,7 +25,7 @@ constexpr u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 static bool isConsoleInit = false;
 
 C2D_Image penImage;
-C3D_RenderTarget *penRenderTarget = nullptr;
+C3D_RenderTarget *penRenderTarget;
 Tex3DS_SubTexture penSubtex;
 C3D_Tex *penTex;
 
@@ -302,12 +301,8 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::penClear() {
-    if (penRenderTarget == nullptr) return;
-    if (!hasFrameBegan) {
-        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-        hasFrameBegan = true;
-    }
-    C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
+    if (penRenderTarget && penRenderTarget != nullptr)
+        C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {

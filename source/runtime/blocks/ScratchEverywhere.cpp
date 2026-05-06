@@ -21,12 +21,12 @@ SCRATCH_BLOCK(SE, isScratchEverywhere) {
 }
 
 SCRATCH_BLOCK(SE, isNew3DS) {
-    *outValue = Value(OS::getPlatform() == "3DS" && OS::isEnhancedPlatform());
+    *outValue = Value(OS::isNew3DS());
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(SE, isDSi) {
-    *outValue = Value(OS::getPlatform() == "DS" && OS::isEnhancedPlatform());
+    *outValue = Value(OS::isDSi());
     return BlockResult::CONTINUE;
 }
 

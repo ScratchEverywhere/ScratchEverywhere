@@ -42,12 +42,12 @@ body:
         - GameCube
         - Switch
         - PSP
+        - PS2
         - Vita
         - webOS
         - PC
         - Web
         - PS4
-        - Libretro
     validations:
       required: true
   - type: textarea

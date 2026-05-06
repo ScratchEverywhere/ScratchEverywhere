@@ -7,9 +7,7 @@
 #include <cctype>
 #include <cmath>
 #include <image.hpp>
-#include <log.hpp>
 #include <parser.hpp>
-#include <translation.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -79,7 +77,7 @@ MainMenu::~MainMenu() {
 void MainMenu::init() {
 #if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
     // let the user type what project they want to open
-    std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
+    std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
 
     const std::string ext = ".sb3";
     if (answer.size() >= ext.size() &&
@@ -100,11 +98,11 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.beta") + " 41 - 1 YEAR OF SE!", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject("Beta Build 41 - 1 YEAR OF SE!", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
-    splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
+    splashText = createTextObject(Unzip::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(255, 255, 255, 128));
     if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {

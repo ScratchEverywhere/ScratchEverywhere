@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <log.hpp>
 #include <math.hpp>
 #include <os.hpp>
 

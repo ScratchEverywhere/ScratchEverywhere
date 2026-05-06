@@ -1,7 +1,6 @@
 #include "speech_text_gl.hpp"
 #include "text.hpp"
 #include "text_gl.hpp"
-#include <log.hpp>
 #include <os.hpp>
 #include <stb_truetype.h>
 
