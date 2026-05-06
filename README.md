@@ -21,6 +21,11 @@ over to 6-8th-generation gaming consoles, handheld platforms, and more!
 > projects will run correctly, and some features from vanilla Scratch are not
 > supported or are only supported on certain platforms. See the [limitations page](https://ScratchEverywhere.github.io/limitations) for more information.
 
+## Documentation
+
+Most of the documentation on how to use Scratch Everywhere! can be found on the
+website: <https://ScratchEverywhere.github.io>.
+
 ## Features
 
 Scratch Everywhere! supports various console-specific features such as
