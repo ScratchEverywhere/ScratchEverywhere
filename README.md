@@ -43,7 +43,8 @@ Installation instructions for Scratch Everywhere! can be found on the
 
 **Scratch Everywhere! does not come with any Scratch projects.** You will need
 to manually download them from the Scratch website and place them onto your
-console.
+console. [ScratchBox](https://scratchbox.dev) has many projects that work well
+with Scratch Everywhere!.
 
 ## Controls
 
