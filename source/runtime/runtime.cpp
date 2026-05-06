@@ -94,6 +94,7 @@ bool Scratch::initializeRuntime() {
     if (!OS::init()) {
         return false;
     }
+    TranslationManager::loadLanguage();
     if (!Render::Init()) {
         return false;
     }
