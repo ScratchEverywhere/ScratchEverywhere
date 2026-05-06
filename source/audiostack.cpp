@@ -154,7 +154,9 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
         ifs.close();
 #ifdef USE_CMAKERC
     } else {
-        const auto &file = cmrc::romfs::get_filesystem().open(prefix + path);
+        auto fs = cmrc::romfs::get_filesystem();
+        if (!fs.exists(prefix + path)) return nonstd::make_unexpected("Audio file not found.");
+        const auto &file = fs.open(prefix + path);
 
         this->buffer_size = file.size();
 
