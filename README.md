@@ -16,7 +16,7 @@ over to 6-8th-generation gaming consoles, handheld platforms, and more!
 </div>
 
 <!-- deno-fmt-ignore -->
-> [!WARNING] Disclaimer
+> [!WARNING]
 > Scratch Everywhere! is a **work-in-progress**. Not all
 > projects will run correctly, and some features from vanilla Scratch are not
 > supported or are only supported on certain platforms. See the [limitations page](https://ScratchEverywhere.github.io/limitations) for more information.
