@@ -5,7 +5,7 @@
   "ui.projects.path": "Поместите их в ",
   "ui.settings.controls": "Изменить управление",
   "ui.settings.unpack": "Распаковать проект",
-  "ui.settings.deletedUnpacked": "Удалить распак. проект",
+  "ui.settings.deleteUnpacked": "Удалить распак. проект",
   "ui.settings.bottom": "Нижний экран",
   "ui.settings.penMode": "Режим пера",
   "ui.settings.collisionMode": "Режим коллизий",
