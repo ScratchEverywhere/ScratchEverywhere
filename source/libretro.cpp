@@ -101,15 +101,7 @@ static void context_reset(void) {
 
     if (!Unzip::load()) return;
 
-    if (!Render::Init()) {
-        return;
-    }
-
-#ifdef ENABLE_AUDIO
-    if (!SoundPlayer::init()) {
-        return;
-    }
-#endif
+    Scratch::initializeRuntime();
 
     Scratch::initializeScratchProject();
 }

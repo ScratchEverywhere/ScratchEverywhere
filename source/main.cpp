@@ -35,22 +35,7 @@ static void exitApp() {
 }
 
 static bool initApp() {
-    Log::deleteLogFile();
-    Render::debugMode = true;
-    if (!OS::init()) {
-        return false;
-    }
-    TranslationManager::loadLanguage();
-    if (!Render::Init()) {
-        return false;
-    }
-#ifdef ENABLE_AUDIO
-    if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
-        return false;
-    }
-#endif
-    return true;
+    return Scratch::initializeRuntime();
 }
 
 bool activateMainMenu() {

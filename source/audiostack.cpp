@@ -86,6 +86,10 @@ bool SoundStream::loadAsVorbis() {
 
 void SoundStream::commonInit() {
 #ifdef ENABLE_AUDIO
+    this->paused = false;
+    this->auto_clean = false;
+    this->no_lock = false;
+
     Mixer::mutex.lock();
 
     auto e = Mixer::configs.find(this->name);
@@ -124,9 +128,6 @@ bool SoundStream::loadFromBuffer() {
         return false;
     }
 
-    this->paused = false;
-    this->auto_clean = false;
-    this->no_lock = false;
     return success;
 #endif
 }
@@ -185,6 +186,22 @@ SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     if (error.has_value()) error = potentialError.error();
 }
 
+SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate) {
+    this->name = name;
+
+    this->channels = channels;
+    this->rate = rate;
+
+    this->type = SoundStreamStream;
+    this->callback = callback;
+
+    commonInit();
+
+    Mixer::mutex.lock();
+    Mixer::streams[name] = this;
+    Mixer::mutex.unlock();
+}
+
 nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::string path) {
 
 #ifdef ENABLE_AUDIO
@@ -216,7 +233,6 @@ nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::
 }
 
 SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
-
     auto potentialError = init(zip, path);
     if (error.has_value()) error = potentialError.error();
 }
@@ -246,13 +262,15 @@ SoundStream::~SoundStream() {
 #endif
     }
 
-    if (this->buffer != nullptr) free(this->buffer);
+    if (this->type != SoundStreamStream && this->buffer != nullptr) free(this->buffer);
 #endif
 }
 
 int SoundStream::read(float *output, int frames) {
 #ifdef ENABLE_AUDIO
-    if (this->type == SoundStreamWAV) {
+    if (this->type == SoundStreamStream) {
+        return this->callback(this, output, frames);
+    } else if (this->type == SoundStreamWAV) {
         return drwav_read_pcm_frames_f32(&this->wav, frames, output);
 #if !defined(NO_MP3)
     } else if (this->type == SoundStreamMP3) {

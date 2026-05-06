@@ -37,6 +37,10 @@
 #include <emscripten.h>
 #endif
 
+#if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#include <epsonapi.h>
+#endif
+
 std::vector<Block *> Scratch::blocks;
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
@@ -82,6 +86,29 @@ bool Scratch::useCustomUsername = false;
 std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
+
+bool Scratch::initializeRuntime() {
+    Log::deleteLogFile();
+    Render::debugMode = true;
+
+    if (!OS::init()) {
+        return false;
+    }
+    TranslationManager::loadLanguage();
+    if (!Render::Init()) {
+        return false;
+    }
+#ifdef ENABLE_AUDIO
+#ifdef ENABLE_DECTALK
+    TextToSpeechSafeInit();
+#endif
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+        return false;
+    }
+#endif
+    return true;
+}
 
 void Scratch::initializeScratchProject() {
     Parser::loadUsernameFromSettings();
