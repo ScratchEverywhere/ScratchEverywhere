@@ -1,6 +1,6 @@
 #ifndef LIBRETRO
 #include "image.hpp"
-// #include "os.hpp"
+#include "translation.hpp"
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
@@ -40,6 +40,7 @@ static bool initApp() {
     if (!OS::init()) {
         return false;
     }
+    TranslationManager::loadLanguage();
     if (!Render::Init()) {
         return false;
     }

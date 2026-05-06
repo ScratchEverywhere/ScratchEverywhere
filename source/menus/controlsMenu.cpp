@@ -1,4 +1,5 @@
 #include "controlsMenu.hpp"
+#include "translation.hpp"
 #include <log.hpp>
 #include <settings.hpp>
 
@@ -63,7 +64,7 @@ void ControlsMenu::init() {
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold", true);
+    applyButton = new ButtonObject(TranslationManager::getTranslation("ui.controls.apply"), "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold", true);
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;

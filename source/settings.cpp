@@ -39,16 +39,20 @@ void SettingsManager::saveConfigSettings(const nlohmann::json &json) {
 }
 
 nlohmann::json SettingsManager::getProjectSettings(const std::string &projectName) {
-    nlohmann::json json;
+    nlohmann::json json = nlohmann::json::object();
 
     std::ifstream file(OS::getScratchFolderLocation() + projectName + ".sb3.json");
     if (!file.good()) {
         Log::logWarning("Failed to open project config file: " + OS::getScratchFolderLocation() + projectName + ".sb3.json");
+        if (!json.contains("settings")) json["settings"] = nlohmann::json::object();
         return json;
     }
 
     file >> json;
     file.close();
+
+    if (!json.is_object()) json = nlohmann::json::object();
+    if (!json.contains("settings")) json["settings"] = nlohmann::json::object();
     return json;
 }
 
