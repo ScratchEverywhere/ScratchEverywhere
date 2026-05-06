@@ -35,12 +35,12 @@ static void exitApp() {
 }
 
 static bool initApp() {
-    TranslationManager::loadLanguage();
     Log::deleteLogFile();
     Render::debugMode = true;
     if (!OS::init()) {
         return false;
     }
+    TranslationManager::loadLanguage();
     if (!Render::Init()) {
         return false;
     }
