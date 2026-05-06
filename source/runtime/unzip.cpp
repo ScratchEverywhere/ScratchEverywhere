@@ -70,7 +70,13 @@ int Unzip::openFile(std::istream *&file) {
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
     Scratch::projectType = ProjectType::UNZIPPED;
-    if (file != nullptr && *file) return 1;
+    if (file != nullptr) {
+        if (*file) return 1;
+        else {
+            delete file;
+            file = nullptr;
+        }
+    }
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
     Scratch::projectType = ProjectType::EMBEDDED;
@@ -84,9 +90,14 @@ int Unzip::openFile(std::istream *&file) {
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
 #endif
-    if (file != nullptr && *file) {
-        Unzip::filePath = embeddedFilename;
-        return 1;
+    if (file != nullptr) {
+        if (*file) {
+            Unzip::filePath = embeddedFilename;
+            return 1;
+        } else {
+            delete file;
+            file = nullptr;
+        }
     }
     // Main menu
     Log::logWarning("No sb3 project, trying Main Menu.");
