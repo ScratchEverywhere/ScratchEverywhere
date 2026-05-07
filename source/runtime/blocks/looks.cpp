@@ -332,17 +332,6 @@ SCRATCH_BLOCK(looks, setsizeto) {
     Value size;
     if (!Scratch::getInput(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
 
-    const auto &costumeName = sprite->costumes[sprite->currentCostume].fullName;
-    auto imgFind = Scratch::costumeImages.find(costumeName);
-    if (imgFind == Scratch::costumeImages.end()) {
-        static std::set<std::string> failedCostumes;
-        if (failedCostumes.count(costumeName) == 0) {
-            Log::logWarning("Invalid Image in current costume.");
-            failedCostumes.insert(costumeName);
-        }
-        return BlockResult::CONTINUE;
-    }
-
     // hasn't been rendered yet, or fencing is disabled
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
         sprite->size = size.asDouble();
@@ -374,17 +363,6 @@ SCRATCH_BLOCK(looks, setsizeto) {
 SCRATCH_BLOCK(looks, changesizeby) {
     Value size;
     if (!Scratch::getInput(block, "CHANGE", thread, sprite, size)) return BlockResult::REPEAT;
-
-    const auto &costumeName = sprite->costumes[sprite->currentCostume].fullName;
-    auto imgFind = Scratch::costumeImages.find(costumeName);
-    if (imgFind == Scratch::costumeImages.end()) {
-        static std::set<std::string> failedCostumes;
-        if (failedCostumes.count(costumeName) == 0) {
-            Log::logWarning("Invalid Image in current costume.");
-            failedCostumes.insert(costumeName);
-        }
-        return BlockResult::CONTINUE;
-    }
 
     // hasn't been rendered yet, or fencing is disabled
     if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
