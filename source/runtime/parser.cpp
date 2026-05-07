@@ -659,7 +659,6 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
         if (Scratch::blocks.back() == newBlock) Scratch::blocks.pop_back();                                                                                                          \
         else Scratch::blocks.erase(std::remove(Scratch::blocks.begin(), Scratch::blocks.end(), newBlock), Scratch::blocks.end());                                                    \
         delete newBlock;                                                                                                                                                             \
-        Log::log("folded!");                                                                                                                                                         \
         continue;                                                                                                                                                                    \
     }
 
