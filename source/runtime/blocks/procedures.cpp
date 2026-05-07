@@ -29,6 +29,8 @@ SCRATCH_BLOCK(procedures, call) {
             return BlockResult::CONTINUE;
         }
 
+        const bool isRecursive = thread->isRecursiveProcedureCall(block->MyBlockDefinitionID);
+
         ScriptThread *newThread;
         if (!Pools::threads.empty()) {
             newThread = Pools::threads.back();
@@ -42,9 +44,17 @@ SCRATCH_BLOCK(procedures, call) {
         newThread->finished = false;
         newThread->returnValue = Value();
         newThread->MyBlocksVariablen.clear();
+
+        newThread->callStack = thread->callStack;
+        newThread->callStack.push_back(block->MyBlockDefinitionID);
+
         state->myBlockThread = newThread;
         state->completedSteps = 1;
         Scratch::resetInput(block);
+
+        if (isRecursive && !thread->withoutScreenRefresh) {
+            return BlockResult::REPEAT;
+        }
     }
 
     while ((size_t)(state->completedSteps - 1) < block->argumentIDs.size()) {
