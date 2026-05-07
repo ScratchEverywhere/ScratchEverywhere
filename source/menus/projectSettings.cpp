@@ -118,7 +118,7 @@ void ProjectSettings::init() {
 
     nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
 #if defined(__3DS__) || defined(__NDS__)
-    bottomScreenButton->text->setText(createSettingsText("ui.setting.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
+    bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
 #endif
 
     penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
