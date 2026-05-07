@@ -283,6 +283,13 @@ void Scratch::cleanupScratchProject() {
     DownloadManager::deinit();
 
     // Reset Runtime
+
+    for (auto thread : BlockExecutor::threads) {
+        thread->clear();
+        Pools::threads.push_back(thread);
+    }
+    BlockExecutor::threads.clear();
+
     std::unordered_set<BlockState *> deletedStates;
     std::unordered_set<ScriptThread *> deletedThreads;
 

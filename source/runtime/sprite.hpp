@@ -126,6 +126,8 @@ struct ScriptThread {
             }
         }
     }
+
+    ~ScriptThread() { clear(); }
 };
 
 inline void BlockState::clear() {
