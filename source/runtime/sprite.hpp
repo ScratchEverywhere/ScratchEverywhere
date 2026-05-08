@@ -2,8 +2,8 @@
 #include "value.hpp"
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <os.hpp>
 #include <string>
+#include <timer.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -75,6 +75,15 @@ struct ScriptThread {
     std::unordered_map<std::string, Value> MyBlocksVariablen;
     Value returnValue;
 
+    std::vector<Block *> callStack;
+
+    bool isRecursiveProcedureCall(Block *procedureDefinition) const {
+        for (const auto &block : callStack) {
+            if (block == procedureDefinition) return true;
+        }
+        return false;
+    }
+
     BlockState *getState(Block *block) {
         auto it = states.find(block);
         if (it != states.end()) return it->second;
@@ -112,6 +121,7 @@ struct ScriptThread {
             curr->withoutScreenRefresh = false;
             curr->returnValue = Value();
             curr->MyBlocksVariablen.clear();
+            curr->callStack.clear();
 
             for (auto &pair : curr->states) {
                 BlockState *state = pair.second;
@@ -126,6 +136,8 @@ struct ScriptThread {
             }
         }
     }
+
+    ~ScriptThread() { clear(); }
 };
 
 inline void BlockState::clear() {

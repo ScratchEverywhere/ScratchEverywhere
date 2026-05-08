@@ -4,6 +4,7 @@
 #include <SDL/SDL_rotozoom.h>
 #include <SDL/SDL_video.h>
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 #include <ostream>
 #include <render.hpp>

@@ -28,10 +28,11 @@ body:
         - Vita
         - webOS
         - PSP
-        - PS2
         - PC
         - Web
         - PS4
+        - PS2
+        - Libretro
     validations:
       required: false
   - type: textarea

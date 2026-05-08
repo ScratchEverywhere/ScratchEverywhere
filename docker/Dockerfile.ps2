@@ -1,7 +1,8 @@
 # _____     ___ ____  
 #  ____|   |    ____|   
 # |     ___|   |____
-#
+# when haces tus momos en el dockerfile: el futuro es hoy oiste viejo :v
+# but te falla al compilar: ohhh mi lente de contacto :v :v xdxdxdxdx 
 FROM ps2dev/ps2dev:latest AS main_builder
 
 RUN apk add --no-cache cmake make mpc1 mpfr4 gmp git

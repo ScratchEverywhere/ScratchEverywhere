@@ -15,7 +15,7 @@ body:
     id: scratch-project
     attributes:
       label: "Scratch Project"
-      description: If comfortable, you can provide a link to or description of the .sb3 Scratch project file to help easily pinpoint the issue.
+      description: If comfortable, you can provide a link to the .sb3 Scratch project file to help easily pinpoint the issue.
       placeholder: Link to .sb3 file, or describe how to get it.
     validations:
       required: false
@@ -30,7 +30,7 @@ body:
     id: devices
     attributes:
       label: "Device(s)"
-      description: What device(s) are you experiencing this on?. Please select at least one.
+      description: What device(s) are you experiencing this on? Ignore this field if this issue is about the runtime.
       multiple: true
       options:
         - New 3DS
@@ -42,14 +42,13 @@ body:
         - GameCube
         - Switch
         - PSP
-        - PS2
         - Vita
         - webOS
         - PC
         - Web
         - PS4
-    validations:
-      required: true
+        - PS2
+        - Libretro
   - type: textarea
     id: additional-context
     attributes:
@@ -68,4 +67,6 @@ body:
         - label: I have checked the known issues/roadmap and confirmed this is not a known limitation or planned fix.
           required: true
         - label: I have checked that I have the latest version of Scratch Everywhere!.
+          required: true
+        - label: I have confirmed that this issue has happened on real hardware and does not only occur in an emulator.
           required: true

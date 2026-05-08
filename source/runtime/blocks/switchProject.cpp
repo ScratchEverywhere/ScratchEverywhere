@@ -1,5 +1,7 @@
 #include "blockUtils.hpp"
 #include "unzip.hpp"
+#include <filesystem.hpp>
+#include <log.hpp>
 
 SCRATCH_BLOCK(sceneManager, receivedData) {
     *outValue = Scratch::dataNextProject;
@@ -26,7 +28,7 @@ SCRATCH_BLOCK(sceneManager, openSB3) {
     if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
         Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
     }
-    if (!OS::fileExists(Unzip::filePath + "/project.json"))
+    if (!FileSystem::fileExists(Unzip::filePath + "/project.json"))
         Unzip::filePath = Unzip::filePath + ".sb3";
 
     Scratch::dataNextProject = Value();
@@ -54,7 +56,7 @@ SCRATCH_BLOCK(sceneManager, openSB3withData) {
     if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
         Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
     }
-    if (!OS::fileExists(Unzip::filePath + "/project.json"))
+    if (!FileSystem::fileExists(Unzip::filePath + "/project.json"))
         Unzip::filePath = Unzip::filePath + ".sb3";
 
     Scratch::dataNextProject = arg1;

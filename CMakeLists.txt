@@ -42,7 +42,11 @@ endif()
 find_package(PkgConfig QUIET)
 
 if(NOT CMAKE_CROSSCOMPILING OR CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/pc.cmake")
+	if(LIBRETRO)
+		include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/libretro.cmake")
+	else()
+		include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/pc.cmake")
+	endif()
 elseif(NINTENDO_SWITCH)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/switch.cmake")
 elseif(PSP)
@@ -57,10 +61,10 @@ elseif(NINTENDO_GAMECUBE)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/gamecube.cmake")
 elseif(NINTENDO_WII)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/wii.cmake")
-elseif(PS2)
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/ps2.cmake")
 elseif(PS4)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/ps4.cmake")
+elseif(PS2)
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/ps2.cmake")
 elseif(NINTENDO_3DS)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/3ds.cmake")
 elseif(NINTENDO_WIIU)
@@ -98,8 +102,10 @@ cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to do
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
+option(SE_DECTALK "Use DECtalk instead for TTS." OFF)
+
 #  disable menu if a project is in RomFS
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3" OR LIBRETRO)
 	set(SE_MENU OFF)
 	set(SE_LOADSCREEN OFF)
 endif()
@@ -142,11 +148,12 @@ endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
 
-set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "3ds" "nds" "headless")
+set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "3ds" "nds" "headless" "libretro")
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${SE_WINDOWING}.cmake")
 
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
+list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "libretro")
 if(SE_AUDIO_ENGINE_DEFAULT IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
 	set(
 		SE_AUDIO_ENGINE
@@ -182,15 +189,21 @@ if(SE_MENU)
 	file(GLOB_RECURSE GFXFILES
 		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
 		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 else()
 	file(GLOB_RECURSE GFXFILES
 		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 endif()
 
 if(NOT SE_SVG)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
+endif()
+
+if(NINTENDO_DS OR NINTENDO_3DS)
+	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
 endif()
 
 foreach(file IN LISTS GFXFILES)
@@ -203,6 +216,10 @@ foreach(file IN LISTS GFXFILES)
 
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
+
+if((NINTENDO_DS OR NINTENDO_3DS) AND SE_MENU)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
+endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
@@ -235,7 +252,13 @@ endif()
 
 add_library(se-interface INTERFACE)
 if(SE_EXECUTABLE)
-	add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+	if(LIBRETRO)
+		add_library(scratch-everywhere SHARED ${SOURCE_FILES})
+		set_target_properties(scratch-everywhere PROPERTIES PREFIX "")
+		se_add_dependency(scratch-everywhere libretro)
+	else()
+		add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+	endif()
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
 	target_link_libraries(scratch-everywhere PRIVATE se-interface)
 
@@ -325,6 +348,11 @@ endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(se-interface INTERFACE ENABLE_CLOUDVARS)
 	se_add_dependency(se-interface mist++)
+endif()
+
+if(SE_DECTALK)
+	target_compile_definitions(se-interface INTERFACE ENABLE_DECTALK)
+	se_add_dependency(se-interface dtc)
 endif()
 
 if(SE_BITMAP)

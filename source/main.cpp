@@ -1,5 +1,7 @@
+#ifndef LIBRETRO
 #include "image.hpp"
-#include "os.hpp"
+#include "translation.hpp"
+#include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
@@ -29,21 +31,11 @@
 
 static void exitApp() {
     Render::deInit();
+    OS::deinit();
 }
 
 static bool initApp() {
-    Log::deleteLogFile();
-    Render::debugMode = true;
-    if (!Render::Init()) {
-        return false;
-    }
-#ifdef ENABLE_AUDIO
-    if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
-        return false;
-    }
-#endif
-    return true;
+    return Scratch::initializeRuntime();
 }
 
 bool activateMainMenu() {
@@ -146,7 +138,7 @@ int main(int argc, char **argv) {
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
                 *(bool *)userdata = true;
-                if (!OS::fileExists(OS::getScratchFolderLocation())) OS::createDirectory(OS::getScratchFolderLocation());
+                if (!OS::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();
@@ -177,3 +169,4 @@ int main(int argc, char **argv) {
     exitApp();
     return 0;
 }
+#endif

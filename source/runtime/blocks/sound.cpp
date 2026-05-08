@@ -2,6 +2,7 @@
 #include "runtime.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <sprite.hpp>
 #include <unzip.hpp>

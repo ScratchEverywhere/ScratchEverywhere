@@ -1,10 +1,10 @@
 #include "collision.hpp"
 #include "image.hpp"
 #include "math.hpp"
-#include "os.hpp"
 #include "runtime.hpp"
 #include "sprite.hpp"
 #include <cmath>
+#include <log.hpp>
 
 std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     const auto &costume = sprite->costumes[sprite->currentCostume];

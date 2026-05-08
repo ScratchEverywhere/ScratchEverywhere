@@ -10,6 +10,9 @@ function(_dep_source_dr_libs)
 		GITHUB_REPOSITORY mackron/dr_libs
 		GIT_TAG master
 		DOWNLOAD_ONLY TRUE
+		GIT_SUBMODULES_RECURSE FALSE
+		GIT_SUBMODULES ""
+		GIT_CONFIG submodule.active=none
 	)
 
 	add_library(dr_libs INTERFACE)

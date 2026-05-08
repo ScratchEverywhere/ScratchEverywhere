@@ -2,6 +2,7 @@
 #include "audiostack.hpp"
 #include "os.hpp"
 #include <SDL/SDL.h>
+#include <log.hpp>
 #include <vector>
 
 extern "C" void SDLCALL callback(void *ptr, Uint8 *stream, int len) {

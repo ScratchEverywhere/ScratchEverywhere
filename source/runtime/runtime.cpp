@@ -6,6 +6,7 @@
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
 #include "sprite.hpp"
+#include "translation.hpp"
 #include "unzip.hpp"
 #include <audio.hpp>
 #include <cmath>
@@ -14,6 +15,7 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
+#include <log.hpp>
 #include <math.h>
 #include <os.hpp>
 #include <render.hpp>
@@ -33,6 +35,10 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
+
+#if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#include <epsonapi.h>
 #endif
 
 std::vector<Block *> Scratch::blocks;
@@ -80,6 +86,29 @@ bool Scratch::useCustomUsername = false;
 std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
+
+bool Scratch::initializeRuntime() {
+    Log::deleteLogFile();
+    Render::debugMode = true;
+
+    if (!OS::init()) {
+        return false;
+    }
+    TranslationManager::loadLanguage();
+    if (!Render::Init()) {
+        return false;
+    }
+#ifdef ENABLE_AUDIO
+#ifdef ENABLE_DECTALK
+    TextToSpeechSafeInit();
+#endif
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+        return false;
+    }
+#endif
+    return true;
+}
 
 void Scratch::initializeScratchProject() {
     Parser::loadUsernameFromSettings();
@@ -199,7 +228,7 @@ bool Scratch::startScratchProject() {
 #ifdef ENABLE_MENU
 
     if (hasNativeExtensions) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, "Warning! This project contains Native Extensions. Native Extensions have full access to your device.");
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
         MenuManager::changeMenu(popupMenu);
         while (Render::appShouldRun() && popupMenu->accepted == -1) {
             MenuManager::render();
@@ -254,6 +283,13 @@ void Scratch::cleanupScratchProject() {
     DownloadManager::deinit();
 
     // Reset Runtime
+
+    for (auto thread : BlockExecutor::threads) {
+        thread->clear();
+        Pools::threads.push_back(thread);
+    }
+    BlockExecutor::threads.clear();
+
     std::unordered_set<BlockState *> deletedStates;
     std::unordered_set<ScriptThread *> deletedThreads;
 

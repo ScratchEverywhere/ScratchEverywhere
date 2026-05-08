@@ -1,4 +1,5 @@
 #include "render.hpp"
+#include <log.hpp>
 
 std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;

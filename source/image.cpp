@@ -5,14 +5,8 @@
 #include <string_view>
 #include <unzip.hpp>
 #ifdef ENABLE_BITMAP
-#if defined(__WIIU__)
+#ifdef __WIIU__
 #define STBI_NO_THREAD_LOCALS
-#elif defined(__PS2__)
-#define STBI_NO_THREAD_LOCALS
-#define STBI_NO_HDR
-#define STBI_NO_LINEAR
-#define STBI_NO_PIC
-#define STBI_NO_PNM
 #endif
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -168,7 +162,9 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
 #ifdef USE_CMAKERC
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
-        auto file = cmrc::romfs::get_filesystem().open(filePath);
+        auto fs = cmrc::romfs::get_filesystem();
+        if (!fs.exists(filePath)) return nonstd::make_unexpected("File not found: " + filePath);
+        auto file = fs.open(filePath);
         std::vector<unsigned char> buffer(file.size() + 1);
         std::copy(file.begin(), file.end(), buffer.begin());
         buffer[file.size()] = '\0';
@@ -198,6 +194,35 @@ nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffe
     fclose(file);
     return buffer;
 }
+
+#ifdef ENABLE_SVG
+inline void reorderPixels(unsigned char *src, unsigned char *dst, const size_t pixelsSize) {
+    for (size_t i = 0; i < pixelsSize; i += 4) {
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+        unsigned char a = src[i + 0];
+        unsigned char r = src[i + 1];
+        unsigned char g = src[i + 2];
+        unsigned char b = src[i + 3];
+#else
+        unsigned char b = src[i + 0];
+        unsigned char g = src[i + 1];
+        unsigned char r = src[i + 2];
+        unsigned char a = src[i + 3];
+#endif
+        // LunaSVG multiplies the colors when there's alpha present, so we gotta un-mulitply it
+        if (a > 0 && a < 255) {
+            r = (unsigned char)((r * 255) / a);
+            g = (unsigned char)((g * 255) / a);
+            b = (unsigned char)((b * 255) / a);
+        }
+
+        dst[i + 0] = r;
+        dst[i + 1] = g;
+        dst[i + 2] = b;
+        dst[i + 3] = a;
+    }
+}
+#endif
 
 nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
 #ifdef ENABLE_SVG
@@ -247,19 +272,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
     if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
 
-    for (size_t i = 0; i < pixelsSize; i += 4) {
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-        dst[i + 0] = src[i + 1];
-        dst[i + 1] = src[i + 2];
-        dst[i + 2] = src[i + 3];
-        dst[i + 3] = src[i + 0];
-#else
-        dst[i + 0] = src[i + 2];
-        dst[i + 1] = src[i + 1];
-        dst[i + 2] = src[i + 0];
-        dst[i + 3] = src[i + 3];
-#endif
-    }
+    reorderPixels(src, dst, pixelsSize);
 
     imgData.pitch = width * 4;
 
@@ -310,19 +323,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
     unsigned char *dst = (unsigned char *)malloc(pixelsSize);
     if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
 
-    for (size_t i = 0; i < pixelsSize; i += 4) {
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-        dst[i + 0] = src[i + 1];
-        dst[i + 1] = src[i + 2];
-        dst[i + 2] = src[i + 3];
-        dst[i + 3] = src[i + 0];
-#else
-        dst[i + 0] = src[i + 2];
-        dst[i + 1] = src[i + 1];
-        dst[i + 2] = src[i + 0];
-        dst[i + 3] = src[i + 3];
-#endif
-    }
+    reorderPixels(src, dst, pixelsSize);
 
     if (imgData.pixels != nullptr) free(imgData.pixels);
 
