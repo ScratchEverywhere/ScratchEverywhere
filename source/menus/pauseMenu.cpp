@@ -50,6 +50,7 @@ void PauseMenu::init() {
 
     stopButton->buttonDown = turboButton;
     turboButton->buttonUp = stopButton;
+    isInitialized = true;
 }
 
 void PauseMenu::render() {
@@ -122,4 +123,5 @@ void PauseMenu::cleanup() {
     }
     Render::beginFrame(0, 0, 0, 0);
     Render::beginFrame(1, 0, 0, 0);
+    isInitialized = false;
 }
