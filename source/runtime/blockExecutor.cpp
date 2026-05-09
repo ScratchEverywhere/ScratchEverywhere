@@ -55,41 +55,6 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
             }
         }
     }
-
-    for (auto &[id, monitor] : Render::monitors) {
-        if (monitor.opcode == "data_variable") {
-            auto it = sprite->variables.find(monitor.id);
-            if (it != sprite->variables.end()) {
-                monitor.variablePtr = &it->second;
-                continue;
-            }
-
-            auto globalIt = Scratch::stageSprite->variables.find(monitor.id);
-            if (globalIt != Scratch::stageSprite->variables.end()) {
-                monitor.variablePtr = &globalIt->second;
-                continue;
-            }
-
-            monitor.variablePtr = nullptr;
-            continue;
-        }
-        if (monitor.opcode == "data_listcontents") {
-            auto it = sprite->lists.find(monitor.id);
-            if (it != sprite->lists.end()) {
-                monitor.listPtr = &it->second;
-                continue;
-            }
-
-            auto globalIt = Scratch::stageSprite->lists.find(monitor.id);
-            if (globalIt != Scratch::stageSprite->lists.end()) {
-                monitor.listPtr = &globalIt->second;
-                continue;
-            }
-
-            monitor.variablePtr = nullptr;
-            continue;
-        }
-    }
 }
 #endif
 
@@ -332,44 +297,24 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
             }
 
             if (var.opcode == "data_variable") {
-#ifdef ENABLE_CACHING
-                if (var.variablePtr != nullptr) var.value = var.variablePtr->value;
-                else var.value = BlockExecutor::getVariableValue(var.id, sprite);
-#else
                 var.value = BlockExecutor::getVariableValue(var.id, sprite);
-#endif
 
                 var.displayName = Math::removeQuotations(var.parameters["VARIABLE"]);
                 if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
             } else if (var.opcode == "data_listcontents") {
                 var.displayName = Math::removeQuotations(var.parameters["LIST"]);
                 if (!sprite->isStage) var.displayName = sprite->name + ": " + var.displayName;
-
-#ifdef ENABLE_CACHING
-                if (var.listPtr != nullptr) {
-                    var.list = var.listPtr->items;
-                } else {
-#endif
-                    // Check lists
-                    auto listIt = sprite->lists.find(var.id);
-                    if (listIt != sprite->lists.end()) {
-                        var.list = listIt->second.items;
-#ifdef ENABLE_CACHING
-                        var.listPtr = &listIt->second;
-#endif
-                    }
-
-                    // Check global lists
-                    auto globalIt = Scratch::stageSprite->lists.find(var.id);
-                    if (globalIt != Scratch::stageSprite->lists.end()) {
-                        var.list = globalIt->second.items;
-#ifdef ENABLE_CACHING
-                        var.listPtr = &globalIt->second;
-#endif
-                    }
-#ifdef ENABLE_CACHING
+                // Check lists
+                auto listIt = sprite->lists.find(var.id);
+                if (listIt != sprite->lists.end()) {
+                    var.list = listIt->second.items;
                 }
-#endif
+
+                // Check global lists
+                auto globalIt = Scratch::stageSprite->lists.find(var.id);
+                if (globalIt != Scratch::stageSprite->lists.end()) {
+                    var.list = globalIt->second.items;
+                }
             } else {
                 Block newBlock;
                 newBlock.opcode = var.opcode;
