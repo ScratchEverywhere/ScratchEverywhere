@@ -1,14 +1,15 @@
 #include <log.hpp>
 #include <os.hpp>
 
-#include <direct.h>
 #if defined(_WIN32) || defined(_WIN64)
+#include <direct.h>
 #include <io.h>
 #include <lmcons.h>
 #include <shlobj.h>
 #include <shlwapi.h>
 #include <windows.h>
 #else
+#include <dirent.h>
 #include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
