@@ -123,7 +123,7 @@ std::string OS::getUsername() {
         user.GetUserName(&username);
         return std::string(username.String());
     }
-#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) (defined(__sun) && defined(__SVR4))
+#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
     uid_t uid = geteuid();
     struct passwd *pw = getpwuid(uid);
     if (pw) return std::string(pw->pw_name);
