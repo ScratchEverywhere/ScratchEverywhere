@@ -395,6 +395,7 @@ target_link_libraries(se-interface INTERFACE ryuJS)
 se_add_dependency(se-interface nlohmann_json)
 se_add_dependency(se-interface miniz)
 se_add_dependency(se-interface expected-lite)
+se_add_dependency(se-interface __getexecname)
 
 if(SE_SVG)
 	se_add_dependency(se-interface lunasvg)
