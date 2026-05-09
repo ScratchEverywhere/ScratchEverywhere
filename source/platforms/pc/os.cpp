@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #endif
+#include <__getexecname/internal.h>
 
 namespace OS {
 bool toExit = false;
@@ -85,7 +86,23 @@ std::string OS::getScratchFolderLocation() {
     const std::string custom = getCustomScratchFolderLocation();
     if (!custom.empty()) return custom;
 
+    const char *execname = __getexecname();
+    if (execname) {
+        std::string execpath = execname;
+        size_t pos = execpath.find_last_of("/\\");
+        if (pos != std::string::npos) {
+#if defined(_WIN32) || defined(_WIN64)
+            return execpath.substr(0, pos + 1) + "scratch-everywhere\\";
+#else
+            return execpath.substr(0, pos + 1) + "scratch-everywhere/";
+#endif
+        }
+    }
+#if defined(_WIN32) || defined(_WIN64)
+    return "scratch-everywhere\\";
+#else
     return "scratch-everywhere/";
+#endif
 }
 
 std::string OS::getRomFSLocation() {
