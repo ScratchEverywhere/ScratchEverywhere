@@ -95,25 +95,40 @@ void BlockExecutor::linkPointers(Sprite *sprite) {
 
 ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block, bool shouldRestart) {
     static uint64_t id = 0;
-    for (auto thread : threads) {
-        if (thread->blockHat == block && sprite == thread->sprite) {
-            if (shouldRestart) thread->finished = true;
-            else return nullptr;
+
+    size_t restartThreadIndex = -1;
+    for (size_t i = 0; i < threads.size(); i++) {
+        if (threads[i]->blockHat == block && sprite == threads[i]->sprite) {
+            if (shouldRestart) {
+                restartThreadIndex = i;
+                break;
+            } else return nullptr;
         }
     }
 
     ScriptThread *newThread = nullptr;
+
     if (Pools::threads.empty()) newThread = new ScriptThread();
     else {
         newThread = Pools::threads.back();
         Pools::threads.pop_back();
     }
+
     newThread->blockHat = block;
     newThread->nextBlock = block;
     newThread->finished = false;
     newThread->id = ++id;
     newThread->sprite = sprite;
-    threads.push_back(newThread);
+
+    if (restartThreadIndex == -1) {
+        threads.push_back(newThread);
+    } else {
+        auto &originalThread = threads[restartThreadIndex];
+        originalThread->clear();
+        Pools::threads.push_back(originalThread);
+        threads[restartThreadIndex] = newThread;
+    }
+
     return newThread;
 }
 
