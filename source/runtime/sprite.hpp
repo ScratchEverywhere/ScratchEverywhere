@@ -278,13 +278,6 @@ struct Monitor {
     double sliderMin;
     double sliderMax;
     bool isDiscrete;
-
-#ifdef ENABLE_CACHING
-    union {
-        Variable *variablePtr = nullptr;
-        List *listPtr;
-    };
-#endif
 };
 
 class Sprite {
