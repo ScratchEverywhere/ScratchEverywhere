@@ -3,7 +3,6 @@
 #include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
 #include <SDL2/SDL.h>
-#include <SDL2_gfxPrimitives.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <cmath>
@@ -201,7 +200,7 @@ bool Render::initPen() {
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    Uint8 alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
     int penWidth = 640;
     int penHeight = 480;
@@ -220,35 +219,35 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     const double length = sqrt(dx * dx + dy * dy);
     const double drawWidth = (sprite->penData.size / 2.0f) * scale;
 
-    if (length > 0) {
-        float nx = static_cast<float>((-dy / length) * drawWidth);
-        float ny = static_cast<float>((dx / length) * drawWidth);
+    if (length <= 0) return;
 
-        SDL_Color sdlColor = {
-            static_cast<Uint8>(rgbColor.r),
-            static_cast<Uint8>(rgbColor.g),
-            static_cast<Uint8>(rgbColor.b),
-            static_cast<Uint8>(alpha)};
+    const float nx = static_cast<float>((-dy / length) * drawWidth);
+    const float ny = static_cast<float>((dx / length) * drawWidth);
 
-        SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}}; // top left
-        SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom left
-        SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}}; // top right
-        SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom right
+    const SDL_Color sdlColor = {
+        static_cast<Uint8>(rgbColor.r),
+        static_cast<Uint8>(rgbColor.g),
+        static_cast<Uint8>(rgbColor.b),
+        static_cast<Uint8>(alpha)};
 
-        // squarey
-        penVerts.push_back(v0);
-        penVerts.push_back(v1);
-        penVerts.push_back(v2);
+    const SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}}; // top left
+    const SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom left
+    const SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}}; // top right
+    const SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom right
 
-        penVerts.push_back(v1);
-        penVerts.push_back(v3);
-        penVerts.push_back(v2);
-    }
+    // squarey
+    penVerts.push_back(v0);
+    penVerts.push_back(v1);
+    penVerts.push_back(v2);
+
+    penVerts.push_back(v1);
+    penVerts.push_back(v3);
+    penVerts.push_back(v2);
 }
 
 void Render::penDotFast(Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    Uint8 alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
     int penWidth = 640;
     int penHeight = 480;
@@ -261,16 +260,16 @@ void Render::penDotFast(Sprite *sprite) {
 
     const float halfSize = static_cast<float>((sprite->penData.size / 2.0f) * scale);
 
-    SDL_Color sdlColor = {
+    const SDL_Color sdlColor = {
         static_cast<Uint8>(rgbColor.r),
         static_cast<Uint8>(rgbColor.g),
         static_cast<Uint8>(rgbColor.b),
         alpha};
 
-    SDL_Vertex v0 = {{sx - halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top left
-    SDL_Vertex v1 = {{sx - halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom left
-    SDL_Vertex v2 = {{sx + halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top right
-    SDL_Vertex v3 = {{sx + halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom right
+    const SDL_Vertex v0 = {{sx - halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top left
+    const SDL_Vertex v1 = {{sx - halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom left
+    const SDL_Vertex v2 = {{sx + halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top right
+    const SDL_Vertex v3 = {{sx + halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom right
 
     // squarey
     penVerts.push_back(v0);
@@ -284,75 +283,125 @@ void Render::penDotFast(Sprite *sprite) {
 
 void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
     int penWidth = 640;
     int penHeight = 480;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
-    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
-    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
-    SDL_SetRenderTarget(renderer, tempTexture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
-
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const double dx = x2 * scale - x1 * scale;
-    const double dy = y2 * scale - y1 * scale;
+    const float sx1 = static_cast<float>(x1 * scale + penWidth / 2.0);
+    const float sy1 = static_cast<float>(-y1 * scale + penHeight / 2.0);
+    const float sx2 = static_cast<float>(x2 * scale + penWidth / 2.0);
+    const float sy2 = static_cast<float>(-y2 * scale + penHeight / 2.0);
+
+    const double dx = sx2 - sx1;
+    const double dy = sy2 - sy1;
 
     const double length = sqrt(dx * dx + dy * dy);
     const double drawWidth = (sprite->penData.size / 2.0f) * scale;
 
+    const SDL_Color sdlColor = {
+        static_cast<uint8_t>(rgbColor.r),
+        static_cast<uint8_t>(rgbColor.g),
+        static_cast<uint8_t>(rgbColor.b),
+        static_cast<uint8_t>(alpha)};
+
     if (length > 0) {
-        const double nx = dx / length;
-        const double ny = dy / length;
+        const float nx = static_cast<float>((-dy / length) * drawWidth);
+        const float ny = static_cast<float>((dx / length) * drawWidth);
 
-        int16_t vx[4], vy[4];
-        vx[0] = static_cast<int16_t>(x1 * scale + penWidth / 2.0f - ny * drawWidth);
-        vy[0] = static_cast<int16_t>(-y1 * scale + penHeight / 2.0f + nx * drawWidth);
-        vx[1] = static_cast<int16_t>(x1 * scale + penWidth / 2.0f + ny * drawWidth);
-        vy[1] = static_cast<int16_t>(-y1 * scale + penHeight / 2.0f - nx * drawWidth);
-        vx[2] = static_cast<int16_t>(x2 * scale + penWidth / 2.0f + ny * drawWidth);
-        vy[2] = static_cast<int16_t>(-y2 * scale + penHeight / 2.0f - nx * drawWidth);
-        vx[3] = static_cast<int16_t>(x2 * scale + penWidth / 2.0 - ny * drawWidth);
-        vy[3] = static_cast<int16_t>(-y2 * scale + penHeight / 2.0f + nx * drawWidth);
+        const SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}};
 
-        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+        penVerts.push_back(v0);
+        penVerts.push_back(v1);
+        penVerts.push_back(v2);
+
+        penVerts.push_back(v1);
+        penVerts.push_back(v3);
+        penVerts.push_back(v2);
     }
 
-    filledCircleRGBA(renderer, x1 * scale + penWidth / 2.0f, -y1 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
-    filledCircleRGBA(renderer, x2 * scale + penWidth / 2.0f, -y2 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    constexpr unsigned int circleSegments = 8;
+    const double angleStep = 2.0 * M_PI / circleSegments;
 
-    SDL_SetRenderTarget(renderer, penTexture);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_RenderCopy(renderer, tempTexture, NULL, NULL);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderTarget(renderer, nullptr);
-    SDL_DestroyTexture(tempTexture);
+    for (int i = 0; i < circleSegments; ++i) {
+        const double angle1 = i * angleStep;
+        const double angle2 = (i + 1) * angleStep;
+
+        float x1_c = sx1 + static_cast<float>(cos(angle1) * drawWidth);
+        float y1_c = sy1 + static_cast<float>(sin(angle1) * drawWidth);
+        float x2_c = sx1 + static_cast<float>(cos(angle2) * drawWidth);
+        float y2_c = sy1 + static_cast<float>(sin(angle2) * drawWidth);
+
+        const SDL_Vertex cv0 = {{sx1, sy1}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex cv1 = {{x1_c, y1_c}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex cv2 = {{x2_c, y2_c}, sdlColor, {0.0f, 0.0f}};
+
+        penVerts.push_back(cv0);
+        penVerts.push_back(cv1);
+        penVerts.push_back(cv2);
+
+        x1_c = sx2 + static_cast<float>(cos(angle1) * drawWidth);
+        y1_c = sy2 + static_cast<float>(sin(angle1) * drawWidth);
+        x2_c = sx2 + static_cast<float>(cos(angle2) * drawWidth);
+        y2_c = sy2 + static_cast<float>(sin(angle2) * drawWidth);
+
+        const SDL_Vertex cv3 = {{sx2, sy2}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex cv4 = {{x1_c, y1_c}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex cv5 = {{x2_c, y2_c}, sdlColor, {0.0f, 0.0f}};
+
+        penVerts.push_back(cv3);
+        penVerts.push_back(cv4);
+        penVerts.push_back(cv5);
+    }
 }
 
 void Render::penDotAccurate(Sprite *sprite) {
-    int penWidth;
-    int penHeight;
-    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    const uint8_t alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
 
-    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
-    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
-    SDL_SetRenderTarget(renderer, tempTexture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
+    int penWidth = 640;
+    int penHeight = 480;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    filledCircleRGBA(renderer, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const float sx = static_cast<float>(sprite->xPosition * scale + penWidth / 2.0);
+    const float sy = static_cast<float>(-sprite->yPosition * scale + penHeight / 2.0);
 
-    SDL_SetRenderTarget(renderer, penTexture);
-    SDL_RenderCopy(renderer, tempTexture, NULL, NULL);
-    SDL_SetRenderTarget(renderer, nullptr);
-    SDL_DestroyTexture(tempTexture);
+    const float radius = static_cast<float>((sprite->penData.size / 2.0f) * scale);
+
+    const SDL_Color sdlColor = {
+        static_cast<uint8_t>(rgbColor.r),
+        static_cast<uint8_t>(rgbColor.g),
+        static_cast<uint8_t>(rgbColor.b),
+        static_cast<uint8_t>(alpha)};
+
+    constexpr unsigned int circleSegments = 16;
+    const double angleStep = 2.0 * M_PI / circleSegments;
+
+    for (int i = 0; i < circleSegments; ++i) {
+        const double angle1 = i * angleStep;
+        const double angle2 = (i + 1) * angleStep;
+
+        const float x1 = sx + static_cast<float>(cos(angle1) * radius);
+        const float y1 = sy + static_cast<float>(sin(angle1) * radius);
+        const float x2 = sx + static_cast<float>(cos(angle2) * radius);
+        const float y2 = sy + static_cast<float>(sin(angle2) * radius);
+
+        const SDL_Vertex v0 = {{sx, sy}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v1 = {{x1, y1}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v2 = {{x2, y2}, sdlColor, {0.0f, 0.0f}};
+
+        penVerts.push_back(v0);
+        penVerts.push_back(v1);
+        penVerts.push_back(v2);
+    }
 }
 
 void Render::penStamp(Sprite *sprite) {
@@ -541,7 +590,6 @@ void Render::renderSprites() {
 }
 
 void Render::renderPenLayer() {
-
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(renderer, penTexture);
 
