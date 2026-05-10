@@ -70,11 +70,6 @@ bool Scratch::accurateCollision = true;
 bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
 bool Scratch::warpTimer = true;
-#ifdef DECTALK_DEFAULT
-bool Scratch::useDectalk = true;
-#else
-bool Scratch::useDectalk = false;
-#endif
 
 Timer Scratch::fpsTimer(false);
 

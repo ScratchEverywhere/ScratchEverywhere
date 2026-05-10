@@ -82,7 +82,6 @@ class Scratch {
     static bool shouldStop;
     static bool forceRedraw;
     static bool warpTimer;
-    static bool useDectalk;
 
 #if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
     constexpr static bool bitmapHalfQuality = true;

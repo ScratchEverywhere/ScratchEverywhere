@@ -13,6 +13,10 @@ SettingsMenu::~SettingsMenu() {
     cleanup();
 }
 
+std::string SettingsMenu::getDectalkString() {
+    return TranslationManager::getTranslation("ui.pause.dectalk") + ": " + TranslationManager::getTranslation(UseDectalk ? "ui.settings.on" : "ui.settings.off");
+}
+
 void SettingsMenu::init() {
     settingsControl = new ControlObject();
 
@@ -51,6 +55,15 @@ void SettingsMenu::init() {
 
     nlohmann::json json = SettingsManager::getConfigSettings();
 
+    if (json.contains("UseDectalk") && json["UseDectalk"].is_boolean()) {
+        UseDectalk = json["UseDectalk"].get<bool>();
+    }
+
+#ifdef ENABLE_DECTALK
+    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
+    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
+#endif
+
     if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
         UseCostumeUsername = json["EnableUsername"].get<bool>();
     }
@@ -88,6 +101,9 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(EnableUsername);
     settingsControl->buttonObjects.push_back(ClearCache);
     settingsControl->buttonObjects.push_back(Language);
+#ifdef ENABLE_DECTALK
+    settingsControl->buttonObjects.push_back(dectalkButton);
+#endif
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -106,6 +122,10 @@ void SettingsMenu::updateButtonStates() {
     ClearCache->buttonDown = Language;
     Language->buttonUp = ClearCache;
     Language->buttonDown = EnableUsername;
+#ifdef ENABLE_DECTALK
+    Language->buttonDown = dectalkButton;
+    dectalkButton->buttonUp = Language;
+#endif
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
@@ -215,6 +235,14 @@ void SettingsMenu::render() {
         updateButtonStates();
     }
 
+#ifdef ENABLE_DECTALK
+    if (dectalkButton->isPressed({"a"})) {
+        UseDectalk = !UseDectalk;
+        dectalkButton->text->setText(getDectalkString());
+        return;
+    }
+#endif
+
     backButton->render();
     settingsControl->render();
     Render::endFrame();
@@ -261,6 +289,10 @@ void SettingsMenu::cleanup() {
         delete settingsControl;
         settingsControl = nullptr;
     }
+    if (dectalkButton != nullptr) {
+        delete dectalkButton;
+        dectalkButton = nullptr;
+    }
 
     // save settings
     nlohmann::json json;
@@ -270,6 +302,7 @@ void SettingsMenu::cleanup() {
     json["ProjectsPath"] = projectsPath;
     json["MenuMusic"] = menuMusic;
     json["Language"] = TranslationManager::getLoadedLanguage().key;
+    json["UseDectalk"] = UseDectalk;
     SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;

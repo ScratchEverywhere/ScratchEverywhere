@@ -5,6 +5,7 @@
 #include "math.hpp"
 #include "os.hpp"
 #include "runtime.hpp"
+#include "settings.hpp"
 #include "sprite.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
@@ -99,7 +100,13 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 #endif
 
 #ifdef ENABLE_DECTALK
-    if (forceDectalk || Scratch::useDectalk) {
+    if (forceDectalk || SettingsManager::getConfigSettings().value("UseDectalk",
+#ifdef DECTALK_DEFAULT
+                                                                   true
+#else
+                                                                   false
+#endif
+                                                                   )) {
 #define STREAM SoundStream *strm = new SoundStream("dtc:" + name, dtc_callback, 1, 11025)
 
         BlockState *state = thread->getState(block);
