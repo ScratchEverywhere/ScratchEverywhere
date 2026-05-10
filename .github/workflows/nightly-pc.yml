@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   linux-sdl1:
     name: Linux x86_64 SDL1
     runs-on: ubuntu-latest
@@ -94,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux SDL1 Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   linux-headless:
     name: Linux x86_64 Headless
     runs-on: ubuntu-latest
@@ -122,7 +122,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux Headless Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   linux-opengl:
     name: Linux x86_64 OpenGL
     runs-on: ubuntu-latest
@@ -151,7 +151,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux OpenGL Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   windows:
     name: Windows x86_64
     runs-on: ubuntu-latest
@@ -175,7 +175,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Windows Nightly
-          path: scratch-everywhere.exe
+          path: scratch-pc.exe
   macos-intel:
     name: macOS x86_64
     runs-on: ubuntu-latest
@@ -199,7 +199,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   macos-arm:
     name: macOS ARM64
     runs-on: ubuntu-latest
@@ -224,7 +224,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   macos-universal:
     name: macOS Universal
     if: github.event_name != 'pull_request'
@@ -246,10 +246,10 @@ jobs:
           curl -L -o lipo https://github.com/konoui/lipo/releases/download/v0.9.4/lipo_linux_amd64
           chmod +x lipo
       - name: Create Universal Binary
-        run: ./lipo -output scratch-everywhere -create arm-build/scratch-everywhere intel-build/scratch-everywhere
+        run: ./lipo -output scratch-pc -create arm-build/scratch-pc intel-build/scratch-pc
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS Universal Nightly
-          path: scratch-everywhere
+          path: scratch-pc
