@@ -31,7 +31,7 @@ class SettingsMenu : public Menu {
 #ifdef DECTALK_DEFAULT
     bool UseDectalk = true;
 #else
-    bool useDectalk = false;
+    bool UseDectalk = false;
 #endif
 
     SettingsMenu();
