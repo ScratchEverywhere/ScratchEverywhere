@@ -1,4 +1,4 @@
-set(SE_DEFAULT_OUTPUT_NAME "scratch-everywhere")
+set(SE_DEFAULT_OUTPUT_NAME "scratch-pc")
 
 set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2" "sdl3" "opengl")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
