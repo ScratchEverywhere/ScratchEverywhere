@@ -38,6 +38,7 @@
 #endif
 
 #if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#define DT_EXTERN
 #include <epsonapi.h>
 #endif
 

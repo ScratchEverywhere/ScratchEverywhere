@@ -109,12 +109,13 @@ void PauseMenu::render() {
         turboButton->text->setText(getTurboString());
         return;
     }
-
+#ifdef ENABLE_DECTALK
     if (dectalkButton->isPressed()) {
         Scratch::useDectalk = !Scratch::useDectalk;
         dectalkButton->text->setText(getDectalkString());
         return;
     }
+#endif
 
     Render::beginFrame(0, 50, 77, 83);
     Render::beginFrame(1, 50, 77, 83);
