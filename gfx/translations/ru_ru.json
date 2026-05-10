@@ -29,6 +29,7 @@
   "ui.pause.flag": "Нажать на флажок",
   "ui.pause.stop": "Нажать на стоп",
   "ui.pause.turbo": "Турбо режим",
+  "ui.pause.dectalk": "Использ. DECtalk",
   "ui.loading.images": "Загрузка картинок...",
   "ui.loading.opening": "Проект открывается...",
   "ui.loading.unzipping": "Проект распаковывается...",
