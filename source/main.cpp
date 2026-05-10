@@ -27,6 +27,7 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>
+#include <filesystem.hpp>
 #endif
 
 static void exitApp() {
@@ -122,7 +123,7 @@ int main(int argc, char **argv) {
 
 #if defined(__EMSCRIPTEN__)
     if (argc > 1) {
-        while (!OS::fileExists("/romfs/project.sb3")) {
+        while (!FileSystem::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
                 exit(0);
@@ -138,7 +139,7 @@ int main(int argc, char **argv) {
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
                 *(bool *)userdata = true;
-                if (!OS::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
+                if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();
