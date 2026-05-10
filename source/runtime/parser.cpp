@@ -586,9 +586,13 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
 #endif
 
     auto accuratePen = Unzip::getSetting("accuratePen");
-    if (!accuratePen.is_null() && accuratePen.get<bool>())
-        Scratch::accuratePen = true;
+    if (!accuratePen.is_null())
+        Scratch::accuratePen = accuratePen.get<bool>();
+#ifdef RENDERER_SDL2
+    else Scratch::accuratePen = true;
+#else
     else Scratch::accuratePen = false;
+#endif
 
     auto accurateCollision = Unzip::getSetting("accurateCollision");
     if (accurateCollision.is_null()) {
