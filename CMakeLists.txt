@@ -99,7 +99,10 @@ cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUD
 cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
-option(SE_DECTALK_DEFAULT "Make DECtalk default TTS." OFF)
+
+if(NOT DEFINED SE_DECTALK_DEFAULT)
+	set(SE_DECTALK_DEFAULT OFF)
+endif()
 if(SE_DECTALK_DEFAULT)
 	option(SE_DECTALK "Build DECtalk for TTS." ON)
 else()
