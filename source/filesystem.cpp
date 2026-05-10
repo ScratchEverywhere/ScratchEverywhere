@@ -14,6 +14,8 @@
 #elif defined(__HAIKU__)
 #include <FindDirectory.h>
 #include <Path.h>
+#elif defined(__libdragon__) || defined(N64)
+#include <unistd.h>
 #else
 #include <dirent.h>
 #include <pwd.h>
@@ -71,6 +73,9 @@ nonstd::expected<void, std::string> FileSystem::removeDirectory(const std::strin
     if (SHFileOperationW(&options) != 0) {
         return nonstd::make_unexpected("Directory removal failed, " + path + ", " + std::to_string(errno));
     }
+#elif defined(__libdragon__) || defined(N64)
+    /* N64 lacks dirent support, stub for now. */
+    return {};
 #else
     DIR *dir = opendir(path.c_str());
     if (dir == nullptr) {

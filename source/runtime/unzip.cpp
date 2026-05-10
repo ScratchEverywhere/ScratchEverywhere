@@ -22,6 +22,8 @@
 #ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
+#elif defined(__libdragon__) || defined(N64)
+#include <unistd.h>
 #else
 #include <dirent.h>
 #endif
@@ -267,6 +269,9 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
     } while (FindNextFileW(hfind, &find_data));
 
     FindClose(hfind);
+#elif defined(__libdragon__) || defined(N64)
+    /* N64 lacks dirent support, stub for now. */
+    return {};
 #else
     DIR *dir = opendir(directory.c_str());
     if (!dir) {
