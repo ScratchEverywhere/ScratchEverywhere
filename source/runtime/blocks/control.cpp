@@ -80,6 +80,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     spriteToClone->rotationStyle = original->rotationStyle;
     spriteToClone->spriteWidth = original->spriteWidth;
     spriteToClone->spriteHeight = original->spriteHeight;
+    spriteToClone->instrument = original->instrument;
     spriteToClone->ghostEffect = original->ghostEffect;
     spriteToClone->brightnessEffect = original->brightnessEffect;
     spriteToClone->colorEffect = original->colorEffect;

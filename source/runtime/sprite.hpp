@@ -298,6 +298,9 @@ class Sprite {
     int layer;
     RenderInfo renderInfo;
 
+    /** Music **/
+    std::string instrument = "1";
+
     /** Costume effects */
     float ghostEffect;
     float brightnessEffect;

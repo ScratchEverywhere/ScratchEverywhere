@@ -1,6 +1,7 @@
 #include "nonstd/expected.hpp"
 #define DR_MP3_IMPLEMENTATION
 #define DR_WAV_IMPLEMENTATION
+#define TSF_IMPLEMENTATION
 #include "audiostack.hpp"
 #include "os.hpp"
 #include "runtime.hpp"
@@ -288,6 +289,39 @@ int SoundStream::read(float *output, int frames) {
 std::unordered_map<std::string, SoundStream *> Mixer::streams;
 std::unordered_map<std::string, SoundConfig> Mixer::configs;
 SE_Mutex Mixer::mutex;
+#ifdef ENABLE_AUDIO
+tsf *Mixer::hTsf = nullptr;
+#endif
+void *Mixer::sf2_buffer = nullptr;
+
+void Mixer::init() {
+#ifdef ENABLE_AUDIO
+    std::string prefix = OS::getRomFSLocation();
+    std::string path = prefix + "gfx/ingame/FluidR3_GS.sf2";
+    std::ifstream ifs(path, std::ios::binary);
+    size_t size;
+
+    ifs.seekg(0, std::ios::end);
+    size = ifs.tellg();
+    ifs.seekg(0);
+
+    if (ifs.good()) {
+        Mixer::sf2_buffer = malloc(size);
+
+        ifs.read((char *)Mixer::sf2_buffer, size);
+
+        ifs.close();
+    }
+
+    if (Mixer::sf2_buffer) {
+        Mixer::hTsf = tsf_load_memory(Mixer::sf2_buffer, size);
+    }
+
+    if (Mixer::hTsf) {
+        tsf_set_output(Mixer::hTsf, TSF_STEREO_INTERLEAVED, Mixer::rate, 0);
+    }
+#endif
+}
 
 void Mixer::requestSound(short *output, int frames) {
 #ifdef ENABLE_AUDIO
@@ -295,6 +329,10 @@ void Mixer::requestSound(short *output, int frames) {
     std::vector<float> mixBuffer(frames * channels_out, 0.0f);
 
     Mixer::mutex.lock();
+
+    if (Mixer::hTsf) {
+        tsf_render_float(Mixer::hTsf, mixBuffer.data(), frames, 0);
+    }
 
     for (auto &entry : streams) {
         SoundStream *s = entry.second;
@@ -372,6 +410,15 @@ void Mixer::cleanupAudio() {
 
     for (i = 0; i < streams.size(); i++)
         delete streams[i];
+
+    if (Mixer::hTsf) {
+        tsf_close(Mixer::hTsf);
+        Mixer::hTsf = nullptr;
+    }
+    if (Mixer::sf2_buffer) {
+        free(Mixer::sf2_buffer);
+        Mixer::sf2_buffer = nullptr;
+    }
 #endif
 }
 

@@ -15,6 +15,7 @@
 #if !defined(NO_VORBIS)
 #include <stb_vorbis.c>
 #endif
+#include <tsf.h>
 #endif
 #include "nonstd/expected.hpp"
 #include <miniz.h>
@@ -103,8 +104,13 @@ class Mixer {
 #endif
 
     static SE_Mutex mutex;
+#ifdef ENABLE_AUDIO
+    static tsf *hTsf;
+#endif
     static std::unordered_map<std::string, SoundStream *> streams;
     static std::unordered_map<std::string, SoundConfig> configs;
+    static void *sf2_buffer;
+    static void init();
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);

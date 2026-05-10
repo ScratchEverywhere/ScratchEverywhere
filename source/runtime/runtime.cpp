@@ -103,6 +103,7 @@ bool Scratch::initializeRuntime() {
 #ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();
 #endif
+    Mixer::init();
     if (!SoundPlayer::init()) {
         Log::logError("Failed to initialize audio.");
         return false;
