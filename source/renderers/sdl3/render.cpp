@@ -188,7 +188,7 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
         penVerts.push_back(v2);
     }
 
-    constexpr unsigned int circleSegments = 8;
+    const unsigned int circleSegments = std::max(8.0, 8.0f * (sprite->penData.size / 150.0f));
     const double angleStep = 2.0 * M_PI / circleSegments;
 
     for (int i = 0; i < circleSegments; ++i) {
@@ -244,7 +244,7 @@ void Render::penDotAccurate(Sprite *sprite) {
         rgbColor.b / 255.0f,
         alpha};
 
-    constexpr unsigned int circleSegments = 16;
+    const unsigned int circleSegments = std::max(16.0, 16.0f * (sprite->penData.size / 150.0f));
     const double angleStep = 2.0 * M_PI / circleSegments;
 
     for (int i = 0; i < circleSegments; ++i) {
