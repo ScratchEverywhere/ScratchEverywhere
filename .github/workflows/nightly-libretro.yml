@@ -47,4 +47,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Libretro Nightly
-          path: scratch-everywhere.so
+          path: scratch-pc.so

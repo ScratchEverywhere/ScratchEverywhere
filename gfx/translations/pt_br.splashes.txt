@@ -6,17 +6,17 @@ Alias, teste o Snail IDE!
 Alias, teste o Electramod!
 Alias, teste qualquer outro clone de Scratch!
 Suporte a fundação do Scratch!
-It's swizzle magic!
+É swizzle magic!
 Scratch EM QUALQUER LUGAR!??
 Sim mai frieindah, EM QUALQUER LUGARRRRRRR!!!!
-Ta no seu {PlatformName}!
-Magica pro seu {PlatformName}!
+Tá no seu {PlatformName}!
+Mágica pro seu {PlatformName}!
 No {PlatformName}!
 No seu {PlatformName}!
-Oooh, nice {PlatformName} you got here! Can I have it?
-{PlatformName} no Scratch! ... Pera isso não esta certo.
+Oh, que belo {PlatformName} que você tem! Pode ter isso?
+{PlatformName} no Scratch! ... Pera ai. Isso não está certo.
 ...ate no seu {PlatformName}!
-Edição {PlatformName}!
+Edição para {PlatformName}!
 {PlatformName}! ... Nossa, bem... sem ideia...
 Vindo em breve no console que você tem e merece!
 Rode tudo, tudo mesmo!!!
@@ -30,7 +30,7 @@ E Knuckles!
 uiText.titleScreen.splashText14 ( Realmente 15, porcausa do easter egg! )
 TEXTO ENGRACADO/ESPERTO AQUI
 Você vai amar!
-Magica!
+Mágica!
 teste-o, {UserName}!!!!
 To sentindo coceira em todo lugar, o que eu devo- ah, é mesmo.
 Entra no server!
@@ -38,10 +38,10 @@ Contribue no GitHub!
 Open source!
 Antigamente Scratch-3DS! ( É verdade! )
 Runtime por NateXS!
-versão 3DS por NateXS!
-versão DS por NateXS!
-versão Wii  por NateXS!
-versão psp pelo nate
+Versão 3DS por NateXS!
+Versão DS por NateXS!
+Versão Wii por NateXS!
+Versão PSP por nate
 MEU DEUS ESSE NATE FEZ TUDO ATE O PORT DE GAMECUBE!!!
 Por um caralhão de pessoas!
 cooo shiu
@@ -76,7 +76,7 @@ O que você espera?
 [NECESSITADO VERIFICAR IDADE]
 eai {UserName}!
 eu te vejo {UserName}.
-Olha pro {UserName} jogando no {PlatformName} deles
+Olha pro {UserName} jogando no {PlatformName} dele.
 op op op <:itchytongue:1485012884009259159> 
 Ai eu odeio outro dia no escritório...
 Ai eu odeio outro dia no escritório...
@@ -92,8 +92,8 @@ sem bug™
 sem bug ( slowed + reverb )
 Sem bugs no {PlatformName}!
 É sem bugs no seu {PlatformName}!
-decompilação no edge, sei la não entendi essa.
-flipnotes, pelo nate, eles são bons.
+decompilação do edge, sei la não entendi essa.
+os flipnotes do nate são bons.
 Hopper Heroes!
 Consegue rodar Hopper Heroes!
 Consegue rodar tudo!

@@ -1,7 +1,7 @@
 #include <log.hpp>
 #include <os.hpp>
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64)
 #include <direct.h>
 #include <io.h>
 #include <lmcons.h>
@@ -13,7 +13,12 @@
 #include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
+#if defined(__HAIKU__)
+#include <haiku.h>
+#include <kits/user/User.h>
 #endif
+#endif
+#include <__getexecname/internal.h>
 
 namespace OS {
 bool toExit = false;
@@ -65,7 +70,7 @@ std::string OS::getConfigFolderLocation() {
     if (find_directory(B_USER_SETTINGS_DIRECTORY, &bpath) == B_OK) {
         path = (std::filesystem::path(bpath.Path()) / "scratch-everywhere" / "").string();
     }
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
     const char *xdgHome = std::getenv("XDG_CONFIG_HOME");
     if (xdgHome && xdgHome[0] != '\0') {
         path = (std::filesystem::path(xdgHome) / "scratch-everywhere" / "").string();
@@ -85,7 +90,23 @@ std::string OS::getScratchFolderLocation() {
     const std::string custom = getCustomScratchFolderLocation();
     if (!custom.empty()) return custom;
 
+    const char *execname = __getexecname();
+    if (execname) {
+        std::string execpath = execname;
+        size_t pos = execpath.find_last_of("/\\");
+        if (pos != std::string::npos) {
+#if defined(_WIN32) || defined(_WIN64)
+            return execpath.substr(0, pos + 1) + "scratch-everywhere\\";
+#else
+            return execpath.substr(0, pos + 1) + "scratch-everywhere/";
+#endif
+        }
+    }
+#if defined(_WIN32) || defined(_WIN64)
+    return "scratch-everywhere\\";
+#else
     return "scratch-everywhere/";
+#endif
 }
 
 std::string OS::getRomFSLocation() {
@@ -112,7 +133,14 @@ std::string OS::getUsername() {
     TCHAR username[UNLEN + 1];
     DWORD size = UNLEN + 1;
     if (GetUserName((TCHAR *)username, &size)) return std::string(username);
-#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif defined(__HAIKU__)
+    BUser user;
+    BString username;
+    if (user.InitCheck() == B_OK) {
+        user.GetUserName(&username);
+        return std::string(username.String());
+    }
+#elif defined(__APPLE__) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
     uid_t uid = geteuid();
     struct passwd *pw = getpwuid(uid);
     if (pw) return std::string(pw->pw_name);

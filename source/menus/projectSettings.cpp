@@ -121,7 +121,11 @@ void ProjectSettings::init() {
     bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
 #endif
 
+#ifdef RENDERER_SDL2
     penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
+#else
+    penModeButton->text->setText(createSettingsText("ui.settings.penMode", !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
+#endif
 
     if (settings["settings"]["accurateCollision"].is_null()) {
 #if defined(__NDS__)

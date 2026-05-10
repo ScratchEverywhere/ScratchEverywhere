@@ -554,6 +554,13 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
         Scratch::hqpen = config.value("hq", false);
         Scratch::projectWidth = config.value("width", 480);
         Scratch::projectHeight = config.value("height", 360);
+        Scratch::useDectalk = config.value("useDectalk",
+#ifdef DECTALK_DEFAULT
+                                           true
+#else
+                                           false
+#endif
+        );
 
         auto &runtimeOptions = config["runtimeOptions"];
         if (runtimeOptions.is_object()) {
@@ -586,9 +593,13 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
 #endif
 
     auto accuratePen = Unzip::getSetting("accuratePen");
-    if (!accuratePen.is_null() && accuratePen.get<bool>())
-        Scratch::accuratePen = true;
+    if (!accuratePen.is_null())
+        Scratch::accuratePen = accuratePen.get<bool>();
+#ifdef RENDERER_SDL2
+    else Scratch::accuratePen = true;
+#else
     else Scratch::accuratePen = false;
+#endif
 
     auto accurateCollision = Unzip::getSetting("accurateCollision");
     if (accurateCollision.is_null()) {
@@ -646,6 +657,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
         } else if (type == 2 || type == 3) {
             if (inputValue.is_array()) {
                 block.inputs[inputName] = ParsedInput(inputValue[2].get<std::string>());
+                if (inputValue[0].get<int>() == 13) block.inputs[inputName].list = true;
                 Parser::log(indentStr + "\t" + inputName + ": var[" + inputValue[1].get<std::string>() + "]");
             } else {
                 if (!inputValue.is_null()) {
