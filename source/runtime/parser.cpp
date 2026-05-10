@@ -646,6 +646,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
         } else if (type == 2 || type == 3) {
             if (inputValue.is_array()) {
                 block.inputs[inputName] = ParsedInput(inputValue[2].get<std::string>());
+                if (inputValue[0].get<int>() == 13) block.inputs[inputName].list = true;
                 Parser::log(indentStr + "\t" + inputName + ": var[" + inputValue[1].get<std::string>() + "]");
             } else {
                 if (!inputValue.is_null()) {

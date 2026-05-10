@@ -178,6 +178,7 @@ struct ParsedInput {
     Value value;
     Block *block = nullptr;
     std::string variableId = "";
+    bool list = false;
     ParsedInput() { inputType = InputType::VALUE; }
     explicit ParsedInput(Value value) : value(value) { inputType = InputType::VALUE; }
     explicit ParsedInput(Block *block) : block(block) { inputType = InputType::BLOCK; }

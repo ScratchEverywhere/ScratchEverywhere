@@ -365,9 +365,13 @@ bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread
         input.calculated = true;
 #ifdef ENABLE_CACHING
         if (input.variable != nullptr) input.value = input.variable->value;
-        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        else {
+            if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
+            else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        }
 #else
-        input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
+        if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
+        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
 #endif
         outValue = input.value;
         return true;
@@ -756,7 +760,14 @@ std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
             }
         }
     }
-    if (!targetSprite) return nullptr; // TODO: Implement list creation
+    if (!targetSprite) {
+        List newList;
+        newList.id = listId;
+        newList.name = getListName(block);
+        newList.items = {};
+        sprite->lists[listId] = newList;
+        targetSprite = sprite;
+    }
     return &targetSprite->lists[listId].items;
 }
 

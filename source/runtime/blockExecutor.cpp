@@ -278,6 +278,8 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
 #endif
         return;
     }
+
+    sprite->variables[variableId].value = newValue;
 }
 
 void BlockExecutor::updateMonitors(ScriptThread *thread) {
@@ -354,8 +356,19 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
     const auto it = sprite->variables.find(variableId);
     if (it != sprite->variables.end()) return it->second.value;
 
+    // Check global variables
+    const auto globalIt = Scratch::stageSprite->variables.find(variableId);
+    if (globalIt != Scratch::stageSprite->variables.end()) {
+        return globalIt->second.value;
+    }
+
+    sprite->variables[variableId].value = Value(0);
+    return Value(0);
+}
+
+Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
     // Check lists
-    const auto listIt = sprite->lists.find(variableId);
+    const auto listIt = sprite->lists.find(listId);
     if (listIt != sprite->lists.end()) {
         std::string result;
         std::string seperator = "";
@@ -372,14 +385,8 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
         return Value(result);
     }
 
-    // Check global variables
-    const auto globalIt = Scratch::stageSprite->variables.find(variableId);
-    if (globalIt != Scratch::stageSprite->variables.end()) {
-        return globalIt->second.value;
-    }
-
     // Check global lists
-    auto globalListIt = Scratch::stageSprite->lists.find(variableId);
+    auto globalListIt = Scratch::stageSprite->lists.find(listId);
     if (globalListIt != Scratch::stageSprite->lists.end()) {
         std::string result;
         std::string seperator = "";
@@ -396,7 +403,11 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
         return Value(result);
     }
 
-    return Value();
+    List newList;
+    newList.id = listId;
+    newList.items = {};
+    sprite->lists[listId] = newList;
+    return Value("");
 }
 
 #ifdef ENABLE_CLOUDVARS
