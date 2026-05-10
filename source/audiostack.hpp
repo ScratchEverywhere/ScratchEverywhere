@@ -1,6 +1,7 @@
 #if defined(__NDS__)
 #define NO_VORBIS
 #define NO_MP3
+#define NO_MUSIC
 #endif
 
 #pragma once
@@ -15,7 +16,9 @@
 #if !defined(NO_VORBIS)
 #include <stb_vorbis.c>
 #endif
+#if !defined(NO_MUSIC)
 #include <tsf.h>
+#endif
 #endif
 #include "nonstd/expected.hpp"
 #include <miniz.h>
@@ -107,9 +110,10 @@ class Mixer {
 #ifdef ENABLE_AUDIO
     static tsf *hTsf;
 #endif
+    static void *sf2_buffer;
+    static int sf2_seq;
     static std::unordered_map<std::string, SoundStream *> streams;
     static std::unordered_map<std::string, SoundConfig> configs;
-    static void *sf2_buffer;
     static void init();
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
@@ -120,4 +124,5 @@ class Mixer {
     static float getSoundVolume(std::string name);
     static void setAutoClean(std::string name, bool toggle);
     static void cleanupAudio();
+    static int note(int instrument, int note, float volume, float sec);
 };

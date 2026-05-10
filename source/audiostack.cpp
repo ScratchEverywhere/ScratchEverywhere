@@ -293,9 +293,10 @@ SE_Mutex Mixer::mutex;
 tsf *Mixer::hTsf = nullptr;
 #endif
 void *Mixer::sf2_buffer = nullptr;
+int Mixer::sf2_seq = 0;
 
 void Mixer::init() {
-#ifdef ENABLE_AUDIO
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     std::string prefix = OS::getRomFSLocation();
     std::string path = prefix + "gfx/ingame/FluidR3_GS.sf2";
     std::ifstream ifs(path, std::ios::binary);
@@ -330,9 +331,11 @@ void Mixer::requestSound(short *output, int frames) {
 
     Mixer::mutex.lock();
 
+#ifndef NO_MUSIC
     if (Mixer::hTsf) {
         tsf_render_float(Mixer::hTsf, mixBuffer.data(), frames, 0);
     }
+#endif
 
     for (auto &entry : streams) {
         SoundStream *s = entry.second;
@@ -411,6 +414,7 @@ void Mixer::cleanupAudio() {
     for (i = 0; i < streams.size(); i++)
         delete streams[i];
 
+#ifndef NO_MUSIC
     if (Mixer::hTsf) {
         tsf_close(Mixer::hTsf);
         Mixer::hTsf = nullptr;
@@ -419,6 +423,7 @@ void Mixer::cleanupAudio() {
         free(Mixer::sf2_buffer);
         Mixer::sf2_buffer = nullptr;
     }
+#endif
 #endif
 }
 
@@ -530,4 +535,24 @@ void Mixer::setAutoClean(std::string name, bool toggle) {
 
     END;
 #endif
+}
+
+int Mixer::note(int instrument, int note, float volume, float sec) {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    int n;
+
+    if (Mixer::hTsf) return 0;
+
+    Mixer::mutex.lock();
+
+    n = Mixer::sf2_seq++;
+    tsf_channel_set_bank(Mixer::hTsf, n, instrument);
+    tsf_channel_set_volume(Mixer::hTsf, n, volume);
+    tsf_channel_note_on(Mixer::hTsf, n, note, 1.0);
+
+    Mixer::mutex.unlock();
+
+    return n;
+#endif
+    return 0;
 }
