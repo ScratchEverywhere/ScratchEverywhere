@@ -20,11 +20,14 @@ RUN if [ "$RENDERER" = "opengl" ]; then \
     fi; \
 	if [ "$AUDIO_ENGINE" = "sdl1" ] || [ "$AUDIO_ENGINE" = "sdl2" ] || [ "$AUDIO_ENGINE" = "sdl3" ]; then \
 		apt-get update && apt-get install -y libasound2-dev libpulse-dev libjack-dev libpipewire-0.3-dev; \
-	fi
+	fi; \
+    # TODO: trim this down..... (currently just copied from SDL3's dep list)
+    if [ "$RENDERER" = "sdl3" ] || [ "$WINDOWING" = "sdl3" ] || [ "$AUDIO_ENGINE" = "sdl3" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends gnome-desktop-testing libaudio-dev libfribidi-dev libsndio-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev libthai-dev; \
+    fi
 
 COPY . .
 
-# TODO: Fix SDL3 compatability in Dockerfile
 RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} ${EXT_ARGS} && cmake --build . -j 2
 
 FROM scratch AS exporter
