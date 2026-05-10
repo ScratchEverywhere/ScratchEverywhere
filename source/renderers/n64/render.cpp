@@ -175,7 +175,7 @@ static void drawCircle(float x, float y, float radius, ColorRGBA color, uint8_t 
 static void preparePenDrawing() {
     //glPushAttrib(GL_VIEWPORT_BIT | GL_COLOR_BUFFER_BIT | GL_ENABLE_BIT | GL_TEXTURE_BIT);
 
-    glViewport(0, 0, penWidth, penHeight);
+    /*glViewport(0, 0, penWidth, penHeight);
     glScissor(0, 0, penWidth, penHeight);
     glEnable(GL_SCISSOR_TEST);
 
@@ -204,11 +204,11 @@ static void preparePenDrawing() {
     glVertex2f(penWidth, penHeight);
     glTexCoord2f(0.0f, 0.0f);
     glVertex2f(0.0f, penHeight);
-    glEnd();
+    glEnd();*/
 }
 
 static void finishPenDrawing() {
-    glBindTexture(GL_TEXTURE_2D, penTexture);
+    /*glBindTexture(GL_TEXTURE_2D, penTexture);
     //glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, penWidth, penHeight);
 
     glPopMatrix();
@@ -216,7 +216,7 @@ static void finishPenDrawing() {
     glPopMatrix();
     glMatrixMode(GL_MODELVIEW);
 
-    //glPopAttrib();
+    //glPopAttrib();*/
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
