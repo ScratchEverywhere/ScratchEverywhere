@@ -22,11 +22,11 @@ static std::string getDectalkString() {
 
 void PauseMenu::init() {
 #ifdef ENABLE_DECTALK
-    const int buttons = 4;
+    constexpr int buttons = 4;
 #else
-    const int buttons = 5;
+    constexpr int buttons = 5;
 #endif
-    const int space = (180 - 60) / buttons;
+    constexpr int space = (180 - 60) / buttons;
 
     pauseControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
