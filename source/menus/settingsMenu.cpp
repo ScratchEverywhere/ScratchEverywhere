@@ -14,7 +14,7 @@ SettingsMenu::~SettingsMenu() {
 }
 
 std::string SettingsMenu::getDectalkString() {
-    return TranslationManager::getTranslation("ui.pause.dectalk") + ": " + TranslationManager::getTranslation(UseDectalk ? "ui.settings.on" : "ui.settings.off");
+    return TranslationManager::getTranslation("ui.settings.dectalk") + ": " + TranslationManager::getTranslation(UseDectalk ? "ui.settings.on" : "ui.settings.off");
 }
 
 void SettingsMenu::init() {
@@ -165,6 +165,10 @@ void SettingsMenu::updateButtonStates() {
     }
 
     EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music") + ": " + (menuMusic ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")));
+
+#ifdef ENABLE_DECTALK
+    dectalkButton->text->setText(getDectalkString());
+#endif
 }
 
 void SettingsMenu::render() {
