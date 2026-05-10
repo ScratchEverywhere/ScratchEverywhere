@@ -362,7 +362,9 @@ void Render::penStamp(Sprite *sprite) {
 
     // clear line draw queue so stamp can be rendered on top
     if (!penVerts.empty()) {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
         penVerts.clear();
     }
 
@@ -538,11 +540,13 @@ void Render::renderPenLayer() {
 
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(renderer, penTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
         SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
         penVerts.clear();
 
         SDL_SetRenderTarget(renderer, NULL);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 
     SDL_FRect renderRect = {0, 0, 0, 0};
