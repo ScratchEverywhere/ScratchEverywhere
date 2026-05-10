@@ -1,4 +1,5 @@
 #include "settingsMenu.hpp"
+#include "languageMenu.hpp"
 #include "menuObjects.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
@@ -42,9 +43,9 @@ void SettingsMenu::init() {
     ClearCache = new ButtonObject(TranslationManager::getTranslation("ui.settings.cache"), "gfx/menu/projectBox.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
     ClearCache->text->setColor(Math::color(0, 0, 0, 255));
 
-    Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language") + ": " + TranslationManager::getLoadedLanguage().name, "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
+    Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language"), "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
     Language->text->setColor(Math::color(0, 0, 0, 255));
-    Language->textScale = 0.5;
+    Language->textScale = 1.0;
 
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
@@ -232,11 +233,9 @@ void SettingsMenu::render() {
     }
 
     if (Language->isPressed({"a"})) {
-        const auto &languages = TranslationManager::getLanguages();
-        const unsigned int index = (TranslationManager::getLoadedLanguage().id + 1) % languages.size();
-        TranslationManager::loadLanguage(languages[index].key);
-        Language->text->setText(TranslationManager::getTranslation("ui.settings.language") + ": " + languages[index].name);
-        updateButtonStates();
+        LanguageMenu *langMenu = new LanguageMenu();
+        MenuManager::changeMenu(langMenu);
+        return;
     }
 
 #ifdef ENABLE_DECTALK
