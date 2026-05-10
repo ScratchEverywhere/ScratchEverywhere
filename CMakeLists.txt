@@ -100,7 +100,14 @@ cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to do
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
-option(SE_DECTALK "Use DECtalk instead for TTS." OFF)
+if(NOT DEFINED SE_DECTALK_DEFAULT)
+	set(SE_DECTALK_DEFAULT OFF)
+endif()
+if(SE_DECTALK_DEFAULT)
+	option(SE_DECTALK "Build DECtalk for TTS." ON)
+else()
+	option(SE_DECTALK "Build DECtalk for TTS." OFF)
+endif()
 
 #  disable menu if a project is in RomFS
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3" OR LIBRETRO)
@@ -359,6 +366,10 @@ endif()
 if(SE_DECTALK)
 	target_compile_definitions(se-interface INTERFACE ENABLE_DECTALK)
 	se_add_dependency(se-interface dtc)
+endif()
+
+if(SE_DECTALK_DEFAULT)
+	target_compile_definitions(se-interface INTERFACE DECTALK_DEFAULT)
 endif()
 
 if(SE_BITMAP)
