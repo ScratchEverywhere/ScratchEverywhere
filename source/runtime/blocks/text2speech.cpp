@@ -82,148 +82,168 @@ static int dtc_callback(SoundStream *strm, float *iwave, int length) {
 }
 #endif
 
+#include <iostream>
+
 SCRATCH_BLOCK(text2speech, speakAndWait) {
-#if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#ifdef ENABLE_AUDIO
+#ifdef ENABLE_DOWNLOAD
+    bool forceDectalk = false;
+#elif defined(ENABLE_DECTALK)
+    bool forceDectalk = true;
+#else
+    /* no download and also no dectalk */
+
+    Log::logWarning("T2S: Neither of ENABLE_DECTALK nor ENABLE_DOWNLOAD were defined");
+    return BlockResult::CONTINUE;
+#endif
+
+#ifdef ENABLE_DECTALK
+    if (forceDectalk || Scratch::useDectalk) {
 #define STREAM SoundStream *strm = new SoundStream("dtc:" + name, dtc_callback, 1, 11025)
 
-    BlockState *state = thread->getState(block);
-    std::size_t h = std::hash<std::string>{}(state->name);
-    std::string name = std::to_string(h);
-    if (state->completedSteps == 0) {
-        Value words;
-        tts_value *v;
-        std::string g;
-        if (!Scratch::getInput(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
+        BlockState *state = thread->getState(block);
+        std::size_t h = std::hash<std::string>{}(state->name);
+        std::string name = std::to_string(h);
+        if (state->completedSteps == 0) {
+            Value words;
+            tts_value *v;
+            std::string g;
+            if (!Scratch::getInput(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
 
-        if (sprite->textToSpeechData.gender == "male") {
-            g = "[:np]";
-        } else {
-            g = "[:nb]";
-        }
+            if (sprite->textToSpeechData.gender == "male") {
+                g = "[:np]";
+            } else {
+                g = "[:nb]";
+            }
 
-        v = new tts_value();
-        v->finished = false;
-        v->tts = TextToSpeechAllocate();
-        v->text = g + words.asString();
+            v = new tts_value();
+            v->finished = false;
+            v->tts = TextToSpeechAllocate();
+            v->text = g + words.asString();
 
-        tts[name] = v;
+            tts[name] = v;
 
-        tts_lookup[v->tts] = v;
+            tts_lookup[v->tts] = v;
 
-        if ((v->threaded = v->thread.create(dtc_generate, v, 8 * 1024, 999, -2, "dectalkThread" + name))) {
-            state->completedSteps = 1;
+            if ((v->threaded = v->thread.create(dtc_generate, v, 8 * 1024, 999, -2, "dectalkThread" + name))) {
+                state->completedSteps = 1;
 
 #ifdef ENABLE_DECTALK_STREAM
-            STREAM;
+                STREAM;
 #endif
-        } else {
-            dtc_generate(v);
+            } else {
+                dtc_generate(v);
 
-            state->completedSteps = 2;
+                state->completedSteps = 2;
+            }
+        } else if (state->completedSteps == 1) {
+            bool v;
+
+            tts[name]->mutex.lock();
+            v = tts[name]->finished;
+            tts[name]->mutex.unlock();
+
+            if (v) {
+                state->completedSteps = 2;
+                return BlockResult::REPEAT;
+            }
+        } else if (state->completedSteps == 2) {
+            if (tts[name]->threaded) {
+                tts[name]->thread.join();
+#ifndef ENABLE_DECTALK_STREAM
+                STREAM;
+#endif
+            } else {
+                STREAM;
+            }
+
+            tts_lookup.erase(tts_lookup.find(tts[name]->tts));
+
+            TextToSpeechFree(tts[name]->tts);
+
+            state->completedSteps = 3;
+        } else if (state->completedSteps == 3) {
+            if (Mixer::isSoundPlaying("dtc:" + name)) return BlockResult::REPEAT;
+
+            delete tts[name];
+
+            tts.erase(tts.find(name));
         }
-    } else if (state->completedSteps == 1) {
-        bool v;
 
-        tts[name]->mutex.lock();
-        v = tts[name]->finished;
-        tts[name]->mutex.unlock();
-
-        if (v) {
-            state->completedSteps = 2;
+        if (state->completedSteps == 3) {
+            Mixer::setAutoClean("dtc:" + name, true);
+            thread->eraseState(block);
+        } else {
             return BlockResult::REPEAT;
         }
-    } else if (state->completedSteps == 2) {
-        if (tts[name]->threaded) {
-            tts[name]->thread.join();
-#ifndef ENABLE_DECTALK_STREAM
-            STREAM;
+    } else
 #endif
-        } else {
-            STREAM;
+    {
+#ifdef ENABLE_DOWNLOAD
+        BlockState *state = thread->getState(block);
+        if (state->completedSteps == 0) {
+
+            Value words;
+            if (!Scratch::getInput(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
+
+            std::string inputString = words.asString();
+
+            std::string voice = sprite->textToSpeechData.gender;
+            std::string language = sprite->textToSpeechData.language;
+            state->name = "http://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(inputString);
+            std::string tempDir = OS::getScratchFolderLocation() + "cache/";
+            std::size_t h = std::hash<std::string>{}(state->name);
+            std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
+            std::string tempFile = tempDir + safeName;
+            if (Mixer::isSoundPlaying(tempFile)) {
+                thread->eraseState(block);
+                return BlockResult::CONTINUE;
+            }
+            state->completedSteps = 2;
+            if (!DownloadManager::init()) return BlockResult::CONTINUE;
+            if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
+                Log::log("T2S audio already downloaded: " + inputString);
+                SoundStream *strm = new SoundStream(tempFile, false, true);
+                if (strm->error.has_value()) {
+                    Log::logError(strm->error.value());
+                    delete strm;
+                }
+                return BlockResult::REPEAT;
+            }
+            if (!DownloadManager::isDownloading(state->name)) {
+                Log::log("T2S: starting download for: " + inputString + " -> " + tempFile);
+                DownloadManager::addDownload(state->name, tempFile);
+                state->completedSteps = 1;
+                return BlockResult::REPEAT;
+            }
         }
-
-        tts_lookup.erase(tts_lookup.find(tts[name]->tts));
-
-        TextToSpeechFree(tts[name]->tts);
-
-        state->completedSteps = 3;
-    } else if (state->completedSteps == 3) {
-        if (Mixer::isSoundPlaying("dtc:" + name)) return BlockResult::REPEAT;
-
-        delete tts[name];
-
-        tts.erase(tts.find(name));
-    }
-
-    if (state->completedSteps == 3) {
-        Mixer::setAutoClean("dtc:" + name, true);
-        thread->eraseState(block);
-    } else {
-        return BlockResult::REPEAT;
-    }
-#elif defined(ENABLE_DOWNLOAD) && defined(ENABLE_AUDIO)
-    BlockState *state = thread->getState(block);
-    if (state->completedSteps == 0) {
-
-        Value words;
-        if (!Scratch::getInput(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
-
-        std::string inputString = words.asString();
-
-        std::string voice = sprite->textToSpeechData.gender;
-        std::string language = sprite->textToSpeechData.language;
-        state->name = "http://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(inputString);
         std::string tempDir = OS::getScratchFolderLocation() + "cache/";
         std::size_t h = std::hash<std::string>{}(state->name);
         std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
         std::string tempFile = tempDir + safeName;
-        if (Mixer::isSoundPlaying(tempFile)) {
-            thread->eraseState(block);
-            return BlockResult::CONTINUE;
-        }
-        state->completedSteps = 2;
-        if (!DownloadManager::init()) return BlockResult::CONTINUE;
-        if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
-            Log::log("T2S audio already downloaded: " + inputString);
-            SoundStream *strm = new SoundStream(tempFile, false, true);
-            if (strm->error.has_value()) {
-                Log::logError(strm->error.value());
-                delete strm;
+
+        if (state->completedSteps == 1) {
+            if (DownloadManager::isDownloading(state->name)) return BlockResult::REPEAT;
+
+            if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
+                Log::log("T2S audio already downloaded");
+                SoundStream *strm = new SoundStream(tempFile, false, true);
+                if (strm->error.has_value()) {
+                    Log::logError(strm->error.value());
+                    delete strm;
+                }
+                state->completedSteps = 2;
+                return BlockResult::REPEAT;
             }
-            return BlockResult::REPEAT;
         }
-        if (!DownloadManager::isDownloading(state->name)) {
-            Log::log("T2S: starting download for: " + inputString + " -> " + tempFile);
-            DownloadManager::addDownload(state->name, tempFile);
-            state->completedSteps = 1;
-            return BlockResult::REPEAT;
+        if (state->completedSteps == 2) {
+            if (Mixer::isSoundPlaying(tempFile)) return BlockResult::REPEAT;
         }
-    }
-    std::string tempDir = OS::getScratchFolderLocation() + "cache/";
-    std::size_t h = std::hash<std::string>{}(state->name);
-    std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
-    std::string tempFile = tempDir + safeName;
 
-    if (state->completedSteps == 1) {
-        if (DownloadManager::isDownloading(state->name)) return BlockResult::REPEAT;
-
-        if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
-            Log::log("T2S audio already downloaded");
-            SoundStream *strm = new SoundStream(tempFile, false, true);
-            if (strm->error.has_value()) {
-                Log::logError(strm->error.value());
-                delete strm;
-            }
-            state->completedSteps = 2;
-            return BlockResult::RETURN;
-        }
+        Mixer::setAutoClean(tempFile, true);
+        thread->eraseState(block);
+#endif
     }
-    if (state->completedSteps == 2) {
-        if (Mixer::isSoundPlaying(tempFile)) return BlockResult::REPEAT;
-    }
-
-    Mixer::setAutoClean(tempFile, true);
-    thread->eraseState(block);
 #else
     Log::logWarning("T2S: ENABLE_AUDIO is NOT defined");
 #endif

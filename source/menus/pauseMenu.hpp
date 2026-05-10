@@ -10,6 +10,7 @@ class PauseMenu : public Menu {
     ButtonObject *flagButton = nullptr;
     ButtonObject *stopButton = nullptr;
     ButtonObject *turboButton = nullptr;
+    ButtonObject *dectalkButton = nullptr;
 
     bool shouldUnpause = false;
 

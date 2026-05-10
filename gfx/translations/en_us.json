@@ -29,6 +29,7 @@
   "ui.pause.flag": "Click Green Flag",
   "ui.pause.stop": "Click Stop Button",
   "ui.pause.turbo": "Turbo Mode",
+  "ui.pause.dectalk": "Use DECtalk",
   "ui.loading.images": "Loading images",
   "ui.loading.opening": "Opening Scratch project",
   "ui.loading.unzipping": "Unzipping Scratch project",
