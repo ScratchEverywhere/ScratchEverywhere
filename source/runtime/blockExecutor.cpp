@@ -91,7 +91,8 @@ ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block, bool shou
         auto &originalThread = threads[restartThreadIndex];
         originalThread->clear();
         Pools::threads.push_back(originalThread);
-        threads[restartThreadIndex] = newThread;
+        threads.erase(threads.begin() + restartThreadIndex);
+        threads.push_back(newThread);
     }
 
     return newThread;
