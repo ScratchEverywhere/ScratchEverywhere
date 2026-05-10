@@ -100,7 +100,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.beta") + " 41 - 1 YEAR OF SE!", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.release") + " 1.0 RC1 - 1 YEAR OF SE!", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
