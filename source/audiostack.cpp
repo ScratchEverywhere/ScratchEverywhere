@@ -597,7 +597,7 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
 
     if (!Mixer::hTsf) return -1;
 
-    instrument = std::clamp(instrument, 1, (int)(sizeof(instrument_lut) / sizeof(instrument_lut[0])));
+    instrument = ((instrument - 1) % (sizeof(instrument_lut) / sizeof(instrument_lut[0]))) + 1;
 
     if (instrument_lut[instrument] == -1) return -1;
 
@@ -645,7 +645,7 @@ int Mixer::drum(int drum, float volume, float beats) {
 
     if (!Mixer::hTsf) return -1;
 
-    drum = std::clamp(drum, 1, (int)(sizeof(drum_lut) / sizeof(drum_lut[0])));
+    drum = ((drum - 1) % (sizeof(drum_lut) / sizeof(drum_lut[0]))) + 1;
 
     if (drum_lut[drum] == -1) return -1;
 
