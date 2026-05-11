@@ -125,6 +125,8 @@ class Mixer {
     static float getSoundVolume(std::string name);
     static void setAutoClean(std::string name, bool toggle);
     static void cleanupAudio();
+    static float beatsToSec(float v);
     static int note(int instrument, int note, float volume, float beats);
-    static bool isNotePlaying(int channel);
+    static int drum(int drum, float volume, float beats);
+    static bool isInstrumentPlaying(int channel);
 };

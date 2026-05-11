@@ -562,7 +562,7 @@ void Mixer::setAutoClean(std::string name, bool toggle) {
 #endif
 }
 
-static float beats_to_sec(float v) {
+float Mixer::beatsToSec(float v) {
     return v / (Scratch::tempo / 60.0);
 }
 
@@ -608,7 +608,7 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
     tsf_channel_set_volume(Mixer::hTsf, n, volume);
     tsf_channel_note_on(Mixer::hTsf, n, note, 1.0);
 
-    Mixer::notes[n] = beats_to_sec(beats);
+    Mixer::notes[n] = Mixer::beatsToSec(beats);
 
     Mixer::mutex.unlock();
 
@@ -617,7 +617,55 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
     return -1;
 }
 
-bool Mixer::isNotePlaying(int channel) {
+static constexpr int drum_lut[] = {
+    -1,
+    38, /* Snare -> Acoustic Snare */
+    35, /* Bass Drum -> Acoustic Bass Drum */
+    37, /* Side Stick -> Side Stick */
+    49, /* Crash Cymbal -> Crash Cymbal 1 */
+    46, /* Open Hi Hat -> Open Hi-Hat */
+    42, /* Closed Hi Hat -> Closed Hi Hat */
+    54, /* Tambourine -> Tambourine */
+    39, /* Hand Clap -> Hand Clap */
+    75, /* Claves -> Claves */
+    76, /* Wood Block -> Hi Wood Block */
+    56, /* Cowbell -> Cowbell */
+    81, /* Triangle -> Open Triangle */
+    60, /* Bongo -> Hi Bongo */
+    63, /* Conga -> Open Hi Conga */
+    69, /* Cabasa -> Cabasa */
+    74, /* Guiro -> Long Guiro */
+    58, /* Vibraslap -> Vibraslap */
+    79  /* Cuica -> Open Cuica */
+};
+
+int Mixer::drum(int drum, float volume, float beats) {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    int n;
+
+    if (!Mixer::hTsf) return -1;
+
+    drum = std::clamp(drum, 1, (int)(sizeof(drum_lut) / sizeof(drum_lut[0])));
+
+    if (drum_lut[drum] == -1) return -1;
+
+    Mixer::mutex.lock();
+
+    n = Mixer::sf2_seq++;
+    tsf_channel_set_presetnumber(Mixer::hTsf, n, drum_lut[drum], 1);
+    tsf_channel_set_volume(Mixer::hTsf, n, volume);
+    tsf_channel_note_on(Mixer::hTsf, n, 60, 1.0); /* is this even true? */
+
+    Mixer::notes[n] = Mixer::beatsToSec(beats);
+
+    Mixer::mutex.unlock();
+
+    return n;
+#endif
+    return -1;
+}
+
+bool Mixer::isInstrumentPlaying(int channel) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     bool v = false;
 
