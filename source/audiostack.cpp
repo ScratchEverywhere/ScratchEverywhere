@@ -243,11 +243,12 @@ SoundStream::~SoundStream() {
     int i;
 
     if (!this->no_lock) Mixer::mutex.lock();
-    for (auto e : Mixer::streams) {
-        if (e.second == this) {
-            Mixer::streams.erase(e.first);
+    for (auto it = Mixer::streams.begin(); it != Mixer::streams.end();) {
+        if (it->second == this) {
+            Mixer::streams.erase(it);
             break;
         }
+        it++;
     }
     if (!this->no_lock) Mixer::mutex.unlock();
 
@@ -349,9 +350,16 @@ void Mixer::requestSound(short *output, int frames) {
     }
 #endif
 
-    for (auto &entry : streams) {
-        SoundStream *s = entry.second;
-        if (s->paused) continue;
+    for (auto it = streams.begin(); it != streams.end();) {
+        SoundStream *s = it->second;
+        if (s->paused) {
+            it++;
+            if (s->auto_clean) {
+                s->no_lock = true;
+                delete s;
+            }
+            continue;
+        }
 
         const float pitch = s->config.pitch;
         const float volume = s->config.volume / 100.0f;
@@ -363,6 +371,7 @@ void Mixer::requestSound(short *output, int frames) {
         int decoded = s->read(decodeBuffer.data(), maxFramesNeeded);
         if (decoded <= 0) {
             s->paused = true;
+            it++;
             continue;
         }
 
@@ -403,6 +412,8 @@ void Mixer::requestSound(short *output, int frames) {
 
             pos += step;
         }
+
+        it++;
     }
 
     Mixer::mutex.unlock();
