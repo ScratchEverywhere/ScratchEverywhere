@@ -207,7 +207,7 @@ if(NOT SE_SVG)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
 endif()
 
-if(NINTENDO_DS OR NINTENDO_3DS)
+if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
 endif()
 
@@ -222,7 +222,7 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if((NINTENDO_DS OR NINTENDO_3DS) AND SE_MENU)
+if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS) AND SE_MENU)
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
 endif()
 
