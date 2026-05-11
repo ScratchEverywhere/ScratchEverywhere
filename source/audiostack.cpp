@@ -567,7 +567,6 @@ float Mixer::beatsToSec(float v) {
 }
 
 static constexpr int instrument_lut[] = {
-    -1,
     1,   /* Piano -> Acoustic Grand */
     5,   /* Electric Piano -> Electric Piano 1 */
     21,  /* Organ -> Church Organ */
@@ -580,7 +579,7 @@ static constexpr int instrument_lut[] = {
     72,  /* Clarinet -> Clarinet */
     65,  /* Saxophone -> Soprano Sax */
     74,  /* Flute -> Flute */
-    -1,  /* Wooden Flute -> ? */
+    76,  /* Wooden Flute -> Pan Flute */
     71,  /* Bassoon -> Bassoon */
     53,  /* Choir -> Choir Aahs */
     12,  /* Vibraphone -> Vibraphone */
@@ -597,7 +596,7 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
 
     if (!Mixer::hTsf) return -1;
 
-    instrument = ((instrument - 1) % (sizeof(instrument_lut) / sizeof(instrument_lut[0]))) + 1;
+    instrument = ((instrument - 1) % (sizeof(instrument_lut) / sizeof(instrument_lut[0])));
 
     if (instrument_lut[instrument] == -1) return -1;
 
@@ -618,7 +617,6 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
 }
 
 static constexpr int drum_lut[] = {
-    -1,
     38, /* Snare -> Acoustic Snare */
     35, /* Bass Drum -> Acoustic Bass Drum */
     37, /* Side Stick -> Side Stick */
@@ -639,13 +637,15 @@ static constexpr int drum_lut[] = {
     79  /* Cuica -> Open Cuica */
 };
 
+#include <iostream>
+
 int Mixer::drum(int drum, float volume, float beats) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     int n;
 
     if (!Mixer::hTsf) return -1;
 
-    drum = ((drum - 1) % (sizeof(drum_lut) / sizeof(drum_lut[0]))) + 1;
+    drum = ((drum - 1) % (sizeof(drum_lut) / sizeof(drum_lut[0])));
 
     if (drum_lut[drum] == -1) return -1;
 
@@ -654,7 +654,7 @@ int Mixer::drum(int drum, float volume, float beats) {
     n = Mixer::sf2_seq++;
     tsf_channel_set_presetnumber(Mixer::hTsf, n, drum_lut[drum], 1);
     tsf_channel_set_volume(Mixer::hTsf, n, volume);
-    tsf_channel_note_on(Mixer::hTsf, n, 60, 1.0); /* is this even true? */
+    tsf_channel_note_on(Mixer::hTsf, n, drum_lut[drum], 1.0);
 
     Mixer::notes[n] = Mixer::beatsToSec(beats);
 
