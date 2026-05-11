@@ -113,6 +113,7 @@ class Mixer {
     static void *sf2_buffer;
     static int sf2_seq;
     static std::unordered_map<std::string, SoundStream *> streams;
+    static std::unordered_map<int, float> notes;
     static std::unordered_map<std::string, SoundConfig> configs;
     static void init();
     static void requestSound(short *output, int frames); /* expects stereo */
@@ -125,4 +126,5 @@ class Mixer {
     static void setAutoClean(std::string name, bool toggle);
     static void cleanupAudio();
     static int note(int instrument, int note, float volume, float sec);
+    static bool isNotePlaying(int channel);
 };

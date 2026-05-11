@@ -68,6 +68,8 @@ class Scratch {
 
     static bool hasNativeExtensions;
 
+    static float tempo;
+
     static int projectWidth;
     static int projectHeight;
     static int FPS;
