@@ -299,7 +299,7 @@ std::unordered_map<int, float> Mixer::notes;
 void Mixer::init() {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     std::string prefix = OS::getRomFSLocation();
-    std::string path = prefix + "gfx/ingame/CT2MGM.SF2";
+    std::string path = prefix + "gfx/ingame/scratch.sf2";
     std::ifstream ifs(path, std::ios::binary);
     size_t size;
 
