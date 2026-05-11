@@ -24,7 +24,7 @@ SCRATCH_BLOCK(music, playNoteForBeats) {
     state = thread->getState(block);
 
     if (state->completedSteps == 0) {
-        if ((state->musicChannel = Mixer::note(sprite->instrument, note.asDouble(), sprite->volume / 100.0, beats.asDouble() / (Scratch::tempo / 60.0))) == -1) {
+        if ((state->musicChannel = Mixer::note(sprite->instrument, note.asDouble(), sprite->volume / 100.0, beats.asDouble())) == -1) {
             thread->eraseState(block);
             return BlockResult::CONTINUE;
         }

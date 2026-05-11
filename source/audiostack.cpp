@@ -337,11 +337,14 @@ void Mixer::requestSound(short *output, int frames) {
         tsf_render_float(Mixer::hTsf, mixBuffer.data(), frames, 0);
     }
 
-    for (auto &note : notes) {
-        note.second -= (float)frames / Mixer::rate;
+    for (auto it = notes.begin(); it != notes.end();) {
+        it->second -= (float)frames / Mixer::rate;
 
-        if (note.second <= 0) {
-            notes.erase(note.first);
+        if (it->second <= 0) {
+            tsf_channel_note_off_all(Mixer::hTsf, it->first);
+            it = notes.erase(it);
+        } else {
+            it++;
         }
     }
 #endif
@@ -548,20 +551,53 @@ void Mixer::setAutoClean(std::string name, bool toggle) {
 #endif
 }
 
-int Mixer::note(int instrument, int note, float volume, float sec) {
+static float beats_to_sec(float v) {
+    return v / (Scratch::tempo / 60.0);
+}
+
+static constexpr int instrument_lut[] = {
+    -1,
+    1,   /* Piano -> Acoustic Grand */
+    5,   /* Electric Piano -> Electric Piano 1 */
+    21,  /* Organ -> Church Organ */
+    26,  /* Guitar -> Steel String Guitar */
+    28,  /* Electric Guitar -> Electric Clean Guitar */
+    33,  /* Bass -> Acoustic Bass */
+    46,  /* Pizzicato -> Pizzicato Strings */
+    43,  /* Cello -> Cello */
+    58,  /* Trombone -> Trombone */
+    72,  /* Clarinet -> Clarinet */
+    65,  /* Saxophone -> Soprano Sax */
+    74,  /* Flute -> Flute */
+    -1,  /* Wooden Flute -> ? */
+    71,  /* Bassoon -> Bassoon */
+    53,  /* Choir -> Choir Aahs */
+    12,  /* Vibraphone -> Vibraphone */
+    11,  /* Music Box -> Music Box */
+    115, /* Steel Drum -> Steel Drums */
+    13,  /* Marimba -> Marimba */
+    81,  /* Synth Lead -> Lead 1 (square) */
+    90   /* Synth Pad -> Pad 2 (warm) */
+};
+
+int Mixer::note(int instrument, int note, float volume, float beats) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     int n;
 
     if (!Mixer::hTsf) return -1;
 
+    instrument = std::clamp(instrument, 1, (int)(sizeof(instrument_lut) / sizeof(instrument_lut[0])));
+
+    if (instrument_lut[instrument] == -1) return -1;
+
     Mixer::mutex.lock();
 
     n = Mixer::sf2_seq++;
-    tsf_channel_set_presetnumber(Mixer::hTsf, n, instrument);
+    tsf_channel_set_presetnumber(Mixer::hTsf, n, instrument_lut[instrument]);
     tsf_channel_set_volume(Mixer::hTsf, n, volume);
     tsf_channel_note_on(Mixer::hTsf, n, note, 1.0);
 
-    Mixer::notes[n] = sec;
+    Mixer::notes[n] = beats_to_sec(beats);
 
     Mixer::mutex.unlock();
 
