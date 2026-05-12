@@ -301,8 +301,20 @@ void Mixer::init() {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     std::string prefix = OS::getRomFSLocation();
     std::string path = prefix + "gfx/ingame/scratch.sf2";
-    std::ifstream ifs(path, std::ios::binary);
     size_t size;
+
+#ifdef USE_CMAKERC
+    auto fs = cmrc::romfs::get_filesystem();
+    if (fs.exists(path)) {
+        const auto &file = fs.open(path);
+
+        size = file.size();
+
+        Mixer::sf2_buffer = malloc(size);
+        memcpy(Mixer::sf2_buffer, file.begin(), size);
+    }
+#else
+    std::ifstream ifs(path, std::ios::binary);
 
     ifs.seekg(0, std::ios::end);
     size = ifs.tellg();
@@ -315,6 +327,7 @@ void Mixer::init() {
 
         ifs.close();
     }
+#endif
 
     if (Mixer::sf2_buffer) {
         Mixer::hTsf = tsf_load_memory(Mixer::sf2_buffer, size);
