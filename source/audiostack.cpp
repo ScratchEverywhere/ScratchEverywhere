@@ -567,27 +567,27 @@ float Mixer::beatsToSec(float v) {
 }
 
 static constexpr int instrument_lut[] = {
-    1,   /* Piano -> Acoustic Grand */
-    5,   /* Electric Piano -> Electric Piano 1 */
-    21,  /* Organ -> Church Organ */
-    26,  /* Guitar -> Steel String Guitar */
-    28,  /* Electric Guitar -> Electric Clean Guitar */
-    33,  /* Bass -> Acoustic Bass */
-    46,  /* Pizzicato -> Pizzicato Strings */
-    43,  /* Cello -> Cello */
-    58,  /* Trombone -> Trombone */
-    72,  /* Clarinet -> Clarinet */
-    65,  /* Saxophone -> Soprano Sax */
-    74,  /* Flute -> Flute */
-    76,  /* Wooden Flute -> Pan Flute */
-    71,  /* Bassoon -> Bassoon */
-    53,  /* Choir -> Choir Aahs */
-    12,  /* Vibraphone -> Vibraphone */
-    11,  /* Music Box -> Music Box */
-    115, /* Steel Drum -> Steel Drums */
-    13,  /* Marimba -> Marimba */
-    81,  /* Synth Lead -> Lead 1 (square) */
-    90   /* Synth Pad -> Pad 2 (warm) */
+    0,   /* Piano -> Acoustic Grand */
+    4,   /* Electric Piano -> Electric Piano 1 */
+    19,  /* Organ -> Church Organ */
+    24,  /* Guitar -> Steel String Guitar */
+    27,  /* Electric Guitar -> Electric Clean Guitar */
+    32,  /* Bass -> Acoustic Bass */
+    45,  /* Pizzicato -> Pizzicato Strings */
+    42,  /* Cello -> Cello */
+    57,  /* Trombone -> Trombone */
+    71,  /* Clarinet -> Clarinet */
+    64,  /* Saxophone -> Soprano Sax */
+    73,  /* Flute -> Flute */
+    75,  /* Wooden Flute -> Pan Flute */
+    70,  /* Bassoon -> Bassoon */
+    52,  /* Choir -> Choir Aahs */
+    11,  /* Vibraphone -> Vibraphone */
+    10,  /* Music Box -> Music Box */
+    114, /* Steel Drum -> Steel Drums */
+    12,  /* Marimba -> Marimba */
+    80,  /* Synth Lead -> Lead 1 (square) */
+    89   /* Synth Pad -> Pad 2 (warm) */
 };
 
 int Mixer::note(int instrument, int note, float volume, float beats) {
@@ -618,7 +618,7 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
 
 static constexpr int drum_lut[] = {
     38, /* Snare -> Acoustic Snare */
-    35, /* Bass Drum -> Acoustic Bass Drum */
+    36, /* Bass Drum -> Bass Drum 1 */
     37, /* Side Stick -> Side Stick */
     49, /* Crash Cymbal -> Crash Cymbal 1 */
     46, /* Open Hi Hat -> Open Hi-Hat */
@@ -636,8 +636,6 @@ static constexpr int drum_lut[] = {
     58, /* Vibraslap -> Vibraslap */
     79  /* Cuica -> Open Cuica */
 };
-
-#include <iostream>
 
 int Mixer::drum(int drum, float volume, float beats) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
