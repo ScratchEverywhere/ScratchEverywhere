@@ -98,6 +98,8 @@ cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUD
 # This tbh should probably work on all of these platforms (except MAYBE PSP..) but i lowkey dont want to test it rn
 cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
+cmake_dependent_option(SE_PROJECTRECEIVER "Enable the ability to use the local network to receive projects." ON "SE_ALLOW_PROJECTRECEIVER" OFF)
+
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
 if(NOT DEFINED SE_DECTALK_DEFAULT)
@@ -356,6 +358,10 @@ if(SE_LOADSCREEN)
 endif()
 if(SE_DOWNLOAD)
 	target_compile_definitions(se-interface INTERFACE ENABLE_DOWNLOAD)
+	se_add_dependency(se-interface libcurl)
+endif()
+if(SE_PROJECTRECEIVER)
+	target_compile_definitions(se-interface INTERFACE ENABLE_PROJECTRECEIVER)
 	se_add_dependency(se-interface libcurl)
 endif()
 if(SE_CLOUDVARS)
