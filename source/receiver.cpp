@@ -150,7 +150,7 @@ void ProjectReceiver::handleClient(int client_fd) {
     }
 
     if (method == "OPTIONS" && path == "/send") {
-        const char *preflightResponse =
+        constexpr const char *preflightResponse =
             "HTTP/1.1 200 OK\r\n"
             "Access-Control-Allow-Origin: *\r\n"
             "Access-Control-Allow-Methods: POST, OPTIONS\r\n"
@@ -163,7 +163,7 @@ void ProjectReceiver::handleClient(int client_fd) {
         return;
     }
     if (method != "POST" || path != "/send") {
-        const char *notFound =
+        constexpr const char *notFound =
             "HTTP/1.1 404 Not Found\r\n"
             "Access-Control-Allow-Origin: *\r\n"
             "Content-Length: 9\r\n"
@@ -206,7 +206,7 @@ void ProjectReceiver::handleClient(int client_fd) {
 
     std::ofstream outFile(savePath, std::ios::binary);
     if (!outFile.is_open()) {
-        const char *errResp =
+        constexpr const char *errResp =
             "HTTP/1.1 500 Internal Server Error\r\n"
             "Access-Control-Allow-Origin: *\r\n"
             "Content-Length: 0\r\n\r\n";
@@ -248,59 +248,10 @@ void ProjectReceiver::handleClient(int client_fd) {
     close(client_fd);
 }
 
-std::string ProjectReceiver::getLocalIP() {
-#ifdef __3DS__
-    struct in_addr addr;
-    if (R_SUCCEEDED(SOCU_GetIPInfo(&addr, NULL, NULL))) {
-        return inet_ntoa(addr);
-    }
-#elif defined(__linux__) || defined(__APPLE__)
-    struct ifaddrs *ifAddrStruct = NULL;
-    struct ifaddrs *ifa = NULL;
-    std::string ip = "127.0.0.1";
-
-    getifaddrs(&ifAddrStruct);
-    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
-        if (!ifa->ifa_addr) continue;
-        if (ifa->ifa_addr->sa_family == AF_INET) {
-            void *tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
-            char addressBuffer[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
-            if (std::string(ifa->ifa_name).find("lo") == std::string::npos) {
-                ip = addressBuffer;
-                break;
-            }
-        }
-    }
-    if (ifAddrStruct) freeifaddrs(ifAddrStruct);
-    return ip;
-#elif defined(_WIN32)
-    char name[256];
-    if (gethostname(name, sizeof(name)) == 0) {
-        struct hostent *host = gethostbyname(name);
-        if (host != NULL) {
-            return inet_ntoa(*(struct in_addr *)*host->h_addr_list);
-        }
-    }
-// #elif defined(__WIIU__)
-//     char hostname[256];
-//     if (gethostname(hostname, sizeof(hostname)) == 0) {
-//         struct hostent *host = gethostbyname(hostname);
-//         if (host != nullptr && host->h_addr_list[0] != nullptr) {
-//             struct in_addr addr;
-//             memcpy(&addr, host->h_addr_list[0], sizeof(addr));
-//             return inet_ntoa(addr);
-//         }
-//     }
-//     return "0.0.0.0";
-#endif
-    return "";
-}
-
 std::string ProjectReceiver::getShortCode() {
-    std::string ip = getLocalIP();
+    std::string ip = OS::getLocalIP();
     Log::log("IP: " + ip);
-    if (ip == "127.0.0.1" || ip == "0.0.0.0" || ip == "DISCONNECTED") return "DISCONNECTED";
+    if (ip == "127.0.0.1" || ip == "0.0.0.0" || ip == "DISCONNECTED" || ip.empty()) return "DISCONNECTED";
 
     const char *ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
     int blocks[4] = {0};

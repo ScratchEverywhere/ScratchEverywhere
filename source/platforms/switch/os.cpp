@@ -107,6 +107,10 @@ bool OS::initWifi() {
 void OS::deInitWifi() {
 }
 
+std::string OS::getLocalIP() {
+    return "";
+}
+
 std::string OS::getUsername() {
     if (std::string(nickname) != "") {
         return std::string(nickname);

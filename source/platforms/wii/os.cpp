@@ -53,6 +53,10 @@ bool OS::initWifi() {
 void OS::deInitWifi() {
 }
 
+std::string OS::getLocalIP() {
+    return "";
+}
+
 std::string OS::getUsername() {
     CONF_Init();
     u8 wiiNickname[24];

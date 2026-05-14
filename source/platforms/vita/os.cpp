@@ -73,6 +73,10 @@ void OS::deInitWifi() {
     // TODO: implement
 }
 
+std::string OS::getLocalIP() {
+    return "";
+}
+
 std::string OS::getUsername() {
     static SceChar8 usernameBuffer[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE];
 

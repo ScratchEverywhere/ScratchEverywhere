@@ -29,19 +29,13 @@ set(SE_BANNERTOOL bannertool CACHE PATH "Path to bannertool executable")
 set(SE_MAKEROM makerom CACHE PATH "Path to makerom executable")
 set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
 
-# Why the hell is this needed now?
-find_program(MKBCFNT mkbcfnt)
-if(NOT MKBCFNT)
-	set(MKBCFNT "/opt/devkitpro/tools/bin/mkbcfnt")
-endif()
-
 macro(package_platform)
 
 	file(GLOB_RECURSE TTF_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/*.ttf")
 	foreach(TTF_FILE IN LISTS TTF_FILES)
 		string(REGEX REPLACE "\\.ttf$" ".bcfnt" BCFNT_OUTPUT "${TTF_FILE}")
         add_custom_command(TARGET scratch-everywhere POST_BUILD
-            COMMAND ${MKBCFNT} -o "${BCFNT_OUTPUT}" "${TTF_FILE}"
+            COMMAND ${DEVKITRPO}/tools/bin/mkbcfont -o "${BCFNT_OUTPUT}" "${TTF_FILE}"
             DEPENDS "${TTF_FILE}"
             VERBATIM
         )

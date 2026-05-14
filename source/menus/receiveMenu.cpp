@@ -20,14 +20,15 @@ void ReceiveMenu::init() {
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->needsToBeSelected = false;
 
-    infoText = createTextObject(TranslationManager::getTranslation("ui.projects.receive.info"), 0, 0, "gfx/menu/Ubuntu-Bold");
+    infoText = createTextObject(TranslationManager::getTranslation("ui.receive.info"), 0, 0, "gfx/menu/Ubuntu-Bold");
+    infoText->setScale(0.5);
     infoText->setCenterAligned(true);
 
     shortCodeText = createTextObject(shortCode, 0, 0, "gfx/menu/Ubuntu-Bold");
+    shortCodeText->setScale(1.5);
     shortCodeText->setCenterAligned(true);
-    shortCodeText->setScale(2.0);
 
-    statusText = createTextObject(TranslationManager::getTranslation("ui.projects.receive.status"), 0, 0, "gfx/menu/Ubuntu-Bold");
+    statusText = createTextObject(TranslationManager::getTranslation("ui.receive.status"), 0, 0, "gfx/menu/Ubuntu-Bold");
     statusText->setCenterAligned(true);
     statusText->setColor(Math::color(0, 150, 0, 255));
 

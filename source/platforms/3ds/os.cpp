@@ -1,10 +1,11 @@
 #include <3ds.h>
+#include <arpa/inet.h>
+#include <iomanip>
 #include <iostream>
 #include <log.hpp>
 #include <malloc.h>
 #include <os.hpp>
 #include <sstream>
-#include <iomanip>
 
 namespace OS {
 bool toExit = false;
@@ -98,6 +99,14 @@ void OS::deInitWifi() {
             }
         }
     }
+}
+
+std::string OS::getLocalIP() {
+    struct in_addr addr;
+    if (R_SUCCEEDED(SOCU_GetIPInfo(&addr, NULL, NULL))) {
+        return inet_ntoa(addr);
+    }
+    return "";
 }
 
 std::string OS::getUsername() {
