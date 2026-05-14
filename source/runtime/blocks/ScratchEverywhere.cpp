@@ -34,6 +34,11 @@ SCRATCH_BLOCK(SE, platform) {
     *outValue = Value(OS::getPlatform());
     return BlockResult::CONTINUE;
 }
+//detects if the platform is gba. IMPORTANT IF YOU DONT WANT YOUR GAME TO RUN ON GBA
+SCRATCH_BLOCK(SE, isGBA) {
+    *outValue = Value(OS::getPlatform() == "GBA" && OS::isEnhancedPlatform()); 
+    return BlockResult::CONTINUE;
+}
 
 SCRATCH_BLOCK(SE, controller) {
 #ifdef RENDERER_CITRO2D
