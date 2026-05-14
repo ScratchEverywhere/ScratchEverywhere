@@ -1,5 +1,7 @@
 #include "math.hpp"
-#include "nonstd/expected.hpp"
+#ifdef EXPECTED_ALLOWED
+#include "nonstd/expected.hpp" //has to be done due to compile error nonsense.
+#endif
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
