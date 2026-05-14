@@ -8,6 +8,10 @@
 #include <math.h>
 #include <os.hpp>
 #include <random>
+#ifdef __GBA__RENDERER_
+// gba header will go here. i have to edit because this file does compile errors
+#include <gba.h>
+#endif
 #include <stdexcept>
 #include <string>
 #ifdef RENDERER_CITRO2D
