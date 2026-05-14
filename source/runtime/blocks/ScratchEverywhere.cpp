@@ -40,6 +40,8 @@ SCRATCH_BLOCK(SE, controller) {
     *outValue = Value("3DS");
 #elif defined(RENDERER_GL2D)
     *outValue = Value("NDS");
+	#ifdef __GBA__RENDERER_
+	*outValue = Value("GBA");
 #elif defined(RENDERER_SDL1) && defined(PLATFORM_HAS_CONTROLLER)
     if (controller != nullptr) *outValue = Value(std::string(SDL_JoystickName(SDL_JoystickIndex(controller))));
 #elif defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
