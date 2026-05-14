@@ -10,7 +10,6 @@ class ProjectReceiver {
     static void deinit();
     static void update();
     static std::string getShortCode();
-    static std::string getLocalIP();
 
   private:
     static void handleClient(int client_fd);
@@ -24,6 +23,5 @@ class ProjectReceiver {
     static void deinit() {}
     static void update() {}
     static std::string getShortCode() { return ""; }
-    static std::string getLocalIP() { return ""; }
 };
 #endif
