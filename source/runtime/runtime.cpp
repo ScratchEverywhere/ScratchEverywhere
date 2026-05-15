@@ -54,6 +54,8 @@ BlockExecutor executor;
 
 bool Scratch::hasNativeExtensions = false;
 
+float Scratch::tempo = 60;
+
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
 int Scratch::cloneCount;
@@ -126,6 +128,8 @@ void Scratch::initializeScratchProject() {
         BlockExecutor::linkPointers(sprite);
     }
 #endif
+
+    Scratch::tempo = 60;
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird

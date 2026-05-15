@@ -1,6 +1,7 @@
 #if defined(__NDS__)
 #define NO_VORBIS
 #define NO_MP3
+#define NO_MUSIC
 #endif
 
 #pragma once
@@ -14,6 +15,9 @@
 #include <dr_wav.h>
 #if !defined(NO_VORBIS)
 #include <stb_vorbis.c>
+#endif
+#if !defined(NO_MUSIC)
+#include <tsf.h>
 #endif
 #endif
 #include "nonstd/expected.hpp"
@@ -103,8 +107,16 @@ class Mixer {
 #endif
 
     static SE_Mutex mutex;
+#ifdef ENABLE_AUDIO
+    static tsf *hTsf;
+#endif
+    static void *sf2_buffer;
+    static int sf2_seq;
     static std::unordered_map<std::string, SoundStream *> streams;
+    static std::unordered_map<int, float> notes;
     static std::unordered_map<std::string, SoundConfig> configs;
+    static bool musicInitialized;
+    static void initMusic();
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);
@@ -114,4 +126,8 @@ class Mixer {
     static float getSoundVolume(std::string name);
     static void setAutoClean(std::string name, bool toggle);
     static void cleanupAudio();
+    static float beatsToSec(float v);
+    static int note(int instrument, int note, float volume, float beats);
+    static int drum(int drum, float volume, float beats);
+    static bool isInstrumentPlaying(int channel);
 };
