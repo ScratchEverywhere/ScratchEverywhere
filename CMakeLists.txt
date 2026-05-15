@@ -337,6 +337,7 @@ if(SE_AUDIO)
 		se_add_dependency(se-interface stb_vorbis)
 	endif()
 	se_add_dependency(se-interface dr_libs)
+	se_add_dependency(se-interface tsf)
 endif()
 
 if(SE_ALLOW_NATIVE_EXTENSIONS)

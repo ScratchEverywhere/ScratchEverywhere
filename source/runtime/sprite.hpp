@@ -54,6 +54,7 @@ struct BlockState {
     double waitDuration = 0;
     double glideStartX = 0, glideStartY = 0;
     double glideEndX = 0, glideEndY = 0;
+    int musicChannel = 0;
     std::string name;
 
     Timer waitTimer;
@@ -297,6 +298,9 @@ class Sprite {
     float rotation;
     int layer;
     RenderInfo renderInfo;
+
+    /** Music **/
+    int instrument = 1;
 
     /** Costume effects */
     float ghostEffect;
