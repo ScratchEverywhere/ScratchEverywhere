@@ -6,7 +6,7 @@ function(_dep_source_tsf)
 
 	CPMAddPackage(
 		NAME tsf
-		GITHUB_REPOSITORY schellingb/TinySoundFont
+		GITHUB_REPOSITORY ScratchEverywhere/TinySoundFont
 		GIT_TAG main
 	)
 
