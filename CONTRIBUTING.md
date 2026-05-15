@@ -202,7 +202,7 @@ See [`PORTING.md`](/PORTING.md).
 
 You can pretty much do whatever you want since we usually end up squashing PRs
 anyway. The two most common commit styles are conventional commits and Nate's.
-Nate's style goes like `[Affect Code] Change` so some examples are:
+Nate's style goes like `[Effect Code] Change` so some examples are:
 `[Runtime] Added move steps support` or `[SDL, 3DS] Improved Image Memory`.
 
 ### Markdown
