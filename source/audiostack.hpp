@@ -115,7 +115,8 @@ class Mixer {
     static std::unordered_map<std::string, SoundStream *> streams;
     static std::unordered_map<int, float> notes;
     static std::unordered_map<std::string, SoundConfig> configs;
-    static void init();
+    static bool musicInitialized;
+    static void initMusic();
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);

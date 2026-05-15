@@ -296,9 +296,12 @@ tsf *Mixer::hTsf = nullptr;
 void *Mixer::sf2_buffer = nullptr;
 int Mixer::sf2_seq = 0;
 std::unordered_map<int, float> Mixer::notes;
+bool Mixer::musicInitialized = false;
 
-void Mixer::init() {
+void Mixer::initMusic() {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    if(Mixer::musicInitialized) return;
+
     std::string prefix = OS::getRomFSLocation();
     std::string path = prefix + "gfx/ingame/scratch.sf2";
     size_t size;
@@ -336,6 +339,8 @@ void Mixer::init() {
     if (Mixer::hTsf) {
         tsf_set_output(Mixer::hTsf, TSF_STEREO_INTERLEAVED, Mixer::rate, 0);
     }
+
+    Mixer::musicInitialized = true;
 #endif
 }
 
@@ -461,6 +466,7 @@ void Mixer::cleanupAudio() {
         free(Mixer::sf2_buffer);
         Mixer::sf2_buffer = nullptr;
     }
+    Mixer::musicInitialized = false;
 #endif
 #endif
 }

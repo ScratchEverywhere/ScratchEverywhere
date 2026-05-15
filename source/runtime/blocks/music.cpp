@@ -23,6 +23,7 @@ SCRATCH_BLOCK(music, playNoteForBeats) {
 
     state = thread->getState(block);
 
+    Mixer::initMusic();
     if (state->completedSteps == 0) {
         if ((state->musicChannel = Mixer::note(sprite->instrument, note.asDouble(), sprite->volume / 100.0, beats.asDouble())) == -1) {
             thread->eraseState(block);
@@ -48,6 +49,7 @@ SCRATCH_BLOCK(music, playDrumForBeats) {
 
     state = thread->getState(block);
 
+    Mixer::initMusic();
     if (state->completedSteps == 0) {
         if ((state->musicChannel = Mixer::drum(drum.asDouble(), sprite->volume / 100.0, beats.asDouble())) == -1) {
             thread->eraseState(block);
