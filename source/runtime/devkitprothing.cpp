@@ -2,9 +2,14 @@
 #include <gba.h> // actual header for gba.
 int main(){
 //needed to make devkitpro happy or gets mad when compiling
- 
+ //needed due to screen writing.
+irqInit();
+	irqEnable(IRQ_VBLANK);
 
+	consoleDemoInit();
 
-    
+    while (1) {
+		VBlankIntrWait();
+	}
 }
 #endif
