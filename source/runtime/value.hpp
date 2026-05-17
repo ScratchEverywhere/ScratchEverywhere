@@ -1,7 +1,9 @@
 #pragma once
 #include "color.hpp"
 #include "math.hpp"
-#include <nlohmann/json.hpp>
+#ifdef EXPECTED_ALLOWED
+#include <nlohmann/json.hpp> //has to be done due to compile error nonsense.
+#endif
 #include <string>
 
 #include <variant>
