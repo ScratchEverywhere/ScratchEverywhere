@@ -1,7 +1,9 @@
 #pragma once
 #include <cstdint>
+#ifdef EXPECTED_ALLOWED //has to be done due to compile errors
 #include <nonstd/expected.hpp>
 #include <ryu/d2s.h>
+#endif
 #include <string>
 #ifndef M_PI
 #define M_PI 3.1415926535897932
