@@ -24,7 +24,7 @@ bool Window3DS::shouldClose() {
 }
 
 void Window3DS::pollEvents() {
-	// do we even poll events on 3DS?
+    // do we even poll events on 3DS?
 }
 
 void Window3DS::swapBuffers() {

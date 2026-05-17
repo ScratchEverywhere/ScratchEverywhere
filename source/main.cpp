@@ -73,22 +73,27 @@ bool activateMainMenu() {
 
 void mainLoop() {
     Scratch::startScratchProject();
+
     if (Scratch::nextProject) {
         Log::log(Unzip::filePath);
-        if (!Unzip::load()) {
-            if (Unzip::projectOpened == -3) { // main menu
-                if (!activateMainMenu()) {
-                    exitApp();
-                    exit(0);
-                }
-            } else {
-                exitApp();
-                exit(0);
-            }
+        if (Unzip::load()) {
+            goto SkipCheck;
         }
 
+        if (Unzip::projectOpened != -3) { // main menu
+            exitApp();
+            exit(0);
+        }
+
+        if (!activateMainMenu()) {
+            exitApp();
+            exit(0);
+        }
+
+    SkipCheck:
         return;
     }
+
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
