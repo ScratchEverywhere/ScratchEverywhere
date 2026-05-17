@@ -7,7 +7,9 @@
 #include <cctype>
 #include <cmath>
 #include <image.hpp>
+#include <log.hpp>
 #include <parser.hpp>
+#include <translation.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -77,7 +79,7 @@ MainMenu::~MainMenu() {
 void MainMenu::init() {
 #if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
     // let the user type what project they want to open
-    std::string answer = Input::openSoftwareKeyboard("Please type what project you want to open.");
+    std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
 
     const std::string ext = ".sb3";
     if (answer.size() >= ext.size() &&
@@ -94,17 +96,17 @@ void MainMenu::init() {
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
-    logo = new MenuImage("gfx/menu/logo.png");
+    logo = new MenuImage("gfx/menu/eventAssets/annivLogo.png");
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject("Beta Build 40", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.release") + " 1.0 RC1 - 1 YEAR OF SE!", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
-    splashText = createTextObject(Unzip::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
+    splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
-    splashText->setColor(Math::color(243, 154, 37, 255));
+    splashText->setColor(Math::color(255, 255, 255, 128));
     if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
         splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
         splashText->scale = splashTextOriginalScale;
@@ -159,7 +161,7 @@ void MainMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 117, 77, 117);
+    Render::beginFrame(0, 51, 140, 204);
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
@@ -173,7 +175,7 @@ void MainMenu::render() {
     splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 
     // begin 3DS bottom screen frame
-    Render::beginFrame(1, 117, 77, 117);
+    Render::beginFrame(1, 51, 140, 204);
 
     if (settingsButton->isPressed()) {
         SettingsMenu *settingsMenu = new SettingsMenu();

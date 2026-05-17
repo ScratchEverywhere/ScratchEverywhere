@@ -1,6 +1,10 @@
 #include "settingsMenu.hpp"
+#include "languageMenu.hpp"
 #include "menuObjects.hpp"
 #include "settings.hpp"
+#include "translation.hpp"
+#include <filesystem.hpp>
+#include <log.hpp>
 
 SettingsMenu::SettingsMenu() {
     init();
@@ -8,6 +12,10 @@ SettingsMenu::SettingsMenu() {
 
 SettingsMenu::~SettingsMenu() {
     cleanup();
+}
+
+std::string SettingsMenu::getDectalkString() {
+    return TranslationManager::getTranslation("ui.settings.dectalk") + ": " + TranslationManager::getTranslation(UseDectalk ? "ui.settings.on" : "ui.settings.off");
 }
 
 void SettingsMenu::init() {
@@ -19,27 +27,25 @@ void SettingsMenu::init() {
     // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
     // Credits->text->setColor(Math::color(0, 0, 0, 255));
     // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject("Username: clickToLoad", "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
+    EnableUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.username"), "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
     EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
-    EnableUsername->text->setScale(0.5);
-    ChangeUsername = new ButtonObject("Name: Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
+    ChangeUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.name") + ": Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
     ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
-    ChangeUsername->text->setScale(0.5);
 
-    EnableCustomFolderPath = new ButtonObject("Custom Path: clickToLoad", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
+    EnableCustomFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.path"), "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
     EnableCustomFolderPath->text->setColor(Math::color(0, 0, 0, 255));
-    EnableCustomFolderPath->text->setScale(0.5);
-    ChangeFolderPath = new ButtonObject("Change Path", "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
+    ChangeFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.changePath"), "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
     ChangeFolderPath->text->setColor(Math::color(0, 0, 0, 255));
-    ChangeFolderPath->text->setScale(0.5);
 
-    EnableMenuMusic = new ButtonObject("Menu Music: clickToLoad", "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
+    EnableMenuMusic = new ButtonObject(TranslationManager::getTranslation("ui.settings.music"), "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
     EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
-    EnableMenuMusic->text->setScale(0.5);
 
-    ClearCache = new ButtonObject("Clear Cache", "gfx/menu/projectBox.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
+    ClearCache = new ButtonObject(TranslationManager::getTranslation("ui.settings.cache"), "gfx/menu/projectBox.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
     ClearCache->text->setColor(Math::color(0, 0, 0, 255));
-    ClearCache->text->setScale(0.5);
+
+    Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language"), "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
+    Language->text->setColor(Math::color(0, 0, 0, 255));
+    Language->textScale = 1.0;
 
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
@@ -49,6 +55,15 @@ void SettingsMenu::init() {
     username = "Player";
 
     nlohmann::json json = SettingsManager::getConfigSettings();
+
+    if (json.contains("UseDectalk") && json["UseDectalk"].is_boolean()) {
+        UseDectalk = json["UseDectalk"].get<bool>();
+    }
+
+#ifdef ENABLE_DECTALK
+    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
+    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
+#endif
 
     if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
         UseCostumeUsername = json["EnableUsername"].get<bool>();
@@ -86,6 +101,10 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(ChangeUsername);
     settingsControl->buttonObjects.push_back(EnableUsername);
     settingsControl->buttonObjects.push_back(ClearCache);
+    settingsControl->buttonObjects.push_back(Language);
+#ifdef ENABLE_DECTALK
+    settingsControl->buttonObjects.push_back(dectalkButton);
+#endif
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -98,21 +117,31 @@ void SettingsMenu::updateButtonStates() {
     ChangeUsername->buttonDown = EnableCustomFolderPath;
     ChangeFolderPath->buttonUp = EnableCustomFolderPath;
     ChangeFolderPath->buttonDown = EnableMenuMusic;
-    EnableUsername->buttonUp = ClearCache;
+    EnableUsername->buttonUp = Language;
     EnableMenuMusic->buttonDown = ClearCache;
     ClearCache->buttonUp = EnableMenuMusic;
-    ClearCache->buttonDown = EnableUsername;
+    ClearCache->buttonDown = Language;
+    Language->buttonUp = ClearCache;
+    Language->buttonDown = EnableUsername;
+#ifdef ENABLE_DECTALK
+    Language->buttonDown = dectalkButton;
+    dectalkButton->buttonUp = Language;
+#endif
+
+    ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
+    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
+    ChangeFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.changePath"));
 
     if (UseCostumeUsername) {
-        EnableUsername->text->setText("Username: Enabled");
-        ChangeUsername->text->setText("Name: " + username);
+        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.on"));
+        ChangeUsername->text->setText(TranslationManager::getTranslation("ui.settings.name") + ": " + username);
         ChangeUsername->canBeClicked = true;
         ChangeUsername->hidden = false;
 
         EnableUsername->buttonDown = ChangeUsername;
         EnableCustomFolderPath->buttonUp = ChangeUsername;
     } else {
-        EnableUsername->text->setText("Username: Disabled");
+        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.off"));
         ChangeUsername->canBeClicked = false;
         ChangeUsername->hidden = true;
 
@@ -121,14 +150,14 @@ void SettingsMenu::updateButtonStates() {
     }
 
     if (UseProjectsPath) {
-        EnableCustomFolderPath->text->setText("Custom Path: Enabled");
+        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.on"));
         ChangeFolderPath->canBeClicked = true;
         ChangeFolderPath->hidden = false;
 
         EnableCustomFolderPath->buttonDown = ChangeFolderPath;
         EnableMenuMusic->buttonUp = ChangeFolderPath;
     } else {
-        EnableCustomFolderPath->text->setText("Custom Path: Disabled");
+        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.off"));
         ChangeFolderPath->canBeClicked = false;
         ChangeFolderPath->hidden = true;
 
@@ -136,7 +165,11 @@ void SettingsMenu::updateButtonStates() {
         EnableMenuMusic->buttonUp = EnableCustomFolderPath;
     }
 
-    EnableMenuMusic->text->setText("Menu Music: " + std::string(menuMusic ? "Enabled" : "Disabled"));
+    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music") + ": " + (menuMusic ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")));
+
+#ifdef ENABLE_DECTALK
+    dectalkButton->text->setText(getDectalkString());
+#endif
 }
 
 void SettingsMenu::render() {
@@ -148,12 +181,12 @@ void SettingsMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 96, 90, 105);
-    Render::beginFrame(1, 96, 90, 105);
+    Render::beginFrame(0, 71, 107, 115);
+    Render::beginFrame(1, 71, 107, 115);
 
     if (ClearCache->isPressed({"a"})) {
-        OS::removeDirectory(OS::getScratchFolderLocation() + "cache/");
-        OS::createDirectory(OS::getScratchFolderLocation() + "cache/");
+        FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
     }
 
     if (EnableMenuMusic->isPressed({"a"})) {
@@ -199,6 +232,20 @@ void SettingsMenu::render() {
         }
     }
 
+    if (Language->isPressed({"a"})) {
+        LanguageMenu *langMenu = new LanguageMenu();
+        MenuManager::changeMenu(langMenu);
+        return;
+    }
+
+#ifdef ENABLE_DECTALK
+    if (dectalkButton->isPressed({"a"})) {
+        UseDectalk = !UseDectalk;
+        dectalkButton->text->setText(getDectalkString());
+        return;
+    }
+#endif
+
     backButton->render();
     settingsControl->render();
     Render::endFrame();
@@ -233,9 +280,21 @@ void SettingsMenu::cleanup() {
         delete EnableMenuMusic;
         EnableMenuMusic = nullptr;
     }
+    if (ClearCache != nullptr) {
+        delete ClearCache;
+        ClearCache = nullptr;
+    }
+    if (Language != nullptr) {
+        delete Language;
+        Language = nullptr;
+    }
     if (settingsControl != nullptr) {
         delete settingsControl;
         settingsControl = nullptr;
+    }
+    if (dectalkButton != nullptr) {
+        delete dectalkButton;
+        dectalkButton = nullptr;
     }
 
     // save settings
@@ -245,6 +304,8 @@ void SettingsMenu::cleanup() {
     json["UseProjectsPath"] = UseProjectsPath;
     json["ProjectsPath"] = projectsPath;
     json["MenuMusic"] = menuMusic;
+    json["Language"] = TranslationManager::getLoadedLanguage().key;
+    json["UseDectalk"] = UseDectalk;
     SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;

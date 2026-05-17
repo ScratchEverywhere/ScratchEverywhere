@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cstddef>
 #include <image.hpp>
+#include <log.hpp>
 #include <miniz.h>
 #include <os.hpp>
 #include <render.hpp>

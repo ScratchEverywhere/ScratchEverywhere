@@ -1,5 +1,6 @@
 #include "text_gl2d.hpp"
 #include <color.hpp>
+#include <log.hpp>
 #include <os.hpp>
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"

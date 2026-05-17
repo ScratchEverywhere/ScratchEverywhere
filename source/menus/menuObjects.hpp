@@ -87,7 +87,7 @@ class MenuImage : public MenuObject {
      * @param xPosition
      * @param yPosition
      */
-    MenuImage(std::string filePath, int xPos = 0, int yPos = 0, bool nineslice = false);
+    MenuImage(std::string filePath, int xPos = 0, int yPos = 0, bool nineslice = true);
     virtual ~MenuImage();
 
     double renderX;

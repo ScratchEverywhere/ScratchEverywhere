@@ -6,6 +6,7 @@
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
 #include "sprite.hpp"
+#include "translation.hpp"
 #include "unzip.hpp"
 #include <audio.hpp>
 #include <cmath>
@@ -14,6 +15,7 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
+#include <log.hpp>
 #include <math.h>
 #include <os.hpp>
 #include <render.hpp>
@@ -35,6 +37,11 @@
 #include <emscripten.h>
 #endif
 
+#if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#define DT_EXTERN
+#include <epsonapi.h>
+#endif
+
 std::vector<Block *> Scratch::blocks;
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
@@ -46,6 +53,8 @@ std::vector<ScriptThread *> Pools::threads;
 BlockExecutor executor;
 
 bool Scratch::hasNativeExtensions = false;
+
+float Scratch::tempo = 60;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -81,6 +90,29 @@ std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
+bool Scratch::initializeRuntime() {
+    Log::deleteLogFile();
+    Render::debugMode = true;
+
+    if (!OS::init()) {
+        return false;
+    }
+    TranslationManager::loadLanguage();
+    if (!Render::Init()) {
+        return false;
+    }
+#ifdef ENABLE_AUDIO
+#ifdef ENABLE_DECTALK
+    TextToSpeechSafeInit();
+#endif
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+        return false;
+    }
+#endif
+    return true;
+}
+
 void Scratch::initializeScratchProject() {
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
@@ -96,6 +128,8 @@ void Scratch::initializeScratchProject() {
         BlockExecutor::linkPointers(sprite);
     }
 #endif
+
+    Scratch::tempo = 60;
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird
@@ -199,7 +233,7 @@ bool Scratch::startScratchProject() {
 #ifdef ENABLE_MENU
 
     if (hasNativeExtensions) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, "Warning! This project contains Native Extensions. Native Extensions have full access to your device.");
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
         MenuManager::changeMenu(popupMenu);
         while (Render::appShouldRun() && popupMenu->accepted == -1) {
             MenuManager::render();
@@ -254,6 +288,13 @@ void Scratch::cleanupScratchProject() {
     DownloadManager::deinit();
 
     // Reset Runtime
+
+    for (auto thread : BlockExecutor::threads) {
+        thread->clear();
+        Pools::threads.push_back(thread);
+    }
+    BlockExecutor::threads.clear();
+
     std::unordered_set<BlockState *> deletedStates;
     std::unordered_set<ScriptThread *> deletedThreads;
 
@@ -329,9 +370,13 @@ bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread
         input.calculated = true;
 #ifdef ENABLE_CACHING
         if (input.variable != nullptr) input.value = input.variable->value;
-        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        else {
+            if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
+            else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        }
 #else
-        input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
+        if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
+        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
 #endif
         outValue = input.value;
         return true;
@@ -720,7 +765,14 @@ std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
             }
         }
     }
-    if (!targetSprite) return nullptr; // TODO: Implement list creation
+    if (!targetSprite) {
+        List newList;
+        newList.id = listId;
+        newList.name = getListName(block);
+        newList.items = {};
+        sprite->lists[listId] = newList;
+        targetSprite = sprite;
+    }
     return &targetSprite->lists[listId].items;
 }
 

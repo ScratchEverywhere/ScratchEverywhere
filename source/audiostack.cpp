@@ -1,10 +1,12 @@
 #include "nonstd/expected.hpp"
 #define DR_MP3_IMPLEMENTATION
 #define DR_WAV_IMPLEMENTATION
+#define TSF_IMPLEMENTATION
 #include "audiostack.hpp"
 #include "os.hpp"
 #include "runtime.hpp"
 #include "unzip.hpp"
+#include <log.hpp>
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
@@ -85,6 +87,10 @@ bool SoundStream::loadAsVorbis() {
 
 void SoundStream::commonInit() {
 #ifdef ENABLE_AUDIO
+    this->paused = false;
+    this->auto_clean = false;
+    this->no_lock = false;
+
     Mixer::mutex.lock();
 
     auto e = Mixer::configs.find(this->name);
@@ -123,9 +129,6 @@ bool SoundStream::loadFromBuffer() {
         return false;
     }
 
-    this->paused = false;
-    this->auto_clean = false;
-    this->no_lock = false;
     return success;
 #endif
 }
@@ -153,7 +156,9 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
         ifs.close();
 #ifdef USE_CMAKERC
     } else {
-        const auto &file = cmrc::romfs::get_filesystem().open(prefix + path);
+        auto fs = cmrc::romfs::get_filesystem();
+        if (!fs.exists(prefix + path)) return nonstd::make_unexpected("Audio file not found.");
+        const auto &file = fs.open(prefix + path);
 
         this->buffer_size = file.size();
 
@@ -180,6 +185,22 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     auto potentialError = init(path, cached, on_disk);
     if (error.has_value()) error = potentialError.error();
+}
+
+SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate) {
+    this->name = name;
+
+    this->channels = channels;
+    this->rate = rate;
+
+    this->type = SoundStreamStream;
+    this->callback = callback;
+
+    commonInit();
+
+    Mixer::mutex.lock();
+    Mixer::streams[name] = this;
+    Mixer::mutex.unlock();
 }
 
 nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::string path) {
@@ -213,7 +234,6 @@ nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::
 }
 
 SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
-
     auto potentialError = init(zip, path);
     if (error.has_value()) error = potentialError.error();
 }
@@ -223,11 +243,12 @@ SoundStream::~SoundStream() {
     int i;
 
     if (!this->no_lock) Mixer::mutex.lock();
-    for (auto e : Mixer::streams) {
-        if (e.second == this) {
-            Mixer::streams.erase(e.first);
+    for (auto it = Mixer::streams.begin(); it != Mixer::streams.end();) {
+        if (it->second == this) {
+            Mixer::streams.erase(it);
             break;
         }
+        it++;
     }
     if (!this->no_lock) Mixer::mutex.unlock();
 
@@ -243,13 +264,15 @@ SoundStream::~SoundStream() {
 #endif
     }
 
-    if (this->buffer != nullptr) free(this->buffer);
+    if (this->type != SoundStreamStream && this->buffer != nullptr) free(this->buffer);
 #endif
 }
 
 int SoundStream::read(float *output, int frames) {
 #ifdef ENABLE_AUDIO
-    if (this->type == SoundStreamWAV) {
+    if (this->type == SoundStreamStream) {
+        return this->callback(this, output, frames);
+    } else if (this->type == SoundStreamWAV) {
         return drwav_read_pcm_frames_f32(&this->wav, frames, output);
 #if !defined(NO_MP3)
     } else if (this->type == SoundStreamMP3) {
@@ -267,6 +290,59 @@ int SoundStream::read(float *output, int frames) {
 std::unordered_map<std::string, SoundStream *> Mixer::streams;
 std::unordered_map<std::string, SoundConfig> Mixer::configs;
 SE_Mutex Mixer::mutex;
+#ifdef ENABLE_AUDIO
+tsf *Mixer::hTsf = nullptr;
+#endif
+void *Mixer::sf2_buffer = nullptr;
+int Mixer::sf2_seq = 0;
+std::unordered_map<int, float> Mixer::notes;
+bool Mixer::musicInitialized = false;
+
+void Mixer::initMusic() {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    if(Mixer::musicInitialized) return;
+
+    std::string prefix = OS::getRomFSLocation();
+    std::string path = prefix + "gfx/ingame/scratch.sf2";
+    size_t size;
+
+#ifdef USE_CMAKERC
+    auto fs = cmrc::romfs::get_filesystem();
+    if (fs.exists(path)) {
+        const auto &file = fs.open(path);
+
+        size = file.size();
+
+        Mixer::sf2_buffer = malloc(size);
+        memcpy(Mixer::sf2_buffer, file.begin(), size);
+    }
+#else
+    std::ifstream ifs(path, std::ios::binary);
+
+    ifs.seekg(0, std::ios::end);
+    size = ifs.tellg();
+    ifs.seekg(0);
+
+    if (ifs.good()) {
+        Mixer::sf2_buffer = malloc(size);
+
+        ifs.read((char *)Mixer::sf2_buffer, size);
+
+        ifs.close();
+    }
+#endif
+
+    if (Mixer::sf2_buffer) {
+        Mixer::hTsf = tsf_load_memory(Mixer::sf2_buffer, size);
+    }
+
+    if (Mixer::hTsf) {
+        tsf_set_output(Mixer::hTsf, TSF_STEREO_INTERLEAVED, Mixer::rate, 0);
+    }
+
+    Mixer::musicInitialized = true;
+#endif
+}
 
 void Mixer::requestSound(short *output, int frames) {
 #ifdef ENABLE_AUDIO
@@ -275,9 +351,33 @@ void Mixer::requestSound(short *output, int frames) {
 
     Mixer::mutex.lock();
 
-    for (auto &entry : streams) {
-        SoundStream *s = entry.second;
-        if (s->paused) continue;
+#ifndef NO_MUSIC
+    if (Mixer::hTsf) {
+        tsf_render_float(Mixer::hTsf, mixBuffer.data(), frames, 0);
+    }
+
+    for (auto it = notes.begin(); it != notes.end();) {
+        it->second -= (float)frames / Mixer::rate;
+
+        if (it->second <= 0) {
+            tsf_channel_note_off_all(Mixer::hTsf, it->first);
+            it = notes.erase(it);
+        } else {
+            it++;
+        }
+    }
+#endif
+
+    for (auto it = streams.begin(); it != streams.end();) {
+        SoundStream *s = it->second;
+        if (s->paused) {
+            it++;
+            if (s->auto_clean) {
+                s->no_lock = true;
+                delete s;
+            }
+            continue;
+        }
 
         const float pitch = s->config.pitch;
         const float volume = s->config.volume / 100.0f;
@@ -289,6 +389,7 @@ void Mixer::requestSound(short *output, int frames) {
         int decoded = s->read(decodeBuffer.data(), maxFramesNeeded);
         if (decoded <= 0) {
             s->paused = true;
+            it++;
             continue;
         }
 
@@ -313,7 +414,7 @@ void Mixer::requestSound(short *output, int frames) {
                 float bL = decodeBuffer[2 * i1 + 0];
                 float bR = decodeBuffer[2 * i1 + 1];
 
-                left  = aL + (bL - aL) * frac;
+                left = aL + (bL - aL) * frac;
                 right = aR + (bR - aR) * frac;
             }
 
@@ -329,6 +430,8 @@ void Mixer::requestSound(short *output, int frames) {
 
             pos += step;
         }
+
+        it++;
     }
 
     Mixer::mutex.unlock();
@@ -351,6 +454,20 @@ void Mixer::cleanupAudio() {
 
     for (i = 0; i < streams.size(); i++)
         delete streams[i];
+
+    Mixer::notes.clear();
+
+#ifndef NO_MUSIC
+    if (Mixer::hTsf) {
+        tsf_close(Mixer::hTsf);
+        Mixer::hTsf = nullptr;
+    }
+    if (Mixer::sf2_buffer) {
+        free(Mixer::sf2_buffer);
+        Mixer::sf2_buffer = nullptr;
+    }
+    Mixer::musicInitialized = false;
+#endif
 #endif
 }
 
@@ -462,4 +579,122 @@ void Mixer::setAutoClean(std::string name, bool toggle) {
 
     END;
 #endif
+}
+
+float Mixer::beatsToSec(float v) {
+    return v / (Scratch::tempo / 60.0);
+}
+
+static constexpr int instrument_lut[] = {
+    0,   /* Piano -> Acoustic Grand */
+    4,   /* Electric Piano -> Electric Piano 1 */
+    19,  /* Organ -> Church Organ */
+    24,  /* Guitar -> Steel String Guitar */
+    27,  /* Electric Guitar -> Electric Clean Guitar */
+    32,  /* Bass -> Acoustic Bass */
+    45,  /* Pizzicato -> Pizzicato Strings */
+    42,  /* Cello -> Cello */
+    57,  /* Trombone -> Trombone */
+    71,  /* Clarinet -> Clarinet */
+    64,  /* Saxophone -> Soprano Sax */
+    73,  /* Flute -> Flute */
+    75,  /* Wooden Flute -> Pan Flute */
+    70,  /* Bassoon -> Bassoon */
+    52,  /* Choir -> Choir Aahs */
+    11,  /* Vibraphone -> Vibraphone */
+    10,  /* Music Box -> Music Box */
+    114, /* Steel Drum -> Steel Drums */
+    12,  /* Marimba -> Marimba */
+    80,  /* Synth Lead -> Lead 1 (square) */
+    89   /* Synth Pad -> Pad 2 (warm) */
+};
+
+int Mixer::note(int instrument, int note, float volume, float beats) {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    int n;
+
+    if (!Mixer::hTsf) return -1;
+
+    instrument = ((instrument - 1) % (sizeof(instrument_lut) / sizeof(instrument_lut[0])));
+
+    if (instrument_lut[instrument] == -1) return -1;
+
+    Mixer::mutex.lock();
+
+    n = Mixer::sf2_seq++;
+    tsf_channel_set_presetnumber(Mixer::hTsf, n, instrument_lut[instrument]);
+    tsf_channel_set_volume(Mixer::hTsf, n, volume);
+    tsf_channel_note_on(Mixer::hTsf, n, note, 1.0);
+
+    Mixer::notes[n] = Mixer::beatsToSec(beats);
+
+    Mixer::mutex.unlock();
+
+    return n;
+#endif
+    return -1;
+}
+
+static constexpr int drum_lut[] = {
+    38, /* Snare -> Acoustic Snare */
+    36, /* Bass Drum -> Bass Drum 1 */
+    37, /* Side Stick -> Side Stick */
+    49, /* Crash Cymbal -> Crash Cymbal 1 */
+    46, /* Open Hi Hat -> Open Hi-Hat */
+    42, /* Closed Hi Hat -> Closed Hi Hat */
+    54, /* Tambourine -> Tambourine */
+    39, /* Hand Clap -> Hand Clap */
+    75, /* Claves -> Claves */
+    76, /* Wood Block -> Hi Wood Block */
+    56, /* Cowbell -> Cowbell */
+    81, /* Triangle -> Open Triangle */
+    60, /* Bongo -> Hi Bongo */
+    63, /* Conga -> Open Hi Conga */
+    69, /* Cabasa -> Cabasa */
+    74, /* Guiro -> Long Guiro */
+    58, /* Vibraslap -> Vibraslap */
+    79  /* Cuica -> Open Cuica */
+};
+
+int Mixer::drum(int drum, float volume, float beats) {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    int n;
+
+    if (!Mixer::hTsf) return -1;
+
+    drum = ((drum - 1) % (sizeof(drum_lut) / sizeof(drum_lut[0])));
+
+    if (drum_lut[drum] == -1) return -1;
+
+    Mixer::mutex.lock();
+
+    n = Mixer::sf2_seq++;
+    tsf_channel_set_presetnumber(Mixer::hTsf, n, drum_lut[drum], 1);
+    tsf_channel_set_volume(Mixer::hTsf, n, volume);
+    tsf_channel_note_on(Mixer::hTsf, n, drum_lut[drum], 1.0);
+
+    Mixer::notes[n] = Mixer::beatsToSec(beats);
+
+    Mixer::mutex.unlock();
+
+    return n;
+#endif
+    return -1;
+}
+
+bool Mixer::isInstrumentPlaying(int channel) {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    bool v = false;
+
+    if (!Mixer::hTsf) return 0;
+
+    Mixer::mutex.lock();
+
+    if (Mixer::notes.find(channel) != Mixer::notes.end() && Mixer::notes[channel]) v = true;
+
+    Mixer::mutex.unlock();
+
+    return v;
+#endif
+    return 0;
 }

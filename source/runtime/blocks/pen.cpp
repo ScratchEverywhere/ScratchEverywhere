@@ -1,5 +1,6 @@
 #include "blockUtils.hpp"
 #include <image.hpp>
+#include <log.hpp>
 #include <render.hpp>
 
 constexpr unsigned int minPenSize = 1;

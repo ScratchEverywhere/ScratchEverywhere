@@ -2,8 +2,8 @@
 #include "value.hpp"
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <os.hpp>
 #include <string>
+#include <timer.hpp>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -54,6 +54,7 @@ struct BlockState {
     double waitDuration = 0;
     double glideStartX = 0, glideStartY = 0;
     double glideEndX = 0, glideEndY = 0;
+    int musicChannel = 0;
     std::string name;
 
     Timer waitTimer;
@@ -74,6 +75,15 @@ struct ScriptThread {
 
     std::unordered_map<std::string, Value> MyBlocksVariablen;
     Value returnValue;
+
+    std::vector<Block *> callStack;
+
+    bool isRecursiveProcedureCall(Block *procedureDefinition) const {
+        for (const auto &block : callStack) {
+            if (block == procedureDefinition) return true;
+        }
+        return false;
+    }
 
     BlockState *getState(Block *block) {
         auto it = states.find(block);
@@ -112,6 +122,7 @@ struct ScriptThread {
             curr->withoutScreenRefresh = false;
             curr->returnValue = Value();
             curr->MyBlocksVariablen.clear();
+            curr->callStack.clear();
 
             for (auto &pair : curr->states) {
                 BlockState *state = pair.second;
@@ -126,6 +137,8 @@ struct ScriptThread {
             }
         }
     }
+
+    ~ScriptThread() { clear(); }
 };
 
 inline void BlockState::clear() {
@@ -166,6 +179,7 @@ struct ParsedInput {
     Value value;
     Block *block = nullptr;
     std::string variableId = "";
+    bool list = false;
     ParsedInput() { inputType = InputType::VALUE; }
     explicit ParsedInput(Value value) : value(value) { inputType = InputType::VALUE; }
     explicit ParsedInput(Block *block) : block(block) { inputType = InputType::BLOCK; }
@@ -266,13 +280,6 @@ struct Monitor {
     double sliderMin;
     double sliderMax;
     bool isDiscrete;
-
-#ifdef ENABLE_CACHING
-    union {
-        Variable *variablePtr = nullptr;
-        List *listPtr;
-    };
-#endif
 };
 
 class Sprite {
@@ -291,6 +298,9 @@ class Sprite {
     float rotation;
     int layer;
     RenderInfo renderInfo;
+
+    /** Music **/
+    int instrument = 1;
 
     /** Costume effects */
     float ghostEffect;
