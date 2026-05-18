@@ -532,7 +532,7 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         const auto &file = fs.open(folderPath);
         content.assign(file.begin(), file.end());
 #else
-        std::istream file(OS::getRomFSLocation() + "project.sb3.json");
+        std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
         if (!file.is_open()) {
             Log::logWarning("Project settings file not found in RomFS.");
             return nlohmann::json();
