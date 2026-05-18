@@ -1,5 +1,5 @@
 #pragma once
-#include <SDL/SDL.h>
+#include <SDL.h>
 #include <window.hpp>
 
 #ifdef RENDERER_OPENGL

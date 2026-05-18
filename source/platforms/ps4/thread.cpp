@@ -1,4 +1,4 @@
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <thread.hpp>
 
 // just using SDL2 threads/mutexes for now
