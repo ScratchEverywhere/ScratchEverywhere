@@ -92,9 +92,9 @@ std::string OS::getScratchFolderLocation() {
 
     const char *basepath = __getbasepath();
 #if defined(_WIN32) || defined(_WIN64)
-    return ((basepath) ? (std::string(basepath) + "scratch-everywhere\\") : "scratch-everywhere\\");
+    return std::string(basepath ? basepath : "") + "scratch-everywhere\\";
 #else
-    return ((basepath) ? (std::string(basepath) + "scratch-everywhere/" ) : "scratch-everywhere/" );
+    return std::string(basepath ? basepath : "") + "scratch-everywhere/";
 #endif
 }
 
