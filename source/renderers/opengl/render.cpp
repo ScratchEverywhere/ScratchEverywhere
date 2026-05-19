@@ -123,7 +123,17 @@ void Render::destroySpeechManager() {
 SpeechManager *Render::getSpeechManager() {
     return speechManager;
 }
+#ifdef __GBA__ //has to be done for gba because screen size different
+int Render::getWidth() {
+    if (globalWindow) return globalWindow->getWidth();
+    return 240;
+}
 
+int Render::getHeight() {
+    if (globalWindow) return globalWindow->getHeight();
+    return 160;
+}
+#endif
 int Render::getWidth() {
     if (globalWindow) return globalWindow->getWidth();
     return 540;
@@ -133,7 +143,6 @@ int Render::getHeight() {
     if (globalWindow) return globalWindow->getHeight();
     return 405;
 }
-
 bool Render::initPen() {
     if (penTexture != 0) return true;
 

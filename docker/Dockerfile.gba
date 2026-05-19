@@ -1,0 +1,24 @@
+FROM debian:bookworm AS makerom_installer
+WORKDIR /makerom
+
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates unzip
+
+
+FROM debian:bookworm AS bannertool_builder
+WORKDIR /bannertool
+
+RUN apt update && apt install -y --no-install-recommends build-essential git ca-certificates cmake
+
+RUN  . && git checkout 3767e03b0492654bdff7be7beacf32b5b6a60415 && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
+
+FROM devkitpro/devkitarm:latest AS main_builder
+WORKDIR /app
+
+# PLEASE SAY IF THIS WORKS :(
+
+
+# Build .gba for default TARGET (Scratch)
+RUN /opt/devkitpro/cmake/gba/arm-none-eabi-cmake -B build-gba -DCMAKE_BUILD_TYPE=Release && cmake --build build-gba -j2
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/build-gba/scratch-gba.gba /

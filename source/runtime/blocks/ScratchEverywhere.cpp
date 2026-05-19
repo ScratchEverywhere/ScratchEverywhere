@@ -34,12 +34,19 @@ SCRATCH_BLOCK(SE, platform) {
     *outValue = Value(OS::getPlatform());
     return BlockResult::CONTINUE;
 }
+//detects if the platform is gba. IMPORTANT IF YOU DONT WANT YOUR GAME TO RUN ON GBA
+SCRATCH_BLOCK(SE, isGBA) {
+    *outValue = Value(OS::getPlatform() == "GBA" && OS::isEnhancedPlatform()); 
+    return BlockResult::CONTINUE;
+}
 
 SCRATCH_BLOCK(SE, controller) {
 #ifdef RENDERER_CITRO2D
     *outValue = Value("3DS");
 #elif defined(RENDERER_GL2D)
     *outValue = Value("NDS");
+	#ifdef __GBA__RENDERER_
+	*outValue = Value("GBA");
 #elif defined(RENDERER_SDL1) && defined(PLATFORM_HAS_CONTROLLER)
     if (controller != nullptr) *outValue = Value(std::string(SDL_JoystickName(SDL_JoystickIndex(controller))));
 #elif defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
