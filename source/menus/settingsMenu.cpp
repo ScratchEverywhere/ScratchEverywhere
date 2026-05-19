@@ -1,6 +1,7 @@
 #include "settingsMenu.hpp"
 #include "languageMenu.hpp"
 #include "menuObjects.hpp"
+#include "receiveMenu.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
 #include <filesystem.hpp>
@@ -46,6 +47,11 @@ void SettingsMenu::init() {
     Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language"), "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
     Language->text->setColor(Math::color(0, 0, 0, 255));
     Language->textScale = 1.0;
+
+#ifdef ENABLE_PROJECTRECEIVER
+    ReceiveProjects = new ButtonObject(TranslationManager::getTranslation("ui.settings.receiveProjects"), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
+    ReceiveProjects->text->setColor(Math::color(0, 0, 0, 255));
+#endif
 
     // initial selected object
     settingsControl->selectedObject = EnableUsername;
@@ -105,6 +111,9 @@ void SettingsMenu::init() {
 #ifdef ENABLE_DECTALK
     settingsControl->buttonObjects.push_back(dectalkButton);
 #endif
+#ifdef ENABLE_PROJECTRECEIVER
+    settingsControl->buttonObjects.push_back(ReceiveProjects);
+#endif
 
     settingsControl->enableScrolling = true;
     settingsControl->setScrollLimits();
@@ -123,9 +132,20 @@ void SettingsMenu::updateButtonStates() {
     ClearCache->buttonDown = Language;
     Language->buttonUp = ClearCache;
     Language->buttonDown = EnableUsername;
-#ifdef ENABLE_DECTALK
+#if (ENABLE_DECTALK && ENABLE_PROJECTRECEIVER)
     Language->buttonDown = dectalkButton;
     dectalkButton->buttonUp = Language;
+    dectalkButton->buttonDown = ReceiveProjects;
+    ReceiveProjects->buttonUp = dectalkButton;
+    ReceiveProjects->buttonDown = EnableUsername;
+#elif defined(ENABLE_DECTALK)
+    Language->buttonDown = dectalkButton;
+    dectalkButton->buttonUp = Language;
+    dectalkButton->buttonDown = EnableUsername;
+#elif defined(ENABLE_PROJECTRECEIVER)
+    Language->buttonDown = ReceiveProjects;
+    ReceiveProjects->buttonUp = Language;
+    ReceiveProjects->buttonDown = EnableUsername;
 #endif
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
@@ -242,6 +262,14 @@ void SettingsMenu::render() {
     if (dectalkButton->isPressed({"a"})) {
         UseDectalk = !UseDectalk;
         dectalkButton->text->setText(getDectalkString());
+        return;
+    }
+#endif
+
+#ifdef ENABLE_PROJECTRECEIVER
+    if (ReceiveProjects->isPressed({"a"})) {
+        ReceiveMenu *receive = new ReceiveMenu();
+        MenuManager::changeMenu(receive);
         return;
     }
 #endif

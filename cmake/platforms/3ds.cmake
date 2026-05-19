@@ -9,6 +9,7 @@ set(SE_CACHING_DEFAULT OFF)
 set(SE_ALLOW_CMAKERC ON)
 set(SE_ALLOW_CLOUDVARS ON)
 set(SE_ALLOW_DOWNLOAD ON)
+set(SE_ALLOW_PROJECTRECEIVER ON)
 
 set(SE_FORCE_CLOUDVARS_SOURCE_CURL ON)
 
@@ -34,7 +35,7 @@ macro(package_platform)
 	foreach(TTF_FILE IN LISTS TTF_FILES)
 		string(REGEX REPLACE "\\.ttf$" ".bcfnt" BCFNT_OUTPUT "${TTF_FILE}")
         add_custom_command(TARGET scratch-everywhere POST_BUILD
-            COMMAND mkbcfnt -o "${BCFNT_OUTPUT}" "${TTF_FILE}"
+            COMMAND ${DEVKITRPO}/tools/bin/mkbcfont -o "${BCFNT_OUTPUT}" "${TTF_FILE}"
             DEPENDS "${TTF_FILE}"
             VERBATIM
         )

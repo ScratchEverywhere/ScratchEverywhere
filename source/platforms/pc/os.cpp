@@ -1,13 +1,22 @@
 #include <log.hpp>
 #include <os.hpp>
-
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include <arpa/inet.h>
+#include <dirent.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <pwd.h>
+#include <sys/types.h>
+#include <unistd.h>
+#elif defined(_WIN32) || defined(_WIN64)
 #include <direct.h>
 #include <io.h>
 #include <lmcons.h>
 #include <shlobj.h>
 #include <shlwapi.h>
 #include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #else
 #include <dirent.h>
 #include <pwd.h>
@@ -116,6 +125,40 @@ bool OS::initWifi() {
 }
 
 void OS::deInitWifi() {
+}
+
+std::string OS::getLocalIP() {
+#if defined(__linux__) || defined(__APPLE__)
+    struct ifaddrs *ifAddrStruct = nullptr;
+    std::string ip = "";
+    if (getifaddrs(&ifAddrStruct) == -1)
+        return "";
+    for (struct ifaddrs *ifa = ifAddrStruct; ifa != nullptr; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) continue;
+
+        if (ifa->ifa_addr->sa_family == AF_INET) {
+            char addressBuffer[INET_ADDRSTRLEN];
+            void *tmpAddrPtr = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+            std::string interfaceName = ifa->ifa_name;
+            if (interfaceName.find("lo") == std::string::npos) {
+                ip = addressBuffer;
+                break;
+            }
+        }
+    }
+    if (ifAddrStruct) freeifaddrs(ifAddrStruct);
+    return ip;
+#elif defined(_WIN32)
+    char name[256];
+    if (gethostname(name, sizeof(name)) == 0) {
+        struct hostent *host = gethostbyname(name);
+        if (host != NULL) {
+            return inet_ntoa(*(struct in_addr *)*host->h_addr_list);
+        }
+    }
+#endif
+    return "";
 }
 
 std::string OS::getUsername() {

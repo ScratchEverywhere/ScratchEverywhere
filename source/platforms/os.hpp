@@ -87,6 +87,11 @@ bool initWifi();
 void deInitWifi();
 
 /**
+ * Returns the device's local IP address.
+ */
+std::string getLocalIP();
+
+/**
  * Gets the device's nickname, or the user's custom username if set.
  */
 std::string getUsername();

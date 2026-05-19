@@ -1,4 +1,6 @@
 #include <3ds.h>
+#include <arpa/inet.h>
+#include <iomanip>
 #include <iostream>
 #include <log.hpp>
 #include <malloc.h>
@@ -9,6 +11,8 @@ namespace OS {
 bool toExit = false;
 bool loadedSettings = false;
 std::string *customProjectsPath = nullptr;
+static int wifiRefCount = 0;
+static uint32_t *SOC_buffer = nullptr;
 } // namespace OS
 
 bool OS::init() {
@@ -56,32 +60,53 @@ bool OS::isOnline() {
 }
 
 bool OS::initWifi() {
-    u32 wifiEnabled = false;
-    ACU_GetWifiStatus(&wifiEnabled);
-    if (wifiEnabled == AC_AP_TYPE_NONE) {
-        int ret;
-        uint32_t SOC_ALIGN = 0x1000;
-        uint32_t SOC_BUFFERSIZE = 0x100000;
-        uint32_t *SOC_buffer = NULL;
+    if (wifiRefCount > 0) {
+        wifiRefCount++;
+        return true;
+    }
 
-        SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
-        if (SOC_buffer == NULL) {
-            Log::logError("memalign: failed to allocate");
-            return false;
-        } else if ((ret = socInit(SOC_buffer, SOC_BUFFERSIZE)) != 0) {
-            std::ostringstream err;
-            err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
-            Log::logError(err.str());
-            return false;
+    uint32_t SOC_ALIGN = 0x1000;
+    uint32_t SOC_BUFFERSIZE = 0x100000;
+
+    SOC_buffer = (uint32_t *)memalign(SOC_ALIGN, SOC_BUFFERSIZE);
+    if (SOC_buffer == NULL) {
+        Log::logError("memalign: failed to allocate SOC buffer");
+        return false;
+    }
+
+    int ret = socInit(SOC_buffer, SOC_BUFFERSIZE);
+    if (ret != 0) {
+        std::ostringstream err;
+        err << "socInit: 0x" << std::hex << std::setw(8) << std::setfill('0') << ret;
+        Log::logError(err.str());
+        free(SOC_buffer);
+        SOC_buffer = NULL;
+        return false;
+    }
+
+    wifiRefCount++;
+    return true;
+}
+
+void OS::deInitWifi() {
+    if (wifiRefCount > 0) {
+        wifiRefCount--;
+        if (wifiRefCount == 0) {
+            socExit();
+            if (SOC_buffer) {
+                free(SOC_buffer);
+                SOC_buffer = NULL;
+            }
         }
     }
 }
 
-void OS::deInitWifi() {
-    u32 wifiEnabled = false;
-    ACU_GetWifiStatus(&wifiEnabled);
-    if (wifiEnabled != AC_AP_TYPE_NONE)
-        socExit();
+std::string OS::getLocalIP() {
+    struct in_addr addr;
+    if (R_SUCCEEDED(SOCU_GetIPInfo(&addr, NULL, NULL))) {
+        return inet_ntoa(addr);
+    }
+    return "";
 }
 
 std::string OS::getUsername() {
@@ -97,4 +122,5 @@ std::string OS::getUsername() {
         username.resize(static_cast<size_t>(length));
         return username;
     }
+    return "Player";
 }

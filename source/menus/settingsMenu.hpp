@@ -20,6 +20,10 @@ class SettingsMenu : public Menu {
     ButtonObject *Language = nullptr;
     ButtonObject *dectalkButton = nullptr;
 
+#ifdef ENABLE_PROJECTRECEIVER
+    ButtonObject *ReceiveProjects = nullptr;
+#endif
+
     bool UseCostumeUsername = false;
     std::string username;
 
