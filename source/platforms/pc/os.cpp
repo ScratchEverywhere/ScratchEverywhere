@@ -96,7 +96,6 @@ std::string OS::getScratchFolderLocation() {
 #else
     return ((basepath) ? (std::string(basepath) + "scratch-everywhere/" ) : "scratch-everywhere/" );
 #endif
-    }
 }
 
 std::string OS::getRomFSLocation() {
