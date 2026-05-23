@@ -38,6 +38,7 @@
 #endif
 
 #if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#define DT_EXTERN
 #include <epsonapi.h>
 #endif
 
@@ -52,6 +53,8 @@ std::vector<ScriptThread *> Pools::threads;
 BlockExecutor executor;
 
 bool Scratch::hasNativeExtensions = false;
+
+float Scratch::tempo = 60;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -69,11 +72,6 @@ bool Scratch::accurateCollision = true;
 bool Scratch::debugVars = false;
 bool Scratch::sb3InRam = true;
 bool Scratch::warpTimer = true;
-#ifdef DECTALK_DEFAULT
-bool Scratch::useDectalk = true;
-#else
-bool Scratch::useDectalk = false;
-#endif
 
 Timer Scratch::fpsTimer(false);
 
@@ -130,6 +128,8 @@ void Scratch::initializeScratchProject() {
         BlockExecutor::linkPointers(sprite);
     }
 #endif
+
+    Scratch::tempo = 60;
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird

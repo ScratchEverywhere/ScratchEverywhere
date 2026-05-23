@@ -520,8 +520,8 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     std::string folderPath = filePath + ".json";
     std::string content;
 
-#ifdef USE_CMAKERC
     if (Scratch::projectType != ProjectType::UNEMBEDDED) {
+#ifdef USE_CMAKERC
         const auto &fs = cmrc::romfs::get_filesystem();
 
         if (!fs.exists(folderPath)) {
@@ -531,8 +531,16 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
 
         const auto &file = fs.open(folderPath);
         content.assign(file.begin(), file.end());
-    } else {
+#else
+        std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
+        if (!file.is_open()) {
+            Log::logWarning("Project settings file not found in RomFS.");
+            return nlohmann::json();
+        }
+        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
 #endif
+    } else {
         std::ifstream file(folderPath);
         if (!file.is_open()) {
             Log::logWarning("Project settings file not found: " + folderPath);
@@ -540,9 +548,7 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         }
         content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         file.close();
-#ifdef USE_CMAKERC
     }
-#endif
 
     nlohmann::json json = nlohmann::json::parse(content, nullptr, false);
 

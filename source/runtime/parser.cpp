@@ -554,13 +554,6 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
         Scratch::hqpen = config.value("hq", false);
         Scratch::projectWidth = config.value("width", 480);
         Scratch::projectHeight = config.value("height", 360);
-        Scratch::useDectalk = config.value("useDectalk",
-#ifdef DECTALK_DEFAULT
-                                           true
-#else
-                                           false
-#endif
-        );
 
         auto &runtimeOptions = config["runtimeOptions"];
         if (runtimeOptions.is_object()) {
@@ -595,7 +588,7 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
     auto accuratePen = Unzip::getSetting("accuratePen");
     if (!accuratePen.is_null())
         Scratch::accuratePen = accuratePen.get<bool>();
-#ifdef RENDERER_SDL2
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
     else Scratch::accuratePen = true;
 #else
     else Scratch::accuratePen = false;

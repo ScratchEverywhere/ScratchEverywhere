@@ -16,16 +16,8 @@ static std::string getTurboString() {
     return TranslationManager::getTranslation("ui.pause.turbo") + ": " + TranslationManager::getTranslation(Scratch::turbo ? "ui.settings.on" : "ui.settings.off");
 }
 
-static std::string getDectalkString() {
-    return TranslationManager::getTranslation("ui.pause.dectalk") + ": " + TranslationManager::getTranslation(Scratch::useDectalk ? "ui.settings.on" : "ui.settings.off");
-}
-
 void PauseMenu::init() {
-#ifdef ENABLE_DECTALK
     constexpr int buttons = 4;
-#else
-    constexpr int buttons = 5;
-#endif
     constexpr int space = (180 - 60) / buttons;
 
     pauseControl = new ControlObject();
@@ -43,20 +35,12 @@ void PauseMenu::init() {
     turboButton = new ButtonObject(getTurboString(), "gfx/menu/projectBox.svg", 200, 60 + space * 3, "gfx/menu/Ubuntu-Bold", true);
     turboButton->text->setColor(Math::color(0, 0, 0, 255));
 
-#ifdef ENABLE_DECTALK
-    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 60 + space * 4, "gfx/menu/Ubuntu-Bold", true);
-    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
-#endif
-
     backButton->needsToBeSelected = false;
 
     pauseControl->buttonObjects.push_back(exitProjectButton);
     pauseControl->buttonObjects.push_back(flagButton);
     pauseControl->buttonObjects.push_back(stopButton);
     pauseControl->buttonObjects.push_back(turboButton);
-#ifdef ENABLE_DECTALK
-    pauseControl->buttonObjects.push_back(dectalkButton);
-#endif
     pauseControl->selectedObject = exitProjectButton;
     exitProjectButton->isSelected = true;
 
@@ -68,11 +52,6 @@ void PauseMenu::init() {
 
     stopButton->buttonDown = turboButton;
     turboButton->buttonUp = stopButton;
-
-#ifdef ENABLE_DECTALK
-    turboButton->buttonDown = dectalkButton;
-    dectalkButton->buttonUp = turboButton;
-#endif
 
     isInitialized = true;
 }
@@ -110,12 +89,6 @@ void PauseMenu::render() {
         return;
     }
 
-    if (dectalkButton->isPressed()) {
-        Scratch::useDectalk = !Scratch::useDectalk;
-        dectalkButton->text->setText(getDectalkString());
-        return;
-    }
-
     Render::beginFrame(0, 50, 77, 83);
     Render::beginFrame(1, 50, 77, 83);
 
@@ -150,10 +123,6 @@ void PauseMenu::cleanup() {
     if (turboButton != nullptr) {
         delete turboButton;
         turboButton = nullptr;
-    }
-    if (dectalkButton != nullptr) {
-        delete dectalkButton;
-        dectalkButton = nullptr;
     }
     Render::beginFrame(0, 0, 0, 0);
     Render::beginFrame(1, 0, 0, 0);

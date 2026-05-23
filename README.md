@@ -58,7 +58,7 @@ with Scratch Everywhere!.
 
 ### Mouse
 
-**3DS, PS Vita, Wii U GamePad:** Use the touchscreen.
+**3DS, PS Vita, Wii U GamePad, Handheld Switch:** Use the touchscreen.
 
 **Wii Remote:** Use the Wii sensor bar to control the mouse.
 

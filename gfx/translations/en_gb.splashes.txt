@@ -1,0 +1,136 @@
+Created by NateXS!
+Over 20+ contributors!
+Also try TurboWarp!
+Also try PenguinMod!
+Also try Snail IDE!
+Also try Electramod!
+Also try every other Scratch clone!
+Support the Scratch Foundation!
+It's swizzle magic!
+Scratch EVERYWHERE!??
+Yes, EVERYWHERE!!
+It's on your {PlatformName}!
+Magic for your {PlatformName}!
+Straight from your {PlatformName}!
+On your {PlatformName}!
+Oooh, nice {PlatformName} you got here! Can I have it?
+{PlatformName} on Scratch! ... Wait that's not right.
+...even on your {PlatformName}!
+{PlatformName} Edition!
+{PlatformName}!
+Coming soon to a console near you!
+Run it all, everything!
+Scratch is the new Doom!
+"It's dot com!"
+;
+This splash text was eaten by an evil kumquat.
+& Knuckles!
+0.1 + 0.2 = 0.30000000000000004!
+uiText.titleScreen.splashText14
+FUNNY AND/OR CLEVER SPLASH TEXT
+You'll love it!
+Magic!
+Try it out, {UserName}!!!!
+I'm itchy everywhere, what should I- oh, right...
+Join the Discord Server!
+Contribute on GitHub!
+Open source!
+Formerly Scratch-3DS!
+Runtime by NateXS!
+3DS port by NateXS!
+DS port by NateXS!
+Wii port by NateXS!
+PSP port by NateXS!
+GameCube port by NateXS!
+By a lot of people!
+Wii U port by Grady Link!
+Switch port by Grady Link!
+Web port by Grady Link!
+PS Vita port by Dogo6647!
+webOS port by Dogo6647!
+PS4 port by PwLDev!
+SDL1 port by Leap!
+OpenGL port by Leap!
+libretro port by Nishi!
+Menu music by Dogo6647!
+Since 2025!
+C++!
+devkitPro!
+vitasdk!
+SDL!
+It works! (most of the time...)
+Woah.
+Are Wii having a domestic?
+Beta!
+Deja vu!
+Let's play, {UserName}!
+Woo, TurboWarp!
+Woo, ScratchBox!
+Woo, softwaregore!
+Woo, fockerdile- I mean dockerfile!
+As seen on YouTube!
+PolyMars approved!
+Allergy advice: May contain nuts.
+What do you expect?
+(Exclamation mark required!)
+Hey, {UserName}!
+I see you, {UserName}.
+Look at {UserName} playing on their {PlatformName}!
+op op op :itchytongue: 
+BAAANG ANOTHER DAY IN THE OFFICE BABY
+ANOTHER DAY IN THE OFFICE BABY
+BAAAAANG!!!!!
+OF COURSE IT WOULD BREAK AGAIN
+whackamole fallacy all over again
+FEATURING HUGE PERFORMANCE BOOST
+Bugs not included!
+We eat all the bugs!
+We fix all the bugs!
+Bug-free!
+It's bug-free™!
+It's bug-free!
+Bug-free on your {PlatformName}!
+It's bug-free on your {PlatformName}!
+edge decomp
+wow this nate guy has some pretty good flipnotes
+Hopper Heroes!
+It can run Hopper Heroes!
+It can run anything!
+Anything!
+What's the moon doing?
+What's Itchy doing?
+What is {UserName} doing?
+What's your {PlatformName} doing?
+What are you doing?
+Many commits and counting!
+Many ports and counting!
+Many contributors and counting!
+Many stars and counting!
+Many forks and counting!
+Meow!
+Miau! ^.^
+Mrow! =^..^=
+Miau...
+Mrow...
+Meeow!
+28245 BC purr mreow mrow meow?
+May 2, the day it all began!
+Dreams never die!
+NOT for Atari!
+NOT for your calculator!
+NOT on your toaster!
+Too powerful for a toaster!
+NateXS!
+Grady Link!
+PwL!
+Dogo!
+Br0tcraft!
+Leap!
+Rocco!
+Luarpri!
+NishiOwO!
+Extrems!
+DevelopCMD!
+poipole!
+turbofart
+penguinpoop
