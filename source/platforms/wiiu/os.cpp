@@ -63,6 +63,20 @@ bool OS::initWifi() {
 void OS::deInitWifi() {
 }
 
+std::string OS::getLocalIP() {
+    //     char hostname[256];
+    //     if (gethostname(hostname, sizeof(hostname)) == 0) {
+    //         struct hostent *host = gethostbyname(hostname);
+    //         if (host != nullptr && host->h_addr_list[0] != nullptr) {
+    //             struct in_addr addr;
+    //             memcpy(&addr, host->h_addr_list[0], sizeof(addr));
+    //             return inet_ntoa(addr);
+    //         }
+    //     }
+    //     return "0.0.0.0";
+    return "";
+}
+
 std::string OS::getUsername() {
     int16_t miiName[256];
 

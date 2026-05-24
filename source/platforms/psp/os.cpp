@@ -55,6 +55,10 @@ void OS::deInitWifi() {
     // TODO: implement
 }
 
+std::string OS::getLocalIP() {
+    return "";
+}
+
 std::string OS::getUsername() {
     // TODO: implement
     return "Player";

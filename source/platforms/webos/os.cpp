@@ -56,6 +56,10 @@ bool OS::initWifi() {
 void OS::deInitWifi() {
 }
 
+std::string OS::getLocalIP() {
+    return "";
+}
+
 std::string OS::getUsername() {
     uid_t uid = geteuid();
     struct passwd *pw = getpwuid(uid);
