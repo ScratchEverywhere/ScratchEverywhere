@@ -16,7 +16,7 @@ class Timer {
      * Gets the amount of time passed in milliseconds.
      * @return time passed (in ms)
      */
-    int getTimeMs();
+    uint64_t getTimeMs();
 
     double getTimeMsDouble();
 
