@@ -1,7 +1,8 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-3ds")
 
 set(SE_RENDERER_VALID_OPTIONS "citro2d")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3" "3ds")
+set(SE_AUDIO_ENGINE_DEFAULT "3ds")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 
 set(SE_CACHING_DEFAULT OFF)
@@ -29,12 +30,11 @@ set(SE_MAKEROM makerom CACHE PATH "Path to makerom executable")
 set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
 
 macro(package_platform)
-
 	file(GLOB_RECURSE TTF_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/*.ttf")
 	foreach(TTF_FILE IN LISTS TTF_FILES)
 		string(REGEX REPLACE "\\.ttf$" ".bcfnt" BCFNT_OUTPUT "${TTF_FILE}")
         add_custom_command(TARGET scratch-everywhere POST_BUILD
-            COMMAND mkbcfnt -o "${BCFNT_OUTPUT}" "${TTF_FILE}"
+			COMMAND ${DEVKITPRO}/tools/bin/mkbcfnt -o "${BCFNT_OUTPUT}" "${TTF_FILE}"
             DEPENDS "${TTF_FILE}"
             VERBATIM
         )

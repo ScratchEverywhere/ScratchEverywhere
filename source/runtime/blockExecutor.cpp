@@ -345,7 +345,7 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
                 if (handlerIt != getHandlers().end() && handlerIt->second != nullptr) {
                     handlerIt->second(&newBlock, thread, sprite, &var.value);
                 } else {
-                    Log::logWarning("No handler found for monitor opcode: " + var.opcode);
+                    Log::logWarning("[BlockExecutor] No handler found for monitor opcode: " + var.opcode);
                 }
             }
         }

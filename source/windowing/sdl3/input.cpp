@@ -58,8 +58,8 @@ int* Input::getTouchPosition() {
     SDL_free(touchID);
 #ifdef PLATFORM_HAS_MOUSE
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
-    pos[0] = rawMouseX;
-    pos[1] = rawMouseY;
+    pos[0] = rawMouseX * Render::getPixelDensity();
+    pos[1] = rawMouseY * Render::getPixelDensity();
 #endif
     return pos;
 }
@@ -83,6 +83,8 @@ void Input::getInput() {
                 else if (keyName == "left") keyName = "left arrow";
                 else if (keyName == "right") keyName = "right arrow";
                 else if (keyName == "return") keyName = "enter";
+                else if (keyName == "left shift" || keyName == "right shift") keyName = "shift";
+                else if (keyName == "left ctrl" || keyName == "right ctrl") keyName = "control";
 
                 inputButtons.push_back(keyName);
             }

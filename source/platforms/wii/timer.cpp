@@ -7,11 +7,11 @@ Timer::Timer(const bool autoStart) {
 }
 
 void Timer::start() {
-    startTime = gettick();
+    startTime = gettime();
 }
 
-int Timer::getTimeMs() {
-    u64 currentTime = gettick();
+uint64_t Timer::getTimeMs() {
+    u64 currentTime = gettime();
     return ticks_to_millisecs(currentTime - startTime);
 }
 

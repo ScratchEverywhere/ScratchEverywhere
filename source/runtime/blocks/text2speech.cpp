@@ -95,7 +95,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 #else
     /* no download and also no dectalk */
 
-    Log::logWarning("T2S: Neither of ENABLE_DECTALK nor ENABLE_DOWNLOAD were defined");
+    Log::logWarning("[TextToSpeech] Neither of ENABLE_DECTALK nor ENABLE_DOWNLOAD were defined");
     return BlockResult::CONTINUE;
 #endif
 
@@ -210,16 +210,16 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
             state->completedSteps = 2;
             if (!DownloadManager::init()) return BlockResult::CONTINUE;
             if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
-                Log::log("T2S audio already downloaded: " + inputString);
+                Log::log("[TextToSpeech] audio already downloaded: " + inputString);
                 SoundStream *strm = new SoundStream(tempFile, false, true);
                 if (strm->error.has_value()) {
-                    Log::logError(strm->error.value());
+                    Log::logError("[TextToSpeech] " + strm->error.value());
                     delete strm;
                 }
                 return BlockResult::REPEAT;
             }
             if (!DownloadManager::isDownloading(state->name)) {
-                Log::log("T2S: starting download for: " + inputString + " -> " + tempFile);
+                Log::log("[TextToSpeech] starting download for: " + inputString + " -> " + tempFile);
                 DownloadManager::addDownload(state->name, tempFile);
                 state->completedSteps = 1;
                 return BlockResult::REPEAT;
@@ -234,7 +234,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
             if (DownloadManager::isDownloading(state->name)) return BlockResult::REPEAT;
 
             if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
-                Log::log("T2S audio already downloaded");
+                Log::log("[TextToSpeech] audio already downloaded");
                 SoundStream *strm = new SoundStream(tempFile, false, true);
                 if (strm->error.has_value()) {
                     Log::logError(strm->error.value());
@@ -253,7 +253,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 #endif
     }
 #else
-    Log::logWarning("T2S: ENABLE_AUDIO is NOT defined");
+    Log::logWarning("[TextToSpeech] ENABLE_AUDIO is NOT defined");
 #endif
 
     return BlockResult::CONTINUE;

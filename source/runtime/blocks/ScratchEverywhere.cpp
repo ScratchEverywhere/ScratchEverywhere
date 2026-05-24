@@ -2,11 +2,11 @@
 #include "os.hpp"
 
 #if defined(RENDERER_SDL1) && defined(PLATFORM_HAS_CONTROLLER)
-#include <SDL/SDL.h>
+#include <SDL.h>
 
 extern SDL_Joystick *controller;
 #elif defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
-#include <SDL2/SDL.h>
+#include <SDL.h>
 
 extern SDL_GameController *controller;
 #elif defined(RENDERER_SDL3) && defined(PLATFORM_HAS_CONTROLLER)
