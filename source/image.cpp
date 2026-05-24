@@ -260,8 +260,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         }
     }
 
-    width = std::max(1, (int)(svgDocument->width() * finalScale) - 1);
-    height = std::max(1, (int)(svgDocument->height() * finalScale) - 1);
+    width = std::max(1, (int)(svgDocument->width() * finalScale));
+    height = std::max(1, (int)(svgDocument->height() * finalScale));
     imgData.scale = finalScale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
@@ -308,8 +308,8 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
         }
     }
 
-    const int width = std::max(1, (int)(svgDocument->width() * finalScale) - 1);
-    const int height = std::max(1, (int)(svgDocument->height() * finalScale) - 1);
+    const int width = std::max(1, (int)(svgDocument->width() * finalScale));
+    const int height = std::max(1, (int)(svgDocument->height() * finalScale));
 
     imgData.width = width;
     imgData.height = height;
