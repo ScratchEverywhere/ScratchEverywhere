@@ -666,6 +666,8 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             freeUnusedCostumeImages();
             failedImages.insert(costumeName);
         }
+        sprite->spriteWidth = 0;
+        sprite->spriteHeight = 0;
     };
 
     float scale = (sprite->size / 100);

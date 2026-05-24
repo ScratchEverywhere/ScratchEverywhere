@@ -332,8 +332,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
     Value size;
     if (!Scratch::getInput(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
 
-    // hasn't been rendered yet, or fencing is disabled
-    if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
+    if (!Scratch::fencing) {
         sprite->size = size.asDouble();
 
         Render::resizeSVGs(sprite);
@@ -343,13 +342,18 @@ SCRATCH_BLOCK(looks, setsizeto) {
     if (size.isNumeric()) {
         const double inputSizePercent = size.asDouble();
 
-        const Costume &costume = sprite->costumes[sprite->currentCostume];
-        const int sprWidth = sprite->spriteWidth / costume.bitmapResolution;
-        const int sprHeight = sprite->spriteHeight / costume.bitmapResolution;
-
-        const double minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight));
-
-        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight);
+        double minScale;
+        double maxScale;
+        if (sprite->spriteWidth <= 1 || sprite->spriteHeight <= 1) {
+            minScale = 1.0;
+            maxScale = 1800.0;
+        } else {
+            const Costume &costume = sprite->costumes[sprite->currentCostume];
+            const int sprWidth = sprite->spriteWidth / costume.bitmapResolution;
+            const int sprHeight = sprite->spriteHeight / costume.bitmapResolution;
+            minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
+            maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
+        }
 
         const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
         sprite->size = clampedScale * 100.0;
@@ -364,8 +368,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
     Value size;
     if (!Scratch::getInput(block, "CHANGE", thread, sprite, size)) return BlockResult::REPEAT;
 
-    // hasn't been rendered yet, or fencing is disabled
-    if ((sprite->spriteWidth < 1 || sprite->spriteHeight < 1) || !Scratch::fencing) {
+    if (!Scratch::fencing) {
         sprite->size += size.asDouble();
 
         Render::resizeSVGs(sprite);
@@ -375,13 +378,19 @@ SCRATCH_BLOCK(looks, changesizeby) {
     if (size.isNumeric()) {
         sprite->size += size.asDouble();
 
-        const Costume &costume = sprite->costumes[sprite->currentCostume];
-        const int sprWidth = sprite->spriteWidth / costume.bitmapResolution;
-        const int sprHeight = sprite->spriteHeight / costume.bitmapResolution;
+        double minScale;
+        double maxScale;
 
-        const double minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
-
-        const double maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
+        if (sprite->spriteWidth <= 1 || sprite->spriteHeight <= 1) {
+            minScale = 1.0;
+            maxScale = 1800.0;
+        } else {
+            const Costume &costume = sprite->costumes[sprite->currentCostume];
+            const int sprWidth = sprite->spriteWidth / costume.bitmapResolution;
+            const int sprHeight = sprite->spriteHeight / costume.bitmapResolution;
+            minScale = std::min(1.0, std::max(5.0 / sprWidth, 5.0 / sprHeight)) * 100.0;
+            maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
+        }
 
         sprite->size = std::clamp(static_cast<double>(sprite->size), minScale, maxScale);
 
