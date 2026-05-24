@@ -30,7 +30,7 @@ class Input {
     static std::unordered_set<Block *> codePressedBlockOpcodes;
 
     // static std::vector<int> getTouchPosition();
-    static int* getTouchPosition();
+    static int *getTouchPosition();
 
     static void getInput();
 

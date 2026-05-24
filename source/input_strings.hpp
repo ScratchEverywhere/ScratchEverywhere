@@ -3,13 +3,30 @@
 #include <string>
 
 enum SCRATCH_KEY_INDEX {
-    DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, 
-    A, B, X, y,
-    SHOULDER_L, SHOULDER_R, 
-    START, BACK, 
-    L_STICK_RIGHT, L_STICK_LEFT, L_STICK_DOWN, L_STICK_UP, L_STICK_PRESSED,
-    R_STICK_RIGHT, R_STICK_LEFT, R_STICK_DOWN, R_STICK_UP, R_STICK_PRESSED,
-    RIGHT_TRIGGER, LEFT_TRIGGER
+    DPAD_UP,
+    DPAD_DOWN,
+    DPAD_LEFT,
+    DPAD_RIGHT,
+    A,
+    B,
+    X,
+    y,
+    SHOULDER_L,
+    SHOULDER_R,
+    START,
+    BACK,
+    L_STICK_RIGHT,
+    L_STICK_LEFT,
+    L_STICK_DOWN,
+    L_STICK_UP,
+    L_STICK_PRESSED,
+    R_STICK_RIGHT,
+    R_STICK_LEFT,
+    R_STICK_DOWN,
+    R_STICK_UP,
+    R_STICK_PRESSED,
+    RIGHT_TRIGGER,
+    LEFT_TRIGGER
 };
 
 static const std::string SCRATCH_CONTROLS[] = {
@@ -29,15 +46,14 @@ static const std::string SCRATCH_CONTROLS[] = {
     "left arrow",
     "down arrow",
     "up arrow",
-     "c",
-     "5",
-     "4",
-     "3",
-     "2",
-     "v",
-     "z",
-     "f"
-};
+    "c",
+    "5",
+    "4",
+    "3",
+    "2",
+    "v",
+    "z",
+    "f"};
 
 static const std::string CONTROLLER_STRINGS[] = {
     "dpadUp",
@@ -63,5 +79,4 @@ static const std::string CONTROLLER_STRINGS[] = {
     "RightStickUp",
     "RightStickPressed",
     "LT",
-    "RT"
-};
+    "RT"};

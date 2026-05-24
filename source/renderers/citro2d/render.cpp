@@ -368,7 +368,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         C2D_DrawRectSolid(0, 0, 0.5f, barWidth, screenHeight, clrBlack);                      // Left bar
         C2D_DrawRectSolid(screenWidth - barWidth, 0, 0.5f, barWidth, screenHeight, clrBlack); // Right bar
         return;
-    } 
+    }
 
     // Screen is taller than project,, horizontal bars
     float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
@@ -377,7 +377,6 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 
     C2D_DrawRectSolid(0, 0, 0.5f, screenWidth, barHeight, clrBlack);                        // Top bar
     C2D_DrawRectSolid(0, screenHeight - barHeight, 0.5f, screenWidth, barHeight, clrBlack); // Bottom bar
-    
 }
 
 void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
@@ -435,15 +434,14 @@ void Render::renderSprites() {
 
     bool use_slider = (is_2ds != 0) && (slider > SLIDER_THRESHOLD);
 
-    const float pen_offset_x    = OBJ_OFFSET(240.0f); // (renderMode == BOTH_SCREENS) ? -240 : 0.0f;
-    const float pen_offset_y    = OBJ_OFFSET(40.0f);  // (renderMode == BOTH_SCREENS) ? -40 : 0.0f;
+    const float pen_offset_x = OBJ_OFFSET(240.0f); // (renderMode == BOTH_SCREENS) ? -240 : 0.0f;
+    const float pen_offset_y = OBJ_OFFSET(40.0f);  // (renderMode == BOTH_SCREENS) ? -40 : 0.0f;
 
-    const float image_offset_x  = OBJ_OFFSET(40.0f);   // (renderMode == BOTH_SCREENS) ? -40 : 0;
-    const float image_offset_y  = OBJ_OFFSET(120.0f); // (renderMode == BOTH_SCREENS) ? -120 : 0;
+    const float image_offset_x = OBJ_OFFSET(40.0f);  // (renderMode == BOTH_SCREENS) ? -40 : 0;
+    const float image_offset_y = OBJ_OFFSET(120.0f); // (renderMode == BOTH_SCREENS) ? -120 : 0;
 
-    const float speech_offset_x = OBJ_OFFSET(40.0f);   // (renderMode == BOTH_SCREENS) ? -40 : 0;
-    const float speech_offset_y = OBJ_OFFSET(240.0f);  // (renderMode == BOTH_SCREENS) ? -240 : 0;
-    
+    const float speech_offset_x = OBJ_OFFSET(40.0f);  // (renderMode == BOTH_SCREENS) ? -40 : 0;
+    const float speech_offset_y = OBJ_OFFSET(240.0f); // (renderMode == BOTH_SCREENS) ? -240 : 0;
 
     // Zero Will Be The Left Screen And 1 Will Be The Right Screen (Value Doesn't Matter If Bottom Screen)
     auto screen_rendering = [&](bool eye_side, bool is_top_screen) {
@@ -486,14 +484,13 @@ void Render::renderSprites() {
                         eyeOffset *= -1;
                     }
 
-                    
                     renderImage(
                         currentSprite,
                         costume.fullName,
                         false,
                         (use_slider) ? eyeOffset : 0.0f,
-                        OBJ_OFFSET( (-120) ));
-                    
+                        OBJ_OFFSET((-120)));
+
                     break;
                 }
                 costumeIndex++;
@@ -524,7 +521,6 @@ void Render::renderSprites() {
             Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
         }
 
-
         /* if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(screenWidth, screenHeight);
         } */
@@ -544,30 +540,30 @@ void Render::renderSprites() {
             drawBlackBars(screenWidth, screenHeight);
         }
     }
-            
+
 other_screen_check:
-    switch(Render::renderMode) {
-        default:
+    switch (Render::renderMode) {
+    default:
+        break;
+    case BOTH_SCREENS:
+    case BOTTOM_SCREEN_ONLY:
+        C2D_SceneBegin(bottomScreen);
+        C2D_TargetClear(bottomScreen, clrWhite);
+
+        if (Render::renderMode != Render::BOTH_SCREENS)
+            currentScreen = 1;
+
+        screen_rendering(0, false);
+
+        if (Render::renderMode == BOTH_SCREENS) {
+            renderMonitors(-40, -240);
             break;
-        case BOTH_SCREENS:
-        case BOTTOM_SCREEN_ONLY:
-            C2D_SceneBegin(bottomScreen);
-            C2D_TargetClear(bottomScreen, clrWhite);
+        }
 
-            if (Render::renderMode != Render::BOTH_SCREENS)
-                currentScreen = 1;
-
-            screen_rendering(0, false);
-
-            if (Render::renderMode == BOTH_SCREENS) {
-                renderMonitors(-40, -240);
-                break;
-            }
-
-            // Bottom Screen Only
-            drawBlackBars(bottomScreenWidth, screenHeight);
-            renderMonitors();
-            break;
+        // Bottom Screen Only
+        drawBlackBars(bottomScreenWidth, screenHeight);
+        renderMonitors();
+        break;
     }
 
     C3D_FrameEnd(0);

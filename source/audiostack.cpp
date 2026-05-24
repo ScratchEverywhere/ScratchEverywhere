@@ -300,7 +300,7 @@ bool Mixer::musicInitialized = false;
 
 void Mixer::initMusic() {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
-    if(Mixer::musicInitialized) return;
+    if (Mixer::musicInitialized) return;
 
     std::string prefix = OS::getRomFSLocation();
     std::string path = prefix + "gfx/ingame/scratch.sf2";

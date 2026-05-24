@@ -73,7 +73,7 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
     if (!canBeClicked) return false;
 
-    int* touchPos = Input::getTouchPosition();
+    int *touchPos = Input::getTouchPosition();
 
     int touchX = touchPos[0];
     int touchY = touchPos[1];
@@ -109,7 +109,7 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
 bool ButtonObject::isTouchingMouse() {
     if (!canBeClicked) return false;
-    int* touchPos = Input::getTouchPosition();
+    int *touchPos = Input::getTouchPosition();
 
     int touchX = touchPos[0];
     int touchY = touchPos[1];
@@ -314,7 +314,7 @@ void ControlObject::setScrollLimits() {
 void ControlObject::render(double xPos, double yPos) {
     if (selectedObject == nullptr) return;
     const float lerpSpeed = 0.1f;
-    int* touchPos = Input::getTouchPosition();
+    int *touchPos = Input::getTouchPosition();
 
     if (lastFrameTouchPos != nullptr && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
         mousePriority = true;

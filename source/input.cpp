@@ -42,7 +42,7 @@ void Input::applyControls(std::string controlsFilePath) {
     size_t arr_size = sizeof(SCRATCH_CONTROLS) / sizeof(SCRATCH_CONTROLS[0]);
 
     for (size_t i = 0; i < arr_size; i++) {
-        Input::inputControls[ CONTROLLER_STRINGS[(SCRATCH_KEY_INDEX)i] ] = SCRATCH_CONTROLS[(SCRATCH_KEY_INDEX)i];
+        Input::inputControls[CONTROLLER_STRINGS[(SCRATCH_KEY_INDEX)i]] = SCRATCH_CONTROLS[(SCRATCH_KEY_INDEX)i];
     }
 }
 
@@ -56,26 +56,25 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
     if (keyName.isDouble()) {
         if (keyName.asDouble() >= 48 && keyName.asDouble() <= 90) {
             return std::string(1, std::tolower(static_cast<char>(static_cast<int>(keyName.asDouble()))));
-        } 
-        
-        switch ( static_cast<int>(keyName.asDouble()) ) {
-            case 32:
-                return "space";
-                break;
-            case 37:
-                return "left arrow";
-                break;
-            case 38:
-                return "up arrow";
-                break;
-            case 39:
-                return "right arrow";
-                break;
-            case 50:
-                return "down arrow";
-                break;
+        }
+
+        switch (static_cast<int>(keyName.asDouble())) {
+        case 32:
+            return "space";
+            break;
+        case 37:
+            return "left arrow";
+            break;
+        case 38:
+            return "up arrow";
+            break;
+        case 39:
+            return "right arrow";
+            break;
+        case 50:
+            return "down arrow";
+            break;
         };
-        
     }
 
     std::string key = keyName.asString();

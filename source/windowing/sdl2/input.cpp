@@ -53,7 +53,7 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-int* Input::getTouchPosition() {
+int *Input::getTouchPosition() {
     static int pos[2] = {0, 0};
     int rawMouseX, rawMouseY;
 #ifdef PLATFORM_HAS_TOUCH
@@ -218,7 +218,7 @@ void Input::getInput() {
 
 #ifdef PLATFORM_HAS_MOUSE
 
-    int* rawMouse = getTouchPosition();
+    int *rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;

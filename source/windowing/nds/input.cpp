@@ -10,8 +10,8 @@ static touchPosition touch;
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
 
-int* Input::getTouchPosition() {
-    static int* pos;
+int *Input::getTouchPosition() {
+    static int *pos;
     pos[0] = touch.px;
     pos[1] = touch.py;
 
@@ -31,7 +31,7 @@ void Input::getInput() {
     uint16_t kDown = keysHeld();
 
     touchRead(&touch);
-    int* touchPos = getTouchPosition();
+    int *touchPos = getTouchPosition();
 
     // if the touch screen is being touched
     if (touchPos[0] != 0 || touchPos[1] != 0) {

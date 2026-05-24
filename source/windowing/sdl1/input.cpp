@@ -30,7 +30,7 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-int* Input::getTouchPosition() {
+int *Input::getTouchPosition() {
     static int pos[2] = {0, 0};
 #ifdef PLATFORM_HAS_MOUSE
     int rawMouseX, rawMouseY;

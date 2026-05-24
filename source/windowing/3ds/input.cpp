@@ -27,7 +27,7 @@ static const u32 III_DS_KEYS[] = {
 
     KEY_L,
     KEY_R,
-            
+
     KEY_SELECT,
     KEY_START,
 
@@ -65,7 +65,7 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-/* 
+/*
 ( std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
 
@@ -75,10 +75,10 @@ extern std::string customUsername;
         mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
     }
     return pos;
-} 
+}
     */
 
-int* Input::getTouchPosition() {
+int *Input::getTouchPosition() {
     // std::vector<int> pos;
     static int pos[2];
     pos[0] = touch.px;
@@ -103,7 +103,7 @@ void Input::getInput() {
 
     hidTouchRead(&touch);
     // std::vector<int> touchPos = getTouchPosition();
-    int* touchPos = getTouchPosition();
+    int *touchPos = getTouchPosition();
 
     // if the touch screen is being touched
     if (touchPos[0] != 0 || touchPos[1] != 0) {
@@ -125,14 +125,14 @@ void Input::getInput() {
 
         // Creates The Unordered Map
         u8 counter = 0;
-        std::unordered_map<u32, std::string> button_codes; 
+        std::unordered_map<u32, std::string> button_codes;
         for (int i = 0; i < 24; i++) {
             if (i == L_STICK_PRESSED || i == R_STICK_PRESSED) {
                 counter++;
                 continue;
             }
             button_codes[III_DS_KEYS[i - counter]] = CONTROLLER_STRINGS[i];
-        } 
+        }
 
         // Check if System Is New Version Or Not
         size_t array_len = sizeof(III_DS_KEYS) / sizeof(III_DS_KEYS[0]);
@@ -165,7 +165,7 @@ void Input::getInput() {
         };
 
         auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1],
-                                                         Render::getWidth(), Render::getHeight());
+                                                     Render::getWidth(), Render::getHeight());
 
         mousePointer.isPressed = true;
         switch (Render::renderMode) {

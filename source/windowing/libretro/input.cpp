@@ -14,7 +14,7 @@ extern "C" void retro_set_input_state(retro_input_state_t cb) {
     input_state_cb = cb;
 }
 
-int* Input::getTouchPosition() {
+int *Input::getTouchPosition() {
     double x = input_state_cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
     double y = input_state_cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
@@ -27,7 +27,7 @@ int* Input::getTouchPosition() {
     x *= globalWindow->getWidth();
     y *= globalWindow->getHeight();
 
-    static int* pos;
+    static int *pos;
     pos[0] = (int)x;
     pos[1] = (int)y;
 
@@ -37,7 +37,7 @@ int* Input::getTouchPosition() {
 void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
-    int* touchPos = getTouchPosition();
+    int *touchPos = getTouchPosition();
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
     mousePointer.x = (int)coords.first;
     mousePointer.y = (int)coords.second;
