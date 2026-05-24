@@ -141,7 +141,7 @@ void projectLoaderThread(void *data) {
 void loadInitialImages() {
     Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
     for (auto &currentSprite : Scratch::sprites) {
-        if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
+
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
 }

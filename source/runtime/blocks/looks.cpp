@@ -344,7 +344,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
 
         double minScale;
         double maxScale;
-        if (sprite->spriteWidth <= 1 || sprite->spriteHeight <= 1) {
+        if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
             minScale = 1.0;
             maxScale = 1800.0;
         } else {
@@ -355,9 +355,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
             maxScale = std::min((1.5 * Scratch::projectWidth) / sprWidth, (1.5 * Scratch::projectHeight) / sprHeight) * 100.0;
         }
 
-        const double clampedScale = std::clamp(inputSizePercent / 100.0, minScale, maxScale);
-        sprite->size = clampedScale * 100.0;
-
+        sprite->size = std::clamp(inputSizePercent, minScale, maxScale);
         Render::resizeSVGs(sprite);
     }
     if (sprite->visible) Scratch::forceRedraw = true;
@@ -381,7 +379,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
         double minScale;
         double maxScale;
 
-        if (sprite->spriteWidth <= 1 || sprite->spriteHeight <= 1) {
+        if (sprite->spriteWidth < 1 || sprite->spriteHeight < 1) {
             minScale = 1.0;
             maxScale = 1800.0;
         } else {
