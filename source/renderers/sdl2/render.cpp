@@ -2,7 +2,7 @@
 #include "speech_manager.hpp"
 #include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <cmath>
@@ -174,9 +174,15 @@ int Render::getWidth() {
     if (globalWindow) return globalWindow->getWidth();
     return 540;
 }
+
 int Render::getHeight() {
     if (globalWindow) return globalWindow->getHeight();
     return 405;
+}
+
+float Render::getPixelDensity() {
+    if (globalWindow) return globalWindow->getPixelDensity();
+    return 1.0f;
 }
 
 bool Render::initPen() {

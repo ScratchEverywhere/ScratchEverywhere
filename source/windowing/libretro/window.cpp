@@ -57,6 +57,10 @@ int WindowLibretro::getHeight() const {
     return height;
 }
 
+float WindowLibretro::getPixelDensity() const {
+    return 1.0f;
+}
+
 void *WindowLibretro::getHandle() {
     return nullptr;
 }

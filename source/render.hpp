@@ -146,6 +146,11 @@ class Render {
     static int getHeight();
 
     /**
+     * Gets the current display's pixel density (e.g. 1.0, 2.0, etc)
+     */
+    static float getPixelDensity();
+
+    /**
      * Renders every sprite to the screen.
      */
     static void renderSprites();

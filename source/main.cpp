@@ -20,10 +20,6 @@
 #include <switch.h>
 #endif
 
-#ifdef RENDERER_SDL2
-#include <SDL2/SDL.h>
-#endif
-
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>
@@ -96,7 +92,7 @@ void mainLoop() {
     }
 }
 
-#ifdef WINDOWING_SDL1
+#if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
 
 extern "C" int main(int argc, char **argv) {

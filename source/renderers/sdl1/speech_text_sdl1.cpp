@@ -1,7 +1,7 @@
 #include "speech_text_sdl1.hpp"
 #include "text.hpp"
-#include <SDL/SDL.h>
-#include <SDL/SDL_ttf.h>
+#include <SDL.h>
+#include <SDL_ttf.h>
 #include <log.hpp>
 #include <os.hpp>
 

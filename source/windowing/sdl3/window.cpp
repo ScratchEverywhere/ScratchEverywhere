@@ -1,4 +1,5 @@
 #include "window.hpp"
+#include "SDL3/SDL_video.h"
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -68,6 +69,7 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 
     this->width = width;
     this->height = height;
+    this->pixelDensity = SDL_GetWindowPixelDensity(window);
 
     int dw, dh;
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
@@ -143,6 +145,7 @@ void WindowSDL3::swapBuffers() {
 void WindowSDL3::resize(int width, int height) {
     this->width = width;
     this->height = height;
+    this->pixelDensity = SDL_GetWindowPixelDensity(window);
 #ifdef RENDERER_OPENGL
     glViewport(0, 0, width, height);
 #endif
@@ -156,6 +159,10 @@ int WindowSDL3::getWidth() const {
 
 int WindowSDL3::getHeight() const {
     return height;
+}
+
+float WindowSDL3::getPixelDensity() const {
+    return pixelDensity;
 }
 
 void *WindowSDL3::getHandle() {

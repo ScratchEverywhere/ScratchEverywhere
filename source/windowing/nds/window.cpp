@@ -10,6 +10,7 @@
 bool WindowNDS::init(int w, int h, const std::string &title) {
     glScreen2D();
     videoSetMode(MODE_0_3D);
+    videoSetModeSub(MODE_0_2D);
     vramSetBankA(VRAM_A_TEXTURE);
     vramSetBankE(VRAM_E_TEX_PALETTE);
 
@@ -51,6 +52,10 @@ int WindowNDS::getWidth() const {
 
 int WindowNDS::getHeight() const {
     return height;
+}
+
+float WindowNDS::getPixelDensity() const {
+    return 1.0f;
 }
 
 void *WindowNDS::getHandle() {

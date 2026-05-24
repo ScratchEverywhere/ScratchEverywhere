@@ -12,7 +12,7 @@ SCRATCH_BLOCK(sceneManager, openSB3) {
     Value arg0;
     if (!Scratch::getInput(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
 
-    Log::log("Open next Project with Block");
+    Log::log("[SceneManager] Open next Project with Block");
     Scratch::nextProject = true;
     Unzip::filePath = arg0.asString();
     if (Unzip::filePath.rfind("sd:", 0) == 0) {
@@ -41,7 +41,7 @@ SCRATCH_BLOCK(sceneManager, openSB3withData) {
     if (!Scratch::getInput(block, "arg0", thread, sprite, arg0) ||
         !Scratch::getInput(block, "arg1", thread, sprite, arg1)) return BlockResult::REPEAT;
 
-    Log::log("Open next Project with Block and data");
+    Log::log("[SceneManager] Open next Project with Block and data");
     Scratch::nextProject = true;
     Unzip::filePath = arg0.asString();
     if (Unzip::filePath.rfind("sd:", 0) == 0) {

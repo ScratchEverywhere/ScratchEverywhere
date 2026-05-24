@@ -10,9 +10,9 @@ void Timer::start() {
     startTime = sceKernelReadTsc() * 1000;
 }
 
-int Timer::getTimeMs() {
+uint64_t Timer::getTimeMs() {
     uint64_t currentTime = sceKernelReadTsc() * 1000;
-    return static_cast<int>((currentTime - startTime) / sceKernelGetTscFrequency());
+    return (currentTime - startTime) / sceKernelGetTscFrequency();
 }
 
 double Timer::getTimeMsDouble() {

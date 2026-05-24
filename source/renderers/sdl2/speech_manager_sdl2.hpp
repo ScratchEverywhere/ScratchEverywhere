@@ -2,7 +2,7 @@
 
 #include "speech_manager.hpp"
 #include "speech_text_sdl2.hpp"
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <memory>
 
 class Image;

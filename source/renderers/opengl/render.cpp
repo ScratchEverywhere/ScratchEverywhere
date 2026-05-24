@@ -134,6 +134,11 @@ int Render::getHeight() {
     return 405;
 }
 
+float Render::getPixelDensity() {
+    if (globalWindow) return globalWindow->getPixelDensity();
+    return 1.0f;
+}
+
 bool Render::initPen() {
     if (penTexture != 0) return true;
 

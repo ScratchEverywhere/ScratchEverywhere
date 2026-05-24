@@ -8,9 +8,9 @@ void Timer::start() {
     startTime = cpuGetTiming();
 }
 
-int Timer::getTimeMs() {
+uint64_t Timer::getTimeMs() {
     uint64_t currentTime = cpuGetTiming();
-    return static_cast<int>((currentTime - startTime) * 1000 / BUS_CLOCK);
+    return (currentTime - startTime) * 1000 / BUS_CLOCK;
 }
 
 double Timer::getTimeMsDouble() {

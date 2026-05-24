@@ -1,7 +1,7 @@
 #pragma once
 
 #include "speech_text_sdl1.hpp"
-#include <SDL/SDL.h>
+#include <SDL.h>
 #include <memory>
 #include <speech_manager.hpp>
 

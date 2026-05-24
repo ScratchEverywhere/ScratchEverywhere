@@ -11,23 +11,18 @@
 #ifdef __PS4__
 char logBuffer[1024];
 
-void Log::log(std::string message, bool printToScreen) {
-    if (printToScreen) {
-        snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
-        sceKernelDebugOutText(0, logBuffer);
-    }
+void Log::log(std::string message) {
+
+    snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
+    sceKernelDebugOutText(0, logBuffer);
 }
-void Log::logWarning(std::string message, bool printToScreen) {
-    if (printToScreen) {
-        snprintf(logBuffer, 1023, "<SE!> Warning: %s\n", message.c_str());
-        sceKernelDebugOutText(0, logBuffer);
-    }
+void Log::logWarning(std::string message) {
+    snprintf(logBuffer, 1023, "<SE!> Warning: %s\n", message.c_str());
+    sceKernelDebugOutText(0, logBuffer);
 }
-void Log::logError(std::string message, bool printToScreen) {
-    if (printToScreen) {
-        snprintf(logBuffer, 1023, "<SE!> Error: %s\n", message.c_str());
-        sceKernelDebugOutText(0, logBuffer);
-    }
+void Log::logError(std::string message) {
+    snprintf(logBuffer, 1023, "<SE!> Error: %s\n", message.c_str());
+    sceKernelDebugOutText(0, logBuffer);
 }
 void Log::writeToFile(std::string message) {
 }
@@ -36,22 +31,27 @@ void Log::deleteLogFile() {
 }
 
 #else
-void Log::log(std::string message, bool printToScreen) {
-    if (printToScreen) std::cout << message << std::endl;
+static std::string lastLog;
+void Log::log(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
+    std::cout << message << std::endl;
     writeToFile(message);
 }
 
-void Log::logWarning(std::string message, bool printToScreen) {
-    if (printToScreen)
-        std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
-    writeToFile("Warning: " + message);
+void Log::logWarning(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
+    std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
+    writeToFile("<Warning> " + message);
 }
 
-void Log::logError(std::string message, bool printToScreen) {
-    if (printToScreen)
-        std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
+void Log::logError(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
+    std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
 
-    writeToFile("Error: " + message);
+    writeToFile("<Error> " + message);
 }
 
 void Log::writeToFile(std::string message) {
