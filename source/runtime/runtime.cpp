@@ -91,12 +91,10 @@ std::string Scratch::customUsername;
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
 bool Scratch::initializeRuntime() {
-    Log::deleteLogFile();
-    Render::debugMode = true;
-
     if (!OS::init()) {
         return false;
     }
+    Log::deleteLogFile();
     TranslationManager::loadLanguage();
     if (!Render::Init()) {
         return false;
