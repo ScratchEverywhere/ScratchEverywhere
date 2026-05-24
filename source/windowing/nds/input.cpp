@@ -10,11 +10,11 @@ static touchPosition touch;
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
 
-std::vector<int> Input::getTouchPosition() {
-    std::vector<int> pos;
+int* Input::getTouchPosition() {
+    static int* pos;
+    pos[0] = touch.px;
+    pos[1] = touch.py;
 
-    pos.push_back(touch.px);
-    pos.push_back(touch.py);
     if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
         if (touch.px != 0 || touch.py != 0) {
             mousePointer.isPressed = true;
@@ -31,7 +31,7 @@ void Input::getInput() {
     uint16_t kDown = keysHeld();
 
     touchRead(&touch);
-    std::vector<int> touchPos = getTouchPosition();
+    int* touchPos = getTouchPosition();
 
     // if the touch screen is being touched
     if (touchPos[0] != 0 || touchPos[1] != 0) {

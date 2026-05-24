@@ -39,30 +39,11 @@ void Input::applyControls(std::string controlsFilePath) {
     }
 
     // default controls
-    Input::inputControls["dpadUp"] = "u";
-    Input::inputControls["dpadDown"] = "h";
-    Input::inputControls["dpadLeft"] = "g";
-    Input::inputControls["dpadRight"] = "j";
-    Input::inputControls["A"] = "a";
-    Input::inputControls["B"] = "b";
-    Input::inputControls["X"] = "x";
-    Input::inputControls["Y"] = "y";
-    Input::inputControls["shoulderL"] = "l";
-    Input::inputControls["shoulderR"] = "r";
-    Input::inputControls["start"] = "1";
-    Input::inputControls["back"] = "0";
-    Input::inputControls["LeftStickRight"] = "right arrow";
-    Input::inputControls["LeftStickLeft"] = "left arrow";
-    Input::inputControls["LeftStickDown"] = "down arrow";
-    Input::inputControls["LeftStickUp"] = "up arrow";
-    Input::inputControls["LeftStickPressed"] = "c";
-    Input::inputControls["RightStickRight"] = "5";
-    Input::inputControls["RightStickLeft"] = "4";
-    Input::inputControls["RightStickDown"] = "3";
-    Input::inputControls["RightStickUp"] = "2";
-    Input::inputControls["RightStickPressed"] = "v";
-    Input::inputControls["LT"] = "z";
-    Input::inputControls["RT"] = "f";
+    size_t arr_size = sizeof(SCRATCH_CONTROLS) / sizeof(SCRATCH_CONTROLS[0]);
+
+    for (size_t i = 0; i < arr_size; i++) {
+        Input::inputControls[ CONTROLLER_STRINGS[(SCRATCH_KEY_INDEX)i] ] = SCRATCH_CONTROLS[(SCRATCH_KEY_INDEX)i];
+    }
 }
 
 void Input::buttonPress(std::string button) {
@@ -75,17 +56,26 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
     if (keyName.isDouble()) {
         if (keyName.asDouble() >= 48 && keyName.asDouble() <= 90) {
             return std::string(1, std::tolower(static_cast<char>(static_cast<int>(keyName.asDouble()))));
-        } else if (keyName.asDouble() == 32.0) {
-            return "space";
-        } else if (keyName.asDouble() == 37.0) {
-            return "left arrow";
-        } else if (keyName.asDouble() == 38.0) {
-            return "up arrow";
-        } else if (keyName.asDouble() == 39.0) {
-            return "right arrow";
-        } else if (keyName.asDouble() == 50.0) {
-            return "down arrow";
-        }
+        } 
+        
+        switch ( static_cast<int>(keyName.asDouble()) ) {
+            case 32:
+                return "space";
+                break;
+            case 37:
+                return "left arrow";
+                break;
+            case 38:
+                return "up arrow";
+                break;
+            case 39:
+                return "right arrow";
+                break;
+            case 50:
+                return "down arrow";
+                break;
+        };
+        
     }
 
     std::string key = keyName.asString();

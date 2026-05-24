@@ -9,6 +9,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <input_strings.hpp>
+
 class Input {
   public:
     struct Mouse {
@@ -27,7 +29,9 @@ class Input {
     static std::unordered_map<std::string, int> keyHeldDuration;
     static std::unordered_set<Block *> codePressedBlockOpcodes;
 
-    static std::vector<int> getTouchPosition();
+    // static std::vector<int> getTouchPosition();
+    static int* getTouchPosition();
+
     static void getInput();
 
     static void applyControls(std::string controlsFilePath = "");

@@ -1,0 +1,67 @@
+#pragma once
+
+#include <string>
+
+enum SCRATCH_KEY_INDEX {
+    DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, 
+    A, B, X, y,
+    SHOULDER_L, SHOULDER_R, 
+    START, BACK, 
+    L_STICK_RIGHT, L_STICK_LEFT, L_STICK_DOWN, L_STICK_UP, L_STICK_PRESSED,
+    R_STICK_RIGHT, R_STICK_LEFT, R_STICK_DOWN, R_STICK_UP, R_STICK_PRESSED,
+    RIGHT_TRIGGER, LEFT_TRIGGER
+};
+
+static const std::string SCRATCH_CONTROLS[] = {
+    "u",
+    "h",
+    "g",
+    "j",
+    "a",
+    "b",
+    "x",
+    "y",
+    "l",
+    "r",
+    "1",
+    "0",
+    "right arrow",
+    "left arrow",
+    "down arrow",
+    "up arrow",
+     "c",
+     "5",
+     "4",
+     "3",
+     "2",
+     "v",
+     "z",
+     "f"
+};
+
+static const std::string CONTROLLER_STRINGS[] = {
+    "dpadUp",
+    "dpadDown",
+    "dpadLeft",
+    "dpadRight",
+    "A",
+    "B",
+    "X",
+    "Y",
+    "shoulderL",
+    "shoulderR",
+    "start",
+    "back",
+    "LeftStickRight",
+    "LeftStickLeft",
+    "LeftStickDown",
+    "LeftStickUp",
+    "LeftStickPressed",
+    "RightStickRight",
+    "RightStickLeft",
+    "RightStickDown",
+    "RightStickUp",
+    "RightStickPressed",
+    "LT",
+    "RT"
+};

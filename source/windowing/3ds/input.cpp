@@ -10,9 +10,50 @@
 
 #define O3DS_MAX_KEYS (size_t)16
 
+static bool systemCheck = APT_CheckNew3DS(&systemCheck);
+
+// Defining The Keys To Check
+static const u32 III_DS_KEYS[] = {
+    // Old 3DS Keys
+    KEY_DUP,
+    KEY_DDOWN,
+    KEY_DLEFT,
+    KEY_DRIGHT,
+
+    KEY_A,
+    KEY_B,
+    KEY_X,
+    KEY_Y,
+
+    KEY_L,
+    KEY_R,
+            
+    KEY_SELECT,
+    KEY_START,
+
+    KEY_CPAD_RIGHT,
+    KEY_CPAD_LEFT,
+    KEY_CPAD_DOWN,
+    KEY_CPAD_UP,
+
+    // New 3DS Keys
+    KEY_CSTICK_RIGHT,
+    KEY_CSTICK_LEFT,
+    KEY_CSTICK_DOWN,
+    KEY_CSTICK_UP,
+
+    KEY_ZL,
+    KEY_ZR,
+};
+
 static int mouseHeldFrames = 0;
 static u16 oldTouchPx = 0;
 static u16 oldTouchPy = 0;
+
+static float BOTTOM_SCR_CONVERSION = ((float)SCREEN_WIDTH / (float)BOTTOM_SCREEN_WIDTH);
+static float BOTH_SCR_CONVERSION_W = (BOTTOM_SCREEN_WIDTH / 2);
+
+// static float BOTH_SCR_CONVERSION_H = (SCREEN_HEIGHT) - SCREEN_HEIGHT;
 
 static touchPosition touch;
 
@@ -24,11 +65,27 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-std::vector<int> Input::getTouchPosition() {
+/* 
+( std::vector<int> Input::getTouchPosition() {
     std::vector<int> pos;
 
     pos.push_back(touch.px);
     pos.push_back(touch.py);
+    if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
+        mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
+    }
+    return pos;
+} 
+    */
+
+int* Input::getTouchPosition() {
+    // std::vector<int> pos;
+    static int pos[2];
+    pos[0] = touch.px;
+    pos[1] = touch.py;
+
+    // pos.push_back(touch.px);
+    // pos.push_back(touch.py);
     if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
         mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
     }
@@ -45,7 +102,8 @@ void Input::getInput() {
     u32 kHeld = hidKeysHeld();
 
     hidTouchRead(&touch);
-    std::vector<int> touchPos = getTouchPosition();
+    // std::vector<int> touchPos = getTouchPosition();
+    int* touchPos = getTouchPosition();
 
     // if the touch screen is being touched
     if (touchPos[0] != 0 || touchPos[1] != 0) {
@@ -65,89 +123,30 @@ void Input::getInput() {
     {
         inputButtons.push_back("any");
 
-        // Defining Both The Strings To Send & The Keys To Check
-        u32 keys[] = {
-            // Old 3DS Keys
-            KEY_A,
-            KEY_B,
-            KEY_X,
-            KEY_Y,
-
-            KEY_SELECT,
-            KEY_START,
-
-            KEY_DUP,
-            KEY_DDOWN,
-            KEY_DLEFT,
-            KEY_DRIGHT,
-
-            KEY_L,
-            KEY_R,
-
-            KEY_CPAD_UP,
-            KEY_CPAD_DOWN,
-            KEY_CPAD_LEFT,
-            KEY_CPAD_RIGHT,
-
-            // New 3DS Keys
-            KEY_ZL,
-            KEY_ZR,
-
-            KEY_CSTICK_UP,
-            KEY_CSTICK_DOWN,
-            KEY_CSTICK_LEFT,
-            KEY_CSTICK_RIGHT,
-        };
-
-        // Note: String Constants Should Be Replaced With String Array In Future Revision
-        std::unordered_map<u32, std::string> button_codes = {
-            // Old 3DS Models
-            {keys[0], "A"},
-            {keys[1], "B"},
-            {keys[2], "X"},
-            {keys[3], "Y"},
-
-            {keys[4], "back"},
-            {keys[5], "start"},
-
-            {keys[6], "dpadUp"},
-            {keys[7], "dpadDown"},
-            {keys[8], "dpadLeft"},
-            {keys[9], "dpadRight"},
-
-            {keys[10], "shoulderL"},
-            {keys[11], "shoulderR"},
-
-            {keys[12], "LeftStickUp"},
-            {keys[13], "LeftStickDown"},
-            {keys[14], "LeftStickLeft"},
-            {keys[15], "LeftStickRight"},
-
-            // New 3DS Models
-            {keys[16], "LT"},
-            {keys[17], "RT"},
-
-            {keys[18], "RightStickUp"},
-            {keys[19], "RightStickDown"},
-            {keys[20], "RightStickLeft"},
-            {keys[21], "RightStickRight"}};
+        // Creates The Unordered Map
+        u8 counter = 0;
+        std::unordered_map<u32, std::string> button_codes; 
+        for (int i = 0; i < 24; i++) {
+            if (i == L_STICK_PRESSED || i == R_STICK_PRESSED) {
+                counter++;
+                continue;
+            }
+            button_codes[III_DS_KEYS[i - counter]] = CONTROLLER_STRINGS[i];
+        } 
 
         // Check if System Is New Version Or Not
-
-        size_t array_len = sizeof(keys) / sizeof(keys[0]);
+        size_t array_len = sizeof(III_DS_KEYS) / sizeof(III_DS_KEYS[0]);
 
         // Reduce Aryay Length If It's The Older Model
-        bool systemCheck;
-        APT_CheckNew3DS(&systemCheck);
         if (!systemCheck) {
             array_len = O3DS_MAX_KEYS;
         }
 
         for (size_t i = 0; i < array_len; i++) {
-            u32 key_code = kHeld & keys[i];
+            u32 key_code = kHeld & III_DS_KEYS[i];
 
             // Check To See If Element Even Exists
-            if (!button_codes.count(keys[i])) {
+            if (!button_codes.count(III_DS_KEYS[i])) {
                 continue;
             }
 
@@ -160,29 +159,32 @@ void Input::getInput() {
 
     if (kHeld & KEY_TOUCH) {
         // Render::RenderModes rm = Render::renderMode;
+        auto set_mouse_pointer_values = [&](std::pair<float, float> coords) {
+            mousePointer.x = coords.first;
+            mousePointer.y = coords.second;
+        };
+
+        auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1],
+                                                         Render::getWidth(), Render::getHeight());
+
+        mousePointer.isPressed = true;
         switch (Render::renderMode) {
         // map bottom screen to top screen
         default:
         case Render::RenderModes::TOP_SCREEN_ONLY: {
-            mousePointer.isPressed = true;
+            // mousePointer.isPressed = true;
             mousePointer.isMoving = true;
-            auto coords = Scratch::screenToScratchCoords(touchPos[0] * ((float)SCREEN_WIDTH / (float)BOTTOM_SCREEN_WIDTH),
-                                                         touchPos[1], Render::getWidth(), Render::getHeight());
-            mousePointer.x = coords.first;
-            mousePointer.y = coords.second;
+            coords.first *= BOTTOM_SCR_CONVERSION;
+            set_mouse_pointer_values(coords);
         } break;
         // normal touch screen if both screens or bottom screen only
         case Render::RenderModes::BOTH_SCREENS: {
-            mousePointer.isPressed = true;
-            mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
-            mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
+            // mousePointer.isPressed = true;
+            mousePointer.x = touchPos[0] - BOTH_SCR_CONVERSION_W;
+            mousePointer.y = -touchPos[1];
         } break;
         case Render::RenderModes::BOTTOM_SCREEN_ONLY: {
-            mousePointer.isPressed = true;
-            auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1],
-                                                         Render::getWidth(), Render::getHeight());
-            mousePointer.x = coords.first;
-            mousePointer.y = coords.second;
+            set_mouse_pointer_values(coords);
         } break;
         };
     }

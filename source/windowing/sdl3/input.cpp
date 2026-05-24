@@ -42,8 +42,8 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-std::vector<int> Input::getTouchPosition() {
-    std::vector<int> pos = {0, 0};
+int* Input::getTouchPosition() {
+    static int pos[2] = {0, 0};
     float rawMouseX, rawMouseY;
     int numDevices, numFingers;
     SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);

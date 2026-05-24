@@ -300,7 +300,7 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
                 monitorGfx.length->setColor(Math::color(0, 0, 0, 255));
                 monitorGfx.length->render(monitorX + (monitorW / 2), monitorY + monitorH - (6 * scale));
 
-                std::vector<int> touchPos = Input::getTouchPosition();
+                int* touchPos = Input::getTouchPosition();
 
                 // plus button
                 std::unique_ptr<TextObject> plus = createTextObject("+", 0, 0);
@@ -445,7 +445,7 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
 
                     drawBox(13 * scale, 13 * scale, sliderPos, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 0, 115, 252, 255);
 
-                    std::vector<int> touchPos = Input::getTouchPosition();
+                    int* touchPos = Input::getTouchPosition();
 
                     if (Input::mousePointer.isPressed && touchPos[0] > nameBackgroundX && touchPos[0] < nameBackgroundX + nameBackgroundWidth &&
                         touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3) {

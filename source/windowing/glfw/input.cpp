@@ -16,17 +16,22 @@ extern std::string customUsername;
 static bool g_inputActive = false;
 static std::string g_inputText = "";
 
-std::vector<int> Input::getTouchPosition() {
+int* Input::getTouchPosition() {
     double x, y;
     glfwGetCursorPos((GLFWwindow *)globalWindow->getHandle(), &x, &y);
-    return {(int)x, (int)y};
+
+    static int* pos;
+    pos[0] = (int)x;
+    pos[1] = (int)y;
+    
+    return pos;
 }
 
 void Input::getInput() {
     inputButtons.clear();
     mousePointer.isPressed = (glfwGetMouseButton((GLFWwindow *)globalWindow->getHandle(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
 
-    std::vector<int> touchPos = getTouchPosition();
+    int* touchPos = getTouchPosition();
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
     mousePointer.x = (int)coords.first;
     mousePointer.y = (int)coords.second;

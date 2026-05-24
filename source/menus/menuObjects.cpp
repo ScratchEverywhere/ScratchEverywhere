@@ -73,14 +73,14 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
     if (!canBeClicked) return false;
 
-    std::vector<int> touchPos = Input::getTouchPosition();
+    int* touchPos = Input::getTouchPosition();
 
     int touchX = touchPos[0];
     int touchY = touchPos[1];
 
     // if not touching the screen on 3DS, set touch pos to the last frame one
-    if (touchX == 0 && !lastFrameTouchPos.empty()) touchX = lastFrameTouchPos[0];
-    if (touchY == 0 && !lastFrameTouchPos.empty()) touchY = lastFrameTouchPos[1];
+    if (touchX == 0 && lastFrameTouchPos != nullptr) touchX = lastFrameTouchPos[0];
+    if (touchY == 0 && lastFrameTouchPos != nullptr) touchY = lastFrameTouchPos[1];
 
     // get position based on scale
     std::vector<double> scaledPos = getScaledPosition(x - renderOffsetX, y - renderOffsetY);
@@ -109,7 +109,7 @@ bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
 
 bool ButtonObject::isTouchingMouse() {
     if (!canBeClicked) return false;
-    std::vector<int> touchPos = Input::getTouchPosition();
+    int* touchPos = Input::getTouchPosition();
 
     int touchX = touchPos[0];
     int touchY = touchPos[1];
@@ -314,9 +314,9 @@ void ControlObject::setScrollLimits() {
 void ControlObject::render(double xPos, double yPos) {
     if (selectedObject == nullptr) return;
     const float lerpSpeed = 0.1f;
-    std::vector<int> touchPos = Input::getTouchPosition();
+    int* touchPos = Input::getTouchPosition();
 
-    if (!lastFrameTouchPos.empty() && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
+    if (lastFrameTouchPos != nullptr && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
         mousePriority = true;
     }
 
@@ -324,7 +324,7 @@ void ControlObject::render(double xPos, double yPos) {
         if (Input::mousePointer.isPressed) {
             // Touch scrolling
 
-            if (!lastFrameTouchPos.empty()) {
+            if (lastFrameTouchPos != nullptr) {
                 float scrollAmount = lastFrameTouchPos[1] - touchPos[1];
                 scrollAmount /= guiScale;
                 y += scrollAmount;
@@ -332,7 +332,7 @@ void ControlObject::render(double xPos, double yPos) {
                     selectedObject = getClosestObject();
             }
         } else {
-            lastFrameTouchPos.clear();
+            lastFrameTouchPos = nullptr;
 
             // Controller scrolling
             if (std::abs((y - cameraY) * lerpSpeed) < 1) {
