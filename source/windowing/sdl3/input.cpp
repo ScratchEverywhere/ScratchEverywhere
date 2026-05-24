@@ -83,6 +83,8 @@ void Input::getInput() {
                 else if (keyName == "left") keyName = "left arrow";
                 else if (keyName == "right") keyName = "right arrow";
                 else if (keyName == "return") keyName = "enter";
+                else if (keyName == "left shift" || keyName == "right shift") keyName = "shift";
+                else if (keyName == "left ctrl" || keyName == "right ctrl") keyName = "control";
 
                 inputButtons.push_back(keyName);
             }
