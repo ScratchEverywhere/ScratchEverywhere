@@ -14,6 +14,8 @@
 #include <renderers/gl2d/text_gl2d.hpp>
 #elif defined(RENDERER_HEADLESS)
 #include <renderers/headless/text_headless.hpp>
+#elif defined(RENDERER_N64)
+#include <renderers/n64/text_gl.hpp>
 #endif
 
 TextObject::TextObject(std::string txt, double posX, double posY, std::string fontPath) {
@@ -37,6 +39,8 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
     return std::make_unique<TextObjectGL2D>(txt, posX, posY, fontPath);
 #elif defined(RENDERER_HEADLESS)
     return std::make_unique<TextObjectHeadless>(txt, posX, posY, fontPath);
+#elif defined(RENDERER_N64)
+    return std::make_unique<TextObjectGL>(txt, posX, posY, fontPath);
 #else
     return nullptr;
 #endif

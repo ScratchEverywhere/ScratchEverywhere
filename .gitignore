@@ -8,6 +8,7 @@ build-*/
 romfs/project/
 romfs/gfx
 scratch-everywhere/
+source/third-party/
 
 # CMake
 cmake/CPM.cmake
@@ -78,6 +79,7 @@ Scratch-pc
 scratch-wiiu/
 scratch-wasm/
 scratch-ds/
+scratch-n64/
 scratch-wii.zip
 scratch-everywhere
 
