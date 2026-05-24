@@ -9,4 +9,7 @@ se_add_dependency(renderer_interface SDL_ttf)
 se_add_dependency(renderer_interface SDL_gfx)
 
 set(SE_WINDOWING_VALID_OPTIONS "sdl1")
-set(SE_AUDIO_ENGINE_DEFAULT "sdl1")
+
+if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
+	set(SE_AUDIO_ENGINE_DEFAULT "sdl1")
+endif()

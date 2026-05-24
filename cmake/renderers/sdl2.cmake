@@ -8,4 +8,7 @@ se_add_dependency(renderer_interface SDL2)
 se_add_dependency(renderer_interface SDL2_ttf)
 
 set(SE_WINDOWING_VALID_OPTIONS "sdl2")
-set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
+
+if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
+	set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
+endif()
