@@ -65,8 +65,8 @@ std::vector<int> Input::getTouchPosition() {
 #endif
 #ifdef PLATFORM_HAS_MOUSE
         SDL_GetMouseState(&rawMouseX, &rawMouseY);
-        pos[0] = rawMouseX;
-        pos[1] = rawMouseY;
+        pos[0] = rawMouseX * Render::getPixelDensity();
+        pos[1] = rawMouseY * Render::getPixelDensity();
 #endif
 #ifdef PLATFORM_HAS_TOUCH
     }

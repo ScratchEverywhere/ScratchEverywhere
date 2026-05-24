@@ -41,6 +41,10 @@ int Window3DS::getHeight() const {
     return height;
 }
 
+float Window3DS::getPixelDensity() const {
+    return 1.0f;
+}
+
 void *Window3DS::getHandle() {
     return nullptr;
 }

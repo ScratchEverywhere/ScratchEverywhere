@@ -106,8 +106,13 @@ int Render::getWidth() {
         return screenWidth;
     else return bottomScreenWidth;
 }
+
 int Render::getHeight() {
     return screenHeight;
+}
+
+float Render::getPixelDensity() {
+    return 1.0f;
 }
 
 bool Render::initPen() {

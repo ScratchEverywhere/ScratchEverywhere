@@ -54,6 +54,10 @@ int WindowNDS::getHeight() const {
     return height;
 }
 
+float WindowNDS::getPixelDensity() const {
+    return 1.0f;
+}
+
 void *WindowNDS::getHandle() {
     return nullptr;
 }
