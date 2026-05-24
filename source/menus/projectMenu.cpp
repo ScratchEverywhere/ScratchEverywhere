@@ -155,7 +155,7 @@ void ProjectMenu::render() {
     }
 
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed({"a"})) {
+        if (projectControl->selectedObject->isPressed()) {
 
             if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
                 // Unpacked sb3
