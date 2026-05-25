@@ -1,7 +1,6 @@
 #include "image_gl.hpp"
 #include "nonstd/expected.hpp"
 #include "render.hpp"
-#include <GL/gl.h>
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
