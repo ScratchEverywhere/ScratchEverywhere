@@ -119,7 +119,7 @@ class MenuText : public MenuObject {
 class ButtonObject : public MenuObject {
   private:
     bool pressedLastFrame = false;
-    int *lastFrameTouchPos = nullptr;
+    std::array<int, 2> lastFrameTouchPos;
 
   public:
     std::unique_ptr<TextObject> text;
@@ -156,7 +156,7 @@ class ControlObject : public MenuObject {
   private:
     Timer animationTimer;
     int minY, maxY;
-    int *lastFrameTouchPos = nullptr;
+    std::array<int, 2> lastFrameTouchPos;
     bool mousePriority = false;
 
   public:

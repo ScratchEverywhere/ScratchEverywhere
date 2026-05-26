@@ -1,7 +1,31 @@
 #include "window.hpp"
 #include <input.hpp>
 #include <nds.h>
+#include <nds/arm9/input.h>
+#include <nds/input.h>
 #include <render.hpp>
+
+// Defining The Keys To Check
+static const u32 NDS_KEYS[] = {
+    // Old 3DS Keys
+    KEY_UP,
+    KEY_DOWN,
+    KEY_LEFT,
+    KEY_RIGHT,
+
+    KEY_A,
+    KEY_B,
+    KEY_X,
+    KEY_Y,
+
+    KEY_L,
+    KEY_R,
+
+    KEY_SELECT,
+    KEY_START,
+};
+
+static const size_t KEY_AMOUNT =  sizeof(NDS_KEYS) / sizeof(NDS_KEYS[0]);
 
 static uint16_t mouseHeldFrames = 0;
 static touchPosition touch;
@@ -10,15 +34,11 @@ static touchPosition touch;
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
 
-int *Input::getTouchPosition() {
-    static int *pos;
-    pos[0] = touch.px;
-    pos[1] = touch.py;
+std::array<int, 2> Input::getTouchPosition() {
+    std::array<int, 2> pos = {touch.px, touch.py};
 
     if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
-        if (touch.px != 0 || touch.py != 0) {
-            mousePointer.isPressed = true;
-        } else mousePointer.isPressed = false;
+        mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
     }
     return pos;
 }
@@ -28,10 +48,10 @@ void Input::getInput() {
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
     if (globalWindow) globalWindow->pollEvents();
-    uint16_t kDown = keysHeld();
+    uint32_t kHeld = keysHeld();
 
     touchRead(&touch);
-    int *touchPos = getTouchPosition();
+    std::array<int, 2> touchPos = getTouchPosition();
 
     // if the touch screen is being touched
     if (touchPos[0] != 0 || touchPos[1] != 0) {
@@ -43,45 +63,35 @@ void Input::getInput() {
         mouseHeldFrames = 0;
     }
 
-    if (kDown) {
+    if (!kHeld) {
+        goto SkipInputCheck;
+    }
+
+    {
         inputButtons.push_back("any");
-        if (kDown & KEY_A) {
-            Input::buttonPress("A");
+
+        // Creates The Unordered Map
+        std::unordered_map<u32, std::string> button_codes;
+        for (int i = 0; i < KEY_AMOUNT; i++) {
+            button_codes[NDS_KEYS[i]] = CONTROLLER_STRINGS[i];
         }
-        if (kDown & KEY_B) {
-            Input::buttonPress("B");
+
+        for (size_t i = 0; i < KEY_AMOUNT; i++) {
+            u32 key_code = kHeld & NDS_KEYS[i];
+
+            // Check To See If Element Even Exists
+            if (!button_codes.count(NDS_KEYS[i])) {
+                continue;
+            }
+
+            // Send Key Codes
+            if (key_code) {
+                Input::buttonPress(button_codes[key_code]);
+            }
         }
-        if (kDown & KEY_X) {
-            Input::buttonPress("X");
-        }
-        if (kDown & KEY_Y) {
-            Input::buttonPress("Y");
-        }
-        if (kDown & KEY_SELECT) {
-            Input::buttonPress("back");
-        }
-        if (kDown & KEY_START) {
-            Input::buttonPress("start");
-        }
-        if (kDown & KEY_UP) {
-            Input::buttonPress("dpadUp");
-        }
-        if (kDown & KEY_DOWN) {
-            Input::buttonPress("dpadDown");
-        }
-        if (kDown & KEY_LEFT) {
-            Input::buttonPress("dpadLeft");
-        }
-        if (kDown & KEY_RIGHT) {
-            Input::buttonPress("dpadRight");
-        }
-        if (kDown & KEY_L) {
-            Input::buttonPress("shoulderL");
-        }
-        if (kDown & KEY_R) {
-            Input::buttonPress("shoulderR");
-        }
-        if (kDown & KEY_TOUCH) {
+    }
+
+        if (kHeld & KEY_TOUCH) {
             mousePointer.isPressed = true;
 
             if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
@@ -91,8 +101,9 @@ void Input::getInput() {
             mousePointer.x = coords.first;
             mousePointer.y = coords.second;
         }
-    }
+    
 
+SkipInputCheck:
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
 }

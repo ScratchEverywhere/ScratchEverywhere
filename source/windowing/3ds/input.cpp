@@ -65,27 +65,9 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-/*
-( std::vector<int> Input::getTouchPosition() {
-    std::vector<int> pos;
+std::array<int, 2> Input::getTouchPosition() {
+    std::array<int, 2> pos = {touch.px, touch.py};
 
-    pos.push_back(touch.px);
-    pos.push_back(touch.py);
-    if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
-        mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
-    }
-    return pos;
-}
-    */
-
-int *Input::getTouchPosition() {
-    // std::vector<int> pos;
-    static int pos[2];
-    pos[0] = touch.px;
-    pos[1] = touch.py;
-
-    // pos.push_back(touch.px);
-    // pos.push_back(touch.py);
     if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
         mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
     }
@@ -103,7 +85,7 @@ void Input::getInput() {
 
     hidTouchRead(&touch);
     // std::vector<int> touchPos = getTouchPosition();
-    int *touchPos = getTouchPosition();
+    std::array<int, 2> touchPos = getTouchPosition();
 
     // if the touch screen is being touched
     if (touchPos[0] != 0 || touchPos[1] != 0) {

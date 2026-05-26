@@ -3,7 +3,7 @@
 #include <log.hpp>
 #include <os.hpp>
 
-std::vector<int> Input::getTouchPosition() {
+std::array<int, 2> Input::getTouchPosition() {
     return {0, 0};
 }
 
