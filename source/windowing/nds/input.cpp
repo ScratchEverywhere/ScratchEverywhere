@@ -25,7 +25,7 @@ static const u32 NDS_KEYS[] = {
     KEY_START,
 };
 
-static const size_t KEY_AMOUNT =  sizeof(NDS_KEYS) / sizeof(NDS_KEYS[0]);
+static const size_t KEY_AMOUNT = sizeof(NDS_KEYS) / sizeof(NDS_KEYS[0]);
 
 static uint16_t mouseHeldFrames = 0;
 static touchPosition touch;
@@ -91,17 +91,16 @@ void Input::getInput() {
         }
     }
 
-        if (kHeld & KEY_TOUCH) {
-            mousePointer.isPressed = true;
+    if (kHeld & KEY_TOUCH) {
+        mousePointer.isPressed = true;
 
-            if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
-                mousePointer.isMoving = true;
+        if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY)
+            mousePointer.isMoving = true;
 
-            auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
-            mousePointer.x = coords.first;
-            mousePointer.y = coords.second;
-        }
-    
+        auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
+        mousePointer.x = coords.first;
+        mousePointer.y = coords.second;
+    }
 
 SkipInputCheck:
     BlockExecutor::executeKeyHats();

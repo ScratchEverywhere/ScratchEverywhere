@@ -20,7 +20,7 @@ std::array<int, 2> Input::getTouchPosition() {
     double x, y;
     glfwGetCursorPos((GLFWwindow *)globalWindow->getHandle(), &x, &y);
 
-    std::array<int, 2> pos = { (int)x, (int)y };
+    std::array<int, 2> pos = {(int)x, (int)y};
     // pos[0] = (int)x;
     // pos[1] = (int)y;
 

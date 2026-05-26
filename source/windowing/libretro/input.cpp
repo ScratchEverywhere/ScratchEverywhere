@@ -27,7 +27,7 @@ std::array<int, 2> Input::getTouchPosition() {
     x *= globalWindow->getWidth();
     y *= globalWindow->getHeight();
 
-    std::array<int, 2> pos = { (int)x, (int)y };
+    std::array<int, 2> pos = {(int)x, (int)y};
 
     return pos;
 }
