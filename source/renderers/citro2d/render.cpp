@@ -526,10 +526,6 @@ void Render::renderSprites() {
             Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
         }
 
-        /* if (Render::renderMode != Render::BOTH_SCREENS) {
-            drawBlackBars(screenWidth, screenHeight);
-        } */
-
         if (!use_slider) {
             goto other_screen_check;
         }
