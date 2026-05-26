@@ -8,7 +8,7 @@ depending on what your target platform is.
 ### Makefile (Deprecated)
 
 > [!WARNING]
-> Makefiles are not the primary build system for this repo, we **will** accept
+> Makefiles are not the primary build system for this repo. We **will** accept
 > them if they are strictly necessary for new ports, but since we have finished
 > migrating all of our current ports, you will have to use old commits as
 > reference.

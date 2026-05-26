@@ -2,10 +2,6 @@
 #include <SDL.h>
 #include <window.hpp>
 
-#ifdef RENDERER_OPENGL
-#include <GL/gl.h>
-#endif
-
 class WindowSDL1 : public Window {
   public:
     bool init(int width, int height, const std::string &title) override;
