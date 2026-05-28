@@ -53,6 +53,26 @@ void extensions::registerHandlers(Extension *extension) {
             sol::protected_function func = extension->luaState["blocks"][extensionBlock.first];
             sol::protected_function_result result = func();
             if (!result.valid()) Log::logError("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what());
+            sol::object resultObj = result;
+            switch (extensionBlock.second) {
+            case ExtensionBlockType::COMMAND:
+                break;
+            case ExtensionBlockType::BOOLEAN:
+            case ExtensionBlockType::REPORTER:
+                if (resultObj.is<std::string>()) *outValue = Value(resultObj.as<std::string>());
+                else if (resultObj.is<int>()) *outValue = Value(resultObj.as<int>());
+                else if (resultObj.is<double>()) *outValue = Value(resultObj.as<double>());
+                else if (resultObj.is<bool>()) *outValue = Value(resultObj.as<bool>());
+                else {
+                    Log::logWarning("Unknown return type from extension block: " + block->opcode);
+                    *outValue = Value(Undefined{});
+                }
+
+                break;
+            case ExtensionBlockType::HAT:
+            case ExtensionBlockType::EVENT:
+                break;
+            }
             return BlockResult::CONTINUE;
         };
     }
