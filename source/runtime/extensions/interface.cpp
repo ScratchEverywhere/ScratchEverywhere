@@ -1,6 +1,7 @@
 #include "interface.hpp"
 #include "blockExecutor.hpp"
 #include "color.hpp"
+#include "files.hpp"
 #include "json.hpp"
 #include "log.hpp"
 #include "meta.hpp"
@@ -15,7 +16,8 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
     extension->luaState.new_usertype<Color>("Color", sol::call_constructor, sol::factories([]() { return Color{0.0f, 0.0f, 0.0f, 1.0f}; }, [](float h, float s, float b, float t) { return Color{h, s, b, t}; }), "hue", &Color::hue, "saturation", &Color::saturation, "brightness", &Color::brightness, "transparency", &Color::transparency, "toRGBA", [](Color &color) { return CSBT2RGBA(color); });
     extension->luaState.new_usertype<ColorRGBA>("ColorRGBA", sol::call_constructor, sol::factories([]() { return ColorRGBA{0.0f, 0.0f, 0.0f, 1.0f}; }, [](float r, float g, float b, float a) { return ColorRGBA{r, g, b, a}; }), "r", &ColorRGBA::r, "g", &ColorRGBA::g, "b", &ColorRGBA::b, "a", &ColorRGBA::a, "toCSBT", [](ColorRGBA &rgba) { return RGBA2CSBO(rgba); });
 
-    json::registerAPI(extension->luaState);
+    json::registerAPI(extension);
+    files::registerAPI(extension);
 
     extension->luaState["blocks"] = extension->luaState.create_table();
     if (extension->hasPermission(ExtensionPermission::UPDATE)) extension->luaState["update"] = extension->luaState.create_table();

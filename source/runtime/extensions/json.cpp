@@ -1,4 +1,5 @@
 #include "json.hpp"
+#include "meta.hpp"
 #include <log.hpp>
 
 namespace extensions::json {
@@ -91,10 +92,10 @@ std::string encodePretty(const sol::table table) {
     return tableToJson(table).dump(2);
 }
 
-void registerAPI(sol::state_view &luaState) {
-    luaState["json"] = luaState.create_table();
-    luaState["json"]["decode"] = json::decode;
-    luaState["json"]["encode"] = json::encode;
-    luaState["json"]["encodePretty"] = json::encodePretty;
+void registerAPI(Extension *extension) {
+    extension->luaState["json"] = extension->luaState.create_table();
+    extension->luaState["json"]["decode"] = json::decode;
+    extension->luaState["json"]["encode"] = json::encode;
+    extension->luaState["json"]["encodePretty"] = json::encodePretty;
 }
 } // namespace extensions::json

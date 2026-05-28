@@ -1,3 +1,4 @@
+#include "meta.hpp"
 #include <nlohmann/json.hpp>
 #include <sol/sol.hpp>
 
@@ -10,5 +11,5 @@ sol::table decode(const std::string data, sol::this_state s);
 std::string encode(const sol::table data);
 std::string encodePretty(const sol::table data);
 
-void registerAPI(sol::state_view &luaState);
+void registerAPI(Extension *extension);
 } // namespace extensions::json

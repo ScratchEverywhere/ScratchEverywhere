@@ -770,11 +770,16 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
             extensions::loadLua(loadedExt.get(), in);
             Scratch::extensions.push_back(std::move(loadedExt));
             in.close();
+            continue;
         }
 
         Log::logError("Failed to find extension: " + targetID);
 #endif
     }
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    extensions::registerHandlers();
+#endif
 #endif
     return hasNativeExts;
 }

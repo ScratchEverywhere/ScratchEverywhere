@@ -2,7 +2,6 @@
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "collision.hpp"
-#include "interface.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
@@ -40,6 +39,7 @@
 #endif
 
 #ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/interface.hpp>
 #include <extensions/meta.hpp>
 
 std::vector<std::unique_ptr<extensions::Extension>> Scratch::extensions;
@@ -185,10 +185,16 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Timer scriptTimer(false);
         if (debugVars) scriptTimer.start();
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
         extensions::runUpdateFunctions(extensions::PRE_UPDATE);
+#endif
+
         if (checkFPS) Input::getInput();
         BlockExecutor::runThreads();
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
         extensions::runUpdateFunctions(extensions::POST_UPDATE);
+#endif
 
 #ifdef ENABLE_INSPECTOR
         Inspector::processCommands();
@@ -205,12 +211,18 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             speechManager->update();
         }
         if (checkFPS) {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
             extensions::runUpdateFunctions(extensions::PRE_RENDER);
+#endif
+
             Render::renderSprites();
             Scratch::flushCostumeImages();
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
             extensions::runUpdateFunctions(extensions::POST_RENDER);
+#endif
         }
 #ifdef ENABLE_MENU
 
