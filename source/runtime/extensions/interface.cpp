@@ -1,5 +1,6 @@
 #include "interface.hpp"
 #include "blockExecutor.hpp"
+#include "color.hpp"
 #include "log.hpp"
 #include "meta.hpp"
 #include "sprite.hpp"
@@ -9,6 +10,9 @@
 
 void extensions::loadLua(Extension *extension, std::istream &data) {
     extension->luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::io, sol::lib::bit32, sol::lib::table, sol::lib::coroutine);
+
+    extension->luaState.new_usertype<Color>("Color", sol::call_constructor, sol::factories([]() { return Color{0.0f, 0.0f, 0.0f, 1.0f}; }, [](float h, float s, float b, float t) { return Color{h, s, b, t}; }), "hue", &Color::hue, "saturation", &Color::saturation, "brightness", &Color::brightness, "transparency", &Color::transparency, "toRGBA", [](Color &color) { return CSBT2RGBA(color); });
+    extension->luaState.new_usertype<ColorRGBA>("ColorRGBA", sol::call_constructor, sol::factories([]() { return ColorRGBA{0.0f, 0.0f, 0.0f, 1.0f}; }, [](float r, float g, float b, float a) { return ColorRGBA{r, g, b, a}; }), "r", &ColorRGBA::r, "g", &ColorRGBA::g, "b", &ColorRGBA::b, "a", &ColorRGBA::a, "toCSBT", [](ColorRGBA &rgba) { return RGBA2CSBO(rgba); });
 
     // TODO: Load our APIs
 
@@ -43,6 +47,31 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
     if (!result.valid()) Log::logError("Error while running lua bytecode for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
 }
 
+sol::table extensions::getBlockArgs(Extension *extension, Block *block, ScriptThread *thread, Sprite *sprite) {
+    sol::table table = extension->luaState.create_table();
+    for (const auto &input : block->inputs) {
+        Value value;
+        if (!Scratch::getInput(block, input.first, thread, sprite, value)) continue;
+        if (value.isUndefined()) continue;
+        if (value.isBoolean()) {
+            table[input.first] = value.asBoolean();
+            continue;
+        }
+        if (value.isDouble()) {
+            table[input.first] = value.asDouble();
+            continue;
+        }
+        if (value.isColor()) {
+            table[input.first] = value.asColor();
+            continue;
+        }
+        table[input.first] = value.asString();
+    }
+    for (const auto &field : block->fields)
+        table[field.first] = field.second.value;
+    return table;
+}
+
 void extensions::registerHandlers(Extension *extension) {
     for (const auto &extensionBlock : extension->blockTypes) {
         std::string blockId;
@@ -51,7 +80,7 @@ void extensions::registerHandlers(Extension *extension) {
 
         BlockExecutor::getHandlers()[blockId] = [extension, extensionBlock](Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) -> BlockResult {
             sol::protected_function func = extension->luaState["blocks"][extensionBlock.first];
-            sol::protected_function_result result = func();
+            sol::protected_function_result result = func(extensions::getBlockArgs(extension, block, thread, sprite));
             if (!result.valid()) Log::logError("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what());
             sol::object resultObj = result;
             switch (extensionBlock.second) {
@@ -63,6 +92,8 @@ void extensions::registerHandlers(Extension *extension) {
                 else if (resultObj.is<int>()) *outValue = Value(resultObj.as<int>());
                 else if (resultObj.is<double>()) *outValue = Value(resultObj.as<double>());
                 else if (resultObj.is<bool>()) *outValue = Value(resultObj.as<bool>());
+                else if (resultObj.is<Color>()) *outValue = Value(resultObj.as<Color>());
+                else if (resultObj.is<ColorRGBA>()) *outValue = Value(RGBA2CSBO(resultObj.as<ColorRGBA>()));
                 else {
                     Log::logWarning("Unknown return type from extension block: " + block->opcode);
                     *outValue = Value(Undefined{});
