@@ -717,9 +717,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
     constexpr const char *libraryExtension = ".so";
 #endif
     if (!json.contains("extensions")) return false;
-    for (const std::string &extensionJSON : json["extensions"]) {
-        const std::string targetID = extensionJSON.get<std::string>();
-
+    for (const std::string &targetID : json["extensions"]) {
         if (std::find(builtInExtensions.begin(), builtInExtensions.end(), targetID) != builtInExtensions.end()) continue;
 
 #ifdef ENABLE_NATIVE_EXTENSIONS
@@ -741,8 +739,8 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         std::unique_ptr<extensions::Extension> loadedExt = nullptr;
         std::ifstream in;
 
-        if (OS::fileExists(luaPath)) {
-            in.open(targetPath, std::ios::binary | std::ios::in);
+        if (FileSystem::fileExists(luaPath)) {
+            in.open(luaPath, std::ios::binary | std::ios::in);
             auto result = extensions::parseMetadata(in);
             if (result.has_value() && result.value()->id == targetID) {
                 loadedExt = std::move(result.value());

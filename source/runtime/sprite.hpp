@@ -196,7 +196,7 @@ struct ParsedField {
     std::string id;
 };
 
-using BlockFunc = BlockResult (*)(Block *, ScriptThread *, Sprite *, Value *);
+using BlockFunc = std::function<BlockResult(Block *, ScriptThread *, Sprite *, Value *)>;
 
 struct Block {
     Block *nextBlock = nullptr;

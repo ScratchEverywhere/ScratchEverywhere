@@ -1,6 +1,8 @@
 #include "interface.hpp"
 #include "blockExecutor.hpp"
+#include "log.hpp"
 #include "meta.hpp"
+#include "sprite.hpp"
 #include <os.hpp>
 #include <runtime.hpp>
 #include <sol/sol.hpp>
@@ -47,22 +49,12 @@ void extensions::registerHandlers(Extension *extension) {
         if (extension->core) blockId = extensionBlock.first;
         else blockId = extension->id + "_" + extensionBlock.first;
 
-        switch (extensionBlock.second) {
-        case ExtensionBlockType::COMMAND:
-            BlockExecutor::getHandlers()[blockId] = [extension, extensionBlock](Block &block, Sprite *sprite, bool *withoutScreenRefresh, bool fromRepeat) -> BlockResult {
-                sol::protected_function func = extension->luaState["blocks"][extensionBlock.first];
-                sol::protected_function_result result = func();
-                if (!result.valid()) Log::logError("Error running extension block '" + block.opcode + "': " + static_cast<sol::error>(result).what());
-                return BlockResult::CONTINUE;
-            };
-            break;
-        case ExtensionBlockType::BOOLEAN:
-        case ExtensionBlockType::REPORTER:
-            break;
-        case ExtensionBlockType::HAT:
-        case ExtensionBlockType::EVENT:
-            break;
-        }
+        BlockExecutor::getHandlers()[blockId] = [extension, extensionBlock](Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) -> BlockResult {
+            sol::protected_function func = extension->luaState["blocks"][extensionBlock.first];
+            sol::protected_function_result result = func();
+            if (!result.valid()) Log::logError("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what());
+            return BlockResult::CONTINUE;
+        };
     }
 }
 
