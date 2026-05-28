@@ -102,7 +102,12 @@ void extensions::registerHandlers(Extension *extension) {
                 break;
             case ExtensionBlockType::HAT:
             case ExtensionBlockType::EVENT:
-                break;
+                if (!resultObj.is<bool>()) {
+                    Log::logError("Extension block '" + block->opcode + "' returned an invalid type.");
+                    return BlockResult::RETURN;
+                }
+
+                return result.get<bool>() ? BlockResult::CONTINUE : BlockResult::RETURN;
             }
             return BlockResult::CONTINUE;
         };
