@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 0.38.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.0.0.2 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -28,10 +28,25 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
+set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
+set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
+set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
+set(SE_APP_VERSION "1.0-rc2" CACHE STRING "Version of the outputed app.")
+
+if(VITA)
+	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
+else()
+	set(SE_APP_TITLEID "NTXS10053" CACHE STRING "Title ID of the outputed app.")
+endif()
+
 find_package(PkgConfig QUIET)
 
 if(NOT CMAKE_CROSSCOMPILING OR CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/pc.cmake")
+	if(LIBRETRO)
+		include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/libretro.cmake")
+	else()
+		include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/pc.cmake")
+	endif()
 elseif(NINTENDO_SWITCH)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/switch.cmake")
 elseif(PSP)
@@ -72,6 +87,8 @@ endif()
 
 set(SE_OUTPUT_NAME "${SE_DEFAULT_OUTPUT_NAME}" CACHE STRING "File name of the outputed executable")
 
+option(SE_EXECUTABLE "Build the main executable." ${PROJECT_IS_TOP_LEVEL})
+
 option(SE_AUDIO "Enables audio in SE!" ON)
 
 option(SE_CACHING "Enables pointer caching in Block, Monitor, and ParsedInput structs. This improves performance but at the cost of slightly longer load times and more RAM usage." ${SE_CACHING_DEFAULT})
@@ -83,8 +100,17 @@ cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to do
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
 
+if(NOT DEFINED SE_DECTALK_DEFAULT)
+	set(SE_DECTALK_DEFAULT OFF)
+endif()
+if(SE_DECTALK_DEFAULT)
+	option(SE_DECTALK "Build DECtalk for TTS." ON)
+else()
+	option(SE_DECTALK "Build DECtalk for TTS." OFF)
+endif()
+
 #  disable menu if a project is in RomFS
-if(EXISTS "${CMAKE_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_SOURCE_DIR}/romfs/project.sb3")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3" OR LIBRETRO)
 	set(SE_MENU OFF)
 	set(SE_LOADSCREEN OFF)
 endif()
@@ -125,6 +151,8 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
     set_property(CACHE ${var_name} PROPERTY STRINGS ${valid_options_list})
 endfunction()
 
+cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLATFORM STREQUAL pc" OFF)
+
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NOT DEFINED SE_RENDERER_PRIORITY)
 	set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
@@ -132,11 +160,12 @@ endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
 
-set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "3ds" "nds" "headless")
+set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "3ds" "nds" "headless" "libretro")
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${SE_WINDOWING}.cmake")
 
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
+list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "libretro")
 if(SE_AUDIO_ENGINE_DEFAULT IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
 	set(
 		SE_AUDIO_ENGINE
@@ -170,17 +199,23 @@ set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 # Copy graphics files to romfs
 if(SE_MENU)
 	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/menu/*"
-	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 else()
 	file(GLOB_RECURSE GFXFILES
-	    "${CMAKE_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 endif()
 
 if(NOT SE_SVG)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
+endif()
+
+if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP)
+	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
 endif()
 
 foreach(file IN LISTS GFXFILES)
@@ -193,6 +228,10 @@ foreach(file IN LISTS GFXFILES)
 
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
+
+if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS) AND SE_MENU)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
+endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
@@ -208,24 +247,73 @@ if(SE_MENU)
 	list(APPEND SOURCES "source/menus")
 endif()
 
+set(ABSOLUTE_SOURCES "")
+foreach(src IN LISTS SOURCES)
+    list(APPEND ABSOLUTE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+endforeach()
+
 set(SOURCE_FILES)
-foreach(DIR IN LISTS SOURCES)
+foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 	file(GLOB DIR_SOURCES
-		${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.cc
+		${DIR}/*.cpp
+        ${DIR}/*.c
+        ${DIR}/*.cc
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
+
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
 
-add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
-target_include_directories(scratch-everywhere PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/external-include)
-set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
+add_library(se-interface INTERFACE)
+if(SE_EXECUTABLE)
+	if(LIBRETRO)
+		add_library(scratch-everywhere SHARED ${SOURCE_FILES})
+		set_target_properties(scratch-everywhere PROPERTIES PREFIX "")
+		se_add_dependency(scratch-everywhere libretro)
+	else()
+		add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+	endif()
+	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
+	if(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+		target_link_libraries(scratch-everywhere PRIVATE se-interface kvm)
+	elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+		target_link_libraries(scratch-everywhere PRIVATE se-interface proc)
+	elseif(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+		target_link_libraries(scratch-everywhere PRIVATE se-interface haiku)
+	else()
+		target_link_libraries(scratch-everywhere PRIVATE se-interface)
+	endif()
+
+	if(SE_ASAN)
+		target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+		target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
+	endif()
+
+	set_target_properties(scratch-everywhere PROPERTIES ENABLE_EXPORTS TRUE)
+
+	if(SE_STATIC_LIBGCC)
+		target_link_options(scratch-everywhere PRIVATE "-static-libgcc")
+	endif()
+	if(SE_STATIC_LIBSTDCPP)
+		target_link_options(scratch-everywhere PRIVATE "-static-libstdc++")
+	endif()
+
+	if(NOT BUILD_SHARED_LIBS AND MINGW)
+		target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
+	endif()
+
+	# TODO: Move to cmake/platforms/wasm.cmake
+	if(EMSCRIPTEN)
+		set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
+		target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
+	endif()
+endif()
+
+target_include_directories(se-interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/external-include)
 if(DEFINED SE_PLATFORM_DEFINITIONS)
-	target_compile_definitions(scratch-everywhere PRIVATE ${SE_PLATFORM_DEFINITIONS})
+	target_compile_definitions(se-interface INTERFACE ${SE_PLATFORM_DEFINITIONS})
 endif()
 
 if(SE_CMAKERC)
@@ -240,59 +328,60 @@ if(SE_CMAKERC)
 
 	file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
 	cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
-	target_link_libraries(scratch-everywhere PRIVATE romfs::rc)
-	target_compile_definitions(scratch-everywhere PRIVATE USE_CMAKERC)
-endif()
-
-if(SE_ASAN)
-	target_compile_options(scratch-everywhere PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-	target_link_libraries(scratch-everywhere PRIVATE -fsanitize=address)
-endif()
-
-if(SE_STATIC_LIBGCC)
-	target_link_options(scratch-everywhere PRIVATE "-static-libgcc")
-endif()
-if(SE_STATIC_LIBSTDCPP)
-	target_link_options(scratch-everywhere PRIVATE "-static-libstdc++")
-endif()
-
-if(NOT BUILD_SHARED_LIBS AND MINGW)
-	target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
+	target_link_libraries(se-interface INTERFACE romfs::rc)
+	target_compile_definitions(se-interface INTERFACE USE_CMAKERC)
 endif()
 
 string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
 string(TOUPPER "WINDOWING_${SE_WINDOWING}" WINDOWING_DEFINITION)
-target_compile_definitions(scratch-everywhere PRIVATE ${RENDERER_DEFINITION} ${WINDOWING_DEFINITION})
+target_compile_definitions(se-interface INTERFACE ${RENDERER_DEFINITION} ${WINDOWING_DEFINITION})
 
 if(TARGET threads_interface)
-	target_link_libraries(scratch-everywhere PRIVATE threads_interface)
+	target_link_libraries(se-interface INTERFACE threads_interface)
 endif()
 
-target_link_libraries(scratch-everywhere PRIVATE renderer_interface)
-target_link_libraries(scratch-everywhere PRIVATE windowing_interface)
+target_link_libraries(se-interface INTERFACE renderer_interface)
+target_link_libraries(se-interface INTERFACE windowing_interface)
 if(SE_AUDIO)
-	target_link_libraries(scratch-everywhere PRIVATE audio_interface)
+	target_link_libraries(se-interface INTERFACE audio_interface)
+	if(NOT NINTENDO_DS)
+		se_add_dependency(se-interface stb_vorbis)
+	endif()
+	se_add_dependency(se-interface dr_libs)
+	se_add_dependency(se-interface tsf)
 endif()
 
+if(SE_ALLOW_NATIVE_EXTENSIONS)
+	target_compile_definitions(se-interface INTERFACE ENABLE_NATIVE_EXTENSIONS)
+endif()
 if(SE_CACHING)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CACHING)
+	target_compile_definitions(se-interface INTERFACE ENABLE_CACHING)
 endif()
 if(SE_AUDIO)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_AUDIO)
+	target_compile_definitions(se-interface INTERFACE ENABLE_AUDIO)
 endif()
 if(SE_MENU)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_MENU)
+	target_compile_definitions(se-interface INTERFACE ENABLE_MENU)
 endif()
 if(SE_LOADSCREEN)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_LOADSCREEN)
+	target_compile_definitions(se-interface INTERFACE ENABLE_LOADSCREEN)
 endif()
 if(SE_DOWNLOAD)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_DOWNLOAD)
-	se_add_dependency(scratch-everywhere libcurl)
+	target_compile_definitions(se-interface INTERFACE ENABLE_DOWNLOAD)
+	se_add_dependency(se-interface libcurl)
 endif()
 if(SE_CLOUDVARS)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CLOUDVARS)
-	se_add_dependency(scratch-everywhere mist++)
+	target_compile_definitions(se-interface INTERFACE ENABLE_CLOUDVARS)
+	se_add_dependency(se-interface mist++)
+endif()
+
+if(SE_DECTALK)
+	target_compile_definitions(se-interface INTERFACE ENABLE_DECTALK)
+	se_add_dependency(se-interface dtc)
+endif()
+
+if(SE_DECTALK_DEFAULT)
+	target_compile_definitions(se-interface INTERFACE DECTALK_DEFAULT)
 endif()
 
 if(SE_CUSTOM_EXTENSIONS)
@@ -300,24 +389,28 @@ if(SE_CUSTOM_EXTENSIONS)
 endif()
 
 if(SE_BITMAP)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_BITMAP)
+	target_compile_definitions(se-interface INTERFACE ENABLE_BITMAP)
 endif()
 
 if(SE_SVG)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_SVG)
+	target_compile_definitions(se-interface INTERFACE ENABLE_SVG)
+endif()
+
+if(SE_INSPECTOR)
+	target_compile_definitions(se-interface INTERFACE ENABLE_INSPECTOR)
 endif()
 
 if(SE_HAS_TOUCH)
-	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_TOUCH)
+	target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_TOUCH)
 endif()
 if(SE_HAS_MOUSE)
-	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_MOUSE)
+	target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_MOUSE)
 endif()
 if(SE_HAS_KEYBOARD)
-	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_KEYBOARD)
+	target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_KEYBOARD)
 endif()
 if(SE_HAS_CONTROLLER)
-	target_compile_definitions(scratch-everywhere PRIVATE PLATFORM_HAS_CONTROLLER)
+	target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_CONTROLLER)
 endif()
 
 CPMAddPackage(
@@ -332,11 +425,12 @@ add_library(ryuJS STATIC
 target_include_directories(ryuJS PUBLIC
   ${poipole807_ryuJS_SOURCE_DIR}
 )
-target_link_libraries(scratch-everywhere PRIVATE ryuJS)
+target_link_libraries(se-interface INTERFACE ryuJS)
 
-se_add_dependency(scratch-everywhere nlohmann_json)
-se_add_dependency(scratch-everywhere miniz)
-se_add_dependency(scratch-everywhere expected-lite)
+se_add_dependency(se-interface nlohmann_json)
+se_add_dependency(se-interface miniz)
+se_add_dependency(se-interface expected-lite)
+se_add_dependency(se-interface __getexecname)
 
 if(SE_CUSTOM_EXTENSIONS)
 	se_add_dependency(scratch-everywhere lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
@@ -344,21 +438,17 @@ if(SE_CUSTOM_EXTENSIONS)
 endif()
 
 if(SE_SVG)
-	se_add_dependency(scratch-everywhere lunasvg)
+	se_add_dependency(se-interface lunasvg)
 endif()
 
 if(SE_BITMAP)
-	se_add_dependency(scratch-everywhere stb)
+	se_add_dependency(se-interface stb_image)
 endif()
 
-target_include_directories(scratch-everywhere PRIVATE ${SOURCES})
-
-# TODO: Move to cmake/platforms/wasm.cmake
-if(EMSCRIPTEN)
-	set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
-	target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
-endif()
+target_include_directories(se-interface INTERFACE ${ABSOLUTE_SOURCES})
 
 if(COMMAND package_platform)
 	package_platform()
 endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/add_extension.cmake")

@@ -1,5 +1,7 @@
 #include "text_sdl3.hpp"
+#include "SDL3_ttf/SDL_ttf.h"
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 #include <ostream>
 #include <render.hpp>
@@ -214,6 +216,14 @@ std::vector<float> TextObjectSDL3::getSize() {
     }
 
     return {textWidth * scale, textHeight * scale};
+}
+
+std::vector<float> TextObjectSDL3::getStringSize(const std::string &txt) {
+    if (!font) return {0.0f, 0.0f};
+
+    int w, h;
+    TTF_GetStringSize(font, txt.c_str(), 0, &w, &h);
+    return {w * scale, h * scale};
 }
 
 void TextObjectSDL3::setRenderer(void *r) {

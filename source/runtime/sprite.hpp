@@ -3,11 +3,10 @@
 #include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <os.hpp>
 #include <string>
+#include <timer.hpp>
 #include <unordered_map>
-
-enum class BlockResult : uint8_t;
+#include <unordered_set>
 
 class Sprite;
 
@@ -24,6 +23,137 @@ struct RenderInfo {
     bool forceUpdate = false;
 };
 
+enum class BlockResult : uint8_t {
+
+    /**
+     * Continues to the next block.
+     * If the current block is last in a loop, it will yield for a screen refresh and run the block at the top of the loop.
+     */
+    CONTINUE,
+
+    // Continues to the next block, but never waits for the next screen refresh (used for things like loops)
+    CONTINUE_IMMEDIATELY,
+
+    // Yield for a screen refresh and re-run current block.
+    REPEAT,
+
+    // Stop the thread, and don't continue.
+    RETURN,
+};
+struct BlockState;
+struct ScriptThread;
+struct Block;
+
+struct Pools {
+    static std::vector<BlockState *> states;
+    static std::vector<ScriptThread *> threads;
+};
+
+struct BlockState {
+    int completedSteps = 0;
+    double repeatTimes = -1;
+    double waitDuration = 0;
+    double glideStartX = 0, glideStartY = 0;
+    double glideEndX = 0, glideEndY = 0;
+    int musicChannel = 0;
+    std::string name;
+
+    Timer waitTimer;
+    std::vector<uint64_t> threads;
+    ScriptThread *myBlockThread;
+
+    void clear();
+};
+
+struct ScriptThread {
+    uint64_t id;
+    Sprite *sprite;
+    Block *blockHat;
+    Block *nextBlock;
+    std::unordered_map<Block *, BlockState *> states;
+    int finished = true;
+    bool withoutScreenRefresh = false;
+
+    std::unordered_map<std::string, Value> MyBlocksVariablen;
+    Value returnValue;
+
+    std::vector<Block *> callStack;
+
+    bool isRecursiveProcedureCall(Block *procedureDefinition) const {
+        for (const auto &block : callStack) {
+            if (block == procedureDefinition) return true;
+        }
+        return false;
+    }
+
+    BlockState *getState(Block *block) {
+        auto it = states.find(block);
+        if (it != states.end()) return it->second;
+
+        BlockState *newState;
+        if (!Pools::states.empty()) {
+            newState = Pools::states.back();
+            Pools::states.pop_back();
+        } else {
+            newState = new BlockState();
+        }
+
+        states[block] = newState;
+        return newState;
+    }
+
+    void eraseState(Block *block) {
+        auto it = states.find(block);
+        if (it != states.end()) {
+            it->second->clear();
+            Pools::states.push_back(it->second);
+            states.erase(it);
+        }
+    }
+
+    void clear() {
+        std::vector<ScriptThread *> threadStack;
+        threadStack.push_back(this);
+
+        while (!threadStack.empty()) {
+            ScriptThread *curr = threadStack.back();
+            threadStack.pop_back();
+
+            curr->finished = true;
+            curr->withoutScreenRefresh = false;
+            curr->returnValue = Value();
+            curr->MyBlocksVariablen.clear();
+            curr->callStack.clear();
+
+            for (auto &pair : curr->states) {
+                BlockState *state = pair.second;
+
+                state->clear();
+                Pools::states.push_back(state);
+            }
+            curr->states.clear();
+
+            if (curr != this) {
+                Pools::threads.push_back(curr);
+            }
+        }
+    }
+
+    ~ScriptThread() { clear(); }
+};
+
+inline void BlockState::clear() {
+    completedSteps = 0;
+    repeatTimes = -1;
+    waitDuration = 0;
+    glideStartX = glideStartY = glideEndX = glideEndY = 0;
+    waitTimer = Timer();
+    name = "";
+    threads.clear();
+    if (myBlockThread != nullptr) delete myBlockThread;
+    myBlockThread = nullptr;
+}
+
 struct Variable {
     std::string id;
     std::string name;
@@ -39,136 +169,50 @@ struct List {
     std::vector<Value> items;
 };
 
+struct ParsedInput {
+    enum InputType {
+        VALUE,
+        VARIABLE,
+        BLOCK
+    } inputType = InputType::VALUE;
+    bool calculated = false;
+
+    Value value;
+    Block *block = nullptr;
+    std::string variableId = "";
+    bool list = false;
+    ParsedInput() { inputType = InputType::VALUE; }
+    explicit ParsedInput(Value value) : value(value) { inputType = InputType::VALUE; }
+    explicit ParsedInput(Block *block) : block(block) { inputType = InputType::BLOCK; }
+    explicit ParsedInput(std::string variableID) : variableId(variableID) { inputType = InputType::VARIABLE; }
+
+#ifdef ENABLE_CACHING
+    Variable *variable = nullptr;
+#endif
+};
+
 struct ParsedField {
     std::string value;
     std::string id;
 };
 
-struct ParsedInput {
-    enum InputType {
-        LITERAL,
-        VARIABLE,
-        BLOCK
-    };
-
-    InputType inputType;
-
-    Value literalValue;
-
-    std::string variableId;
-#ifdef ENABLE_CACHING
-    Variable *variable = nullptr;
-#endif
-
-    std::string blockId;
-};
+using BlockFunc = BlockResult (*)(Block *, ScriptThread *, Sprite *, Value *);
 
 struct Block {
-    std::string id;
-    std::string customBlockId;
-    std::string opcode;
-    std::string next;
-    Block *nextBlock;
-    std::string parent;
-    std::string blockChainID;
-    std::unique_ptr<std::map<std::string, ParsedInput>> parsedInputs;
-    std::shared_ptr<std::map<std::string, ParsedField>> parsedFields;
-    bool shadow;
-    bool topLevel;
-
-#ifdef ENABLE_CACHING
-    std::function<BlockResult(Block &, Sprite *, bool *, bool)> handler = nullptr;
-    std::function<Value(Block &, Sprite *)> valueHandler = nullptr;
-
-    union {
-        Variable *variable = nullptr;
-        List *list;
-    };
-#endif
-
-    /* variables that some blocks need*/
-    double repeatTimes;
-    double waitDuration;
-    double glideStartX, glideStartY;
-    double glideEndX, glideEndY;
-    Timer waitTimer;
-    Block *customBlockPtr = nullptr;
-    std::vector<std::pair<Block *, Sprite *>> broadcastsRun;
-    std::vector<std::pair<Block *, Sprite *>> backdropsRun;
-
-    Block() {
-        parsedFields = std::make_shared<std::map<std::string, ParsedField>>();
-        parsedInputs = std::make_unique<std::map<std::string, ParsedInput>>();
-    }
-
-    Block(const Block &other)
-        : id(other.id), customBlockId(other.customBlockId), opcode(other.opcode),
-          next(other.next), nextBlock(other.nextBlock), parent(other.parent),
-          blockChainID(other.blockChainID), shadow(other.shadow), topLevel(other.topLevel),
-#ifdef ENABLE_CACHING
-          handler(other.handler), valueHandler(other.valueHandler), variable(nullptr),
-#endif
-          repeatTimes(other.repeatTimes), waitDuration(other.waitDuration),
-          glideStartX(other.glideStartX), glideStartY(other.glideStartY),
-          glideEndX(other.glideEndX), glideEndY(other.glideEndY),
-          waitTimer(other.waitTimer), customBlockPtr(nullptr) {
-        parsedFields = other.parsedFields;
-
-        if (other.parsedInputs) {
-            parsedInputs = std::make_unique<std::map<std::string, ParsedInput>>(*other.parsedInputs);
-            return;
-        }
-        parsedInputs = std::make_unique<std::map<std::string, ParsedInput>>();
-    }
-
-    friend void swap(Block &first, Block &second) noexcept {
-        std::swap(first.id, second.id);
-        std::swap(first.customBlockId, second.customBlockId);
-        std::swap(first.opcode, second.opcode);
-        std::swap(first.next, second.next);
-        std::swap(first.parent, second.parent);
-        std::swap(first.blockChainID, second.blockChainID);
-        std::swap(first.nextBlock, second.nextBlock);
-        std::swap(first.parsedInputs, second.parsedInputs);
-        std::swap(first.parsedFields, second.parsedFields);
-        std::swap(first.customBlockPtr, second.customBlockPtr);
-        std::swap(first.shadow, second.shadow);
-        std::swap(first.topLevel, second.topLevel);
-        std::swap(first.repeatTimes, second.repeatTimes);
-        std::swap(first.waitDuration, second.waitDuration);
-        std::swap(first.glideStartX, second.glideStartX);
-        std::swap(first.glideStartY, second.glideStartY);
-        std::swap(first.glideEndX, second.glideEndX);
-        std::swap(first.glideEndY, second.glideEndY);
-        std::swap(first.waitTimer, second.waitTimer);
-        std::swap(first.broadcastsRun, second.broadcastsRun);
-        std::swap(first.backdropsRun, second.backdropsRun);
-
-#ifdef ENABLE_CACHING
-        std::swap(first.handler, second.handler);
-        std::swap(first.valueHandler, second.valueHandler);
-        std::swap(first.variable, second.variable);
-#endif
-    }
-
-    Block &operator=(Block other) {
-        if (this == &other) return *this;
-
-        swap(*this, other);
-
-        return *this;
-    }
-};
-
-struct CustomBlock {
-    std::string name;
-    std::string tagName;
-    std::string blockId;
-    std::vector<std::string> argumentIds;
+    Block *nextBlock = nullptr;
+    std::string opcode = "";
+    BlockFunc blockFunction = nullptr;
+    Block *MyBlockDefinitionID = nullptr;
+    std::vector<std::string> argumentIDs;
     std::vector<std::string> argumentNames;
-    std::vector<std::string> argumentDefaults;
-    std::unordered_map<std::string, Value> argumentValues;
-    bool runWithoutScreenRefresh;
+    std::vector<Value> argumentDefaults;
+    bool MyBlockWithoutScreenRefresh = false;
+    bool hasReturnValue = false;
+    bool isEndBlock = false;
+    bool shadow = false;
+
+    std::unordered_map<std::string, ParsedInput> inputs;
+    std::unordered_map<std::string, ParsedField> fields;
 };
 
 struct Sound {
@@ -208,17 +252,6 @@ struct Costume {
     std::shared_ptr<Bitmask> bitmask = nullptr;
 };
 
-struct Comment {
-    std::string id;
-    std::string blockId;
-    std::string text;
-    bool minimized;
-    int x;
-    int y;
-    int width;
-    int height;
-};
-
 struct Broadcast {
     std::string id;
     std::string name;
@@ -247,13 +280,6 @@ struct Monitor {
     double sliderMin;
     double sliderMax;
     bool isDiscrete;
-
-#ifdef ENABLE_CACHING
-    union {
-        Variable *variablePtr = nullptr;
-        List *listPtr;
-    };
-#endif
 };
 
 class Sprite {
@@ -268,12 +294,13 @@ class Sprite {
     int currentCostume;
     float xPosition;
     float yPosition;
-    int rotationCenterX;
-    int rotationCenterY;
     float size;
     float rotation;
     int layer;
     RenderInfo renderInfo;
+
+    /** Music **/
+    int instrument = 1;
 
     /** Costume effects */
     float ghostEffect;
@@ -306,32 +333,30 @@ class Sprite {
     struct {
         std::string gender = "female";
         std::string language = "en";
-        std::string playbackRate = "1.0"; // not used yet
+        std::string playbackRate = "1.0";
     } textToSpeechData;
 
     std::unordered_map<std::string, Variable> variables;
-    std::vector<Block> blocks;
-    std::map<std::string, Block *> blocksMap;
     std::unordered_map<std::string, List> lists;
     std::vector<Sound> sounds;
     std::vector<Costume> costumes;
-    std::unordered_map<std::string, Comment> comments;
     std::unordered_map<std::string, Broadcast> broadcasts;
-    std::unordered_map<std::string, CustomBlock> customBlocks;
-    std::unordered_map<std::string, std::string> customBlockDefinitions;
-    std::map<std::string, BlockChain> blockChains;
+
+    std::unordered_map<std::string, std::unordered_set<Block *>> hats;
+    std::unordered_map<std::string, Block *> customHatBlock;
 
     ~Sprite() {
+        for (auto const &[proccode, blockPtr] : customHatBlock) {
+            delete blockPtr;
+        }
+        customHatBlock.clear();
+
         variables.clear();
-        blocks.clear();
-        blocksMap.clear();
         lists.clear();
         sounds.clear();
         costumes.clear();
-        comments.clear();
         broadcasts.clear();
-        customBlocks.clear();
-        blockChains.clear();
         collisionPoints.clear();
+        hats.clear();
     }
 };

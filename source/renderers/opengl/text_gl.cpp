@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <log.hpp>
 #include <math.hpp>
 #include <os.hpp>
 
@@ -231,6 +232,14 @@ void TextObjectGL::render(int xPos, int yPos) {
 
 std::vector<float> TextObjectGL::getSize() {
     return {width * scale, height * scale};
+}
+
+std::vector<float> TextObjectGL::getStringSize(const std::string &txt) {
+    const std::string oldText = getText();
+    setText(txt);
+    std::vector<float> size = getSize();
+    setText(oldText);
+    return size;
 }
 
 void TextObjectGL::cleanupText() {

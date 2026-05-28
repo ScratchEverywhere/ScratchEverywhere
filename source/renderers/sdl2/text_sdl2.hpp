@@ -1,5 +1,5 @@
 #pragma once
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <SDL_ttf.h>
 #include <text.hpp>
 #include <unordered_map>
@@ -29,6 +29,7 @@ class TextObjectSDL2 : public TextObject {
     void setText(std::string txt) override;
     void render(int xPos, int yPos) override;
     std::vector<float> getSize() override;
+    std::vector<float> getStringSize(const std::string &txt) override;
     void setRenderer(void *r) override;
     static void cleanupText();
 };

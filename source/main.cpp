@@ -1,37 +1,38 @@
+#ifndef LIBRETRO
 #include "image.hpp"
+#include "translation.hpp"
+#include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
 #include <cstdlib>
+#include <inspector.hpp>
 #include <menus/mainMenu.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
 
-#ifdef __SWITCH__
-#include <switch.h>
+#ifdef ENABLE_AUDIO
+#include <audio.hpp>
 #endif
 
-#ifdef RENDERER_SDL2
-#include <SDL2/SDL.h>
+#ifdef __SWITCH__
+#include <switch.h>
 #endif
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>
+#include <filesystem.hpp>
 #endif
 
 static void exitApp() {
     Render::deInit();
+    OS::deinit();
 }
 
 static bool initApp() {
-    Log::deleteLogFile();
-    Render::debugMode = true;
-    if (!Render::Init()) {
-        return false;
-    }
-    return true;
+    return Scratch::initializeRuntime();
 }
 
 bool activateMainMenu() {
@@ -50,6 +51,9 @@ bool activateMainMenu() {
 
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);
+#endif
+#ifdef ENABLE_INSPECTOR
+        Inspector::processCommands();
 #endif
     }
 #endif
@@ -83,7 +87,7 @@ void mainLoop() {
     }
 }
 
-#ifdef WINDOWING_SDL1
+#if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
 
 extern "C" int main(int argc, char **argv) {
@@ -97,20 +101,33 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-    if (argc > 1) {
+    bool enableInspector = false;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--inspector") {
+            enableInspector = true;
+        } else if (Unzip::filePath.empty()) {
+#if defined(__PC__)
+            Unzip::filePath = arg;
+#endif
+        }
+    }
+
+#ifdef ENABLE_INSPECTOR
+    if (enableInspector) Inspector::init();
+#endif
+
 #if defined(__EMSCRIPTEN__)
-        while (!OS::fileExists("/romfs/project.sb3")) {
+    if (argc > 1) {
+        while (!FileSystem::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
                 exit(0);
             }
             emscripten_sleep(0);
         }
-#elif defined(__PC__)
-        Unzip::filePath = std::string(argv[1]);
-#else
-#endif
     }
+#endif
 
     if (!Unzip::load()) {
         if (Unzip::projectOpened == -3) {
@@ -118,7 +135,7 @@ int main(int argc, char **argv) {
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
                 *(bool *)userdata = true;
-                if (!OS::fileExists(OS::getScratchFolderLocation())) OS::createDirectory(OS::getScratchFolderLocation());
+                if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();
@@ -149,3 +166,4 @@ int main(int argc, char **argv) {
     exitApp();
     return 0;
 }
+#endif

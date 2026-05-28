@@ -1,9 +1,6 @@
 #pragma once
-#include <SDL/SDL.h>
-#ifdef ENABLE_AUDIO
-#include <SDL/SDL_mixer.h>
-#endif
-#include <SDL/SDL_ttf.h>
+#include <SDL.h>
+#include <SDL_ttf.h>
 
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 #define RMASK 0xff000000

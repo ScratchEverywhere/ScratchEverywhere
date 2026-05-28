@@ -17,3 +17,7 @@ void TextObjectHeadless::render(int xPos, int yPos) {
 std::vector<float> TextObjectHeadless::getSize() {
     return {0.0f, 0.0f};
 }
+
+std::vector<float> TextObjectHeadless::getStringSize(const std::string &txt) {
+    return {0.0f, 0.0f};
+}

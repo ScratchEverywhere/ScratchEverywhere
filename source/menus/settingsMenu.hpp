@@ -5,6 +5,7 @@
 class SettingsMenu : public Menu {
   private:
     void updateButtonStates();
+    std::string getDectalkString();
 
   public:
     ControlObject *settingsControl = nullptr;
@@ -15,6 +16,9 @@ class SettingsMenu : public Menu {
     ButtonObject *EnableCustomFolderPath = nullptr;
     ButtonObject *ChangeFolderPath = nullptr;
     ButtonObject *EnableMenuMusic = nullptr;
+    ButtonObject *ClearCache = nullptr;
+    ButtonObject *Language = nullptr;
+    ButtonObject *dectalkButton = nullptr;
 
     bool UseCostumeUsername = false;
     std::string username;
@@ -23,6 +27,12 @@ class SettingsMenu : public Menu {
     std::string projectsPath;
 
     bool menuMusic = true;
+
+#ifdef DECTALK_DEFAULT
+    bool UseDectalk = true;
+#else
+    bool UseDectalk = false;
+#endif
 
     SettingsMenu();
     ~SettingsMenu();

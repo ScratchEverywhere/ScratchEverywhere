@@ -1,16 +1,16 @@
 #include "collision.hpp"
 #include "image.hpp"
 #include "math.hpp"
-#include "os.hpp"
 #include "runtime.hpp"
 #include "sprite.hpp"
 #include <cmath>
+#include <log.hpp>
 
 std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     const auto &costume = sprite->costumes[sprite->currentCostume];
     auto imgFind = Scratch::costumeImages.find(costume.fullName);
     if (imgFind == Scratch::costumeImages.end()) {
-        Log::logWarning("Failed to find image for sprite: " + sprite->name);
+        Log::logWarning("[Collision] Failed to find image for sprite: " + sprite->name);
         return nullptr;
     }
     ImageData imgData = imgFind->second->getPixels();
@@ -67,8 +67,9 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y) {
     const float dx = x - sprite->xPosition;
     const float dy = y - sprite->yPosition;
     const float distSq = dx * dx + dy * dy;
+    const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
 
-    const float scaledRadius = bitmask->maxRadius * (sprite->size / 100.0f);
+    const float scaledRadius = bitmask->maxRadius * (spriteSize / 100.0f);
     if (distSq > (scaledRadius * scaledRadius)) {
         return false;
     }
@@ -77,8 +78,8 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y) {
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
 
-    const float localX = (dx * s_cos - (-dy) * s_sin) / (sprite->size / 100.0f);
-    const float localY = (dx * s_sin + (-dy) * s_cos) / (sprite->size / 100.0f);
+    const float localX = (dx * s_cos - (-dy) * s_sin) / (spriteSize / 100.0f);
+    const float localY = (dx * s_sin + (-dy) * s_cos) / (spriteSize / 100.0f);
 
     const float invertedScaleFactor = 1.0f / bitmask->scaleFactor;
     float finalX = std::round((localX + costume.rotationCenterX) * invertedScaleFactor);
@@ -110,8 +111,11 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     const float dy = a->yPosition - b->yPosition;
     const float distSq = dx * dx + dy * dy;
 
-    const float radiusA = bitmaskA->maxRadius * (a->size / 100.0f);
-    const float radiusB = bitmaskB->maxRadius * (b->size / 100.0f);
+    const float aSize = !costumeA.isSVG && !Scratch::bitmapHalfQuality ? a->size * 0.5f : a->size;
+    const float bSize = !costumeB.isSVG && !Scratch::bitmapHalfQuality ? b->size * 0.5f : b->size;
+
+    const float radiusA = bitmaskA->maxRadius * (aSize / 100.0f);
+    const float radiusB = bitmaskB->maxRadius * (bSize / 100.0f);
     const float combinedRadius = radiusA + radiusB;
 
     if (distSq > (combinedRadius * combinedRadius)) return false;
@@ -126,13 +130,13 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     const float radA = a->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(a->rotation - 90)) : 0;
     const float sinA = std::sin(radA);
     const float cosA = std::cos(radA);
-    const float spriteScaleA = a->size / 100.0f;
+    const float spriteScaleA = aSize / 100.0f;
     const float invScaleA = (1.0f / bitmaskA->scaleFactor);
 
     const float radB = b->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(b->rotation - 90)) : 0;
     const float sinB = std::sin(radB);
     const float cosB = std::cos(radB);
-    const float spriteScaleB = b->size / 100.0f;
+    const float spriteScaleB = bSize / 100.0f;
     const float invScaleB = (1.0f / bitmaskB->scaleFactor);
 
     for (float y = overlapMinY; y <= overlapMaxY; y++) {
@@ -180,8 +184,9 @@ bool collision::spriteOnEdge(Sprite *sprite) {
 
     const float halfWidth = Scratch::projectWidth / 2.0f;
     const float halfHeight = Scratch::projectHeight / 2.0f;
+    const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
 
-    const float scaledRadius = bitmask->maxRadius * (sprite->size / 100.0f);
+    const float scaledRadius = bitmask->maxRadius * (spriteSize / 100.0f);
 
     if (sprite->xPosition - scaledRadius > -halfWidth &&
         sprite->xPosition + scaledRadius < halfWidth &&
@@ -193,7 +198,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
     const float rad = sprite->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(sprite->rotation - 90)) : 0;
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
-    const float spriteScale = sprite->size / 100.0f;
+    const float spriteScale = spriteSize / 100.0f;
     const float invScale = 1.0f / bitmask->scaleFactor;
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
@@ -211,7 +216,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
             if ((dx * dx + dy * dy) > (scaledRadius * scaledRadius)) continue;
 
             const float localX = (dx * s_cos - (-dy) * s_sin) / spriteScale;
-            const float localY = (dx * s_sin + (-dy) * s_cos) / spriteScale;
+            const float localY = (dx * s_sin + dy * s_cos) / spriteScale;
 
             float finalX = std::round((localX + costume.rotationCenterX) * invScale);
             const float finalY = std::round((localY + costume.rotationCenterY) * invScale);
@@ -231,7 +236,8 @@ collision::AABB collision::getSpriteBounds(Sprite *sprite) {
     float x = sprite->xPosition;
     float y = sprite->yPosition;
 
-    float scale = sprite->size * 0.01f;
+    const float spriteSize = !sprite->costumes[sprite->currentCostume].isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
+    float scale = spriteSize * 0.01f;
 
     int rotCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
     int rotCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;

@@ -71,6 +71,10 @@ int Render::getHeight() {
     return 0;
 }
 
+float Render::getPixelDensity() {
+    return 1.0f;
+}
+
 void Render::renderSprites() {
 }
 

@@ -9,4 +9,4 @@ COPY . .
 RUN mkdir build && cd build && cmake -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ -DSE_RENDERER=sdl2 -DSE_CLOUDVARS=OFF -DSE_DOWNLOAD=ON -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j 2
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/scratch-everywhere.exe /
+COPY --from=main_builder /app/build/scratch-pc.exe /

@@ -5,7 +5,7 @@ COPY . .
 
 RUN apt-get update && apt-get install -y --no-install-recommends cmake pkg-config
 
-RUN cmake -B build-nds -DCMAKE_TOOLCHAIN_FILE=$BLOCKSDS/cmake/BlocksDS.cmake -DCMAKE_BUILD_TYPE=Release && cmake --build build-nds -j 2
+RUN cmake -B build-nds -DCMAKE_TOOLCHAIN_FILE=$BLOCKSDS/cmake/BlocksDS.cmake -DCMAKE_BUILD_TYPE=Release -DSE_AUDIO=OFF && cmake --build build-nds -j 2
 
 FROM scratch AS exporter
 COPY --from=main_builder /app/build-nds/scratch-ds.nds /scratch-ds.nds

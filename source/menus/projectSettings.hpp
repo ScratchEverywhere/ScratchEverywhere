@@ -14,6 +14,7 @@ class ProjectSettings : public Menu {
     ButtonObject *debugVarsButton = nullptr;
     ButtonObject *ramButton = nullptr;
     ButtonObject *collisionButton = nullptr;
+    ButtonObject *refreshLimitButton = nullptr;
 
     bool canUnpacked = true;
     bool shouldGoBack = false;

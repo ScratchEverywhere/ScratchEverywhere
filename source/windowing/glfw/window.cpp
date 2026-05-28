@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
+#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <renderers/opengl/render.hpp>
@@ -72,6 +73,10 @@ int WindowGLFW::getWidth() const {
 
 int WindowGLFW::getHeight() const {
     return height;
+}
+
+float WindowGLFW::getPixelDensity() const {
+    return 1.0f;
 }
 
 void *WindowGLFW::getHandle() {

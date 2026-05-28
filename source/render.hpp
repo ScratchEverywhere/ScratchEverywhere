@@ -50,7 +50,7 @@ class Render {
      * @param sprite the sprite to calculate.
      * @param isSVG if the sprite's current costume is a Vector image.
      */
-    static void calculateRenderPosition(Sprite *sprite, const bool &isSVG);
+    static void calculateRenderPosition(Sprite *sprite, const bool isSVG);
 
     /**
      * Sets the sprite rendering scale, based on the aspect ratio of the project and the window's dimension.
@@ -144,6 +144,11 @@ class Render {
      * gets the screen Height.
      */
     static int getHeight();
+
+    /**
+     * Gets the current display's pixel density (e.g. 1.0, 2.0, etc)
+     */
+    static float getPixelDensity();
 
     /**
      * Renders every sprite to the screen.

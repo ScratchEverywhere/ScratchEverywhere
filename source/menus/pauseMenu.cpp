@@ -1,4 +1,5 @@
 #include "pauseMenu.hpp"
+#include "translation.hpp"
 #include <render.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
@@ -11,21 +12,27 @@ PauseMenu::~PauseMenu() {
     cleanup();
 }
 
+static std::string getTurboString() {
+    return TranslationManager::getTranslation("ui.pause.turbo") + ": " + TranslationManager::getTranslation(Scratch::turbo ? "ui.settings.on" : "ui.settings.off");
+}
+
 void PauseMenu::init() {
+    constexpr int buttons = 4;
+    constexpr int space = (180 - 60) / buttons;
 
     pauseControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
 
-    exitProjectButton = new ButtonObject("Exit Project", "gfx/menu/projectBox.svg", 200, 60, "gfx/menu/Ubuntu-Bold", true);
+    exitProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.exit"), "gfx/menu/projectBox.svg", 200, 60, "gfx/menu/Ubuntu-Bold", true);
     exitProjectButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    flagButton = new ButtonObject("Click Green Flag", "gfx/menu/projectBox.svg", 200, 100, "gfx/menu/Ubuntu-Bold", true);
+    flagButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.flag"), "gfx/menu/projectBox.svg", 200, 60 + space, "gfx/menu/Ubuntu-Bold", true);
     flagButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    stopButton = new ButtonObject("Click Stop Button", "gfx/menu/projectBox.svg", 200, 140, "gfx/menu/Ubuntu-Bold", true);
+    stopButton = new ButtonObject(TranslationManager::getTranslation("ui.pause.stop"), "gfx/menu/projectBox.svg", 200, 60 + space * 2, "gfx/menu/Ubuntu-Bold", true);
     stopButton->text->setColor(Math::color(0, 0, 0, 255));
 
-    turboButton = new ButtonObject((Scratch::turbo ? "Turbo Mode: ON" : "Turbo Mode: OFF"), "gfx/menu/projectBox.svg", 200, 180, "gfx/menu/Ubuntu-Bold", true);
+    turboButton = new ButtonObject(getTurboString(), "gfx/menu/projectBox.svg", 200, 60 + space * 3, "gfx/menu/Ubuntu-Bold", true);
     turboButton->text->setColor(Math::color(0, 0, 0, 255));
 
     backButton->needsToBeSelected = false;
@@ -45,6 +52,8 @@ void PauseMenu::init() {
 
     stopButton->buttonDown = turboButton;
     turboButton->buttonUp = stopButton;
+
+    isInitialized = true;
 }
 
 void PauseMenu::render() {
@@ -75,18 +84,13 @@ void PauseMenu::render() {
     }
 
     if (turboButton->isPressed()) {
-        if (!Scratch::turbo) {
-            Scratch::turbo = true;
-            turboButton->text->setText("Turbo Mode: ON");
-        } else {
-            Scratch::turbo = false;
-            turboButton->text->setText("Turbo Mode: OFF");
-        }
+        Scratch::turbo = !Scratch::turbo;
+        turboButton->text->setText(getTurboString());
         return;
     }
 
-    Render::beginFrame(0, 71, 49, 71);
-    Render::beginFrame(1, 71, 49, 71);
+    Render::beginFrame(0, 50, 77, 83);
+    Render::beginFrame(1, 50, 77, 83);
 
     pauseControl->render();
     backButton->render();
@@ -122,4 +126,5 @@ void PauseMenu::cleanup() {
     }
     Render::beginFrame(0, 0, 0, 0);
     Render::beginFrame(1, 0, 0, 0);
+    isInitialized = false;
 }

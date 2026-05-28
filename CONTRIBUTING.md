@@ -7,12 +7,12 @@ First off, thanks for taking the time to contribute! ❤️
 All types of contributions are encouraged and valued. See the
 [Table of Contents](#table-of-contents) for different ways to help and details
 about how this project handles them. Please make sure to read the relevant
-section before making your contribution. It will make it a lot easier for us
+section before making your contribution; it will make it a lot easier for us
 maintainers and smooth out the experience for all involved. The community looks
 forward to your contributions. 🎉
 
-> And if you like the project, but just don't have time to contribute, that's
-> fine. There are other easy ways to support the project and show your
+> If you like the project, but just don't have time to contribute, that's fine
+> as well. There are other easy ways to support the project and show your
 > appreciation, which we would also be very happy about:
 >
 > - Star the project
@@ -37,14 +37,15 @@ forward to your contributions. 🎉
 
 > [!NOTE]
 > If you want to ask a question, we assume that you have read the available
-> [Documentation](https://ScratchEverywhere.github.io).
+> [documentation](https://ScratchEverywhere.github.io).
 
 Before you ask a question, it is best to search for existing
-[Issues](https://github.com/ScratchEverywhere/ScratchEverywhere/issues) and
-[Discussions](https://github.com/ScratchEverywhere/ScratchEverywhere/discussions)
-that might help you. In case you have found a suitable issue and still need
-clarification, you can write your question in this issue. It is also advisable
-to search the internet for answers first.
+[issues](https://github.com/ScratchEverywhere/ScratchEverywhere/issues),
+[discussions](https://github.com/ScratchEverywhere/ScratchEverywhere/discussions),
+and messages in the [Discord server](https://discord.gg/Y2gf5vZHpJ) that might
+help you. In case you have found a suitable issue and still need clarification,
+you can write your question in this issue. It is also advisable to search the
+internet for answers first.
 
 If you then still feel the need to ask a question and need clarification, we
 recommend the following:
@@ -52,10 +53,11 @@ recommend the following:
 - Open an
   [Issue](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/new) or
   a
-  [Discussion](https://github.com/ScratchEverywhere/ScratchEverywhere/discussions).
+  [Discussion](https://github.com/ScratchEverywhere/ScratchEverywhere/discussions),
+  or post in the #support channel in the Discord server.
 - Provide as much context as you can about what you're running into.
-- Provide project and platform versions (nodejs, npm, etc), depending on what
-  seems relevant.
+- Provide the version of Scratch Everywhere! that you are testing on, as well as
+  an example Scratch project if relevant.
 
 We will then take care of the issue as soon as possible.
 
@@ -67,8 +69,8 @@ We will then take care of the issue as soon as possible.
 ### Legal Notice <!-- omit in toc -->
 
 When contributing to this project, you must agree that you have authored 100% of
-the content, that you have the necessary rights to the content and that the
-content you contribute may be provided under the project licence.
+the content, that you have the necessary rights to the content, and that the
+content you contribute may be provided under the [project license](LICENSE).
 
 ### Reporting Bugs
 
@@ -82,21 +84,22 @@ and describe the issue in detail in your report. Please complete the following
 steps in advance to help us fix any potential bug as fast as possible.
 
 - Make sure that you are using the latest version. If the latest version doesn't
-  work, try the nightly.
-- Determine if your bug is really a bug and not an error on your side e.g. using
-  incompatible environment components/versions (Make sure that you have read the
-  [documentation](https://ScratchEverywhere.github.io). If you are looking for
-  support, you might want to check [this section](#i-have-a-question)).
+  work, try the latest nightly release.
+- Determine if your bug is really a bug and not an error on your side, e.g.
+  using incompatible environment components/versions (make sure that you have
+  read the [documentation](https://ScratchEverywhere.github.io). If you are
+  looking for support, you might want to check
+  [this section](#i-have-a-question)).
 - To see if other users have experienced (and potentially already solved) the
   same issue you are having, check if there is not already a bug report existing
   for your bug or error in the
   [bug tracker](https://github.com/ScratchEverywhere/ScratchEverywhere/issues?q=label%3Abug).
-- Also make sure to search the internet (including Stack Overflow) to see if
-  users outside of the GitHub community have discussed the issue.
+- Also make sure to search the internet to see if users outside of the GitHub
+  community have discussed the issue.
 - Collect information about the bug:
   - Stack trace (Traceback)
   - OS, Platform and Version (Windows, Linux, macOS, x86, ARM, Wii U, 3DS, etc.)
-  - The project you used to test, if applicable.
+  - The Scratch project you used to test, if applicable.
   - Can you reliably reproduce the issue? And can you also reproduce it with
     older versions?
 
@@ -107,21 +110,21 @@ steps in advance to help us fix any potential bug as fast as possible.
 > [!IMPORTANT]
 > You must never report security related issues, vulnerabilities or bugs
 > including sensitive information to the issue tracker, or elsewhere in public.
-> Instead sensitive bugs must be sent by email to <se-security@grady.link> or
-> DM'd on Discord to either Grady Link or NateXS.
+> Sensitive bugs must be sent by email to <se-security@grady.link> or DMed on
+> Discord to either Grady Link or NateXS.
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the
 project:
 
 - Open an
   [Issue](https://github.com/ScratchEverywhere/ScratchEverywhere/issues/new).
-  (Since we can't be sure at this point whether it is a bug or not, we ask you
-  not to talk about a bug yet and not to label the issue.)
+  Since we can't be sure at this point whether it is a bug or not, we ask you
+  not to talk about a bug yet and not to label the issue.
 - Explain the behavior you would expect and the actual behavior.
-- Please provide as much context as possible and describe the _reproduction
-  steps_ that someone else can follow to recreate the issue on their own. This
-  usually includes your code. For good bug reports you should isolate the
-  problem and create a reduced test case.
+- Please provide as much context as possible and describe the (reproduction
+  steps* that someone else can follow to recreate the issue on their own. This
+  usually includes your Scratch project. For good bug reports you should isolate
+  the problem and create a reduced test case.
 - Provide the information you collected in the previous section.
 
 Once it's filed:
@@ -130,8 +133,9 @@ Once it's filed:
 - A team member will try to reproduce the issue with your provided steps. If
   there are no reproduction steps or no obvious way to reproduce the issue, the
   team will ask you for more information.
-- If the team is able to reproduce the issue, it will be added to our backlog,
-  and may not be fixed as fast as you'd like.
+- If the team is able to reproduce the issue, it will be added to our backlog.
+  Usually, issues are fixed relatively quickly, but sometimes they may not be
+  fixed as fast as you'd like.
 
 ### Suggesting Enhancements
 
@@ -184,10 +188,11 @@ Enhancement suggestions are tracked as
 ### Your First Code Contribution
 
 Pretty much our only requirement, is that you need to run `clang-format` before
-comitting your code.
+committing your code.
 
 The development environment is pretty simple for most platforms. The
-instructions are the same as the build instructions in the [README](/README.md).
+instructions are the same as the build instructions found on the
+[website](https://ScratchEverywhere.github.io/build).
 
 <!-- omit in toc -->
 
@@ -201,24 +206,26 @@ See [`PORTING.md`](/PORTING.md).
 
 You can pretty much do whatever you want since we usually end up squashing PRs
 anyway. The two most common commit styles are conventional commits and Nate's.
-Nate's style goes like `[Affect Code] Change` so some examples are:
+Nate's style goes like `[Affected Code] Change` so some examples are:
 `[Runtime] Added move steps support` or `[SDL, 3DS] Improved Image Memory`.
 
 ### Markdown
 
-We use capatilized headings and well tbh that's the main thing. Also for lists
-containing info about specifc platforms we use this syntax:
+For our Markdown style, we use capitalized headings. In addition, in lists
+containing information about specific platforms, we encase the platform names in
+brackets at the beginning of the list item:
 
 ```markdown
 - **[Wii U, 3DS]** Some Feature
 - **[Vita]** Another thing
 ```
 
-We also now use `deno fmt` to format our Markdown. I recommend you setup
-formating on save.
+We also use `deno fmt` to format our Markdown files. You should probably set up
+formatting on save for convenience.
 
 <!-- omit in toc -->
 
 ## Attribution
 
-This guide is based on the [contributing.md](https://contributing.md/generator)!
+This guide is based on the
+[contributing.md generator](https://contributing.md/generator)!

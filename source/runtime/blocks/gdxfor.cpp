@@ -1,0 +1,7 @@
+#include "blockUtils.hpp"
+
+SCRATCH_SHADOW_BLOCK(gdxfor_menu_gestureOptions, gestureOptions)
+SCRATCH_SHADOW_BLOCK(gdxfor_menu_pushPullOptions, pushPullOptions)
+SCRATCH_SHADOW_BLOCK(gdxfor_menu_tiltAnyOptions, tiltAnyOptions)
+SCRATCH_SHADOW_BLOCK(gdxfor_menu_tiltOptions, tiltOptions)
+SCRATCH_SHADOW_BLOCK(gdxfor_menu_axisOptions, axisOptions)

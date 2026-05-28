@@ -1,8 +1,11 @@
 #include "projectMenu.hpp"
 #include "projectSettings.hpp"
 #include "settings.hpp"
+#include "translation.hpp"
 #include "unpackMenu.hpp"
 #include <audio.hpp>
+#include <audiostack.hpp>
+#include <log.hpp>
 
 ProjectMenu::ProjectMenu(const std::string &selectedProjectName) {
     initProjectName = selectedProjectName;
@@ -14,16 +17,6 @@ ProjectMenu::~ProjectMenu() {
 }
 
 void ProjectMenu::init() {
-#if defined(__NDS__)
-    if (!SoundPlayer::isSoundLoaded("gfx/nds/mm_ds.wav")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/nds/mm_ds.wav", false, false);
-    }
-#else
-    if (!SoundPlayer::isSoundLoaded("gfx/menu/mm_splash.ogg")) {
-        SoundPlayer::startSoundLoaderThread(nullptr, nullptr, "gfx/menu/mm_splash.ogg", true, false);
-        SoundPlayer::stopSound("gfx/menu/mm_splash.ogg");
-    }
-#endif
 
     projectControl = new ControlObject();
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
@@ -94,12 +87,12 @@ void ProjectMenu::init() {
         noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
         projectControl->selectedObject = noProjectsButton;
         projectControl->selectedObject->isSelected = true;
-        noProjectsText = createTextObject("No Scratch projects found!", 0, 0);
+        noProjectsText = createTextObject(TranslationManager::getTranslation("ui.projects.noProjects"), 0, 0);
         noProjectsText->setCenterAligned(true);
         noProjectInfo = createTextObject("a", 0, 0);
         noProjectInfo->setCenterAligned(true);
 
-        noProjectInfo->setText("Put projects in " + OS::getScratchFolderLocation());
+        noProjectInfo->setText(TranslationManager::getTranslation("ui.projects.path") + OS::getScratchFolderLocation());
 
         if (noProjectInfo->getSize()[0] > Render::getWidth() * 0.85) {
             float scale = (float)Render::getWidth() / (noProjectInfo->getSize()[0] * 1.15);
@@ -141,18 +134,28 @@ void ProjectMenu::render() {
 
     if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
-        if (!SoundPlayer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
-            SoundPlayer::playSound("gfx/nds/mm_ds.wav");
+        if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
+            SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
+            if (strm->error.has_value()) {
+                Log::log(strm->error.value());
+                delete strm;
+            } else
+                Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        if (!SoundPlayer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-            SoundPlayer::playSound("gfx/menu/mm_splash.ogg");
+        if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+            SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
+            if (strm->error.has_value()) {
+                Log::log(strm->error.value());
+                delete strm;
+            } else
+                Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
         }
 #endif
     }
 
     if (hasProjects) {
-        if (projectControl->selectedObject->isPressed({"a"})) {
+        if (projectControl->selectedObject->isPressed()) {
 
             if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
                 // Unpacked sb3
@@ -203,8 +206,8 @@ void ProjectMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 97, 73, 97);
-    Render::beginFrame(1, 97, 73, 97);
+    Render::beginFrame(0, 71, 107, 115);
+    Render::beginFrame(1, 71, 107, 115);
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;

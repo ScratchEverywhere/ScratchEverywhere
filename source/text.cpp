@@ -42,6 +42,73 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #endif
 }
 
+// stolen from SpeechText
+std::string TextObject::wrap(int maxWidth) {
+    const std::string text = getText();
+    if (text.empty()) {
+        return text;
+    }
+
+    std::string result;
+    std::string currentLine;
+    std::string currentWord;
+
+    for (char c : text) {
+        if (c == '\n') {
+            if (!currentWord.empty()) {
+                currentLine += currentWord;
+                currentWord.clear();
+            }
+            if (!currentLine.empty()) {
+                result += currentLine + "\n";
+                currentLine.clear();
+            } else {
+                result += "\n";
+            }
+        } else if (c == ' ') { // add new line at space to wrap cleanly (without splitting words in half)
+            if (!currentWord.empty()) {
+                std::string line = currentLine.empty() ? currentWord : currentLine + " " + currentWord;
+
+                float width = getStringSize(line)[0];
+
+                if (width <= maxWidth) {
+                    currentLine = line;
+                } else {
+                    if (!currentLine.empty()) {
+                        result += currentLine + "\n";
+                    }
+                    currentLine = currentWord;
+                }
+                currentWord.clear();
+            }
+        } else {
+            currentWord += c;
+        }
+    }
+
+    // Handle the last word
+    if (!currentWord.empty()) {
+        std::string line = currentLine.empty() ? currentWord : currentLine + " " + currentWord;
+
+        float width = getStringSize(line)[0];
+
+        if (width <= maxWidth) {
+            currentLine = line;
+        } else {
+            if (!currentLine.empty()) {
+                result += currentLine + "\n";
+            }
+            currentLine = currentWord;
+        }
+    }
+
+    if (!currentLine.empty()) {
+        result += currentLine;
+    }
+
+    return result;
+}
+
 void TextObject::cleanupText() {
 #ifdef RENDERER_CITRO2D
     TextObjectC2D::cleanupText();

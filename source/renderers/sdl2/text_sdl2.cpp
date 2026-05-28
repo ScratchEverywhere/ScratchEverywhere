@@ -1,5 +1,6 @@
 #include "text_sdl2.hpp"
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 #include <ostream>
 #include <render.hpp>
@@ -215,6 +216,14 @@ std::vector<float> TextObjectSDL2::getSize() {
     }
 
     return {textWidth * scale, textHeight * scale};
+}
+
+std::vector<float> TextObjectSDL2::getStringSize(const std::string &txt) {
+    if (!font) return {0.0f, 0.0f};
+
+    int w, h;
+    TTF_SizeUTF8(font, text.c_str(), &w, &h);
+    return {w * scale, h * scale};
 }
 
 void TextObjectSDL2::setRenderer(void *r) {

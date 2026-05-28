@@ -6,6 +6,7 @@ set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "luajit")
 
 set(SE_CACHING_DEFAULT ON)
+set(SE_DECTALK_DEFAULT ON)
 
 set(SE_ALLOW_CMAKERC OFF)
 set(SE_ALLOW_CLOUDVARS OFF)
@@ -38,9 +39,9 @@ macro(package_platform)
 	endforeach()
 
 	vita_create_self("${SE_OUTPUT_NAME}.self" scratch-everywhere)
-	vita_create_vpk("${SE_OUTPUT_NAME}.vpk" "NTXS00053" "${SE_OUTPUT_NAME}.self"
+	vita_create_vpk("${SE_OUTPUT_NAME}.vpk" "${SE_APP_TITLEID}" "${SE_OUTPUT_NAME}.self"
 		VERSION "01.00"
-		NAME "Scratch Everywhere!"
+		NAME "${SE_APP_NAME}"
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/icon0.png sce_sys/icon0.png
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/bg.png sce_sys/livearea/contents/bg.png
 		FILE ${CMAKE_SOURCE_DIR}/gfx/vita/livearea/contents/template.xml sce_sys/livearea/contents/template.xml

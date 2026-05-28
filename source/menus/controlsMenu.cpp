@@ -1,4 +1,6 @@
 #include "controlsMenu.hpp"
+#include "translation.hpp"
+#include <log.hpp>
 #include <settings.hpp>
 
 ControlsMenu::ControlsMenu(std::string projPath) {
@@ -23,38 +25,36 @@ void ControlsMenu::init() {
     // get controls
     std::vector<std::string> controls;
 
-    for (auto &sprite : Scratch::sprites) {
-        for (auto &block : sprite->blocks) {
-            std::string buttonCheck;
-            if (block.opcode == "sensing_keypressed") {
-                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY_OPTION", sprite));
-            } else if (block.opcode == "event_whenkeypressed") {
-                buttonCheck = Input::convertToKey(Value(Scratch::getFieldValue(block, "KEY_OPTION")));
-            } else if (block.opcode == "makeymakey_whenMakeyKeyPressed") {
-                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite), true);
-            } else if (block.opcode == "makeymakey_whenCodePressed") {
-                std::string input = Scratch::getInputValue(block, "SEQUENCE", sprite).asString();
-                size_t start = 0;
-                size_t end;
-                while ((end = input.find(' ', start)) != std::string::npos) {
-                    buttonCheck = input.substr(start, end - start);
-                    if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
-                        Log::log("Found new control: " + buttonCheck);
-                        controls.push_back(buttonCheck);
-                    }
-                    start = end + 1;
-                }
-                buttonCheck = input.substr(start);
+    for (auto &block : Scratch::blocks) {
+        std::string buttonCheck;
+        if (block->opcode == "sensing_keyoptions") {
+            buttonCheck = block->fields["KEY_OPTION"].value;
+        } else if (block->opcode == "event_whenkeypressed") {
+            buttonCheck = block->fields["KEY_OPTION"].value;
+        } else if (block->opcode == "makeymakey_menu_KEY") {
+            buttonCheck = block->fields["KEY"].value;
+        } else if (block->opcode == "makeymakey_menu_SEQUENCE") {
+            std::string input = block->fields["SEQUENCE"].value;
+            size_t start = 0;
+            size_t end;
+            while ((end = input.find(' ', start)) != std::string::npos) {
+                buttonCheck = input.substr(start, end - start);
                 if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                     Log::log("Found new control: " + buttonCheck);
                     controls.push_back(buttonCheck);
                 }
-                continue;
-            } else continue;
+                start = end + 1;
+            }
+            buttonCheck = input.substr(start);
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                 Log::log("Found new control: " + buttonCheck);
                 controls.push_back(buttonCheck);
             }
+            continue;
+        } else continue;
+        if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
+            Log::log("Found new control: " + buttonCheck);
+            controls.push_back(buttonCheck);
         }
     }
 
@@ -64,7 +64,7 @@ void ControlsMenu::init() {
     settingsControl = new ControlObject();
     settingsControl->selectedObject = nullptr;
     backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    applyButton = new ButtonObject("Apply (Y)", "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold", true);
+    applyButton = new ButtonObject(TranslationManager::getTranslation("ui.controls.apply"), "gfx/menu/optionBox.svg", 340, 230, "gfx/menu/Ubuntu-Bold", true);
     applyButton->scale = 0.6;
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;

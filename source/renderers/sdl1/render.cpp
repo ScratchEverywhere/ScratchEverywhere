@@ -1,17 +1,17 @@
 #include "render.hpp"
 #include "speech_manager_sdl1.hpp"
-#include <SDL/SDL.h>
-#include <SDL/SDL_gfxBlitFunc.h>
-#include <SDL/SDL_gfxPrimitives.h>
-#include <SDL/SDL_rotozoom.h>
+#include <SDL.h>
+#include <SDL_gfxBlitFunc.h>
+#include <SDL_gfxPrimitives.h>
+#include <SDL_rotozoom.h>
 #include <algorithm>
 #include <audio.hpp>
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <downloader.hpp>
 #include <image.hpp>
 #include <image_sdl1.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
@@ -56,7 +56,6 @@ void Render::deInit() {
 
     SDL_FreeSurface(penSurface);
 
-    SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
 
     if (globalWindow) {
@@ -95,6 +94,10 @@ int Render::getWidth() {
 int Render::getHeight() {
     if (globalWindow) return globalWindow->getHeight();
     return 405;
+}
+
+float Render::getPixelDensity() {
+    return 1.0f;
 }
 
 bool Render::initPen() {
@@ -348,7 +351,6 @@ void Render::renderSprites() {
 
     SDL_Flip(window);
     if (globalWindow) globalWindow->swapBuffers();
-    SoundPlayer::flushAudio();
 }
 
 void Render::renderPenLayer() {

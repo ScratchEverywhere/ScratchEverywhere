@@ -6,6 +6,7 @@ set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
 set(SE_CACHING_DEFAULT ON)
+set(SE_DECTALK_DEFAULT ON)
 
 set(SE_ALLOW_CMAKERC OFF)
 set(SE_ALLOW_CLOUDVARS OFF)
@@ -21,6 +22,6 @@ set(SE_HAS_CONTROLLER TRUE)
 set(SE_PLATFORM "switch")
 
 macro(package_platform)
-	nx_generate_nacp(OUTPUT "${SE_OUTPUT_NAME}.nacp" NAME "Scratch Everywhere!" AUTHOR "NateXS and Grady Link" VERSION ${CMAKE_PROJECT_VERSION})
+	nx_generate_nacp(OUTPUT "${SE_OUTPUT_NAME}.nacp" NAME "${SE_APP_NAME}" AUTHOR "${SE_APP_AUTHOR}" VERSION "${SE_APP_VERSION}")
 	nx_create_nro(scratch-everywhere OUTPUT "${SE_OUTPUT_NAME}.nro" ROMFS ${CMAKE_CURRENT_SOURCE_DIR}/romfs ICON "${CMAKE_SOURCE_DIR}/gfx/wiiu/switch-icon.jpg" NACP "${SE_OUTPUT_NAME}.nacp")
 endmacro()

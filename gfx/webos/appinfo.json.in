@@ -1,0 +1,15 @@
+{
+  "id": "io.github.scratcheverywhere",
+  "type": "native",
+  "main": "scratch-webos",
+  "icon": "icon.png",
+  "splashBackground": "splash.png",
+  "title": "@SE_APP_NAME@",
+  "version": "0.0.1",
+  "appDescription": "@SE_APP_DESCRIPTION@",
+  "iconColor": "#754675",
+  "cloudgame_active": true,
+  "useAllMouseButtons": true,
+  "disableBackHistoryAPI": true,
+  "useAllKeyboardKeys": true
+}
