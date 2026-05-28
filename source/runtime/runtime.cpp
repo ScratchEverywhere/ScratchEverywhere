@@ -2,6 +2,7 @@
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "collision.hpp"
+#include "interface.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
@@ -184,8 +185,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Timer scriptTimer(false);
         if (debugVars) scriptTimer.start();
 
+        extensions::runUpdateFunctions(extensions::PRE_UPDATE);
         if (checkFPS) Input::getInput();
         BlockExecutor::runThreads();
+        extensions::runUpdateFunctions(extensions::POST_UPDATE);
 
 #ifdef ENABLE_INSPECTOR
         Inspector::processCommands();
@@ -202,10 +205,12 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             speechManager->update();
         }
         if (checkFPS) {
+            extensions::runUpdateFunctions(extensions::PRE_RENDER);
             Render::renderSprites();
             Scratch::flushCostumeImages();
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
+            extensions::runUpdateFunctions(extensions::POST_RENDER);
         }
 #ifdef ENABLE_MENU
 

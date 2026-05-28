@@ -120,3 +120,17 @@ void extensions::registerHandlers() {
         registerHandlers(extension.get());
     }
 }
+
+void extensions::runUpdateFunctions(ExtensionUpdateFunction type) {
+    for (const auto &extension : Scratch::extensions)
+        runUpdateFunction(extension.get(), type);
+}
+
+void extensions::runUpdateFunction(Extension *extension, ExtensionUpdateFunction type) {
+    if (!extension->hasPermission(ExtensionPermission::UPDATE)) return;
+
+    const sol::object updateFn = extension->luaState["update"][updateFunctionString(type)];
+    if (!updateFn.is<sol::function>()) return;
+    sol::protected_function_result result = updateFn.as<sol::protected_function>()();
+    if (!result.valid()) Log::logError("Error running update function for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+}
