@@ -197,10 +197,18 @@ if(SE_MENU)
 		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 else()
-	file(GLOB_RECURSE GFXFILES
-		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
-		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
-	)
+	if(NINTENDO_DS)
+		file(GLOB_RECURSE GFXFILES
+			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/Ubuntu-Bold.ttf"
+			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+		)
+	else()
+		file(GLOB_RECURSE GFXFILES
+			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+		)
+	endif()
 endif()
 
 if(NOT SE_SVG)
@@ -222,7 +230,7 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS) AND SE_MENU)
+if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS) AND (SE_MENU OR NINTENDO_DS))
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
 endif()
 
