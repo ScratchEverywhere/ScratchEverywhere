@@ -13,7 +13,7 @@
 static bool systemCheck = APT_CheckNew3DS(&systemCheck);
 
 // Defining The Keys To Check
-static const u32 III_DS_KEYS[] = {
+static constexpr u32 III_DS_KEYS[] = {
     // Old 3DS Keys
     KEY_DUP,
     KEY_DDOWN,

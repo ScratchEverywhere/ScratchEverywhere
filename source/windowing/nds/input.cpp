@@ -1,13 +1,17 @@
 #include "window.hpp"
 #include <input.hpp>
+
+
 #include <nds.h>
 #include <nds/arm9/input.h>
 #include <nds/input.h>
+
+
 #include <render.hpp>
 
 // Defining The Keys To Check
-static const u32 NDS_KEYS[] = {
-    // Old 3DS Keys
+static constexpr u16 NDS_KEYS[] = {
+    // NDS Keys
     KEY_UP,
     KEY_DOWN,
     KEY_LEFT,
@@ -22,7 +26,7 @@ static const u32 NDS_KEYS[] = {
     KEY_R,
 
     KEY_SELECT,
-    KEY_START,
+    KEY_START
 };
 
 static const size_t KEY_AMOUNT = sizeof(NDS_KEYS) / sizeof(NDS_KEYS[0]);
@@ -48,7 +52,7 @@ void Input::getInput() {
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
     if (globalWindow) globalWindow->pollEvents();
-    uint32_t kHeld = keysHeld();
+    uint16_t kHeld = keysHeld() & 0x0000FFFF;
 
     touchRead(&touch);
     std::array<int, 2> touchPos = getTouchPosition();
@@ -69,24 +73,13 @@ void Input::getInput() {
 
     {
         inputButtons.push_back("any");
-
-        // Creates The Unordered Map
-        std::unordered_map<u32, std::string> button_codes;
-        for (int i = 0; i < KEY_AMOUNT; i++) {
-            button_codes[NDS_KEYS[i]] = CONTROLLER_STRINGS[i];
-        }
-
+        
         for (size_t i = 0; i < KEY_AMOUNT; i++) {
-            u32 key_code = kHeld & NDS_KEYS[i];
-
-            // Check To See If Element Even Exists
-            if (!button_codes.count(NDS_KEYS[i])) {
-                continue;
-            }
+            u16 key_code = kHeld & NDS_KEYS[i];
 
             // Send Key Codes
             if (key_code) {
-                Input::buttonPress(button_codes[key_code]);
+                Input::buttonPress(CONTROLLER_STRINGS[i]);
             }
         }
     }
