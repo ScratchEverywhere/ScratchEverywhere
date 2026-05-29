@@ -136,7 +136,7 @@ bool SoundStream::loadFromBuffer() {
 nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cached, bool on_disk) {
 #ifdef ENABLE_AUDIO
     std::string prefix = "";
-    if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
+    if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation() + "project/";
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
 #ifdef USE_CMAKERC
@@ -300,7 +300,7 @@ bool Mixer::musicInitialized = false;
 
 void Mixer::initMusic() {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
-    if(Mixer::musicInitialized) return;
+    if (Mixer::musicInitialized) return;
 
     std::string prefix = OS::getRomFSLocation();
     std::string path = prefix + "gfx/ingame/scratch.sf2";
