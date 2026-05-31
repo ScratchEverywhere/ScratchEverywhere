@@ -1,3 +1,5 @@
+#pragma once
+
 #include "meta.hpp"
 #include <nlohmann/json.hpp>
 #include <sol/sol.hpp>

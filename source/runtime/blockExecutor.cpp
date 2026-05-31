@@ -354,8 +354,10 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
 
 Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *sprite) {
     // Check sprite variables
-    const auto it = sprite->variables.find(variableId);
-    if (it != sprite->variables.end()) return it->second.value;
+    if (sprite != nullptr) {
+        const auto it = sprite->variables.find(variableId);
+        if (it != sprite->variables.end()) return it->second.value;
+    }
 
     // Check global variables
     const auto globalIt = Scratch::stageSprite->variables.find(variableId);
@@ -363,27 +365,29 @@ Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *spr
         return globalIt->second.value;
     }
 
-    sprite->variables[variableId].value = Value(0);
+    if (sprite != nullptr) sprite->variables[variableId].value = Value(0);
     return Value(0);
 }
 
 Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
-    // Check lists
-    const auto listIt = sprite->lists.find(listId);
-    if (listIt != sprite->lists.end()) {
-        std::string result;
-        std::string seperator = "";
-        for (const auto &item : listIt->second.items) {
-            if (item.asString().size() > 1 || !item.isString()) {
-                seperator = " ";
-                break;
+    // Check sprite lists
+    if (sprite != nullptr) {
+        const auto listIt = sprite->lists.find(listId);
+        if (listIt != sprite->lists.end()) {
+            std::string result;
+            std::string seperator = "";
+            for (const auto &item : listIt->second.items) {
+                if (item.asString().size() > 1 || !item.isString()) {
+                    seperator = " ";
+                    break;
+                }
             }
+            for (const auto &item : listIt->second.items) {
+                result += item.asString() + seperator;
+            }
+            if (!result.empty() && !seperator.empty()) result.pop_back();
+            return Value(result);
         }
-        for (const auto &item : listIt->second.items) {
-            result += item.asString() + seperator;
-        }
-        if (!result.empty() && !seperator.empty()) result.pop_back();
-        return Value(result);
     }
 
     // Check global lists
@@ -404,10 +408,13 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
         return Value(result);
     }
 
-    List newList;
-    newList.id = listId;
-    newList.items = {};
-    sprite->lists[listId] = newList;
+    if (sprite != nullptr) {
+        List newList;
+        newList.id = listId;
+        newList.items = {};
+        sprite->lists[listId] = newList;
+    }
+
     return Value("");
 }
 

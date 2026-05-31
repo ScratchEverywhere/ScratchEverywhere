@@ -771,7 +771,7 @@ std::string Scratch::getListName(Block &block) {
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
     std::string listId = Scratch::getFieldId(block, "LIST");
     Sprite *targetSprite = nullptr;
-    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
+    if (sprite != nullptr && sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
     if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite;
     if (!targetSprite) {
         for (const auto &[id, list] : stageSprite->lists) {
@@ -781,15 +781,17 @@ std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
                 break;
             }
         }
-        for (const auto &[id, list] : sprite->lists) {
-            if (list.name == getListName(block)) {
-                listId = list.id;
-                targetSprite = sprite;
-                break;
+        if (sprite != nullptr) {
+            for (const auto &[id, list] : sprite->lists) {
+                if (list.name == getListName(block)) {
+                    listId = list.id;
+                    targetSprite = sprite;
+                    break;
+                }
             }
         }
     }
-    if (!targetSprite) {
+    if (!targetSprite && sprite) {
         List newList;
         newList.id = listId;
         newList.name = getListName(block);

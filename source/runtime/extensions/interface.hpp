@@ -2,9 +2,12 @@
 
 #include "meta.hpp"
 #include "sprite.hpp"
+#include <sol/sol.hpp>
 
 namespace extensions {
 void loadLua(Extension *extension, std::istream &data);
+
+Value objectToValue(sol::object object);
 
 sol::table getBlockArgs(Extension *extension, Block *block, ScriptThread *thread, Sprite *sprite);
 void registerHandlers(Extension *extension);
