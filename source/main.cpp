@@ -27,6 +27,9 @@
 #endif
 
 static void exitApp() {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    Scratch::extensions.clear();
+#endif
     Render::deInit();
     OS::deinit();
 }

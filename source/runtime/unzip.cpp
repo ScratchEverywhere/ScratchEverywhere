@@ -154,8 +154,6 @@ bool Unzip::load() {
 
     SE_Thread projectThread;
     if (projectThread.create(projectLoaderThread, nullptr, 0x4000, 0, -1, "ProjectLoader")) {
-        projectThread.detach();
-
         Loading loading;
         loading.init();
 
