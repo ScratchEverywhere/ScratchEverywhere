@@ -32,101 +32,23 @@ void extensions::runtime::clearData() {
 void extensions::runtime::registerAPI(Extension *extension) {
     if (!extension->hasPermission(ExtensionPermission::RUNTIME)) return;
 
-    extension->luaState.new_usertype<ScriptThread>("ScriptThread",
-                                                   "callStack", &ScriptThread::callStack,
-                                                   "eraseState", &ScriptThread::eraseState,
-                                                   "getState", &ScriptThread::getState,
-                                                   "clear", &ScriptThread::clear,
-                                                   "isRecursiveProcedureCall", &ScriptThread::isRecursiveProcedureCall,
-                                                   "MyBlocksVariablen", &ScriptThread::MyBlocksVariablen,
-                                                   "blockHat", &ScriptThread::blockHat,
-                                                   "finished", &ScriptThread::finished,
-                                                   "id", &ScriptThread::id,
-                                                   "withoutScreenRefresh", &ScriptThread::withoutScreenRefresh,
-                                                   "states", &ScriptThread::states,
-                                                   "sprite", &ScriptThread::sprite,
-                                                   "returnValue", &ScriptThread::returnValue,
-                                                   "nextBlock", &ScriptThread::nextBlock);
+    extension->luaState.new_enum<BlockResult>("BlockResult", {{"Continue", BlockResult::CONTINUE},
+                                                              {"ContinueImmediately", BlockResult::CONTINUE_IMMEDIATELY},
+                                                              {"Repeat", BlockResult::REPEAT},
+                                                              {"Return", BlockResult::RETURN}});
 
-    extension->luaState.new_usertype<Sprite>("Sprite",
-                                             "shouldDoSpriteClick", &Sprite::shouldDoSpriteClick,
-                                             "spriteHeight", &Sprite::spriteHeight,
-                                             "spriteWidth", &Sprite::spriteWidth,
-                                             "brightnessEffect", &Sprite::brightnessEffect,
-                                             "colorEffect", &Sprite::colorEffect,
-                                             "yPosition", &Sprite::yPosition,
-                                             "xPosition", &Sprite::xPosition,
-                                             "volume", &Sprite::volume,
-                                             "broadcasts", &Sprite::broadcasts,
-                                             "sounds", &Sprite::sounds,
-                                             "toDelete", &Sprite::toDelete,
-                                             "textToSpeechData", &Sprite::textToSpeechData,
-                                             "size", &Sprite::size,
-                                             "rotationStyle", &Sprite::rotationStyle,
-                                             "rotation", &Sprite::rotation,
-                                             "collisionPoints", &Sprite::collisionPoints,
-                                             "pitch", &Sprite::pitch,
-                                             "penData", &Sprite::penData,
-                                             "costumes", &Sprite::costumes,
-                                             "currentCostume", &Sprite::currentCostume,
-                                             "list", &Sprite::lists,
-                                             "pan", &Sprite::pan,
-                                             "variables", &Sprite::variables,
-                                             "name", &Sprite::name,
-                                             "instrument", &Sprite::instrument,
-                                             "customHatBlock", &Sprite::customHatBlock,
-                                             "draggable", &Sprite::draggable,
-                                             "renderInfo", &Sprite::renderInfo,
-                                             "layer", &Sprite::layer,
-                                             "isStage", &Sprite::isStage,
-                                             "isClone", &Sprite::isClone,
-                                             "hats", &Sprite::hats,
-                                             "ghostEffect", &Sprite::ghostEffect);
-
-    extension->luaState.new_enum<Sprite::RotationStyle>("RotationStyle", {{"None", Sprite::RotationStyle::NONE},
-                                                                          {"AllAround", Sprite::RotationStyle::ALL_AROUND},
-                                                                          {"LeftRight", Sprite::RotationStyle::LEFT_RIGHT}});
-
-    extension->luaState.new_usertype<Variable>("Variable",
-                                               "id", &Variable::id,
-                                               "name", &Variable::name,
-                                               "value", &Variable::value);
-
-    extension->luaState.new_usertype<List>("List",
-                                           "id", &List::id,
-                                           "name", &List::name,
-                                           "items", &List::items);
-
-    extension->luaState.new_usertype<Block>("Block",
-                                            "nextBlock", &Block::nextBlock,
-                                            "argumentNames", &Block::argumentNames,
-                                            "hasReturnValue", &Block::hasReturnValue,
-                                            "shadow", &Block::shadow,
-                                            "argumentIDs", &Block::argumentIDs,
-                                            "argumentDefaults", &Block::argumentDefaults,
-                                            "MyBlockDefinitionID", &Block::MyBlockDefinitionID,
-                                            "opcode", &Block::opcode,
-                                            "inputs", &Block::inputs,
-                                            "fields", &Block::fields,
-                                            "MyBlockWithoutScreenRefresh", &Block::MyBlockWithoutScreenRefresh,
-                                            "blockFunction", &Block::blockFunction,
-                                            "isEndBlock", &Block::isEndBlock,
-                                            "isEndBlock", &Block::isEndBlock);
-
-    extension->luaState.new_usertype<ParsedInput>("ParsedInput",
-                                                  "block", &ParsedInput::block,
-                                                  "inputType", &ParsedInput::inputType,
-                                                  "variableId", &ParsedInput::variableId,
-                                                  "value", &ParsedInput::value,
-                                                  "list", &ParsedInput::list,
-                                                  "variable", &ParsedInput::variable,
-                                                  "calculated", &ParsedInput::calculated);
-
-    extension->luaState.new_enum<ParsedInput::InputType>("InputType", {{"Block", ParsedInput::InputType::BLOCK},
-                                                                       {"Variable", ParsedInput::InputType::VARIABLE},
-                                                                       {"Value", ParsedInput::InputType::VALUE}});
-
-    extension->luaState.new_usertype<ParsedField>("ParsedField", "id", &ParsedField::id, "value", &ParsedField::value);
+    extension->luaState.new_usertype<RenderInfo>("RenderInfo",
+                                                 "renderRotation", &RenderInfo::renderRotation,
+                                                 "renderScaleX", &RenderInfo::renderScaleX,
+                                                 "renderScaleY", &RenderInfo::renderScaleY,
+                                                 "renderX", &RenderInfo::renderX,
+                                                 "renderY", &RenderInfo::renderY,
+                                                 "oldX", &RenderInfo::oldX,
+                                                 "oldY", &RenderInfo::oldY,
+                                                 "oldCostumeID", &RenderInfo::oldCostumeID,
+                                                 "oldRotation", &RenderInfo::oldRotation,
+                                                 "oldSize", &RenderInfo::oldSize,
+                                                 "forceUpdate", &RenderInfo::forceUpdate);
 
     extension->luaState.new_usertype<BlockState>("BlockState",
                                                  "myBlockThread", &BlockState::myBlockThread,
@@ -142,6 +64,50 @@ void extensions::runtime::registerAPI(Extension *extension) {
                                                  "repeatTimes", &BlockState::repeatTimes,
                                                  "name", &BlockState::name,
                                                  "musicChannel", &BlockState::musicChannel);
+
+    // wtf clang-format, what is this
+    extension->luaState.new_usertype<ScriptThread>("ScriptThread", "id", &ScriptThread::id, "sprite", &ScriptThread::sprite, "blockHat", &ScriptThread::blockHat, "nextBlock", &ScriptThread::nextBlock, "finished", &ScriptThread::finished, "withoutScreenRefresh", &ScriptThread::withoutScreenRefresh, "returnValue", &ScriptThread::returnValue, "callStack", &ScriptThread::callStack, "eraseState", &ScriptThread::eraseState, "getState", &ScriptThread::getState, "clear", &ScriptThread::clear, "isRecursiveProcedureCall", &ScriptThread::isRecursiveProcedureCall, "getStateForBlock", [](ScriptThread &s, Block *b) -> BlockState * { auto it = s.states.find(b); return (it != s.states.end()) ? it->second : nullptr; }, "setStateForBlock", [](ScriptThread &s, Block *b, BlockState *state) { s.states[b] = state; }, "getMyBlocksVariable", [](ScriptThread &s, const std::string &key) -> sol::optional<Value> { auto it = s.MyBlocksVariablen.find(key); if (it != s.MyBlocksVariablen.end()) return it->second; return sol::nullopt; }, "setMyBlocksVariable", [](ScriptThread &s, const std::string &key, Value val) { s.MyBlocksVariablen[key] = val; });
+
+    // AND THIS
+    extension->luaState.new_usertype<Sprite>("Sprite", "name", &Sprite::name, "isStage", &Sprite::isStage, "draggable", &Sprite::draggable, "visible", &Sprite::visible, "isClone", &Sprite::isClone, "toDelete", &Sprite::toDelete, "shouldDoSpriteClick", &Sprite::shouldDoSpriteClick, "currentCostume", &Sprite::currentCostume, "xPosition", &Sprite::xPosition, "yPosition", &Sprite::yPosition, "size", &Sprite::size, "rotation", &Sprite::rotation, "layer", &Sprite::layer, "renderInfo", &Sprite::renderInfo, "instrument", &Sprite::instrument, "ghostEffect", &Sprite::ghostEffect, "brightnessEffect", &Sprite::brightnessEffect, "colorEffect", &Sprite::colorEffect, "volume", &Sprite::volume, "pitch", &Sprite::pitch, "pan", &Sprite::pan, "rotationStyle", &Sprite::rotationStyle, "collisionPoints", &Sprite::collisionPoints, "spriteWidth", &Sprite::spriteWidth, "spriteHeight", &Sprite::spriteHeight, "sounds", &Sprite::sounds, "costumes", &Sprite::costumes, "getVariable", [](Sprite &s, const std::string &id) -> sol::optional<Variable> { auto it = s.variables.find(id); if (it != s.variables.end()) return it->second;return sol::nullopt; }, "setVariable", [](Sprite &s, const std::string &id, Variable var) { s.variables[id] = var; }, "getList", [](Sprite &s, const std::string &id) -> sol::optional<List> {auto it = s.lists.find(id);if (it != s.lists.end()) return it->second;return sol::nullopt; }, "setList", [](Sprite &s, const std::string &id, List lst) { s.lists[id] = lst; }, "getBroadcast", [](Sprite &s, const std::string &id) -> sol::optional<Broadcast> {auto it = s.broadcasts.find(id);if (it != s.broadcasts.end()) return it->second;return sol::nullopt; }, "getCustomHatBlock", [](Sprite &s, const std::string &key) -> Block * {auto it = s.customHatBlock.find(key);return (it != s.customHatBlock.end()) ? it->second : nullptr; });
+
+    extension->luaState.new_enum<Sprite::RotationStyle>("RotationStyle", {{"None", Sprite::RotationStyle::NONE},
+                                                                          {"AllAround", Sprite::RotationStyle::ALL_AROUND},
+                                                                          {"LeftRight", Sprite::RotationStyle::LEFT_RIGHT}});
+
+    extension->luaState.new_usertype<Variable>("Variable",
+                                               "id", &Variable::id,
+                                               "name", &Variable::name,
+                                               "value", &Variable::value);
+
+    extension->luaState.new_usertype<List>("List",
+                                           "id", &List::id,
+                                           "name", &List::name,
+                                           "items", &List::items);
+
+    // i hate u
+    extension->luaState.new_usertype<Block>("Block", "nextBlock", &Block::nextBlock, "argumentNames", &Block::argumentNames, "hasReturnValue", &Block::hasReturnValue, "shadow", &Block::shadow, "argumentIDs", &Block::argumentIDs, "argumentDefaults", &Block::argumentDefaults, "MyBlockDefinitionID", &Block::MyBlockDefinitionID, "opcode", &Block::opcode, "MyBlockWithoutScreenRefresh", &Block::MyBlockWithoutScreenRefresh, "isEndBlock", &Block::isEndBlock, "getInput", [](Block &b, const std::string &key) -> sol::optional<ParsedInput> {auto it = b.inputs.find(key);if (it != b.inputs.end()) return it->second;return sol::nullopt; }, "getField", [](Block &b, const std::string &key) -> sol::optional<ParsedField> {auto it = b.fields.find(key);if (it != b.fields.end()) return it->second;return sol::nullopt; });
+
+    extension->luaState.new_usertype<ParsedInput>("ParsedInput",
+                                                  "block", &ParsedInput::block,
+                                                  "inputType", &ParsedInput::inputType,
+                                                  "variableId", &ParsedInput::variableId,
+                                                  "value", &ParsedInput::value,
+                                                  "list", &ParsedInput::list,
+                                                  "calculated", &ParsedInput::calculated
+#ifdef ENABLE_CACHING
+                                                  ,
+                                                  "variable", &ParsedInput::variable
+#endif
+    );
+
+    extension->luaState.new_enum<ParsedInput::InputType>("InputType", {{"Value", ParsedInput::InputType::VALUE},
+                                                                       {"Variable", ParsedInput::InputType::VARIABLE},
+                                                                       {"Block", ParsedInput::InputType::BLOCK}});
+
+    extension->luaState.new_usertype<ParsedField>("ParsedField",
+                                                  "id", &ParsedField::id,
+                                                  "value", &ParsedField::value);
 
     extension->luaState.new_usertype<Sound>("Sound",
                                             "id", &Sound::id,
@@ -170,30 +136,21 @@ void extensions::runtime::registerAPI(Extension *extension) {
                                               "maxRadius", &Bitmask::maxRadius,
                                               "scaleFactor", &Bitmask::scaleFactor);
 
-    extension->luaState.new_usertype<RenderInfo>("RenderInfo",
-                                                 "renderRotation", &RenderInfo::renderRotation,
-                                                 "renderScaleX", &RenderInfo::renderScaleX,
-                                                 "renderScaleY", &RenderInfo::renderScaleY,
-                                                 "renderX", &RenderInfo::renderX,
-                                                 "renderY", &RenderInfo::renderY,
-                                                 "oldX", &RenderInfo::oldX,
-                                                 "oldY", &RenderInfo::oldY,
-                                                 "oldCostumeID", &RenderInfo::oldCostumeID,
-                                                 "oldRotation", &RenderInfo::oldRotation,
-                                                 "oldSize", &RenderInfo::oldSize,
-                                                 "forceUpdate", &RenderInfo::forceUpdate);
-
     extension->luaState["runtime"] = extension->luaState.create_table();
 
     extension->luaState["runtime"]["getThread"] = []() { return currentThread; };
     extension->luaState["runtime"]["getSprite"] = []() { return currentSprite; };
     extension->luaState["runtime"]["getBlock"] = []() { return currentBlock; };
 
-    extension->luaState["runtime"].set_function("getVariableValue", [](std::string variableId, sol::optional<Sprite *> sprite) {
-        return BlockExecutor::getVariableValue(variableId, sprite.value_or(currentSprite));
-    });
-    extension->luaState["runtime"].set_function("setVariableValue", [](std::string variableId, sol::object value, sol::optional<Sprite *> sprite) {
-        return BlockExecutor::setVariableValue(variableId, objectToValue(value), sprite.value_or(currentSprite));
-    });
-    extension->luaState["runtime"].set_function("getListItems", sol::overload([]() { return std::ref(*Scratch::getListItems(*currentBlock, currentSprite)); }, [](Block &block, Sprite *sprite) { return std::ref(*Scratch::getListItems(block, sprite)); }));
+    extension->luaState["runtime"]["getVariableValue"] = [](std::string variableId, Sprite *sprite) {
+        return BlockExecutor::getVariableValue(variableId, sprite ? sprite : currentSprite);
+    };
+
+    extension->luaState["runtime"]["setVariableValue"] = [](std::string variableId, sol::object value, Sprite *sprite) {
+        return BlockExecutor::setVariableValue(variableId, objectToValue(value), sprite ? sprite : currentSprite);
+    };
+
+    extension->luaState["runtime"]["getListItems"] = sol::overload(
+        []() { return std::ref(*Scratch::getListItems(*currentBlock, currentSprite)); },
+        [](Block &block, Sprite *sprite) { return std::ref(*Scratch::getListItems(block, sprite)); });
 }
