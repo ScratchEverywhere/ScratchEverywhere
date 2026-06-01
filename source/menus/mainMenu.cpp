@@ -96,11 +96,11 @@ void MainMenu::init() {
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
-    logo = new MenuImage("gfx/menu/eventAssets/annivLogo.png");
+    logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.release") + " 1.0 RC2 - 1 YEAR OF SE!", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.release") + " 1.0 RC2", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
@@ -161,7 +161,7 @@ void MainMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 51, 140, 204);
+    Render::beginFrame(0, 117, 77, 117);
 
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
@@ -175,7 +175,7 @@ void MainMenu::render() {
     splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 
     // begin 3DS bottom screen frame
-    Render::beginFrame(1, 51, 140, 204);
+    Render::beginFrame(1, 117, 77, 117);
 
     if (settingsButton->isPressed()) {
         SettingsMenu *settingsMenu = new SettingsMenu();
