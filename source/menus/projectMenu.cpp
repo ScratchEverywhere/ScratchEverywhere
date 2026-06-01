@@ -206,8 +206,8 @@ void ProjectMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 71, 107, 115);
-    Render::beginFrame(1, 71, 107, 115);
+    Render::beginFrame(0, 108, 100, 128);
+    Render::beginFrame(1, 108, 100, 128);
 
     for (ButtonObject *project : projects) {
         if (project == nullptr) continue;

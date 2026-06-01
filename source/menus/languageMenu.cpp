@@ -68,8 +68,8 @@ void LanguageMenu::render() {
         return;
     }
 
-    Render::beginFrame(0, 71, 107, 115);
-    Render::beginFrame(1, 71, 107, 115);
+    Render::beginFrame(0, 147, 138, 168);
+    Render::beginFrame(1, 147, 138, 168);
 
     control->render(0, 0);
     backButton->render();
