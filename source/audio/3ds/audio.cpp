@@ -73,7 +73,7 @@ bool SoundPlayer::init() {
         targetPriority--;
     }
     targetPriority = std::clamp(static_cast<int>(targetPriority), 0x19, 0x2f);
-    audioThread = threadCreate(audioUpdateThread, nullptr, 4096, targetPriority, -1, false);
+    audioThread = threadCreate(audioUpdateThread, nullptr, 32768, targetPriority, -1, false);
 
     if (!audioThread) {
         Log::logError("Failed to create high-priority audio thread.");
