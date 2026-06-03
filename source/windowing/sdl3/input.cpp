@@ -162,10 +162,10 @@ void Input::getInput() {
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
 
-    Input::leftJoystick.first = joyLeftX / 0x8000f;
-    Input::leftJoystick.first = joyLeftY / 0x8000f;
-    Input::rightJoystick.first = joyRightX / 0x8000f;
-    Input::rightJoystick.first = joyRightY / 0x8000f;
+    Input::leftJoystick.first = joyLeftX / 32767.0f;
+    Input::leftJoystick.second = joyLeftY / 32767.0f;
+    Input::rightJoystick.first = joyRightX / 32767.0f;
+    Input::rightJoystick.second = joyRightY / 32767.0f;
 #endif
 
     if (!inputKeys.empty()) inputKeys.push_back("any");

@@ -82,6 +82,6 @@ void extensions::input::registerAPI(Extension *extension) {
         else if (joystick == "right" && axis == "x") axisValue = Input::rightJoystick.first;
         else if (joystick == "right" && axis == "y") axisValue = Input::rightJoystick.second;
 
-        return std::abs(axisValue) > 0.05 ? axisValue : 0;
+        return std::abs(axisValue) > 0.15 ? axisValue : 0;
     };
 }
