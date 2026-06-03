@@ -1,3 +1,4 @@
+#include "interface.hpp"
 #ifndef LIBRETRO
 #include "image.hpp"
 #include "translation.hpp"
@@ -27,9 +28,6 @@
 #endif
 
 static void exitApp() {
-#ifdef ENABLE_CUSTOM_EXTENSIONS
-    Scratch::extensions.clear();
-#endif
     Render::deInit();
     OS::deinit();
 }

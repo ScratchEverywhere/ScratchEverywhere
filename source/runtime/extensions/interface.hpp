@@ -35,4 +35,6 @@ static inline std::string updateFunctionString(ExtensionUpdateFunction type) {
 
 void runUpdateFunctions(ExtensionUpdateFunction type);
 void runUpdateFunction(Extension *extension, ExtensionUpdateFunction type);
+
+void cleanup();
 } // namespace extensions

@@ -286,6 +286,10 @@ bool Scratch::startScratchProject() {
 }
 
 void Scratch::cleanupScratchProject() {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    extensions::cleanup();
+#endif
+
     Scratch::cleanupSprites();
     costumeImages.clear();
     Mixer::cleanupAudio();

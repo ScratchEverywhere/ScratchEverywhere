@@ -44,6 +44,64 @@ enum class ExtensionPlatform {
     PLATFORM_WASM
 };
 
+inline std::string permissionToString(extensions::ExtensionPermission perm) {
+    switch (perm) {
+    case extensions::ExtensionPermission::LOCALFS:
+        return "localfs";
+    case extensions::ExtensionPermission::ROOTFS:
+        return "rootfs";
+    case extensions::ExtensionPermission::NETWORK:
+        return "network";
+    case extensions::ExtensionPermission::INPUT:
+        return "input";
+    case extensions::ExtensionPermission::RENDER:
+        return "render";
+    case extensions::ExtensionPermission::UPDATE:
+        return "update";
+    case extensions::ExtensionPermission::PLATFORM_SPECIFIC:
+        return "platform-specific";
+    case extensions::ExtensionPermission::RUNTIME:
+        return "runtime";
+    case extensions::ExtensionPermission::AUDIO:
+        return "audio";
+    case extensions::ExtensionPermission::EXTENSIONS:
+        return "extensions";
+    default:
+        return "unknown";
+    }
+}
+
+inline std::string platformToString(extensions::ExtensionPlatform plat) {
+    switch (plat) {
+    case extensions::ExtensionPlatform::PLATFORM_N3DS:
+        return "3ds";
+    case extensions::ExtensionPlatform::PLATFORM_WIIU:
+        return "wiiu";
+    case extensions::ExtensionPlatform::PLATFORM_WII:
+        return "wii";
+    case extensions::ExtensionPlatform::PLATFORM_GAMECUBE:
+        return "gamecube";
+    case extensions::ExtensionPlatform::PLATFORM_SWITCH:
+        return "switch";
+    case extensions::ExtensionPlatform::PLATFORM_PC:
+        return "pc";
+    case extensions::ExtensionPlatform::PLATFORM_VITA:
+        return "vita";
+    case extensions::ExtensionPlatform::PLATFORM_NDS:
+        return "nds";
+    case extensions::ExtensionPlatform::PLATFORM_PS4:
+        return "ps4";
+    case extensions::ExtensionPlatform::PLATFORM_PSP:
+        return "psp";
+    case extensions::ExtensionPlatform::PLATFORM_WEBOS:
+        return "webos";
+    case extensions::ExtensionPlatform::PLATFORM_WASM:
+        return "wasm";
+    default:
+        return "unknown";
+    }
+}
+
 enum class ExtensionBlockType {
     COMMAND = 0x1,
     HAT = 0x2,

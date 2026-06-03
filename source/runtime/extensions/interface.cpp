@@ -13,6 +13,13 @@
 #include <runtime.hpp>
 #include <sol/sol.hpp>
 
+struct CallbackRegistry {
+    std::unordered_map<std::string, std::vector<sol::protected_function>> specificCallbacks;
+    std::vector<sol::protected_function> globalCallbacks;
+};
+
+std::unordered_map<extensions::Extension *, CallbackRegistry> extensionCallbacks;
+
 void extensions::loadLua(Extension *extension, std::istream &data) {
     extension->luaState.open_libraries(sol::lib::base, sol::lib::math, sol::lib::string, sol::lib::io, sol::lib::bit32, sol::lib::table, sol::lib::coroutine);
 
@@ -24,6 +31,112 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
     json::registerAPI(extension);
     files::registerAPI(extension);
     runtime::registerAPI(extension);
+
+    // Extensions API
+    if (extension->hasPermission(ExtensionPermission::EXTENSIONS)) {
+        extension->luaState["extensions"] = extension->luaState.create_table();
+        extension->luaState["extensions"][sol::metatable_key] = extension->luaState.create_table();
+
+        extension->luaState["extensions"][sol::metatable_key][sol::meta_function::index] = [](sol::table t, std::string key) -> sol::object {
+            auto luaState = t.lua_state();
+            sol::state_view currentLua(luaState);
+
+            if (key == "active") {
+                sol::table activeTable = currentLua.create_table();
+                for (const auto &ext : Scratch::extensions) {
+                    activeTable.add(ext->id);
+                }
+                return activeTable;
+            }
+
+            if (key == "installed") {
+                return currentLua.create_table(); // TODO: Implement :)
+            }
+
+            if (key == "embedded") {
+                return currentLua.create_table(); // TODO: Implement :)
+            }
+
+            return t.raw_get<sol::object>(key);
+        };
+
+        extension->luaState["extensions"]["send"] = [extension](std::string targetId, std::string message) {
+            for (const auto &ext : Scratch::extensions) {
+                if (ext->id != targetId) continue;
+
+                const auto &it = extensionCallbacks.find(ext.get());
+                if (it != extensionCallbacks.end()) {
+                    const auto &specificMap = it->second.specificCallbacks;
+                    const auto &specificIt = specificMap.find(extension->id);
+                    if (specificIt != specificMap.end()) {
+                        for (const auto &cb : specificIt->second) {
+                            if (cb.valid()) cb(message);
+                        }
+                    }
+
+                    for (const auto &cb : it->second.globalCallbacks) {
+                        if (cb.valid()) cb(message);
+                    }
+                }
+                break;
+            }
+        };
+
+        extension->luaState["extensions"]["sendAll"] = [extension](std::string message) {
+            for (const auto &ext : Scratch::extensions) {
+                const auto &it = extensionCallbacks.find(ext.get());
+                if (it == extensionCallbacks.end()) continue;
+
+                const auto &specificMap = it->second.specificCallbacks;
+                const auto &specificIt = specificMap.find(extension->id);
+                if (specificIt != specificMap.end()) {
+                    for (const auto &cb : specificIt->second) {
+                        if (cb.valid()) cb(message);
+                    }
+                }
+
+                for (const auto &cb : it->second.globalCallbacks) {
+                    if (cb.valid()) cb(message);
+                }
+            }
+        };
+
+        extension->luaState["extensions"]["receive"] = [extension](std::string senderId, sol::protected_function callback) {
+            extensionCallbacks[extension].specificCallbacks[senderId].push_back(callback);
+        };
+
+        extension->luaState["extensions"]["receiveAll"] = [extension](sol::protected_function callback) {
+            extensionCallbacks[extension].globalCallbacks.push_back(callback);
+        };
+
+        auto &lua = extension->luaState;
+        extension->luaState["extensions"]["getInfo"] = [&lua](std::string targetId) -> sol::object {
+            for (const auto &ext : Scratch::extensions) {
+                if (ext->id != targetId) continue;
+
+                sol::table info = lua.create_table();
+                info["core"] = ext->core;
+                info["id"] = ext->id;
+                info["name"] = ext->name;
+                info["description"] = ext->description;
+
+                sol::table perms = lua.create_table();
+                for (const auto &perm : ext->permissions) {
+                    perms.add(permissionToString(perm));
+                }
+                info["permissions"] = perms;
+
+                sol::table platforms = lua.create_table();
+                for (const auto &plat : ext->platforms) {
+                    platforms.add(platformToString(plat));
+                }
+                info["platforms"] = platforms;
+
+                return info;
+            }
+            return sol::nil;
+        };
+    }
 
     extension->luaState["blocks"] = extension->luaState.create_table();
     if (extension->hasPermission(ExtensionPermission::UPDATE)) extension->luaState["update"] = extension->luaState.create_table();
@@ -153,4 +266,9 @@ void extensions::runUpdateFunction(Extension *extension, ExtensionUpdateFunction
     if (!updateFn.is<sol::function>()) return;
     sol::protected_function_result result = updateFn.as<sol::protected_function>()();
     if (!result.valid()) Log::logError("Error running update function for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+}
+
+void extensions::cleanup() {
+    Scratch::extensions.clear();
+    extensionCallbacks.clear();
 }
