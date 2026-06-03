@@ -134,7 +134,7 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
 
                 return info;
             }
-            return sol::nil;
+            return sol::lua_nil;
         };
     }
 
