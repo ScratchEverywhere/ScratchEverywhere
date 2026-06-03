@@ -190,14 +190,14 @@ void BlockExecutor::runAllBlocksByOpcodeInSprite(const std::string &opcode, Spri
 // ToDo: That could be optimized, but it works for now and i want to move on to other stuff
 void BlockExecutor::executeKeyHats() {
     for (const auto &key : Input::keyHeldDuration) {
-        if (std::find(Input::inputButtons.begin(), Input::inputButtons.end(), key.first) == Input::inputButtons.end()) {
+        if (std::find(Input::inputKeys.begin(), Input::inputKeys.end(), key.first) == Input::inputKeys.end()) {
             Input::keyHeldDuration[key.first] = 0;
         } else {
             Input::keyHeldDuration[key.first]++;
         }
     }
 
-    for (const auto &key : Input::inputButtons) {
+    for (const auto &key : Input::inputKeys) {
         if (Input::keyHeldDuration.find(key) == Input::keyHeldDuration.end()) Input::keyHeldDuration[key] = 1;
 
         if (key == "any" || Input::keyHeldDuration[key] != 1) continue;

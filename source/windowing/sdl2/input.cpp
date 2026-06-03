@@ -77,6 +77,7 @@ std::vector<int> Input::getTouchPosition() {
 
 void Input::getInput() {
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = false;
 
 #ifdef PLATFORM_HAS_KEYBOARD
@@ -118,7 +119,7 @@ void Input::getInput() {
         else if (keyName == "left shift" || keyName == "right shift") keyName = "shift";
         else if (keyName == "left ctrl" || keyName == "right ctrl") keyName = "control";
 
-        inputButtons.push_back(keyName);
+        inputKeys.push_back(keyName);
     }
 #endif
 
@@ -201,9 +202,13 @@ void Input::getInput() {
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERLEFT) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
 
+    Input::leftJoystick.first = joyLeftX / 0x8000f;
+    Input::leftJoystick.first = joyLeftY / 0x8000f;
+    Input::rightJoystick.first = joyRightX / 0x8000f;
+    Input::rightJoystick.first = joyRightY / 0x8000f;
 #endif
 
-    if (!inputButtons.empty()) inputButtons.push_back("any");
+    if (!inputKeys.empty()) inputKeys.push_back("any");
     BlockExecutor::executeKeyHats();
 
 #ifdef PLATFORM_HAS_TOUCH
@@ -213,6 +218,7 @@ void Input::getInput() {
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
+        mousePointer.mouseButton = Mouse::LEFT;
         BlockExecutor::doSpriteClicking();
         return;
     }
@@ -231,6 +237,13 @@ void Input::getInput() {
         mousePointer.isPressed = true;
     }
 
+    if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
+        mousePointer.mouseButton = Mouse::RIGHT;
+    } else if (buttons & (SDL_BUTTON(SDL_BUTTON_MIDDLE))) {
+        mousePointer.mouseButton = Mouse::MIDDLE;
+    } else {
+        mousePointer.mouseButton = Mouse::LEFT;
+    }
 #endif
 
     BlockExecutor::doSpriteClicking();

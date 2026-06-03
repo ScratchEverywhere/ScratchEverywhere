@@ -24,7 +24,9 @@ std::vector<int> Input::getTouchPosition() {
 }
 
 void Input::getInput() {
+    mousePointer.mouseButton = Mouse::LEFT;
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
     if (globalWindow) globalWindow->pollEvents();
@@ -44,7 +46,7 @@ void Input::getInput() {
     }
 
     if (kDown) {
-        inputButtons.push_back("any");
+        inputKeys.push_back("any");
         if (kDown & KEY_A) {
             Input::buttonPress("A");
         }
