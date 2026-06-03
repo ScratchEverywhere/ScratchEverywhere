@@ -12,7 +12,9 @@
 #include "value.hpp"
 #include <os.hpp>
 #include <runtime.hpp>
+#include <sol/object.hpp>
 #include <sol/sol.hpp>
+#include <sol/types.hpp>
 
 struct CallbackRegistry {
     std::unordered_map<std::string, std::vector<sol::protected_function>> specificCallbacks;
@@ -182,25 +184,28 @@ Value extensions::objectToValue(sol::object object) {
     return Value(Undefined{});
 }
 
+sol::object extensions::valueToObject(sol::state_view luaState, Value val) {
+    if (val.isUndefined()) return sol::lua_nil;
+    if (val.isString()) return sol::make_object(luaState, val.asString());
+    if (val.isDouble()) return sol::make_object(luaState, val.asDouble());
+    if (val.isBoolean()) return sol::make_object(luaState, val.asBoolean());
+    if (val.isColor()) return sol::make_object(luaState, val.asColor());
+    return sol::lua_nil;
+}
+
 sol::table extensions::getBlockArgs(Extension *extension, Block *block, ScriptThread *thread, Sprite *sprite) {
+    const std::string menuPrefix = extension->id + "_menu_";
+
     sol::table table = extension->luaState.create_table();
     for (const auto &input : block->inputs) {
         Value value;
-        if (!Scratch::getInput(block, input.first, thread, sprite, value)) continue;
-        if (value.isUndefined()) continue;
-        if (value.isBoolean()) {
-            table[input.first] = value.asBoolean();
-            continue;
+        if (input.second.inputType == ParsedInput::BLOCK && input.second.block->opcode.size() > menuPrefix.size() && input.second.block->opcode.substr(0, menuPrefix.size()) == menuPrefix) {
+            const std::string argName = input.second.block->opcode.substr(menuPrefix.size());
+            if (!Scratch::getInput(input.second.block, argName, thread, sprite, value)) continue;
+        } else {
+            if (!Scratch::getInput(block, input.first, thread, sprite, value)) continue;
         }
-        if (value.isDouble()) {
-            table[input.first] = value.asDouble();
-            continue;
-        }
-        if (value.isColor()) {
-            table[input.first] = value.asColor();
-            continue;
-        }
-        table[input.first] = value.asString();
+        table[input.first] = valueToObject(extension->luaState, value);
     }
     for (const auto &field : block->fields)
         table[field.first] = field.second.value;
