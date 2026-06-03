@@ -10,6 +10,9 @@ static nonstd::expected<std::string, std::string> readNullTerminatedString(std::
     return nonstd::make_unexpected("I/O Error.");
 }
 
+#define API_VERSION_MAJOR 0
+#define API_VERSION_MINOR 1
+
 nonstd::expected<std::unique_ptr<extensions::Extension>, std::string> extensions::parseMetadata(std::istream &data) {
     constexpr std::string_view magicString = "SE! EXTENSION";
 
@@ -25,6 +28,9 @@ nonstd::expected<std::unique_ptr<extensions::Extension>, std::string> extensions
     if (!data.read(&formatVersion, 1)) return nonstd::make_unexpected("Could not read 1 byte for file format version. File too short or I/O error.");
     if (!data.read(reinterpret_cast<char *>(&out->minApiVersion.major), 1)) return nonstd::make_unexpected("Could not read 1 byte for major API version. File too short or I/O error.");
     if (!data.read(reinterpret_cast<char *>(&out->minApiVersion.minor), 1)) return nonstd::make_unexpected("Could not read 1 byte for minor API version. File too short or I/O error.");
+
+    if (out->minApiVersion.major > API_VERSION_MAJOR) return nonstd::make_unexpected("Extension is made for a newer version of SE!");
+    if (out->minApiVersion.major == API_VERSION_MAJOR && out->minApiVersion.minor > API_VERSION_MINOR) return nonstd::make_unexpected("Extension is made for a newer version of SE!");
 
     // Core
     if (!data.read(reinterpret_cast<char *>(&out->core), 1)) return nonstd::make_unexpected("Could not read 1 byte for core flag. File too short or I/O error.");
