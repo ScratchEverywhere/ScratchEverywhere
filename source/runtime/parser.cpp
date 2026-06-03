@@ -751,18 +751,22 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         }
 
         if (!loadedExt) {
-            for (const auto &entry : std::filesystem::directory_iterator(folder)) { // TODO: Remove std::filesystem usage
-                if (!entry.is_regular_file()) continue;
+            auto files = FileSystem::listDirectory(folder);
+            if (files.has_value()) {
+                for (const auto &file : files.value()) {
+                    if (file.size() < 4) continue;
+                    if (file.compare(file.size() - 4, 4, ".see") != 0) continue;
 
-                in.open(entry.path(), std::ios::binary | std::ios::in);
-                auto result = extensions::parseMetadata(in);
+                    in.open(folder + file, std::ios::binary | std::ios::in);
+                    auto result = extensions::parseMetadata(in);
 
-                if (result.has_value() && result.value()->id == targetID) {
-                    loadedExt = std::move(result.value());
-                    break;
+                    if (result.has_value() && result.value()->id == targetID) {
+                        loadedExt = std::move(result.value());
+                        break;
+                    }
+                    in.close();
+                    in.clear();
                 }
-                in.close();
-                in.clear();
             }
         }
 

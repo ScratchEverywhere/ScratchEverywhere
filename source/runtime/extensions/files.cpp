@@ -3,7 +3,6 @@
 #include "log.hpp"
 #include "meta.hpp"
 #include "os.hpp"
-#include <filesystem>
 #include <fstream>
 
 namespace extensions::files {
@@ -142,17 +141,13 @@ struct FilesWrapper {
         sol::state_view luaState = s;
         sol::table luaTable = luaState.create_table();
 
-        unsigned int i = 0;
-        for (const auto &entry : std::filesystem::directory_iterator(fullPath)) {
-            i++;
-            if (entry.is_regular_file()) {
-                luaTable[i] = entry.path().filename().string();
-            } else {
-                luaTable[i] = entry.path().filename().string() + "/";
-            }
+        auto files = FileSystem::listDirectory(fullPath);
+        if (!files.has_value()) {
+            Log::logError("Error while reading directory, " + fullPath + ": " + files.error());
+            return sol::lua_nil;
         }
 
-        return luaTable;
+        return sol::make_object(luaState, files.value());
     }
 };
 

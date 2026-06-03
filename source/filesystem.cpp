@@ -119,3 +119,59 @@ std::string FileSystem::parentPath(const std::string &path) {
         return path.substr(0, pos);
     return "";
 }
+
+nonstd::expected<std::vector<std::string>, std::string> FileSystem::listDirectory(const std::string &path) {
+    std::vector<std::string> files;
+
+#if defined(_WIN32)
+    std::string searchPath = path;
+    if (searchPath.empty()) {
+        searchPath = ".";
+    }
+    if (searchPath.back() != '/' && searchPath.back() != '\\') {
+        searchPath += "/*";
+    } else {
+        searchPath += "*";
+    }
+
+    std::wstring wsearchPath(searchPath.size(), L' ');
+    wsearchPath.resize(std::mbstowcs(&wsearchPath[0], searchPath.c_str(), searchPath.size()));
+
+    WIN32_FIND_DATAW findData;
+    HANDLE hFind = FindFirstFileW(wsearchPath.c_str(), &findData);
+
+    if (hFind == INVALID_HANDLE_VALUE) {
+        return nonstd::make_unexpected("Failed to open directory, " + path + ", " + std::to_string(GetLastError()));
+    }
+
+    do {
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, NULL, 0, NULL, NULL);
+        std::string fileName(size_needed - 1, 0);
+        WideCharToMultiByte(CP_UTF8, 0, findData.cFileName, -1, &fileName[0], size_needed, NULL, NULL);
+
+        if (fileName != "." && fileName != "..") {
+            files.push_back(fileName);
+        }
+    } while (FindNextFileW(hFind, &findData) != 0);
+
+    FindClose(hFind);
+
+#else
+    DIR *dir = opendir(path.c_str());
+    if (dir == nullptr) {
+        return nonstd::make_unexpected("Failed to open directory, " + path + ", " + std::to_string(errno));
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        const std::string fileName = entry->d_name;
+        if (fileName != "." && fileName != "..") {
+            files.push_back(fileName);
+        }
+    }
+
+    closedir(dir);
+#endif
+
+    return files;
+}
