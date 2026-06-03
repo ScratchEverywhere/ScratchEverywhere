@@ -1,4 +1,3 @@
-#include "interface.hpp"
 #ifndef LIBRETRO
 #include "image.hpp"
 #include "translation.hpp"
