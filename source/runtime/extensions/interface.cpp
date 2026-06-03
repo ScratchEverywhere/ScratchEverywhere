@@ -2,6 +2,7 @@
 #include "blockExecutor.hpp"
 #include "color.hpp"
 #include "files.hpp"
+#include "input.hpp"
 #include "json.hpp"
 #include "log.hpp"
 #include "meta.hpp"
@@ -31,6 +32,7 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
     json::registerAPI(extension);
     files::registerAPI(extension);
     runtime::registerAPI(extension);
+    input::registerAPI(extension);
 
     // Extensions API
     if (extension->hasPermission(ExtensionPermission::EXTENSIONS)) {
