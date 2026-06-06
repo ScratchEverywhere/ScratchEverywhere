@@ -16,13 +16,38 @@ extern std::string customUsername;
 static bool g_inputActive = false;
 static std::string g_inputText = "";
 
+static constexpr uint32_t GLFW_GAMEPAD_KEYS[] = {
+    GLFW_GAMEPAD_BUTTON_DPAD_UP,
+    GLFW_GAMEPAD_BUTTON_DPAD_DOWN,
+    GLFW_GAMEPAD_BUTTON_DPAD_LEFT,
+    GLFW_GAMEPAD_BUTTON_DPAD_RIGHT,
+    GLFW_GAMEPAD_BUTTON_A,
+    GLFW_GAMEPAD_BUTTON_B,
+    GLFW_GAMEPAD_BUTTON_X,
+    GLFW_GAMEPAD_BUTTON_Y,
+    GLFW_GAMEPAD_BUTTON_LEFT_BUMPER,
+    GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER,
+    GLFW_GAMEPAD_BUTTON_START,
+    GLFW_GAMEPAD_BUTTON_BACK,
+    NULL, // Left Stick Up
+    NULL, // Left Stick Down
+    NULL, // Left Stick Left
+    NULL, // Left Stick Right
+    GLFW_GAMEPAD_BUTTON_LEFT_THUMB,
+    NULL, // Right Stick Up
+    NULL, // Right Stick Down
+    NULL, // Right Stick Left
+    NULL, // Right Stick Right
+    GLFW_GAMEPAD_BUTTON_RIGHT_THUMB,
+    NULL, // Left  Analog Trigger
+    NULL  // Right Analog Trigger
+}; 
+
 std::array<int, 2> Input::getTouchPosition() {
     double x, y;
     glfwGetCursorPos((GLFWwindow *)globalWindow->getHandle(), &x, &y);
 
     std::array<int, 2> pos = {(int)x, (int)y};
-    // pos[0] = (int)x;
-    // pos[1] = (int)y;
 
     return pos;
 }
@@ -71,8 +96,6 @@ void Input::getInput() {
     }
     for (int i = 0; i < 10; i++) {
         checkKey(GLFW_KEY_0 + i, std::to_string(i));
-    }
-    for (int i = 0; i < 10; i++) {
         checkKey(GLFW_KEY_KP_0 + i, std::to_string(i));
     }
     for (int i = 0; i < 25; i++) {
@@ -103,24 +126,17 @@ void Input::getInput() {
     if (glfwJoystickPresent(GLFW_JOYSTICK_1) && glfwJoystickIsGamepad(GLFW_JOYSTICK_1)) {
         GLFWgamepadstate state;
         if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_UP]) Input::buttonPress("dpadUp");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_DOWN]) Input::buttonPress("dpadDown");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_LEFT]) Input::buttonPress("dpadLeft");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_RIGHT]) Input::buttonPress("dpadRight");
+            size_t array_len = sizeof(GLFW_GAMEPAD_KEYS) / sizeof(GLFW_GAMEPAD_KEYS[0]);
+            for (size_t i = 0; i < array_len; i++) {
+                // Ignore Specific Keys
+                if (GLFW_GAMEPAD_KEYS[i] == NULL) {
+                    continue;
+                }
 
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_A]) Input::buttonPress("A");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_B]) Input::buttonPress("B");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_X]) Input::buttonPress("X");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_Y]) Input::buttonPress("Y");
-
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER]) Input::buttonPress("shoulderL");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER]) Input::buttonPress("shoulderR");
-
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_START]) Input::buttonPress("start");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_BACK]) Input::buttonPress("back");
-
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_LEFT_THUMB]) Input::buttonPress("LeftStickPressed");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_RIGHT_THUMB]) Input::buttonPress("RightStickPressed");
+                if (state.buttons[GLFW_GAMEPAD_KEYS[i]]) {
+                    Input::buttonPress(CONTROLLER_STRINGS[i]);
+                }
+            }
 
             if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_X] > 0.5f) Input::buttonPress("LeftStickRight");
             if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_X] < -0.5f) Input::buttonPress("LeftStickLeft");

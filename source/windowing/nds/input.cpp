@@ -71,16 +71,15 @@ void Input::getInput() {
         goto SkipInputCheck;
     }
 
-    {
-        inputButtons.push_back("any");
-        
-        for (size_t i = 0; i < KEY_AMOUNT; i++) {
-            u16 key_code = kHeld & NDS_KEYS[i];
+    
+    inputButtons.push_back("any");
+    
+    for (size_t i = 0; i < KEY_AMOUNT; i++) {
+        u16 key_code = kHeld & NDS_KEYS[i];
 
-            // Send Key Codes
-            if (key_code) {
-                Input::buttonPress(CONTROLLER_STRINGS[i]);
-            }
+        // Send Key Codes
+        if (key_code) {
+            Input::buttonPress(CONTROLLER_STRINGS[i]);
         }
     }
 

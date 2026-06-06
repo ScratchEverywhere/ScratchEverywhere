@@ -36,24 +36,24 @@ static constexpr u32 III_DS_KEYS[] = {
     KEY_CPAD_DOWN,
     KEY_CPAD_UP,
 
+    NULL, // L Stick Pressed
+
     // New 3DS Keys
     KEY_CSTICK_RIGHT,
     KEY_CSTICK_LEFT,
     KEY_CSTICK_DOWN,
     KEY_CSTICK_UP,
 
+    NULL, // R Stick Pressed
+
     KEY_ZL,
     KEY_ZR,
 };
 
-static int mouseHeldFrames = 0;
-static u16 oldTouchPx = 0;
-static u16 oldTouchPy = 0;
+static u8 mouseHeldFrames = 0;
 
-static float BOTTOM_SCR_CONVERSION = ((float)SCREEN_WIDTH / (float)BOTTOM_SCREEN_WIDTH);
-static float BOTH_SCR_CONVERSION_W = (BOTTOM_SCREEN_WIDTH / 2);
-
-// static float BOTH_SCR_CONVERSION_H = (SCREEN_HEIGHT) - SCREEN_HEIGHT;
+static constexpr float BOTTOM_SCR_CONVERSION = ((float)SCREEN_WIDTH / (float)BOTTOM_SCREEN_WIDTH);
+static constexpr float BOTH_SCR_CONVERSION_W = (BOTTOM_SCREEN_WIDTH / 2);
 
 static touchPosition touch;
 
@@ -91,7 +91,7 @@ void Input::getInput() {
     if (touchPos[0] != 0 || touchPos[1] != 0) {
         mouseHeldFrames += 1;
     } else {
-        if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames > 0 && mouseHeldFrames < 4)) {
+        if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames != 0 && mouseHeldFrames < 4)) {
             mousePointer.isPressed = true;
         }
         mouseHeldFrames = 0;
@@ -105,17 +105,6 @@ void Input::getInput() {
     {
         inputButtons.push_back("any");
 
-        // Creates The Unordered Map
-        u8 counter = 0;
-        std::unordered_map<u32, std::string> button_codes;
-        for (int i = 0; i < 24; i++) {
-            if (i == L_STICK_PRESSED || i == R_STICK_PRESSED) {
-                counter++;
-                continue;
-            }
-            button_codes[III_DS_KEYS[i - counter]] = CONTROLLER_STRINGS[i];
-        }
-
         // Check if System Is New Version Or Not
         size_t array_len = sizeof(III_DS_KEYS) / sizeof(III_DS_KEYS[0]);
 
@@ -125,16 +114,16 @@ void Input::getInput() {
         }
 
         for (size_t i = 0; i < array_len; i++) {
-            u32 key_code = kHeld & III_DS_KEYS[i];
-
-            // Check To See If Element Even Exists
-            if (!button_codes.count(III_DS_KEYS[i])) {
+            // Ignore L Stick & R Stick Pressed Events
+            if ((III_DS_KEYS[i]) == NULL) {
                 continue;
             }
 
+            u32 key_code = kHeld & III_DS_KEYS[i];
+
             // Send Key Codes
             if (key_code) {
-                Input::buttonPress(button_codes[key_code]);
+                Input::buttonPress(CONTROLLER_STRINGS[key_code]);
             }
         }
     }
@@ -172,11 +161,8 @@ void Input::getInput() {
     }
     //
 SkipInputCheck:
-    oldTouchPx = touchPos[0];
-    oldTouchPy = touchPos[1];
 
     BlockExecutor::executeKeyHats();
-
     BlockExecutor::doSpriteClicking();
 }
 
