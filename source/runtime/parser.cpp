@@ -10,6 +10,7 @@
 #include <render.hpp>
 #include <runtime.hpp>
 #include <settings.hpp>
+#include <unordered_map>
 #include <unzip.hpp>
 #if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
 #include <whb/sdcard.h>
@@ -103,6 +104,11 @@ void Parser::initMist() {
 }
 #endif
 
+std::unordered_map<std::string, std::string> &Parser::getShadowBlocks() {
+    static std::unordered_map<std::string, std::string> shadowBlocks;
+    return shadowBlocks;
+}
+
 void Parser::loadUsernameFromSettings() {
     Scratch::customUsername = "Player";
     Scratch::useCustomUsername = false;
@@ -136,7 +142,7 @@ void Parser::log(const std::string &message) {
 }
 
 void Parser::loadSprites(const nlohmann::json &json) {
-    Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in generall are enabled)
+    Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in general are enabled)
     Parser::log("Loading sprites:");
     const nlohmann::json &spritesData = json["targets"];
     int spriteAmount = spritesData.size();
@@ -627,6 +633,12 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
 
     std::string indentStr(indent, '\t');
 
+    const auto &removeBlock = [](Block *block) {
+        if (Scratch::blocks.back() == block) Scratch::blocks.pop_back();
+        else Scratch::blocks.erase(std::remove(Scratch::blocks.begin(), Scratch::blocks.end(), block), Scratch::blocks.end());
+        delete block;
+    };
+
     for (const auto &[inputName, data] : blockData["inputs"].items()) {
         int type = data[0];
         auto &inputValue = data[1];
@@ -648,7 +660,17 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
             } else {
                 if (!inputValue.is_null()) {
                     Parser::log(indentStr + "\t" + inputName + ":");
-                    block.inputs[inputName] = ParsedInput(loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2));
+                    Block *newBlock = loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
+
+                    // Check shadow block
+                    const auto &it = getShadowBlocks().find(newBlock->opcode);
+                    if (it != getShadowBlocks().end()) {
+                        block.inputs[inputName] = ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)));
+                        removeBlock(newBlock);
+                        continue;
+                    }
+
+                    block.inputs[inputName] = ParsedInput(newBlock);
                 }
             }
         } else if (type == 2 || type == 3) {
@@ -661,13 +683,19 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
                     Parser::log(indentStr + "\t" + inputName + ":");
                     Block *newBlock = loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
 
+                    // Check shadow block
+                    const auto &it = getShadowBlocks().find(newBlock->opcode);
+                    if (it != getShadowBlocks().end()) {
+                        block.inputs[inputName] = ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)));
+                        removeBlock(newBlock);
+                        continue;
+                    }
+
                     // Constant folding :)
 #define CHECK_NUM_CONSTANT_FOLDING(OPCODE, OPERATOR)                                                                                                                                 \
     if (newBlock->opcode == #OPCODE && newBlock->inputs["NUM1"].inputType == ParsedInput::InputType::VALUE && newBlock->inputs["NUM2"].inputType == ParsedInput::InputType::VALUE) { \
         block.inputs[inputName] = ParsedInput(newBlock->inputs["NUM1"].value OPERATOR newBlock->inputs["NUM2"].value);                                                               \
-        if (Scratch::blocks.back() == newBlock) Scratch::blocks.pop_back();                                                                                                          \
-        else Scratch::blocks.erase(std::remove(Scratch::blocks.begin(), Scratch::blocks.end(), newBlock), Scratch::blocks.end());                                                    \
-        delete newBlock;                                                                                                                                                             \
+        removeBlock(newBlock);                                                                                                                                                       \
         continue;                                                                                                                                                                    \
     }
 
