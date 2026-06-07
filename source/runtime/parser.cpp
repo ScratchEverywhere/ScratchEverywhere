@@ -777,7 +777,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
             }
         };
 
-        const std::string romFSPath = OS::getRomFSLocation() + targetID + ".see";
+        const std::string romFSPath = OS::getRomFSLocation() + "extensions/" + targetID + ".see";
         if (FileSystem::fileExists(romFSPath)) {
             tryPath(romFSPath);
         }
@@ -809,7 +809,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                 }
             };
 
-            scanDirectory(OS::getRomFSLocation());
+            scanDirectory(OS::getRomFSLocation() + "extensions");
             if (!loadedExt) {
                 scanDirectory(folder);
             }
