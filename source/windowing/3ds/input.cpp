@@ -2,6 +2,7 @@
 #include <3ds.h>
 #include <blockExecutor.hpp>
 #include <input.hpp>
+#include <log.hpp>
 #include <render.hpp>
 
 #define SCREEN_WIDTH 400
@@ -44,8 +45,8 @@ void Input::getInput() {
 
     circlePosition circlePos;
     hidCircleRead(&circlePos);
-    Input::leftJoystick.first = circlePos.dx / 32767.0f;
-    Input::leftJoystick.second = circlePos.dy / 32767.0f;
+    Input::leftJoystick.first = circlePos.dx / 160.0f;
+    Input::leftJoystick.second = circlePos.dy / 160.0f;
 
     u32 kDown = hidKeysHeld();
 
