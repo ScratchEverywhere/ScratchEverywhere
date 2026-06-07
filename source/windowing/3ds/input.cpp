@@ -48,6 +48,11 @@ void Input::getInput() {
     Input::leftJoystick.first = circlePos.dx / 160.0f;
     Input::leftJoystick.second = circlePos.dy / 160.0f;
 
+    circlePosition cstickPos;
+    irrstCstickRead(&cstickPos);
+    Input::rightJoystick.first = cstickPos.dx / 160.0f;
+    Input::rightJoystick.second = cstickPos.dy / 160.0f;
+
     u32 kDown = hidKeysHeld();
 
     hidTouchRead(&touch);
