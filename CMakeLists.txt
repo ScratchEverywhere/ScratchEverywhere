@@ -117,6 +117,11 @@ endif()
 
 cmake_dependent_option(SE_LOADSCREEN "Enables SE!'s load screen." ON "SE_MENU;SE_HAS_THREADS" OFF)
 
+if(SE_LUA_BACKEND_VALID_OPTIONS)
+	set(SE_ALLOW_CUSTOM_EXTENSIONS TRUE)
+else()
+	set(SE_ALLOW_CUSTOM_EXTENSIONS FALSE)
+endif()
 cmake_dependent_option(SE_CUSTOM_EXTENSIONS "Enables support for custom extensions." ON "SE_ALLOW_CUSTOM_EXTENSIONS" OFF)
 
 option(SE_SVG "Enable support for SVG images." ON)
