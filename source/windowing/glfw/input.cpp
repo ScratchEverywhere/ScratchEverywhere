@@ -24,7 +24,9 @@ std::vector<int> Input::getTouchPosition() {
 
 void Input::getInput() {
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = (glfwGetMouseButton((GLFWwindow *)globalWindow->getHandle(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+    mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
 
     std::vector<int> touchPos = getTouchPosition();
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
@@ -34,7 +36,7 @@ void Input::getInput() {
     // Handle keyboard keys
     auto checkKey = [&](int glfwKey, std::string scratchName) {
         if (glfwGetKey((GLFWwindow *)globalWindow->getHandle(), glfwKey) == GLFW_PRESS) {
-            inputButtons.push_back(scratchName);
+            inputKeys.push_back(scratchName);
         }
     };
 
@@ -129,11 +131,14 @@ void Input::getInput() {
 
             if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f) Input::buttonPress("LT");
             if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f) Input::buttonPress("RT");
+
+            Input::leftJoystick.first = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+            Input::leftJoystick.second = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
         }
     }
 
-    if (!inputButtons.empty()) {
-        inputButtons.push_back("any");
+    if (!inputKeys.empty()) {
+        inputKeys.push_back("any");
     }
 
     BlockExecutor::executeKeyHats();
