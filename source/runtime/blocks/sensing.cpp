@@ -140,7 +140,7 @@ SCRATCH_BLOCK(sensing, keypressed) {
     if (!Scratch::getInput(block, "KEY_OPTION", thread, sprite, keyOption)) return BlockResult::REPEAT;
     *outValue = Value(false);
 
-    for (std::string button : Input::inputButtons) {
+    for (std::string button : Input::inputKeys) {
         if (Input::convertToKey(keyOption) == button) {
             *outValue = Value(true);
             break;

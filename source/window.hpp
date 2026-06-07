@@ -15,6 +15,7 @@ class Window {
 
     virtual int getWidth() const = 0;
     virtual int getHeight() const = 0;
+    virtual float getPixelDensity() const = 0;
     virtual void *getHandle() = 0;
 };
 

@@ -17,11 +17,21 @@ class Input {
         size_t heldFrames;
         bool isPressed;
         bool isMoving;
+
+        enum {
+            LEFT,
+            MIDDLE,
+            RIGHT
+        } mouseButton;
     };
     static Mouse mousePointer;
     static Sprite *draggingSprite;
 
+    static std::pair<float, float> leftJoystick;
+    static std::pair<float, float> rightJoystick;
+
     static std::vector<std::string> inputButtons;
+    static std::vector<std::string> inputKeys;
     static std::map<std::string, std::string> inputControls;
     static std::vector<std::string> inputBuffer;
     static std::unordered_map<std::string, int> keyHeldDuration;

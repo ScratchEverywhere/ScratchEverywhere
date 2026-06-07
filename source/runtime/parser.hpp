@@ -3,7 +3,6 @@
 #include <sprite.hpp>
 
 struct Parser {
-
     static bool logParsing;
 
     static void loadUsernameFromSettings();

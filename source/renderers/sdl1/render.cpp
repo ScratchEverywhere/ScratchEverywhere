@@ -96,6 +96,10 @@ int Render::getHeight() {
     return 405;
 }
 
+float Render::getPixelDensity() {
+    return 1.0f;
+}
+
 bool Render::initPen() {
     if (penSurface != nullptr) return true;
 

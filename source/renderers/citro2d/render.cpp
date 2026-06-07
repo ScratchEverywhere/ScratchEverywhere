@@ -106,8 +106,13 @@ int Render::getWidth() {
         return screenWidth;
     else return bottomScreenWidth;
 }
+
 int Render::getHeight() {
     return screenHeight;
+}
+
+float Render::getPixelDensity() {
+    return 1.0f;
 }
 
 bool Render::initPen() {
@@ -302,9 +307,9 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::penClear() {
-    if (penRenderTarget == nullptr) return;
+    if (penRenderTarget == nullptr || OS::toExit) return;
     if (!hasFrameBegan) {
-        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
         hasFrameBegan = true;
     }
     C2D_TargetClear(penRenderTarget, C2D_Color32(0, 0, 0, 0));

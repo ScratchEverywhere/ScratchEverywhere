@@ -15,6 +15,10 @@
 #include <whb/sdcard.h>
 #endif
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/interface.hpp>
+#include <extensions/meta.hpp>
+#endif
 #ifdef ENABLE_NATIVE_EXTENSIONS
 #include <dlfcn.h>
 #endif
@@ -700,29 +704,90 @@ void Parser::loadFields(Block &block, const std::string &blockKey, const nlohman
     }
 }
 
+static constexpr std::array<std::string_view, 12> builtInExtensions = {"music", "pen", "videoSensing", "text2speech", "translate", "makeymakey", "microbit", "ev3", "boost", "wedo2", "goDirect", "coreExtensions"};
+
 bool Parser::loadExtensions(const nlohmann::json &json) {
-    bool hasExts = false;
-#ifdef ENABLE_NATIVE_EXTENSIONS
+    bool hasNativeExts = false;
+#if defined(ENABLE_NATIVE_EXTENSIONS) || defined(ENABLE_CUSTOM_EXTENSIONS)
+    const std::string folder = OS::getScratchFolderLocation() + "extensions/";
+
 #ifdef __APPLE__
     constexpr const char *libraryExtension = ".dylib";
 #else
     constexpr const char *libraryExtension = ".so";
 #endif
-    if (!json.contains("extensions")) return hasExts;
-    for (const std::string &extension : json["extensions"]) {
-        const std::string &path = OS::getScratchFolderLocation() + "extensions/" + extension + libraryExtension;
-        if (FileSystem::fileExists(path)) {
-            void *extensionHandle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+    if (!json.contains("extensions")) return false;
+    for (const std::string &targetID : json["extensions"]) {
+        if (std::find(builtInExtensions.begin(), builtInExtensions.end(), targetID) != builtInExtensions.end()) continue;
+
+#ifdef ENABLE_NATIVE_EXTENSIONS
+        const std::string &nativePath = folder + targetID + libraryExtension;
+        if (FileSystem::fileExists(nativePath)) {
+            void *extensionHandle = dlopen(nativePath.c_str(), RTLD_NOW | RTLD_GLOBAL);
             if (!extensionHandle) {
-                Log::logError("Failed to load native extension, '" + extension + "', dlerror: " + dlerror());
+                Log::logError("Failed to load native extension, '" + targetID + "', dlerror: " + dlerror());
             } else {
-                Log::log("Loaded extension: " + path);
-                hasExts = true;
+                Log::log("Loaded native extension: " + targetID);
+                hasNativeExts = true;
             }
-        } else Log::logWarning("Couldn't find native extension: " + path);
-    }
+            continue;
+        }
 #endif
-    return hasExts;
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+        const std::string luaPath = folder + targetID + ".see";
+
+        std::unique_ptr<extensions::Extension> loadedExt = nullptr;
+        std::ifstream in;
+
+        if (FileSystem::fileExists(luaPath)) {
+            in.open(luaPath, std::ios::binary | std::ios::in);
+            auto result = extensions::parseMetadata(in);
+            if (result.has_value() && result.value()->id == targetID) {
+                loadedExt = std::move(result.value());
+            } else {
+                if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+                in.close();
+                in.clear();
+            }
+        }
+
+        if (!loadedExt) {
+            auto files = FileSystem::listDirectory(folder);
+            if (files.has_value()) {
+                for (const auto &file : files.value()) {
+                    if (file.size() < 4) continue;
+                    if (file.compare(file.size() - 4, 4, ".see") != 0) continue;
+
+                    in.open(folder + file, std::ios::binary | std::ios::in);
+                    auto result = extensions::parseMetadata(in);
+
+                    if (result.has_value() && result.value()->id == targetID) {
+                        loadedExt = std::move(result.value());
+                        break;
+                    }
+                    if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+                    in.close();
+                    in.clear();
+                }
+            }
+        }
+
+        if (loadedExt) {
+            extensions::loadLua(loadedExt.get(), in);
+            Scratch::extensions.push_back(std::move(loadedExt));
+            in.close();
+            continue;
+        }
+
+        Log::logError("Failed to find extension: " + targetID);
+#endif
+    }
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    extensions::registerHandlers();
+#endif
+#endif
+    return hasNativeExts;
 }
 
 Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {

@@ -126,6 +126,10 @@ int WindowSDL1::getHeight() const {
     return height;
 }
 
+float WindowSDL1::getPixelDensity() const {
+    return 1.0f;
+}
+
 void *WindowSDL1::getHandle() {
     return window;
 }
