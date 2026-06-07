@@ -762,13 +762,11 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         }
 #endif
 #ifdef ENABLE_CUSTOM_EXTENSIONS
-        const std::string luaPath = folder + targetID + ".see";
-
         std::unique_ptr<extensions::Extension> loadedExt = nullptr;
         std::ifstream in;
 
-        if (FileSystem::fileExists(luaPath)) {
-            in.open(luaPath, std::ios::binary | std::ios::in);
+        const auto &tryPath = [&](std::string path) {
+            in.open(path, std::ios::binary | std::ios::in);
             auto result = extensions::parseMetadata(in);
             if (result.has_value() && result.value()->id == targetID) {
                 loadedExt = std::move(result.value());
@@ -777,26 +775,43 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                 in.close();
                 in.clear();
             }
+        };
+
+        const std::string romFSPath = OS::getRomFSLocation() + targetID + ".see";
+        if (FileSystem::fileExists(romFSPath)) {
+            tryPath(romFSPath);
+        }
+
+        const std::string luaPath = folder + targetID + ".see";
+        if (FileSystem::fileExists(luaPath) && !loadedExt) {
+            tryPath(luaPath);
         }
 
         if (!loadedExt) {
-            auto files = FileSystem::listDirectory(folder);
-            if (files.has_value()) {
-                for (const auto &file : files.value()) {
-                    if (file.size() < 4) continue;
-                    if (file.compare(file.size() - 4, 4, ".see") != 0) continue;
+            const auto &scanDirectory = [&](std::string path) {
+                auto files = FileSystem::listDirectory(path);
+                if (files.has_value()) {
+                    for (const auto &file : files.value()) {
+                        if (file.size() < 4) continue;
+                        if (file.compare(file.size() - 4, 4, ".see") != 0) continue;
 
-                    in.open(folder + file, std::ios::binary | std::ios::in);
-                    auto result = extensions::parseMetadata(in);
+                        in.open(folder + file, std::ios::binary | std::ios::in);
+                        auto result = extensions::parseMetadata(in);
 
-                    if (result.has_value() && result.value()->id == targetID) {
-                        loadedExt = std::move(result.value());
-                        break;
+                        if (result.has_value() && result.value()->id == targetID) {
+                            loadedExt = std::move(result.value());
+                            break;
+                        }
+                        if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+                        in.close();
+                        in.clear();
                     }
-                    if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
-                    in.close();
-                    in.clear();
                 }
+            };
+
+            scanDirectory(OS::getRomFSLocation());
+            if (!loadedExt) {
+                scanDirectory(folder);
             }
         }
 
