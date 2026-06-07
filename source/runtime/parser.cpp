@@ -745,6 +745,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
             if (result.has_value() && result.value()->id == targetID) {
                 loadedExt = std::move(result.value());
             } else {
+                if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
                 in.close();
                 in.clear();
             }
@@ -764,6 +765,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                         loadedExt = std::move(result.value());
                         break;
                     }
+                    if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
                     in.close();
                     in.clear();
                 }

@@ -165,12 +165,12 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
         &readData);
 
     if (!loadResult.valid()) {
-        Log::logError("Failed to load lua bytecode for '" + extension->id + "': " + static_cast<sol::error>(loadResult).what());
+        Log::logError("Failed to load lua for '" + extension->id + "': " + static_cast<sol::error>(loadResult).what());
         return;
     }
 
     sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
-    if (!result.valid()) Log::logError("Error while running lua bytecode for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+    if (!result.valid()) Log::logError("Error while running lua for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
 }
 
 Value extensions::objectToValue(sol::object object) {
