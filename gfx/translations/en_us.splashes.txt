@@ -159,7 +159,7 @@ SE hot Xtra BOLITAS :speaking_head::speaking_head::speaking_head:
 elaborado con maíz:speaking_head::mango::mango:
 Pe causa
 Be careful not to throw your controller at the TV
-{text user} will return in avengers doomsday
+{UserName} will return in avengers doomsday
 Please don't watch any green lantern movies
 41 the most mysterious number of all
 mango mango mango :speaking_head: :mango::mango:
@@ -191,7 +191,7 @@ If the Xbox 360 exists, where are the other 359
 Why is the 2nd oxxo box always closed?
 Ñ
 Did you ever eat the Chinese story? Well, Scratch everywhere is authentic
-Since when did {test user} become cute?
+Since when did {UserName} become cute?
 ç
 台湾是一个国家
 La pizza con l'ananas è buona
@@ -200,7 +200,7 @@ The ds and dsi version is a technological miracle
 Please deposit 5 fave coins
 Please don't play Sonic 2006
 voligoma papel, como pega, papel con papel
-{text user} Where did you meet Scratch?
+{UserName} Where did you meet Scratch?
 Someday some Sega console will have Scratch everywhere?
 but can it run hopper heroes?
 try to run doom inside Scratch!
@@ -211,9 +211,9 @@ How many chances are there that Rob is a Chinese robot?
 It's fine
 What a save
 Hello there
-{text user} How many consoles do you have?
+{UserName} how many consoles do you have?
 Try Tinkercad
-{text user} Did you ever reach the Farlands from scratch?
+{UserName} Did you ever reach the Farlands from scratch?
 Getting closer and closer to perfection
 He hid for 30 years
 An iq too high Garmin?
@@ -231,3 +231,4 @@ Osasuna nunca se rinde
 Napoleon is taller than you think
 There is no more creative person than {text user}
 Have you found a Neymar figurine yet? 
+Nate should be more famous than Tim Payne
