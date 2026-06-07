@@ -136,8 +136,10 @@ bool SoundStream::loadFromBuffer() {
 nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cached, bool on_disk) {
 #ifdef ENABLE_AUDIO
     std::string prefix = "";
-    if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation() + "project/";
+    if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
+
+    if (!Unzip::filePath.empty()) prefix += "project/";
 
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
