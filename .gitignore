@@ -100,6 +100,7 @@ CMakeSettings.json
 .gradle/
 .idea/
 .cxx/
+.cpm_cache/
 *.keystore
 local.properties
 android/app/src/main/assets/
