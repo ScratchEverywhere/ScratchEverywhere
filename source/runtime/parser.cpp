@@ -851,6 +851,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                 extensions::loadLua(loadedExt.get(), in);
             Scratch::extensions.push_back(std::move(loadedExt));
             in.close();
+            Log::log("Successfully loaded Lua extension: " + targetID);
             continue;
         }
 
