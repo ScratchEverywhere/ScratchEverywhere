@@ -79,38 +79,3 @@ jobs:
         with:
           name: Scratch Everywhere! Android x86 Nightly
           path: scratch-android_x86.apk
-  android-universal:
-    name: Android Universal (Release)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Decode Keystore
-        run: |
-          echo ${{ secrets.ANDROID_KEYSTORE_B64 }} | base64 -d > release.keystore
-
-      - name: Build and Export
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile.android
-          target: exporter
-          outputs: type=local,dest=.
-          build-args: |
-            BUILD_TYPE=release
-            KEYSTORE_PATH=release.keystore
-          secrets: |
-            KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-            KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
-            KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
-
-      - name: Upload Artifact
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Scratch Everywhere! Android Universal
-          path: scratch-android.apk

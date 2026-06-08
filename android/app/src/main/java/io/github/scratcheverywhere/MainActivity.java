@@ -11,7 +11,6 @@ public class MainActivity extends SDLActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		requestWritePermission();
 		FreeDroidWarn.showWarningOnUpgrade(this, BuildConfig.VERSION_CODE);
 	}
 
