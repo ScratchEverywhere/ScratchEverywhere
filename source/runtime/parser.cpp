@@ -6,6 +6,7 @@
 #include <limits>
 #include <log.hpp>
 #include <math.hpp>
+#include <memory>
 #include <os.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
@@ -785,15 +786,19 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
 
         const std::string romFSPath = OS::getRomFSLocation() + "extensions/" + targetID + ".see";
 #ifdef USE_CMAKERC
+        bool fromCmrc = false;
+
         const auto &fs = cmrc::romfs::get_filesystem();
 
+        std::unique_ptr<std::istringstream> romfsStream = nullptr;
         if (fs.exists(romFSPath)) {
             const auto &romfsIn = fs.open(romFSPath);
-            std::istringstream romfsStream(std::string(romfsIn.begin(), romfsIn.end()));
+            romfsStream = std::make_unique<std::istringstream>(std::string(romfsIn.begin(), romfsIn.end()));
 
-            auto result = extensions::parseMetadata(romfsStream);
+            auto result = extensions::parseMetadata(*romfsStream);
             if (result.has_value() && result.value()->id == targetID) {
                 loadedExt = std::move(result.value());
+                fromCmrc = true;
             } else if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
         }
 #else
@@ -838,7 +843,12 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         }
 
         if (loadedExt) {
-            extensions::loadLua(loadedExt.get(), in);
+#ifdef USE_CMAKERC
+            if (fromCmrc) {
+                extensions::loadLua(loadedExt.get(), *romfsStream);
+            } else
+#endif
+                extensions::loadLua(loadedExt.get(), in);
             Scratch::extensions.push_back(std::move(loadedExt));
             in.close();
             continue;
