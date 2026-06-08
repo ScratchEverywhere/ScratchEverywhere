@@ -24,6 +24,12 @@
 #include <dlfcn.h>
 #endif
 
+#ifdef USE_CMAKERC
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
+#endif
+
 #ifdef ENABLE_CLOUDVARS
 #include <fstream>
 #include <mist/mist.hpp>
@@ -778,9 +784,23 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         };
 
         const std::string romFSPath = OS::getRomFSLocation() + "extensions/" + targetID + ".see";
+#ifdef USE_CMAKERC
+        const auto &fs = cmrc::romfs::get_filesystem();
+
+        if (fs.exists(romFSPath)) {
+            const auto &romfsIn = fs.open(romFSPath);
+            std::istringstream romfsStream(std::string(romfsIn.begin(), romfsIn.end()));
+
+            auto result = extensions::parseMetadata(romfsStream);
+            if (result.has_value() && result.value()->id == targetID) {
+                loadedExt = std::move(result.value());
+            } else if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+        }
+#else
         if (FileSystem::fileExists(romFSPath)) {
             tryPath(romFSPath);
         }
+#endif
 
         const std::string luaPath = folder + targetID + ".see";
         if (FileSystem::fileExists(luaPath) && !loadedExt) {
@@ -809,7 +829,9 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                 }
             };
 
+#if !defined(USE_CMAKERC) // I'm lazy, someone else can add this in the future.
             scanDirectory(OS::getRomFSLocation() + "extensions");
+#endif
             if (!loadedExt) {
                 scanDirectory(folder);
             }
