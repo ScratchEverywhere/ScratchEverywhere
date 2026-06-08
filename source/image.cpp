@@ -67,7 +67,7 @@ bool Image::loadFont(const std::string &family) {
     SDL_RWops *rw = SDL_RWFromFile((OS::getRomFSLocation() + path + ".ttf").c_str(), "rb");
     if (!rw) return false;
 
-    Sint64 size = SDL_RWsize(rw);
+    int64_t size = SDL_RWsize(rw);
     void *file = malloc(size);
 
     if (SDL_RWread(rw, file, 1, size) != size) {

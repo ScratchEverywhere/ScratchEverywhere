@@ -31,6 +31,7 @@
 #endif
 
 #if __ANDROID__
+#include <SDL_rwops.h>
 #include <sstream>
 #endif
 
@@ -269,27 +270,24 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
     memset(&archive, 0, sizeof(archive));
     bool initSuccess = false;
 
-#if defined(USE_CMAKERC)
     if (Scratch::projectType == ProjectType::EMBEDDED) {
+#if defined(USE_CMAKERC)
         const auto &fs = cmrc::romfs::get_filesystem();
         const auto &romfsFile = fs.open(Unzip::filePath);
         initSuccess = mz_zip_reader_init_mem(&archive, romfsFile.begin(), romfsFile.size(), 0);
-    } else {
 #elif defined(__ANDROID__)
-    if (Scratch::projectType == ProjectType::EMBEDDED) {
         SDL_RWops *rw = SDL_RWFromFile(Unzip::filePath.c_str(), "rb");
-        Sint64 size = SDL_RWsize(rw);
-        std::vector<char> buffer(size + 1);
+        int64_t size = SDL_RWsize(rw);
+        std::vector<char> buffer(size);
 
         SDL_RWread(rw, buffer.data(), 1, size);
         SDL_RWclose(rw);
         initSuccess = mz_zip_reader_init_mem(&archive, buffer.data(), size, 0);
+#endif
     } else {
-#endif
         initSuccess = mz_zip_reader_init_file(&archive, Unzip::filePath.c_str(), 0);
-#if defined(USE_CMAKERC) || defined(__ANDROID__)
     }
-#endif
+
     if (!initSuccess) {
         Log::logWarning("Failed to open SB3 archive: " + Unzip::filePath);
         return nullptr;
