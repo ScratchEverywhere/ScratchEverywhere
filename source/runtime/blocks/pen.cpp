@@ -1,5 +1,6 @@
 #include "blockUtils.hpp"
 #include <image.hpp>
+#include <log.hpp>
 #include <render.hpp>
 
 constexpr unsigned int minPenSize = 1;
@@ -55,7 +56,7 @@ SCRATCH_BLOCK(pen, setPenColorParamTo) {
         return BlockResult::CONTINUE;
     }
 
-    Log::log("Unknown pen option!");
+    Log::log("[Pen] Unknown pen option: " + option);
 
     return BlockResult::CONTINUE;
 }
@@ -92,7 +93,7 @@ SCRATCH_BLOCK(pen, changePenColorParamBy) {
         else if (sprite->penData.color.transparency > 100) sprite->penData.color.transparency = 100;
         return BlockResult::CONTINUE;
     }
-    Log::log("Unknown pen option!");
+    Log::log("[Pen] Unknown pen option: " + option);
 
     return BlockResult::CONTINUE;
 }

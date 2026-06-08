@@ -1,8 +1,9 @@
-set(SE_DEFAULT_OUTPUT_NAME "scratch-everywhere")
+set(SE_DEFAULT_OUTPUT_NAME "scratch-pc")
 
 set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2" "sdl3" "opengl")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "source" "fallback" "system")
+set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51" "luajit")
 
 set(SE_CACHING_DEFAULT ON)
 set(SE_CMAKERC_DEFAULT ON)
@@ -10,6 +11,7 @@ set(SE_CMAKERC_DEFAULT ON)
 set(SE_ALLOW_CMAKERC ON)
 set(SE_ALLOW_CLOUDVARS ON)
 set(SE_ALLOW_DOWNLOAD ON)
+set(SE_DECTALK ON)
 
 set(SE_PLATFORM_DEFINITIONS "__PC__")
 set(SE_PLATFORM "pc")

@@ -2,6 +2,7 @@
 #include "runtime.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <sprite.hpp>
 #include <unzip.hpp>
@@ -43,7 +44,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
             else
                 strm = new SoundStream(Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, state->name);
             if (strm->error.has_value()) {
-                Log::logError(strm->error.value());
+                Log::logError("[Sound] " + strm->error.value());
                 delete strm;
             }
         }
@@ -101,7 +102,7 @@ SCRATCH_BLOCK(sound, play) {
         else
             strm = new SoundStream(Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, soundFullName);
         if (strm->error.has_value()) {
-            Log::logError(strm->error.value());
+            Log::logError("[Sound] " + strm->error.value());
             delete strm;
             return BlockResult::CONTINUE;
         }

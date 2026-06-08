@@ -49,7 +49,6 @@ Web port by Grady Link!
 PS Vita port by Dogo6647!
 webOS port by Dogo6647!
 PS4 port by PwLDev!
-Android port by PwLDev!
 SDL1 port by Leap!
 OpenGL port by Leap!
 libretro port by Nishi!
@@ -58,11 +57,10 @@ Since 2025!
 C++!
 devkitPro!
 vitasdk!
-OpenOrbis!
 SDL!
 It works! (most of the time...)
 Woah.
-Are wii gonna have a problem?
+Are Wii having a domestic?
 Beta!
 Deja vu!
 Let's play, {UserName}!
@@ -72,7 +70,7 @@ Woo, softwaregore!
 Woo, fockerdile- I mean dockerfile!
 As seen on YouTube!
 PolyMars approved!
-May contain nuts!
+Allergy advice: May contain nuts.
 What do you expect?
 (Exclamation mark required!)
 Hey, {UserName}!
@@ -101,7 +99,7 @@ It can run anything!
 Anything!
 What's the moon doing?
 What's Itchy doing?
-What is {Username} doing?
+What is {UserName} doing?
 What's your {PlatformName} doing?
 What are you doing?
 Many commits and counting!

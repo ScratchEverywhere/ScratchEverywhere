@@ -6,6 +6,7 @@
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
 #include "sprite.hpp"
+#include "translation.hpp"
 #include "unzip.hpp"
 #include <audio.hpp>
 #include <cmath>
@@ -14,7 +15,9 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
+#include <log.hpp>
 #include <math.h>
+#include <memory>
 #include <os.hpp>
 #include <render.hpp>
 #include <set>
@@ -35,6 +38,18 @@
 #include <emscripten.h>
 #endif
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/interface.hpp>
+#include <extensions/meta.hpp>
+
+std::vector<std::unique_ptr<extensions::Extension>> Scratch::extensions;
+#endif
+
+#if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
+#define DT_EXTERN
+#include <epsonapi.h>
+#endif
+
 std::vector<Block *> Scratch::blocks;
 std::vector<Sprite *> Scratch::sprites;
 Sprite *Scratch::stageSprite;
@@ -46,6 +61,8 @@ std::vector<ScriptThread *> Pools::threads;
 BlockExecutor executor;
 
 bool Scratch::hasNativeExtensions = false;
+
+float Scratch::tempo = 60;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -81,6 +98,27 @@ std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
+bool Scratch::initializeRuntime() {
+    if (!OS::init()) {
+        return false;
+    }
+    Log::deleteLogFile();
+    TranslationManager::loadLanguage();
+    if (!Render::Init()) {
+        return false;
+    }
+#ifdef ENABLE_AUDIO
+#ifdef ENABLE_DECTALK
+    TextToSpeechSafeInit();
+#endif
+    if (!SoundPlayer::init()) {
+        Log::logError("Failed to initialize audio.");
+        return false;
+    }
+#endif
+    return true;
+}
+
 void Scratch::initializeScratchProject() {
     Parser::loadUsernameFromSettings();
 #ifdef ENABLE_CLOUDVARS
@@ -96,6 +134,8 @@ void Scratch::initializeScratchProject() {
         BlockExecutor::linkPointers(sprite);
     }
 #endif
+
+    Scratch::tempo = 60;
 
 #ifdef RENDERER_CITRO2D
     // Render first before running any blocks, otherwise 3DS rendering may get weird
@@ -145,8 +185,16 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Timer scriptTimer(false);
         if (debugVars) scriptTimer.start();
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+        extensions::runUpdateFunctions(extensions::PRE_UPDATE);
+#endif
+
         if (checkFPS) Input::getInput();
         BlockExecutor::runThreads();
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+        extensions::runUpdateFunctions(extensions::POST_UPDATE);
+#endif
 
 #ifdef ENABLE_INSPECTOR
         Inspector::processCommands();
@@ -163,10 +211,18 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             speechManager->update();
         }
         if (checkFPS) {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+            extensions::runUpdateFunctions(extensions::PRE_RENDER);
+#endif
+
             Render::renderSprites();
             Scratch::flushCostumeImages();
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+            extensions::runUpdateFunctions(extensions::POST_RENDER);
+#endif
         }
 #ifdef ENABLE_MENU
 #ifdef __ANDROID__
@@ -205,7 +261,7 @@ bool Scratch::startScratchProject() {
 #ifdef ENABLE_MENU
 
     if (hasNativeExtensions) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, "Warning! This project contains Native Extensions. Native Extensions have full access to your device.");
+        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
         MenuManager::changeMenu(popupMenu);
         while (Render::appShouldRun() && popupMenu->accepted == -1) {
             MenuManager::render();
@@ -236,6 +292,10 @@ bool Scratch::startScratchProject() {
 }
 
 void Scratch::cleanupScratchProject() {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    extensions::cleanup();
+#endif
+
     Scratch::cleanupSprites();
     costumeImages.clear();
     Mixer::cleanupAudio();
@@ -260,6 +320,13 @@ void Scratch::cleanupScratchProject() {
     DownloadManager::deinit();
 
     // Reset Runtime
+
+    for (auto thread : BlockExecutor::threads) {
+        thread->clear();
+        Pools::threads.push_back(thread);
+    }
+    BlockExecutor::threads.clear();
+
     std::unordered_set<BlockState *> deletedStates;
     std::unordered_set<ScriptThread *> deletedThreads;
 
@@ -335,9 +402,13 @@ bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread
         input.calculated = true;
 #ifdef ENABLE_CACHING
         if (input.variable != nullptr) input.value = input.variable->value;
-        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        else {
+            if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
+            else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        }
 #else
-        input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
+        if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
+        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
 #endif
         outValue = input.value;
         return true;
@@ -629,6 +700,8 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             freeUnusedCostumeImages();
             failedImages.insert(costumeName);
         }
+        sprite->spriteWidth = 0;
+        sprite->spriteHeight = 0;
     };
 
     float scale = (sprite->size / 100);
@@ -708,7 +781,7 @@ std::string Scratch::getListName(Block &block) {
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
     std::string listId = Scratch::getFieldId(block, "LIST");
     Sprite *targetSprite = nullptr;
-    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
+    if (sprite != nullptr && sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
     if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite;
     if (!targetSprite) {
         for (const auto &[id, list] : stageSprite->lists) {
@@ -718,15 +791,24 @@ std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
                 break;
             }
         }
-        for (const auto &[id, list] : sprite->lists) {
-            if (list.name == getListName(block)) {
-                listId = list.id;
-                targetSprite = sprite;
-                break;
+        if (sprite != nullptr) {
+            for (const auto &[id, list] : sprite->lists) {
+                if (list.name == getListName(block)) {
+                    listId = list.id;
+                    targetSprite = sprite;
+                    break;
+                }
             }
         }
     }
-    if (!targetSprite) return nullptr; // TODO: Implement list creation
+    if (!targetSprite && sprite) {
+        List newList;
+        newList.id = listId;
+        newList.name = getListName(block);
+        newList.items = {};
+        sprite->lists[listId] = newList;
+        targetSprite = sprite;
+    }
     return &targetSprite->lists[listId].items;
 }
 

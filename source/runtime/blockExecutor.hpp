@@ -94,6 +94,14 @@ class BlockExecutor {
     static Value getVariableValue(const std::string &variableId, Sprite *sprite);
 
     /**
+     * Gets the Value of the specified Scratch list.
+     * @param listId ID of the list to find
+     * @param sprite Pointer to the sprite the list is inside. If the list is global, it would be in the Stage Sprite.
+     * @return The Value of the List.
+     */
+    static Value getListValue(const std::string &listId, Sprite *sprite);
+
+    /**
      * Updates the values of all visible Monitors.
      */
     static void updateMonitors(ScriptThread *thread);

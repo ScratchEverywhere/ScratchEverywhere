@@ -1,7 +1,8 @@
 #include "audio.hpp"
 #include "audiostack.hpp"
 #include "os.hpp"
-#include <SDL2/SDL.h>
+#include <SDL.h>
+#include <log.hpp>
 #include <vector>
 
 static SDL_AudioDeviceID device;

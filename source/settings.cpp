@@ -1,23 +1,25 @@
 #include "settings.hpp"
-#include "os.hpp"
+#include <filesystem.hpp>
 #include <fstream>
+#include <log.hpp>
+#include <os.hpp>
 
 void SettingsManager::migrate() {
-    auto potentialError = OS::createDirectory(OS::getConfigFolderLocation());
+    auto potentialError = FileSystem::createDirectory(OS::getConfigFolderLocation());
     if (!potentialError.has_value()) {
         Log::logError("Could not make config directory: " + potentialError.error());
         return;
     }
 
-    if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation() && OS::fileExists(OS::getScratchFolderLocation() + "Settings.json")) {
-        OS::renameFile(OS::getScratchFolderLocation() + "Settings.json", OS::getConfigFolderLocation() + "Settings.json");
+    if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation() && FileSystem::fileExists(OS::getScratchFolderLocation() + "Settings.json")) {
+        FileSystem::renameFile(OS::getScratchFolderLocation() + "Settings.json", OS::getConfigFolderLocation() + "Settings.json");
     }
 }
 
 nlohmann::json SettingsManager::getConfigSettings() {
     migrate();
 
-    nlohmann::json json;
+    nlohmann::json json = nlohmann::json::object();
 
     std::ifstream file(OS::getConfigFolderLocation() + "Settings.json");
     if (!file.good()) {
@@ -37,16 +39,20 @@ void SettingsManager::saveConfigSettings(const nlohmann::json &json) {
 }
 
 nlohmann::json SettingsManager::getProjectSettings(const std::string &projectName) {
-    nlohmann::json json;
+    nlohmann::json json = nlohmann::json::object();
 
     std::ifstream file(OS::getScratchFolderLocation() + projectName + ".sb3.json");
     if (!file.good()) {
         Log::logWarning("Failed to open project config file: " + OS::getScratchFolderLocation() + projectName + ".sb3.json");
+        if (!json.contains("settings")) json["settings"] = nlohmann::json::object();
         return json;
     }
 
     file >> json;
     file.close();
+
+    if (!json.is_object()) json = nlohmann::json::object();
+    if (!json.contains("settings")) json["settings"] = nlohmann::json::object();
     return json;
 }
 

@@ -1,6 +1,7 @@
 #include "window.hpp"
 #include <chrono>
 #include <input.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <thread>
@@ -8,11 +9,6 @@
 #include <renderers/opengl/render.hpp>
 #else
 #include <renderers/sdl1/render.hpp>
-#endif
-
-#ifdef __OGC__
-#include <fat.h>
-#include <ogc/system.h>
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -25,17 +21,6 @@ static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-lik
 #endif
 
 bool WindowSDL1::init(int width, int height, const std::string &title) {
-#ifdef __OGC__
-#ifdef GAMECUBE
-    if ((SYS_GetConsoleType() & SYS_CONSOLE_MASK) == SYS_CONSOLE_DEVELOPMENT) {
-        CON_EnableBarnacle(EXI_CHANNEL_0, EXI_DEVICE_1);
-    }
-    CON_EnableGecko(EXI_CHANNEL_1, true);
-#else
-    SYS_STDIO_Report(true);
-#endif
-#endif
-
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
         Log::logError("Failed to initialize SDL1");
         return false;
@@ -139,6 +124,10 @@ int WindowSDL1::getWidth() const {
 
 int WindowSDL1::getHeight() const {
     return height;
+}
+
+float WindowSDL1::getPixelDensity() const {
+    return 1.0f;
 }
 
 void *WindowSDL1::getHandle() {

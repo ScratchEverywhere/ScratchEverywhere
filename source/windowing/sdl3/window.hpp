@@ -14,6 +14,7 @@ class WindowSDL3 : public Window {
 
     int getWidth() const override;
     int getHeight() const override;
+    float getPixelDensity() const override;
     void *getHandle() override;
 
   private:
@@ -21,5 +22,6 @@ class WindowSDL3 : public Window {
     SDL_GLContext context = nullptr;
     int width = 0;
     int height = 0;
+    float pixelDensity = 1.0f;
     bool shouldCloseFlag = false;
 };

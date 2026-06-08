@@ -23,8 +23,8 @@ void Image_SDL3::render(ImageRenderParams &params) {
     SDL_FlipMode flip = params.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE;
 
     SDL_FRect renderRect;
-    renderRect.w = static_cast<int>(imgData.width / imgData.scale * scale);
-    renderRect.h = static_cast<int>(imgData.height / imgData.scale * scale);
+    renderRect.w = imgData.width / imgData.scale * scale;
+    renderRect.h = imgData.height / imgData.scale * scale;
 
     SDL_FRect subRect;
     if (params.subrect != nullptr) {

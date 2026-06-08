@@ -1,5 +1,7 @@
 #include "blockUtils.hpp"
 #include "unzip.hpp"
+#include <filesystem.hpp>
+#include <log.hpp>
 
 SCRATCH_BLOCK(sceneManager, receivedData) {
     *outValue = Scratch::dataNextProject;
@@ -10,7 +12,7 @@ SCRATCH_BLOCK(sceneManager, openSB3) {
     Value arg0;
     if (!Scratch::getInput(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
 
-    Log::log("Open next Project with Block");
+    Log::log("[SceneManager] Open next Project with Block");
     Scratch::nextProject = true;
     Unzip::filePath = arg0.asString();
     if (Unzip::filePath.rfind("sd:", 0) == 0) {
@@ -26,7 +28,7 @@ SCRATCH_BLOCK(sceneManager, openSB3) {
     if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
         Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
     }
-    if (!OS::fileExists(Unzip::filePath + "/project.json"))
+    if (!FileSystem::fileExists(Unzip::filePath + "/project.json"))
         Unzip::filePath = Unzip::filePath + ".sb3";
 
     Scratch::dataNextProject = Value();
@@ -39,7 +41,7 @@ SCRATCH_BLOCK(sceneManager, openSB3withData) {
     if (!Scratch::getInput(block, "arg0", thread, sprite, arg0) ||
         !Scratch::getInput(block, "arg1", thread, sprite, arg1)) return BlockResult::REPEAT;
 
-    Log::log("Open next Project with Block and data");
+    Log::log("[SceneManager] Open next Project with Block and data");
     Scratch::nextProject = true;
     Unzip::filePath = arg0.asString();
     if (Unzip::filePath.rfind("sd:", 0) == 0) {
@@ -54,7 +56,7 @@ SCRATCH_BLOCK(sceneManager, openSB3withData) {
     if (Unzip::filePath.size() >= 1 && Unzip::filePath.back() == '/') {
         Unzip::filePath = Unzip::filePath.substr(0, Unzip::filePath.size() - 1);
     }
-    if (!OS::fileExists(Unzip::filePath + "/project.json"))
+    if (!FileSystem::fileExists(Unzip::filePath + "/project.json"))
         Unzip::filePath = Unzip::filePath + ".sb3";
 
     Scratch::dataNextProject = arg1;

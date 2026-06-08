@@ -1,9 +1,10 @@
 #include "text_sdl1.hpp"
 #include "render.hpp"
-#include <SDL/SDL_gfxBlitFunc.h>
-#include <SDL/SDL_rotozoom.h>
-#include <SDL/SDL_video.h>
+#include <SDL_gfxBlitFunc.h>
+#include <SDL_rotozoom.h>
+#include <SDL_video.h>
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 #include <ostream>
 #include <render.hpp>

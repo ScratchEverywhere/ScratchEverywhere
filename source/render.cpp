@@ -1,4 +1,5 @@
 #include "render.hpp"
+#include <log.hpp>
 
 std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
@@ -94,11 +95,11 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
         }
 
         if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
-            renderX = (spriteX * renderScale) + (screenWidth >> 1);
-            renderY = (-spriteY * renderScale) + (screenHeight >> 1);
+            renderX = (spriteX * renderScale) + (screenWidth * 0.5);
+            renderY = (-spriteY * renderScale) + (screenHeight * 0.5);
         } else {
-            renderX = spriteX + (screenWidth >> 1);
-            renderY = -spriteY + (screenHeight >> 1);
+            renderX = spriteX + (screenWidth * 0.5);
+            renderY = -spriteY + (screenHeight * 0.5);
         }
 
         sprite->renderInfo.renderX = renderX;

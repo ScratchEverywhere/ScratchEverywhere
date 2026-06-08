@@ -1,5 +1,6 @@
 #include "window.hpp"
 #include <input.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
@@ -8,41 +9,10 @@
 #include <renderers/sdl2/render.hpp>
 #endif
 
-#ifdef __WIIU__
-#include <coreinit/debug.h>
-#include <nn/act.h>
-#include <whb/log_udp.h>
-#include <whb/sdcard.h>
-#endif
-
-#ifdef __SWITCH__
-#include <switch.h>
-extern char nickname[0x21];
-#endif
-
-#ifdef VITA
-#include <psp2/io/fcntl.h>
-#include <psp2/net/http.h>
-#include <psp2/net/net.h>
-#include <psp2/net/netctl.h>
-#include <psp2/sysmodule.h>
-#include <psp2/touch.h>
-#endif
-
-#ifdef __OGC__
-#include <fat.h>
-#include <ogc/system.h>
-#endif
-
 #ifdef __PS4__
 #include <orbis/Net.h>
 #include <orbis/Sysmodule.h>
 #include <orbis/libkernel.h>
-#endif
-
-#ifdef GAMECUBE
-#include <ogc/consol.h>
-#include <ogc/exi.h>
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -55,97 +25,17 @@ SDL_Point touchPosition;
 #endif
 
 bool WindowSDL2::init(int width, int height, const std::string &title) {
-#ifdef __WIIU__
-    WHBLogUdpInit();
-
-    if (!WHBMountSdCard()) {
-        OSFatal("Failed to mount sd card.");
-        return false;
-    }
-    nn::act::Initialize();
-#elif defined(__SWITCH__)
-    AccountUid userID = {0};
-    AccountProfile profile;
-    AccountProfileBase profilebase;
-    memset(&profilebase, 0, sizeof(profilebase));
-
-    Result rc = romfsInit();
-    if (R_FAILED(rc)) {
-        Log::logError("Failed to init romfs."); // TODO: Include error code
-        goto postAccount;
-    }
-
-    rc = accountInitialize(AccountServiceType_Application);
-    if (R_FAILED(rc)) {
-        Log::logError("accountInitialize failed.");
-        goto postAccount;
-    }
-
-    rc = accountGetPreselectedUser(&userID);
-    if (R_FAILED(rc)) {
-        PselUserSelectionSettings settings;
-        memset(&settings, 0, sizeof(settings));
-        rc = pselShowUserSelector(&userID, &settings);
-        if (R_FAILED(rc)) {
-            Log::logError("pselShowUserSelector failed.");
-            goto postAccount;
-        }
-    }
-
-    rc = accountGetProfile(&profile, userID);
-    if (R_FAILED(rc)) {
-        Log::logError("accountGetProfile failed.");
-        goto postAccount;
-    }
-
-    rc = accountProfileGet(&profile, NULL, &profilebase);
-    if (R_FAILED(rc)) {
-        Log::logError("accountProfileGet failed.");
-        goto postAccount;
-    }
-
-    memset(nickname, 0, sizeof(nickname));
-    strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
-
-    socketInitializeDefault();
-
-    accountProfileClose(&profile);
-    accountExit();
-postAccount:
-#elif defined(__OGC__)
-#ifdef GAMECUBE
-    if ((SYS_GetConsoleType() & SYS_CONSOLE_MASK) == SYS_CONSOLE_DEVELOPMENT) {
-        CON_EnableBarnacle(EXI_CHANNEL_0, EXI_DEVICE_1);
-    }
-    CON_EnableGecko(EXI_CHANNEL_1, true);
-#else
-    SYS_STDIO_Report(true);
-#endif
-#elif defined(VITA)
+#if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
-
-    Log::log("[Vita] Loading module SCE_SYSMODULE_NET");
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-
-    Log::log("[Vita] Running sceNetInit");
-    SceNetInitParam netInitParam;
-    int size = 1 * 1024 * 1024; // net buffer size ([size in MB]*1024*1024)
-    netInitParam.memory = malloc(size);
-    netInitParam.size = size;
-    netInitParam.flags = 0;
-    sceNetInit(&netInitParam);
-
-    Log::log("[Vita] Running sceNetCtlInit");
-    sceNetCtlInit();
-#elif defined(__PS4__)
 #elif defined(__ANDROID__)
     SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
     SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
 #endif
 
+    uint32_t sdlFlags = 0;
 // SDL has to be initialized before window creation on webOS
 #ifndef WEBOS
-    uint32_t sdlFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
+    sdlFlags = SDL_INIT_VIDEO | SDL_INIT_EVENTS;
 #ifdef PLATFORM_HAS_CONTROLLER
     sdlFlags |= SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER;
 #endif
@@ -199,6 +89,7 @@ postAccount:
 
     this->width = width;
     this->height = height;
+    calculatePixelDensity();
 
 #ifdef RENDERER_OPENGL
     int dw, dh;
@@ -206,7 +97,7 @@ postAccount:
     resize(dw, dh);
 #else
     int dw, dh;
-#ifdef __PS4__
+#if defined(__PS4__) || defined(WEBOS)
     SDL_GetWindowSize(window, &dw, &dh);
 #else
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
@@ -231,14 +122,6 @@ void WindowSDL2::cleanup() {
     SDL_GL_DeleteContext(context);
 #endif
     SDL_DestroyWindow(window);
-
-#ifdef __SWITCH__
-    romfsExit();
-#endif
-#ifdef __WIIU__
-    WHBUnmountSdCard();
-    nn::act::Finalize();
-#endif
 }
 
 bool WindowSDL2::shouldClose() {
@@ -297,6 +180,17 @@ void WindowSDL2::pollEvents() {
     }
 }
 
+void WindowSDL2::calculatePixelDensity() {
+#ifndef __PS4__
+    int logicalW, logicalH, pixelW, pixelH;
+
+    SDL_GetWindowSize(window, &logicalW, &logicalH);
+    SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH);
+
+    this->pixelDensity = static_cast<float>(pixelW) / logicalW;
+#endif
+}
+
 void WindowSDL2::swapBuffers() {
 #ifdef RENDERER_OPENGL
     SDL_GL_SwapWindow(window);
@@ -309,6 +203,9 @@ void WindowSDL2::resize(int width, int height) {
 #ifdef RENDERER_OPENGL
     glViewport(0, 0, width, height);
 #endif
+
+    calculatePixelDensity();
+
     Render::setRenderScale();
     Render::resizeSVGs();
 }
@@ -319,6 +216,10 @@ int WindowSDL2::getWidth() const {
 
 int WindowSDL2::getHeight() const {
     return height;
+}
+
+float WindowSDL2::getPixelDensity() const {
+    return pixelDensity;
 }
 
 void *WindowSDL2::getHandle() {

@@ -1,6 +1,7 @@
 #ifndef LIBRETRO
 #include "image.hpp"
-#include "os.hpp"
+#include "translation.hpp"
+#include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
@@ -19,32 +20,19 @@
 #include <switch.h>
 #endif
 
-#ifdef RENDERER_SDL2
-#include <SDL2/SDL.h>
-#endif
-
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>
+#include <filesystem.hpp>
 #endif
 
 static void exitApp() {
     Render::deInit();
+    OS::deinit();
 }
 
 static bool initApp() {
-    Log::deleteLogFile();
-    Render::debugMode = true;
-    if (!Render::Init()) {
-        return false;
-    }
-#ifdef ENABLE_AUDIO
-    if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
-        return false;
-    }
-#endif
-    return true;
+    return Scratch::initializeRuntime();
 }
 
 bool activateMainMenu() {
@@ -99,7 +87,7 @@ void mainLoop() {
     }
 }
 
-#ifdef WINDOWING_SDL1
+#if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
 
 extern "C" int main(int argc, char **argv) {
@@ -131,7 +119,7 @@ int main(int argc, char **argv) {
 
 #if defined(__EMSCRIPTEN__)
     if (argc > 1) {
-        while (!OS::fileExists("/romfs/project.sb3")) {
+        while (!FileSystem::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
                 exit(0);
@@ -147,7 +135,7 @@ int main(int argc, char **argv) {
             bool uploadComplete = false;
             emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
                 *(bool *)userdata = true;
-                if (!OS::fileExists(OS::getScratchFolderLocation())) OS::createDirectory(OS::getScratchFolderLocation());
+                if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
                 std::ofstream f(OS::getScratchFolderLocation() + filename);
                 f << buffer;
                 f.close();

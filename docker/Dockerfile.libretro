@@ -10,4 +10,4 @@ RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DLIBRETRO=ON
 
 FROM scratch AS exporter
 
-COPY --from=main_builder /app/build/scratch-everywhere.so /
+COPY --from=main_builder /app/build/scratch-pc.so /

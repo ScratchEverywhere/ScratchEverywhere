@@ -2,6 +2,7 @@
 #include <blockExecutor.hpp>
 #include <input.hpp>
 #include <libretro.h>
+#include <log.hpp>
 #include <render.hpp>
 #include <string>
 #include <text.hpp>
@@ -31,7 +32,9 @@ std::vector<int> Input::getTouchPosition() {
 
 void Input::getInput() {
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
+    mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
     std::vector<int> touchPos = getTouchPosition();
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
     mousePointer.x = (int)coords.first;
@@ -41,7 +44,7 @@ void Input::getInput() {
 
     auto checkKey = [&](int key, std::string scratchName) {
         if (input_state_cb(0, RETRO_DEVICE_KEYBOARD, 0, key)) {
-            inputButtons.push_back(scratchName);
+            inputKeys.push_back(scratchName);
         }
     };
 
@@ -144,9 +147,14 @@ void Input::getInput() {
     checkJoy(RETRO_DEVICE_ID_JOYPAD_L2, "LT");
     checkJoy(RETRO_DEVICE_ID_JOYPAD_R2, "RT");
 
-    if (!inputButtons.empty()) {
-        inputButtons.push_back("any");
+    if (!inputKeys.empty()) {
+        inputKeys.push_back("any");
     }
+
+    Input::leftJoystick.first = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_X) / 0x8000f;
+    Input::leftJoystick.second = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_LEFT, RETRO_DEVICE_ID_ANALOG_Y) / 0x8000f;
+    Input::rightJoystick.first = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X) / 0x8000f;
+    Input::rightJoystick.second = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y) / 0x8000f;
 
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();

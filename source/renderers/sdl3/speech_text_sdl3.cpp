@@ -1,7 +1,7 @@
 #include "speech_text_sdl3.hpp"
-#include "text.hpp"
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <log.hpp>
 #include <os.hpp>
 
 #ifdef USE_CMAKERC

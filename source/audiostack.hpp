@@ -1,6 +1,7 @@
 #if defined(__NDS__)
 #define NO_VORBIS
 #define NO_MP3
+#define NO_MUSIC
 #endif
 
 #pragma once
@@ -15,6 +16,9 @@
 #if !defined(NO_VORBIS)
 #include <stb_vorbis.c>
 #endif
+#if !defined(NO_MUSIC)
+#include <tsf.h>
+#endif
 #endif
 #include "nonstd/expected.hpp"
 #include <miniz.h>
@@ -25,9 +29,10 @@
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
+    SoundStreamStream,
     SoundStreamWAV,
     SoundStreamMP3,
-    SoundStreamVorbis
+    SoundStreamVorbis,
 };
 
 class SoundConfig {
@@ -45,6 +50,7 @@ class SoundConfig {
 class SoundStream {
     unsigned char *buffer;
     size_t buffer_size;
+    int (*callback)(SoundStream *strm, float *iwave, int length);
 
     bool loadAsWAV();
     bool loadAsMP3();
@@ -82,6 +88,7 @@ class SoundStream {
 
     SoundStream(std::string path, bool cached = false, bool on_disk = false);
     SoundStream(mz_zip_archive *zip, std::string path);
+    SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate);
 
     nonstd::expected<void, std::string> init(std::string path, bool cached = false, bool on_disk = false);
     nonstd::expected<void, std::string> init(mz_zip_archive *zip, std::string path);
@@ -100,8 +107,16 @@ class Mixer {
 #endif
 
     static SE_Mutex mutex;
+#ifdef ENABLE_AUDIO
+    static tsf *hTsf;
+#endif
+    static void *sf2_buffer;
+    static int sf2_seq;
     static std::unordered_map<std::string, SoundStream *> streams;
+    static std::unordered_map<int, float> notes;
     static std::unordered_map<std::string, SoundConfig> configs;
+    static bool musicInitialized;
+    static void initMusic();
     static void requestSound(short *output, int frames); /* expects stereo */
     static void stopSound(std::string name);
     static bool isSoundPlaying(std::string name);
@@ -111,4 +126,8 @@ class Mixer {
     static float getSoundVolume(std::string name);
     static void setAutoClean(std::string name, bool toggle);
     static void cleanupAudio();
+    static float beatsToSec(float v);
+    static int note(int instrument, int note, float volume, float beats);
+    static int drum(int drum, float volume, float beats);
+    static bool isInstrumentPlaying(int channel);
 };

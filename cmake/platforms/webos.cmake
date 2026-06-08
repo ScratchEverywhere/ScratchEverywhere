@@ -3,6 +3,7 @@ set(SE_DEFAULT_OUTPUT_NAME "scratch-webos")
 set(SE_RENDERER_VALID_OPTIONS "sdl2")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 set(SE_DEPS_VALID_OPTIONS "fallback")
+set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
 set(SE_CACHING_DEFAULT ON)
 
@@ -11,7 +12,7 @@ set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD ON)
 
 set(SE_PLATFORM_DEFINITIONS "WEBOS")
-set(SE_PLATFORM "pc") # i dont *think* webOS would need a different implementation?
+set(SE_PLATFORM "webos")
 
 set(SE_HAS_THREADS ON)
 

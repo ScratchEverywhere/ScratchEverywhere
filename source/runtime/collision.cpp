@@ -1,16 +1,16 @@
 #include "collision.hpp"
 #include "image.hpp"
 #include "math.hpp"
-#include "os.hpp"
 #include "runtime.hpp"
 #include "sprite.hpp"
 #include <cmath>
+#include <log.hpp>
 
 std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
     const auto &costume = sprite->costumes[sprite->currentCostume];
     auto imgFind = Scratch::costumeImages.find(costume.fullName);
     if (imgFind == Scratch::costumeImages.end()) {
-        Log::logWarning("Failed to find image for sprite: " + sprite->name);
+        Log::logWarning("[Collision] Failed to find image for sprite: " + sprite->name);
         return nullptr;
     }
     ImageData imgData = imgFind->second->getPixels();

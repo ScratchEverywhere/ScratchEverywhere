@@ -8,6 +8,10 @@
 #include <unordered_map>
 #include <vector>
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/meta.hpp>
+#endif
+
 enum class ProjectType {
     UNZIPPED,
     EMBEDDED,
@@ -22,6 +26,11 @@ extern BlockExecutor executor;
 
 class Scratch {
   public:
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    static std::vector<std::unique_ptr<extensions::Extension>> extensions;
+#endif
+
+    static bool initializeRuntime();
     static void initializeScratchProject();
     static bool getInput(Block *block, std::string inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
     static void resetInput(Block *block, std::string inputName = "");
@@ -66,6 +75,8 @@ class Scratch {
     static void toggleDebugVars(const bool enabled);
 
     static bool hasNativeExtensions;
+
+    static float tempo;
 
     static int projectWidth;
     static int projectHeight;
