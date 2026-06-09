@@ -291,7 +291,6 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     newCostume.rotationCenterY = data["rotationCenterY"];
                     if (Scratch::bitmapHalfQuality && !newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterY /= 2;
                 }
-                if (Scratch::bitmapHalfQuality) newCostume.bitmapResolution = 1;
                 newSprite->costumes.push_back(newCostume);
                 Parser::log("\t\t" + newCostume.name);
             }
