@@ -9,8 +9,10 @@
 #define SCREEN_HEIGHT 240
 
 #define O3DS_MAX_KEYS (size_t)16
+#define N3DS_MAX_KEYS (size_t)24
 
 static bool systemCheck = APT_CheckNew3DS(&systemCheck);
+static const size_t key_amount = (!systemCheck) ? O3DS_MAX_KEYS : N3DS_MAX_KEYS;
 
 // Defining The Keys To Check
 static constexpr u32 III_DS_KEYS[] = {
@@ -102,31 +104,20 @@ void Input::getInput() {
         goto SkipInputCheck;
     }
 
-    {
-        inputButtons.push_back("any");
-
-        // Check if System Is New Version Or Not
-        size_t array_len = sizeof(III_DS_KEYS) / sizeof(III_DS_KEYS[0]);
-
-        // Reduce Aryay Length If It's The Older Model
-        if (!systemCheck) {
-            array_len = O3DS_MAX_KEYS;
+    
+    inputButtons.push_back("any");
+    for (size_t i = 0; i < key_amount; i++) {
+        // Ignore L Stick & R Stick Pressed Events
+        if ((III_DS_KEYS[i]) == NULL) {
+            continue;
         }
-
-        for (size_t i = 0; i < array_len; i++) {
-            // Ignore L Stick & R Stick Pressed Events
-            if ((III_DS_KEYS[i]) == NULL) {
-                continue;
-            }
-
-            u32 key_code = kHeld & III_DS_KEYS[i];
-
-            // Send Key Codes
-            if (key_code) {
-                Input::buttonPress(CONTROLLER_STRINGS[key_code]);
-            }
+        
+        // Send Key Codes
+        if (kHeld & III_DS_KEYS[i]) {
+            Input::buttonPress(CONTROLLER_STRINGS[i]);
         }
     }
+    
 
     if (kHeld & KEY_TOUCH) {
         // Render::RenderModes rm = Render::renderMode;

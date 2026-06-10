@@ -10,7 +10,7 @@ enum SCRATCH_KEY_INDEX {
     A,
     B,
     X,
-    y,
+    Y,
     SHOULDER_L,
     SHOULDER_R,
     START,

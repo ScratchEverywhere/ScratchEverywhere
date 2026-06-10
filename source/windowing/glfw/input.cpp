@@ -29,15 +29,15 @@ static constexpr uint32_t GLFW_GAMEPAD_KEYS[] = {
     GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER,
     GLFW_GAMEPAD_BUTTON_START,
     GLFW_GAMEPAD_BUTTON_BACK,
-    NULL, // Left Stick Up
-    NULL, // Left Stick Down
-    NULL, // Left Stick Left
     NULL, // Left Stick Right
+    NULL, // Left Stick Left
+    NULL, // Left Stick Down
+    NULL, // Left Stick Up
     GLFW_GAMEPAD_BUTTON_LEFT_THUMB,
-    NULL, // Right Stick Up
-    NULL, // Right Stick Down
-    NULL, // Right Stick Left
     NULL, // Right Stick Right
+    NULL, // Right Stick Left
+    NULL, // Right Stick Down
+    NULL, // Right Stick Up
     GLFW_GAMEPAD_BUTTON_RIGHT_THUMB,
     NULL, // Left  Analog Trigger
     NULL  // Right Analog Trigger
@@ -96,6 +96,8 @@ void Input::getInput() {
     }
     for (int i = 0; i < 10; i++) {
         checkKey(GLFW_KEY_0 + i, std::to_string(i));
+    }
+    for (int i = 0; i < 10; i++) {
         checkKey(GLFW_KEY_KP_0 + i, std::to_string(i));
     }
     for (int i = 0; i < 25; i++) {
@@ -138,15 +140,38 @@ void Input::getInput() {
                 }
             }
 
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_X] > 0.5f) Input::buttonPress("LeftStickRight");
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_X] < -0.5f) Input::buttonPress("LeftStickLeft");
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y] > 0.5f) Input::buttonPress("LeftStickDown");
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y] < -0.5f) Input::buttonPress("LeftStickUp");
+            // auto axis_handler = [&](float axis, std::string state_1, std::string state_2) {
+            auto axis_handler = [&](float axis, std::array<std::string, 2> states) {
+                if (abs(axis) <= 0.5f) {
+                    return;
+                }
 
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X] > 0.5f) Input::buttonPress("RightStickRight");
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X] < -0.5f) Input::buttonPress("RightStickLeft");
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y] > 0.5f) Input::buttonPress("RightStickDown");
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y] < -0.5f) Input::buttonPress("RightStickUp");
+                int8_t sign = (int8_t)(axis / abs(axis));
+                switch (sign) {
+                case 1:
+                    Input::buttonPress(states[0]);
+                    break;
+                case -1:
+                    Input::buttonPress(states[1]);
+                    break;
+                }
+            };
+
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X], 
+                        { CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_RIGHT], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_LEFT] }
+            );
+
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y], 
+                        { CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_DOWN], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_UP] }
+            );
+
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X], 
+                        { CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_RIGHT], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_LEFT] }
+            );
+
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y], 
+                        { CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_DOWN], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_UP] }
+            );
 
             if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f) Input::buttonPress("LT");
             if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f) Input::buttonPress("RT");
