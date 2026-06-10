@@ -48,7 +48,9 @@ std::array<int, 2> Input::getTouchPosition() {
 }
 
 void Input::getInput() {
+    mousePointer.mouseButton = Mouse::LEFT;
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
     if (globalWindow) globalWindow->pollEvents();

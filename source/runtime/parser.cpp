@@ -6,17 +6,29 @@
 #include <limits>
 #include <log.hpp>
 #include <math.hpp>
+#include <memory>
 #include <os.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <settings.hpp>
+#include <unordered_map>
 #include <unzip.hpp>
 #if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
 #include <whb/sdcard.h>
 #endif
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/interface.hpp>
+#include <extensions/meta.hpp>
+#endif
 #ifdef ENABLE_NATIVE_EXTENSIONS
 #include <dlfcn.h>
+#endif
+
+#ifdef USE_CMAKERC
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
 #endif
 
 #ifdef ENABLE_CLOUDVARS
@@ -99,6 +111,11 @@ void Parser::initMist() {
 }
 #endif
 
+std::unordered_map<std::string, std::string> &Parser::getShadowBlocks() {
+    static std::unordered_map<std::string, std::string> shadowBlocks;
+    return shadowBlocks;
+}
+
 void Parser::loadUsernameFromSettings() {
     Scratch::customUsername = "Player";
     Scratch::useCustomUsername = false;
@@ -132,7 +149,7 @@ void Parser::log(const std::string &message) {
 }
 
 void Parser::loadSprites(const nlohmann::json &json) {
-    Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in generall are enabled)
+    Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in general are enabled)
     Parser::log("Loading sprites:");
     const nlohmann::json &spritesData = json["targets"];
     int spriteAmount = spritesData.size();
@@ -269,12 +286,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 if (data.contains("rotationCenterX")) {
                     newCostume.rotationCenterX = data["rotationCenterX"];
                     if (Scratch::bitmapHalfQuality && !newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterX /= 2;
-                }
+                } else newCostume.rotationCenterX = 0;
                 if (data.contains("rotationCenterY")) {
                     newCostume.rotationCenterY = data["rotationCenterY"];
                     if (Scratch::bitmapHalfQuality && !newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterY /= 2;
-                }
-                if (Scratch::bitmapHalfQuality) newCostume.bitmapResolution = 1;
+                } else newCostume.rotationCenterY = 0;
                 newSprite->costumes.push_back(newCostume);
                 Parser::log("\t\t" + newCostume.name);
             }
@@ -623,6 +639,12 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
 
     std::string indentStr(indent, '\t');
 
+    const auto &removeBlock = [](Block *block) {
+        if (Scratch::blocks.back() == block) Scratch::blocks.pop_back();
+        else Scratch::blocks.erase(std::remove(Scratch::blocks.begin(), Scratch::blocks.end(), block), Scratch::blocks.end());
+        delete block;
+    };
+
     for (const auto &[inputName, data] : blockData["inputs"].items()) {
         int type = data[0];
         auto &inputValue = data[1];
@@ -644,7 +666,17 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
             } else {
                 if (!inputValue.is_null()) {
                     Parser::log(indentStr + "\t" + inputName + ":");
-                    block.inputs[inputName] = ParsedInput(loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2));
+                    Block *newBlock = loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
+
+                    // Check shadow block
+                    const auto &it = getShadowBlocks().find(newBlock->opcode);
+                    if (it != getShadowBlocks().end()) {
+                        block.inputs[inputName] = ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)));
+                        removeBlock(newBlock);
+                        continue;
+                    }
+
+                    block.inputs[inputName] = ParsedInput(newBlock);
                 }
             }
         } else if (type == 2 || type == 3) {
@@ -657,13 +689,19 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, c
                     Parser::log(indentStr + "\t" + inputName + ":");
                     Block *newBlock = loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
 
+                    // Check shadow block
+                    const auto &it = getShadowBlocks().find(newBlock->opcode);
+                    if (it != getShadowBlocks().end()) {
+                        block.inputs[inputName] = ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)));
+                        removeBlock(newBlock);
+                        continue;
+                    }
+
                     // Constant folding :)
 #define CHECK_NUM_CONSTANT_FOLDING(OPCODE, OPERATOR)                                                                                                                                 \
     if (newBlock->opcode == #OPCODE && newBlock->inputs["NUM1"].inputType == ParsedInput::InputType::VALUE && newBlock->inputs["NUM2"].inputType == ParsedInput::InputType::VALUE) { \
         block.inputs[inputName] = ParsedInput(newBlock->inputs["NUM1"].value OPERATOR newBlock->inputs["NUM2"].value);                                                               \
-        if (Scratch::blocks.back() == newBlock) Scratch::blocks.pop_back();                                                                                                          \
-        else Scratch::blocks.erase(std::remove(Scratch::blocks.begin(), Scratch::blocks.end(), newBlock), Scratch::blocks.end());                                                    \
-        delete newBlock;                                                                                                                                                             \
+        removeBlock(newBlock);                                                                                                                                                       \
         continue;                                                                                                                                                                    \
     }
 
@@ -700,29 +738,131 @@ void Parser::loadFields(Block &block, const std::string &blockKey, const nlohman
     }
 }
 
+static constexpr std::array<std::string_view, 12> builtInExtensions = {"music", "pen", "videoSensing", "text2speech", "translate", "makeymakey", "microbit", "ev3", "boost", "wedo2", "goDirect", "coreExtensions"};
+
 bool Parser::loadExtensions(const nlohmann::json &json) {
-    bool hasExts = false;
-#ifdef ENABLE_NATIVE_EXTENSIONS
+    bool hasNativeExts = false;
+#if defined(ENABLE_NATIVE_EXTENSIONS) || defined(ENABLE_CUSTOM_EXTENSIONS)
+    const std::string folder = OS::getScratchFolderLocation() + "extensions/";
+
 #ifdef __APPLE__
     constexpr const char *libraryExtension = ".dylib";
 #else
     constexpr const char *libraryExtension = ".so";
 #endif
-    if (!json.contains("extensions")) return hasExts;
-    for (const std::string &extension : json["extensions"]) {
-        const std::string &path = OS::getScratchFolderLocation() + "extensions/" + extension + libraryExtension;
-        if (FileSystem::fileExists(path)) {
-            void *extensionHandle = dlopen(path.c_str(), RTLD_NOW | RTLD_GLOBAL);
+    if (!json.contains("extensions")) return false;
+    for (const std::string &targetID : json["extensions"]) {
+        if (std::find(builtInExtensions.begin(), builtInExtensions.end(), targetID) != builtInExtensions.end()) continue;
+
+#ifdef ENABLE_NATIVE_EXTENSIONS
+        const std::string &nativePath = folder + targetID + libraryExtension;
+        if (FileSystem::fileExists(nativePath)) {
+            void *extensionHandle = dlopen(nativePath.c_str(), RTLD_NOW | RTLD_GLOBAL);
             if (!extensionHandle) {
-                Log::logError("Failed to load native extension, '" + extension + "', dlerror: " + dlerror());
+                Log::logError("Failed to load native extension, '" + targetID + "', dlerror: " + dlerror());
             } else {
-                Log::log("Loaded extension: " + path);
-                hasExts = true;
+                Log::log("Loaded native extension: " + targetID);
+                hasNativeExts = true;
             }
-        } else Log::logWarning("Couldn't find native extension: " + path);
-    }
+            continue;
+        }
 #endif
-    return hasExts;
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+        std::unique_ptr<extensions::Extension> loadedExt = nullptr;
+        std::ifstream in;
+
+        const auto &tryPath = [&](std::string path) {
+            in.open(path, std::ios::binary | std::ios::in);
+            auto result = extensions::parseMetadata(in);
+            if (result.has_value() && result.value()->id == targetID) {
+                loadedExt = std::move(result.value());
+            } else {
+                if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+                in.close();
+                in.clear();
+            }
+        };
+
+        const std::string romFSPath = OS::getRomFSLocation() + "extensions/" + targetID + ".see";
+#ifdef USE_CMAKERC
+        bool fromCmrc = false;
+
+        const auto &fs = cmrc::romfs::get_filesystem();
+
+        std::unique_ptr<std::istringstream> romfsStream = nullptr;
+        if (fs.exists(romFSPath)) {
+            const auto &romfsIn = fs.open(romFSPath);
+            romfsStream = std::make_unique<std::istringstream>(std::string(romfsIn.begin(), romfsIn.end()));
+
+            auto result = extensions::parseMetadata(*romfsStream);
+            if (result.has_value() && result.value()->id == targetID) {
+                loadedExt = std::move(result.value());
+                fromCmrc = true;
+            } else if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+        }
+#else
+        if (FileSystem::fileExists(romFSPath)) {
+            tryPath(romFSPath);
+        }
+#endif
+
+        const std::string luaPath = folder + targetID + ".see";
+        if (FileSystem::fileExists(luaPath) && !loadedExt) {
+            tryPath(luaPath);
+        }
+
+        if (!loadedExt) {
+            const auto &scanDirectory = [&](std::string path) {
+                auto files = FileSystem::listDirectory(path);
+                if (files.has_value()) {
+                    for (const auto &file : files.value()) {
+                        if (file.size() < 4) continue;
+                        if (file.compare(file.size() - 4, 4, ".see") != 0) continue;
+
+                        in.open(folder + file, std::ios::binary | std::ios::in);
+                        auto result = extensions::parseMetadata(in);
+
+                        if (result.has_value() && result.value()->id == targetID) {
+                            loadedExt = std::move(result.value());
+                            break;
+                        }
+                        if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
+                        in.close();
+                        in.clear();
+                    }
+                }
+            };
+
+#if !defined(USE_CMAKERC) // I'm lazy, someone else can add this in the future.
+            scanDirectory(OS::getRomFSLocation() + "extensions");
+#endif
+            if (!loadedExt) {
+                scanDirectory(folder);
+            }
+        }
+
+        if (loadedExt) {
+#ifdef USE_CMAKERC
+            if (fromCmrc) {
+                extensions::loadLua(loadedExt.get(), *romfsStream);
+            } else
+#endif
+                extensions::loadLua(loadedExt.get(), in);
+            Scratch::extensions.push_back(std::move(loadedExt));
+            in.close();
+            Log::log("Successfully loaded Lua extension: " + targetID);
+            continue;
+        }
+
+        Log::logError("Failed to find extension: " + targetID);
+#endif
+    }
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    extensions::registerHandlers();
+#endif
+#endif
+    return hasNativeExts;
 }
 
 Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {

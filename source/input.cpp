@@ -1,7 +1,11 @@
 #include "input.hpp"
 #include <log.hpp>
 
+std::pair<float, float> Input::leftJoystick = {0, 0};
+std::pair<float, float> Input::rightJoystick = {0, 0};
+
 std::vector<std::string> Input::inputButtons;
+std::vector<std::string> Input::inputKeys;
 std::map<std::string, std::string> Input::inputControls;
 std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
@@ -47,8 +51,9 @@ void Input::applyControls(std::string controlsFilePath) {
 }
 
 void Input::buttonPress(std::string button) {
+    Input::inputButtons.push_back(button);
     if (Input::inputControls.find(button) != Input::inputControls.end()) {
-        Input::inputButtons.push_back(Input::inputControls[button]);
+        Input::inputKeys.push_back(Input::inputControls[button]);
     }
 }
 

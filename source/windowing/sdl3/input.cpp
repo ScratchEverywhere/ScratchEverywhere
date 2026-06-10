@@ -66,6 +66,7 @@ std::array<int, 2> Input::getTouchPosition() {
 
 void Input::getInput() {
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = false;
 
 #ifdef PLATFORM_HAS_KEYBOARD
@@ -86,7 +87,7 @@ void Input::getInput() {
                 else if (keyName == "left shift" || keyName == "right shift") keyName = "shift";
                 else if (keyName == "left ctrl" || keyName == "right ctrl") keyName = "control";
 
-                inputButtons.push_back(keyName);
+                inputKeys.push_back(keyName);
             }
         }
     }
@@ -161,9 +162,13 @@ void Input::getInput() {
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
     if (SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
 
+    Input::leftJoystick.first = joyLeftX / 32767.0f;
+    Input::leftJoystick.second = joyLeftY / 32767.0f;
+    Input::rightJoystick.first = joyRightX / 32767.0f;
+    Input::rightJoystick.second = joyRightY / 32767.0f;
 #endif
 
-    if (!inputButtons.empty()) inputButtons.push_back("any");
+    if (!inputKeys.empty()) inputKeys.push_back("any");
 
     BlockExecutor::executeKeyHats();
 
@@ -177,6 +182,7 @@ void Input::getInput() {
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
+        mousePointer.mouseButton = Mouse::LEFT;
 
         SDL_free(touchID);
         BlockExecutor::doSpriteClicking();
@@ -197,6 +203,13 @@ void Input::getInput() {
     const SDL_MouseButtonFlags buttons = SDL_GetMouseState(NULL, NULL);
     mousePointer.isPressed = (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_LEFT) | SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) != 0;
 
+    if (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_RIGHT))) {
+        mousePointer.mouseButton = Mouse::RIGHT;
+    } else if (buttons & (SDL_BUTTON_MASK(SDL_BUTTON_MIDDLE))) {
+        mousePointer.mouseButton = Mouse::MIDDLE;
+    } else {
+        mousePointer.mouseButton = Mouse::LEFT;
+    }
 #endif
 
     BlockExecutor::doSpriteClicking();

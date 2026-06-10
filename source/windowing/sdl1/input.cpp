@@ -44,6 +44,7 @@ std::array<int, 2> Input::getTouchPosition() {
 
 void Input::getInput() {
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = false;
 
 #ifdef PLATFORM_HAS_KEYBOARD
@@ -63,7 +64,7 @@ void Input::getInput() {
                 else if (keyName == "right") keyName = "right arrow";
                 else if (keyName == "return") keyName = "enter";
 
-                inputButtons.push_back(keyName);
+                inputKeys.push_back(keyName);
             }
         }
     }
@@ -132,11 +133,16 @@ void Input::getInput() {
         if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
         if (SDL_JoystickGetAxis(controller, 4) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
         if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+
+        Input::leftJoystick.first = joyLeftX / 32767.0f;
+        Input::leftJoystick.second = joyLeftY / 32767.0f;
+        Input::rightJoystick.first = joyRightX / 32767.0f;
+        Input::rightJoystick.second = joyRightY / 32767.0f;
     }
 
 #endif
 
-    if (!inputButtons.empty()) inputButtons.push_back("any");
+    if (!inputKeys.empty()) inputKeys.push_back("any");
 
     BlockExecutor::executeKeyHats();
 
@@ -151,6 +157,12 @@ void Input::getInput() {
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.isPressed = true;
+    }
+
+    if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
+        mousePointer.mouseButton = Mouse::RIGHT;
+    } else {
+        mousePointer.mouseButton = Mouse::LEFT;
     }
 #endif
 

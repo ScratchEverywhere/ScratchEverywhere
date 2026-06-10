@@ -2,6 +2,7 @@
 #include <3ds.h>
 #include <blockExecutor.hpp>
 #include <input.hpp>
+#include <log.hpp>
 #include <render.hpp>
 
 #define SCREEN_WIDTH 400
@@ -77,11 +78,23 @@ std::array<int, 2> Input::getTouchPosition() {
 }
 
 void Input::getInput() {
+    mousePointer.mouseButton = Mouse::LEFT;
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
 
     hidScanInput();
+
+    circlePosition circlePos;
+    hidCircleRead(&circlePos);
+    Input::leftJoystick.first = circlePos.dx / 160.0f;
+    Input::leftJoystick.second = circlePos.dy / 160.0f;
+
+    circlePosition cstickPos;
+    irrstCstickRead(&cstickPos);
+    Input::rightJoystick.first = cstickPos.dx / 160.0f;
+    Input::rightJoystick.second = cstickPos.dy / 160.0f;
 
     u32 kHeld = hidKeysHeld();
 
