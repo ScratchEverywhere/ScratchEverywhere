@@ -117,20 +117,18 @@ void Input::getInput() {
         goto SkipInputCheck;
     }
 
-    
     inputButtons.push_back("any");
     for (size_t i = 0; i < key_amount; i++) {
         // Ignore L Stick & R Stick Pressed Events
         if ((III_DS_KEYS[i]) == NULL) {
             continue;
         }
-        
+
         // Send Key Codes
         if (kHeld & III_DS_KEYS[i]) {
             Input::buttonPress(CONTROLLER_STRINGS[i]);
         }
     }
-    
 
     if (kHeld & KEY_TOUCH) {
         // Render::RenderModes rm = Render::renderMode;

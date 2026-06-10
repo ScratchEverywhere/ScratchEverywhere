@@ -1,11 +1,9 @@
 #include "window.hpp"
 #include <input.hpp>
 
-
 #include <nds.h>
 #include <nds/arm9/input.h>
 #include <nds/input.h>
-
 
 #include <render.hpp>
 
@@ -26,8 +24,7 @@ static constexpr u16 NDS_KEYS[] = {
     KEY_R,
 
     KEY_SELECT,
-    KEY_START
-};
+    KEY_START};
 
 static const size_t KEY_AMOUNT = sizeof(NDS_KEYS) / sizeof(NDS_KEYS[0]);
 
@@ -73,9 +70,8 @@ void Input::getInput() {
         goto SkipInputCheck;
     }
 
-    
     inputButtons.push_back("any");
-    
+
     for (size_t i = 0; i < KEY_AMOUNT; i++) {
         u16 key_code = kHeld & NDS_KEYS[i];
 

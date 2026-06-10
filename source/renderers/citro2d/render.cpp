@@ -65,7 +65,7 @@ bool Render::Init() {
         consoleInit(GFX_BOTTOM, NULL);
         debugMode = true;
         isConsoleInit = true;
-    } 
+    }
     osSetSpeedupEnable(true);
 
     gfxSet3D(true);

@@ -676,7 +676,7 @@ void Scratch::sortSprites() {
 }
 
 void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
-    Costume& costume = sprite->costumes[sprite->currentCostume];
+    Costume &costume = sprite->costumes[sprite->currentCostume];
     const std::string &costumeName = costume.fullName;
 
     auto it = costumeImages.find(costumeName);
@@ -722,10 +722,10 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     if (image) {
         sprite->spriteWidth = image->getWidth();
         sprite->spriteHeight = image->getHeight();
-        if(costume.rotationCenterX == 0){
+        if (costume.rotationCenterX == 0) {
             costume.rotationCenterX = sprite->spriteWidth / 2;
         }
-        if(costume.rotationCenterY == 0){
+        if (costume.rotationCenterY == 0) {
             costume.rotationCenterY = sprite->spriteHeight / 2;
         }
         costumeImages[costumeName] = image;

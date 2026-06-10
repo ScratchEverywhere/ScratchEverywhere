@@ -41,7 +41,7 @@ static constexpr uint32_t GLFW_GAMEPAD_KEYS[] = {
     GLFW_GAMEPAD_BUTTON_RIGHT_THUMB,
     NULL, // Left  Analog Trigger
     NULL  // Right Analog Trigger
-}; 
+};
 
 std::array<int, 2> Input::getTouchPosition() {
     double x, y;
@@ -159,21 +159,17 @@ void Input::getInput() {
                 }
             };
 
-            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X], 
-                        { CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_RIGHT], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_LEFT] }
-            );
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X],
+                         {CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_RIGHT], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_LEFT]});
 
-            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y], 
-                        { CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_DOWN], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_UP] }
-            );
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y],
+                         {CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_DOWN], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::L_STICK_UP]});
 
-            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X], 
-                        { CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_RIGHT], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_LEFT] }
-            );
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X],
+                         {CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_RIGHT], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_LEFT]});
 
-            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y], 
-                        { CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_DOWN], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_UP] }
-            );
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y],
+                         {CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_DOWN], CONTROLLER_STRINGS[SCRATCH_KEY_INDEX::R_STICK_UP]});
 
             if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f) Input::buttonPress("LT");
             if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f) Input::buttonPress("RT");

@@ -36,7 +36,7 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
             float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
             sprite->renderInfo.renderScaleX *= scale;
         }
-        if(Scratch::bitmapHalfQuality && !isSVG && costume.bitmapResolution == 2){
+        if (Scratch::bitmapHalfQuality && !isSVG && costume.bitmapResolution == 2) {
             sprite->renderInfo.renderScaleX *= 2;
         }
         sprite->renderInfo.renderScaleY = sprite->renderInfo.renderScaleX;

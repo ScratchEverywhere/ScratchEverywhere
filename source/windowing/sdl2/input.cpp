@@ -128,13 +128,13 @@ void Input::getInput() {
 
     auto dpad_handler = [&](SCRATCH_KEY_INDEX scratch_key, SDL_GameControllerButton GCButton, int x, int y) {
         if (SDL_GameControllerGetButton(controller, GCButton)) {
-        Input::buttonPress(CONTROLLER_STRINGS[scratch_key]);
-    #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
+            Input::buttonPress(CONTROLLER_STRINGS[scratch_key]);
+#if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) {
                 mousePointer.x += x;
                 mousePointer.y += y;
             }
-    #endif
+#endif
         }
     };
 
@@ -144,10 +144,10 @@ void Input::getInput() {
         }
     };
 
-    dpad_handler(SCRATCH_KEY_INDEX::DPAD_UP,    SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP,    0,  3);
-    dpad_handler(SCRATCH_KEY_INDEX::DPAD_DOWN,  SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN,  0, -3);
-    dpad_handler(SCRATCH_KEY_INDEX::DPAD_LEFT,  SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_LEFT,  -3, 0);
-    dpad_handler(SCRATCH_KEY_INDEX::DPAD_RIGHT, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT,  3, 0);
+    dpad_handler(SCRATCH_KEY_INDEX::DPAD_UP, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP, 0, 3);
+    dpad_handler(SCRATCH_KEY_INDEX::DPAD_DOWN, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN, 0, -3);
+    dpad_handler(SCRATCH_KEY_INDEX::DPAD_LEFT, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_LEFT, -3, 0);
+    dpad_handler(SCRATCH_KEY_INDEX::DPAD_RIGHT, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT, 3, 0);
 
     // Swap face buttons for Switch
 #ifdef __SWITCH__
