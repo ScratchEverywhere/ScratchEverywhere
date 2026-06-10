@@ -676,7 +676,8 @@ void Scratch::sortSprites() {
 }
 
 void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
-    const std::string &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    Costume& costume = sprite->costumes[sprite->currentCostume];
+    const std::string &costumeName = costume.fullName;
 
     auto it = costumeImages.find(costumeName);
     if (it != costumeImages.end()) {
@@ -700,7 +701,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     float scale = (sprite->size / 100);
     if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-    const bool shouldDownscale = bitmapHalfQuality;
+    const bool shouldDownscale = bitmapHalfQuality && costume.bitmapResolution == 2;
 
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
@@ -721,6 +722,12 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     if (image) {
         sprite->spriteWidth = image->getWidth();
         sprite->spriteHeight = image->getHeight();
+        if(costume.rotationCenterX == 0){
+            costume.rotationCenterX = sprite->spriteWidth / 2;
+        }
+        if(costume.rotationCenterY == 0){
+            costume.rotationCenterY = sprite->spriteHeight / 2;
+        }
         costumeImages[costumeName] = image;
     }
 }
