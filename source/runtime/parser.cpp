@@ -257,8 +257,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 newSound.name = data["name"];
                 newSound.fullName = data["md5ext"];
                 newSound.dataFormat = data["dataFormat"];
-                newSound.sampleRate = data["rate"];
-                newSound.sampleCount = data["sampleCount"];
+                newSound.sampleRate = data.value("rate", -1); // We don't actually use these values so -1 should be fine
+                newSound.sampleCount = data.value("sampleCount", -1);
                 newSprite->sounds.push_back(newSound);
                 Parser::log("\t\t" + newSound.name);
             }
