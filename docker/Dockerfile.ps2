@@ -11,7 +11,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN cmake -B build-ps2 -S . -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=sdl2 -DSE_WINDOWING=sdl2 -DSE_AUDIO_ENGINE=sdl2 -DPS2=ON && make -C build-ps2 -j 2
+RUN cmake -B build-ps2 -S . -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=sdl3 -DSE_WINDOWING=sdl3 -DSE_AUDIO_ENGINE=sdl3 -DPS2=ON && make -C build-ps2 -j 2
 
 FROM scratch AS exporter
 

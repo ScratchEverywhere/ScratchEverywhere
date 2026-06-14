@@ -1,7 +1,7 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-ps2")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl2")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
+set(SE_RENDERER_VALID_OPTIONS "sdl2" "sdl3")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "fallback")
 
 set(SE_CACHING_DEFAULT OFF)
@@ -22,7 +22,8 @@ set(SE_PLATFORM_DEFINITIONS "__PS2__")
 set(SE_PLATFORM "ps2")
 
 add_compile_options(-fno-pic -fno-pie -mxgot -G0)
-add_link_options(-fno-pic -fno-pie)
+add_link_options(-fno-pic -fno-pie -lpng -lz)
+link_libraries(-lpng -lz)
 
 macro(package_platform)
     set_target_properties(scratch-everywhere PROPERTIES 
