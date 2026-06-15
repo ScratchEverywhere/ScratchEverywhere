@@ -31,8 +31,8 @@ static constexpr u32 III_DS_KEYS[] = {
     KEY_L,
     KEY_R,
 
-    KEY_SELECT,
     KEY_START,
+    KEY_SELECT,
 
     KEY_CPAD_RIGHT,
     KEY_CPAD_LEFT,

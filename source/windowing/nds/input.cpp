@@ -23,8 +23,8 @@ static constexpr u16 NDS_KEYS[] = {
     KEY_L,
     KEY_R,
 
-    KEY_SELECT,
-    KEY_START};
+    KEY_START,
+    KEY_SELECT};
 
 static const size_t KEY_AMOUNT = sizeof(NDS_KEYS) / sizeof(NDS_KEYS[0]);
 
@@ -72,11 +72,9 @@ void Input::getInput() {
 
     inputButtons.push_back("any");
 
+    // Send Key Codes
     for (size_t i = 0; i < KEY_AMOUNT; i++) {
-        u16 key_code = kHeld & NDS_KEYS[i];
-
-        // Send Key Codes
-        if (key_code) {
+        if (kHeld & NDS_KEYS[i]) {
             Input::buttonPress(CONTROLLER_STRINGS[i]);
         }
     }
