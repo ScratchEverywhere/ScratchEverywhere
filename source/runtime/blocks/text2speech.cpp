@@ -170,7 +170,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
             TextToSpeechFree(tts[name]->tts);
 
             state->completedSteps = 3;
-	    return BlockResult::REPEAT;
+            return BlockResult::REPEAT;
         } else if (state->completedSteps == 3) {
             if (Mixer::isSoundPlaying("dtc:" + name)) return BlockResult::REPEAT;
 
