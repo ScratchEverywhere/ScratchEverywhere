@@ -30,7 +30,7 @@ enum class SCRATCH_KEY_INDEX {
     COUNT,
 };
 
-static constexpr char *SCRATCH_CONTROLS[] = {
+static constexpr const char *SCRATCH_CONTROLS[] = {
     "u",
     "h",
     "g",
@@ -56,7 +56,7 @@ static constexpr char *SCRATCH_CONTROLS[] = {
     "z",
     "f"};
 
-static constexpr char *CONTROLLER_STRINGS[] = {
+static constexpr const char *CONTROLLER_STRINGS[] = {
     "dpadUp",
     "dpadDown",
     "dpadLeft",
