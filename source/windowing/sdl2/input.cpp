@@ -186,9 +186,6 @@ void Input::getInput() {
 
     // Swap face buttons for Switch
 #ifdef __SWITCH__
-    if (SDL_GameControllerGetButton(controller, GCButton)) {
-        Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(scratch_key)]);
-    }
     button_handler(SCRATCH_KEY_INDEX::B, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A);
     button_handler(SCRATCH_KEY_INDEX::A, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_B);
     button_handler(SCRATCH_KEY_INDEX::Y, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X);
