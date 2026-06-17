@@ -67,7 +67,7 @@ void Input::getInput() {
     }
 
     if (!kHeld) {
-        goto SkipInputCheck;
+        goto skipInputCheck;
     }
 
     inputButtons.push_back("any");
@@ -90,7 +90,7 @@ void Input::getInput() {
         mousePointer.y = coords.second;
     }
 
-SkipInputCheck:
+skipInputCheck:
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
 }

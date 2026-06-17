@@ -66,7 +66,7 @@ void mainLoop() {
     if (Scratch::nextProject) {
         Log::log(Unzip::filePath);
         if (Unzip::load()) {
-            goto SkipCheck;
+            goto skipCheck;
         }
 
         if (Unzip::projectOpened != -3) { // main menu
@@ -79,7 +79,7 @@ void mainLoop() {
             exit(0);
         }
 
-    SkipCheck:
+    skipCheck:
         return;
     }
 

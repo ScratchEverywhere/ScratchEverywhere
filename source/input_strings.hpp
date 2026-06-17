@@ -2,7 +2,7 @@
 
 #include <string>
 
-enum SCRATCH_KEY_INDEX {
+enum class SCRATCH_KEY_INDEX {
     DPAD_UP,
     DPAD_DOWN,
     DPAD_LEFT,
@@ -26,10 +26,11 @@ enum SCRATCH_KEY_INDEX {
     R_STICK_UP,
     R_STICK_PRESSED,
     RIGHT_TRIGGER,
-    LEFT_TRIGGER
+    LEFT_TRIGGER,
+    COUNT,
 };
 
-static const std::string SCRATCH_CONTROLS[] = {
+static constexpr char *SCRATCH_CONTROLS[] = {
     "u",
     "h",
     "g",
@@ -55,7 +56,7 @@ static const std::string SCRATCH_CONTROLS[] = {
     "z",
     "f"};
 
-static const std::string CONTROLLER_STRINGS[] = {
+static constexpr char *CONTROLLER_STRINGS[] = {
     "dpadUp",
     "dpadDown",
     "dpadLeft",

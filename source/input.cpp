@@ -45,8 +45,10 @@ void Input::applyControls(std::string controlsFilePath) {
     // default controls
     size_t arr_size = sizeof(SCRATCH_CONTROLS) / sizeof(SCRATCH_CONTROLS[0]);
 
-    for (size_t i = 0; i < arr_size; i++) {
-        Input::inputControls[CONTROLLER_STRINGS[(SCRATCH_KEY_INDEX)i]] = SCRATCH_CONTROLS[(SCRATCH_KEY_INDEX)i];
+    // for ()
+
+    for (size_t i = 0; i < static_cast<int>(SCRATCH_KEY_INDEX::COUNT); i++) {
+        Input::inputControls[CONTROLLER_STRINGS[i]] = SCRATCH_CONTROLS[i];
     }
 }
 

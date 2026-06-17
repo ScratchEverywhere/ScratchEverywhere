@@ -142,7 +142,6 @@ void Input::getInput() {
                 }
             }
 
-            // auto axis_handler = [&](float axis, std::string state_1, std::string state_2) {
             auto axis_handler = [&](float axis, std::array<std::string, 2> states) {
                 if (abs(axis) <= 0.5f) {
                     return;

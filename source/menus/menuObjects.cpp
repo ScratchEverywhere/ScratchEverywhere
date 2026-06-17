@@ -67,7 +67,6 @@ ButtonObject::ButtonObject(std::string buttonText, std::string filePath, int xPo
 }
 
 bool ButtonObject::isPressed(std::vector<std::string> pressButton) {
-    // std::array<int, 2> empty;
     for (const auto &button : pressButton) {
         if ((isSelected || !needsToBeSelected) && Input::keyHeldDuration[button] == 1) return true;
     }
@@ -316,8 +315,9 @@ void ControlObject::render(double xPos, double yPos) {
     if (selectedObject == nullptr) return;
     const float lerpSpeed = 0.1f;
     std::array<int, 2> touchPos = Input::getTouchPosition();
+    bool isEmpty = (touchPos[0] == 0 || touchPos[1] == 0);
 
-    if (!lastFrameTouchPos.empty() && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
+    if (!isEmpty && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
         mousePriority = true;
     }
 
@@ -326,7 +326,7 @@ void ControlObject::render(double xPos, double yPos) {
         if (Input::mousePointer.isPressed) {
             // Touch scrolling
 
-            if (!lastFrameTouchPos.empty()) {
+            if (!isEmpty) {
                 float scrollAmount = lastFrameTouchPos[1] - touchPos[1];
                 scrollAmount /= guiScale;
                 y += scrollAmount;
@@ -334,7 +334,7 @@ void ControlObject::render(double xPos, double yPos) {
                     selectedObject = getClosestObject();
             }
         } else {
-            lastFrameTouchPos = empty;
+            lastFrameTouchPos = {0, 0};
 
             // Controller scrolling
             if (std::abs((y - cameraY) * lerpSpeed) < 1) {

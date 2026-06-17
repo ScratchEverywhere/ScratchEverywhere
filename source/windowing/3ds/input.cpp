@@ -114,7 +114,7 @@ void Input::getInput() {
 
     // Skip Input Check If No Inputs Registered
     if (!kHeld) {
-        goto SkipInputCheck;
+        goto skipInputCheck;
     }
 
     inputButtons.push_back("any");
@@ -162,7 +162,7 @@ void Input::getInput() {
         };
     }
     //
-SkipInputCheck:
+skipInputCheck:
 
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
