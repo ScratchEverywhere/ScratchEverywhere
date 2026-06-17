@@ -14,7 +14,7 @@ extern "C" void retro_set_input_state(retro_input_state_t cb) {
     input_state_cb = cb;
 }
 
-std::vector<int> Input::getTouchPosition() {
+std::array<int, 2> Input::getTouchPosition() {
     double x = input_state_cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X);
     double y = input_state_cb(0, RETRO_DEVICE_LIGHTGUN, 0, RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y);
 
@@ -35,7 +35,7 @@ void Input::getInput() {
     inputKeys.clear();
     mousePointer.isPressed = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);
     mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
-    std::vector<int> touchPos = getTouchPosition();
+    std::array<int, 2> touchPos = getTouchPosition();
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
     mousePointer.x = (int)coords.first;
     mousePointer.y = (int)coords.second;

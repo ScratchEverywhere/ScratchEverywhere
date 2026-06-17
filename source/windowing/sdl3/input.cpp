@@ -42,8 +42,8 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-std::vector<int> Input::getTouchPosition() {
-    std::vector<int> pos = {0, 0};
+std::array<int, 2> Input::getTouchPosition() {
+    std::array<int, 2> pos = {0, 0};
     float rawMouseX, rawMouseY;
     int numDevices, numFingers;
     SDL_TouchID *touchID = SDL_GetTouchDevices(&numDevices);
@@ -194,7 +194,7 @@ void Input::getInput() {
 #ifdef PLATFORM_HAS_MOUSE
 
     // Get raw mouse coordinates
-    std::vector<int> rawMouse = getTouchPosition();
+    std::array<int, 2> rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
