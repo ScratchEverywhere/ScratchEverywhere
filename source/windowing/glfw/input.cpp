@@ -159,27 +159,25 @@ void Input::getInput() {
             };
 
             axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_RIGHT)], 
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_LEFT)]}
-                    );
+                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_RIGHT)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_LEFT)]});
 
             axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_DOWN)], 
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_UP)]}
-                    );
+                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_DOWN)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_UP)]});
 
             axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_RIGHT)], 
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_LEFT)]}
-                    );
+                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_RIGHT)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_LEFT)]});
 
             axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_DOWN)], 
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_UP)]}
-                    );
+                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_DOWN)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_UP)]});
 
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f) Input::buttonPress("LT");
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f) Input::buttonPress("RT");
+            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f)
+                Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::LEFT_TRIGGER)]);
+            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f)
+                Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::RIGHT_TRIGGER)]);
 
             Input::leftJoystick.first = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
             Input::leftJoystick.second = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
