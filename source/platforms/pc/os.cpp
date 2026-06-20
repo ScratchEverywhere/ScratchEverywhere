@@ -107,10 +107,9 @@ std::string OS::getScratchFolderLocation() {
             tokens.push_back(buf);
         }
 
-        std::string executable = std::filesystem::canonical("/proc/self/exe").remove_filename();
-        executable.pop_back();
+        cpp_basepath.pop_back();
 
-        if (std::find(tokens.begin(), tokens.end(), executable) != tokens.end()) {
+        if (std::find(tokens.begin(), tokens.end(), cpp_basepath) != tokens.end()) {
             const char *xdgData = std::getenv("XDG_DATA_HOME");
             if (xdgData && xdgData[0] != '\0') {
                 return (std::filesystem::path(xdgData) / "scratch-everywhere" / "").string();
@@ -123,7 +122,7 @@ std::string OS::getScratchFolderLocation() {
                 if (home) return (std::filesystem::path(home) / ".local" / "share" / "scratch-everywhere" / "").string();
             }
         } else {
-            return cpp_basepath + "scratch-everywhere/";
+            return cpp_basepath + "/scratch-everywhere/";
         }
     }
 #else
