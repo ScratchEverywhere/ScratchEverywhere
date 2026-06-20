@@ -95,16 +95,36 @@ std::string OS::getScratchFolderLocation() {
 #if defined(_WIN32) || defined(_WIN64)
     return cpp_basepath + "scratch-everywhere\\";
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
-    const char *xdgData = std::getenv("XDG_DATA_HOME");
-    if (xdgData && xdgData[0] != '\0') {
-        return (std::filesystem::path(xdgData) / "scratch-everywhere" / "").string();
-    } else {
-        const char *home = std::getenv("HOME");
-        if (!home) {
-            struct passwd *pw = getpwuid(getuid());
-            if (pw) home = pw->pw_dir;
+    const char *path = std::getenv("PATH");
+    if (path && path[0] != '\0') {
+        std::string str(path);
+        std::string buf;
+        std::stringstream ss(str);
+
+        std::vector<std::string> tokens;
+
+        while (getline(ss, buf, ':')) {
+            tokens.push_back(buf);
         }
-        if (home) return (std::filesystem::path(home) / ".local" / "share" / "scratch-everywhere" / "").string();
+        
+        std::string executable = std::filesystem::canonical("/proc/self/exe").remove_filename();
+        executable.pop_back();
+
+        if(std::find(tokens.begin(), tokens.end(), executable) != tokens.end()) {
+            const char *xdgData = std::getenv("XDG_DATA_HOME");
+            if (xdgData && xdgData[0] != '\0') {
+                return (std::filesystem::path(xdgData) / "scratch-everywhere" / "").string();
+            } else {
+                const char *home = std::getenv("HOME");
+                if (!home) {
+                    struct passwd *pw = getpwuid(getuid());
+                    if (pw) home = pw->pw_dir;
+                }
+                if (home) return (std::filesystem::path(home) / ".local" / "share" / "scratch-everywhere" / "").string();
+            }
+        } else {
+            return cpp_basepath + "scratch-everywhere/";
+        }
     }
 #else
     return cpp_basepath + "scratch-everywhere/";
