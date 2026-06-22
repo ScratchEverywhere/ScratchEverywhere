@@ -11,7 +11,8 @@ std::array<int, 2> Input::getTouchPosition() {
     return {0, 0};
 }
 
-void Input::getInput() {
+class MenuManager;
+void Input::getInput(MenuManager *menuManager) {
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

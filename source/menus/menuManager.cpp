@@ -24,6 +24,9 @@
 #ifdef RENDERER_SDL2
 #include <renderers/sdl2/clay_renderer.hpp>
 #include <renderers/sdl2/render.hpp>
+#elif defined(RENDERER_SDL3)
+#include <renderers/sdl3/clay_renderer.hpp>
+#include <renderers/sdl3/render.hpp>
 #elif defined(RENDERER_CITRO2D)
 #include <citro2d.h>
 #include <citro3d.h>
@@ -105,14 +108,22 @@ void MenuManager::initClay() {
                         Log::logError(std::string("[CLAY] ") + errorData.errorText.chars);
                     }});
 
-#ifdef RENDERER_SDL2
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+#ifdef RENDERER_SDL3
+#define TTF_GetError SDL_GetError
+#endif
+
     components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
     if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError(std::string("Failed to load menu font: ") + TTF_GetError());
 
     components::fonts[components::FONT_ID_BODY_BOLD_48] = {.fontId = components::FONT_ID_BODY_BOLD_48, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Bold.ttf").c_str(), 48)};
     if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError(std::string("Failed to load bold menu font: ") + TTF_GetError());
 
-    Clay_SetMeasureTextFunction(SDL2_MeasureText, &components::fonts);
+    Clay_SetMeasureTextFunction(SDL_MeasureText, &components::fonts);
+
+#ifdef RENDERER_SDL3
+#undef TTF_GetError
+#endif
 #elif defined(RENDERER_CITRO2D)
     C2D_Font font = C2D_FontLoad("romfs:/gfx/menu/RedditSansFudge-Regular.bcfnt");
     unsigned int fontId = Clay_Citro2D_RegisterFont(font);
@@ -135,7 +146,7 @@ void MenuManager::initClay() {
 }
 
 void MenuManager::freeClay() {
-#ifdef RENDERER_SDL2
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
     if (components::fonts[components::FONT_ID_BODY_16].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_16].font);
     if (components::fonts[components::FONT_ID_BODY_BOLD_48].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_BOLD_48].font);
 #elif defined(RENDERER_CITRO2D)
@@ -179,7 +190,7 @@ void MenuManager::render() {
     scale = std::sqrt(windowWidth * windowWidth + windowHeight * windowHeight) / 600.0f;
     if (scale > maxScale) scale = maxScale;
 
-#ifdef RENDERER_SDL2
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
     SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
     SDL_RenderClear(renderer);
 #elif defined(RENDERER_CITRO2D)
@@ -203,8 +214,8 @@ void MenuManager::render() {
 		currentMenu->render();
 	}
     // clang-format on
-#ifdef RENDERER_SDL2
-    Clay_SDL2_Render(renderer, Clay_EndLayout(deltaTimer.getTimeMs()), reinterpret_cast<SDL2_Font *>(components::fonts));
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+    Clay_SDL_Render(renderer, Clay_EndLayout(deltaTimer.getTimeMs()), reinterpret_cast<SDL_Font *>(components::fonts));
     SDL_RenderPresent(renderer);
 #elif defined(RENDERER_CITRO2D)
     Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());

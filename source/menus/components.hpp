@@ -11,6 +11,8 @@
 #include <citro2d.h>
 #elif defined(RENDERER_SDL2)
 #include <renderers/sdl2/clay_renderer.hpp>
+#elif defined(RENDERER_SDL3)
+#include <renderers/sdl3/clay_renderer.hpp>
 #endif
 
 class MenuManager;
@@ -18,8 +20,8 @@ class MenuManager;
 namespace components {
 #define DEFAULT_TEXT_CONFIG CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16})
 
-#ifdef RENDERER_SDL2
-extern SDL2_Font fonts[2];
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+extern SDL_Font fonts[2];
 #elif defined(RENDERER_CITRO2D)
 extern std::map<unsigned int, C2D_Font> fonts;
 #endif

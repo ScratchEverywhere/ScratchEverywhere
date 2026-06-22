@@ -18,9 +18,18 @@ extern SDL_GameController *controller;
 #endif
 #endif
 
+#ifdef RENDERER_SDL3
+#include <renderers/sdl3/clay_renderer.hpp>
+#include <renderers/sdl3/render.hpp>
+
+#ifdef PLATFORM_HAS_CONTROLLER
+extern SDL_Gamepad *controller;
+#endif
+#endif
+
 namespace components {
-#ifdef RENDERER_SDL2
-SDL2_Font fonts[2] = {};
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+SDL_Font fonts[2] = {};
 #elif defined(RENDERER_CITRO2D)
 std::map<unsigned int, C2D_Font> fonts;
 #endif
@@ -133,7 +142,7 @@ void Sidebar::render() {
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
 		},
 	}) {
-#if defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
+#if (defined(RENDERER_SDL2) || defined(RENDERER_SDL3)) && defined(PLATFORM_HAS_CONTROLLER)
 		if (controller != nullptr && menuManager->scale >= 1.5) {
 #else
 		if (menuManager->scale >= 1.5) {
@@ -155,7 +164,7 @@ void Sidebar::render() {
 		}) {
 			for (const auto &tab : tabs) renderItem(tab);
 		}
-#if defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
+#if (defined(RENDERER_SDL2) || defined(RENDERER_SDL3)) && defined(PLATFORM_HAS_CONTROLLER)
 		if (controller != nullptr && menuManager->scale >= 1.5) {
 #else
 		if (menuManager->scale >= 1.5) {
@@ -254,6 +263,27 @@ std::shared_ptr<Image> getControllerImage(const std::string button) {
         default: // Default to Xbox because it's the most common.
         case SDL_CONTROLLER_TYPE_XBOX360:
         case SDL_CONTROLLER_TYPE_XBOXONE:
+            controllerType = "xbox";
+            break;
+        }
+#elif defined(RENDERER_SDL3) && defined(PLATFORM_HAS_CONTROLLER)
+    static std::string controllerType;
+    if (controller == nullptr) controllerType = "xbox"; // Default to Xbox because it's the most common.
+    else switch (SDL_GetGamepadType(controller)) {
+        case SDL_GAMEPAD_TYPE_PS3:
+        case SDL_GAMEPAD_TYPE_PS4:
+        case SDL_GAMEPAD_TYPE_PS5:
+            controllerType = "playstation";
+            break;
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_LEFT:
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT:
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
+            controllerType = "switch";
+            break;
+        default: // Default to Xbox because it's the most common.
+        case SDL_GAMEPAD_TYPE_XBOX360:
+        case SDL_GAMEPAD_TYPE_XBOXONE:
             controllerType = "xbox";
             break;
         }

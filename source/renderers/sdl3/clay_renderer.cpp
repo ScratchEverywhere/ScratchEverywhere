@@ -1,7 +1,8 @@
 #include "clay_renderer.hpp"
 #include "image.hpp"
-#include <SDL.h>
-#include <SDL_ttf.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_render.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <clay.h>
 #include <math.h>
 #include <stdio.h>
@@ -21,8 +22,8 @@ Clay_Dimensions SDL_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *c
     memcpy(chars, text.chars, text.length);
     int width = 0;
     int height = 0;
-    if (TTF_SizeUTF8(font, chars, &width, &height) < 0) {
-        fprintf(stderr, "Error: could not measure text: %s\n", TTF_GetError());
+    if (!TTF_GetStringSize(font, chars, 0, &width, &height)) {
+        fprintf(stderr, "Error: could not measure text: %s\n", SDL_GetError());
         exit(1);
     }
     free(chars);
@@ -47,11 +48,11 @@ static inline void SDL_Clay_AddQuadIndices(int *indices, int *indexCount, int to
 
 // all rendering is performed by a single SDL call, avoiding multiple RenderRect + plumbing choice for circles.
 static void SDL_RenderFillRoundedRect(SDL_Renderer *renderer, const SDL_FRect rect, const Clay_CornerRadius cornerRadius, const Clay_Color _color) {
-    const SDL_Color color = (SDL_Color){
-        .r = (Uint8)_color.r,
-        .g = (Uint8)_color.g,
-        .b = (Uint8)_color.b,
-        .a = (Uint8)_color.a,
+    const SDL_FColor color = (SDL_FColor){
+        .r = _color.r / 255.0f,
+        .g = _color.g / 255.0f,
+        .b = _color.b / 255.0f,
+        .a = _color.a / 255.0f,
     };
 
     int indexCount = 0, vertexCount = 0;
@@ -191,11 +192,11 @@ static void SDL_RenderCornerBorder(SDL_Renderer *renderer, Clay_BoundingBox *bou
     // The final two vertices are the missing vertices for the first and last inner triangles (if needed)
     // Everything is in clockwise order (CW).
     /////////////////////////////////
-    const SDL_Color color = (SDL_Color){
-        .r = (Uint8)_color.r,
-        .g = (Uint8)_color.g,
-        .b = (Uint8)_color.b,
-        .a = (Uint8)_color.a,
+    const SDL_FColor color = (SDL_FColor){
+        .r = _color.r / 255.0f,
+        .g = _color.g / 255.0f,
+        .b = _color.b / 255.0f,
+        .a = _color.a / 255.0f,
     };
 
     float centerX, centerY, outerRadius, clampedRadius, startAngle, borderWidth;
@@ -314,7 +315,7 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
             if (config->cornerRadius.topLeft > 1.f || config->cornerRadius.topRight > 1.f || config->cornerRadius.bottomLeft > 1.f || config->cornerRadius.bottomRight > 1.f) {
                 SDL_RenderFillRoundedRect(renderer, rect, config->cornerRadius, color);
             } else {
-                SDL_RenderFillRectF(renderer, &rect);
+                SDL_RenderFillRect(renderer, &rect);
             }
             break;
         }
@@ -324,24 +325,24 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
             memcpy(cloned, config->stringContents.chars, config->stringContents.length);
             TTF_Font *font = fonts[config->fontId].font;
             TTF_SetFontSize(font, config->fontSize);
-            SDL_Surface *surface = TTF_RenderUTF8_Blended(font, cloned, (SDL_Color){
-                                                                            .r = (Uint8)config->textColor.r,
-                                                                            .g = (Uint8)config->textColor.g,
-                                                                            .b = (Uint8)config->textColor.b,
-                                                                            .a = (Uint8)config->textColor.a,
-                                                                        });
+            SDL_Surface *surface = TTF_RenderText_Blended(font, cloned, 0, (SDL_Color){
+                                                                               .r = (Uint8)config->textColor.r,
+                                                                               .g = (Uint8)config->textColor.g,
+                                                                               .b = (Uint8)config->textColor.b,
+                                                                               .a = (Uint8)config->textColor.a,
+                                                                           });
             SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
 
-            SDL_Rect destination = (SDL_Rect){
-                .x = (int)boundingBox.x,
-                .y = (int)boundingBox.y,
-                .w = (int)boundingBox.width,
-                .h = (int)boundingBox.height,
+            SDL_FRect destination = (SDL_FRect){
+                .x = boundingBox.x,
+                .y = boundingBox.y,
+                .w = boundingBox.width,
+                .h = boundingBox.height,
             };
-            SDL_RenderCopy(renderer, texture, NULL, &destination);
+            SDL_RenderTexture(renderer, texture, NULL, &destination);
 
             SDL_DestroyTexture(texture);
-            SDL_FreeSurface(surface);
+            SDL_DestroySurface(surface);
             free(cloned);
             break;
         }
@@ -352,11 +353,11 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
                 .w = (int)boundingBox.width,
                 .h = (int)boundingBox.height,
             };
-            SDL_RenderSetClipRect(renderer, &currentClippingRectangle);
+            SDL_SetRenderClipRect(renderer, &currentClippingRectangle);
             break;
         }
         case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END: {
-            SDL_RenderSetClipRect(renderer, NULL);
+            SDL_SetRenderClipRect(renderer, NULL);
             break;
         }
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
@@ -390,7 +391,7 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
                         boundingBox.y + clampedRadiusTop,
                         (float)config->width.left,
                         (float)boundingBox.height - clampedRadiusTop - clampedRadiusBottom};
-                    SDL_RenderFillRectF(renderer, &rect);
+                    SDL_RenderFillRect(renderer, &rect);
                 }
 
                 if (config->width.right > 0) {
@@ -401,7 +402,7 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
                         boundingBox.y + clampedRadiusTop,
                         (float)config->width.right,
                         (float)boundingBox.height - clampedRadiusTop - clampedRadiusBottom};
-                    SDL_RenderFillRectF(renderer, &rect);
+                    SDL_RenderFillRect(renderer, &rect);
                 }
 
                 if (config->width.top > 0) {
@@ -412,7 +413,7 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
                         boundingBox.y,
                         boundingBox.width - clampedRadiusLeft - clampedRadiusRight,
                         (float)config->width.top};
-                    SDL_RenderFillRectF(renderer, &rect);
+                    SDL_RenderFillRect(renderer, &rect);
                 }
 
                 if (config->width.bottom > 0) {
@@ -423,7 +424,7 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
                         boundingBox.y + boundingBox.height - config->width.bottom,
                         boundingBox.width - clampedRadiusLeft - clampedRadiusRight,
                         (float)config->width.bottom};
-                    SDL_RenderFillRectF(renderer, &rect);
+                    SDL_RenderFillRect(renderer, &rect);
                 }
 
                 // corner index: 0->3 topLeft -> CW -> bottonLeft

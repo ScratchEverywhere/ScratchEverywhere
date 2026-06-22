@@ -6,7 +6,6 @@
 #include "menuManager.hpp"
 #include "menus/components.hpp"
 #include "os.hpp"
-#include "settingsMenu.hpp"
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -15,9 +14,7 @@
 #include <render.hpp>
 #include <string>
 
-#ifdef RENDERER_SDL2
-#include <renderers/sdl2/render.hpp>
-#else
+#ifdef RENDERER_CITRO2D
 constexpr unsigned int windowWidth = 320;
 constexpr unsigned int windowHeight = 240;
 #endif
