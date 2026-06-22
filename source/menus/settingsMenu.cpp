@@ -1,4 +1,5 @@
 #include "settingsMenu.hpp"
+#include "filesystem.hpp"
 #include "image.hpp"
 #include "menuManager.hpp"
 #include <clay.h>
@@ -339,6 +340,8 @@ GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
 
     if (!settings.contains("musicVolume")) settings["musicVolume"] = static_cast<int>(100);
 
+    if (!settings.contains("UseDectalk")) settings["UseDectalk"] = false;
+
     SettingsMenu::init("Global Settings");
 }
 
@@ -356,4 +359,14 @@ void GlobalSettingsMenu::renderSettings() {
 
     renderToggle("UseProjectsPath");
     if (settings["UseProjectsPath"]) renderInputButton("ProjectsPath");
+
+    renderButton("clearCache");
+    if (isButtonJustPressed("clearCache")) {
+        FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
+    }
+
+    // TODO: add language screen
+
+    renderToggle("useDectalk");
 }

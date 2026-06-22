@@ -35,6 +35,11 @@ void SettingsManager::migrate() {
             o.erase("Username");
         }
 
+        if (i.contains("UseDectalk") && i["UseDectalk"].is_boolean()) {
+            o["useDectalk"] = i["UseDectalk"];
+            o.erase("UseDectalk");
+        }
+
         std::ofstream migrationOut(OS::getConfigFolderLocation() + "Settings.json");
         migrationOut << o.dump(4);
         migrationOut.close();

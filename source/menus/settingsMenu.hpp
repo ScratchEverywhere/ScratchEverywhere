@@ -36,6 +36,8 @@ class SettingsMenu : public Menu {
         {"changeControls", "Change Project controls"},
         {"unpackProject", "Unpack Project"},
         {"deleteUnpacked", "Delete unpacked Project"},
+        {"clearCache", "Clear Cache"},
+        {"useDectalk", "Use DECtalk"},
     };
 
     std::map<std::string, Timer> animationTimers;
