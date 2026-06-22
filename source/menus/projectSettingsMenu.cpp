@@ -14,6 +14,21 @@ ProjectSettingsMenu::ProjectSettingsMenu(void *userdata) {
 
     if (!settings.contains("bottomScreen")) settings["bottomScreen"] = false;
 
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+    if (!settings.contains("accuratePen")) settings["accuratePen"] = true;
+#else
+    if (!settings.contains("accuratePen")) settings["accuratePen"] = false;
+#endif
+#ifdef __NDS__
+    if (!settings.contains("accurateCollision")) settings["accurateCollision"] = false;
+#else
+    if (!settings.contains("accurateCollision")) settings["accurateCollision"] = true;
+#endif
+
+    if (!settings.contains("debugVars")) settings["debugVars"] = false;
+    if (!settings.contains("warpTimer")) settings["warpTimer"] = true;
+    if (!settings.contains("sb3InRam")) settings["sb3InRam"] = true;
+
     init("ui.settings.project");
 }
 
@@ -55,4 +70,10 @@ void ProjectSettingsMenu::renderSettings() {
             menuManager->queueChangeMenu(MenuID::UnpackMenu, params);
         }
     }
+
+    renderToggle("accuratePen");
+    renderToggle("accurateCollision");
+    renderToggle("warpTimer");
+    renderToggle("debugVars");
+    renderToggle("sb3InRam");
 }
