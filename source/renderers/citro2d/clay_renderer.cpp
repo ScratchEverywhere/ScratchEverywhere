@@ -14,6 +14,7 @@
 #include <math.hpp>
 
 #include "clay_renderer.hpp"
+#include "image.hpp"
 
 // Maximum number of glyphs drawable with each single text draw call.
 #define MAX_TEXT_SIZE 4096
@@ -294,10 +295,17 @@ void Clay_Citro2D_Render(C3D_RenderTarget *renderTarget, Clay_Dimensions dimensi
         }
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
             Clay_ImageRenderData *config = &renderCommand->renderData.image;
-            C2D_DrawParams params = {{box.x, box.y, box.width, box.height}, {0.f, 0.f}, 0.f, 0.f};
 
             if (config->imageData != NULL) {
-                C2D_DrawImage(*(C2D_Image *)config->imageData, &params, NULL);
+                auto &image = *(Image *)config->imageData;
+
+                ImageRenderParams params;
+                params.centered = false;
+                params.x = box.x;
+                params.y = box.y;
+                params.scale = box.width / static_cast<double>(image.getWidth());
+
+                image.render(params);
             }
             break;
         }

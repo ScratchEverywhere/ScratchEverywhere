@@ -4,12 +4,13 @@
 #include "os.hpp"
 #include <clay.h>
 #include <map>
+#include <memory>
 #include <string>
 
 #ifdef RENDERER_CITRO2D
 #include <citro2d.h>
 #elif defined(RENDERER_SDL2)
-#include <renderers/sdl2/clay_renderer.h>
+#include <renderers/sdl2/clay_renderer.hpp>
 #endif
 
 class MenuManager;
@@ -47,9 +48,9 @@ class Sidebar {
     Timer animationTimer;
     std::string unSelectedTab = "";
 
-    std::map<std::string, std::unique_ptr<Image>> images;
-    std::unique_ptr<Image> nextTabImage;
-    std::unique_ptr<Image> previousTabImage;
+    std::map<std::string, std::shared_ptr<Image>> images;
+    std::shared_ptr<Image> nextTabImage;
+    std::shared_ptr<Image> previousTabImage;
 
     void renderItem(const std::string tab);
 
@@ -65,7 +66,7 @@ struct ProjectHoverData {
     const ProjectInfo *projectInfo;
 };
 
-void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected);
+void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected);
 
-std::unique_ptr<Image> getControllerImage(const std::string button);
+std::shared_ptr<Image> getControllerImage(const std::string button);
 } // namespace components

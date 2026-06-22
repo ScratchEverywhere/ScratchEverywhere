@@ -8,7 +8,7 @@ class MainMenu : public Menu {
   private:
     static std::string splash;
 
-    std::unique_ptr<Image> logo;
+    std::shared_ptr<Image> logo;
 
   public:
     MainMenu(void *userdata);

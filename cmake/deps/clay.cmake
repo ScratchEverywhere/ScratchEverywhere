@@ -2,11 +2,11 @@
 CPMAddPackage(
 	NAME clay
 	GITHUB_REPOSITORY nicbarker/clay
-	VERSION 0.14
+	VERSION 0.15 # We're kind of in between versions...
 	DOWNLOAD_ONLY TRUE
-	GIT_TAG main # TODO: Pin Commit
-	PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/clay.patch"
+	GIT_TAG e6cc369
+	PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/clay.patch"
 )
 
-add_library(deps::clay INTERFACE)
-target_include_directories(deps::clay INTERFACE "${clay_SOURCE_DIR}")
+add_library(clay INTERFACE)
+target_include_directories(clay INTERFACE "${clay_SOURCE_DIR}")

@@ -1,4 +1,5 @@
-#include "clay_renderer.h"
+#include "clay_renderer.hpp"
+#include "image.hpp"
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
@@ -34,7 +35,7 @@ Clay_Dimensions SDL2_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *
 
 /* Global for convenience. Even in 4K this is enough for smooth curves (low radius or rect size coupled with
  * no AA or low resolution might make it appear as jagged curves) */
-static int NUM_CIRCLE_SEGMENTS = 16;
+static constexpr int NUM_CIRCLE_SEGMENTS = 16;
 
 static inline void SDL_Clay_AddQuadIndices(int *indices, int *indexCount, int topLeft, int topRight, int bottomRight, int bottomLeft) {
     indices[(*indexCount)++] = bottomLeft;
@@ -362,14 +363,17 @@ void Clay_SDL2_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComm
         case CLAY_RENDER_COMMAND_TYPE_IMAGE: {
             Clay_ImageRenderData *config = &renderCommand->renderData.image;
 
-            SDL_Rect destination = (SDL_Rect){
-                .x = (int)boundingBox.x,
-                .y = (int)boundingBox.y,
-                .w = (int)boundingBox.width,
-                .h = (int)boundingBox.height,
-            };
+            if (config->imageData != NULL) {
+                auto &image = *(Image *)config->imageData;
 
-            SDL_RenderCopy(renderer, (SDL_Texture *)config->imageData, NULL, &destination);
+                ImageRenderParams params;
+                params.centered = false;
+                params.x = boundingBox.x;
+                params.y = boundingBox.y;
+                params.scale = boundingBox.width / static_cast<double>(image.getWidth());
+
+                image.render(params);
+            }
             break;
         }
         case CLAY_RENDER_COMMAND_TYPE_BORDER: {

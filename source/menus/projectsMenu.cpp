@@ -1,5 +1,8 @@
 #include "projectsMenu.hpp"
 #include "../input.hpp"
+#include "filesystem.hpp"
+#include "image.hpp"
+#include "log.hpp"
 #include "menuManager.hpp"
 #include "menus/components.hpp"
 #include "os.hpp"
@@ -20,11 +23,11 @@ constexpr unsigned int windowHeight = 240;
 #endif
 
 ProjectsMenu::ProjectsMenu(void *userdata) {
-    missingIcon = std::make_unique<Image>("gfx/menu/noicon.svg");
+    missingIcon = createImageFromFile("gfx/menu/noicon.svg", false).value(); // TODO: Error handling
 
     const std::string path = OS::getScratchFolderLocation();
 
-    if (OS::fileExists(path)) {
+    if (FileSystem::fileExists(path)) {
         for (const auto &entry : std::filesystem::directory_iterator(path)) {
             if (entry.path().extension() != ".sb3" && !(entry.is_directory() && std::filesystem::is_regular_file(entry.path() / "project.json"))) continue;
             projects.push_back({.name = entry.path().stem().string(), .path = entry.path().string()});
@@ -161,7 +164,7 @@ void ProjectsMenu::render() {
 			}) {
 				for (unsigned int j = 0; j < columns; j++) {
 					if (i * columns + j >= projects.size()) continue;
-					components::renderProjectListItem(projects[i * columns + j], MenuManager::getImageData(missingIcon.get()), i * columns + j, CLAY_SIZING_FIXED(itemWidth), 0, menuManager, selectedProject == i * columns + j); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
+					components::renderProjectListItem(projects[i * columns + j], missingIcon, i * columns + j, CLAY_SIZING_FIXED(itemWidth), 0, menuManager, selectedProject == i * columns + j); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
 				}
 			}
 		}

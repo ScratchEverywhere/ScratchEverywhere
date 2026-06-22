@@ -8,7 +8,7 @@
 
 class ProjectsMenu : public Menu {
   private:
-    std::unique_ptr<Image> missingIcon;
+    std::shared_ptr<Image> missingIcon;
     std::vector<components::ProjectInfo> projects;
     int selectedProject = -1;
     float scrollOffset = 0;

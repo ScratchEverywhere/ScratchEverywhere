@@ -1,9 +1,11 @@
 #include "controlsMenu.hpp"
 #include "menuManager.hpp"
+#include "runtime.hpp"
 #include <clay.h>
 #include <cstring>
 #include <fstream>
 #include <input.hpp>
+#include <log.hpp>
 #include <render.hpp>
 #include <settings.hpp>
 #include <unzip.hpp>
@@ -42,79 +44,43 @@ ControlsMenu::ControlsMenu(void *userdata) {
     Parser::loadSprites(j);
     Input::applyControls(projectPath + ".json");
 
-    for (auto &sprite : Scratch::sprites) {
-        for (auto &[id, block] : sprite->blocks) {
-            std::string buttonCheck;
-            if (block.opcode == "sensing_keypressed") {
-                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY_OPTION", sprite));
-            } else if (block.opcode == "event_whenkeypressed") {
-                buttonCheck = Input::convertToKey(Value(Scratch::getFieldValue(block, "KEY_OPTION")));
-            } else if (block.opcode == "makeymakey_whenMakeyKeyPressed") {
-                buttonCheck = Input::convertToKey(Scratch::getInputValue(block, "KEY", sprite), true);
-            } else if (block.opcode == "makeymakey_whenCodePressed") {
-                std::string input = Scratch::getInputValue(block, "SEQUENCE", sprite).asString();
-                size_t start = 0;
-                size_t end;
-                while ((end = input.find(' ', start)) != std::string::npos) {
-                    buttonCheck = input.substr(start, end - start);
-                    if (buttonCheck != "" && controls.find(buttonCheck) == controls.end()) {
-                        // Log::log("Found new control: " + buttonCheck);
-                        for (const auto &[key, val] : Input::inputControls) {
-                            if (val == buttonCheck)
-                                controls[buttonCheck] = key;
-                        }
-                    }
-                    start = end + 1;
+    for (auto &block : Scratch::blocks) {
+        std::string buttonCheck;
+        if (block->opcode == "sensing_keypressed") {
+            if (block->inputs["KEY_OPTION"].inputType == ParsedInput::VALUE) {
+                buttonCheck = block->inputs["KEY_OPTION"].value.asString();
+            }
+        } else if (block->opcode == "event_whenkeypressed") {
+            buttonCheck = block->fields["KEY_OPTION"].value;
+        } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
+            if (block->inputs["KEY"].inputType == ParsedInput::VALUE) {
+                buttonCheck = block->inputs["KEY"].value.asString();
+            }
+        } else if (block->opcode == "makeymakey_whenCodePressed") {
+            if (block->inputs["SEQUENCE"].inputType != ParsedInput::VALUE) continue;
+
+            std::string input = block->inputs["SEQUENCE"].value.asString();
+            size_t start = 0;
+            size_t end;
+            while ((end = input.find(' ', start)) != std::string::npos) {
+                buttonCheck = input.substr(start, end - start);
+                if (buttonCheck != "") {
+                    break;
                 }
-                buttonCheck = input.substr(start);
-                if (buttonCheck != "" && controls.find(buttonCheck) == controls.end()) {
-                    // Log::log("Found new control: " + buttonCheck);
-                    for (const auto &[key, val] : Input::inputControls) {
-                        if (val == buttonCheck)
-                            controls[buttonCheck] = key;
-                    }
-                }
-                continue;
-            } else continue;
-            if (buttonCheck != "" && controls.find(buttonCheck) == controls.end()) {
-                // Log::log("Found new control: " + buttonCheck);
-                for (const auto &[key, val] : Input::inputControls) {
-                    if (val == buttonCheck)
-                        controls[buttonCheck] = key;
-                }
+                start = end + 1;
+            }
+            buttonCheck = input.substr(start);
+        } else continue;
+        if (buttonCheck != "" && controls.find(buttonCheck) == controls.end()) {
+            Log::log("Found new control: " + buttonCheck);
+            for (const auto &[key, val] : Input::inputControls) {
+                if (val == buttonCheck)
+                    controls[buttonCheck] = key;
             }
         }
     }
 
-    Scratch::cleanupSprites();
-    Scratch::cleanupSprites();
-    Render::monitorTexts.clear();
-    Render::listMonitors.clear();
-    Render::visibleVariables.clear();
-
-    // Reset Runtime (should maybe add a Scratch::cleanupRuntime() function,)
-    Scratch::broadcastQueue.clear();
-    Scratch::cloneQueue.clear();
-    Scratch::stageSprite = nullptr;
-    Scratch::answer.clear();
-    Scratch::customUsername.clear();
-    Scratch::projectWidth = 480;
-    Scratch::projectHeight = 360;
-    Scratch::cloneCount = 0;
-    Scratch::maxClones = 300;
-    Scratch::FPS = 30;
-    Scratch::counter = 0;
-    Scratch::turbo = false;
-    Scratch::hqpen = false;
-    Scratch::fencing = true;
-    Scratch::miscellaneousLimits = true;
-    Scratch::shouldStop = false;
-    Scratch::forceRedraw = false;
-    Scratch::nextProject = false;
-    Scratch::useCustomUsername = false;
-    Scratch::projectType = UNEMBEDDED;
-    Render::renderMode = Render::TOP_SCREEN_ONLY;
-    Input::applyControls("");
+    Scratch::cleanupScratchProject();
 
     for (auto &[controlName, controlValue] : controls) {
         controlStrings[controlName] = controlName + " --> " + controlValue;

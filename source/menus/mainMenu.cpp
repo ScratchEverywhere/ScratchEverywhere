@@ -1,14 +1,15 @@
 #include "mainMenu.hpp"
 #include "components.hpp"
+#include "image.hpp"
 #include "menuManager.hpp"
-#include "unzip.hpp"
+#include "translation.hpp"
 
 std::string MainMenu::splash = "";
 
 MainMenu::MainMenu(void *userdata) {
-    logo = std::make_unique<Image>("gfx/menu/logo.svg");
+    logo = createImageFromFile("gfx/menu/logo.svg", false).value(); // TODO: Error handling
 
-    if (splash == "") splash = Unzip::getSplashText();
+    if (splash == "") splash = TranslationManager::getSplashText();
 }
 
 void MainMenu::render() {
@@ -29,7 +30,7 @@ void MainMenu::render() {
 					.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_BOTTOM }
 				},
 				.aspectRatio = { logo->getWidth() / static_cast<float>(logo->getHeight()) },
-				.image = { MenuManager::getImageData(logo.get()) }
+				.image = { logo.get() }
 			});
 			const Clay_String claySplash = {true, static_cast<int32_t>(splash.length()), splash.c_str()};
 			constexpr uint16_t minFontSize = 18;

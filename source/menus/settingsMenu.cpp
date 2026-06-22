@@ -1,4 +1,5 @@
 #include "settingsMenu.hpp"
+#include "image.hpp"
 #include "menuManager.hpp"
 #include <clay.h>
 #include <cstring>
@@ -18,7 +19,7 @@ void SettingsMenu::init(const std::string &title) {
         hoverData.insert({setting, {settings, setting, animationTimers[setting]}});
     }
 
-    indicator = std::make_unique<Image>("gfx/menu/indicator.svg");
+    indicator = createImageFromFile("gfx/menu/indicator.svg", false).value(); // TODO: Error handling
 
     this->title = {false, static_cast<int32_t>(title.length()), nullptr};
     void *chars = malloc(title.length());
@@ -50,7 +51,7 @@ void SettingsMenu::renderSlider(const std::string &setting) {
     const uint16_t knobBorderWidth = 2 * menuManager->scale;
     const float maxOffset = (width - (knobHeight * 1.6)) * (static_cast<float>(value) / 100.0f);
 
-    const float t = std::min(animationTimers[setting].getTimeMs(), static_cast<int>(animationDuration)) / static_cast<float>(animationDuration);
+    const float t = std::min(animationTimers[setting].getTimeMs(), static_cast<uint64_t>(animationDuration)) / static_cast<float>(animationDuration);
     float offset;
     if (!hd.justPressed && startTimer.getTimeMs() > animationDuration) offset = std::lerp(hd.lastOffset, maxOffset, t);
     else offset = maxOffset;
@@ -131,7 +132,7 @@ void SettingsMenu::renderToggle(const std::string &setting) {
     const float knobHeight = height - padding * 2;
     const uint16_t knobBorderWidth = 2 * menuManager->scale;
 
-    const float t = std::min(animationTimers[setting].getTimeMs(), static_cast<int>(animationDuration)) / static_cast<float>(animationDuration);
+    const float t = std::min(animationTimers[setting].getTimeMs(), static_cast<uint64_t>(animationDuration)) / static_cast<float>(animationDuration);
     float offset;
     if (startTimer.getTimeMs() > animationDuration) offset = settings[setting] ? std::lerp(0, height, t) : std::lerp(height, 0, t);
     else offset = settings[setting] ? height : 0;
@@ -312,7 +313,7 @@ void SettingsMenu::render() {
 					.sizing = { .width = CLAY_SIZING_FIXED(15 * menuManager->scale) }
 				},
 				.aspectRatio = {1},
-				.image = {MenuManager::getImageData(indicator.get())},
+				.image = {indicator.get()},
 				.floating = {
 					.offset = { .x = 15 * menuManager->scale },
 					.parentId = CLAY_SID(clayIds[renderOrder[selected]]).id,

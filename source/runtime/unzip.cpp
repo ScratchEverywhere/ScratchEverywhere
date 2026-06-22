@@ -12,7 +12,6 @@
 #include <image.hpp>
 #include <istream>
 #include <log.hpp>
-#include <menus/loading.hpp>
 #include <random>
 #include <settings.hpp>
 #include <sys/stat.h>
@@ -27,6 +26,7 @@
 #endif
 
 #ifdef ENABLE_LOADSCREEN
+#include <menus/loading.hpp>
 #include <thread.hpp>
 #endif
 

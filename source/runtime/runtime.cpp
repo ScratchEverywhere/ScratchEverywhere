@@ -84,7 +84,7 @@ bool Scratch::warpTimer = true;
 Timer Scratch::fpsTimer(false);
 
 #ifdef ENABLE_MENU
-PauseMenu *Scratch::pauseMenu = nullptr;
+// PauseMenu *Scratch::pauseMenu = nullptr;
 #endif
 
 double Scratch::counter = 0;
@@ -127,7 +127,7 @@ void Scratch::initializeScratchProject() {
     Scratch::nextProject = false;
 
 #ifdef ENABLE_MENU
-    Scratch::pauseMenu = nullptr;
+    // Scratch::pauseMenu = nullptr;
 #endif
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
@@ -151,22 +151,22 @@ void Scratch::initializeScratchProject() {
 std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
     if (!Render::appShouldRun()) {
 #ifdef ENABLE_MENU
-        if (pauseMenu != nullptr) {
+        /* if (pauseMenu != nullptr) {
             MenuManager::cleanup();
             pauseMenu = nullptr;
-        }
+        } */
 #endif
         return std::make_pair(false, false);
     }
 #ifdef ENABLE_MENU
-    if (pauseMenu != nullptr) {
+    /* if (pauseMenu != nullptr) {
         MenuManager::render();
         if (pauseMenu->shouldUnpause) {
             MenuManager::cleanup();
             pauseMenu = nullptr;
         }
         return std::make_pair(Render::appShouldRun(), false);
-    }
+    } */
 #endif
 
     const bool checkFPS = Render::checkFramerate();
@@ -227,8 +227,8 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #ifdef ENABLE_MENU
 
         if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
-            pauseMenu = new PauseMenu();
-            MenuManager::changeMenu(pauseMenu);
+            /* pauseMenu = new PauseMenu();
+            MenuManager::changeMenu(pauseMenu); */
             return std::make_pair(true, false);
         }
 
@@ -253,7 +253,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 bool Scratch::startScratchProject() {
 
     if (hasNativeExtensions) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
+        /* PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
         MenuManager::changeMenu(popupMenu);
         while (Render::appShouldRun() && popupMenu->accepted == -1) {
             MenuManager::render();
@@ -262,7 +262,7 @@ bool Scratch::startScratchProject() {
         if (popupMenu->accepted == 0) {
             cleanupScratchProject();
             return false;
-        }
+        } */
     }
 
     std::pair<bool, bool> code;

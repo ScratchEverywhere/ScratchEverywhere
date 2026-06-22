@@ -3,12 +3,13 @@
 #include "components.hpp"
 #include "controlsMenu.hpp"
 #include "input.hpp"
+#include "log.hpp"
 #include "mainMenu.hpp"
 #include "menu.hpp"
-#include "os.hpp"
 #include "projectSettingsMenu.hpp"
 #include "projectsMenu.hpp"
 #include "settingsMenu.hpp"
+#include "timer.hpp"
 #include "unpackMenu.hpp"
 #include <cmath>
 #include <cstdint>
@@ -19,13 +20,12 @@
 #include <utility>
 
 #ifdef RENDERER_SDL2
-#include <renderers/sdl2/clay_renderer.h>
+#include <renderers/sdl2/clay_renderer.hpp>
 #include <renderers/sdl2/render.hpp>
 #elif defined(RENDERER_CITRO2D)
 #include <citro2d.h>
 #include <citro3d.h>
 #include <renderers/citro2d/clay_renderer.hpp>
-#include <renderers/citro2d/image.hpp>
 
 extern C3D_RenderTarget *bottomScreen;
 extern C3D_RenderTarget *topScreen;
@@ -134,6 +134,8 @@ void MenuManager::freeClay() {
 }
 
 void MenuManager::render() {
+    static Timer deltaTimer;
+
     static constexpr float maxScale = 2;
 
     if (menuQueue.first != MenuID::None) {
@@ -183,12 +185,14 @@ void MenuManager::render() {
 	}
     // clang-format on
 #ifdef RENDERER_SDL2
-    Clay_SDL2_Render(renderer, Clay_EndLayout(), reinterpret_cast<SDL2_Font *>(components::fonts));
+    Clay_SDL2_Render(renderer, Clay_EndLayout(deltaTimer.getTimeMs()), reinterpret_cast<SDL2_Font *>(components::fonts));
     SDL_RenderPresent(renderer);
 #elif defined(RENDERER_CITRO2D)
     Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
     C3D_FrameEnd(0);
 #endif
+
+    deltaTimer.start();
 }
 
 void MenuManager::handleInput(float mouseX, float mouseY, bool mouseDown) {

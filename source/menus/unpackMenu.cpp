@@ -1,5 +1,8 @@
 #include "unpackMenu.hpp"
+#include "filesystem.hpp"
+#include "log.hpp"
 #include "menuManager.hpp"
+#include "unzip.hpp"
 #include <clay.h>
 #include <cstring>
 #include <fstream>

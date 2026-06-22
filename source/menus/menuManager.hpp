@@ -1,16 +1,9 @@
 #pragma once
 
 #include "components.hpp"
-#include "image.hpp"
 #include "menu.hpp"
 #include <memory>
 #include <stack>
-
-#ifdef RENDERER_SDL2
-#include <renderers/sdl2/image.hpp>
-#elif defined(__3DS__)
-#include <renderers/citro2d/image.hpp>
-#endif
 
 enum class MenuID {
     MainMenu,
@@ -56,12 +49,4 @@ class MenuManager {
     void back(void *userdata = nullptr);
 
     void handleInput(float mouseX, float mouseY, bool mouseDown);
-
-    static inline void *getImageData(Image *image) {
-#ifdef RENDERER_SDL2
-        return images[image->imageId]->spriteTexture;
-#elif defined(__3DS__)
-        return &images[image->imageId].image;
-#endif
-    }
 };

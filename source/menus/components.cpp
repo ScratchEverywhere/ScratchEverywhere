@@ -1,14 +1,16 @@
 #include "components.hpp"
 #include "../os.hpp"
+#include "image.hpp"
 #include "input.hpp"
 #include "menus/menuManager.hpp"
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
 #ifdef RENDERER_SDL2
-#include <renderers/sdl2/clay_renderer.h>
+#include <renderers/sdl2/clay_renderer.hpp>
 #include <renderers/sdl2/render.hpp>
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -33,7 +35,7 @@ Sidebar::Sidebar() {
     previousTabImage = getControllerImage("shoulderL");
 
     for (const auto &tab : tabs)
-        images[tab] = std::make_unique<Image>("gfx/menu/" + tab + ".svg");
+        images[tab] = createImageFromFile("gfx/menu/" + tab + ".svg", false).value(); // TODO: Error handling
 }
 
 static MenuID tabToMenuID(const std::string tab) {
@@ -59,7 +61,7 @@ void Sidebar::renderItem(const std::string tab) {
         selected = tab;
     }
 
-    const float t = std::min(animationTimer.getTimeMs(), static_cast<int>(animationDuration)) / static_cast<float>(animationDuration);
+    const float t = std::min(animationTimer.getTimeMs(), static_cast<uint64_t>(animationDuration)) / static_cast<float>(animationDuration);
 
     Clay_Color bgColor = unfocusedTabColor;
     if (selected == tab) {
@@ -101,7 +103,7 @@ void Sidebar::renderItem(const std::string tab) {
 				.sizing = { .width = CLAY_SIZING_PERCENT(0.5) }
 			},
 			.aspectRatio = { 1 },
-			.image = { .imageData = MenuManager::getImageData(images[tab].get()) }	
+			.image = { .imageData = images[tab].get() }	
 		});
 	}
     // clang-format on
@@ -135,7 +137,7 @@ void Sidebar::render() {
 					.sizing = { .width = CLAY_SIZING_GROW(0) }
 				},
 				.aspectRatio = {1},
-				.image = { MenuManager::getImageData(previousTabImage.get()) }
+				.image = { previousTabImage.get() }
 			});
 		}
 		CLAY(CLAY_ID_LOCAL("tabs"), (Clay_ElementDeclaration){
@@ -157,14 +159,14 @@ void Sidebar::render() {
 					.sizing = { .width = CLAY_SIZING_GROW(0) }
 				},
 				.aspectRatio = {1},
-				.image = { MenuManager::getImageData(nextTabImage.get()) }
+				.image = { nextTabImage.get() }
 			});
 		}
 	}
     // clang-format on
 }
 
-void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected) {
+void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected) {
     const uint16_t padding = 10 * menuManager->scale;
     selected = selected || Clay_PointerOver(CLAY_IDI("project-list-item", i));
     Clay_Color bgColor = {225, 225, 235, 255};
@@ -204,7 +206,7 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
 					.sizing = { .width = CLAY_SIZING_FIXED(Clay_GetElementData(CLAY_IDI("project-list-item", i)).boundingBox.height - 2 * padding) }
 				},
 				.aspectRatio = {1},
-				.image = {.imageData = image},
+				.image = {.imageData = image.get()},
 			});
 		}
 		CLAY(CLAY_IDI("project-list-item-text-wrapper", i), (Clay_ElementDeclaration){
@@ -223,7 +225,7 @@ void renderProjectListItem(const ProjectInfo &projectInfo, void *image, unsigned
     // clang-format on
 }
 
-std::unique_ptr<Image> getControllerImage(const std::string button) {
+std::shared_ptr<Image> getControllerImage(const std::string button) {
 #if defined(__3DS__) || defined(__WIIU__)             // We don't have 3DS assets but the Wii U is the most similar
     static const std::string controllerType = "wiiu"; // TODO: Detect Wii Remote
 #elif defined(WII)
@@ -387,6 +389,6 @@ std::unique_ptr<Image> getControllerImage(const std::string button) {
             {"LT", "trigger_lt_outline"},
             {"RT", "trigger_rt_outline"}};
 
-    return std::make_unique<Image>("gfx/menu/controller/" + controllerType + "/" + controllerType + "_" + buttonMap[button] + ".svg");
+    return createImageFromFile("gfx/menu/controller/" + controllerType + "/" + controllerType + "_" + buttonMap[button] + ".svg", false).value(); // TODO: Error handling
 }
 } // namespace components
