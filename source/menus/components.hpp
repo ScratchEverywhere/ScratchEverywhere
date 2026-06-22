@@ -39,9 +39,10 @@ class Sidebar {
     static const std::array<std::string, 3> tabs;
 
     struct HoverData {
-        MenuManager *menuManager;
+        MenuManager *&menuManager;
         std::string tab;
     };
+    std::map<std::string, HoverData *> hoverDatas;
 
     static constexpr unsigned int animationDuration = 150; // ms
     std::string selected = "";
@@ -58,6 +59,7 @@ class Sidebar {
     MenuManager *menuManager = nullptr;
 
     Sidebar();
+    ~Sidebar();
     void render();
 };
 

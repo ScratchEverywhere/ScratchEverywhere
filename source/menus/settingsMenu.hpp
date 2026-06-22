@@ -38,6 +38,7 @@ class SettingsMenu : public Menu {
         {"deleteUnpacked", "Delete unpacked Project"},
         {"clearCache", "Clear Cache"},
         {"useDectalk", "Use DECtalk"},
+        {"language", "Language"},
     };
 
     std::map<std::string, Timer> animationTimers;

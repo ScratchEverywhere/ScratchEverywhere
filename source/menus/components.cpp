@@ -34,8 +34,16 @@ Sidebar::Sidebar() {
     nextTabImage = getControllerImage("shoulderR");
     previousTabImage = getControllerImage("shoulderL");
 
-    for (const auto &tab : tabs)
+    for (const auto &tab : tabs) {
         images[tab] = createImageFromFile("gfx/menu/" + tab + ".svg", false).value(); // TODO: Error handling
+        hoverDatas[tab] = new HoverData{menuManager, tab};
+    }
+}
+
+Sidebar::~Sidebar() {
+    for (auto &[_, hoverData] : hoverDatas) {
+        delete hoverData;
+    }
 }
 
 static MenuID tabToMenuID(const std::string tab) {
@@ -91,12 +99,10 @@ void Sidebar::renderItem(const std::string tab) {
 		.backgroundColor = bgColor,
 		.cornerRadius = {16 * menuManager->scale, 0, 16 * menuManager->scale, 0},
 	}) {
-		HoverData *hoverData = new HoverData{menuManager, tab};
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto hoverData = (const HoverData*)userdata;
 			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME && hoverData->menuManager->currentMenuID != tabToMenuID(hoverData->tab) && hoverData->menuManager->canChangeMenus) hoverData->menuManager->changeMenu(tabToMenuID(hoverData->tab));
-			delete hoverData;
-		}, hoverData);
+		}, hoverDatas[tab]);
 
 		if (images.contains(tab) && images[tab]) CLAY(CLAY_SID(clayImageId), (Clay_ElementDeclaration){
 			.layout = {
@@ -167,6 +173,9 @@ void Sidebar::render() {
 }
 
 void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected) {
+    static std::unordered_map<unsigned int, ProjectHoverData> hoverDatas;
+    if (!hoverDatas.contains(i)) hoverDatas[i] = ProjectHoverData{menuManager, &projectInfo};
+
     const uint16_t padding = 10 * menuManager->scale;
     selected = selected || Clay_PointerOver(CLAY_IDI("project-list-item", i));
     Clay_Color bgColor = {225, 225, 235, 255};
@@ -189,16 +198,11 @@ void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image
 		.cornerRadius = {10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale},
 		.border = { .color = borderColor, .width = {static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale)} }
 	}) {
-		ProjectHoverData *hoverData = new ProjectHoverData{menuManager, &projectInfo};
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto projectHoverData = (const ProjectHoverData*)userdata;
-			if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-				delete projectHoverData;
-				return;
-			}
+			if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME) return;
 			projectHoverData->menuManager->launchProject(projectHoverData->projectInfo->path);
-			delete projectHoverData;
-		}, hoverData);
+		}, &hoverDatas[i]);
 
 		if (image) {
 			CLAY(CLAY_IDI("project-list-item-img", i), (Clay_ElementDeclaration){

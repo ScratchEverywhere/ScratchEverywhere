@@ -366,7 +366,10 @@ void GlobalSettingsMenu::renderSettings() {
         FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
     }
 
-    // TODO: add language screen
+    renderButton("language");
+    if (isButtonJustPressed("language")) {
+        menuManager->queueChangeMenu(MenuID::LanguageMenu);
+    }
 
     renderToggle("useDectalk");
 }

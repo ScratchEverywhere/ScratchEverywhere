@@ -12,6 +12,7 @@ enum class MenuID {
     ProjectSettingsMenu,
     ControlsMenu,
     UnpackMenu,
+    LanguageMenu,
     None
 };
 
@@ -27,6 +28,8 @@ class MenuManager {
     std::unique_ptr<Menu> createMenu(MenuID id, void *userdata = nullptr);
 
   public:
+    std::vector<void *> toFree;
+
     bool canChangeMenus = true;
 
     float scale;
@@ -36,6 +39,8 @@ class MenuManager {
     MenuID currentMenuID = MenuID::None;
 
     std::pair<MenuID, void *> menuQueue = {MenuID::None, nullptr};
+    bool backQueued = false;
+    void *backUserdata;
 
     static void initClay();
     static void freeClay();
@@ -47,6 +52,7 @@ class MenuManager {
     bool launchProject(const std::string path);
     void render();
     void back(void *userdata = nullptr);
+    void queueBack(void *userdata = nullptr);
 
     void handleInput(float mouseX, float mouseY, bool mouseDown);
 };

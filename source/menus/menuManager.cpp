@@ -3,6 +3,7 @@
 #include "components.hpp"
 #include "controlsMenu.hpp"
 #include "input.hpp"
+#include "languageMenu.hpp"
 #include "log.hpp"
 #include "mainMenu.hpp"
 #include "menu.hpp"
@@ -47,6 +48,8 @@ std::unique_ptr<Menu> MenuManager::createMenu(MenuID id, void *userdata) {
         return std::make_unique<ControlsMenu>(userdata);
     case MenuID::UnpackMenu:
         return std::make_unique<UnpackMenu>(userdata);
+    case MenuID::LanguageMenu:
+        return std::make_unique<LanguageMenu>(userdata);
     default:
         return nullptr;
     }
@@ -79,6 +82,12 @@ void MenuManager::back(void *userdata) {
     currentMenu->menuManager = this;
     currentMenuID = history.top();
     history.pop();
+}
+
+void MenuManager::queueBack(void *userdata) {
+    if (history.empty()) return;
+    backQueued = true;
+    backUserdata = userdata;
 }
 
 MenuManager::MenuManager() {
@@ -138,6 +147,8 @@ void MenuManager::render() {
 
     static constexpr float maxScale = 2;
 
+    toFree.clear();
+
     if (menuQueue.first != MenuID::None) {
         if (Input::mousePointer.isPressed) {
             waitForRelease = true;
@@ -146,6 +157,14 @@ void MenuManager::render() {
         Clay_SetPointerState({-9999, -9999}, false);
         changeMenu(menuQueue.first, menuQueue.second);
         menuQueue = {MenuID::None, nullptr};
+    } else if (backQueued) {
+        if (Input::mousePointer.isPressed) {
+            waitForRelease = true;
+        }
+
+        Clay_SetPointerState({-9999, -9999}, false);
+        back(backUserdata);
+        backQueued = false;
     }
 
     // #ifdef RENDERER_SDL2
@@ -191,6 +210,10 @@ void MenuManager::render() {
     Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
     C3D_FrameEnd(0);
 #endif
+
+    for (auto &ptr : toFree) {
+        delete ptr;
+    }
 
     deltaTimer.start();
 }
