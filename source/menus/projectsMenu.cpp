@@ -53,8 +53,6 @@ void ProjectsMenu::render() {
     const float itemWidth = 150 * menuManager->scale;
     const unsigned int gap = 10 * menuManager->scale;
     const uint16_t padding = 15 * menuManager->scale;
-    const int windowWidth = Render::getWidth();
-    const int windowHeight = Render::getHeight();
 
     unsigned int columns = (Clay_GetElementData(CLAY_ID("main")).boundingBox.width + gap - 2 * padding) / (itemWidth + gap);
     if (columns > maxColumns) columns = maxColumns;
@@ -88,39 +86,11 @@ void ProjectsMenu::render() {
     }
     if (selectedProject == 0 && projects.empty()) selectedProject = -1;
 
-    if (!projects.empty()) {
-        const Clay_ScrollContainerData scrollContainerData = Clay_GetScrollContainerData(CLAY_ID("main"));
-        float maxScrollPosition = scrollContainerData.contentDimensions.height - scrollContainerData.scrollContainerDimensions.height;
-        if (maxScrollPosition < 0) maxScrollPosition = 0;
+    std::optional<Clay_BoundingBox> selectedBoundingBox = std::nullopt;
+    if (selectedMoved && !projects.empty() && selectedProject != -1)
+        selectedBoundingBox = Clay_GetElementData(CLAY_IDI("project-list-item", selectedProject)).boundingBox;
 
-        scrollOffset += Input::scrollDelta[1] * frameTimer.getTimeMs();
-        if (dragging) {
-            if (Input::mousePointer.isPressed) {
-                scrollOffset -= Input::mousePointer.y - lastDragPosition[1];
-                lastDragPosition = {static_cast<float>(Input::mousePointer.x), static_cast<float>(Input::mousePointer.y)};
-            } else {
-                dragging = false;
-            }
-        } else if (Input::mousePointer.isPressed) {
-            dragging = true;
-            lastDragPosition = {static_cast<float>(Input::mousePointer.x), static_cast<float>(Input::mousePointer.y)};
-        }
-
-        const Clay_BoundingBox selectedBoundingBox = Clay_GetElementData(CLAY_IDI("project-list-item", selectedProject)).boundingBox;
-        const unsigned int selectedRow = std::floor(selectedProject / columns);
-        if (selectedMoved) {
-            if (selectedBoundingBox.y < 0) {
-                if (selectedRow <= 1) scrollOffset = 0;
-                else scrollOffset = -((padding * 2) + (60 * menuManager->scale * selectedRow) + (10 * menuManager->scale * (selectedRow - 2)) + (24 * menuManager->scale + 10 * menuManager->scale));
-            } else if (selectedBoundingBox.y + selectedBoundingBox.height > windowHeight) {
-                if (selectedRow == rows - 1) scrollOffset = -maxScrollPosition;
-                else scrollOffset = -((padding * 2) + (60 * menuManager->scale * (selectedRow + 1)) + (10 * menuManager->scale * (selectedRow - 1)) + (24 * menuManager->scale + 10 * menuManager->scale)) + windowHeight;
-            }
-        }
-
-        if (scrollOffset > 0) scrollOffset = 0;
-        if (scrollOffset < -maxScrollPosition) scrollOffset = -maxScrollPosition;
-    }
+    const float scrollOffset = getScrollOffset(frameTimer, selectedBoundingBox);
 
     // clang-format off
 	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){

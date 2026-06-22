@@ -11,12 +11,6 @@ class ProjectsMenu : public Menu {
     std::shared_ptr<Image> missingIcon;
     std::vector<components::ProjectInfo> projects;
     int selectedProject = -1;
-    float scrollOffset = 0;
-
-    // For re-implementing drag-scrolling...
-    bool dragging = false;
-    std::array<float, 2> lastDragPosition;
-
     Clay_String noProjectsPath;
 
   public:

@@ -256,16 +256,19 @@ bool SettingsMenu::isButtonJustPressed(const std::string &buttonName) {
 
 void SettingsMenu::renderSettings() {}
 
-// TODO: Steal scrolling from projects menu
 void SettingsMenu::render() {
+    static Timer frameTimer;
     const uint16_t padding = 15 * menuManager->scale;
+    bool selectedMoved = false;
 
     if (Input::isButtonJustPressed("dpadDown") || Input::isButtonJustPressed("LeftStickDown")) {
         if (selected == -1) selected = 0;
         else if (selected != renderOrder.size() - 1) selected++;
+        selectedMoved = true;
     } else if (Input::isButtonJustPressed("dpadUp") || Input::isButtonJustPressed("LeftStickUp")) {
         if (selected == -1) selected = 0;
         else if (selected != 0) selected--;
+        selectedMoved = true;
     } else if (Input::isButtonJustPressed("A") && selected != -1) {
         if (hoverData.find(renderOrder[selected]) != hoverData.end()) hoverData.at(renderOrder[selected]).justPressed = true;
         if (settings[renderOrder[selected]].is_boolean()) settings[renderOrder[selected]] = !settings[renderOrder[selected]];
@@ -287,6 +290,11 @@ void SettingsMenu::render() {
         }
     }
 
+    std::optional<Clay_BoundingBox> selectedBoundingBox = std::nullopt;
+    if (selectedMoved && selected != -1) selectedBoundingBox = Clay_GetElementData(CLAY_SID(clayIds[renderOrder[selected]])).boundingBox;
+
+    const float scrollOffset = getScrollOffset(frameTimer, selectedBoundingBox);
+
     // clang-format off
 	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){
 		.layout = {
@@ -296,7 +304,8 @@ void SettingsMenu::render() {
 			.layoutDirection = CLAY_TOP_TO_BOTTOM
 		},
 		.backgroundColor = { 115, 75, 115, 255 },
-		.cornerRadius = { 15 * menuManager->scale, 0, 15 * menuManager->scale, 0 }
+		.cornerRadius = { 15 * menuManager->scale, 0, 15 * menuManager->scale, 0 },
+		.clip = { .horizontal = false, .vertical = true, .childOffset = { .y = scrollOffset} },
 	}) {
 		CLAY(CLAY_ID_LOCAL("title-wrapper"), (Clay_ElementDeclaration){
 			.layout = {
@@ -329,6 +338,7 @@ void SettingsMenu::render() {
 		}
 	}
     // clang-format on
+    frameTimer.start();
 }
 
 GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
