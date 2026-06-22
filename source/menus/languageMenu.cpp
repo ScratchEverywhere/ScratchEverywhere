@@ -33,20 +33,30 @@ void changeLanguage(MenuManager *menuManager, unsigned int id) {
 }
 
 void LanguageMenu::render() {
+    static Timer frameTimer;
     if (Input::isButtonJustPressed("B") && menuManager->canChangeMenus) {
         menuManager->back();
         return;
     }
 
+    bool selectedMoved = false;
     if (Input::isButtonJustPressed("dpadDown") || Input::isButtonJustPressed("LeftStickDown")) {
         if (selected == -1) selected = 0;
         else if (selected != langs.size() - 1) selected++;
+        selectedMoved = true;
     } else if (Input::isButtonJustPressed("dpadUp") || Input::isButtonJustPressed("LeftStickUp")) {
         if (selected == -1) selected = 0;
         else if (selected != 0) selected--;
+        selectedMoved = true;
     } else if (Input::isButtonJustPressed("A") && selected != -1) {
         changeLanguage(menuManager, selected);
     }
+
+    std::optional<Clay_BoundingBox> selectedBoundingBox = std::nullopt;
+    if (selectedMoved && selected != -1)
+        selectedBoundingBox = Clay_GetElementData(CLAY_IDI("lang", selected)).boundingBox;
+
+    const float scrollOffset = getScrollOffset(frameTimer, selectedBoundingBox);
 
     // clang-format off
 	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){
@@ -57,7 +67,8 @@ void LanguageMenu::render() {
 			.layoutDirection = CLAY_TOP_TO_BOTTOM,
 		},
 		.backgroundColor = {115, 75, 115, 255},
-		.cornerRadius = {15 * menuManager->scale, 0, 15 * menuManager->scale, 0}
+		.cornerRadius = {15 * menuManager->scale, 0, 15 * menuManager->scale, 0},
+		.clip = {.horizontal = false, .vertical = true, .childOffset = {.y = scrollOffset}}
 	}) {
 		CLAY_TEXT(CLAY_STRING("Select Language"), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale) }));
 
@@ -107,4 +118,5 @@ void LanguageMenu::render() {
 		}
 	}
     // clang-format on
+    frameTimer.start();
 }
