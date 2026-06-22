@@ -40,5 +40,6 @@ class TextObjectGL : public TextObject {
     void setText(std::string txt) override;
     void render(int xPos, int yPos) override;
     std::vector<float> getSize() override;
+    std::vector<float> getStringSize(const std::string &txt) override;
     static void cleanupText();
 };

@@ -1,9 +1,10 @@
 #include "text_sdl1.hpp"
 #include "render.hpp"
-#include <SDL/SDL_gfxBlitFunc.h>
-#include <SDL/SDL_rotozoom.h>
-#include <SDL/SDL_video.h>
+#include <SDL_gfxBlitFunc.h>
+#include <SDL_rotozoom.h>
+#include <SDL_video.h>
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 #include <ostream>
 #include <render.hpp>
@@ -26,7 +27,7 @@ TextObjectSDL1::TextObjectSDL1(std::string txt, double posX, double posY, std::s
 
     // get font
     if (fontPath.empty()) {
-        fontPath = "gfx/menu/LibSansN";
+        fontPath = "gfx/ingame/fonts/NotoSans-Medium";
     }
     fontPath = OS::getRomFSLocation() + fontPath;
     fontPath = fontPath + ".ttf";
@@ -229,6 +230,14 @@ std::vector<float> TextObjectSDL1::getSize() {
     }
 
     return {(float)textWidth * scale, (float)textHeight * scale};
+}
+
+std::vector<float> TextObjectSDL1::getStringSize(const std::string &txt) {
+    if (!font) return {0.0f, 0.0f};
+
+    int w, h;
+    TTF_SizeUTF8(font, text.c_str(), &w, &h);
+    return {w * scale, h * scale};
 }
 
 void TextObjectSDL1::setRenderer(void *r) {

@@ -1,9 +1,21 @@
 # folders
+.cache/
 .vs/
 .vscode/
+out/
 build/
 build-*/
 romfs/gfx
+scratch-everywhere/
+
+# CMake
+cmake/CPM.cmake
+cmake/*cache*/
+
+# legacy makefiles
+make/Makefile_vita
+make/Makefile_switch
+make/Makefile_pc
 
 main.code-workspace
 
@@ -42,11 +54,44 @@ main.code-workspace
 *.out
 *.app
 *.3dsx
+*.nacp
+*.pfs0
+*.nro
+*.nso
 *.elf
+*.oelf
 *.smdh
+*.cia
 *.bat
 *.sb3
 *.t3x
+*.dol
+*.wbfs
+*.vpk
+*.ipk
+*.nds
+*.pkg
 romfs/sample.ogg
 romfs/project.sb3_FILES/project.json
 Scratch-pc
+scratch-wiiu/
+scratch-wasm/
+scratch-ds/
+scratch-wii.zip
+scratch-everywhere
+
+# Stored Files
+cloud-username.txt
+
+# macOS
+.DS_Store
+
+# fockerdile
+!docker/Dockerfile.nds
+
+.clangd
+
+CMakeSettings.json
+
+# Debug files
+perf.data*

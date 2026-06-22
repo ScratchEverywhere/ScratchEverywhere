@@ -1,31 +1,13 @@
 #include "window.hpp"
+#include "SDL3/SDL_video.h"
 #include <input.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render.hpp>
 #else
 #include <renderers/sdl3/render.hpp>
-#endif
-
-#ifdef __SWITCH__
-#include <switch.h>
-extern char nickname[0x21];
-#endif
-
-#ifdef VITA
-#include <psp2/io/fcntl.h>
-#include <psp2/net/http.h>
-#include <psp2/net/net.h>
-#include <psp2/net/netctl.h>
-#include <psp2/sysmodule.h>
-#include <psp2/touch.h>
-#endif
-
-#ifdef __WIIU__
-#include <nn/act.h>
-#include <romfs-wiiu.h>
-#include <whb/sdcard.h>
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -38,71 +20,8 @@ SDL_Point touchPosition;
 #endif
 
 bool WindowSDL3::init(int width, int height, const std::string &title) {
-#ifdef __SWITCH__
-    AccountUid userID = {0};
-    AccountProfile profile;
-    AccountProfileBase profilebase;
-    memset(&profilebase, 0, sizeof(profilebase));
-
-    Result rc = romfsInit();
-    if (R_FAILED(rc)) {
-        Log::logError("Failed to init romfs."); // TODO: Include error code
-        goto postAccount;
-    }
-
-    rc = accountInitialize(AccountServiceType_Application);
-    if (R_FAILED(rc)) {
-        Log::logError("accountInitialize failed.");
-        goto postAccount;
-    }
-
-    rc = accountGetPreselectedUser(&userID);
-    if (R_FAILED(rc)) {
-        PselUserSelectionSettings settings;
-        memset(&settings, 0, sizeof(settings));
-        rc = pselShowUserSelector(&userID, &settings);
-        if (R_FAILED(rc)) {
-            Log::logError("pselShowUserSelector failed.");
-            goto postAccount;
-        }
-    }
-
-    rc = accountGetProfile(&profile, userID);
-    if (R_FAILED(rc)) {
-        Log::logError("accountGetProfile failed.");
-        goto postAccount;
-    }
-
-    rc = accountProfileGet(&profile, NULL, &profilebase);
-    if (R_FAILED(rc)) {
-        Log::logError("accountProfileGet failed.");
-        goto postAccount;
-    }
-
-    memset(nickname, 0, sizeof(nickname));
-    strncpy(nickname, profilebase.nickname, sizeof(nickname) - 1);
-
-    socketInitializeDefault();
-
-    accountProfileClose(&profile);
-    accountExit();
-postAccount:
-#elif defined(VITA)
+#if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
-
-    Log::log("[Vita] Loading module SCE_SYSMODULE_NET");
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-
-    Log::log("[Vita] Running sceNetInit");
-    SceNetInitParam netInitParam;
-    int size = 1 * 1024 * 1024; // net buffer size ([size in MB]*1024*1024)
-    netInitParam.memory = malloc(size);
-    netInitParam.size = size;
-    netInitParam.flags = 0;
-    sceNetInit(&netInitParam);
-
-    Log::log("[Vita] Running sceNetCtlInit");
-    sceNetCtlInit();
 #endif
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
@@ -150,6 +69,7 @@ postAccount:
 
     this->width = width;
     this->height = height;
+    this->pixelDensity = SDL_GetWindowPixelDensity(window);
 
     int dw, dh;
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
@@ -166,14 +86,6 @@ void WindowSDL3::cleanup() {
     SDL_GL_DestroyContext(context);
 #endif
     SDL_DestroyWindow(window);
-
-#if defined(__WIIU__) || defined(__SWITCH__) || defined(__OGC__)
-    romfsExit();
-#endif
-#ifdef __WIIU__
-    WHBUnmountSdCard();
-    nn::act::Finalize();
-#endif
 }
 
 bool WindowSDL3::shouldClose() {
@@ -233,10 +145,12 @@ void WindowSDL3::swapBuffers() {
 void WindowSDL3::resize(int width, int height) {
     this->width = width;
     this->height = height;
+    this->pixelDensity = SDL_GetWindowPixelDensity(window);
 #ifdef RENDERER_OPENGL
     glViewport(0, 0, width, height);
 #endif
     Render::setRenderScale();
+    Render::resizeSVGs();
 }
 
 int WindowSDL3::getWidth() const {
@@ -245,6 +159,10 @@ int WindowSDL3::getWidth() const {
 
 int WindowSDL3::getHeight() const {
     return height;
+}
+
+float WindowSDL3::getPixelDensity() const {
+    return pixelDensity;
 }
 
 void *WindowSDL3::getHandle() {

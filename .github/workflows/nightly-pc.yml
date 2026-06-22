@@ -4,25 +4,39 @@ on:
   push:
     paths:
       - CMakeLists.txt
+      - cmake/platforms/pc.cmake
+      - cmake/renderers/sdl2.cmake
+      - cmake/windowing/sdl2.cmake
+      - cmake/audio/sdl2.cmake
+      - cmake/renderers/sdl1.cmake
+      - cmake/windowing/sdl1.cmake
+      - cmake/audio/sdl1.cmake
+      - cmake/renderers/opengl.cmake
+      - cmake/windowing/glfw.cmake
+      - cmake/deps/*
       - source/runtime/**
+      - source/platforms/
+      - source/platforms/pc/**
+      - source/renderers/sdl1/**
+      - source/windowing/sdl1/**
+      - source/audio/sdl1/**
       - source/renderers/sdl2/**
-      - source/renderers/opengl/**
-      - source/renderers/headless/**
       - source/windowing/sdl2/**
+      - source/audio/sdl2/**
+      - source/audio/sdl3/**
+      - source/renderers/opengl/**
       - source/windowing/glfw/**
+      - source/renderers/headless/**
+      - source/audio/headless/**
       - source/windowing/headless/**
       - source/*
       - source/menus/**
-      - source/audio/sdl2/**
-      - source/audio/sdl3/**
-      - source/audio/headless/**
       - gfx/menu/**
       - include/**
       - .github/workflows/nightly-pc.yml
       - docker/Dockerfile.linux
       - docker/Dockerfile.windows
       - docker/Dockerfile.macos
-      - source/main.cpp
     branches:
       - main
   pull_request:
@@ -52,7 +66,35 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux Nightly
-          path: scratch-everywhere
+          path: scratch-pc
+  linux-sdl3:
+    name: Linux x86_64 SDL3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.linux
+          target: exporter
+          outputs: type=local,dest=.
+          build-args: |
+            RENDERER=sdl3
+            WINDOWING=sdl3
+            AUDIO_ENGINE=sdl3
+
+      - name: Upload Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Everywhere! Linux SDL3 Nightly
+          path: scratch-pc
   linux-sdl1:
     name: Linux x86_64 SDL1
     runs-on: ubuntu-latest
@@ -80,7 +122,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux SDL1 Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   linux-headless:
     name: Linux x86_64 Headless
     runs-on: ubuntu-latest
@@ -108,7 +150,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux Headless Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   linux-opengl:
     name: Linux x86_64 OpenGL
     runs-on: ubuntu-latest
@@ -137,7 +179,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Linux OpenGL Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   windows:
     name: Windows x86_64
     runs-on: ubuntu-latest
@@ -161,7 +203,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! Windows Nightly
-          path: scratch-everywhere.exe
+          path: scratch-pc.exe
   macos-intel:
     name: macOS x86_64
     runs-on: ubuntu-latest
@@ -185,7 +227,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   macos-arm:
     name: macOS ARM64
     runs-on: ubuntu-latest
@@ -210,7 +252,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
-          path: scratch-everywhere
+          path: scratch-pc
   macos-universal:
     name: macOS Universal
     if: github.event_name != 'pull_request'
@@ -232,10 +274,10 @@ jobs:
           curl -L -o lipo https://github.com/konoui/lipo/releases/download/v0.9.4/lipo_linux_amd64
           chmod +x lipo
       - name: Create Universal Binary
-        run: ./lipo -output scratch-everywhere -create arm-build/scratch-everywhere intel-build/scratch-everywhere
+        run: ./lipo -output scratch-pc -create arm-build/scratch-pc intel-build/scratch-pc
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: Scratch Everywhere! macOS Universal Nightly
-          path: scratch-everywhere
+          path: scratch-pc

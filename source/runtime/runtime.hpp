@@ -1,56 +1,57 @@
 #pragma once
 #include "blockExecutor.hpp"
 #include "sprite.hpp"
+#include <image.hpp>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <time.hpp>
 #include <unordered_map>
 #include <vector>
 
-enum ProjectType {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/meta.hpp>
+#endif
+
+enum class ProjectType {
     UNZIPPED,
     EMBEDDED,
     UNEMBEDDED
 };
 
+#ifdef ENABLE_MENU
+class PauseMenu;
+#endif
 class BlockExecutor;
 extern BlockExecutor executor;
 
 class Scratch {
   public:
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    static std::vector<std::unique_ptr<extensions::Extension>> extensions;
+#endif
+
+    static bool initializeRuntime();
+    static void initializeScratchProject();
+    static bool getInput(Block *block, std::string inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
+    static void resetInput(Block *block, std::string inputName = "");
+
+    /**
+     * Runs a single step of execution.
+     * @return First bool for if loop should be continued, second bool for exit code
+     */
+    static std::pair<bool, bool> stepScratchProject(ScriptThread &monitorDisplayThread);
     static bool startScratchProject();
     static void cleanupScratchProject();
 
+    static void greenFlagClicked();
+    static void stopClicked();
+
     static std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight);
 
-    static Value getInputValue(Block &block, const std::string &inputName, Sprite *sprite);
     static std::string getFieldValue(Block &block, const std::string &fieldName);
     static std::string getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
-
-    /**
-     * Gets the top level block of the specified `Block`.
-     * @param block
-     * @param sprite
-     * @return The top level parent of the specified `block`.
-     */
-    static Block *getBlockParent(const Block *block, Sprite* sprite);
-
-    /**
-     * Finds a block from a sprite.
-     * @param blockId ID of the block you need
-     * @param sprite The sprite to limit the search to.
-     * @return A `Block*` if it's found, `nullptr` otherwise.
-     */
-    static Block *findBlock(std::string blockId, Sprite* sprite);
-
-    /**
-     * Gets the Sprite's box collision points.
-     * @param sprite
-     * @return Each point stored in a `std::pair`, where `[0]` is X, `[1]` is Y.
-     */
-    static std::vector<std::pair<double, double>> getCollisionPoints(Sprite *currentSprite);
 
     /**
      * Frees every Sprite from memory.
@@ -63,6 +64,19 @@ class Scratch {
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
     static void sortSprites();
+    static void moveLayer(Sprite *s, int layers);
+
+    static std::unordered_map<std::string, std::shared_ptr<Image>> costumeImages;
+    static void loadCurrentCostumeImage(Sprite *sprite);
+    static void flushCostumeImages();
+    static void freeUnusedCostumeImages();
+
+    static void createDebugMonitor(const std::string &name, int x, int y);
+    static void toggleDebugVars(const bool enabled);
+
+    static bool hasNativeExtensions;
+
+    static float tempo;
 
     static int projectWidth;
     static int projectHeight;
@@ -72,20 +86,37 @@ class Scratch {
     static bool turbo;
     static bool fencing;
     static bool hqpen;
+    static bool accuratePen;
+    static bool accurateCollision;
     static bool miscellaneousLimits;
     static bool shouldStop;
     static bool forceRedraw;
+    static bool warpTimer;
+
+#if defined(__NDS__) || defined(GAMECUBE) || defined(__PSP__)
+    constexpr static bool bitmapHalfQuality = true;
+#else
+    constexpr static bool bitmapHalfQuality = false;
+#endif
+
+    static bool debugVars;
+    static bool sb3InRam;
 
     static double counter;
 
     static bool nextProject;
     static Value dataNextProject;
+    static std::string newBroadcast;
+
+    static Timer fpsTimer;
+
+#ifdef ENABLE_MENU
+    static PauseMenu *pauseMenu;
+#endif
 
     static std::vector<Sprite *> sprites;
     static Sprite *stageSprite;
-    static std::vector<std::string> broadcastQueue;
-    static std::vector<std::string> backdropQueue;
-    static std::vector<Sprite *> cloneQueue;
+    static std::vector<Block *> blocks;
     static std::string answer;
     static ProjectType projectType;
 

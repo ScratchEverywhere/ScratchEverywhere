@@ -1,5 +1,7 @@
 #include "text_sdl3.hpp"
+#include "SDL3_ttf/SDL_ttf.h"
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
 #include <ostream>
 #include <render.hpp>
@@ -8,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef __PC__
+#ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 
 CMRC_DECLARE(romfs);
@@ -22,14 +24,14 @@ TextObjectSDL3::TextObjectSDL3(std::string txt, double posX, double posY, std::s
 
     // get font
     if (fontPath.empty()) {
-        fontPath = "gfx/menu/LibSansN";
+        fontPath = "gfx/ingame/fonts/NotoSans-Medium";
     }
     fontPath = OS::getRomFSLocation() + fontPath;
     fontPath = fontPath + ".ttf";
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {
-#ifdef __PC__
+#ifdef USE_CMAKERC
         const auto &file = cmrc::romfs::get_filesystem().open(fontPath);
         TTF_Font *loadedFont = TTF_OpenFontIO(SDL_IOFromConstMem(file.begin(), file.size()), 1, 30);
 #else
@@ -214,6 +216,14 @@ std::vector<float> TextObjectSDL3::getSize() {
     }
 
     return {textWidth * scale, textHeight * scale};
+}
+
+std::vector<float> TextObjectSDL3::getStringSize(const std::string &txt) {
+    if (!font) return {0.0f, 0.0f};
+
+    int w, h;
+    TTF_GetStringSize(font, txt.c_str(), 0, &w, &h);
+    return {w * scale, h * scale};
 }
 
 void TextObjectSDL3::setRenderer(void *r) {

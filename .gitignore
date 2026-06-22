@@ -5,11 +5,12 @@
 out/
 build/
 build-*/
-cmake/*
-!cmake/clay.patch
-romfs/project/
-romfs/gfx
+romfs/
 scratch-everywhere/
+
+# CMake
+cmake/CPM.cmake
+cmake/*cache*/
 
 # legacy makefiles
 make/Makefile_vita
@@ -77,6 +78,7 @@ scratch-wiiu/
 scratch-wasm/
 scratch-ds/
 scratch-wii.zip
+scratch-everywhere
 
 # Stored Files
 cloud-username.txt
@@ -87,4 +89,9 @@ cloud-username.txt
 # fockerdile
 !docker/Dockerfile.nds
 
+.clangd
+
 CMakeSettings.json
+
+# Debug files
+perf.data*

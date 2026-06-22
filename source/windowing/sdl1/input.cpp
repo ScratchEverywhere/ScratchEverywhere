@@ -10,15 +10,6 @@
 #include <string>
 #include <vector>
 
-Input::Mouse Input::mousePointer;
-Sprite *Input::draggingSprite = nullptr;
-
-std::vector<std::string> Input::inputButtons;
-std::map<std::string, std::string> Input::inputControls;
-std::vector<std::string> Input::inputBuffer;
-std::unordered_map<std::string, int> Input::keyHeldDuration;
-std::unordered_set<std::string> Input::codePressedBlockOpcodes;
-
 #ifdef PLATFORM_HAS_CONTROLLER
 extern SDL_Joystick *controller;
 #define CONTROLLER_DEADZONE_X 10000
@@ -46,8 +37,9 @@ bool Input::isControllerConnected() {
     return false;
 }
 
-std::vector<int> Input::getTouchPosition() {
-    std::vector<int> pos = {0, 0};
+std::array<int, 2> Input::getTouchPosition() {
+    std::array<int, 2> pos = {0, 0};
+
 #ifdef PLATFORM_HAS_MOUSE
     int rawMouseX, rawMouseY;
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
@@ -60,6 +52,7 @@ std::vector<int> Input::getTouchPosition() {
 
 void Input::getInput() {
     inputButtons.clear();
+    inputKeys.clear();
     mousePointer.isPressed = false;
 
 #ifdef PLATFORM_HAS_KEYBOARD
@@ -79,7 +72,7 @@ void Input::getInput() {
                 else if (keyName == "right") keyName = "right arrow";
                 else if (keyName == "return") keyName = "enter";
 
-                inputButtons.push_back(keyName);
+                inputKeys.push_back(keyName);
             }
         }
     }
@@ -148,17 +141,22 @@ void Input::getInput() {
         if (joyRightY < -CONTROLLER_DEADZONE_Y) Input::buttonPress("RightStickUp");
         if (SDL_JoystickGetAxis(controller, 4) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
         if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
+
+        Input::leftJoystick.first = joyLeftX / 32767.0f;
+        Input::leftJoystick.second = joyLeftY / 32767.0f;
+        Input::rightJoystick.first = joyRightX / 32767.0f;
+        Input::rightJoystick.second = joyRightY / 32767.0f;
     }
 
 #endif
 
-    if (!inputButtons.empty()) inputButtons.push_back("any");
+    if (!inputKeys.empty()) inputKeys.push_back("any");
 
     BlockExecutor::executeKeyHats();
 
 #ifdef PLATFORM_HAS_MOUSE
     // Get raw mouse coordinates
-    std::vector<int> rawMouse = getTouchPosition();
+    std::array<int, 2> rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
@@ -167,6 +165,12 @@ void Input::getInput() {
     Uint32 buttons = SDL_GetMouseState(NULL, NULL);
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.isPressed = true;
+    }
+
+    if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
+        mousePointer.mouseButton = Mouse::RIGHT;
+    } else {
+        mousePointer.mouseButton = Mouse::LEFT;
     }
 #endif
 

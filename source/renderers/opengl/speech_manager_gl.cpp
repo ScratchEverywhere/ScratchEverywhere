@@ -9,21 +9,10 @@
 #include <runtime.hpp>
 
 SpeechManagerGL::SpeechManagerGL() {
-    bubbleImage = std::make_unique<Image>("gfx/ingame/speechbubble.svg");
-    speechIndicatorImage = std::make_unique<Image>("gfx/ingame/speech.svg");
 }
 
 SpeechManagerGL::~SpeechManagerGL() {
     cleanup();
-}
-
-void SpeechManagerGL::ensureImagesLoaded() {
-    if (images.find(bubbleImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/speechbubble.svg", nullptr, false);
-    }
-    if (images.find(speechIndicatorImage->imageId) == images.end()) {
-        Image::loadImageFromFile("gfx/ingame/speech.svg", nullptr, false);
-    }
 }
 
 double SpeechManagerGL::getCurrentTime() {
@@ -36,8 +25,7 @@ void SpeechManagerGL::createSpeechObject(Sprite *sprite, const std::string &mess
     speechObjects[sprite] = std::make_unique<SpeechTextObjectGL>(message, 200);
 }
 
-void SpeechManagerGL::render() {
-    ensureImagesLoaded();
+void SpeechManagerGL::render(int offsetX, int offsetY) {
 
     // Get window dimensions and scale so speech size aligns with resolution
     int windowWidth = Render::getWidth();
@@ -46,14 +34,20 @@ void SpeechManagerGL::render() {
     double scaleY = static_cast<double>(windowHeight) / static_cast<double>(Scratch::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
+    size_t visibleObjects = 0;
     for (auto &[sprite, obj] : speechObjects) {
         if (obj && sprite->visible) {
+            visibleObjects++;
+            if (visibleObjects == 1) {
+                if (bubbleImage == nullptr) bubbleImage = createImageFromFile("gfx/ingame/speechbubble.svg", false).value();
+                if (speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech.svg", false).value();
+            }
             // Apply res-respecting transformations
             int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (windowWidth / 2));
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));
 
             // Calculate actual rendered sprite dimensions
-            double divisionAmount = sprite->costumes[sprite->currentCostume].isSVG ? 1.0 : 2.0;
+            double divisionAmount = 1.0;
             int spriteWidth = static_cast<int>((sprite->spriteWidth * sprite->size / 100.0) / divisionAmount * scale);
             int spriteHeight = static_cast<int>((sprite->spriteHeight * sprite->size / 100.0) / divisionAmount * scale);
 
@@ -105,6 +99,10 @@ void SpeechManagerGL::render() {
             speechObj->render(textX, renderY);
         }
     }
+    if (visibleObjects == 0) {
+        if (bubbleImage != nullptr) bubbleImage.reset();
+        if (speechIndicatorImage != nullptr) speechIndicatorImage.reset();
+    }
 }
 
 void SpeechManagerGL::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
@@ -112,9 +110,6 @@ void SpeechManagerGL::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, i
     if (styleIt == speechStyles.end()) return;
 
     std::string style = styleIt->second;
-
-    if (!speechIndicatorImage || speechIndicatorImage->imageId.empty()) return;
-    if (images.find(speechIndicatorImage->imageId) == images.end()) return;
 
     int cornerSize = static_cast<int>(8 * scale);
     int indicatorSize = static_cast<int>(16 * scale);
@@ -130,44 +125,21 @@ void SpeechManagerGL::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, i
         indicatorX = bubbleX + bubbleWidth - cornerSize - indicatorSize;
     }
 
-    // Get image data
-    ImageData &imageData = images[speechIndicatorImage->imageId];
-    int halfWidth = imageData.width / 2;
+    ImageRenderParams params;
+    params.x = indicatorX;
+    params.y = indicatorY;
+    params.scale = static_cast<float>(indicatorSize) / (speechIndicatorImage->getWidth() / 2.0f);
+    params.opacity = 1.0f;
+    params.centered = false;
+    params.flip = (spriteCenterX >= screenCenter);
 
-    // Select left half (say) or right half (think)
-    int srcX = (style == "think") ? halfWidth : 0;
-    int srcY = 0;
-    int srcW = halfWidth;
-    int srcH = imageData.height;
+    int halfWidth = speechIndicatorImage->getWidth() / 2;
+    ImageSubrect subrect = {
+        .x = (style == "think") ? halfWidth : 0,
+        .y = 0,
+        .w = halfWidth,
+        .h = speechIndicatorImage->getHeight()};
+    params.subrect = &subrect;
 
-    // Calculate texture coordinates
-    float u0 = static_cast<float>(srcX) / static_cast<float>(imageData.width);
-    float v0 = static_cast<float>(srcY) / static_cast<float>(imageData.height);
-    float u1 = static_cast<float>(srcX + srcW) / static_cast<float>(imageData.width);
-    float v1 = static_cast<float>(srcY + srcH) / static_cast<float>(imageData.height);
-
-    // Handle horizontal flip if sprite is on right side
-    bool flipHorizontal = (spriteCenterX >= screenCenter);
-    if (flipHorizontal) {
-        float temp = u0;
-        u0 = u1;
-        u1 = temp;
-    }
-
-    glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, imageData.textureID);
-    glColor4f(1.0f, 1.0f, 1.0f, speechIndicatorImage->opacity);
-
-    glBegin(GL_QUADS);
-    glTexCoord2f(u0, v1);
-    glVertex2f(indicatorX, indicatorY + indicatorSize);
-    glTexCoord2f(u1, v1);
-    glVertex2f(indicatorX + indicatorSize, indicatorY + indicatorSize);
-    glTexCoord2f(u1, v0);
-    glVertex2f(indicatorX + indicatorSize, indicatorY);
-    glTexCoord2f(u0, v0);
-    glVertex2f(indicatorX, indicatorY);
-    glEnd();
-
-    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+    speechIndicatorImage->render(params);
 }

@@ -1,5 +1,6 @@
 #include "text_gl2d.hpp"
 #include <color.hpp>
+#include <log.hpp>
 #include <os.hpp>
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
@@ -272,6 +273,14 @@ void TextObjectGL2D::render(int xPos, int yPos) {
 
 std::vector<float> TextObjectGL2D::getSize() {
     return {(float)width * scale, (float)height * scale};
+}
+
+std::vector<float> TextObjectGL2D::getStringSize(const std::string &txt) {
+    const std::string oldText = getText();
+    setText(txt);
+    std::vector<float> size = getSize();
+    setText(oldText);
+    return size;
 }
 
 void TextObjectGL2D::cleanupText() {

@@ -1,0 +1,134 @@
+NateXSが作ったよ!
+20人以上のコントリビューター!
+TurboWarpも試してみて!
+PenguinModも試してみて!
+Snail IDEも試してみて!
+Electramodも試してみて!
+他のScratchクローンも試してみて!
+Scratch財団を支援しよう!
+It's swizzle magic!
+「どこでも」Scratch!??
+うん、「どこでも」!!
+君の{PlatformName}でも動くよ!
+君の{PlatformName}でも動くマジック!
+{PlatformName}から直接!
+君の{PlatformName}で!
+いい{PlatformName}を持ってるね! それもらえる?
+{PlatformName}をScratchで!... なんかおかしいな.
+...君の{PlatformName}でも!
+{PlatformName}版!
+{PlatformName}!
+君の身近なコンソールにも来るかも!
+全部動かそう、全部!
+Scratchこそ新しいDoom!
+"It's dot com!"
+;
+このテキストは邪悪なキンカンに食べられました.
+& ナックルズ!
+0.1 + 0.2 = 0.30000000000000004!
+uiText.titleScreen.splashText14
+おもしろい それか 天才的な テキストを ここに
+君も気に入るよ!
+マジック!
+試してみて、{UserName}!!!!
+僕はイッチー「エブリウェア」、何すべきかn... あ、そっか...
+Discordサーバーに入って!
+GitHubでコントりビュートして!
+オープンソース!
+昔はScratch-3DSって名前だったよ!
+NateXSがランタイムを書いたよ!
+NateXSが3DSに移植したよ!
+NateXSがDSに移植したよ!
+NateXSがWiiに移植したよ!
+NateXSがPSPに移植したよ!
+NateXSがGameCubeに移植したよ!
+たくさんの人のおかげ!
+Grady LinkがWii Uに移植したよ!
+Grady LinkがSwitchに移植したよ!
+Grady LinkがWebに移植したよ!
+Dogo6647がPS Vitaに移植したよ!
+Dogo6647がwebOSに移植したよ!
+PwLDevがPS4に移植したよ!
+LeapがSDL1に移植したよ!
+LeapがOpenGLに移植したよ!
+Nishiがlibretroに移植したよ!
+Dogo6647がメニューの音楽を作ったよ!
+2025年から進行中!
+C++!
+devkitPro!
+vitasdk!
+SDL!
+動くよ! (大体ね...)
+わー.
+Are wii gonna have a problem?
+ベータ!
+デジャヴュ!
+{UserName}、遊ぼ!
+わーい, TurboWarp!
+わーい, ScratchBox!
+わーい, softwaregore!
+わーい, fockerdile- ごめん、dockerfile!
+YouTubeで見たとおり!
+PolyMars承認済み!
+ナッツが入ってるかも!
+なにを期待してるの?
+(びっくりマークも必要だよ!)
+やあ, {UserName}!
+見えてるよ, {UserName}.
+{PlatformName}でプレイしてる{UserName}を見て!
+op op op :itchytongue: 
+いつもどおりの日!!!
+ばーん!!!!!
+また壊れた!!!
+バグ直したら他のバグができちゃった
+すごい速度ブーストつき!!!
+バグは入ってないよ!
+全部のバグを食べてるよ!
+全部のバグを直してるよ!
+バグなし!
+バグなし™だよ!
+バグなしだよ!
+君の{PlatformName}ではバグないよ!
+edge decomp
+すごいねこのnateって人いいうごメモ作ってるじゃん
+Hopper Heroes!
+Hopper Heroesを動かせるよ!
+なんでも動かせるよ!
+なんでも!
+お月様は何をしてるの?
+イッチーは何をしてるの?
+{UserName}は何をしてるの?
+君の{PlatformName}は何をしてるの?
+あなたは何をしてるの？
+たくさんのコミット、今も増え続けてるよ!
+たくさんの移植、今も増え続けてるよ!
+たくさんのコントリビューター、今も増え続けてるよ!
+たくさんのスター、今も増え続けてるよ!
+たくさんのフォーク、今も増え続けてるよ!
+にゃーん!
+にゃー! ^.^
+にゃ! =^..^=
+にゃー...
+にゃ...
+にゃーっ!
+紀元前28245 ごろごろ にゃー にゃー にゃー?
+5月2日にすべてが始まった...!
+夢は生き続ける!
+Atariでは動かないよ!!!
+君の計算機では動かないよ!!!
+君のトースターでは動かないよ!!!
+トースターで動かすにはパワフルすぎるよ!
+NateXS!
+Grady Link!
+PwL!
+Dogo!
+Br0tcraft!
+Leap!
+Rocco!
+Luarpri!
+NishiOwO!
+Extrems!
+DevelopCMD!
+poipole!
+turbofart
+penguinpoop

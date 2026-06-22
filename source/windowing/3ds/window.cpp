@@ -3,7 +3,6 @@
 
 bool Window3DS::init(int w, int h, const std::string &title) {
     gfxInitDefault();
-    romfsInit();
 
     C3D_Init(0x100000);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
@@ -15,7 +14,6 @@ bool Window3DS::init(int w, int h, const std::string &title) {
 void Window3DS::cleanup() {
     C2D_Fini();
     C3D_Fini();
-    romfsExit();
     gfxExit();
 }
 
@@ -24,7 +22,7 @@ bool Window3DS::shouldClose() {
 }
 
 void Window3DS::pollEvents() {
-	// do we even poll events on 3DS?
+    // do we even poll events on 3DS?
 }
 
 void Window3DS::swapBuffers() {
@@ -41,6 +39,10 @@ int Window3DS::getWidth() const {
 
 int Window3DS::getHeight() const {
     return height;
+}
+
+float Window3DS::getPixelDensity() const {
+    return 1.0f;
 }
 
 void *Window3DS::getHandle() {

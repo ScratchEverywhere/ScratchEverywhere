@@ -1,17 +1,9 @@
-FROM ghcr.io/extremscorner/libogc2:latest AS libromfs_builder
-WORKDIR /libromfs
-
-RUN git clone https://github.com/NateXS/libromfs-ogc.git . 
-RUN make PLATFORM=gamecube
-RUN make install PLATFORM=gamecube
-
 FROM ghcr.io/extremscorner/libogc2:latest AS main_builder
 WORKDIR /app
 
-COPY --from=libromfs_builder /opt/devkitpro/portlibs/gamecube/ /opt/devkitpro/portlibs/gamecube/
 COPY . .
 
-RUN make PLATFORM=gamecube ENABLE_AUDIO=1 -j 2
+RUN /opt/devkitpro/libogc2/gamecube/bin/powerpc-eabi-cmake -B build-gamecube -DCMAKE_BUILD_TYPE=Release && cmake --build build-gamecube -j2
 
 FROM scratch AS exporter
-COPY --from=main_builder /app/build/gamecube/scratch-gamecube.dol /
+COPY --from=main_builder /app/build-gamecube/scratch-gamecube.dol /

@@ -1,6 +1,8 @@
 #pragma once
-#ifdef USE_GLES
-#include <GLES2/gl2.h>
+
+#ifdef __APPLE__
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl.h>
 #else
 #include <GL/gl.h>
 #endif

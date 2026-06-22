@@ -1,81 +1,107 @@
 #pragma once
+#include "nonstd/expected.hpp"
+#include <optional>
+#ifdef ENABLE_SVG
+#include "lunasvg.h"
+#endif
+#include <cstddef>
+#include <memory.h>
 #include <miniz.h>
-#include <runtime.hpp>
+#include <sprite.hpp>
 #include <string>
-#include <unzip.hpp>
+#include <vector>
+
+struct ImageSubrect {
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+};
+
+struct ImageRenderParams {
+    float x = 0.0f;
+    float y = 0.0f;
+    float scale = 1.0f;
+    bool centered = true;
+    float opacity = 1.0f;
+    int brightness = 0;
+    float rotation = 0;
+    bool flip = false;
+    ImageSubrect *subrect = nullptr;
+};
+
+enum ImageFormat {
+    IMAGE_FORMAT_NONE,
+    IMAGE_FORMAT_RGBA32, // most platforms use this
+    IMAGE_FORMAT_PAL8,   // used by GL2D (NDS)
+};
+
+struct ImageData {
+    int width = 0;
+    int height = 0;
+    ImageFormat format = IMAGE_FORMAT_NONE;
+    int pitch = 0;
+    void *pixels = nullptr;
+    float scale = 1.0f;
+};
+
+#ifdef ENABLE_SVG
+struct SVGFont {
+    std::string path;
+    bool isLoaded = false;
+};
+#endif
 
 class Image {
   private:
-    int width;
-    int height;
+#ifdef ENABLE_SVG
+    std::unique_ptr<lunasvg::Document> svgDocument = nullptr;
+    static std::unordered_map<std::string, SVGFont> loadedFonts;
+#endif
+
+    bool loadFont(const std::string &family);
+    inline nonstd::expected<std::vector<unsigned char>, std::string> readFileToBuffer(const std::string &filePath, bool fromScratchProject);
+    inline nonstd::expected<unsigned char *, std::string> loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale = 1);
+    inline nonstd::expected<unsigned char *, std::string> loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality = false);
+    inline unsigned char *resizeRaster(const unsigned char *srcPixels, int srcW, int srcH, int &outW, int &outH);
+
+  protected:
+    ImageData imgData;
+
+    virtual nonstd::expected<void, std::string> refreshTexture() = 0;
+
+    std::pair<unsigned int, unsigned int> maxTextureSize = {0, 0};
 
   public:
-    std::string imageId;
-    double scale;
-    double opacity;
-    double rotation;
-    /**
-     * Constructor for an image, good if you want to use images outside of a Scratch project.
-     * `3DS`: Loads an image RGBA and C2D_Image from a given filepath.
-     * `SDL`: Loads an SDL_Image from a given filepath.
-     * @param filepath does NOT need `romfs:/`, it will automatically be added.
-     */
-    Image(std::string filePath);
-
-    ~Image();
-
-    int getWidth() { return width; }
-    int getHeight() { return height; }
-
-    void render(double xPos, double yPos, bool centered = false);
-
-    void renderNineslice(double xPos, double yPos, double width, double height, double padding /* IDK if that's the correct name */, bool centered = false);
+    const unsigned int maxFreeTimer = 540;
+    unsigned int freeTimer = maxFreeTimer;
 
     /**
-     * `3DS`: Turns a single image from an unzipped Scratch project into RGBA data.
-     * `SDL`: Loads a single `SDL_Image` from an unzipped filepath.
-     * @param filePath
-     * @param fromScratchProject
+     * Set if an error occurs in the constructor.
      */
-    static bool loadImageFromFile(std::string filePath, Sprite *sprite, bool fromScratchProject = true);
+    std::optional<std::string> error;
+    Image() {}
+    Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
+    Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    nonstd::expected<void, std::string> init(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
+    nonstd::expected<void, std::string> init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    virtual ~Image();
 
-    /**
-     * Loads an image from an `mz_zip_archive`.
-     */
-    static void loadImageFromSB3(mz_zip_archive *zip, const std::string &costumeId, Sprite *sprite);
-
-    /**
-     * Loads an image from a Sprite's current costume.
-     */
-    static void loadImageFromProject(Sprite *sprite) {
-        if (Scratch::projectType == UNZIPPED) {
-            Image::loadImageFromFile(sprite->costumes[sprite->currentCostume].fullName, sprite);
-        } else {
-            Image::loadImageFromSB3(&Unzip::zipArchive, sprite->costumes[sprite->currentCostume].fullName, sprite);
-        }
+    virtual ImageData getPixels(ImageSubrect rect);
+    inline ImageData getPixels() {
+        return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});
     }
 
-    /**
-     * `3DS`: Frees a `C2D_Image` from memory.
-     * `SDL`: Frees an `SDL_Image` from memory.
-     */
-    static void freeImage(const std::string &costumeId);
+    int getWidth();
+    int getHeight();
 
-    /* Cleans up every single image currently in memory.*/
-    static void cleanupImages();
+    nonstd::expected<void, std::string> resizeSVG(float scale);
 
-    /* Cleans up every image that is currently not being used.*/
-    static void cleanupImagesLite();
+    virtual void *getNativeTexture() = 0;
 
-    /**
-     * `3DS`: Queues a `C2D_Image` to be freed using `costumeId` to find it.
-     *        The image will be freed once `FlushImages()` is called.
-     * `SDL`: Currently does nothing 😁😁
-     */
-    static void queueFreeImage(const std::string &costumeId);
-
-    /**
-     * Checks every Image in memory to see if they can be freed.
-     */
-    static void FlushImages();
+    virtual void render(ImageRenderParams &params) = 0;
+    virtual void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) = 0;
 };
+
+nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
+nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);

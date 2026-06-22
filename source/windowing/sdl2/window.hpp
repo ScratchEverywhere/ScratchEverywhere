@@ -1,5 +1,5 @@
 #pragma once
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <window.hpp>
 
 class WindowSDL2 : public Window {
@@ -14,12 +14,15 @@ class WindowSDL2 : public Window {
 
     int getWidth() const override;
     int getHeight() const override;
+    float getPixelDensity() const override;
     void *getHandle() override;
 
   private:
+    void calculatePixelDensity();
     SDL_Window *window = nullptr;
     SDL_GLContext context = nullptr;
     int width = 0;
     int height = 0;
+    float pixelDensity = 1.0f;
     bool shouldCloseFlag = false;
 };

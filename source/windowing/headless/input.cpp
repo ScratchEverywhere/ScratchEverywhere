@@ -1,20 +1,13 @@
 #include <input.hpp>
 #include <iostream>
+#include <log.hpp>
 #include <os.hpp>
-
-Input::Mouse Input::mousePointer = {0, 0, 0, false, false};
-Sprite *Input::draggingSprite = nullptr;
-std::vector<std::string> Input::inputButtons;
-std::map<std::string, std::string> Input::inputControls;
-std::vector<std::string> Input::inputBuffer;
-std::unordered_map<std::string, int> Input::keyHeldDuration;
-std::unordered_set<std::string> Input::codePressedBlockOpcodes;
 
 bool Input::isControllerConnected() {
     return false;
 }
 
-std::vector<int> Input::getTouchPosition() {
+std::array<int, 2> Input::getTouchPosition() {
     return {0, 0};
 }
 

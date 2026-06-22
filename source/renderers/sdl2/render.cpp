@@ -1,34 +1,26 @@
 #include "render.hpp"
-#include "audio.hpp"
 #include "downloader.hpp"
-#include "math.hpp"
 #include "menus/menuManager.hpp"
+#include "speech_manager.hpp"
 #include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
-#include <SDL2/SDL.h>
-#include <SDL2_gfxPrimitives.h>
+#include <SDL.h>
 #include <algorithm>
 #include <audio.hpp>
-#include <chrono>
 #include <cmath>
-#include <cstdlib>
-#include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
-#include <math.hpp>
+#include <log.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <string>
-#include <text.hpp>
 #include <unordered_map>
 #include <vector>
-#include <window.hpp>
 #include <windowing/sdl2/window.hpp>
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>
 #include <nn/act.h>
-#include <romfs-wiiu.h>
 #include <whb/log_udp.h>
 #include <whb/sdcard.h>
 #endif
@@ -51,7 +43,6 @@ char nickname[0x21];
 #ifdef __OGC__
 #include <fat.h>
 #include <ogc/system.h>
-#include <romfs-ogc.h>
 #endif
 
 #ifdef __PS4__
@@ -68,15 +59,9 @@ Window *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
 
-Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
-bool Render::hasFrameBegan;
-std::vector<Monitor> Render::visibleVariables;
-std::chrono::system_clock::time_point Render::startTime = std::chrono::system_clock::now();
-std::chrono::system_clock::time_point Render::endTime = std::chrono::system_clock::now();
-bool Render::debugMode = false;
-float Render::renderScale = 1.0f;
-
 SpeechManagerSDL2 *speechManager = nullptr;
+
+static std::vector<SDL_Vertex> penVerts;
 
 bool Render::Init() {
 #ifdef __WIIU__
@@ -125,7 +110,6 @@ bool Render::Init() {
     int windowHeight = 405;
 #endif
 
-    IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG);
     TTF_Init();
 
     globalWindow = new WindowSDL2();
@@ -134,7 +118,7 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
-#if defined(WEBOS)
+#if defined(WEBOS) || defined(__PSP__) || defined(__PS4__)
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
 #else
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
@@ -144,8 +128,6 @@ bool Render::Init() {
         Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
         return false;
     }
-
-    speechManager = new SpeechManagerSDL2(renderer);
 
     debugMode = true;
 
@@ -159,8 +141,6 @@ void Render::deInit() {
 
     SDL_DestroyTexture(penTexture);
 
-    Image::cleanupImages();
-    SoundPlayer::cleanupAudio();
     TextObject::cleanupText();
     SDL_DestroyRenderer(renderer);
 
@@ -171,12 +151,21 @@ void Render::deInit() {
     }
 
     SoundPlayer::deinit();
-    IMG_Quit();
     SDL_Quit();
 }
 
 void *Render::getRenderer() {
     return static_cast<void *>(renderer);
+}
+
+bool Render::createSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL2(renderer);
+    return speechManager != nullptr;
+}
+
+void Render::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
 }
 
 SpeechManager *Render::getSpeechManager() {
@@ -187,9 +176,15 @@ int Render::getWidth() {
     if (globalWindow) return globalWindow->getWidth();
     return 540;
 }
+
 int Render::getHeight() {
     if (globalWindow) return globalWindow->getHeight();
     return 405;
+}
+
+float Render::getPixelDensity() {
+    if (globalWindow) return globalWindow->getPixelDensity();
+    return 1.0f;
 }
 
 bool Render::initPen() {
@@ -211,165 +206,266 @@ bool Render::initPen() {
     return true;
 }
 
-void Render::penMove(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
     int penWidth = 640;
     int penHeight = 480;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
-    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
-    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
-    SDL_SetRenderTarget(renderer, tempTexture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
-
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const double dx = x2 * scale - x1 * scale;
-    const double dy = y2 * scale - y1 * scale;
+    const float sx1 = static_cast<float>(x1 * scale + penWidth / 2.0);
+    const float sy1 = static_cast<float>(-y1 * scale + penHeight / 2.0);
+    const float sx2 = static_cast<float>(x2 * scale + penWidth / 2.0);
+    const float sy2 = static_cast<float>(-y2 * scale + penHeight / 2.0);
+
+    const double dx = sx2 - sx1;
+    const double dy = sy2 - sy1;
 
     const double length = sqrt(dx * dx + dy * dy);
     const double drawWidth = (sprite->penData.size / 2.0f) * scale;
 
-    if (length > 0) {
-        const double nx = dx / length;
-        const double ny = dy / length;
+    if (length <= 0) return;
 
-        int16_t vx[4], vy[4];
-        vx[0] = static_cast<int16_t>(x1 * scale + penWidth / 2.0f - ny * drawWidth);
-        vy[0] = static_cast<int16_t>(-y1 * scale + penHeight / 2.0f + nx * drawWidth);
-        vx[1] = static_cast<int16_t>(x1 * scale + penWidth / 2.0f + ny * drawWidth);
-        vy[1] = static_cast<int16_t>(-y1 * scale + penHeight / 2.0f - nx * drawWidth);
-        vx[2] = static_cast<int16_t>(x2 * scale + penWidth / 2.0f + ny * drawWidth);
-        vy[2] = static_cast<int16_t>(-y2 * scale + penHeight / 2.0f - nx * drawWidth);
-        vx[3] = static_cast<int16_t>(x2 * scale + penWidth / 2.0 - ny * drawWidth);
-        vy[3] = static_cast<int16_t>(-y2 * scale + penHeight / 2.0f + nx * drawWidth);
+    const float nx = static_cast<float>((-dy / length) * drawWidth);
+    const float ny = static_cast<float>((dx / length) * drawWidth);
 
-        filledPolygonRGBA(renderer, vx, vy, 4, rgbColor.r, rgbColor.g, rgbColor.b, 255);
-    }
+    const SDL_Color sdlColor = {
+        static_cast<Uint8>(rgbColor.r),
+        static_cast<Uint8>(rgbColor.g),
+        static_cast<Uint8>(rgbColor.b),
+        static_cast<Uint8>(alpha)};
 
-    filledCircleRGBA(renderer, x1 * scale + penWidth / 2.0f, -y1 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
-    filledCircleRGBA(renderer, x2 * scale + penWidth / 2.0f, -y2 * scale + penHeight / 2.0f, drawWidth, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}}; // top left
+    const SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom left
+    const SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}}; // top right
+    const SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}}; // bottom right
 
-    SDL_SetRenderTarget(renderer, penTexture);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_RenderCopy(renderer, tempTexture, NULL, NULL);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderTarget(renderer, nullptr);
-    SDL_DestroyTexture(tempTexture);
+    // squarey
+    penVerts.push_back(v0);
+    penVerts.push_back(v1);
+    penVerts.push_back(v2);
+
+    penVerts.push_back(v1);
+    penVerts.push_back(v3);
+    penVerts.push_back(v2);
 }
 
-void Render::penDot(Sprite *sprite) {
-    int penWidth;
-    int penHeight;
-    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+void Render::penDotFast(Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
-    SDL_Texture *tempTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, penWidth, penHeight);
-    SDL_SetTextureBlendMode(tempTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(tempTexture, (100 - sprite->penData.color.transparency) / 100.0f * 255);
-    SDL_SetRenderTarget(renderer, tempTexture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
+    int penWidth = 640;
+    int penHeight = 480;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    filledCircleRGBA(renderer, sprite->xPosition * scale + penWidth / 2.0f, -sprite->yPosition * scale + penHeight / 2.0f, (sprite->penData.size / 2.0f) * scale, rgbColor.r, rgbColor.g, rgbColor.b, 255);
+    const float sx = static_cast<float>(sprite->xPosition * scale + penWidth / 2.0);
+    const float sy = static_cast<float>(-sprite->yPosition * scale + penHeight / 2.0);
 
-    SDL_SetRenderTarget(renderer, penTexture);
-    SDL_RenderCopy(renderer, tempTexture, NULL, NULL);
-    SDL_SetRenderTarget(renderer, nullptr);
-    SDL_DestroyTexture(tempTexture);
+    const float halfSize = static_cast<float>((sprite->penData.size / 2.0f) * scale);
+
+    const SDL_Color sdlColor = {
+        static_cast<Uint8>(rgbColor.r),
+        static_cast<Uint8>(rgbColor.g),
+        static_cast<Uint8>(rgbColor.b),
+        alpha};
+
+    const SDL_Vertex v0 = {{sx - halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top left
+    const SDL_Vertex v1 = {{sx - halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom left
+    const SDL_Vertex v2 = {{sx + halfSize, sy - halfSize}, sdlColor, {0.0f, 0.0f}}; // top right
+    const SDL_Vertex v3 = {{sx + halfSize, sy + halfSize}, sdlColor, {0.0f, 0.0f}}; // bottom right
+
+    // squarey
+    penVerts.push_back(v0);
+    penVerts.push_back(v1);
+    penVerts.push_back(v2);
+
+    penVerts.push_back(v1);
+    penVerts.push_back(v3);
+    penVerts.push_back(v2);
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
+
+    int penWidth = 640;
+    int penHeight = 480;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+
+    const float sx1 = static_cast<float>(x1 * scale + penWidth / 2.0);
+    const float sy1 = static_cast<float>(-y1 * scale + penHeight / 2.0);
+    const float sx2 = static_cast<float>(x2 * scale + penWidth / 2.0);
+    const float sy2 = static_cast<float>(-y2 * scale + penHeight / 2.0);
+
+    const double dx = sx2 - sx1;
+    const double dy = sy2 - sy1;
+
+    const double length = sqrt(dx * dx + dy * dy);
+    const double drawWidth = (sprite->penData.size / 2.0f) * scale;
+
+    const SDL_Color sdlColor = {
+        static_cast<uint8_t>(rgbColor.r),
+        static_cast<uint8_t>(rgbColor.g),
+        static_cast<uint8_t>(rgbColor.b),
+        static_cast<uint8_t>(alpha)};
+
+    if (length > 0) {
+        const float nx = static_cast<float>((-dy / length) * drawWidth);
+        const float ny = static_cast<float>((dx / length) * drawWidth);
+
+        const SDL_Vertex v0 = {{sx1 + nx, sy1 + ny}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v1 = {{sx1 - nx, sy1 - ny}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v2 = {{sx2 + nx, sy2 + ny}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v3 = {{sx2 - nx, sy2 - ny}, sdlColor, {0.0f, 0.0f}};
+
+        penVerts.push_back(v0);
+        penVerts.push_back(v1);
+        penVerts.push_back(v2);
+
+        penVerts.push_back(v1);
+        penVerts.push_back(v3);
+        penVerts.push_back(v2);
+    }
+
+    const unsigned int circleSegments = std::max(8.0, 8.0f * (sprite->penData.size / 150.0f));
+    const double angleStep = 2.0 * M_PI / circleSegments;
+
+    for (int i = 0; i < circleSegments; ++i) {
+        const double angle1 = i * angleStep;
+        const double angle2 = (i + 1) * angleStep;
+
+        float x1_c = sx1 + static_cast<float>(cos(angle1) * drawWidth);
+        float y1_c = sy1 + static_cast<float>(sin(angle1) * drawWidth);
+        float x2_c = sx1 + static_cast<float>(cos(angle2) * drawWidth);
+        float y2_c = sy1 + static_cast<float>(sin(angle2) * drawWidth);
+
+        const SDL_Vertex cv0 = {{sx1, sy1}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex cv1 = {{x1_c, y1_c}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex cv2 = {{x2_c, y2_c}, sdlColor, {0.0f, 0.0f}};
+
+        penVerts.push_back(cv0);
+        penVerts.push_back(cv1);
+        penVerts.push_back(cv2);
+
+        x1_c = sx2 + static_cast<float>(cos(angle1) * drawWidth);
+        y1_c = sy2 + static_cast<float>(sin(angle1) * drawWidth);
+        x2_c = sx2 + static_cast<float>(cos(angle2) * drawWidth);
+        y2_c = sy2 + static_cast<float>(sin(angle2) * drawWidth);
+
+        const SDL_Vertex cv3 = {{sx2, sy2}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex cv4 = {{x1_c, y1_c}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex cv5 = {{x2_c, y2_c}, sdlColor, {0.0f, 0.0f}};
+
+        penVerts.push_back(cv3);
+        penVerts.push_back(cv4);
+        penVerts.push_back(cv5);
+    }
+}
+
+void Render::penDotAccurate(Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    const uint8_t alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+
+    int penWidth = 640;
+    int penHeight = 480;
+    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+
+    const float sx = static_cast<float>(sprite->xPosition * scale + penWidth / 2.0);
+    const float sy = static_cast<float>(-sprite->yPosition * scale + penHeight / 2.0);
+
+    const float radius = static_cast<float>((sprite->penData.size / 2.0f) * scale);
+
+    const SDL_Color sdlColor = {
+        static_cast<uint8_t>(rgbColor.r),
+        static_cast<uint8_t>(rgbColor.g),
+        static_cast<uint8_t>(rgbColor.b),
+        static_cast<uint8_t>(alpha)};
+
+    const unsigned int circleSegments = std::max(16.0, 16.0f * (sprite->penData.size / 150.0f));
+    const double angleStep = 2.0 * M_PI / circleSegments;
+
+    for (int i = 0; i < circleSegments; ++i) {
+        const double angle1 = i * angleStep;
+        const double angle2 = (i + 1) * angleStep;
+
+        const float x1 = sx + static_cast<float>(cos(angle1) * radius);
+        const float y1 = sy + static_cast<float>(sin(angle1) * radius);
+        const float x2 = sx + static_cast<float>(cos(angle2) * radius);
+        const float y2 = sy + static_cast<float>(sin(angle2) * radius);
+
+        const SDL_Vertex v0 = {{sx, sy}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v1 = {{x1, y1}, sdlColor, {0.0f, 0.0f}};
+        const SDL_Vertex v2 = {{x2, y2}, sdlColor, {0.0f, 0.0f}};
+
+        penVerts.push_back(v0);
+        penVerts.push_back(v1);
+        penVerts.push_back(v2);
+    }
 }
 
 void Render::penStamp(Sprite *sprite) {
-    const auto &imgFind = images.find(sprite->costumes[sprite->currentCostume].id);
-    if (imgFind == images.end()) {
+    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
-    imgFind->second->freeTimer = imgFind->second->maxFreeTime;
+
+    const Costume &costume = sprite->costumes[sprite->currentCostume];
 
     SDL_SetRenderTarget(renderer, penTexture);
 
-    // IDK if these are needed
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-
-    // TODO: remove duplicate code (maybe make a Render::drawSprite function.)
-    SDL_Image *image = imgFind->second;
-    image->freeTimer = image->maxFreeTime;
-    sprite->rotationCenterX = sprite->costumes[sprite->currentCostume].rotationCenterX;
-    sprite->rotationCenterY = sprite->costumes[sprite->currentCostume].rotationCenterY;
-    sprite->spriteWidth = image->textureRect.w >> 1;
-    sprite->spriteHeight = image->textureRect.h >> 1;
-    SDL_RendererFlip flip = SDL_FLIP_NONE;
-    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
-    Render::calculateRenderPosition(sprite, isSVG);
-    image->renderRect.x = sprite->renderInfo.renderX;
-    image->renderRect.y = sprite->renderInfo.renderY;
-
-    if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0) {
-        flip = SDL_FLIP_HORIZONTAL;
+    // clear line draw queue so stamp can be rendered on top
+    if (!penVerts.empty()) {
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        penVerts.clear();
     }
 
+    Image *image = imgFind->second.get();
+
+    const bool isSVG = costume.isSVG;
+    calculateRenderPosition(sprite, isSVG);
+
     // Pen mapping stuff
-    const auto &cords = Scratch::screenToScratchCoords(image->renderRect.x, image->renderRect.y, getWidth(), getHeight());
-    image->renderRect.x = cords.first + Scratch::projectWidth / 2;
-    image->renderRect.y = -cords.second + Scratch::projectHeight / 2;
+    const auto &cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
+    int penX = cords.first + Scratch::projectWidth / 2;
+    int penY = -cords.second + Scratch::projectHeight / 2;
 
+    float penScale;
     if (Scratch::hqpen) {
-        image->setScale(sprite->renderInfo.renderScaleY);
-
         int penWidth;
         int penHeight;
         SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
         const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
-        image->renderRect.x *= scale;
-        image->renderRect.y *= scale;
+        penX *= scale;
+        penY *= scale;
+        penScale = sprite->renderInfo.renderScaleY;
     } else {
-        image->setScale(sprite->size / (isSVG ? 100.0f : 200.0f));
+        penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
     }
 
-    // set ghost effect
-    float ghost = std::clamp(sprite->ghostEffect, 0.0f, 100.0f);
-    Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-    SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
+    ImageRenderParams params;
+    params.centered = true;
+    params.x = penX;
+    params.y = penY;
+    params.rotation = sprite->renderInfo.renderRotation;
+    params.scale = penScale;
+    params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
+    params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+    params.brightness = sprite->brightnessEffect;
 
-    // set brightness effect
-    if (sprite->brightnessEffect != 0) {
-        float brightness = sprite->brightnessEffect * 0.01f;
-        if (brightness > 0.0f) {
-            // render the normal image first
-            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
-
-            // render another, blended image on top
-            SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
-            SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
-            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
-
-            // reset for next frame
-            SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
-        } else {
-            Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
-            SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
-
-            SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                             Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
-            // reset for next frame
-            SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-        }
-    } else {
-        // if no brightness just render normal image
-        SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-        SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                         Math::radiansToDegrees(sprite->renderInfo.renderRotation), nullptr, flip);
-    }
+    image->render(params);
 
     SDL_SetRenderTarget(renderer, NULL);
 }
@@ -380,6 +476,7 @@ void Render::penClear() {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
     SDL_SetRenderTarget(renderer, NULL);
+    if (!penVerts.empty()) penVerts.clear();
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -393,7 +490,6 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 void Render::endFrame(bool shouldFlush) {
     SDL_RenderPresent(renderer);
     SDL_Delay(16);
-    if (shouldFlush) Image::FlushImages();
     hasFrameBegan = false;
 }
 
@@ -440,76 +536,33 @@ void Render::renderSprites() {
 
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
+        auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        if (imgFind != Scratch::costumeImages.end()) {
+            Image *image = imgFind->second.get();
 
-        auto imgFind = images.find(currentSprite->costumes[currentSprite->currentCostume].id);
-        if (imgFind != images.end()) {
-            SDL_Image *image = imgFind->second;
-
-            currentSprite->rotationCenterX = currentSprite->costumes[currentSprite->currentCostume].rotationCenterX;
-            currentSprite->rotationCenterY = currentSprite->costumes[currentSprite->currentCostume].rotationCenterY;
-            currentSprite->spriteWidth = image->textureRect.w >> 1;
-            currentSprite->spriteHeight = image->textureRect.h >> 1;
-
-            if (!currentSprite->visible) continue;
-
-            image->freeTimer = image->maxFreeTime;
-
-            SDL_RendererFlip flip = SDL_FLIP_NONE;
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
             calculateRenderPosition(currentSprite, isSVG);
-            image->renderRect.x = currentSprite->renderInfo.renderX;
-            image->renderRect.y = currentSprite->renderInfo.renderY;
+            if (!currentSprite->visible) continue;
 
-            image->setScale(currentSprite->renderInfo.renderScaleY);
-            if (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0) {
-                flip = SDL_FLIP_HORIZONTAL;
-            }
+            ImageRenderParams params;
+            params.centered = true;
+            params.x = currentSprite->renderInfo.renderX;
+            params.y = currentSprite->renderInfo.renderY;
+            params.rotation = currentSprite->renderInfo.renderRotation;
+            params.scale = currentSprite->renderInfo.renderScaleY;
+            params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
+            params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+            params.brightness = currentSprite->brightnessEffect;
 
-            // set ghost effect
-            float ghost = std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f);
-            Uint8 alpha = static_cast<Uint8>(255 * (1.0f - ghost / 100.0f));
-            SDL_SetTextureAlphaMod(image->spriteTexture, alpha);
-
-            // set brightness effect
-            if (currentSprite->brightnessEffect != 0) {
-                float brightness = currentSprite->brightnessEffect * 0.01f;
-                if (brightness > 0.0f) {
-                    // render the normal image first
-                    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-
-                    // render another, blended image on top
-                    SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_ADD);
-                    SDL_SetTextureAlphaMod(image->spriteTexture, (Uint8)(brightness * 255 * (alpha / 255.0f)));
-                    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-
-                    // reset for next frame
-                    SDL_SetTextureBlendMode(image->spriteTexture, SDL_BLENDMODE_BLEND);
-                } else {
-                    Uint8 col = static_cast<Uint8>(255 * (1.0f + brightness));
-                    SDL_SetTextureColorMod(image->spriteTexture, col, col, col);
-
-                    SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                     Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-                    // reset for next frame
-                    SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-                }
-            } else {
-                // if no brightness just render normal image
-                SDL_SetTextureColorMod(image->spriteTexture, 255, 255, 255);
-                SDL_RenderCopyEx(renderer, image->spriteTexture, &image->textureRect, &image->renderRect,
-                                 Math::radiansToDegrees(currentSprite->renderInfo.renderRotation), nullptr, flip);
-            }
+            image->render(params);
         }
-
         // Draw collision points (for debugging)
         // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
         // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
         // for (const auto &point : collisionPoints) {
-        //     double screenX = (point.first * renderScale) + (windowWidth / 2);
-        //     double screenY = (point.second * -renderScale) + (windowHeight / 2);
+        //     double screenX = (point.first * renderScale) + (getWidth() / 2);
+        //     double screenY = (point.second * -renderScale) + (getHeight() / 2);
 
         //     SDL_Rect debugPointRect;
         //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
@@ -528,7 +581,7 @@ void Render::renderSprites() {
     }
 
     drawBlackBars(getWidth(), getHeight());
-    renderVisibleVariables();
+    renderMonitors();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {
@@ -544,14 +597,20 @@ void Render::renderSprites() {
 #endif
 
     SDL_RenderPresent(renderer);
-    Image::FlushImages();
-    SoundPlayer::flushAudio();
 }
 
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-
 void Render::renderPenLayer() {
+    if (!penVerts.empty()) {
+        SDL_SetRenderTarget(renderer, penTexture);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+        SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        penVerts.clear();
+
+        SDL_SetRenderTarget(renderer, NULL);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    }
+
     SDL_Rect renderRect = {0, 0, 0, 0};
 
     if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
@@ -594,6 +653,7 @@ bool Render::appShouldRun() {
                 SDL_SetRenderTarget(renderer, nullptr);
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_BLEND);
                 SDL_DestroyTexture(penTexture);
+                penTexture = newTexture;
             }
         }
 

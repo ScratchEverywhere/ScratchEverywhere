@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <log.hpp>
 #include <math.hpp>
 #include <os.hpp>
 
@@ -19,7 +20,7 @@ std::unordered_map<std::string, FontData *> TextObjectGL::fonts;
 TextObjectGL::TextObjectGL(std::string txt, double posX, double posY, std::string fontPath)
     : TextObject(txt, posX, posY, fontPath) {
 
-    if (fontPath == "") fontPath = "gfx/menu/LibSansN";
+    if (fontPath == "") fontPath = "gfx/ingame/fonts/NotoSans-Medium";
     std::string fullPath = OS::getRomFSLocation() + fontPath + ".ttf";
 
     if (loadFont(fullPath)) {
@@ -231,6 +232,14 @@ void TextObjectGL::render(int xPos, int yPos) {
 
 std::vector<float> TextObjectGL::getSize() {
     return {width * scale, height * scale};
+}
+
+std::vector<float> TextObjectGL::getStringSize(const std::string &txt) {
+    const std::string oldText = getText();
+    setText(txt);
+    std::vector<float> size = getSize();
+    setText(oldText);
+    return size;
 }
 
 void TextObjectGL::cleanupText() {

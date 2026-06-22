@@ -48,7 +48,6 @@ void SettingsMenu::renderSlider(const std::string &setting) {
     const uint16_t padding = 5 * menuManager->scale;
     const float knobHeight = height - padding * 2;
     const uint16_t knobBorderWidth = 2 * menuManager->scale;
-
     const float maxOffset = (width - (knobHeight * 1.6)) * (static_cast<float>(value) / 100.0f);
 
     const float t = std::min(animationTimers[setting].getTimeMs(), static_cast<int>(animationDuration)) / static_cast<float>(animationDuration);
@@ -66,7 +65,6 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 		}
 	}) {
 		
-
 		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
 		CLAY(CLAY_IDI_LOCAL("bar",renderOrder.size()), (Clay_ElementDeclaration){
 			.layout = {
@@ -264,7 +262,6 @@ void SettingsMenu::render() {
         else if (selected != 0) selected--;
     } else if (Input::isButtonJustPressed("A") && selected != -1) {
         if (hoverData.find(renderOrder[selected]) != hoverData.end()) hoverData.at(renderOrder[selected]).justPressed = true;
-
         if (settings[renderOrder[selected]].is_boolean()) settings[renderOrder[selected]] = !settings[renderOrder[selected]];
         else if (settings[renderOrder[selected]].is_string()) {
             const std::string newContent = Input::openSoftwareKeyboard(settings[renderOrder[selected]].get<std::string>().c_str());

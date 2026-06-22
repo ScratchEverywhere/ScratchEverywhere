@@ -1,6 +1,7 @@
 #include "window.hpp"
 #include <chrono>
 #include <input.hpp>
+#include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #include <thread>
@@ -114,6 +115,7 @@ void WindowSDL1::resize(int width, int height) {
     window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
 #endif
     Render::setRenderScale();
+    Render::resizeSVGs();
 }
 
 int WindowSDL1::getWidth() const {
@@ -122,6 +124,10 @@ int WindowSDL1::getWidth() const {
 
 int WindowSDL1::getHeight() const {
     return height;
+}
+
+float WindowSDL1::getPixelDensity() const {
+    return 1.0f;
 }
 
 void *WindowSDL1::getHandle() {

@@ -1,7 +1,8 @@
 #include "speech_text_sdl2.hpp"
 #include "text.hpp"
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <SDL_ttf.h>
+#include <log.hpp>
 #include <os.hpp>
 
 SpeechTextObjectSDL2::SpeechTextObjectSDL2(const std::string &text, int maxWidth)
@@ -20,9 +21,9 @@ SpeechTextObjectSDL2::SpeechTextObjectSDL2(const std::string &text, int maxWidth
         pathFont.clear();
     }
 
-    font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf").c_str(), 16);
+    font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/ingame/fonts/NotoSans-Medium.ttf").c_str(), 16);
     if (!font) {
-        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf") + ": " + TTF_GetError());
+        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/ingame/fonts/NotoSans-Medium.ttf") + ": " + TTF_GetError());
     }
 
     platformSetText(wrapText());

@@ -1,7 +1,8 @@
 #include "speech_text_sdl1.hpp"
 #include "text.hpp"
-#include <SDL/SDL.h>
-#include <SDL/SDL_ttf.h>
+#include <SDL.h>
+#include <SDL_ttf.h>
+#include <log.hpp>
 #include <os.hpp>
 
 #ifdef USE_CMAKERC
@@ -27,13 +28,13 @@ SpeechTextObjectSDL::SpeechTextObjectSDL(const std::string &text, int maxWidth)
     }
 
 #ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf");
+    const auto &file = cmrc::romfs::get_filesystem().open(OS::getRomFSLocation() + "gfx/ingame/fonts/NotoSans-Medium.ttf");
     font = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 16);
 #else
-    font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf").c_str(), 16);
+    font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/ingame/fonts/NotoSans-Medium.ttf").c_str(), 16);
 #endif
     if (!font) {
-        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/menu/LibSansN.ttf") + ": " + TTF_GetError());
+        Log::logError("Failed to load speech font " + (OS::getRomFSLocation() + "gfx/ingame/fonts/NotoSans-Medium.ttf") + ": " + TTF_GetError());
     }
 
     platformSetText(wrapText());

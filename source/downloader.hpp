@@ -15,9 +15,9 @@
 
 #ifdef __3DS__
 #include <3ds.h>
-#else
-#include <mutex>
-#include <thread>
+#endif
+#ifdef ENABLE_DOWNLOAD
+#include <thread.hpp>
 #endif
 
 struct DownloadItem {
@@ -82,12 +82,7 @@ class DownloadManager {
     static inline std::unordered_map<std::string, std::shared_ptr<DownloadItem>> downloadedMap;
     static inline bool isInitialized = false;
 
-#ifdef __3DS__
-    static inline Thread downloadThread;
-    static LightLock mtx;
-#else
-    static inline std::mutex mtx;
-    static inline std::thread downloadThread;
-#endif
+    static inline SE_Thread downloadThread;
+    static inline SE_Mutex mtx;
 };
 #endif
