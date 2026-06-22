@@ -4,6 +4,7 @@
 #include "controlsMenu.hpp"
 #include "input.hpp"
 #include "languageMenu.hpp"
+#include "loading.hpp"
 #include "log.hpp"
 #include "mainMenu.hpp"
 #include "menu.hpp"
@@ -50,6 +51,8 @@ std::unique_ptr<Menu> MenuManager::createMenu(MenuID id, void *userdata) {
         return std::make_unique<UnpackMenu>(userdata);
     case MenuID::LanguageMenu:
         return std::make_unique<LanguageMenu>(userdata);
+    case MenuID::LoadingMenu:
+        return std::make_unique<LoadingMenu>(userdata);
     default:
         return nullptr;
     }
@@ -147,8 +150,6 @@ void MenuManager::render() {
 
     static constexpr float maxScale = 2;
 
-    toFree.clear();
-
     if (menuQueue.first != MenuID::None) {
         if (Input::mousePointer.isPressed) {
             waitForRelease = true;
@@ -167,9 +168,6 @@ void MenuManager::render() {
         backQueued = false;
     }
 
-    // #ifdef RENDERER_SDL2
-    //     SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
-    // #endif
 #ifdef RENDERER_CITRO2D
     constexpr unsigned int windowWidth = 320;
     constexpr unsigned int windowHeight = 240;
@@ -199,7 +197,9 @@ void MenuManager::render() {
 			.layoutDirection = CLAY_LEFT_TO_RIGHT,
 		},
 	}) {
-		sidebar.render();
+		if (currentMenuID != MenuID::LoadingMenu) {
+			sidebar.render();
+		}
 		currentMenu->render();
 	}
     // clang-format on
@@ -210,10 +210,6 @@ void MenuManager::render() {
     Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
     C3D_FrameEnd(0);
 #endif
-
-    for (auto &ptr : toFree) {
-        delete ptr;
-    }
 
     deltaTimer.start();
 }

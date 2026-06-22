@@ -13,6 +13,7 @@ enum class MenuID {
     ControlsMenu,
     UnpackMenu,
     LanguageMenu,
+    LoadingMenu,
     None
 };
 
@@ -28,8 +29,6 @@ class MenuManager {
     std::unique_ptr<Menu> createMenu(MenuID id, void *userdata = nullptr);
 
   public:
-    std::vector<void *> toFree;
-
     bool canChangeMenus = true;
 
     float scale;
