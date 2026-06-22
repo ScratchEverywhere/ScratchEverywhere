@@ -14,7 +14,7 @@ ProjectSettingsMenu::ProjectSettingsMenu(void *userdata) {
 
     if (!settings.contains("bottomScreen")) settings["bottomScreen"] = false;
 
-    init("Project Settings");
+    init("ui.settings.project");
 }
 
 ProjectSettingsMenu::~ProjectSettingsMenu() {

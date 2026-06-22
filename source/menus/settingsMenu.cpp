@@ -2,6 +2,7 @@
 #include "filesystem.hpp"
 #include "image.hpp"
 #include "menuManager.hpp"
+#include "translation.hpp"
 #include <clay.h>
 #include <cstring>
 #include <fstream>
@@ -11,7 +12,9 @@
 #include <settings.hpp>
 
 void SettingsMenu::init(const std::string &title) {
-    for (const auto &[setting, _] : names) {
+    for (const auto &[setting, translationKey] : translationNames) {
+        names[setting] = TranslationManager::getTranslation(translationKey);
+
         clayIds[setting] = {false, static_cast<int32_t>(("setting-" + setting).length()), nullptr};
         void *chars = malloc(clayIds[setting].length);
         memcpy(chars, ("setting-" + setting).c_str(), clayIds[setting].length);
@@ -22,9 +25,10 @@ void SettingsMenu::init(const std::string &title) {
 
     indicator = createImageFromFile("gfx/menu/indicator.svg", false).value(); // TODO: Error handling
 
-    this->title = {false, static_cast<int32_t>(title.length()), nullptr};
-    void *chars = malloc(title.length());
-    memcpy(chars, title.c_str(), title.length());
+    const std::string translatedTitle = TranslationManager::getTranslation(title);
+    this->title = {false, static_cast<int32_t>(translatedTitle.length()), nullptr};
+    void *chars = malloc(translatedTitle.length());
+    memcpy(chars, translatedTitle.c_str(), translatedTitle.length());
     this->title.chars = static_cast<char *>(chars);
 }
 
@@ -342,7 +346,7 @@ GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
 
     if (!settings.contains("UseDectalk")) settings["UseDectalk"] = false;
 
-    SettingsMenu::init("Global Settings");
+    SettingsMenu::init("ui.settings.global");
 }
 
 GlobalSettingsMenu::~GlobalSettingsMenu() {

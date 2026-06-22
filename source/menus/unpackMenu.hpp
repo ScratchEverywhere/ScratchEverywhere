@@ -21,7 +21,7 @@ class UnpackMenu : public Menu {
     std::string projectName;
     bool deletingProject;
     Clay_String title;
-    const std::string text = "Unzipping Scratch project, please do not turn off your device.";
+    std::string text;
 
     static void addToJsonArray(const std::string &filePath, const std::string &value);
 

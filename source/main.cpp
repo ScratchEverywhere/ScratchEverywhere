@@ -33,9 +33,7 @@ static void exitApp() {
 }
 
 static bool initApp() {
-    Log::deleteLogFile();
-    Render::debugMode = true;
-    const bool result = Render::Init();
+    const bool result = Scratch::initializeRuntime();
     MenuManager::initClay();
     return result;
 }

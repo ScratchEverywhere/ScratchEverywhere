@@ -2,6 +2,7 @@
 #include "filesystem.hpp"
 #include "log.hpp"
 #include "menuManager.hpp"
+#include "translation.hpp"
 #include "unzip.hpp"
 #include <clay.h>
 #include <cstring>
@@ -32,6 +33,8 @@ void UnpackMenu::unpack(UnpackParams params) {
 }
 
 UnpackMenu::UnpackMenu(void *userdata, const std::string &title) {
+    text = TranslationManager::getTranslation("ui.unpack.wait") + "\n" + TranslationManager::getTranslation("ui.unpack.warning");
+
     // there's definitely better ways of doing this..
     UnpackParams *paramsPtr = static_cast<UnpackParams *>(userdata);
     UnpackParams params = {.projectName = paramsPtr->projectName, .deletingProject = paramsPtr->deletingProject};

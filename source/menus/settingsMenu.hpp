@@ -26,19 +26,20 @@ class SettingsMenu : public Menu {
   private:
     Clay_String title;
 
-    const std::map<std::string, std::string> names = {
-        {"useCustomUsername", "Enable Custom Username"},
-        {"customUsername", "Set Custom Username"},
-        {"UseProjectsPath", "Enable Custom Project Path"},
-        {"ProjectsPath", "Set Project Path"},
-        {"musicVolume", "Music Volume"},
-        {"bottomScreen", "Bottom screen only mode"},
-        {"changeControls", "Change Project controls"},
-        {"unpackProject", "Unpack Project"},
-        {"deleteUnpacked", "Delete unpacked Project"},
-        {"clearCache", "Clear Cache"},
-        {"useDectalk", "Use DECtalk"},
-        {"language", "Language"},
+    std::map<std::string, std::string> names;
+    const std::map<std::string, std::string> translationNames = {
+        {"useCustomUsername", "ui.settings.username"},
+        {"customUsername", "ui.settings.name"},
+        {"UseProjectsPath", "ui.settings.path"},
+        {"ProjectsPath", "ui.settings.changePath"},
+        {"musicVolume", "ui.settings.music"},
+        {"bottomScreen", "ui.settings.bottom"},
+        {"changeControls", "ui.settings.controls"},
+        {"unpackProject", "ui.settings.unpack"},
+        {"deleteUnpacked", "ui.settings.deleteUnpacked"},
+        {"clearCache", "ui.settings.cache"},
+        {"useDectalk", "ui.settings.dectalk"},
+        {"language", "ui.settings.language"},
     };
 
     std::map<std::string, Timer> animationTimers;
