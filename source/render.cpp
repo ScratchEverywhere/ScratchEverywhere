@@ -1,6 +1,7 @@
 #include "render.hpp"
 #include <log.hpp>
 
+MenuManager *Render::menuManager = nullptr;
 std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
 std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
 bool Render::debugMode = false;
@@ -120,6 +121,7 @@ void Render::setRenderScale() {
 }
 
 void Render::resizeSVGs() {
+    if (menuManager != nullptr) menuManager->onResize();
     for (auto &sprite : Scratch::sprites) {
         resizeSVGs(sprite);
     }

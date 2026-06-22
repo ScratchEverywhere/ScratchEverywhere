@@ -13,4 +13,5 @@ class MainMenu : public Menu {
   public:
     MainMenu(void *userdata);
     void render() override;
+    void onResize() override;
 };

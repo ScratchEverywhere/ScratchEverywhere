@@ -40,6 +40,7 @@ static bool initApp() {
 
 bool activateMainMenu() {
     MenuManager menuManager;
+    Render::menuManager = &menuManager;
 
     menuManager.changeMenu(MenuID::MainMenu);
 
@@ -47,7 +48,10 @@ bool activateMainMenu() {
         Input::getInput(&menuManager);
 
         menuManager.render();
-        if (Unzip::projectOpened >= 0) return true;
+        if (Unzip::projectOpened >= 0) {
+            Render::menuManager = nullptr;
+            return true;
+        }
 
 #ifdef __EMSCRIPTEN__
         emscripten_sleep(0);
@@ -56,6 +60,7 @@ bool activateMainMenu() {
         Inspector::processCommands();
 #endif
     }
+    Render::menuManager = nullptr;
     return false;
 }
 

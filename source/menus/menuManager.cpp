@@ -214,6 +214,10 @@ void MenuManager::render() {
     deltaTimer.start();
 }
 
+void MenuManager::onResize() {
+    if (currentMenu) currentMenu->onResize();
+}
+
 void MenuManager::handleInput(float mouseX, float mouseY, bool mouseDown) {
     static Timer frameTimer;
 

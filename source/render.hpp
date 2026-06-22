@@ -58,6 +58,8 @@ class Render {
      */
     static void setRenderScale();
 
+    static MenuManager *menuManager;
+
     /**
      * Resizes every SVG costume that is currently loaded.
      */

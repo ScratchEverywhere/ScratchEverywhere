@@ -9,6 +9,7 @@ class Menu {
     MenuManager *menuManager;
 
     virtual void render();
+    virtual void onResize();
 
     virtual ~Menu();
 };

@@ -50,6 +50,7 @@ class MenuManager {
     void queueChangeMenu(MenuID id, void *userdata = nullptr);
     bool launchProject(const std::string path);
     void render();
+    void onResize();
     void back(void *userdata = nullptr);
     void queueBack(void *userdata = nullptr);
 

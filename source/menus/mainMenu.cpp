@@ -2,6 +2,7 @@
 #include "components.hpp"
 #include "image.hpp"
 #include "menuManager.hpp"
+#include "render.hpp"
 #include "translation.hpp"
 
 std::string MainMenu::splash = "";
@@ -10,6 +11,10 @@ MainMenu::MainMenu(void *userdata) {
     logo = createImageFromFile("gfx/menu/logo.svg", false).value(); // TODO: Error handling
 
     if (splash == "") splash = TranslationManager::getSplashText();
+}
+
+void MainMenu::onResize() {
+    logo->resizeSVG(Render::getWidth() / 550.0f);
 }
 
 void MainMenu::render() {
