@@ -13,6 +13,8 @@
 #include <renderers/sdl2/clay_renderer.hpp>
 #elif defined(RENDERER_SDL3)
 #include <renderers/sdl3/clay_renderer.hpp>
+#elif defined(RENDERER_SDL1)
+#include <renderers/sdl1/clay_renderer.hpp>
 #endif
 
 class MenuManager;
@@ -20,7 +22,7 @@ class MenuManager;
 namespace components {
 #define DEFAULT_TEXT_CONFIG CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = 16})
 
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_SDL1)
 extern SDL_Font fonts[2];
 #elif defined(RENDERER_CITRO2D)
 extern std::map<unsigned int, C2D_Font> fonts;

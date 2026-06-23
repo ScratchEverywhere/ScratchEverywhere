@@ -1,3 +1,4 @@
+#include "menuManager.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <blockExecutor.hpp>
@@ -50,7 +51,7 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
     inputButtons.clear();
     inputKeys.clear();
     mousePointer.isPressed = false;
@@ -142,6 +143,8 @@ void Input::getInput() {
         if (SDL_JoystickGetAxis(controller, 4) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
         if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
 
+        if (menuManager != nullptr && controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
+
         Input::leftJoystick.first = joyLeftX / 32767.0f;
         Input::leftJoystick.second = joyLeftY / 32767.0f;
         Input::rightJoystick.first = joyRightX / 32767.0f;
@@ -166,6 +169,8 @@ void Input::getInput() {
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.isPressed = true;
     }
+
+    if (menuManager != nullptr) menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
 
     if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.mouseButton = Mouse::RIGHT;

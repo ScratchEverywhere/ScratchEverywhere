@@ -27,8 +27,15 @@ extern SDL_Gamepad *controller;
 #endif
 #endif
 
+#ifdef RENDERER_SDL1
+#include <renderers/sdl1/clay_renderer.hpp>
+#include <renderers/sdl1/render.hpp>
+
+// TODO: Controller stuff
+#endif
+
 namespace components {
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_SDL1)
 SDL_Font fonts[2] = {};
 #elif defined(RENDERER_CITRO2D)
 std::map<unsigned int, C2D_Font> fonts;

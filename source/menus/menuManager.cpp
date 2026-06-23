@@ -27,6 +27,9 @@
 #elif defined(RENDERER_SDL3)
 #include <renderers/sdl3/clay_renderer.hpp>
 #include <renderers/sdl3/render.hpp>
+#elif defined(RENDERER_SDL1)
+#include <renderers/sdl1/clay_renderer.hpp>
+#include <renderers/sdl1/render.hpp>
 #elif defined(RENDERER_CITRO2D)
 #include <citro2d.h>
 #include <citro3d.h>
@@ -108,7 +111,7 @@ void MenuManager::initClay() {
                         Log::logError(std::string("[CLAY] ") + errorData.errorText.chars);
                     }});
 
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_SDL1)
 #ifdef RENDERER_SDL3
 #define TTF_GetError SDL_GetError
 #endif
@@ -146,7 +149,7 @@ void MenuManager::initClay() {
 }
 
 void MenuManager::freeClay() {
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_SDL1)
     if (components::fonts[components::FONT_ID_BODY_16].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_16].font);
     if (components::fonts[components::FONT_ID_BODY_BOLD_48].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_BOLD_48].font);
 #elif defined(RENDERER_CITRO2D)
@@ -193,6 +196,11 @@ void MenuManager::render() {
 #if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
     SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
     SDL_RenderClear(renderer);
+#elif defined(RENDERER_SDL1)
+    SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
+
+    Uint32 clearColor = SDL_MapRGBA(window->format, 66, 44, 66, 255);
+    SDL_FillRect(window, NULL, clearColor);
 #elif defined(RENDERER_CITRO2D)
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(bottomScreen, C2D_Color32(66, 44, 66, 255));
@@ -217,6 +225,12 @@ void MenuManager::render() {
 #if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
     Clay_SDL_Render(renderer, Clay_EndLayout(deltaTimer.getTimeMs()), reinterpret_cast<SDL_Font *>(components::fonts));
     SDL_RenderPresent(renderer);
+#elif defined(RENDERER_SDL1)
+    Clay_SDL_Render(window, Clay_EndLayout(deltaTimer.getTimeMs()), reinterpret_cast<SDL_Font *>(components::fonts));
+
+    if (SDL_Flip(window) < 0) {
+        Log::logError(std::string("Failed to flip screen buffer: ") + SDL_GetError());
+    }
 #elif defined(RENDERER_CITRO2D)
     Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
     C3D_FrameEnd(0);
