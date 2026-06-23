@@ -186,7 +186,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 
 SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     auto potentialError = init(path, cached, on_disk);
-    if (error.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate) {
