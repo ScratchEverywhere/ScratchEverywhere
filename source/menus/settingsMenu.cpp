@@ -1,4 +1,5 @@
 #include "settingsMenu.hpp"
+#include "audiostack.hpp"
 #include "filesystem.hpp"
 #include "image.hpp"
 #include "menuManager.hpp"
@@ -367,6 +368,18 @@ GlobalSettingsMenu::~GlobalSettingsMenu() {
 
 void GlobalSettingsMenu::renderSettings() {
     renderSlider("musicVolume");
+    static float oldMusicVolume;
+    if (oldMusicVolume != settings["musicVolume"]) {
+#ifdef __NDS__
+        constexpr const char *songName = "gfx/nds/mm_ds.wav";
+#else
+        constexpr const char *songName = "gfx/menu/mm_splash.ogg";
+#endif
+        if (Mixer::isSoundPlaying(songName)) {
+            Mixer::setSoundVolume(songName, settings.value("musicVolume", 100));
+        }
+    }
+    oldMusicVolume = settings["musicVolume"];
 
     renderToggle("useCustomUsername");
     if (settings["useCustomUsername"]) renderInputButton("customUsername");
