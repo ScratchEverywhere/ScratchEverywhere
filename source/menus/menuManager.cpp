@@ -223,16 +223,16 @@ void MenuManager::render() {
 	}
     // clang-format on
 #if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    Clay_SDL_Render(renderer, Clay_EndLayout(deltaTimer.getTimeMs()), reinterpret_cast<SDL_Font *>(components::fonts));
+    Clay_SDL_Render(renderer, Clay_EndLayout(deltaTimer.getTimeMs() / 1000.0f), reinterpret_cast<SDL_Font *>(components::fonts));
     SDL_RenderPresent(renderer);
 #elif defined(RENDERER_SDL1)
-    Clay_SDL_Render(window, Clay_EndLayout(deltaTimer.getTimeMs()), reinterpret_cast<SDL_Font *>(components::fonts));
+    Clay_SDL_Render(window, Clay_EndLayout(deltaTimer.getTimeMs() / 1000.0f), reinterpret_cast<SDL_Font *>(components::fonts));
 
     if (SDL_Flip(window) < 0) {
         Log::logError(std::string("Failed to flip screen buffer: ") + SDL_GetError());
     }
 #elif defined(RENDERER_CITRO2D)
-    Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout(deltaTimer.getTimeMs()));
+    Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout(deltaTimer.getTimeMs() / 1000.0f));
     C3D_FrameEnd(0);
 #endif
 
