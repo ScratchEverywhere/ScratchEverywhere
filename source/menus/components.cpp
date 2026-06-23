@@ -212,7 +212,12 @@ void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image
 		},
 		.backgroundColor = bgColor,
 		.cornerRadius = {10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale, 10 * menuManager->scale},
-		.border = { .color = borderColor, .width = {static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale)} }
+		.border = { .color = borderColor, .width = {static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale), static_cast<uint16_t>(5 * menuManager->scale)} },
+		.transition = {
+			.handler = Clay_EaseOut,
+			.duration = 0.01f,
+			.properties = (Clay_TransitionProperty)(CLAY_TRANSITION_PROPERTY_BACKGROUND_COLOR | CLAY_TRANSITION_PROPERTY_BORDER_COLOR),
+		}
 	}) {
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto projectHoverData = (const ProjectHoverData*)userdata;
