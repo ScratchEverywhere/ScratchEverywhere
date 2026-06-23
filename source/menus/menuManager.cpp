@@ -232,7 +232,7 @@ void MenuManager::render() {
         Log::logError(std::string("Failed to flip screen buffer: ") + SDL_GetError());
     }
 #elif defined(RENDERER_CITRO2D)
-    Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout());
+    Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout(deltaTimer.getTimeMs()));
     C3D_FrameEnd(0);
 #endif
 
