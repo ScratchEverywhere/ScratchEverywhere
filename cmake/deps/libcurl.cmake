@@ -42,6 +42,8 @@ function(_dep_source_libcurl)
 	)
 	if(WEBOS)
 		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
+	elseif(ANDROID)
+		list(APPEND CURL_OPTIONS "HAVE_FSEEKO OFF") # Support old armeabi-v7a phones
 	else()
 		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
 	endif()
