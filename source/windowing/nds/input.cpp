@@ -48,7 +48,7 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
     mousePointer.mouseButton = Mouse::LEFT;
     inputButtons.clear();
     inputKeys.clear();
@@ -97,6 +97,8 @@ void Input::getInput() {
 skipInputCheck:
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
+
+    if (menuManager) menuManager->handleInput(touchPos[0], touchPos[1], Input::mousePointer.isPressed);
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

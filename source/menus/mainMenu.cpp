@@ -28,7 +28,11 @@ MainMenu::MainMenu(void *userdata) {
         }
     }
 
-    logo = createImageFromFile("gfx/menu/logo.svg", false).value(); // TODO: Error handling
+    const auto maybe = createImageFromFile("gfx/menu/logo.svg", false);
+    if (!maybe.has_value()) {
+        Log::logError("Failed to load logo image: " + maybe.error());
+    }
+    logo = maybe.value(); // TODO: Error handling
 
     if (splash == "") splash = TranslationManager::getSplashText();
 }

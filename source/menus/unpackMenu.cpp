@@ -13,23 +13,26 @@
 
 static bool threadFinished = false;
 
-void UnpackMenu::unpack(UnpackParams params) {
-    if (!params.deletingProject) {
-        if (Unzip::extractProject(OS::getScratchFolderLocation() + params.projectName + ".sb3", OS::getScratchFolderLocation() + params.projectName)) {
-            addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", params.projectName);
-            nlohmann::json settings = SettingsManager::getProjectSettings(params.projectName);
+void UnpackMenu::unpack(void *data) {
+    UnpackParams *params = static_cast<UnpackParams *>(data);
+
+    if (!params->deletingProject) {
+        if (Unzip::extractProject(OS::getScratchFolderLocation() + params->projectName + ".sb3", OS::getScratchFolderLocation() + params->projectName)) {
+            addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", params->projectName);
+            nlohmann::json settings = SettingsManager::getProjectSettings(params->projectName);
             settings["unpackedExists"] = true;
-            SettingsManager::saveProjectSettings(settings, params.projectName);
+            SettingsManager::saveProjectSettings(settings, params->projectName);
         }
     } else {
-        if (Unzip::deleteProjectFolder(OS::getScratchFolderLocation() + params.projectName)) {
-            removeFromJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", params.projectName);
-            nlohmann::json settings = SettingsManager::getProjectSettings(params.projectName);
+        if (Unzip::deleteProjectFolder(OS::getScratchFolderLocation() + params->projectName)) {
+            removeFromJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", params->projectName);
+            nlohmann::json settings = SettingsManager::getProjectSettings(params->projectName);
             settings["unpackedExists"] = false;
-            SettingsManager::saveProjectSettings(settings, params.projectName);
+            SettingsManager::saveProjectSettings(settings, params->projectName);
         }
     }
     threadFinished = true;
+    delete params;
 }
 
 UnpackMenu::UnpackMenu(void *userdata, const std::string &title) {
@@ -37,20 +40,20 @@ UnpackMenu::UnpackMenu(void *userdata, const std::string &title) {
 
     // there's definitely better ways of doing this..
     UnpackParams *paramsPtr = static_cast<UnpackParams *>(userdata);
-    UnpackParams params = {.projectName = paramsPtr->projectName, .deletingProject = paramsPtr->deletingProject};
+    auto *params = new UnpackParams{.projectName = paramsPtr->projectName, .deletingProject = paramsPtr->deletingProject};
     delete paramsPtr;
 
-    projectName = params.projectName;
-    deletingProject = params.deletingProject;
+    projectName = params->projectName;
+    deletingProject = params->deletingProject;
 
     this->title = {false, static_cast<int32_t>(title.length()), nullptr};
     void *chars = malloc(title.length());
     memcpy(chars, title.c_str(), title.length());
     this->title.chars = static_cast<char *>(chars);
 
-    thread = std::thread(unpack, params);
-    if (!thread.joinable()) {
+    if (!thread.create(unpack, &params, 10000)) {
         unpack(params);
+        delete params;
     } else thread.detach();
 }
 

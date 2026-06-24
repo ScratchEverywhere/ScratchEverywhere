@@ -8,6 +8,7 @@
 #include <cstring>
 #include <fstream>
 #include <input.hpp>
+#include <log.hpp>
 #include <regex>
 #include <runtime.hpp>
 #include <settings.hpp>
@@ -24,7 +25,11 @@ void SettingsMenu::init(const std::string &title) {
         hoverData.insert({setting, {settings, setting, animationTimers[setting]}});
     }
 
-    indicator = createImageFromFile("gfx/menu/indicator.svg", false).value(); // TODO: Error handling
+    const auto maybe = createImageFromFile("gfx/menu/indicator.svg", false);
+    if (!maybe.has_value()) {
+        Log::logError("Failed to load indicator image: " + maybe.error());
+    }
+    indicator = maybe.value(); // TODO: Error handling
 
     const std::string translatedTitle = TranslationManager::getTranslation(title);
     this->title = {false, static_cast<int32_t>(translatedTitle.length()), nullptr};
@@ -367,6 +372,7 @@ GlobalSettingsMenu::~GlobalSettingsMenu() {
 }
 
 void GlobalSettingsMenu::renderSettings() {
+#ifdef ENABLE_AUDIO
     renderSlider("musicVolume");
     static float oldMusicVolume;
     if (oldMusicVolume != settings["musicVolume"]) {
@@ -380,6 +386,7 @@ void GlobalSettingsMenu::renderSettings() {
         }
     }
     oldMusicVolume = settings["musicVolume"];
+#endif
 
     renderToggle("useCustomUsername");
     if (settings["useCustomUsername"]) renderInputButton("customUsername");
@@ -398,5 +405,7 @@ void GlobalSettingsMenu::renderSettings() {
         menuManager->queueChangeMenu(MenuID::LanguageMenu);
     }
 
+#ifdef ENABLE_DECTALK
     renderToggle("useDectalk");
+#endif
 }

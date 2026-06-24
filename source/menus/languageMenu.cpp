@@ -1,9 +1,9 @@
 #include "languageMenu.hpp"
 #include "components.hpp"
 #include "input.hpp"
-#include "log.hpp"
 #include "menuManager.hpp"
 #include "translation.hpp"
+#include <log.hpp>
 
 LanguageMenu::LanguageMenu(void *userdata) {
     langs = TranslationManager::getLanguages();
@@ -15,7 +15,11 @@ LanguageMenu::LanguageMenu(void *userdata) {
         clayLangNames.back().chars = static_cast<char *>(chars);
     }
 
-    indicator = createImageFromFile("gfx/menu/indicator.svg", false).value(); // TODO: Error handling
+    const auto maybe = createImageFromFile("gfx/menu/indicator.svg", false);
+    if (!maybe.has_value()) {
+        Log::logError("Failed to load indicator image: " + maybe.error());
+    }
+    indicator = maybe.value(); // TODO: Error handling
 }
 
 LanguageMenu::~LanguageMenu() {

@@ -37,6 +37,10 @@
 
 extern C3D_RenderTarget *bottomScreen;
 extern C3D_RenderTarget *topScreen;
+#elif defined(RENDERER_GL2D)
+#include <gl2d.h>
+#include <nds.h>
+#include <renderers/gl2d/clay_renderer.hpp>
 #endif
 
 Clay_Arena MenuManager::clayMemory;
@@ -105,6 +109,14 @@ MenuManager::MenuManager() {
 }
 
 void MenuManager::initClay() {
+    // Clay_MinMemorySize() allocates ~6MB of RAM by default...
+    // limiting these makes it allocate much much less
+    // GL2D can only do ~100 draw calls per frame anyway so it's chill
+#ifdef __NDS__
+    Clay_SetMaxElementCount(100);
+    Clay_SetMaxMeasureTextCacheWordCount(30);
+#endif
+
     uint64_t clayMinMemory = Clay_MinMemorySize();
     clayMemory = Clay_CreateArenaWithCapacityAndMemory(clayMinMemory, malloc(clayMinMemory));
     Clay_Initialize(clayMemory, {static_cast<float>(Render::getWidth()), static_cast<float>(Render::getHeight())}, {[](Clay_ErrorData errorData) {
@@ -145,6 +157,15 @@ void MenuManager::initClay() {
     }
 
     Clay_SetMeasureTextFunction(Clay_Citro2D_MeasureText, nullptr);
+#elif defined(RENDERER_GL2D)
+    // ubuntu bold is the default font
+    if (!Clay_GL2D_RegisterFont("")) {
+        Log::logError("Failed to load menu font.");
+    }
+    if (!Clay_GL2D_RegisterFont("")) {
+        Log::logError("Failed to load bold menu font.");
+    }
+    Clay_SetMeasureTextFunction(Clay_GL2D_MeasureText, nullptr);
 #endif
 }
 
@@ -185,13 +206,20 @@ void MenuManager::render() {
 #ifdef RENDERER_CITRO2D
     constexpr unsigned int windowWidth = 320;
     constexpr unsigned int windowHeight = 240;
+#elif defined(RENDERER_GL2D)
+    constexpr unsigned int windowWidth = 256;
+    constexpr unsigned int windowHeight = 192;
 #else
     const int windowWidth = Render::getWidth();
     const int windowHeight = Render::getHeight();
 #endif
     Clay_SetLayoutDimensions({static_cast<float>(windowWidth), static_cast<float>(windowHeight)});
+#ifdef RENDERER_GL2D
+    scale = 0.75f;
+#else
     scale = std::sqrt(windowWidth * windowWidth + windowHeight * windowHeight) / 600.0f;
     if (scale > maxScale) scale = maxScale;
+#endif
 
 #if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
     SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
@@ -207,6 +235,13 @@ void MenuManager::render() {
     C2D_TargetClear(topScreen, C2D_Color32(66, 44, 66, 255));
     C2D_SceneBegin(topScreen);
     C2D_SceneBegin(bottomScreen);
+#elif defined(RENDERER_GL2D)
+    glBegin2D();
+    int r5 = 66 >> 3;
+    int g5 = 44 >> 3;
+    int b5 = 66 >> 3;
+    glClearColor(r5, g5, b5, 31);
+    lcdMainOnBottom();
 #endif
     Clay_BeginLayout();
     // clang-format off
@@ -235,6 +270,10 @@ void MenuManager::render() {
 #elif defined(RENDERER_CITRO2D)
     Clay_Citro2D_Render(bottomScreen, {static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout(deltaTimer.getTimeMsDouble() / 1000.0f));
     C3D_FrameEnd(0);
+#elif defined(RENDERER_GL2D)
+    Clay_GL2D_Render({static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout(deltaTimer.getTimeMsDouble() / 1000.0f));
+    glEnd2D();
+    glFlush(GL_TRANS_MANUALSORT);
 #endif
 
     deltaTimer.start();

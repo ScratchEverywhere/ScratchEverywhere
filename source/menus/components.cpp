@@ -5,6 +5,7 @@
 #include "menus/menuManager.hpp"
 #include <algorithm>
 #include <cmath>
+#include <log.hpp>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -51,7 +52,11 @@ Sidebar::Sidebar() {
     previousTabImage = getControllerImage("shoulderL");
 
     for (const auto &tab : tabs) {
-        images[tab] = createImageFromFile("gfx/menu/" + tab + ".svg", false).value(); // TODO: Error handling
+        const auto maybe = createImageFromFile("gfx/menu/" + tab + ".svg", false);
+        if (!maybe.has_value()) {
+            Log::logError("Failed to load tab image: " + maybe.error());
+        }
+        images[tab] = maybe.value(); // TODO: Error handling
         hoverDatas[tab] = new HoverData{menuManager, tab};
     }
 }
@@ -435,6 +440,10 @@ std::shared_ptr<Image> getControllerImage(const std::string button) {
             {"LT", "trigger_lt_outline"},
             {"RT", "trigger_rt_outline"}};
 
-    return createImageFromFile("gfx/menu/controller/" + controllerType + "/" + controllerType + "_" + buttonMap[button] + ".svg", false).value(); // TODO: Error handling
+    const auto maybe = createImageFromFile("gfx/menu/controller/" + controllerType + "/" + controllerType + "_" + buttonMap[button] + ".svg", false);
+    if (!maybe.has_value()) {
+        Log::logError("Failed to load controller image: " + maybe.error());
+    }
+    return maybe.value(); // TODO: Error handling
 }
 } // namespace components

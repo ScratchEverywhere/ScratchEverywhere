@@ -7,7 +7,7 @@
 #include <map>
 #include <nlohmann/json.hpp>
 #include <string>
-#include <thread>
+#include <thread.hpp>
 
 struct UnpackParams {
     std::string projectName;
@@ -16,7 +16,7 @@ struct UnpackParams {
 
 class UnpackMenu : public Menu {
   private:
-    std::thread thread; // TODO: switch to platform-specific threading
+    SE_Thread thread;
 
     std::string projectName;
     bool deletingProject;
@@ -25,7 +25,7 @@ class UnpackMenu : public Menu {
 
     static void addToJsonArray(const std::string &filePath, const std::string &value);
 
-    static void unpack(UnpackParams params);
+    static void unpack(void *data);
 
     std::vector<std::string> getJsonArray(const std::string &filePath);
 

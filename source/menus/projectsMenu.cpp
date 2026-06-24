@@ -20,7 +20,11 @@ constexpr unsigned int windowHeight = 240;
 #endif
 
 ProjectsMenu::ProjectsMenu(void *userdata) {
-    missingIcon = createImageFromFile("gfx/menu/noicon.svg", false).value(); // TODO: Error handling
+    const auto maybe = createImageFromFile("gfx/menu/noicon.svg", false);
+    if (!maybe.has_value()) {
+        Log::logError("Failed to load missing image: " + maybe.error());
+    }
+    missingIcon = maybe.value(); // TODO: Error handling
 
     const std::string path = OS::getScratchFolderLocation();
 
