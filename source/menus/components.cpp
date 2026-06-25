@@ -263,6 +263,9 @@ std::shared_ptr<Image> getControllerImage(const std::string button) {
 #elif defined(GAMECUBE)
     static const std::string controllerType = "gamecube";
 #elif defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
+#ifdef __PS4__
+    const std::string controllerType = "playstation";
+#else
     static std::string controllerType;
     if (controller == nullptr) controllerType = "xbox"; // Default to Xbox because it's the most common.
     else switch (SDL_GameControllerGetType(controller)) {
@@ -283,6 +286,7 @@ std::shared_ptr<Image> getControllerImage(const std::string button) {
             controllerType = "xbox";
             break;
         }
+#endif
 #elif defined(RENDERER_SDL3) && defined(PLATFORM_HAS_CONTROLLER)
     static std::string controllerType;
     if (controller == nullptr) controllerType = "xbox"; // Default to Xbox because it's the most common.

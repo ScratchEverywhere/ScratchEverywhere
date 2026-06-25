@@ -16,7 +16,9 @@ Clay_Dimensions SDL_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *c
     SDL_Font *fonts = (SDL_Font *)userData;
 
     TTF_Font *font = fonts[config->fontId].font;
+#ifndef __PS4__
     TTF_SetFontSize(font, config->fontSize);
+#endif
     char *chars = (char *)calloc(text.length + 1, 1);
     memcpy(chars, text.chars, text.length);
     int width = 0;
@@ -323,7 +325,9 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
             char *cloned = (char *)calloc(config->stringContents.length + 1, 1);
             memcpy(cloned, config->stringContents.chars, config->stringContents.length);
             TTF_Font *font = fonts[config->fontId].font;
+#ifndef __PS4__
             TTF_SetFontSize(font, config->fontSize);
+#endif
             SDL_Surface *surface = TTF_RenderUTF8_Blended(font, cloned, (SDL_Color){
                                                                             .r = (Uint8)config->textColor.r,
                                                                             .g = (Uint8)config->textColor.g,
