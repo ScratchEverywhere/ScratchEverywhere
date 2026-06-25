@@ -226,6 +226,14 @@ if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
 endif()
 
+if(SE_MENU AND DEFINED SE_CONTROLLER_TYPE)
+	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/controller/.*")
+	file(GLOB_RECURSE GFXFILES
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/controller/${SE_CONTROLLER_TYPE}/*"
+	)
+endif()
+
 foreach(file IN LISTS GFXFILES)
 	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
@@ -374,6 +382,11 @@ if(SE_AUDIO)
 endif()
 if(SE_MENU)
 	target_compile_definitions(se-interface INTERFACE ENABLE_MENU)
+
+	if(DEFINED SE_CONTROLLER_TYPE)
+		target_compile_definitions(se-interface INTERFACE "PLATFORM_CONTROLLER_TYPE=\"${SE_CONTROLLER_TYPE}\"")
+	endif()
+
 	se_add_dependency(se-interface clay)
 endif()
 if(SE_LOADSCREEN)

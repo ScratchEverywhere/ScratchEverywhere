@@ -1,5 +1,7 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-ps4")
 
+set(SE_CONTROLLER_TYPE "playstation")
+
 set(SE_RENDERER_VALID_OPTIONS "sdl2")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")

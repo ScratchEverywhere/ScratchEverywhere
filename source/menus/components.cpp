@@ -256,16 +256,10 @@ void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image
 }
 
 std::shared_ptr<Image> getControllerImage(const std::string button) {
-#if defined(__3DS__) || defined(__WIIU__)             // We don't have 3DS assets but the Wii U is the most similar
-    static const std::string controllerType = "wiiu"; // TODO: Detect Wii Remote
-#elif defined(WII)
-    static const std::string controllerType = "wii"; // TODO: Nunchuck detection
-#elif defined(GAMECUBE)
-    static const std::string controllerType = "gamecube";
-#elif defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
-#ifdef __PS4__
-    const std::string controllerType = "playstation";
+#ifdef PLATFORM_CONTROLLER_TYPE
+    const std::string controllerType = PLATFORM_CONTROLLER_TYPE;
 #else
+#if defined(RENDERER_SDL2) && defined(PLATFORM_HAS_CONTROLLER)
     static std::string controllerType;
     if (controller == nullptr) controllerType = "xbox"; // Default to Xbox because it's the most common.
     else switch (SDL_GameControllerGetType(controller)) {
@@ -286,7 +280,6 @@ std::shared_ptr<Image> getControllerImage(const std::string button) {
             controllerType = "xbox";
             break;
         }
-#endif
 #elif defined(RENDERER_SDL3) && defined(PLATFORM_HAS_CONTROLLER)
     static std::string controllerType;
     if (controller == nullptr) controllerType = "xbox"; // Default to Xbox because it's the most common.
@@ -310,6 +303,7 @@ std::shared_ptr<Image> getControllerImage(const std::string button) {
         }
 #else
     static const std::string controllerType = "xbox"; // Default to Xbox because it's the most common.
+#endif
 #endif
 
     std::unordered_map<std::string, std::string> buttonMap;
