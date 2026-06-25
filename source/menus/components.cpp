@@ -248,7 +248,7 @@ void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image
 			static constexpr uint16_t minFontSize = 16;
 			uint16_t fontSize = 12 * menuManager->scale;
 			if (fontSize < minFontSize) fontSize = minFontSize;
-			const Clay_String clayName = {false, static_cast<int32_t>(projectInfo.name.length()), projectInfo.name.c_str()};
+			const Clay_String clayName = {false, static_cast<int32_t>(projectInfo.displayName.length()), projectInfo.displayName.c_str()};
 			CLAY_TEXT(clayName, CLAY_TEXT_CONFIG({.textColor = {0, 0, 0, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
 		}
 	}

@@ -9,7 +9,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <filesystem>
 #include <memory>
 #include <render.hpp>
 #include <string>
@@ -24,14 +23,31 @@ ProjectsMenu::ProjectsMenu(void *userdata) {
     if (!maybe.has_value()) {
         Log::logError("Failed to load missing image: " + maybe.error());
     }
-    missingIcon = maybe.value(); // TODO: Error handling
+    missingIcon = maybe.value();
 
     const std::string path = OS::getScratchFolderLocation();
 
     if (FileSystem::fileExists(path)) {
-        for (const auto &entry : std::filesystem::directory_iterator(path)) {
-            if (entry.path().extension() != ".sb3" && !(entry.is_directory() && std::filesystem::is_regular_file(entry.path() / "project.json"))) continue;
-            projects.push_back({.name = entry.path().stem().string(), .path = entry.path().string()});
+        const auto maybe = FileSystem::listDirectory(path);
+        if (!maybe.has_value()) {
+            Log::logError("Failed to list projects: " + maybe.error());
+        } else {
+            for (const auto &entry : maybe.value()) {
+                if ((entry.size() >= 4 && entry.compare(entry.size() - 4, 4, ".sb3")) && !(FileSystem::fileExists(path + entry + "/project.json") || (entry.back() == '/' && FileSystem::fileExists(path + entry + "project.json")))) continue;
+
+                std::string projectName = entry;
+                std::string displayName = entry;
+                bool unpacked = false;
+                if (projectName.size() >= 4 && projectName.compare(projectName.size() - 4, 4, ".sb3") == 0) {
+                    projectName = projectName.substr(0, projectName.size() - 4);
+                    displayName = projectName;
+                } else {
+                    unpacked = true;
+                    displayName = "⚡ " + displayName + " ⚡";
+                }
+
+                projects.push_back({.name = projectName, .path = path + entry, .displayName = displayName});
+            }
         }
     }
 

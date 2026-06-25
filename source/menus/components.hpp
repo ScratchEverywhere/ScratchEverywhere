@@ -34,6 +34,7 @@ extern uint16_t FONT_ID_BODY_BOLD_48;
 struct ProjectInfo {
     std::string name;
     std::string path;
+    std::string displayName;
     std::optional<std::string> description;
     std::optional<std::string> source;
 };
