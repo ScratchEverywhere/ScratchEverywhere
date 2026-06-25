@@ -1,5 +1,5 @@
 #include "log.hpp"
-#include "menuManager.hpp"
+#include "menus/menuManager.hpp"
 #include "window.hpp"
 #ifdef __SWITCH__
 #include <switch.h>
@@ -250,7 +250,9 @@ void Input::getInput(MenuManager *menuManager) {
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > CONTROLLER_DEADZONE_TRIGGER)
         Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::RIGHT_TRIGGER)]);
 
+#ifdef ENABLE_MENU
     if (menuManager != nullptr && controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
+#endif
 
     Input::leftJoystick.first = joyLeftX / 32767.0f;
     Input::leftJoystick.second = joyLeftY / 32767.0f;
@@ -271,7 +273,9 @@ void Input::getInput(MenuManager *menuManager) {
         mousePointer.mouseButton = Mouse::LEFT;
         BlockExecutor::doSpriteClicking();
 
+#ifdef ENABLE_MENU
         if (menuManager != nullptr) menuManager->handleInput(touchPosition.x, touchPosition.y, touchActive);
+#endif
         return;
     }
 #endif
@@ -288,7 +292,9 @@ void Input::getInput(MenuManager *menuManager) {
         mousePointer.isPressed = true;
     }
 
+#ifdef ENABLE_MENU
     if (menuManager != nullptr) menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
+#endif
 
     if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.mouseButton = Mouse::RIGHT;

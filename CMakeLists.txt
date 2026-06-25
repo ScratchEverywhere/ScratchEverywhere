@@ -270,6 +270,10 @@ foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
 
+if(NOT SE_MENU)
+    list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/clay_renderer\\.cpp$")
+endif()
+
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()

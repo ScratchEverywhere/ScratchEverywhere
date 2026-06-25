@@ -121,7 +121,9 @@ void Render::setRenderScale() {
 }
 
 void Render::resizeSVGs() {
+#ifdef ENABLE_MENU
     if (menuManager != nullptr) menuManager->onResize();
+#endif
     for (auto &sprite : Scratch::sprites) {
         resizeSVGs(sprite);
     }

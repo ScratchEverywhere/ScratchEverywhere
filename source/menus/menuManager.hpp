@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef ENABLE_MENU
+class MenuManager;
+#else
+
 #include "components.hpp"
 #include "menu.hpp"
 #include <memory>
@@ -56,3 +60,4 @@ class MenuManager {
 
     void handleInput(float mouseX, float mouseY, bool mouseDown);
 };
+#endif

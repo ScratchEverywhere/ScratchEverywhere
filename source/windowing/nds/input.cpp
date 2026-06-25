@@ -98,7 +98,9 @@ skipInputCheck:
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
 
+#ifdef ENABLE_MENU
     if (menuManager) menuManager->handleInput(touchPos[0], touchPos[1], Input::mousePointer.isPressed);
+#endif
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

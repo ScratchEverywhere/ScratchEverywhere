@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <input.hpp>
 #include <memory>
-#include <menuManager.hpp>
+#include <menus/menuManager.hpp>
 #ifndef LIBRETRO
 #include "image.hpp"
 #include "translation.hpp"
@@ -27,18 +27,23 @@
 #endif
 
 static void exitApp() {
+#ifdef ENABLE_MENU
     MenuManager::freeClay();
+#endif
     Render::deInit();
     OS::deinit();
 }
 
 static bool initApp() {
     const bool result = Scratch::initializeRuntime();
+#ifdef ENABLE_MENU
     MenuManager::initClay();
+#endif
     return result;
 }
 
 bool activateMainMenu() {
+#ifdef ENABLE_MENU
     MenuManager menuManager;
     Render::menuManager = &menuManager;
 
@@ -61,6 +66,7 @@ bool activateMainMenu() {
 #endif
     }
     Render::menuManager = nullptr;
+#endif
     return false;
 }
 

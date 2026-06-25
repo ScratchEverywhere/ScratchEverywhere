@@ -64,7 +64,9 @@ void Input::getInput(MenuManager *menuManager) {
 
     std::array<int, 2> touchPos = getTouchPosition();
 
+#ifdef ENABLE_MENU
     if (menuManager != nullptr) menuManager->handleInput((float)touchPos[0], (float)touchPos[1], mousePointer.isPressed);
+#endif
 
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
     mousePointer.x = (int)coords.first;
@@ -186,7 +188,9 @@ void Input::getInput(MenuManager *menuManager) {
             if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f)
                 Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::RIGHT_TRIGGER)]);
 
+#ifdef ENABLE_MENU
             if (menuManager != nullptr && std::abs(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) >= 0.5) Input::scrollDelta[1] = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y] * 0.75;
+#endif
 
             Input::leftJoystick.first = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
             Input::leftJoystick.second = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
