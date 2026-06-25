@@ -253,6 +253,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 }
 
 bool Scratch::startScratchProject() {
+#ifdef ENABLE_MENU
     if (hasNativeExtensions) {
         MenuManager menuManager;
 
@@ -272,6 +273,7 @@ bool Scratch::startScratchProject() {
             return false;
         }
     }
+#endif
 
     std::pair<bool, bool> code;
     initializeScratchProject();
