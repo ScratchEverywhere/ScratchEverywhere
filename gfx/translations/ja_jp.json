@@ -36,7 +36,7 @@
   "ui.loading.sprites": "スプライトを読み込んでいます",
   "ui.loading.extensions": "拡張機能を読み込んでいます",
   "ui.loading.finish": "最後の一歩!",
-  "ui.popup.extensions": "警告! このプロジェクトはネイティブ拡張機能を含んでいます。ネイティブ拡張機能はあなたのデバイスにフルアクセスを持ちます.",
+  "ui.confirm.extensions": "警告! このプロジェクトはネイティブ拡張機能を含んでいます。ネイティブ拡張機能はあなたのデバイスにフルアクセスを持ちます.",
   "version.prefix.beta": "ベータビルド",
   "version.prefix.release": "リリース",
   "version.prefix.releaseCanidate": "リリース候補",

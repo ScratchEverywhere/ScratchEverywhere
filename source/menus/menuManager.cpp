@@ -1,6 +1,7 @@
 #include "menuManager.hpp"
 #include "../unzip.hpp"
 #include "components.hpp"
+#include "confirmationMenu.hpp"
 #include "controlsMenu.hpp"
 #include "input.hpp"
 #include "languageMenu.hpp"
@@ -67,6 +68,8 @@ std::unique_ptr<Menu> MenuManager::createMenu(MenuID id, void *userdata) {
         return std::make_unique<LanguageMenu>(userdata);
     case MenuID::LoadingMenu:
         return std::make_unique<LoadingMenu>(userdata);
+    case MenuID::ConfirmationMenu:
+        return std::make_unique<ConfirmationMenu>(userdata);
     default:
         return nullptr;
     }
@@ -268,7 +271,7 @@ void MenuManager::render() {
 			.layoutDirection = CLAY_LEFT_TO_RIGHT,
 		},
 	}) {
-		if (currentMenuID != MenuID::LoadingMenu) {
+		if (currentMenuID != MenuID::LoadingMenu && currentMenuID != MenuID::ConfirmationMenu) {
 			sidebar.render();
 		}
 		currentMenu->render();

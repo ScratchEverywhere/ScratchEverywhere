@@ -18,6 +18,7 @@ enum class MenuID {
     UnpackMenu,
     LanguageMenu,
     LoadingMenu,
+    ConfirmationMenu,
     None
 };
 

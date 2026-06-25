@@ -2,7 +2,9 @@
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "collision.hpp"
+#include "confirmationMenu.hpp"
 #include "math.hpp"
+#include "menuManager.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
 #include "sprite.hpp"
@@ -251,18 +253,24 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 }
 
 bool Scratch::startScratchProject() {
-
     if (hasNativeExtensions) {
-        /* PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
-        MenuManager::changeMenu(popupMenu);
-        while (Render::appShouldRun() && popupMenu->accepted == -1) {
-            MenuManager::render();
+        MenuManager menuManager;
+
+        std::string text = TranslationManager::getTranslation("ui.confirm.extensions");
+        menuManager.changeMenu(MenuID::ConfirmationMenu, &text);
+
+        while (Render::appShouldRun() && !ConfirmationMenu::chosen) {
+            Input::getInput(&menuManager);
+            menuManager.render();
+#ifdef __EMSCRIPTEN__
+            emscripten_sleep(0);
+#endif
         }
-        popupMenu->cleanup();
-        if (popupMenu->accepted == 0) {
+
+        if (!ConfirmationMenu::accepted) {
             cleanupScratchProject();
             return false;
-        } */
+        }
     }
 
     std::pair<bool, bool> code;
