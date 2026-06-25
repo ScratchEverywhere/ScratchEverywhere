@@ -38,7 +38,7 @@ ProjectSettingsMenu::~ProjectSettingsMenu() {
 
 void ProjectSettingsMenu::renderSettings() {
     if (Input::isButtonJustPressed("B") && menuManager->canChangeMenus) {
-        menuManager->back();
+        menuManager->queueBack();
         return;
     }
 
