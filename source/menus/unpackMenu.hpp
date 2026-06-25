@@ -17,6 +17,7 @@ struct UnpackParams {
 class UnpackMenu : public Menu {
   private:
     SE_Thread thread;
+    UnpackParams *params;
 
     std::string projectName;
     bool deletingProject;

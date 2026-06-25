@@ -32,7 +32,6 @@ void UnpackMenu::unpack(void *data) {
         }
     }
     threadFinished = true;
-    delete params;
 }
 
 UnpackMenu::UnpackMenu(void *userdata, const std::string &title) {
@@ -40,7 +39,7 @@ UnpackMenu::UnpackMenu(void *userdata, const std::string &title) {
 
     // there's definitely better ways of doing this..
     UnpackParams *paramsPtr = static_cast<UnpackParams *>(userdata);
-    auto *params = new UnpackParams{.projectName = paramsPtr->projectName, .deletingProject = paramsPtr->deletingProject};
+    params = new UnpackParams{.projectName = paramsPtr->projectName, .deletingProject = paramsPtr->deletingProject};
     delete paramsPtr;
 
     projectName = params->projectName;
@@ -51,14 +50,14 @@ UnpackMenu::UnpackMenu(void *userdata, const std::string &title) {
     memcpy(chars, title.c_str(), title.length());
     this->title.chars = static_cast<char *>(chars);
 
-    if (!thread.create(unpack, &params, 10000)) {
+    if (!thread.create(unpack, params, 10000)) {
         unpack(params);
-        delete params;
     } else thread.detach();
 }
 
 UnpackMenu::~UnpackMenu() {
     free(const_cast<char *>(title.chars));
+    delete params;
 }
 
 void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &value) {
