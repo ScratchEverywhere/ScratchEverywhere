@@ -9,8 +9,6 @@
 
 #ifdef RENDERER_CITRO2D
 #include <citro2d.h>
-#elif defined(RENDERER_GL2D)
-#include <gl2d.h>
 #elif defined(RENDERER_SDL2)
 #include <renderers/sdl2/clay_renderer.hpp>
 #elif defined(RENDERER_SDL3)

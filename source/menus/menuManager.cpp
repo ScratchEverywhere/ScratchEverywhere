@@ -13,6 +13,7 @@
 #include "settingsMenu.hpp"
 #include "timer.hpp"
 #include "unpackMenu.hpp"
+#include "window.hpp"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -41,6 +42,9 @@ extern C3D_RenderTarget *topScreen;
 #include <gl2d.h>
 #include <nds.h>
 #include <renderers/gl2d/clay_renderer.hpp>
+#elif defined(RENDERER_OPENGL)
+#include <GL/gl.h>
+#include <renderers/opengl/clay_renderer.hpp>
 #endif
 
 Clay_Arena MenuManager::clayMemory;
@@ -166,6 +170,14 @@ void MenuManager::initClay() {
         Log::logError("Failed to load bold menu font.");
     }
     Clay_SetMeasureTextFunction(Clay_GL2D_MeasureText, nullptr);
+#elif defined(RENDERER_OPENGL)
+    if (!Clay_OpenGL_RegisterFont("gfx/menu/RedditSansFudge-Regular")) {
+        Log::logError("Failed to load menu font.");
+    }
+    if (!Clay_OpenGL_RegisterFont("gfx/menu/RedditSansFudge-Bold")) {
+        Log::logError("Failed to load bold menu font.");
+    }
+    Clay_SetMeasureTextFunction(Clay_OpenGL_MeasureText, nullptr);
 #endif
 }
 
@@ -242,6 +254,11 @@ void MenuManager::render() {
     int b5 = 66 >> 3;
     glClearColor(r5, g5, b5, 31);
     lcdMainOnBottom();
+#elif defined(RENDERER_OPENGL)
+    glClearColor(66.0f / 255.0f, 44.0f / 255.0f, 66.0f / 255.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #endif
     Clay_BeginLayout();
     // clang-format off
@@ -274,6 +291,13 @@ void MenuManager::render() {
     Clay_GL2D_Render({static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, Clay_EndLayout(deltaTimer.getTimeMsDouble() / 1000.0f));
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
+#elif defined(RENDERER_OPENGL)
+    Clay_Dimensions dimensions = {static_cast<float>(windowWidth), static_cast<float>(windowHeight)};
+    Clay_RenderCommandArray renderCommands = Clay_EndLayout(deltaTimer.getTimeMsDouble() / 1000.0f);
+
+    Clay_OpenGL_Render(dimensions, renderCommands);
+
+    if (globalWindow) globalWindow->swapBuffers();
 #endif
 
     deltaTimer.start();
