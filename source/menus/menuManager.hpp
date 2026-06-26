@@ -19,6 +19,7 @@ enum class MenuID {
     LanguageMenu,
     LoadingMenu,
     ConfirmationMenu,
+    PauseMenu,
     None
 };
 

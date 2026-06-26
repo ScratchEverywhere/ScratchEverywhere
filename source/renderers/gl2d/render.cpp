@@ -115,7 +115,7 @@ void Render::penStamp(Sprite *sprite) {
 void Render::penClear() {
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
     if (renderMode == BOTTOM_SCREEN_ONLY) lcdMainOnBottom();
     glBegin2D();
     glClearColor(31, 31, 31, 31);
@@ -158,8 +158,11 @@ void Render::renderSprites() {
     }
 
     renderMonitors();
-    glEnd2D();
-    glFlush(GL_TRANS_MANUALSORT);
+
+    if (present) {
+        glEnd2D();
+        glFlush(GL_TRANS_MANUALSORT);
+    }
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {

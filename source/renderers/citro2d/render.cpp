@@ -427,7 +427,7 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
     // }
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -570,8 +570,11 @@ other_screen_check:
         break;
     }
 
-    C3D_FrameEnd(0);
-    C2D_Flush();
+    if (present) {
+        C3D_FrameEnd(0);
+        C2D_Flush();
+    }
+
     osSetSpeedupEnable(true);
     hasFrameBegan = false;
 }

@@ -155,7 +155,7 @@ class Render {
     /**
      * Renders every sprite to the screen.
      */
-    static void renderSprites();
+    static void renderSprites(bool present = true);
 
     /**
      * Renders the pen layer

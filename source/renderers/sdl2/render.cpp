@@ -530,7 +530,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
@@ -596,7 +596,7 @@ void Render::renderSprites() {
     }
 #endif
 
-    SDL_RenderPresent(renderer);
+    if (present) SDL_RenderPresent(renderer);
 }
 
 void Render::renderPenLayer() {

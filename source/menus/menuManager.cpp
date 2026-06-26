@@ -9,6 +9,7 @@
 #include "log.hpp"
 #include "mainMenu.hpp"
 #include "menu.hpp"
+#include "pauseMenu.hpp"
 #include "projectSettingsMenu.hpp"
 #include "projectsMenu.hpp"
 #include "settingsMenu.hpp"
@@ -70,6 +71,8 @@ std::unique_ptr<Menu> MenuManager::createMenu(MenuID id, void *userdata) {
         return std::make_unique<LoadingMenu>(userdata);
     case MenuID::ConfirmationMenu:
         return std::make_unique<ConfirmationMenu>(userdata);
+    case MenuID::PauseMenu:
+        return std::make_unique<PauseMenu>(userdata);
     default:
         return nullptr;
     }
@@ -236,33 +239,36 @@ void MenuManager::render() {
     if (scale > maxScale) scale = maxScale;
 #endif
 
+    if (currentMenuID != MenuID::PauseMenu) {
 #if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
-    SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
+        SDL_RenderClear(renderer);
 #elif defined(RENDERER_SDL1)
-    SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
+        SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
 
-    Uint32 clearColor = SDL_MapRGBA(window->format, 66, 44, 66, 255);
-    SDL_FillRect(window, NULL, clearColor);
+        Uint32 clearColor = SDL_MapRGBA(window->format, 66, 44, 66, 255);
+        SDL_FillRect(window, NULL, clearColor);
 #elif defined(RENDERER_CITRO2D)
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(bottomScreen, C2D_Color32(66, 44, 66, 255));
-    C2D_TargetClear(topScreen, C2D_Color32(66, 44, 66, 255));
-    C2D_SceneBegin(topScreen);
-    C2D_SceneBegin(bottomScreen);
+        C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+        C2D_TargetClear(bottomScreen, C2D_Color32(66, 44, 66, 255));
+        C2D_TargetClear(topScreen, C2D_Color32(66, 44, 66, 255));
+        C2D_SceneBegin(topScreen);
+        C2D_SceneBegin(bottomScreen);
 #elif defined(RENDERER_GL2D)
-    glBegin2D();
-    int r5 = 66 >> 3;
-    int g5 = 44 >> 3;
-    int b5 = 66 >> 3;
-    glClearColor(r5, g5, b5, 31);
-    lcdMainOnBottom();
+        glBegin2D();
+        int r5 = 66 >> 3;
+        int g5 = 44 >> 3;
+        int b5 = 66 >> 3;
+        glClearColor(r5, g5, b5, 31);
+        lcdMainOnBottom();
 #elif defined(RENDERER_OPENGL)
-    glClearColor(66.0f / 255.0f, 44.0f / 255.0f, 66.0f / 255.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glClearColor(66.0f / 255.0f, 44.0f / 255.0f, 66.0f / 255.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #endif
+    }
+
     Clay_BeginLayout();
     // clang-format off
 	CLAY(CLAY_ID("outer"), (Clay_ElementDeclaration){
@@ -271,7 +277,7 @@ void MenuManager::render() {
 			.layoutDirection = CLAY_LEFT_TO_RIGHT,
 		},
 	}) {
-		if (currentMenuID != MenuID::LoadingMenu && currentMenuID != MenuID::ConfirmationMenu) {
+		if (currentMenuID != MenuID::LoadingMenu && currentMenuID != MenuID::ConfirmationMenu && currentMenuID != MenuID::PauseMenu) {
 			sidebar.render();
 		}
 		currentMenu->render();

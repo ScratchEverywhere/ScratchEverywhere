@@ -3,8 +3,8 @@
 #include "blockExecutor.hpp"
 #include "collision.hpp"
 #include "math.hpp"
-#include "menuManager.hpp"
 #include "nlohmann/json.hpp"
+#include "pauseMenu.hpp"
 #include "settings.hpp"
 #include "sprite.hpp"
 #include "translation.hpp"
@@ -29,6 +29,7 @@
 #include <vector>
 #ifdef ENABLE_MENU
 #include "confirmationMenu.hpp"
+#include "menuManager.hpp"
 #endif
 #ifdef ENABLE_INSPECTOR
 #include <inspector.hpp>
@@ -83,10 +84,6 @@ bool Scratch::warpTimer = true;
 
 Timer Scratch::fpsTimer(false);
 
-#ifdef ENABLE_MENU
-// PauseMenu *Scratch::pauseMenu = nullptr;
-#endif
-
 double Scratch::counter = 0;
 
 bool Scratch::nextProject = false;
@@ -126,9 +123,6 @@ void Scratch::initializeScratchProject() {
 #endif
     Scratch::nextProject = false;
 
-#ifdef ENABLE_MENU
-    // Scratch::pauseMenu = nullptr;
-#endif
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
         BlockExecutor::linkPointers(sprite);
@@ -149,24 +143,30 @@ void Scratch::initializeScratchProject() {
 }
 
 std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
+#ifdef ENABLE_MENU
+    static MenuManager *menuManager = nullptr;
+#endif
+
     if (!Render::appShouldRun()) {
 #ifdef ENABLE_MENU
-        /* if (pauseMenu != nullptr) {
-            MenuManager::cleanup();
-            pauseMenu = nullptr;
-        } */
+        if (menuManager != nullptr) {
+            delete menuManager;
+            menuManager = nullptr;
+        }
 #endif
         return std::make_pair(false, false);
     }
 #ifdef ENABLE_MENU
-    /* if (pauseMenu != nullptr) {
-        MenuManager::render();
-        if (pauseMenu->shouldUnpause) {
-            MenuManager::cleanup();
-            pauseMenu = nullptr;
+    if (menuManager != nullptr) {
+        Render::renderSprites(false);
+        Input::getInput(menuManager);
+        menuManager->render();
+        if (PauseMenu::shouldUnpause) {
+            delete menuManager;
+            menuManager = nullptr;
         }
         return std::make_pair(Render::appShouldRun(), false);
-    } */
+    }
 #endif
 
     const bool checkFPS = Render::checkFramerate();
@@ -227,8 +227,8 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #ifdef ENABLE_MENU
 
         if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
-            /* pauseMenu = new PauseMenu();
-            MenuManager::changeMenu(pauseMenu); */
+            menuManager = new MenuManager();
+            menuManager->changeMenu(MenuID::PauseMenu);
             return std::make_pair(true, false);
         }
 
