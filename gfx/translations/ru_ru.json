@@ -36,7 +36,7 @@
   "ui.loading.sprites": "Загрузка спрайтов...",
   "ui.loading.extensions": "Загрузка расширений...",
   "ui.loading.finish": "Завершение загрузки!",
-  "ui.popup.extensions": "Внимание! Проект использует нативные расширения. Нативные расширения имеют полный доступ к устройству.",
+  "ui.confirm.extensions": "Внимание! Проект использует нативные расширения. Нативные расширения имеют полный доступ к устройству.",
   "version.prefix.beta": "Бета сборка",
   "version.prefix.release": "Релиз",
   "version.prefix.releaseCanidate": "Кандидат на релиз",

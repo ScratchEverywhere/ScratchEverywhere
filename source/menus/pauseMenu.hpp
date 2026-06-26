@@ -1,22 +1,18 @@
 #pragma once
-#include "mainMenu.hpp"
+
+#include "menu.hpp"
+#include <vector>
 
 class PauseMenu : public Menu {
   private:
+    std::vector<Clay_String> buttonTexts;
+
+    void renderButton(Clay_String text, void (*cb)());
+
   public:
-    ControlObject *pauseControl = nullptr;
-    ButtonObject *backButton = nullptr;
-    ButtonObject *exitProjectButton = nullptr;
-    ButtonObject *flagButton = nullptr;
-    ButtonObject *stopButton = nullptr;
-    ButtonObject *turboButton = nullptr;
+    static bool shouldUnpause;
 
-    bool shouldUnpause = false;
-
-    PauseMenu();
+    PauseMenu(void *userdata);
     ~PauseMenu();
-
-    void init() override;
     void render() override;
-    void cleanup() override;
 };

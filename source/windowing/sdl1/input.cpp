@@ -1,3 +1,4 @@
+#include "menus/menuManager.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <blockExecutor.hpp>
@@ -30,8 +31,16 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
+bool Input::isControllerConnected() {
+#ifdef PLATFORM_HAS_CONTROLLER
+    return controller && controller != nullptr;
+#endif
+    return false;
+}
+
 std::array<int, 2> Input::getTouchPosition() {
     std::array<int, 2> pos = {0, 0};
+
 #ifdef PLATFORM_HAS_MOUSE
     int rawMouseX, rawMouseY;
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
@@ -42,7 +51,7 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
     inputButtons.clear();
     inputKeys.clear();
     mousePointer.isPressed = false;
@@ -134,6 +143,10 @@ void Input::getInput() {
         if (SDL_JoystickGetAxis(controller, 4) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("LT");
         if (SDL_JoystickGetAxis(controller, 5) > CONTROLLER_DEADZONE_TRIGGER) Input::buttonPress("RT");
 
+#ifdef ENABLE_MENU
+        if (menuManager != nullptr && controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
+#endif
+
         Input::leftJoystick.first = joyLeftX / 32767.0f;
         Input::leftJoystick.second = joyLeftY / 32767.0f;
         Input::rightJoystick.first = joyRightX / 32767.0f;
@@ -158,6 +171,10 @@ void Input::getInput() {
     if (buttons & (SDL_BUTTON(SDL_BUTTON_LEFT) | SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.isPressed = true;
     }
+
+#ifdef ENABLE_MENU
+    if (menuManager != nullptr) menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
+#endif
 
     if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.mouseButton = Mouse::RIGHT;

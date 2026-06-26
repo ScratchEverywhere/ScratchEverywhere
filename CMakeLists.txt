@@ -2,13 +2,12 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 1.0.0.3 LANGUAGES CXX C)
 
-# error C7555: use of designated initializers requires at least '/std:c++20'
-if(MSVC)
-	set(CMAKE_CXX_STANDARD 20)
-else()
-	set(CMAKE_CXX_STANDARD 17)
-endif()
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC and a few other things
 
@@ -26,6 +25,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
 	endif()
 endif()
+set(CPM_SOURCE_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
@@ -226,6 +226,14 @@ if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
 endif()
 
+if(SE_MENU AND DEFINED SE_CONTROLLER_TYPE)
+	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/controller/.*")
+	file(GLOB_RECURSE GFXFILES
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/controller/${SE_CONTROLLER_TYPE}/*"
+	)
+endif()
+
 foreach(file IN LISTS GFXFILES)
 	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
 
@@ -269,6 +277,10 @@ foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
+
+if(NOT SE_MENU)
+    list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/clay_renderer\\.cpp$")
+endif()
 
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
@@ -370,6 +382,12 @@ if(SE_AUDIO)
 endif()
 if(SE_MENU)
 	target_compile_definitions(se-interface INTERFACE ENABLE_MENU)
+
+	if(DEFINED SE_CONTROLLER_TYPE)
+		target_compile_definitions(se-interface INTERFACE "PLATFORM_CONTROLLER_TYPE=\"${SE_CONTROLLER_TYPE}\"")
+	endif()
+
+	se_add_dependency(se-interface clay)
 endif()
 if(SE_LOADSCREEN)
 	target_compile_definitions(se-interface INTERFACE ENABLE_LOADSCREEN)

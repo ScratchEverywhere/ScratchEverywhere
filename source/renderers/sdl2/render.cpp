@@ -1,4 +1,6 @@
 #include "render.hpp"
+#include "downloader.hpp"
+#include "menus/menuManager.hpp"
 #include "speech_manager.hpp"
 #include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
@@ -528,7 +530,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
@@ -594,7 +596,7 @@ void Render::renderSprites() {
     }
 #endif
 
-    SDL_RenderPresent(renderer);
+    if (present) SDL_RenderPresent(renderer);
 }
 
 void Render::renderPenLayer() {

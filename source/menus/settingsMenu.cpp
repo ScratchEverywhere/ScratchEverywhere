@@ -1,312 +1,411 @@
 #include "settingsMenu.hpp"
-#include "languageMenu.hpp"
-#include "menuObjects.hpp"
-#include "settings.hpp"
+#include "audiostack.hpp"
+#include "filesystem.hpp"
+#include "image.hpp"
+#include "menuManager.hpp"
 #include "translation.hpp"
-#include <filesystem.hpp>
+#include <clay.h>
+#include <cstring>
+#include <fstream>
+#include <input.hpp>
 #include <log.hpp>
+#include <regex>
+#include <runtime.hpp>
+#include <settings.hpp>
 
-SettingsMenu::SettingsMenu() {
-    init();
+void SettingsMenu::init(const std::string &title) {
+    for (const auto &[setting, translationKey] : translationNames) {
+        names[setting] = TranslationManager::getTranslation(translationKey);
+
+        clayIds[setting] = {false, static_cast<int32_t>(("setting-" + setting).length()), nullptr};
+        void *chars = malloc(clayIds[setting].length);
+        memcpy(chars, ("setting-" + setting).c_str(), clayIds[setting].length);
+        clayIds[setting].chars = static_cast<char *>(chars);
+
+        hoverData.insert({setting, {settings, setting, animationTimers[setting]}});
+    }
+
+    const auto maybe = createImageFromFile("gfx/menu/indicator.svg", false);
+    if (!maybe.has_value()) {
+        Log::logError("Failed to load indicator image: " + maybe.error());
+    }
+    indicator = maybe.value(); // TODO: Error handling
+
+    const std::string translatedTitle = TranslationManager::getTranslation(title);
+    this->title = {false, static_cast<int32_t>(translatedTitle.length()), nullptr};
+    void *chars = malloc(translatedTitle.length());
+    memcpy(chars, translatedTitle.c_str(), translatedTitle.length());
+    this->title.chars = static_cast<char *>(chars);
 }
 
 SettingsMenu::~SettingsMenu() {
-    cleanup();
+    free(const_cast<char *>(title.chars));
+
+    for (const auto &[setting, _] : names) {
+        free(const_cast<char *>(clayIds[setting].chars));
+    }
 }
 
-std::string SettingsMenu::getDectalkString() {
-    return TranslationManager::getTranslation("ui.settings.dectalk") + ": " + TranslationManager::getTranslation(UseDectalk ? "ui.settings.on" : "ui.settings.off");
-}
+void SettingsMenu::renderSlider(const std::string &setting) {
+    renderOrder.push_back(setting);
 
-void SettingsMenu::init() {
-    settingsControl = new ControlObject();
+    auto &hd = hoverData.at(setting);
 
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
-    backButton->scale = 1.0;
-    backButton->needsToBeSelected = false;
-    // Credits = new ButtonObject("Credits (dummy)", "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
-    // Credits->text->setColor(Math::color(0, 0, 0, 255));
-    // Credits->text->setScale(0.5);
-    EnableUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.username"), "gfx/menu/projectBox.svg", 200, 20, "gfx/menu/Ubuntu-Bold", true);
-    EnableUsername->text->setColor(Math::color(0, 0, 0, 255));
-    ChangeUsername = new ButtonObject(TranslationManager::getTranslation("ui.settings.name") + ": Player", "gfx/menu/projectBox.svg", 200, 70, "gfx/menu/Ubuntu-Bold", true);
-    ChangeUsername->text->setColor(Math::color(0, 0, 0, 255));
+    const int value = settings[setting].get<int>();
 
-    EnableCustomFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.path"), "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold", true);
-    EnableCustomFolderPath->text->setColor(Math::color(0, 0, 0, 255));
-    ChangeFolderPath = new ButtonObject(TranslationManager::getTranslation("ui.settings.changePath"), "gfx/menu/projectBox.svg", 200, 170, "gfx/menu/Ubuntu-Bold", true);
-    ChangeFolderPath->text->setColor(Math::color(0, 0, 0, 255));
+    const uint16_t fontSize = 16 * menuManager->scale;
+    const float width = 120 * menuManager->scale;
+    const float height = 25 * menuManager->scale;
+    const uint16_t borderWidth = 3 * menuManager->scale;
+    const uint16_t padding = 5 * menuManager->scale;
+    const float knobHeight = height - padding * 2;
+    const uint16_t knobBorderWidth = 2 * menuManager->scale;
+    const float maxOffset = (width - (knobHeight * 1.6)) * (static_cast<float>(value) / 100.0f);
 
-    EnableMenuMusic = new ButtonObject(TranslationManager::getTranslation("ui.settings.music"), "gfx/menu/projectBox.svg", 200, 220, "gfx/menu/Ubuntu-Bold", true);
-    EnableMenuMusic->text->setColor(Math::color(0, 0, 0, 255));
+    const float t = std::min(animationTimers[setting].getTimeMs(), static_cast<uint64_t>(animationDuration)) / static_cast<float>(animationDuration);
+    float offset;
+    if (!hd.justPressed && startTimer.getTimeMs() > animationDuration) offset = std::lerp(hd.lastOffset, maxOffset, t);
+    else offset = maxOffset;
 
-    ClearCache = new ButtonObject(TranslationManager::getTranslation("ui.settings.cache"), "gfx/menu/projectBox.svg", 200, 270, "gfx/menu/Ubuntu-Bold", true);
-    ClearCache->text->setColor(Math::color(0, 0, 0, 255));
+    // clang-format off
+    CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = { .width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0) },
+			.childGap = static_cast<uint16_t>(10 * menuManager->scale),
+			.childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
+			.layoutDirection = CLAY_LEFT_TO_RIGHT
+		}
+	}) {
+		
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
+		CLAY(CLAY_IDI_LOCAL("bar",renderOrder.size()), (Clay_ElementDeclaration){
+			.layout = {
+				.sizing = { .width = CLAY_SIZING_FIXED(width), .height = CLAY_SIZING_FIXED(height) },
+				.padding = { padding, padding, padding, padding }
+			},
+			.backgroundColor = { 255, 150, 35, 255 },
+			.cornerRadius = { height / 2, height / 2, height / 2, height / 2 },
+			.clip = { .horizontal = true, .childOffset = { .x = offset } },
+			.border = { .color = { 200, 100, 0, 255 }, .width = { borderWidth, borderWidth, borderWidth, borderWidth } },
+		}) {
+			CLAY(CLAY_IDI_LOCAL("dial",renderOrder.size()), (Clay_ElementDeclaration){
+				.layout = {
+					.sizing = { .height = CLAY_SIZING_FIXED(knobHeight) }
+				},
+				.backgroundColor = { 225, 225, 220, 255 },
+				.cornerRadius = { knobHeight / 2, knobHeight / 2, knobHeight / 2, knobHeight / 2 },
+				.aspectRatio = { 1 },
+				.border = { .color = { 220, 120, 5}, .width = { knobBorderWidth, knobBorderWidth, knobBorderWidth, knobBorderWidth } },
+			});
 
-    Language = new ButtonObject(TranslationManager::getTranslation("ui.settings.language"), "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold", true);
-    Language->text->setColor(Math::color(0, 0, 0, 255));
-    Language->textScale = 1.0;
+            Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
+			const auto hoverData = reinterpret_cast<Settings_HoverData*>(userdata);
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+				hoverData->animationTimer.start();
+				hoverData->justPressed = true;
+			} else hoverData->justPressed = false;
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED) {
+                hoverData->pointerPos[0] = pointerData.position.x;
+                hoverData->pointerPos[1] = pointerData.position.y;
+                hoverData->pressed = true;
+			} else hoverData->pressed = false;
+		}, &hoverData.at(setting));
+		} 
+        hd.valueText = std::to_string(value);
+        
+        CLAY_TEXT(( (Clay_String){false, static_cast<int32_t>(hd.valueText.length()), hd.valueText.c_str()}),
+                    CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255},.fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
 
-    // initial selected object
-    settingsControl->selectedObject = EnableUsername;
-    EnableUsername->isSelected = true;
+        
+        Clay_ElementData data = Clay_GetElementData(CLAY_IDI_LOCAL("bar",renderOrder.size()));
 
-    UseCostumeUsername = false;
-    username = "Player";
+        if (hd.pressed) {
+			const float lefty = data.boundingBox.x + 10 * menuManager->scale;
+			const float righty = data.boundingBox.x + data.boundingBox.width - 10 * menuManager->scale; 
+            float val = std::clamp(static_cast<float>((hd.pointerPos[0] - lefty)) / (righty - lefty), 0.0f, 1.0f);
 
-    nlohmann::json json = SettingsManager::getConfigSettings();
-
-    if (json.contains("UseDectalk") && json["UseDectalk"].is_boolean()) {
-        UseDectalk = json["UseDectalk"].get<bool>();
-    }
-
-#ifdef ENABLE_DECTALK
-    dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
-    dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
-#endif
-
-    if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
-        UseCostumeUsername = json["EnableUsername"].get<bool>();
-    }
-    if (json.contains("Username") && json["Username"].is_string()) {
-        if (json["Username"].get<std::string>().length() <= 9) {
-            bool hasNonSpace = false;
-            for (char c : json["Username"].get<std::string>()) {
-                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-                    hasNonSpace = true;
-                } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                    break;
-                }
-            }
-            if (hasNonSpace) username = json["Username"].get<std::string>();
-            else username = "Player";
+            hd.settings[hd.key] = static_cast<int>(100 * val);
         }
-    }
-    if (json.contains("UseProjectsPath") && json["UseProjectsPath"].is_boolean()) {
-        UseProjectsPath = json["UseProjectsPath"].get<bool>();
-    }
-    if (json.contains("ProjectsPath") && json["ProjectsPath"].is_string()) {
-        projectsPath = json["ProjectsPath"].get<std::string>();
-    }
-    if (json.contains("MenuMusic") && json["MenuMusic"].is_boolean()) {
-        menuMusic = json["MenuMusic"].get<bool>();
-    }
-
-    updateButtonStates();
-
-    // settingsControl->buttonObjects.push_back(Credits);
-    settingsControl->buttonObjects.push_back(EnableMenuMusic);
-    settingsControl->buttonObjects.push_back(ChangeFolderPath);
-    settingsControl->buttonObjects.push_back(EnableCustomFolderPath);
-    settingsControl->buttonObjects.push_back(ChangeUsername);
-    settingsControl->buttonObjects.push_back(EnableUsername);
-    settingsControl->buttonObjects.push_back(ClearCache);
-    settingsControl->buttonObjects.push_back(Language);
-#ifdef ENABLE_DECTALK
-    settingsControl->buttonObjects.push_back(dectalkButton);
-#endif
-
-    settingsControl->enableScrolling = true;
-    settingsControl->setScrollLimits();
-
-    isInitialized = true;
+		if (hd.justPressed) {
+			hd.lastOffset = offset;
+		}
+	}
+    // clang-format on
 }
 
-void SettingsMenu::updateButtonStates() {
-    ChangeUsername->buttonUp = EnableUsername;
-    ChangeUsername->buttonDown = EnableCustomFolderPath;
-    ChangeFolderPath->buttonUp = EnableCustomFolderPath;
-    ChangeFolderPath->buttonDown = EnableMenuMusic;
-    EnableUsername->buttonUp = Language;
-    EnableMenuMusic->buttonDown = ClearCache;
-    ClearCache->buttonUp = EnableMenuMusic;
-    ClearCache->buttonDown = Language;
-    Language->buttonUp = ClearCache;
-    Language->buttonDown = EnableUsername;
-#ifdef ENABLE_DECTALK
-    Language->buttonDown = dectalkButton;
-    dectalkButton->buttonUp = Language;
-#endif
+void SettingsMenu::renderToggle(const std::string &setting) {
+    renderOrder.push_back(setting);
 
-    ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
-    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music"));
-    ChangeFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.changePath"));
+    const uint16_t fontSize = 16 * menuManager->scale;
+    const float height = 25 * menuManager->scale;
+    const uint16_t borderWidth = 3 * menuManager->scale;
+    const uint16_t padding = 5 * menuManager->scale;
+    const float knobHeight = height - padding * 2;
+    const uint16_t knobBorderWidth = 2 * menuManager->scale;
 
-    if (UseCostumeUsername) {
-        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.on"));
-        ChangeUsername->text->setText(TranslationManager::getTranslation("ui.settings.name") + ": " + username);
-        ChangeUsername->canBeClicked = true;
-        ChangeUsername->hidden = false;
+    const float t = std::min(animationTimers[setting].getTimeMs(), static_cast<uint64_t>(animationDuration)) / static_cast<float>(animationDuration);
+    float offset;
+    if (startTimer.getTimeMs() > animationDuration) offset = settings[setting] ? std::lerp(0, height, t) : std::lerp(height, 0, t);
+    else offset = settings[setting] ? height : 0;
 
-        EnableUsername->buttonDown = ChangeUsername;
-        EnableCustomFolderPath->buttonUp = ChangeUsername;
-    } else {
-        EnableUsername->text->setText(TranslationManager::getTranslation("ui.settings.username") + ": " + TranslationManager::getTranslation("ui.settings.off"));
-        ChangeUsername->canBeClicked = false;
-        ChangeUsername->hidden = true;
+    // clang-format off
+    CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = { .width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0) },
+			.childGap = static_cast<uint16_t>(10 * menuManager->scale),
+			.childAlignment = { .y = CLAY_ALIGN_Y_CENTER },
+			.layoutDirection = CLAY_LEFT_TO_RIGHT
+		}
+	}) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
+			const auto hoverData = *(const Settings_HoverData*)userdata;
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+				hoverData.settings[hoverData.key] = !hoverData.settings[hoverData.key];
+				hoverData.animationTimer.start();
+			}
+		}, &hoverData.at(setting));
 
-        EnableUsername->buttonDown = EnableCustomFolderPath;
-        EnableCustomFolderPath->buttonUp = EnableUsername;
-    }
-
-    if (UseProjectsPath) {
-        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.on"));
-        ChangeFolderPath->canBeClicked = true;
-        ChangeFolderPath->hidden = false;
-
-        EnableCustomFolderPath->buttonDown = ChangeFolderPath;
-        EnableMenuMusic->buttonUp = ChangeFolderPath;
-    } else {
-        EnableCustomFolderPath->text->setText(TranslationManager::getTranslation("ui.settings.path") + ": " + TranslationManager::getTranslation("ui.settings.off"));
-        ChangeFolderPath->canBeClicked = false;
-        ChangeFolderPath->hidden = true;
-
-        EnableCustomFolderPath->buttonDown = EnableMenuMusic;
-        EnableMenuMusic->buttonUp = EnableCustomFolderPath;
-    }
-
-    EnableMenuMusic->text->setText(TranslationManager::getTranslation("ui.settings.music") + ": " + (menuMusic ? TranslationManager::getTranslation("ui.settings.on") : TranslationManager::getTranslation("ui.settings.off")));
-
-#ifdef ENABLE_DECTALK
-    dectalkButton->text->setText(getDectalkString());
-#endif
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = fontSize }));
+		CLAY(CLAY_IDI_LOCAL("toggle",renderOrder.size()), (Clay_ElementDeclaration){
+			.layout = {
+				.sizing = { .width = CLAY_SIZING_FIXED(height * 2), .height = CLAY_SIZING_FIXED(height) },
+				.padding = { padding, padding, padding, padding }
+			},
+			.backgroundColor = { 255, 150, 35, 255 },
+			.cornerRadius = { height / 2, height / 2, height / 2, height / 2 },
+			.clip = { .horizontal = true, .childOffset = { .x = offset } },
+			.border = { .color = { 200, 100, 0, 255 }, .width = { borderWidth, borderWidth, borderWidth, borderWidth } },
+		}) {
+			CLAY(CLAY_IDI_LOCAL("knob",renderOrder.size()), (Clay_ElementDeclaration){
+				.layout = {
+					.sizing = { .height = CLAY_SIZING_FIXED(knobHeight) }
+				},
+				.backgroundColor = { 225, 225, 220, 255 },
+				.cornerRadius = { knobHeight / 2, knobHeight / 2, knobHeight / 2, knobHeight / 2 },
+				.aspectRatio = { 1 },
+				.border = { .color = { 220, 120, 5 }, .width = { knobBorderWidth, knobBorderWidth, knobBorderWidth, knobBorderWidth } },
+			});
+		}
+	}
+    // clang-format on
 }
+
+void SettingsMenu::renderInputButton(const std::string &setting) {
+    renderOrder.push_back(setting);
+
+    const uint16_t hPadding = 10 * menuManager->scale;
+    const uint16_t vPadding = 5 * menuManager->scale;
+
+    // clang-format off
+    CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = { .width = CLAY_SIZING_FIT(), .height = CLAY_SIZING_FIT() },
+			.padding = {hPadding, hPadding, vPadding, vPadding}
+		},
+		.backgroundColor = {90, 60, 90, 255},
+		.cornerRadius = {5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale}
+	}) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
+			const auto hoverData = *(const Settings_HoverData*)userdata;
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+				const std::string newContent = Input::openSoftwareKeyboard(hoverData.settings[hoverData.key].get<std::string>().c_str());
+				if (std::regex_match(newContent, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))) hoverData.settings[hoverData.key] = newContent;
+			}
+		}, &hoverData.at(setting));
+
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+	}
+    // clang-format on
+}
+
+void SettingsMenu::renderButton(const std::string &setting) {
+    renderOrder.push_back(setting);
+
+    const uint16_t hPadding = 10 * menuManager->scale;
+    const uint16_t vPadding = 5 * menuManager->scale;
+
+    // clang-format off
+    CLAY(CLAY_SID(clayIds[setting]), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = { .width = CLAY_SIZING_FIT(), .height = CLAY_SIZING_FIT() },
+			.padding = {hPadding, hPadding, vPadding, vPadding}
+		},
+		.backgroundColor = {90, 60, 90, 255},
+		.cornerRadius = {5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale}
+	}) {
+		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
+			const auto hoverData = reinterpret_cast<Settings_HoverData*>(userdata);
+			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+				hoverData->justPressed = true;
+			} else hoverData->justPressed = false;
+			if(pointerData.state == CLAY_POINTER_DATA_PRESSED) {
+				hoverData->pressed = true;
+			} else hoverData->pressed = false;
+		}, &hoverData.at(setting));
+
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+	}
+    // clang-format on
+}
+
+bool SettingsMenu::isButtonPressed(const std::string &buttonName) {
+    if (hoverData.find(buttonName) == hoverData.end()) return false;
+
+    return hoverData.at(buttonName).pressed;
+}
+
+bool SettingsMenu::isButtonJustPressed(const std::string &buttonName) {
+    if (hoverData.find(buttonName) == hoverData.end()) return false;
+
+    return hoverData.at(buttonName).justPressed;
+}
+
+void SettingsMenu::renderSettings() {}
 
 void SettingsMenu::render() {
-    Input::getInput();
-    settingsControl->input();
-    if (backButton->isPressed({"b", "y"})) {
-        MainMenu *mainMenu = new MainMenu();
-        MenuManager::changeMenu(mainMenu);
-        return;
+    static Timer frameTimer;
+    const uint16_t padding = 15 * menuManager->scale;
+    bool selectedMoved = false;
+
+    if (Input::isButtonJustPressed("dpadDown") || Input::isButtonJustPressed("LeftStickDown")) {
+        if (selected == -1) selected = 0;
+        else if (selected != renderOrder.size() - 1) selected++;
+        selectedMoved = true;
+    } else if (Input::isButtonJustPressed("dpadUp") || Input::isButtonJustPressed("LeftStickUp")) {
+        if (selected == -1) selected = 0;
+        else if (selected != 0) selected--;
+        selectedMoved = true;
+    } else if (Input::isButtonJustPressed("A") && selected != -1) {
+        if (hoverData.find(renderOrder[selected]) != hoverData.end()) hoverData.at(renderOrder[selected]).justPressed = true;
+        if (settings[renderOrder[selected]].is_boolean()) settings[renderOrder[selected]] = !settings[renderOrder[selected]];
+        else if (settings[renderOrder[selected]].is_string()) {
+            const std::string newContent = Input::openSoftwareKeyboard(settings[renderOrder[selected]].get<std::string>().c_str());
+            if (std::regex_match(newContent, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))) settings[renderOrder[selected]] = newContent;
+        }
+
+        animationTimers[renderOrder[selected]].start();
+    } else if ((Input::isButtonJustPressed("dpadRight") || (Input::isButtonJustPressed("LeftStickRight")) || Input::keyHeldDuration[Input::inputControls["dpadRight"]] > 30 || Input::keyHeldDuration[Input::inputControls["LeftStickRight"]] > 30) && selected != -1) {
+        if (settings[renderOrder[selected]].is_number_integer()) {
+            const int oldVal = settings[renderOrder[selected]].get<int>();
+            settings[renderOrder[selected]] = std::clamp(oldVal + 1, 0, 100);
+        }
+    } else if ((Input::isButtonJustPressed("dpadLeft") || (Input::isButtonJustPressed("LeftStickLeft")) || Input::keyHeldDuration[Input::inputControls["dpadLeft"]] > 30 || Input::keyHeldDuration[Input::inputControls["LeftStickLeft"]] > 30) && selected != -1) {
+        if (settings[renderOrder[selected]].is_number_integer()) {
+            const int oldVal = settings[renderOrder[selected]].get<int>();
+            settings[renderOrder[selected]] = std::clamp(oldVal - 1, 0, 100);
+        }
     }
 
-    Render::beginFrame(0, 108, 100, 128);
-    Render::beginFrame(1, 108, 100, 128);
+    std::optional<Clay_BoundingBox> selectedBoundingBox = std::nullopt;
+    if (selectedMoved && selected != -1) selectedBoundingBox = Clay_GetElementData(CLAY_SID(clayIds[renderOrder[selected]])).boundingBox;
 
-    if (ClearCache->isPressed({"a"})) {
+    const float scrollOffset = getScrollOffset(frameTimer, selectedBoundingBox);
+
+    // clang-format off
+	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){
+		.layout = {
+			.sizing = { .width = CLAY_SIZING_GROW(0), .height = CLAY_SIZING_GROW(0) },
+			.padding = {padding, padding, padding, padding},
+			.childGap = static_cast<uint16_t>(15 * menuManager->scale),
+			.layoutDirection = CLAY_TOP_TO_BOTTOM
+		},
+		.backgroundColor = { 115, 75, 115, 255 },
+		.cornerRadius = { 15 * menuManager->scale, 0, 15 * menuManager->scale, 0 },
+		.clip = { .horizontal = false, .vertical = true, .childOffset = { .y = scrollOffset} },
+	}) {
+		CLAY(CLAY_ID_LOCAL("title-wrapper"), (Clay_ElementDeclaration){
+			.layout = {
+				.sizing = { .width = CLAY_SIZING_GROW(0) },
+				.childAlignment = { .x = CLAY_ALIGN_X_CENTER }
+			}
+		}) {
+			CLAY_TEXT(title, CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale) }));
+		}
+
+		renderOrder.clear();
+		renderSettings();
+
+		if (selected > static_cast<int>(renderOrder.size()) - 1) selected = renderOrder.size() - 1;
+
+		if (selected != -1) {
+			CLAY(CLAY_ID_LOCAL("indicator"), (Clay_ElementDeclaration){
+				.layout = {
+					.sizing = { .width = CLAY_SIZING_FIXED(15 * menuManager->scale) }
+				},
+				.aspectRatio = {1},
+				.image = {indicator.get()},
+				.floating = {
+					.offset = { .x = 15 * menuManager->scale },
+					.parentId = CLAY_SID(clayIds[renderOrder[selected]]).id,
+					.attachPoints = { .element = CLAY_ATTACH_POINT_LEFT_CENTER, .parent = CLAY_ATTACH_POINT_RIGHT_CENTER },
+					.attachTo = CLAY_ATTACH_TO_ELEMENT_WITH_ID
+				}
+			});
+		}
+	}
+    // clang-format on
+    frameTimer.start();
+}
+
+GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
+    SettingsManager::migrate();
+
+    settings = SettingsManager::getConfigSettings();
+
+    if (!settings.contains("useCustomUsername")) settings["useCustomUsername"] = false;
+    if (!settings.contains("customUsername")) settings["customUsername"] = "";
+
+    if (!settings.contains("UseProjectsPath")) settings["UseProjectsPath"] = false;
+    if (!settings.contains("ProjectsPath")) settings["ProjectsPath"] = "";
+
+    if (!settings.contains("musicVolume")) settings["musicVolume"] = static_cast<int>(100);
+
+    if (!settings.contains("UseDectalk")) settings["UseDectalk"] = false;
+
+    SettingsMenu::init("ui.settings.global");
+}
+
+GlobalSettingsMenu::~GlobalSettingsMenu() {
+    std::ofstream out(OS::getConfigFolderLocation() + "Settings.json");
+    out << settings.dump(4);
+    out.close();
+}
+
+void GlobalSettingsMenu::renderSettings() {
+#ifdef ENABLE_AUDIO
+    renderSlider("musicVolume");
+    static float oldMusicVolume;
+    if (oldMusicVolume != settings["musicVolume"]) {
+#ifdef __NDS__
+        constexpr const char *songName = "gfx/nds/mm_ds.wav";
+#else
+        constexpr const char *songName = "gfx/menu/mm_splash.ogg";
+#endif
+        if (Mixer::isSoundPlaying(songName)) {
+            Mixer::setSoundVolume(songName, settings.value("musicVolume", 100));
+        }
+    }
+    oldMusicVolume = settings["musicVolume"];
+#endif
+
+    renderToggle("useCustomUsername");
+    if (settings["useCustomUsername"]) renderInputButton("customUsername");
+
+    renderToggle("UseProjectsPath");
+    if (settings["UseProjectsPath"]) renderInputButton("ProjectsPath");
+
+    renderButton("clearCache");
+    if (isButtonJustPressed("clearCache")) {
         FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
         FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
     }
 
-    if (EnableMenuMusic->isPressed({"a"})) {
-        menuMusic = !menuMusic;
-        updateButtonStates();
-    }
-
-    if (EnableUsername->isPressed({"a"})) {
-        UseCostumeUsername = !UseCostumeUsername;
-        updateButtonStates();
-    }
-
-    if (EnableCustomFolderPath->isPressed({"a"}) && OS::getScratchFolderLocation() != OS::getConfigFolderLocation()) {
-        UseProjectsPath = !UseProjectsPath;
-        updateButtonStates();
-    }
-
-    if (ChangeUsername->isPressed({"a"})) {
-        std::string newUsername = Input::openSoftwareKeyboard(username.c_str());
-        // You could also use regex here, Idk what would be more sensible
-        // std::regex_match(s, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))
-        if (newUsername.length() <= 9) {
-            bool hasNonSpace = false;
-            for (char c : newUsername) {
-                if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-                    hasNonSpace = true;
-                } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                    break;
-                }
-            }
-            if (hasNonSpace) username = newUsername;
-
-            updateButtonStates();
-        }
-    }
-
-    if (ChangeFolderPath->isPressed({"a"})) {
-        const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
-        if (newPath.length() > 0) {
-            projectsPath = newPath;
-
-            updateButtonStates();
-        }
-    }
-
-    if (Language->isPressed({"a"})) {
-        LanguageMenu *langMenu = new LanguageMenu();
-        MenuManager::changeMenu(langMenu);
-        return;
+    renderButton("language");
+    if (isButtonJustPressed("language")) {
+        menuManager->queueChangeMenu(MenuID::LanguageMenu);
     }
 
 #ifdef ENABLE_DECTALK
-    if (dectalkButton->isPressed({"a"})) {
-        UseDectalk = !UseDectalk;
-        dectalkButton->text->setText(getDectalkString());
-        return;
-    }
+    renderToggle("useDectalk");
 #endif
-
-    backButton->render();
-    settingsControl->render();
-    Render::endFrame();
-}
-
-void SettingsMenu::cleanup() {
-    if (backButton != nullptr) {
-        delete backButton;
-        backButton = nullptr;
-    }
-    if (Credits != nullptr) {
-        delete Credits;
-        Credits = nullptr;
-    }
-    if (EnableUsername != nullptr) {
-        delete EnableUsername;
-        EnableUsername = nullptr;
-    }
-    if (ChangeUsername != nullptr) {
-        delete ChangeUsername;
-        ChangeUsername = nullptr;
-    }
-    if (EnableCustomFolderPath != nullptr) {
-        delete EnableCustomFolderPath;
-        EnableCustomFolderPath = nullptr;
-    }
-    if (ChangeFolderPath != nullptr) {
-        delete ChangeFolderPath;
-        ChangeFolderPath = nullptr;
-    }
-    if (EnableMenuMusic != nullptr) {
-        delete EnableMenuMusic;
-        EnableMenuMusic = nullptr;
-    }
-    if (ClearCache != nullptr) {
-        delete ClearCache;
-        ClearCache = nullptr;
-    }
-    if (Language != nullptr) {
-        delete Language;
-        Language = nullptr;
-    }
-    if (settingsControl != nullptr) {
-        delete settingsControl;
-        settingsControl = nullptr;
-    }
-    if (dectalkButton != nullptr) {
-        delete dectalkButton;
-        dectalkButton = nullptr;
-    }
-
-    // save settings
-    nlohmann::json json;
-    json["EnableUsername"] = UseCostumeUsername;
-    json["Username"] = username;
-    json["UseProjectsPath"] = UseProjectsPath;
-    json["ProjectsPath"] = projectsPath;
-    json["MenuMusic"] = menuMusic;
-    json["Language"] = TranslationManager::getLoadedLanguage().key;
-    json["UseDectalk"] = UseDectalk;
-    SettingsManager::saveConfigSettings(json);
-
-    isInitialized = false;
 }

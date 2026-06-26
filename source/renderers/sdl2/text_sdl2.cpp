@@ -26,7 +26,7 @@ TextObjectSDL2::TextObjectSDL2(std::string txt, double posX, double posY, std::s
         fontPath = "gfx/ingame/fonts/NotoSans-Medium";
     }
     fontPath = OS::getRomFSLocation() + fontPath;
-    fontPath = fontPath + ".ttf";
+    fontPath += ".ttf";
 
     // open font if not loaded
     if (fonts.find(fontPath) == fonts.end()) {

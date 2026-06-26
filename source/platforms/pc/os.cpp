@@ -1,6 +1,7 @@
 #include <log.hpp>
 #include <os.hpp>
 
+#include <filesystem>
 #if defined(_WIN32) || defined(_WIN64)
 #include <direct.h>
 #include <io.h>
