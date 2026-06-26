@@ -195,7 +195,7 @@ void Sidebar::render() {
 
 void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected) {
     static std::unordered_map<unsigned int, ProjectHoverData> hoverDatas;
-    if (!hoverDatas.contains(i)) hoverDatas[i] = ProjectHoverData{menuManager, &projectInfo};
+    hoverDatas[i] = ProjectHoverData{menuManager, &projectInfo};
 
     const uint16_t padding = 10 * menuManager->scale;
     selected = selected || Clay_PointerOver(CLAY_IDI("project-list-item", i));

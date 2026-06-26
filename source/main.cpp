@@ -53,7 +53,7 @@ bool activateMainMenu() {
         Input::getInput(&menuManager);
 
         menuManager.render();
-        if (Unzip::projectOpened >= 0) {
+        if (Unzip::projectOpened > 0) {
             Render::menuManager = nullptr;
             return true;
         }
