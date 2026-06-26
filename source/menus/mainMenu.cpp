@@ -32,7 +32,7 @@ MainMenu::MainMenu(void *userdata) {
     if (!maybe.has_value()) {
         Log::logError("Failed to load logo image: " + maybe.error());
     }
-    logo = maybe.value(); // TODO: Error handling
+    logo = maybe.value();
 
     if (splash == "") splash = TranslationManager::getSplashText();
 }
