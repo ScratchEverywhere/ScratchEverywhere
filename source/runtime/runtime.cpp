@@ -2,7 +2,6 @@
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
 #include "collision.hpp"
-#include "confirmationMenu.hpp"
 #include "math.hpp"
 #include "menuManager.hpp"
 #include "nlohmann/json.hpp"
@@ -29,8 +28,7 @@
 #include <utility>
 #include <vector>
 #ifdef ENABLE_MENU
-// #include <pauseMenu.hpp>
-// #include <popupMenu.hpp>
+#include "confirmationMenu.hpp"
 #endif
 #ifdef ENABLE_INSPECTOR
 #include <inspector.hpp>
