@@ -49,6 +49,12 @@ extern C3D_RenderTarget *topScreen;
 #include <renderers/opengl/clay_renderer.hpp>
 #endif
 
+#ifdef USE_CMAKERC
+#include <cmrc/cmrc.hpp>
+
+CMRC_DECLARE(romfs);
+#endif
+
 Clay_Arena MenuManager::clayMemory;
 
 std::unique_ptr<Menu> MenuManager::createMenu(MenuID id, void *userdata) {
@@ -138,11 +144,21 @@ void MenuManager::initClay() {
 #define TTF_GetError SDL_GetError
 #endif
 
+#ifdef USE_CMAKERC
+    auto file = cmrc::romfs::get_filesystem().open("gfx/menu/RedditSansFudge-Regular.ttf");
+    components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 16)};
+    if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError(std::string("Failed to load menu font: ") + TTF_GetError());
+
+    file = cmrc::romfs::get_filesystem().open("gfx/menu/RedditSansFudge-Bold.ttf");
+    components::fonts[components::FONT_ID_BODY_BOLD_48] = {.fontId = components::FONT_ID_BODY_BOLD_48, .font = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 48)};
+    if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError(std::string("Failed to load bold menu font: ") + TTF_GetError());
+#else
     components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
     if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError(std::string("Failed to load menu font: ") + TTF_GetError());
 
     components::fonts[components::FONT_ID_BODY_BOLD_48] = {.fontId = components::FONT_ID_BODY_BOLD_48, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Bold.ttf").c_str(), 48)};
     if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError(std::string("Failed to load bold menu font: ") + TTF_GetError());
+#endif
 
     Clay_SetMeasureTextFunction(SDL_MeasureText, &components::fonts);
 
