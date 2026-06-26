@@ -1,5 +1,6 @@
 #include "menuManager.hpp"
 #include "../unzip.hpp"
+#include "audiostack.hpp"
 #include "components.hpp"
 #include "confirmationMenu.hpp"
 #include "controlsMenu.hpp"
@@ -97,6 +98,13 @@ void MenuManager::changeMenu(MenuID id, void *userdata) {
 }
 
 bool MenuManager::launchProject(const std::string path) {
+#ifdef __NDS__
+    constexpr const char *songName = "gfx/nds/mm_ds.wav";
+#else
+    constexpr const char *songName = "gfx/menu/mm_splash.ogg";
+#endif
+    Mixer::stopSound(songName);
+
     Unzip::filePath = path;
     if (!Unzip::load()) {
         Log::logError("Failed to load project '" + path + "', closing app.");

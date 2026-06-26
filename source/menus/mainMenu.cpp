@@ -10,6 +10,20 @@
 std::string MainMenu::splash = "";
 
 MainMenu::MainMenu(void *userdata) {
+    const auto maybe = createImageFromFile("gfx/menu/logo.svg", false);
+    if (!maybe.has_value()) {
+        Log::logError("Failed to load logo image: " + maybe.error());
+    }
+    logo = maybe.value();
+
+    if (splash == "") splash = TranslationManager::getSplashText();
+}
+
+void MainMenu::onResize() {
+    logo->resizeSVG(Render::getWidth() / 550.0f);
+}
+
+void MainMenu::render() {
 #ifdef __NDS__
     constexpr const char *songName = "gfx/nds/mm_ds.wav";
 #else
@@ -28,20 +42,6 @@ MainMenu::MainMenu(void *userdata) {
         }
     }
 
-    const auto maybe = createImageFromFile("gfx/menu/logo.svg", false);
-    if (!maybe.has_value()) {
-        Log::logError("Failed to load logo image: " + maybe.error());
-    }
-    logo = maybe.value();
-
-    if (splash == "") splash = TranslationManager::getSplashText();
-}
-
-void MainMenu::onResize() {
-    logo->resizeSVG(Render::getWidth() / 550.0f);
-}
-
-void MainMenu::render() {
     // clang-format off
 	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){
 		.layout = {
