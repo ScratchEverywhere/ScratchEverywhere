@@ -193,9 +193,25 @@ void Sidebar::render() {
     // clang-format on
 }
 
-void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected) {
+struct ProjectScrollData {
+    enum class ScrollState {
+        StartPause,
+        Forward,
+        EndPause,
+        Backward
+    };
+
+    ScrollState state = ScrollState::StartPause;
+    Timer timer;
+    float currentScroll = 0.0f;
+};
+
+void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, MenuManager *menuManager, bool selected) {
     static std::unordered_map<unsigned int, ProjectHoverData> hoverDatas;
+    static std::unordered_map<unsigned int, ProjectScrollData> scrollDatas;
+
     hoverDatas[i] = ProjectHoverData{menuManager, &projectInfo};
+    auto &scrollData = scrollDatas[i];
 
     const uint16_t padding = 10 * menuManager->scale;
     selected = selected || Clay_PointerOver(CLAY_IDI("project-list-item", i));
@@ -204,6 +220,70 @@ void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image
     if (selected) {
         bgColor = {255, 215, 255, 255};
         borderColor = {190, 125, 190, 255};
+    }
+
+    if (!selected) {
+        if (scrollData.state != ProjectScrollData::ScrollState::StartPause || scrollData.currentScroll != 0.0f) {
+            scrollData.state = ProjectScrollData::ScrollState::StartPause;
+            scrollData.currentScroll = 0.0f;
+            scrollData.timer.start();
+        }
+    } else {
+        Clay_ScrollContainerData textWrapperData = Clay_GetScrollContainerData(CLAY_IDI("project-list-item-text-wrapper", i));
+
+        float maxScroll = 0.0f;
+        if (textWrapperData.found) {
+            maxScroll = textWrapperData.contentDimensions.width - textWrapperData.scrollContainerDimensions.width;
+        }
+
+        if (maxScroll > 0.0f) {
+            const float scrollSpeed = 45.0f * menuManager->scale;
+            constexpr unsigned int pauseDurationMs = 750;
+
+            switch (scrollData.state) {
+            case ProjectScrollData::ScrollState::StartPause:
+                scrollData.currentScroll = 0.0f;
+                if (scrollData.timer.hasElapsed(pauseDurationMs)) {
+                    scrollData.state = ProjectScrollData::ScrollState::Forward;
+                    scrollData.timer.start();
+                }
+                break;
+
+            case ProjectScrollData::ScrollState::Forward: {
+                float elapsedSec = scrollData.timer.getTimeMs() / 1000.0f;
+                scrollData.currentScroll = -(elapsedSec * scrollSpeed);
+
+                if (-scrollData.currentScroll >= maxScroll) {
+                    scrollData.currentScroll = -maxScroll;
+                    scrollData.state = ProjectScrollData::ScrollState::EndPause;
+                    scrollData.timer.start();
+                }
+                break;
+            }
+
+            case ProjectScrollData::ScrollState::EndPause:
+                scrollData.currentScroll = -maxScroll;
+                if (scrollData.timer.hasElapsed(pauseDurationMs)) {
+                    scrollData.state = ProjectScrollData::ScrollState::Backward;
+                    scrollData.timer.start();
+                }
+                break;
+
+            case ProjectScrollData::ScrollState::Backward: {
+                float elapsedSec = scrollData.timer.getTimeMs() / 1000.0f;
+                scrollData.currentScroll = -maxScroll + (elapsedSec * scrollSpeed);
+
+                if (scrollData.currentScroll >= 0.0f) {
+                    scrollData.currentScroll = 0.0f;
+                    scrollData.state = ProjectScrollData::ScrollState::StartPause;
+                    scrollData.timer.start();
+                }
+                break;
+            }
+            }
+        } else {
+            scrollData.currentScroll = 0.0f;
+        }
     }
 
     // clang-format off
@@ -243,7 +323,7 @@ void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image
 			.layout = {
 				.sizing = { .width = CLAY_SIZING_GROW(0) }
 			},
-			.clip = { .horizontal = true, .childOffset = {textScroll, 0} }
+			.clip = { .horizontal = true, .childOffset = {scrollData.currentScroll, 0} }
 		}) {
 			static constexpr uint16_t minFontSize = 16;
 			uint16_t fontSize = 12 * menuManager->scale;

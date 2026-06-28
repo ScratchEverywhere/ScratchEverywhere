@@ -73,7 +73,7 @@ struct ProjectHoverData {
     const ProjectInfo *projectInfo;
 };
 
-void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, float textScroll, MenuManager *menuManager, bool selected);
+void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, MenuManager *menuManager, bool selected);
 
 std::shared_ptr<Image> getControllerImage(const std::string button);
 } // namespace components

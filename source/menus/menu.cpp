@@ -7,7 +7,6 @@ void Menu::render() {}
 void Menu::onResize() {}
 
 float Menu::getScrollOffset(Timer deltaTime, const std::optional<Clay_BoundingBox> selectedBoundingBox) {
-
     const int windowWidth = Render::getWidth();
     const int windowHeight = Render::getHeight();
 

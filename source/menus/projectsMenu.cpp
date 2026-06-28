@@ -151,7 +151,7 @@ void ProjectsMenu::render() {
 			}) {
 				for (unsigned int j = 0; j < columns; j++) {
 					if (i * columns + j >= projects.size()) continue;
-					components::renderProjectListItem(projects[i * columns + j], missingIcon, i * columns + j, CLAY_SIZING_FIXED(itemWidth), 0, menuManager, selectedProject == i * columns + j); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
+					components::renderProjectListItem(projects[i * columns + j], missingIcon, i * columns + j, CLAY_SIZING_FIXED(itemWidth), menuManager, selectedProject == i * columns + j); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
 				}
 			}
 		}
