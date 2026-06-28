@@ -1,6 +1,4 @@
 {
-  "ui.controls.apply": "Apply (Y)",
-  "ui.headless.projectPrompt": "Please type what project you want to open.",
   "ui.projects.noProjects": "No Scratch projects found!",
   "ui.projects.path": "Put projects in ",
   "ui.settings.controls": "Change Project Controls",
@@ -9,8 +7,6 @@
   "ui.settings.bottom": "Force Bottom Screen",
   "ui.settings.penMode": "Accurate Pen",
   "ui.settings.collisionMode": "Accurate Collision",
-  "ui.settings.accurate": "Accurate",
-  "ui.settings.fast": "Fast",
   "ui.settings.fps": "Show FPS",
   "ui.settings.keepProjectInRam": "Keep Project In RAM",
   "ui.settings.warp": "Warp Timer",
