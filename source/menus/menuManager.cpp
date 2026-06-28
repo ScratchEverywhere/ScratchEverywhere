@@ -151,8 +151,16 @@ void MenuManager::initClay() {
 #ifdef RENDERER_SDL3
 #define TTF_GetError SDL_GetError
 #endif
-
 #ifdef USE_CMAKERC
+#ifdef RENDERER_SDL3
+    auto file = cmrc::romfs::get_filesystem().open("gfx/menu/RedditSansFudge-Regular.ttf");
+    components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFontIO(SDL_IOFromConstMem(file.begin(), file.size()), 1, 16)};
+    if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError(std::string("Failed to load menu font: ") + TTF_GetError());
+
+    file = cmrc::romfs::get_filesystem().open("gfx/menu/RedditSansFudge-Bold.ttf");
+    components::fonts[components::FONT_ID_BODY_BOLD_48] = {.fontId = components::FONT_ID_BODY_BOLD_48, .font = TTF_OpenFontIO(SDL_IOFromConstMem(file.begin(), file.size()), 1, 48)};
+    if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError(std::string("Failed to load bold menu font: ") + TTF_GetError());
+#else
     auto file = cmrc::romfs::get_filesystem().open("gfx/menu/RedditSansFudge-Regular.ttf");
     components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 16)};
     if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError(std::string("Failed to load menu font: ") + TTF_GetError());
@@ -160,6 +168,7 @@ void MenuManager::initClay() {
     file = cmrc::romfs::get_filesystem().open("gfx/menu/RedditSansFudge-Bold.ttf");
     components::fonts[components::FONT_ID_BODY_BOLD_48] = {.fontId = components::FONT_ID_BODY_BOLD_48, .font = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 48)};
     if (!components::fonts[components::FONT_ID_BODY_BOLD_48].font) Log::logError(std::string("Failed to load bold menu font: ") + TTF_GetError());
+#endif
 #else
     components::fonts[components::FONT_ID_BODY_16] = {.fontId = components::FONT_ID_BODY_16, .font = TTF_OpenFont((OS::getRomFSLocation() + "gfx/menu/RedditSansFudge-Regular.ttf").c_str(), 16)};
     if (!components::fonts[components::FONT_ID_BODY_16].font) Log::logError(std::string("Failed to load menu font: ") + TTF_GetError());
@@ -263,13 +272,15 @@ void MenuManager::render() {
     if (scale > maxScale) scale = maxScale;
 #endif
 
+#if defined(RENDERER_SDL1)
+    SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
+#endif
+
     if (currentMenuID != MenuID::PauseMenu) {
 #if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
         SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
         SDL_RenderClear(renderer);
 #elif defined(RENDERER_SDL1)
-        SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
-
         Uint32 clearColor = SDL_MapRGBA(window->format, 66, 44, 66, 255);
         SDL_FillRect(window, NULL, clearColor);
 #elif defined(RENDERER_CITRO2D)

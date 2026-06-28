@@ -4,7 +4,6 @@
 #include "collision.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"
-#include "pauseMenu.hpp"
 #include "settings.hpp"
 #include "sprite.hpp"
 #include "translation.hpp"
@@ -30,6 +29,7 @@
 #ifdef ENABLE_MENU
 #include "confirmationMenu.hpp"
 #include "menuManager.hpp"
+#include "pauseMenu.hpp"
 #endif
 #ifdef ENABLE_INSPECTOR
 #include <inspector.hpp>
