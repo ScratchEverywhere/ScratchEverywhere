@@ -15,7 +15,7 @@ LanguageMenu::LanguageMenu(void *userdata) {
         clayLangNames.back().chars = static_cast<char *>(chars);
     }
 
-    const auto maybe = createImageFromFile("gfx/menu/indicator.svg", false);
+    const auto maybe = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/indicator.svg", false);
     if (!maybe.has_value()) {
         Log::logError("Failed to load indicator image: " + maybe.error());
     }

@@ -25,7 +25,7 @@ void SettingsMenu::init(const std::string &title) {
         hoverData.insert({setting, {settings, setting, animationTimers[setting]}});
     }
 
-    const auto maybe = createImageFromFile("gfx/menu/indicator.svg", false);
+    const auto maybe = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/indicator.svg", false);
     if (!maybe.has_value()) {
         Log::logError("Failed to load indicator image: " + maybe.error());
     }

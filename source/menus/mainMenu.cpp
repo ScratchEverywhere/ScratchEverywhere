@@ -10,7 +10,7 @@
 std::string MainMenu::splash = "";
 
 MainMenu::MainMenu(void *userdata) {
-    const auto maybe = createImageFromFile("gfx/menu/logo.svg", false);
+    const auto maybe = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/logo.svg", false);
     if (!maybe.has_value()) {
         Log::logError("Failed to load logo image: " + maybe.error());
     }

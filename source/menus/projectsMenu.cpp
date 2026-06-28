@@ -6,9 +6,15 @@
 #include "menuManager.hpp"
 #include "menus/components.hpp"
 #include "os.hpp"
+#include "parser.hpp"
+#include "runtime.hpp"
+#include "thread.hpp"
+#include "unzip.hpp"
 #include <cmath>
+#include <complex>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <render.hpp>
 #include <string>
@@ -19,7 +25,7 @@ constexpr unsigned int windowHeight = 240;
 #endif
 
 ProjectsMenu::ProjectsMenu(void *userdata) {
-    const auto maybe = createImageFromFile("gfx/menu/noicon.svg", false);
+    const auto maybe = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/noicon.svg", false);
     if (!maybe.has_value()) {
         Log::logError("Failed to load missing image: " + maybe.error());
     }
@@ -32,6 +38,11 @@ ProjectsMenu::ProjectsMenu(void *userdata) {
         if (!maybe.has_value()) {
             Log::logError("Failed to list projects: " + maybe.error());
         } else {
+            {
+                std::queue<components::ProjectInfo *> temp;
+                backdropQueue.swap(temp);
+            }
+
             for (const auto &entry : maybe.value()) {
                 if ((entry.size() >= 4 && entry.compare(entry.size() - 4, 4, ".sb3")) && !(FileSystem::fileExists(path + entry + "/project.json") || (entry.back() == '/' && FileSystem::fileExists(path + entry + "project.json")))) continue;
 
@@ -46,10 +57,29 @@ ProjectsMenu::ProjectsMenu(void *userdata) {
                     displayName = "⚡ " + displayName + " ⚡";
                 }
 
-                projects.push_back({.name = projectName, .path = path + entry, .displayName = displayName});
+                projects.push_back({.name = projectName, .path = path + entry, .displayName = displayName, .unpacked = unpacked});
+                projects.back().image = getProjectIcon(projects.back(), unpacked);
             }
+
+#ifndef __PS4__
+            backdropQueueMutex.lock();
+            for (auto &project : projects) {
+                if (project.image == nullptr) {
+                    backdropQueue.push(&project);
+                }
+            }
+            backdropQueueMutex.unlock();
+
+            if (backdropIconThread.create(backdropLoader, this, 0x4000, 0, -1, "BackdropLoader")) {
+                threadSpawned = true;
+            }
+#endif
         }
     }
+
+    backdropQueueMutex.lock();
+    doneLoading = true;
+    backdropQueueMutex.unlock();
 
     const std::string noProjectsPathString = "You can put projects in: " + OS::getScratchFolderLocation();
     void *mem = malloc(noProjectsPathString.length());
@@ -62,11 +92,170 @@ ProjectsMenu::ProjectsMenu(void *userdata) {
     noProjectsPath = {false, static_cast<int32_t>(noProjectsPathString.length()), static_cast<const char *>(mem)};
 }
 
+void ProjectsMenu::backdropLoader(void *userdata) {
+    ProjectsMenu *menu = static_cast<ProjectsMenu *>(userdata);
+
+    while (true) {
+        components::ProjectInfo *project = nullptr;
+        bool shouldExit = false;
+        menu->backdropQueueMutex.lock();
+
+        if (menu->forceExit) {
+            shouldExit = true;
+        } else if (!menu->backdropQueue.empty()) {
+            project = menu->backdropQueue.front();
+            menu->backdropQueue.pop();
+        } else if (menu->doneLoading) {
+            shouldExit = true;
+        }
+
+        menu->backdropQueueMutex.unlock();
+        if (shouldExit) break;
+        if (project == nullptr) {
+            SE_Thread::sleep(50);
+            continue;
+        }
+
+        nlohmann::json project_json;
+
+        if (!project->unpacked) {
+            Scratch::sb3InRam = true;
+            auto &zip = Unzip::zipArchive;
+            memset(&zip, 0, sizeof(zip));
+
+            if (!mz_zip_reader_init_file(&zip, project->path.c_str(), 0)) {
+                Log::logError("Could not find project: " + project->path);
+                continue;
+            }
+            int fileIndex = mz_zip_reader_locate_file(&zip, "project.json", nullptr, 0);
+
+            if (fileIndex < 0) {
+                Log::logError("Could not find project.json: " + project->name);
+                mz_zip_reader_end(&zip);
+                continue;
+            }
+
+            size_t extractedSize = 0;
+            void *data = mz_zip_reader_extract_to_heap(&zip, fileIndex, &extractedSize, 0);
+
+            if (!data) {
+                Log::logError("Could not extract project.json: " + project->name);
+                mz_zip_reader_end(&zip);
+                continue;
+            }
+
+            const char *begin = static_cast<const char *>(data);
+            const char *end = begin + extractedSize;
+            project_json = nlohmann::json::parse(begin, end);
+            mz_free(data);
+            mz_zip_reader_end(&zip);
+        } else {
+            const std::string &basePath = project->path.back() == '/' ? project->path : project->path + '/';
+
+            Unzip::UnpackedInSD = true;
+            Unzip::filePath = basePath;
+
+            std::ifstream f(basePath + "project.json");
+            if (!f.is_open()) {
+                Log::logError("Could not open project.json: " + basePath + "project.json");
+                continue;
+            }
+            f >> project_json;
+        }
+
+        for (const auto &target : project_json["targets"]) {
+            if (!target.contains("isStage") || !target["isStage"].get<bool>()) continue;
+            if (!target.contains("costumes") || target["costumes"].empty()) continue;
+            for (const auto &costume : target["costumes"]) {
+                if (!costume.contains("md5ext") || !costume.contains("name")) continue;
+                if (costume["name"] != "__icon__") continue;
+
+                menu->backdropQueueMutex.lock();
+                menu->imagePaths[project] = costume["md5ext"];
+                menu->backdropQueueMutex.unlock();
+                break;
+            }
+            if (menu->imagePaths.contains(project)) break;
+        }
+    }
+}
+
+std::shared_ptr<Image> ProjectsMenu::getProjectIcon(components::ProjectInfo &project, bool unpacked) {
+    static const std::array<std::string, 4> imageFormats = {".svg", ".png", ".jpg", ".jpeg"};
+
+    // External File Check
+    for (const auto &format : imageFormats) {
+        const std::string path = OS::getScratchFolderLocation() + project.name + format;
+        if (!FileSystem::fileExists(path)) continue;
+
+        const auto maybe = createImageFromFile(path, false);
+        if (!maybe.has_value()) {
+            Log::logError("Error while loading project icon for '" + project.name + "': " + maybe.error());
+            continue;
+        }
+        const auto &image = maybe.value();
+
+        if (image->getWidth() != image->getHeight()) {
+            Log::logError("Project icon dimensions must be square: " + path);
+            continue;
+        }
+
+        return image;
+    }
+
+    return nullptr;
+}
+
 ProjectsMenu::~ProjectsMenu() {
+    if (threadSpawned) {
+        backdropQueueMutex.lock();
+        forceExit = true;
+        backdropQueueMutex.unlock();
+
+        backdropIconThread.join();
+    }
+
     if (noProjectsPath.chars != nullptr) free(const_cast<char *>(noProjectsPath.chars));
 }
 
 void ProjectsMenu::render() {
+    backdropQueueMutex.lock();
+    std::vector<components::ProjectInfo *> toRemove;
+    for (auto &[project, path] : imagePaths) {
+        std::shared_ptr<Image> image = nullptr;
+
+        if (project->unpacked) {
+            auto imageOrErr = createImageFromFile(path, true);
+            if (!imageOrErr.has_value()) {
+                Log::logError("Failed to load image: " + path);
+                toRemove.push_back(project);
+                continue;
+            }
+            image = imageOrErr.value();
+        } else {
+            auto imageOrErr = createImageFromZip(path, &Unzip::zipArchive);
+            if (!imageOrErr.has_value()) {
+                Log::logError("Failed to load image: " + path);
+                toRemove.push_back(project);
+                continue;
+            }
+            image = imageOrErr.value();
+        }
+
+        if (image->getWidth() != image->getHeight()) {
+            Log::logError("Project icon dimensions must be square: " + project->name);
+            imagePaths.erase(project);
+            continue;
+        }
+
+        project->image = image;
+        toRemove.push_back(project);
+    }
+    for (auto *project : toRemove) {
+        imagePaths.erase(project);
+    }
+    backdropQueueMutex.unlock();
+
     static Timer frameTimer;
 
     constexpr unsigned int maxColumns = 6;
@@ -151,7 +340,8 @@ void ProjectsMenu::render() {
 			}) {
 				for (unsigned int j = 0; j < columns; j++) {
 					if (i * columns + j >= projects.size()) continue;
-					components::renderProjectListItem(projects[i * columns + j], missingIcon, i * columns + j, CLAY_SIZING_FIXED(itemWidth), menuManager, selectedProject == i * columns + j); // TODO: Implement text scrolling to see the full name, maybe only when hovered/selected?
+					const auto &projectData = projects[i * columns + j];
+					components::renderProjectListItem(projectData, projectData.image != nullptr ? projectData.image : missingIcon, i * columns + j, CLAY_SIZING_FIXED(itemWidth), menuManager, selectedProject == i * columns + j);
 				}
 			}
 		}

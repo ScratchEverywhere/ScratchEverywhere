@@ -201,8 +201,10 @@ void Input::getInput(MenuManager *menuManager) {
         inputKeys.push_back("any");
     }
 
-    BlockExecutor::executeKeyHats();
-    BlockExecutor::doSpriteClicking();
+    if (!menuManager) {
+        BlockExecutor::executeKeyHats();
+        BlockExecutor::doSpriteClicking();
+    }
 }
 
 static void character_callback(GLFWwindow *window, unsigned int codepoint) {

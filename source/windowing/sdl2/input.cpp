@@ -261,7 +261,9 @@ void Input::getInput(MenuManager *menuManager) {
 #endif
 
     if (!inputKeys.empty()) inputKeys.push_back("any");
-    BlockExecutor::executeKeyHats();
+    if (!menuManager) {
+        BlockExecutor::executeKeyHats();
+    }
 
 #ifdef PLATFORM_HAS_TOUCH
     if (touchActive) {
@@ -271,7 +273,9 @@ void Input::getInput(MenuManager *menuManager) {
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
         mousePointer.mouseButton = Mouse::LEFT;
-        BlockExecutor::doSpriteClicking();
+        if (!menuManager) {
+            BlockExecutor::doSpriteClicking();
+        }
 
 #ifdef ENABLE_MENU
         if (menuManager != nullptr) menuManager->handleInput(touchPosition.x, touchPosition.y, touchActive);
@@ -305,7 +309,9 @@ void Input::getInput(MenuManager *menuManager) {
     }
 #endif
 
-    BlockExecutor::doSpriteClicking();
+    if (!menuManager) {
+        BlockExecutor::doSpriteClicking();
+    }
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

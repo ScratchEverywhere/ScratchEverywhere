@@ -1,7 +1,6 @@
 #pragma once
 
 #include "image.hpp"
-#include "os.hpp"
 #include <clay.h>
 #include <map>
 #include <memory>
@@ -37,6 +36,8 @@ struct ProjectInfo {
     std::string displayName;
     std::optional<std::string> description;
     std::optional<std::string> source;
+    std::shared_ptr<Image> image = nullptr;
+    bool unpacked = false;
 };
 
 class Sidebar {

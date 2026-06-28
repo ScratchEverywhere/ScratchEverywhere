@@ -8,9 +8,9 @@
 #include <string>
 
 LoadingMenu::LoadingMenu(void *userdata) {
-    block1 = createImageFromFile("gfx/menu/block1.svg", false).value(); // TODO: Error handling
-    block2 = createImageFromFile("gfx/menu/block2.svg", false).value(); // TODO: Error handling
-    block3 = createImageFromFile("gfx/menu/block3.svg", false).value(); // TODO: Error handling
+    block1 = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/block1.svg", false).value(); // TODO: Error handling
+    block2 = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/block2.svg", false).value(); // TODO: Error handling
+    block3 = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/block3.svg", false).value(); // TODO: Error handling
 
     block1Y = -1.0f;
     block2Y = -1.0f;

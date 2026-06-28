@@ -52,7 +52,7 @@ Sidebar::Sidebar() {
     previousTabImage = getControllerImage("shoulderL");
 
     for (const auto &tab : tabs) {
-        const auto maybe = createImageFromFile("gfx/menu/" + tab + ".svg", false);
+        const auto maybe = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/" + tab + ".svg", false);
         if (!maybe.has_value()) {
             Log::logError("Failed to load tab image: " + maybe.error());
         }
@@ -518,7 +518,7 @@ std::shared_ptr<Image> getControllerImage(const std::string button) {
             {"LT", "trigger_lt_outline"},
             {"RT", "trigger_rt_outline"}};
 
-    const auto maybe = createImageFromFile("gfx/menu/controller/" + controllerType + "/" + controllerType + "_" + buttonMap[button] + ".svg", false);
+    const auto maybe = createImageFromFile(OS::getRomFSLocation() + "gfx/menu/controller/" + controllerType + "/" + controllerType + "_" + buttonMap[button] + ".svg", false);
     if (!maybe.has_value()) {
         Log::logError("Failed to load controller image: " + maybe.error());
     }
