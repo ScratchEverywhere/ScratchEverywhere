@@ -209,17 +209,33 @@ struct ProjectScrollData {
 void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image> image, unsigned int i, Clay_SizingAxis width, MenuManager *menuManager, bool selected) {
     static std::unordered_map<unsigned int, ProjectHoverData> hoverDatas;
     static std::unordered_map<unsigned int, ProjectScrollData> scrollDatas;
+    static std::unordered_map<unsigned int, Timer> longPressTimers;
 
     hoverDatas[i] = ProjectHoverData{menuManager, &projectInfo};
     auto &scrollData = scrollDatas[i];
+    auto &lpTimer = longPressTimers[i];
 
     const uint16_t padding = 10 * menuManager->scale;
-    selected = selected || Clay_PointerOver(CLAY_IDI("project-list-item", i));
+    const bool pointerOver = Clay_PointerOver(CLAY_IDI("project-list-item", i));
+    selected = selected || pointerOver;
     Clay_Color bgColor = {225, 225, 235, 255};
     Clay_Color borderColor = {90, 60, 90, 255};
     if (selected) {
         bgColor = {255, 215, 255, 255};
         borderColor = {190, 125, 190, 255};
+    }
+
+    if (pointerOver && Input::mousePointer.isPressed) {
+        if (Input::mousePointer.mouseButton == Input::Mouse::RIGHT) {
+            menuManager->queueChangeMenu(MenuID::ProjectSettingsMenu, const_cast<void *>(static_cast<const void *>(projectInfo.name.c_str())));
+        } else if (Input::mousePointer.mouseButton == Input::Mouse::LEFT) {
+            if (lpTimer.hasElapsed(750)) {
+                menuManager->queueChangeMenu(MenuID::ProjectSettingsMenu, const_cast<void *>(static_cast<const void *>(projectInfo.name.c_str())));
+                lpTimer.start();
+            }
+        }
+    } else {
+        lpTimer.start();
     }
 
     if (!selected) {
@@ -306,7 +322,7 @@ void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image
 	}) {
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto projectHoverData = (const ProjectHoverData*)userdata;
-			if (pointerData.state != CLAY_POINTER_DATA_PRESSED_THIS_FRAME) return;
+			if (pointerData.state != CLAY_POINTER_DATA_RELEASED_THIS_FRAME || Input::mousePointer.mouseButton != Input::Mouse::LEFT) return;
 			projectHoverData->menuManager->launchProject(projectHoverData->projectInfo->path);
 		}, &hoverDatas[i]);
 
