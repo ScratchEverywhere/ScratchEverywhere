@@ -31,6 +31,7 @@ body:
         - PC
         - Web
         - PS4
+        - PS2
         - Libretro
     validations:
       required: false
