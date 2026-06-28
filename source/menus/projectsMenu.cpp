@@ -9,6 +9,7 @@
 #include "parser.hpp"
 #include "runtime.hpp"
 #include "thread.hpp"
+#include "translation.hpp"
 #include "unzip.hpp"
 #include <cmath>
 #include <complex>
@@ -81,7 +82,8 @@ ProjectsMenu::ProjectsMenu(void *userdata) {
     doneLoading = true;
     backdropQueueMutex.unlock();
 
-    const std::string noProjectsPathString = "You can put projects in: " + OS::getScratchFolderLocation();
+    noProjectsString = TranslationManager::getTranslation("ui.projects.noProjects");
+    const std::string noProjectsPathString = TranslationManager::getTranslation("ui.projects.path") + OS::getScratchFolderLocation();
     void *mem = malloc(noProjectsPathString.length());
     if (mem == nullptr) {
         Log::logError("Failed to allocate memory for no projects string.");
@@ -322,7 +324,7 @@ void ProjectsMenu::render() {
 					.layoutDirection = CLAY_TOP_TO_BOTTOM
 				}
 			}) {
-				CLAY_TEXT(CLAY_STRING("You don't seem to have any projects."), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+				CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(noProjectsString.length()), noProjectsString.c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
 				CLAY_TEXT(noProjectsPath, CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
 			}
 			continue; // The CLAY macro actually just makes a for loop so this just prevents the project row containers from rendering.
