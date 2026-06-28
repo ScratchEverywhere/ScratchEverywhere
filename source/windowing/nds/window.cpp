@@ -8,6 +8,8 @@
 #include <render.hpp>
 
 bool WindowNDS::init(int w, int h, const std::string &title) {
+    // Render::debugMode = false;
+
     glScreen2D();
     videoSetMode(MODE_0_3D);
     videoSetModeSub(MODE_0_2D);
@@ -22,7 +24,7 @@ bool WindowNDS::init(int w, int h, const std::string &title) {
         vramSetBankD(VRAM_D_TEXTURE);
         vramSetBankF(VRAM_F_TEX_PALETTE);
         Render::debugMode = true;
-    } else Render::debugMode = false;
+    }
     return true;
 }
 

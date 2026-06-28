@@ -139,7 +139,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
-    if (!Unzip::filePath.empty()) prefix += "project/";
+    if (!on_disk && !Unzip::filePath.empty()) prefix += "project/";
 
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
@@ -186,7 +186,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 
 SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     auto potentialError = init(path, cached, on_disk);
-    if (error.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate) {

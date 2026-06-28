@@ -1,8 +1,11 @@
 #pragma once
 #include <nlohmann/json.hpp>
 #include <sprite.hpp>
+#include <unordered_map>
 
 struct Parser {
+    static std::unordered_map<std::string, std::string> &getShadowBlocks();
+
     static bool logParsing;
 
     static void loadUsernameFromSettings();

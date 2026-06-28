@@ -9,9 +9,55 @@
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
-static int mouseHeldFrames = 0;
-static u16 oldTouchPx = 0;
-static u16 oldTouchPy = 0;
+#define O3DS_MAX_KEYS (size_t)16
+#define N3DS_MAX_KEYS (size_t)24
+
+static bool systemCheck = APT_CheckNew3DS(&systemCheck);
+static const size_t key_amount = (!systemCheck) ? O3DS_MAX_KEYS : N3DS_MAX_KEYS;
+
+// Defining The Keys To Check
+static constexpr u32 III_DS_KEYS[] = {
+    // Old 3DS Keys
+    KEY_DUP,
+    KEY_DDOWN,
+    KEY_DLEFT,
+    KEY_DRIGHT,
+
+    KEY_A,
+    KEY_B,
+    KEY_X,
+    KEY_Y,
+
+    KEY_L,
+    KEY_R,
+
+    KEY_START,
+    KEY_SELECT,
+
+    KEY_CPAD_RIGHT,
+    KEY_CPAD_LEFT,
+    KEY_CPAD_DOWN,
+    KEY_CPAD_UP,
+
+    NULL, // L Stick Pressed
+
+    // New 3DS Keys
+    KEY_CSTICK_RIGHT,
+    KEY_CSTICK_LEFT,
+    KEY_CSTICK_DOWN,
+    KEY_CSTICK_UP,
+
+    NULL, // R Stick Pressed
+
+    KEY_ZL,
+    KEY_ZR,
+};
+
+static u8 mouseHeldFrames = 0;
+
+static constexpr float BOTTOM_SCR_CONVERSION = ((float)SCREEN_WIDTH / (float)BOTTOM_SCREEN_WIDTH);
+static constexpr float BOTH_SCR_CONVERSION_W = (BOTTOM_SCREEN_WIDTH / 2);
+
 static touchPosition touch;
 
 #ifdef ENABLE_CLOUDVARS
@@ -22,15 +68,11 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
-std::vector<int> Input::getTouchPosition() {
-    std::vector<int> pos;
+std::array<int, 2> Input::getTouchPosition() {
+    std::array<int, 2> pos = {touch.px, touch.py};
 
-    pos.push_back(touch.px);
-    pos.push_back(touch.py);
     if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
-        if (touch.px != 0 || touch.py != 0) {
-            mousePointer.isPressed = true;
-        } else mousePointer.isPressed = false;
+        mousePointer.isPressed = (touch.px != 0 || touch.py != 0);
     }
     return pos;
 }
@@ -41,6 +83,7 @@ void Input::getInput() {
     inputKeys.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
+
     hidScanInput();
 
     circlePosition circlePos;
@@ -53,120 +96,75 @@ void Input::getInput() {
     Input::rightJoystick.first = cstickPos.dx / 160.0f;
     Input::rightJoystick.second = cstickPos.dy / 160.0f;
 
-    u32 kDown = hidKeysHeld();
+    u32 kHeld = hidKeysHeld();
 
     hidTouchRead(&touch);
-    std::vector<int> touchPos = getTouchPosition();
+    // std::vector<int> touchPos = getTouchPosition();
+    std::array<int, 2> touchPos = getTouchPosition();
 
     // if the touch screen is being touched
     if (touchPos[0] != 0 || touchPos[1] != 0) {
         mouseHeldFrames += 1;
     } else {
-        if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames > 0 && mouseHeldFrames < 4)) {
+        if (Render::renderMode == Render::TOP_SCREEN_ONLY && (mouseHeldFrames != 0 && mouseHeldFrames < 4)) {
             mousePointer.isPressed = true;
         }
         mouseHeldFrames = 0;
     }
 
-    if (kDown) {
-        inputKeys.push_back("any");
-        if (kDown & KEY_A) {
-            Input::buttonPress("A");
-        }
-        if (kDown & KEY_B) {
-            Input::buttonPress("B");
-        }
-        if (kDown & KEY_X) {
-            Input::buttonPress("X");
-        }
-        if (kDown & KEY_Y) {
-            Input::buttonPress("Y");
-        }
-        if (kDown & KEY_SELECT) {
-            Input::buttonPress("back");
-        }
-        if (kDown & KEY_START) {
-            Input::buttonPress("start");
-        }
-        if (kDown & KEY_DUP) {
-            Input::buttonPress("dpadUp");
-        }
-        if (kDown & KEY_DDOWN) {
-            Input::buttonPress("dpadDown");
-        }
-        if (kDown & KEY_DLEFT) {
-            Input::buttonPress("dpadLeft");
-        }
-        if (kDown & KEY_DRIGHT) {
-            Input::buttonPress("dpadRight");
-        }
-        if (kDown & KEY_L) {
-            Input::buttonPress("shoulderL");
-        }
-        if (kDown & KEY_R) {
-            Input::buttonPress("shoulderR");
-        }
-        if (kDown & KEY_ZL) {
-            Input::buttonPress("LT");
-        }
-        if (kDown & KEY_ZR) {
-            Input::buttonPress("RT");
-        }
-        if (kDown & KEY_CPAD_UP) {
-            Input::buttonPress("LeftStickUp");
-        }
-        if (kDown & KEY_CPAD_DOWN) {
-            Input::buttonPress("LeftStickDown");
-        }
-        if (kDown & KEY_CPAD_LEFT) {
-            Input::buttonPress("LeftStickLeft");
-        }
-        if (kDown & KEY_CPAD_RIGHT) {
-            Input::buttonPress("LeftStickRight");
-        }
-        if (kDown & KEY_CSTICK_UP) {
-            Input::buttonPress("RightStickUp");
-        }
-        if (kDown & KEY_CSTICK_DOWN) {
-            Input::buttonPress("RightStickDown");
-        }
-        if (kDown & KEY_CSTICK_LEFT) {
-            Input::buttonPress("RightStickLeft");
-        }
-        if (kDown & KEY_CSTICK_RIGHT) {
-            Input::buttonPress("RightStickRight");
-        }
-        if (kDown & KEY_TOUCH) {
+    // Skip Input Check If No Inputs Registered
+    if (!kHeld) {
+        goto skipInputCheck;
+    }
 
-            // normal touch screen if both screens or bottom screen only
-            if (Render::renderMode != Render::TOP_SCREEN_ONLY) {
-                mousePointer.isPressed = true;
+    inputButtons.push_back("any");
+    for (size_t i = 0; i < key_amount; i++) {
+        // Ignore L Stick & R Stick Pressed Events
+        if ((III_DS_KEYS[i]) == NULL) {
+            continue;
+        }
 
-                if (Render::renderMode == Render::BOTH_SCREENS) {
-                    mousePointer.x = touchPos[0] - (BOTTOM_SCREEN_WIDTH / 2);
-                    mousePointer.y = (-touchPos[1] + (SCREEN_HEIGHT)) - SCREEN_HEIGHT;
-                } else {
-                    auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1], Render::getWidth(), Render::getHeight());
-                    mousePointer.x = coords.first;
-                    mousePointer.y = coords.second;
-                }
-            }
-
-            // map bottom screen to top screen
-            if (Render::renderMode == Render::TOP_SCREEN_ONLY) {
-                mousePointer.isPressed = true;
-                mousePointer.isMoving = true;
-                auto coords = Scratch::screenToScratchCoords(touchPos[0] * ((float)SCREEN_WIDTH / (float)BOTTOM_SCREEN_WIDTH), touchPos[1], Render::getWidth(), Render::getHeight());
-                mousePointer.x = coords.first;
-                mousePointer.y = coords.second;
-            }
+        // Send Key Codes
+        if (kHeld & III_DS_KEYS[i]) {
+            Input::buttonPress(CONTROLLER_STRINGS[i]);
         }
     }
-    oldTouchPx = touchPos[0];
-    oldTouchPy = touchPos[1];
+
+    if (kHeld & KEY_TOUCH) {
+        // Render::RenderModes rm = Render::renderMode;
+        auto set_mouse_pointer_values = [&](std::pair<float, float> coords) {
+            mousePointer.x = coords.first;
+            mousePointer.y = coords.second;
+        };
+
+        auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1],
+                                                     Render::getWidth(), Render::getHeight());
+
+        mousePointer.isPressed = true;
+        switch (Render::renderMode) {
+        // map bottom screen to top screen
+        default:
+        case Render::RenderModes::TOP_SCREEN_ONLY: {
+            // mousePointer.isPressed = true;
+            mousePointer.isMoving = true;
+            coords.first *= BOTTOM_SCR_CONVERSION;
+            set_mouse_pointer_values(coords);
+        } break;
+        // normal touch screen if both screens or bottom screen only
+        case Render::RenderModes::BOTH_SCREENS: {
+            // mousePointer.isPressed = true;
+            mousePointer.x = touchPos[0] - BOTH_SCR_CONVERSION_W;
+            mousePointer.y = -touchPos[1];
+        } break;
+        case Render::RenderModes::BOTTOM_SCREEN_ONLY: {
+            set_mouse_pointer_values(coords);
+        } break;
+        };
+    }
+    //
+skipInputCheck:
 
     BlockExecutor::executeKeyHats();
-
     BlockExecutor::doSpriteClicking();
 }
 

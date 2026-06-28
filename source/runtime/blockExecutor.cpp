@@ -1,4 +1,5 @@
 #include "blockExecutor.hpp"
+#include "collision.hpp"
 #include "math.hpp"
 #include "sprite.hpp"
 #include <algorithm>
@@ -232,7 +233,10 @@ void BlockExecutor::doSpriteClicking() {
 
             // click a sprite
             if (sprite->shouldDoSpriteClick) {
-                if (Input::mousePointer.heldFrames < 2 && Scratch::isColliding("mouse", sprite)) {
+                bool colliding;
+                if (Scratch::accurateCollision) colliding = collision::pointInSprite(sprite, Input::mousePointer.x, Input::mousePointer.y, true);
+                else colliding = collision::pointInSpriteFast(sprite, Input::mousePointer.x, Input::mousePointer.y);
+                if (Input::mousePointer.heldFrames < 2 && colliding) {
 
                     // run all "when this sprite clicked" blocks in the sprite
                     hasClicked = true;

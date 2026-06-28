@@ -16,10 +16,40 @@ extern std::string customUsername;
 static bool g_inputActive = false;
 static std::string g_inputText = "";
 
-std::vector<int> Input::getTouchPosition() {
+static constexpr uint32_t GLFW_GAMEPAD_KEYS[] = {
+    GLFW_GAMEPAD_BUTTON_DPAD_UP,
+    GLFW_GAMEPAD_BUTTON_DPAD_DOWN,
+    GLFW_GAMEPAD_BUTTON_DPAD_LEFT,
+    GLFW_GAMEPAD_BUTTON_DPAD_RIGHT,
+    GLFW_GAMEPAD_BUTTON_A,
+    GLFW_GAMEPAD_BUTTON_B,
+    GLFW_GAMEPAD_BUTTON_X,
+    GLFW_GAMEPAD_BUTTON_Y,
+    GLFW_GAMEPAD_BUTTON_LEFT_BUMPER,
+    GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER,
+    GLFW_GAMEPAD_BUTTON_START,
+    GLFW_GAMEPAD_BUTTON_BACK,
+    NULL, // Left Stick Right
+    NULL, // Left Stick Left
+    NULL, // Left Stick Down
+    NULL, // Left Stick Up
+    GLFW_GAMEPAD_BUTTON_LEFT_THUMB,
+    NULL, // Right Stick Right
+    NULL, // Right Stick Left
+    NULL, // Right Stick Down
+    NULL, // Right Stick Up
+    GLFW_GAMEPAD_BUTTON_RIGHT_THUMB,
+    NULL, // Left  Analog Trigger
+    NULL  // Right Analog Trigger
+};
+
+std::array<int, 2> Input::getTouchPosition() {
     double x, y;
     glfwGetCursorPos((GLFWwindow *)globalWindow->getHandle(), &x, &y);
-    return {(int)x, (int)y};
+
+    std::array<int, 2> pos = {(int)x, (int)y};
+
+    return pos;
 }
 
 void Input::getInput() {
@@ -28,7 +58,7 @@ void Input::getInput() {
     mousePointer.isPressed = (glfwGetMouseButton((GLFWwindow *)globalWindow->getHandle(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
     mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
 
-    std::vector<int> touchPos = getTouchPosition();
+    std::array<int, 2> touchPos = getTouchPosition();
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
     mousePointer.x = (int)coords.first;
     mousePointer.y = (int)coords.second;
@@ -100,37 +130,54 @@ void Input::getInput() {
     if (glfwJoystickPresent(GLFW_JOYSTICK_1) && glfwJoystickIsGamepad(GLFW_JOYSTICK_1)) {
         GLFWgamepadstate state;
         if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_UP]) Input::buttonPress("dpadUp");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_DOWN]) Input::buttonPress("dpadDown");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_LEFT]) Input::buttonPress("dpadLeft");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_RIGHT]) Input::buttonPress("dpadRight");
+            size_t array_len = sizeof(GLFW_GAMEPAD_KEYS) / sizeof(GLFW_GAMEPAD_KEYS[0]);
+            for (size_t i = 0; i < array_len; i++) {
+                // Ignore Specific Keys
+                if (GLFW_GAMEPAD_KEYS[i] == NULL) {
+                    continue;
+                }
 
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_A]) Input::buttonPress("A");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_B]) Input::buttonPress("B");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_X]) Input::buttonPress("X");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_Y]) Input::buttonPress("Y");
+                if (state.buttons[GLFW_GAMEPAD_KEYS[i]]) {
+                    Input::buttonPress(CONTROLLER_STRINGS[i]);
+                }
+            }
 
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER]) Input::buttonPress("shoulderL");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER]) Input::buttonPress("shoulderR");
+            auto axis_handler = [&](float axis, std::array<std::string, 2> states) {
+                if (abs(axis) <= 0.5f) {
+                    return;
+                }
 
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_START]) Input::buttonPress("start");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_BACK]) Input::buttonPress("back");
+                int8_t sign = (int8_t)(axis / abs(axis));
+                switch (sign) {
+                case 1:
+                    Input::buttonPress(states[0]);
+                    break;
+                case -1:
+                    Input::buttonPress(states[1]);
+                    break;
+                }
+            };
 
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_LEFT_THUMB]) Input::buttonPress("LeftStickPressed");
-            if (state.buttons[GLFW_GAMEPAD_BUTTON_RIGHT_THUMB]) Input::buttonPress("RightStickPressed");
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X],
+                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_RIGHT)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_LEFT)]});
 
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_X] > 0.5f) Input::buttonPress("LeftStickRight");
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_X] < -0.5f) Input::buttonPress("LeftStickLeft");
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y] > 0.5f) Input::buttonPress("LeftStickDown");
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y] < -0.5f) Input::buttonPress("LeftStickUp");
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y],
+                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_DOWN)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_UP)]});
 
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X] > 0.5f) Input::buttonPress("RightStickRight");
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X] < -0.5f) Input::buttonPress("RightStickLeft");
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y] > 0.5f) Input::buttonPress("RightStickDown");
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y] < -0.5f) Input::buttonPress("RightStickUp");
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X],
+                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_RIGHT)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_LEFT)]});
 
-            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f) Input::buttonPress("LT");
-            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f) Input::buttonPress("RT");
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y],
+                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_DOWN)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_UP)]});
+
+            if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f)
+                Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::LEFT_TRIGGER)]);
+            if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f)
+                Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::RIGHT_TRIGGER)]);
 
             Input::leftJoystick.first = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
             Input::leftJoystick.second = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
