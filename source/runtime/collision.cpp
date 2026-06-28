@@ -56,7 +56,31 @@ std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int
     return bitmask;
 }
 
-bool collision::pointInSprite(Sprite *sprite, float x, float y) {
+static Sprite *getSpriteAbove(Sprite *sprite) {
+    if (Scratch::sprites.size() <= 1) {
+        return nullptr;
+    }
+
+    if (sprite->isStage) {
+        return Scratch::sprites[Scratch::sprites.size() - 2];
+    }
+
+    const int currentIndex = (Scratch::sprites.size() - 1) - sprite->layer;
+
+    if (currentIndex == 0) {
+        return nullptr;
+    }
+
+    Sprite *aboveSprite = Scratch::sprites[currentIndex - 1];
+
+    return aboveSprite;
+}
+
+bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) {
+    if (!sprite) return false;
+
+    if (clickMode && pointInSprite(getSpriteAbove(sprite), x, y)) return false;
+
     auto &costume = sprite->costumes[sprite->currentCostume];
     std::shared_ptr<Bitmask> bitmask = costume.bitmask;
     if (bitmask == nullptr) {

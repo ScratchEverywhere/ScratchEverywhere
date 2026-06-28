@@ -11,6 +11,8 @@
 #include <window.hpp>
 #include <windowing/3ds/window.hpp>
 
+static u8 is_2ds = CFGU_GetModelNintendo2DS(&is_2ds);
+
 constexpr unsigned int screenWidth = 400;
 constexpr unsigned int bottomScreenWidth = 320;
 constexpr unsigned int screenHeight = 240;
@@ -24,6 +26,8 @@ constexpr u32 clrWhite = C2D_Color32f(1, 1, 1, 1);
 constexpr u32 clrBlack = C2D_Color32f(0, 0, 0, 1);
 constexpr u32 clrGreen = C2D_Color32f(0, 0, 1, 1);
 static bool isConsoleInit = false;
+
+#define OBJ_OFFSET(value) (renderMode == BOTH_SCREENS) ? -value : 0.0f
 
 C2D_Image penImage;
 C3D_RenderTarget *penRenderTarget = nullptr;
@@ -61,7 +65,7 @@ bool Render::Init() {
         consoleInit(GFX_BOTTOM, NULL);
         debugMode = true;
         isConsoleInit = true;
-    } else debugMode = false;
+    }
     osSetSpeedupEnable(true);
 
     gfxSet3D(true);
@@ -355,6 +359,11 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
 
+    // Screen is the same size, so it doesn't matter
+    if (screenAspect == projectAspect) {
+        return;
+    }
+
     if (screenAspect > projectAspect) {
         // Screen is wider than project,, vertical bars
         float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
@@ -363,16 +372,16 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 
         C2D_DrawRectSolid(0, 0, 0.5f, barWidth, screenHeight, clrBlack);                      // Left bar
         C2D_DrawRectSolid(screenWidth - barWidth, 0, 0.5f, barWidth, screenHeight, clrBlack); // Right bar
-
-    } else if (screenAspect < projectAspect) {
-        // Screen is taller than project,, horizontal bars
-        float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
-
-        C2D_DrawRectSolid(0, 0, 0.5f, screenWidth, barHeight, clrBlack);                        // Top bar
-        C2D_DrawRectSolid(0, screenHeight - barHeight, 0.5f, screenWidth, barHeight, clrBlack); // Bottom bar
+        return;
     }
+
+    // Screen is taller than project,, horizontal bars
+    float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
+    float scaledProjectHeight = Scratch::projectHeight * scale;
+    float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
+
+    C2D_DrawRectSolid(0, 0, 0.5f, screenWidth, barHeight, clrBlack);                        // Top bar
+    C2D_DrawRectSolid(0, screenHeight - barHeight, 0.5f, screenWidth, barHeight, clrBlack); // Bottom bar
 }
 
 void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
@@ -423,17 +432,24 @@ void Render::renderSprites() {
 
     if (penRenderTarget && penRenderTarget != nullptr) flushFastPenQueue();
 
-    // Always start rendering top screen, otherwise bottom screen only rendering gets weird fsr
-    C2D_SceneBegin(topScreen);
-
     float slider = osGet3DSliderState();
     const float depthScale = 8.0f / Scratch::sprites.size();
 
-    // ---------- LEFT EYE ----------
-    if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
-        C2D_TargetClear(topScreen, clrWhite);
-        currentScreen = 0;
+    const float SLIDER_THRESHOLD = 0.0f;
 
+    bool use_slider = (is_2ds != 0) && (slider > SLIDER_THRESHOLD);
+
+    const float pen_offset_x = OBJ_OFFSET(240.0f); // (renderMode == BOTH_SCREENS) ? -240 : 0.0f;
+    const float pen_offset_y = OBJ_OFFSET(40.0f);  // (renderMode == BOTH_SCREENS) ? -40 : 0.0f;
+
+    const float image_offset_x = OBJ_OFFSET(40.0f);  // (renderMode == BOTH_SCREENS) ? -40 : 0;
+    const float image_offset_y = OBJ_OFFSET(120.0f); // (renderMode == BOTH_SCREENS) ? -120 : 0;
+
+    const float speech_offset_x = OBJ_OFFSET(40.0f);  // (renderMode == BOTH_SCREENS) ? -40 : 0;
+    const float speech_offset_y = OBJ_OFFSET(240.0f); // (renderMode == BOTH_SCREENS) ? -240 : 0;
+
+    // Zero Will Be The Left Screen And 1 Will Be The Right Screen (Value Doesn't Matter If Bottom Screen)
+    auto screen_rendering = [&](bool eye_side, bool is_top_screen) {
         size_t i = 0;
         for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
             Sprite *currentSprite = *it;
@@ -442,8 +458,8 @@ void Render::renderSprites() {
             if (i == 1 && penRenderTarget != nullptr) {
 
                 C2D_DrawImageAt(penImage,
-                                0.0f,
-                                0.0f,
+                                pen_offset_x,
+                                pen_offset_y,
                                 0,
                                 nullptr,
                                 1.0f,
@@ -456,15 +472,30 @@ void Render::renderSprites() {
             for (const auto &costume : currentSprite->costumes) {
                 if (costumeIndex == currentSprite->currentCostume) {
 
+                    if (!is_top_screen) {
+                        renderImage(
+                            currentSprite,
+                            costume.fullName,
+                            true,
+                            image_offset_x,
+                            image_offset_y);
+                        break;
+                    }
+
                     size_t totalSprites = Scratch::sprites.size();
-                    float eyeOffset = -slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
+                    float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
+
+                    if (eye_side == 0) {
+                        eyeOffset *= -1;
+                    }
 
                     renderImage(
                         currentSprite,
                         costume.fullName,
                         false,
-                        eyeOffset,
-                        renderMode == BOTH_SCREENS ? 120 : 0);
+                        (use_slider) ? eyeOffset : 0.0f,
+                        OBJ_OFFSET((-120)));
+
                     break;
                 }
                 costumeIndex++;
@@ -472,9 +503,21 @@ void Render::renderSprites() {
             i++;
         }
         if (speechManager) {
-            speechManager->render();
+            speechManager->render(speech_offset_x, speech_offset_y);
         }
+    };
+
+    if (Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
+
+        // Left Top Screen
+        C2D_SceneBegin(topScreen);
+        C2D_TargetClear(topScreen, clrWhite);
+        currentScreen = 0;
+
+        screen_rendering(0, true);
+
         renderMonitors();
+
         // Draw mouse pointer
         if (Input::mousePointer.isMoving) {
             C2D_DrawRectSolid((Input::mousePointer.x * renderScale) + (screenWidth * 0.5),
@@ -482,119 +525,46 @@ void Render::renderSprites() {
             Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
             Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
         }
-    }
 
-    if (Render::renderMode != Render::BOTH_SCREENS)
-        drawBlackBars(screenWidth, screenHeight);
-
-    // ---------- RIGHT EYE ----------
-    if (slider > 0.0f && Render::renderMode != Render::BOTTOM_SCREEN_ONLY) {
+        if (!use_slider) {
+            goto other_screen_check;
+        }
+        // Right Top Screen
         C2D_SceneBegin(topScreenRightEye);
         C2D_TargetClear(topScreenRightEye, clrWhite);
-        currentScreen = 0;
+        // currentScreen = 0;
 
-        size_t i = 0;
-        for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
-            Sprite *currentSprite = *it;
+        screen_rendering(1, true);
 
-            // render the pen texture above the backdrop, but below every other sprite
-            if (i == 1 && penRenderTarget != nullptr) {
-
-                C2D_DrawImageAt(penImage,
-                                0.0f,
-                                0.0f,
-                                0,
-                                nullptr,
-                                1.0f,
-                                1.0f);
-            }
-
-            if (!currentSprite->visible) continue;
-
-            int costumeIndex = 0;
-            for (const auto &costume : currentSprite->costumes) {
-                if (costumeIndex == currentSprite->currentCostume) {
-
-                    size_t totalSprites = Scratch::sprites.size();
-                    float eyeOffset = slider * (static_cast<float>(totalSprites - 1 - i) * depthScale);
-
-                    renderImage(
-                        currentSprite,
-                        costume.fullName,
-                        false,
-                        eyeOffset,
-                        renderMode == BOTH_SCREENS ? 120 : 0);
-                    break;
-                }
-                costumeIndex++;
-            }
-            i++;
-        }
-        if (speechManager) {
-            speechManager->render();
-        }
         renderMonitors();
-
-        if (Render::renderMode != Render::BOTH_SCREENS)
+        if (Render::renderMode != Render::BOTH_SCREENS) {
             drawBlackBars(screenWidth, screenHeight);
+        }
     }
 
-    // ---------- BOTTOM SCREEN ----------
-    if (Render::renderMode == Render::BOTH_SCREENS || Render::renderMode == Render::BOTTOM_SCREEN_ONLY) {
+other_screen_check:
+    switch (Render::renderMode) {
+    default:
+        break;
+    case BOTH_SCREENS:
+    case BOTTOM_SCREEN_ONLY:
         C2D_SceneBegin(bottomScreen);
         C2D_TargetClear(bottomScreen, clrWhite);
 
         if (Render::renderMode != Render::BOTH_SCREENS)
             currentScreen = 1;
 
-        size_t i = 0;
-        for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
-            Sprite *currentSprite = *it;
+        screen_rendering(0, false);
 
-            // render the pen texture above the backdrop, but below every other sprite
-            if (i == 1 && penRenderTarget != nullptr) {
-                const float yOffset = renderMode == BOTH_SCREENS ? -240 : 0.0f;
-                const float xOffset = renderMode == BOTH_SCREENS ? -40 : 0.0f;
-
-                C2D_DrawImageAt(penImage,
-                                xOffset,
-                                yOffset,
-                                0,
-                                nullptr,
-                                1.0f,
-                                1.0f);
-            }
-
-            if (!currentSprite->visible) continue;
-
-            int costumeIndex = 0;
-            for (const auto &costume : currentSprite->costumes) {
-                if (costumeIndex == currentSprite->currentCostume) {
-
-                    renderImage(
-                        currentSprite,
-                        costume.fullName,
-                        true,
-                        renderMode == BOTH_SCREENS ? -40 : 0,
-                        renderMode == BOTH_SCREENS ? -120 : 0);
-                    break;
-                }
-                costumeIndex++;
-            }
-            i++;
-        }
-        if (speechManager) {
-            speechManager->render(
-                renderMode == BOTH_SCREENS ? -40 : 0,
-                renderMode == BOTH_SCREENS ? -240 : 0);
-        }
-
-        if (Render::renderMode != Render::BOTH_SCREENS) {
-            drawBlackBars(bottomScreenWidth, screenHeight);
-            renderMonitors();
-        } else {
+        if (Render::renderMode == BOTH_SCREENS) {
             renderMonitors(-40, -240);
+            break;
         }
+
+        // Bottom Screen Only
+        drawBlackBars(bottomScreenWidth, screenHeight);
+        renderMonitors();
+        break;
     }
 
     C3D_FrameEnd(0);

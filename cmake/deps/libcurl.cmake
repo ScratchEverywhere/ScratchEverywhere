@@ -14,7 +14,7 @@ function(_dep_system_libcurl)
 
 		if((NOT CURL_FOUND OR NOT CURL_WSS_FOUND) AND SE_PKGCONF_CURL AND PkgConfig_FOUND)
 			pkg_check_modules(libcurl IMPORTED_TARGET GLOBAL libcurl>=8.4.0)
-		else()
+		elseif(TARGET CURL::libcurl)
 			add_library(deps::libcurl ALIAS CURL::libcurl)
 		endif()
 	elseif(PkgConfig_FOUND)

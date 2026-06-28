@@ -1,4 +1,5 @@
 #include "controlsMenu.hpp"
+#include "sprite.hpp"
 #include "translation.hpp"
 #include <log.hpp>
 #include <settings.hpp>
@@ -27,14 +28,20 @@ void ControlsMenu::init() {
 
     for (auto &block : Scratch::blocks) {
         std::string buttonCheck;
-        if (block->opcode == "sensing_keyoptions") {
-            buttonCheck = block->fields["KEY_OPTION"].value;
+        if (block->opcode == "sensing_keypressed") {
+            if (block->inputs["KEY_OPTION"].inputType == ParsedInput::VALUE) {
+                buttonCheck = block->inputs["KEY_OPTION"].value.asString();
+            }
         } else if (block->opcode == "event_whenkeypressed") {
             buttonCheck = block->fields["KEY_OPTION"].value;
-        } else if (block->opcode == "makeymakey_menu_KEY") {
-            buttonCheck = block->fields["KEY"].value;
-        } else if (block->opcode == "makeymakey_menu_SEQUENCE") {
-            std::string input = block->fields["SEQUENCE"].value;
+        } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
+            if (block->inputs["KEY"].inputType == ParsedInput::VALUE) {
+                buttonCheck = block->inputs["KEY"].value.asString();
+            }
+        } else if (block->opcode == "makeymakey_whenCodePressed") {
+            if (block->inputs["SEQUENCE"].inputType != ParsedInput::VALUE) continue;
+
+            std::string input = block->inputs["SEQUENCE"].value.asString();
             size_t start = 0;
             size_t end;
             while ((end = input.find(' ', start)) != std::string::npos) {
@@ -59,6 +66,13 @@ void ControlsMenu::init() {
     }
 
     Scratch::cleanupScratchProject();
+
+    if (controls.empty()) {
+        Log::logWarning("No controls found in project");
+        MenuManager::changeMenu(MenuManager::previousMenu);
+        return;
+    }
+
     Render::renderMode = Render::BOTH_SCREENS;
 
     settingsControl = new ControlObject();
@@ -69,12 +83,6 @@ void ControlsMenu::init() {
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
-
-    if (controls.empty()) {
-        Log::logWarning("No controls found in project");
-        MenuManager::changeMenu(MenuManager::previousMenu);
-        return;
-    }
 
     double yPosition = 100;
     for (auto &control : controls) {

@@ -360,7 +360,6 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
         glLoadIdentity();
 
         glClearColor(colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, 1.0f);
-        glClearColor(1.0, 0, 0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
         hasFrameBegan = true;
     }

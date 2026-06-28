@@ -36,6 +36,9 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
             float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
             sprite->renderInfo.renderScaleX *= scale;
         }
+        if (Scratch::bitmapHalfQuality && !isSVG && costume.bitmapResolution == 2) {
+            sprite->renderInfo.renderScaleX *= 2;
+        }
         sprite->renderInfo.renderScaleY = sprite->renderInfo.renderScaleX;
     }
     if (sprite->rotation != sprite->renderInfo.oldRotation) {
@@ -300,7 +303,7 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
                 monitorGfx.length->setColor(Math::color(0, 0, 0, 255));
                 monitorGfx.length->render(monitorX + (monitorW / 2), monitorY + monitorH - (6 * scale));
 
-                std::vector<int> touchPos = Input::getTouchPosition();
+                std::array<int, 2> touchPos = Input::getTouchPosition();
 
                 // plus button
                 std::unique_ptr<TextObject> plus = createTextObject("+", 0, 0);
@@ -445,7 +448,7 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
 
                     drawBox(13 * scale, 13 * scale, sliderPos, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 0, 115, 252, 255);
 
-                    std::vector<int> touchPos = Input::getTouchPosition();
+                    std::array<int, 2> touchPos = Input::getTouchPosition();
 
                     if (Input::mousePointer.isPressed && touchPos[0] > nameBackgroundX && touchPos[0] < nameBackgroundX + nameBackgroundWidth &&
                         touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3) {

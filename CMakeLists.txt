@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 1.0.0.2 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.0.0.3 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -31,7 +31,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
 set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
-set(SE_APP_VERSION "1.0-rc2" CACHE STRING "Version of the outputed app.")
+set(SE_APP_VERSION "1.0-rc3" CACHE STRING "Version of the outputed app.")
 
 if(VITA)
 	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
@@ -395,7 +395,7 @@ if(SE_DECTALK_DEFAULT)
 endif()
 
 if(SE_CUSTOM_EXTENSIONS)
-	target_compile_definitions(scratch-everywhere PRIVATE ENABLE_CUSTOM_EXTENSIONS)
+	target_compile_definitions(se-interface INTERFACE ENABLE_CUSTOM_EXTENSIONS)
 endif()
 
 if(SE_BITMAP)
@@ -443,8 +443,8 @@ se_add_dependency(se-interface expected-lite)
 se_add_dependency(se-interface __getexecname)
 
 if(SE_CUSTOM_EXTENSIONS)
-	se_add_dependency(scratch-everywhere lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
-	se_add_dependency(scratch-everywhere sol2)
+	se_add_dependency(se-interface lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
+	se_add_dependency(se-interface sol2)
 endif()
 
 if(SE_SVG)

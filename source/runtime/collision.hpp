@@ -14,7 +14,7 @@ constexpr unsigned int bitmaskScaleFactor = 1;
 
 namespace collision {
 std::shared_ptr<Bitmask> generateBitmask(Sprite *sprite, unsigned int scaleFactor = bitmaskScaleFactor);
-bool pointInSprite(Sprite *sprite, float x, float y);
+bool pointInSprite(Sprite *sprite, float x, float y, bool clickMode = false);
 bool spriteInSprite(Sprite *a, Sprite *b);
 bool spriteOnEdge(Sprite *sprite);
 
