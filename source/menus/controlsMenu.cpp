@@ -2,6 +2,7 @@
 #include "menuManager.hpp"
 #include "runtime.hpp"
 #include <clay.h>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <input.hpp>
@@ -13,36 +14,53 @@
 ControlsMenu::ControlsMenu(void *userdata) {
     projectName = static_cast<char *>(userdata);
     settings = SettingsManager::getProjectSettings(projectName);
-    const std::string projectPath = OS::getScratchFolderLocation() + projectName + ".sb3";
+    const std::string sb3Path = OS::getScratchFolderLocation() + projectName + ".sb3";
+    const std::string unpackedPath = OS::getScratchFolderLocation() + projectName + "/project.json";
 
+    Log::log("Loading controls of " + sb3Path);
+
+    nlohmann::json j;
     mz_zip_archive zip{};
     memset(&zip, 0, sizeof(zip));
 
-    if (!mz_zip_reader_init_file(&zip, projectPath.c_str(), 0)) {
-        Log::logError("Could not find project: " + projectPath);
-        return;
+    if (mz_zip_reader_init_file(&zip, sb3Path.c_str(), 0)) {
+        int fileIndex = mz_zip_reader_locate_file(&zip, "project.json", nullptr, 0);
+
+        if (fileIndex < 0) {
+            Log::logError("Could not find project.json: " + sb3Path);
+            mz_zip_reader_end(&zip);
+            return;
+        }
+
+        size_t extractedSize = 0;
+        void *data = mz_zip_reader_extract_to_heap(&zip, fileIndex, &extractedSize, 0);
+
+        if (!data) {
+            Log::logError("Could not extract project.json: " + sb3Path);
+            mz_zip_reader_end(&zip);
+            return;
+        }
+
+        const char *begin = static_cast<const char *>(data);
+        const char *end = begin + extractedSize;
+        j = nlohmann::json::parse(begin, end);
+        mz_free(data);
+        mz_zip_reader_end(&zip);
+    } else {
+        Log::logWarning("No .sb3 found, trying " + unpackedPath);
+
+        FILE *file = fopen(unpackedPath.c_str(), "wb");
+
+        if (!file) {
+            Log::logError("Could not find project: " + unpackedPath);
+            return;
+        }
+        j = nlohmann::json::parse(file);
+        fclose(file);
     }
-    int fileIndex = mz_zip_reader_locate_file(&zip, "project.json", nullptr, 0);
 
-    if (fileIndex < 0) {
-        Log::logError("Could not find project.json: " + projectPath);
-        return;
-    }
-
-    size_t extractedSize = 0;
-    void *data = mz_zip_reader_extract_to_heap(&zip, fileIndex, &extractedSize, 0);
-
-    if (!data) {
-        Log::logError("Could not extract project.json: " + projectPath);
-        return;
-    }
-
-    const char *begin = static_cast<const char *>(data);
-    const char *end = begin + extractedSize;
-    nlohmann::json j = nlohmann::json::parse(begin, end);
-    nlohmann::json controlSettings = SettingsManager::getProjectSettings(projectName);
     Parser::loadSprites(j);
-    Input::applyControls(projectPath + ".json");
+    Input::applyControls(sb3Path + ".json");
 
     for (auto &block : Scratch::blocks) {
         std::string buttonCheck;
@@ -72,7 +90,6 @@ ControlsMenu::ControlsMenu(void *userdata) {
             buttonCheck = input.substr(start);
         } else continue;
         if (buttonCheck != "" && controls.find(buttonCheck) == controls.end()) {
-            Log::log("Found new control: " + buttonCheck);
             for (const auto &[key, val] : Input::inputControls) {
                 if (val == buttonCheck)
                     controls[buttonCheck] = key;
@@ -88,6 +105,7 @@ ControlsMenu::ControlsMenu(void *userdata) {
         hoverData.insert({controlName, {settings, controlName, t}});
         clayIds[controlName] = {false, static_cast<int32_t>((controlName).length()), controlName.c_str()};
     }
+    Input::applyControls();
 
     init("Custom Controls");
 }
@@ -108,36 +126,6 @@ void ControlsMenu::renderSettings() {
         Log::logWarning("No controls found in project");
         menuManager->back(const_cast<void *>(static_cast<const void *>(projectName.c_str())));
         return;
-    }
-
-    for (auto &[controlName, controlValue] : controls) {
-
-        renderOrder.push_back(controlName);
-
-        const uint16_t hPadding = 10 * menuManager->scale;
-        const uint16_t vPadding = 5 * menuManager->scale;
-        Clay_String str = {false, static_cast<int>(controlStrings[controlName].size()), controlStrings[controlName].c_str()};
-        // clang-format off
-        CLAY(CLAY_SID(clayIds[controlName]),(Clay_ElementDeclaration){
-            .layout = {
-                .sizing = { .width = CLAY_SIZING_FIT(), .height = CLAY_SIZING_FIT() },
-                .padding = {hPadding, hPadding, vPadding, vPadding}
-            },
-            .backgroundColor = {90, 60, 90, 255},
-            .cornerRadius = {5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale}
-        }) {
-            Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
-                const auto hoverData = reinterpret_cast<Settings_HoverData*>(userdata);
-            	if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-            		hoverData->justPressed = true;
-            	} else hoverData->justPressed = false;
-            }, &hoverData.at(controlName));
-
-            CLAY_TEXT((str), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
-        }
-        // clang-format on
-
-        if (hoverData.at(controlName).justPressed && hoverData.at(controlName).controlSetState == 0) hoverData.at(controlName).controlSetState = 1;
     }
 
     for (auto &[controlName, controlValue] : controls) {
@@ -182,6 +170,33 @@ void ControlsMenu::renderSettings() {
         default:
             break;
         }
+
+        renderOrder.push_back(controlName);
+
+        const uint16_t hPadding = 10 * menuManager->scale;
+        const uint16_t vPadding = 5 * menuManager->scale;
+        Clay_String str = {false, static_cast<int>(controlStrings[controlName].size()), controlStrings[controlName].c_str()};
+        // clang-format off
+        CLAY(CLAY_SID(clayIds[controlName]),(Clay_ElementDeclaration){
+            .layout = {
+                .sizing = { .width = CLAY_SIZING_FIT(), .height = CLAY_SIZING_FIT() },
+                .padding = {hPadding, hPadding, vPadding, vPadding}
+            },
+            .backgroundColor = {90, 60, 90, 255},
+            .cornerRadius = {5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale, 5 * menuManager->scale}
+        }) {
+            Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
+                const auto hoverData = reinterpret_cast<Settings_HoverData*>(userdata);
+            	if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
+            		hoverData->justPressed = true;
+            	} else hoverData->justPressed = false;
+            }, &hoverData.at(controlName));
+
+            CLAY_TEXT((str), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+        }
+        // clang-format on
+
+        if (hoverData.at(controlName).justPressed && hoverData.at(controlName).controlSetState == 0) hoverData.at(controlName).controlSetState = 1;
     }
 
     if (Input::isButtonJustPressed("B") && menuManager->canChangeMenus) {
