@@ -393,7 +393,7 @@ if(SE_DECTALK_DEFAULT)
 endif()
 
 if(SE_CUSTOM_EXTENSIONS)
-	target_compile_definitions(se-interface PRIVATE ENABLE_CUSTOM_EXTENSIONS)
+	target_compile_definitions(se-interface INTERFACE ENABLE_CUSTOM_EXTENSIONS)
 endif()
 
 if(SE_BITMAP)
