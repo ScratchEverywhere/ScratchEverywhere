@@ -12,6 +12,9 @@
 
 CMRC_DECLARE(romfs);
 #endif
+#ifdef __ANDROID__
+#include <SDL_rwops.h>
+#endif
 
 static nlohmann::json translationKeys = nullptr;
 static std::vector<std::string> splashTexts;
@@ -25,9 +28,17 @@ const std::vector<TranslationManager::LanguageInfo> TranslationManager::getLangu
     std::vector<LanguageInfo> ret;
 
     const std::string path = OS::getRomFSLocation() + "gfx/translations/languages.json";
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC)
     const auto &file = cmrc::romfs::get_filesystem().open(path);
     nlohmann::json json = nlohmann::json::parse(file.begin(), file.begin() + file.size());
+#elif defined(__ANDROID__)
+    SDL_RWops *rw = SDL_RWFromFile(path.c_str(), "rb");
+    int64_t size = SDL_RWsize(rw);
+    std::vector<char> buffer(size);
+
+    SDL_RWread(rw, buffer.data(), 1, size);
+    SDL_RWclose(rw);
+    nlohmann::json json = nlohmann::json::parse(buffer.begin(), buffer.begin() + buffer.size());
 #else
     nlohmann::json json;
     std::ifstream file(path);
@@ -52,7 +63,7 @@ void TranslationManager::loadLanguage(std::string language) {
 
     splashTexts.clear();
 
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC)
     const auto &fs = cmrc::romfs::get_filesystem();
 
     const auto &file = fs.open(path);
@@ -60,6 +71,31 @@ void TranslationManager::loadLanguage(std::string language) {
 
     const auto &splashFile = fs.open(splashPath);
     std::string_view sv(splashFile.begin(), splashFile.size());
+    std::istringstream stream{std::string(sv)};
+
+    std::string line;
+    while (std::getline(stream, line)) {
+        if (!line.empty()) {
+            splashTexts.push_back(line);
+        }
+    }
+#elif defined(__ANDROID__)
+    SDL_RWops *rw = SDL_RWFromFile(path.c_str(), "rb");
+    int64_t size = SDL_RWsize(rw);
+    std::vector<char> file(size);
+
+    SDL_RWread(rw, file.data(), 1, size);
+    SDL_RWclose(rw);
+    translationKeys = nlohmann::json::parse(file.begin(), file.begin() + size);
+
+    rw = SDL_RWFromFile(splashPath.c_str(), "rb");
+    size = SDL_RWsize(rw);
+    std::vector<char> splashFile(size);
+
+    SDL_RWread(rw, splashFile.data(), 1, size);
+    SDL_RWclose(rw);
+
+    std::string_view sv(splashFile.data(), size);
     std::istringstream stream{std::string(sv)};
 
     std::string line;

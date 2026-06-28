@@ -27,6 +27,9 @@ SDL_Point touchPosition;
 bool WindowSDL2::init(int width, int height, const std::string &title) {
 #if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+#elif defined(__ANDROID__)
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
 #endif
 
     uint32_t sdlFlags = 0;
@@ -60,6 +63,8 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 
 #ifdef RENDERER_OPENGL
     flags |= SDL_WINDOW_OPENGL;
+#elif defined(__ANDROID__)
+    flags |= SDL_WINDOW_FULLSCREEN;
 #endif
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, flags);
