@@ -157,9 +157,7 @@ void Input::getInput(MenuManager *menuManager) {
 
     if (!inputKeys.empty()) inputKeys.push_back("any");
 
-    if (!menuManager) {
-        BlockExecutor::executeKeyHats();
-    }
+    BlockExecutor::executeKeyHats();
 
 #ifdef PLATFORM_HAS_MOUSE
     // Get raw mouse coordinates
@@ -185,9 +183,7 @@ void Input::getInput(MenuManager *menuManager) {
     }
 #endif
 
-    if (!menuManager) {
-        BlockExecutor::doSpriteClicking();
-    }
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

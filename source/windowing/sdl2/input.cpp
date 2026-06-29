@@ -261,9 +261,7 @@ void Input::getInput(MenuManager *menuManager) {
 #endif
 
     if (!inputKeys.empty()) inputKeys.push_back("any");
-    if (!menuManager) {
-        BlockExecutor::executeKeyHats();
-    }
+    BlockExecutor::executeKeyHats();
 
 #ifdef PLATFORM_HAS_TOUCH
     if (touchActive) {
@@ -273,9 +271,7 @@ void Input::getInput(MenuManager *menuManager) {
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
         mousePointer.mouseButton = Mouse::LEFT;
-        if (!menuManager) {
-            BlockExecutor::doSpriteClicking();
-        }
+        BlockExecutor::doSpriteClicking();
 
 #ifdef ENABLE_MENU
         if (menuManager != nullptr) menuManager->handleInput(touchPosition.x, touchPosition.y, touchActive);

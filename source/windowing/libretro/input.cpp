@@ -157,10 +157,8 @@ void Input::getInput(MenuManager *menuManager) {
     Input::rightJoystick.first = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_X) / 0x8000f;
     Input::rightJoystick.second = input_state_cb(0, RETRO_DEVICE_ANALOG, RETRO_DEVICE_INDEX_ANALOG_RIGHT, RETRO_DEVICE_ID_ANALOG_Y) / 0x8000f;
 
-    if (!menuManager) {
-        BlockExecutor::executeKeyHats();
-        BlockExecutor::doSpriteClicking();
-    }
+    BlockExecutor::executeKeyHats();
+    BlockExecutor::doSpriteClicking();
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

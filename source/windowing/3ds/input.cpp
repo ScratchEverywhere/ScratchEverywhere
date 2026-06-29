@@ -174,10 +174,8 @@ void Input::getInput(MenuManager *menuManager) {
     //
 skipInputCheck:
 
-    if (!menuManager) {
-        BlockExecutor::executeKeyHats();
-        BlockExecutor::doSpriteClicking();
-    }
+    BlockExecutor::executeKeyHats();
+    BlockExecutor::doSpriteClicking();
 
 #ifdef ENABLE_MENU
     if (menuManager) menuManager->handleInput(touchPos[0], touchPos[1], Input::mousePointer.isPressed);
