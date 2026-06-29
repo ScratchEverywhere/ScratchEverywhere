@@ -43,7 +43,7 @@ class SettingsMenu : public Menu {
         {"warpTimer", "ui.settings.warp"},
         {"deleteUnpacked", "ui.settings.deleteUnpacked"},
         {"clearCache", "ui.settings.cache"},
-        {"UseDectalk", "ui.settings.dectalk"},
+        {"useDectalk", "ui.settings.dectalk"},
         {"language", "ui.settings.language"},
     };
 

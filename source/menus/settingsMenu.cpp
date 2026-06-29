@@ -360,7 +360,7 @@ GlobalSettingsMenu::GlobalSettingsMenu(void *userdata) {
 
     if (!settings.contains("musicVolume")) settings["musicVolume"] = static_cast<int>(100);
 
-    if (!settings.contains("UseDectalk")) settings["UseDectalk"] = false;
+    if (!settings.contains("useDectalk")) settings["useDectalk"] = false;
 
     SettingsMenu::init("ui.settings.global");
 }
@@ -406,6 +406,6 @@ void GlobalSettingsMenu::renderSettings() {
     }
 
 #ifdef ENABLE_DECTALK
-    renderToggle("UseDectalk");
+    renderToggle("useDectalk");
 #endif
 }
