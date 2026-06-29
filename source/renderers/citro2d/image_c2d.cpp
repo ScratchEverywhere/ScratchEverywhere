@@ -31,8 +31,8 @@ void Image_C2D::render(ImageRenderParams &params) {
     const int drawH = params.subrect ? params.subrect->h : getHeight();
 
     if (!centered) {
-        x += drawW / 2;
-        y += drawH / 2;
+        x += (imgData.width / 2) * scaleY;
+        y += (imgData.height / 2) * scaleY;
     }
 
     if (flip) {
