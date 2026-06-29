@@ -406,6 +406,6 @@ void GlobalSettingsMenu::renderSettings() {
     }
 
 #ifdef ENABLE_DECTALK
-    renderToggle("useDectalk");
+    renderToggle("UseDectalk");
 #endif
 }
