@@ -142,7 +142,7 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
 
 	if(NOT selected_value IN_LIST valid_options_list)
         message(
-			FATAL_ERROR 
+			FATAL_ERROR
             "Invalid value for ${var_name}: '${selected_value}'. Must be one of: ${valid_options_list}"
         )
     endif()
@@ -223,11 +223,12 @@ if(NOT SE_SVG)
 endif()
 
 if(SE_MENU AND DEFINED SE_CONTROLLER_TYPE)
-	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/controller/.*")
-	file(GLOB_RECURSE GFXFILES
-		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
-		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/controller/${SE_CONTROLLER_TYPE}/*"
+	file(GLOB_RECURSE CONTROLLER_GFX
+	    "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/controller/${SE_CONTROLLER_TYPE}/*"
 	)
+
+	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/controller/.*")
+	list(APPEND GFXFILES ${CONTROLLER_GFX})
 endif()
 
 foreach(file IN LISTS GFXFILES)
