@@ -8,6 +8,7 @@
 
 class LanguageMenu : public Menu {
   private:
+    std::string title;
     std::shared_ptr<Image> indicator;
     int selected = -1;
 

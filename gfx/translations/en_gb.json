@@ -1,6 +1,8 @@
 {
   "ui.projects.noProjects": "No Scratch projects found!",
   "ui.projects.path": "Put projects in ",
+  "ui.projects.title": "Projects",
+  "ui.language.title": "Select Language",
   "ui.settings.controls": "Change Project Controls",
   "ui.settings.unpack": "Unpack Project",
   "ui.settings.deleteUnpacked": "Delete Unpacked Project",

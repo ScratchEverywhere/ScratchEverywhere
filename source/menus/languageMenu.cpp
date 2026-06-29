@@ -1,6 +1,7 @@
 #include "languageMenu.hpp"
 #include "components.hpp"
 #include "input.hpp"
+#include "mainMenu.hpp"
 #include "menuManager.hpp"
 #include "translation.hpp"
 #include <log.hpp>
@@ -19,7 +20,9 @@ LanguageMenu::LanguageMenu(void *userdata) {
     if (!maybe.has_value()) {
         Log::logError("Failed to load indicator image: " + maybe.error());
     }
-    indicator = maybe.value(); // TODO: Error handling
+    indicator = maybe.value();
+
+    title = TranslationManager::getTranslation("ui.language.title");
 }
 
 LanguageMenu::~LanguageMenu() {
@@ -33,6 +36,7 @@ void changeLanguage(MenuManager *menuManager, unsigned int id) {
     nlohmann::json json = SettingsManager::getConfigSettings();
     json["Language"] = TranslationManager::getLoadedLanguage().key;
     SettingsManager::saveConfigSettings(json);
+    MainMenu::splash = "";
     menuManager->queueBack();
 }
 
@@ -74,7 +78,7 @@ void LanguageMenu::render() {
 		.cornerRadius = {15 * menuManager->scale, 0, 15 * menuManager->scale, 0},
 		.clip = {.horizontal = false, .vertical = true, .childOffset = {.y = scrollOffset}}
 	}) {
-		CLAY_TEXT(CLAY_STRING("Select Language"), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale) }));
+		CLAY_TEXT(((Clay_String){false, static_cast<int32_t>(title.length()), title.c_str()}), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale) }));
 
 		const uint16_t fontSize = 16 * menuManager->scale;
 		const uint16_t hPadding = 10 * menuManager->scale;

@@ -15,6 +15,7 @@ class ProjectsMenu : public Menu {
     int selectedProject = -1;
     Clay_String noProjectsPath;
     std::string noProjectsString;
+    std::string title;
 
     SE_Thread backdropIconThread;
     std::shared_ptr<Image> getProjectIcon(components::ProjectInfo &project, bool unpacked);

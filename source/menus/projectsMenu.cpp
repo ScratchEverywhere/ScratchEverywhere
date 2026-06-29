@@ -82,7 +82,9 @@ ProjectsMenu::ProjectsMenu(void *userdata) {
     doneLoading = true;
     backdropQueueMutex.unlock();
 
+    title = TranslationManager::getTranslation("ui.projects.title");
     noProjectsString = TranslationManager::getTranslation("ui.projects.noProjects");
+
     const std::string noProjectsPathString = TranslationManager::getTranslation("ui.projects.path") + OS::getScratchFolderLocation();
     void *mem = malloc(noProjectsPathString.length());
     if (mem == nullptr) {
@@ -336,7 +338,7 @@ void ProjectsMenu::render() {
 			continue; // The CLAY macro actually just makes a for loop so this just prevents the project row containers from rendering.
 		}
 
-		CLAY_TEXT(CLAY_STRING("Projects"), CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale)}));
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(title.length()), title.c_str() }), CLAY_TEXT_CONFIG({.textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale)}));
 
 		for (unsigned int i = 0; i < rows; i++) {
 			CLAY(CLAY_IDI("projects-row", i), (Clay_ElementDeclaration){

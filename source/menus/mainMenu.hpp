@@ -6,11 +6,11 @@
 
 class MainMenu : public Menu {
   private:
-    static std::string splash;
-
     std::shared_ptr<Image> logo;
 
   public:
+    static std::string splash;
+
     MainMenu(void *userdata);
     void render() override;
     void onResize() override;
