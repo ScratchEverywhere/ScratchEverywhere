@@ -1,6 +1,7 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-ds")
 
 set(SE_CONTROLLER_TYPE "wiiu") # Closest match
+set(SE_SMALL_FONT ON)
 
 set(SE_RENDERER_VALID_OPTIONS "gl2d")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "nds")

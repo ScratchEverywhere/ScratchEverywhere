@@ -1,6 +1,7 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-psp")
 
 set(SE_CONTROLLER_TYPE "playstation")
+set(SE_SMALL_FONT ON)
 
 set(SE_RENDERER_VALID_OPTIONS "sdl2")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")

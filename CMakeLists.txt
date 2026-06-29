@@ -204,26 +204,22 @@ if(SE_MENU)
 		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 else()
-	if(NINTENDO_DS)
-		file(GLOB_RECURSE GFXFILES
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/Ubuntu-Bold.ttf"
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
-		)
+	file(GLOB_RECURSE GFXFILES
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+	)
+endif()
+
+if(SE_MENU)
+	if(SE_SMALL_FONT)
+		list(FILTER GFXFILES EXCLUE REGEX ".*/gfx/menu/RedditSansFudge.*")
 	else()
-		file(GLOB_RECURSE GFXFILES
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
-		)
+		list(FILTER GFXFILES EXCLUE REGEX ".*/gfx/menu/RedditSansFudge-(?:Bold|Regular)-small\.ttf")
 	endif()
 endif()
 
 if(NOT SE_SVG)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
-endif()
-
-if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP)
-	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
 endif()
 
 if(SE_MENU AND DEFINED SE_CONTROLLER_TYPE)
@@ -245,8 +241,9 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS) AND (SE_MENU OR NINTENDO_DS))
-	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
+if(SE_MENU AND SE_SMALL_FONT)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/RedditSansFudge-Regular-small.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/RedditSansFudge-Regular.ttf" COPYONLY)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/RedditSansFudge-Bold-small.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/RedditSansFudge-Bold.ttf" COPYONLY)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
