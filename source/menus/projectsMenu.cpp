@@ -148,7 +148,7 @@ void ProjectsMenu::backdropLoader(void *userdata) {
 
             const char *begin = static_cast<const char *>(data);
             const char *end = begin + extractedSize;
-            project_json = nlohmann::json::parse(begin, end);
+            project_json = nlohmann::json::parse(begin, end, nullptr, false);
             mz_free(data);
             mz_zip_reader_end(&zip);
         } else {
@@ -162,7 +162,13 @@ void ProjectsMenu::backdropLoader(void *userdata) {
                 Log::logError("Could not open project.json: " + basePath + "project.json");
                 continue;
             }
-            f >> project_json;
+            project_json = nlohmann::json::parse(f, nullptr, false);
+            f.close();
+        }
+
+        if (project_json.is_discarded()) {
+            Log::logError("Could not parse project.json: " + project->path);
+            continue;
         }
 
         for (const auto &target : project_json["targets"]) {
