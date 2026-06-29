@@ -214,7 +214,7 @@ if(SE_MENU)
 	if(SE_SMALL_FONT)
 		list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge.*")
 	else()
-		list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge-(?:Bold|Regular)-small\.ttf")
+		list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge-(Bold|Regular)-small\.ttf")
 	endif()
 endif()
 
