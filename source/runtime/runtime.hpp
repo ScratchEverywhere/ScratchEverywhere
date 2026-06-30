@@ -18,9 +18,6 @@ enum class ProjectType {
     UNEMBEDDED
 };
 
-#ifdef ENABLE_MENU
-class PauseMenu;
-#endif
 class BlockExecutor;
 extern BlockExecutor executor;
 
@@ -109,10 +106,6 @@ class Scratch {
     static std::string newBroadcast;
 
     static Timer fpsTimer;
-
-#ifdef ENABLE_MENU
-    static PauseMenu *pauseMenu;
-#endif
 
     static std::vector<Sprite *> sprites;
     static Sprite *stageSprite;

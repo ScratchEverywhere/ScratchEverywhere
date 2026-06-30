@@ -27,8 +27,9 @@
 #include <utility>
 #include <vector>
 #ifdef ENABLE_MENU
-#include <pauseMenu.hpp>
-#include <popupMenu.hpp>
+#include "confirmationMenu.hpp"
+#include "menuManager.hpp"
+#include "pauseMenu.hpp"
 #endif
 #ifdef ENABLE_INSPECTOR
 #include <inspector.hpp>
@@ -83,10 +84,6 @@ bool Scratch::warpTimer = true;
 
 Timer Scratch::fpsTimer(false);
 
-#ifdef ENABLE_MENU
-PauseMenu *Scratch::pauseMenu = nullptr;
-#endif
-
 double Scratch::counter = 0;
 
 bool Scratch::nextProject = false;
@@ -126,9 +123,6 @@ void Scratch::initializeScratchProject() {
 #endif
     Scratch::nextProject = false;
 
-#ifdef ENABLE_MENU
-    Scratch::pauseMenu = nullptr;
-#endif
 #ifdef ENABLE_CACHING
     for (auto &sprite : sprites) {
         BlockExecutor::linkPointers(sprite);
@@ -149,21 +143,27 @@ void Scratch::initializeScratchProject() {
 }
 
 std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayThread) {
+#ifdef ENABLE_MENU
+    static MenuManager *menuManager = nullptr;
+#endif
+
     if (!Render::appShouldRun()) {
 #ifdef ENABLE_MENU
-        if (pauseMenu != nullptr) {
-            MenuManager::cleanup();
-            pauseMenu = nullptr;
+        if (menuManager != nullptr) {
+            delete menuManager;
+            menuManager = nullptr;
         }
 #endif
         return std::make_pair(false, false);
     }
 #ifdef ENABLE_MENU
-    if (pauseMenu != nullptr) {
-        MenuManager::render();
-        if (pauseMenu->shouldUnpause) {
-            MenuManager::cleanup();
-            pauseMenu = nullptr;
+    if (menuManager != nullptr) {
+        Render::renderSprites(false);
+        Input::getInput(menuManager);
+        menuManager->render();
+        if (PauseMenu::shouldUnpause) {
+            delete menuManager;
+            menuManager = nullptr;
         }
         return std::make_pair(Render::appShouldRun(), false);
     }
@@ -227,8 +227,8 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 #ifdef ENABLE_MENU
 
         if ((projectType == ProjectType::UNEMBEDDED || (projectType == ProjectType::UNZIPPED && Unzip::UnpackedInSD)) && Input::keyHeldDuration["1"] > 90 * (FPS / 30.0f)) {
-            pauseMenu = new PauseMenu();
-            MenuManager::changeMenu(pauseMenu);
+            menuManager = new MenuManager();
+            menuManager->changeMenu(MenuID::PauseMenu);
             return std::make_pair(true, false);
         }
 
@@ -251,22 +251,26 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
 }
 
 bool Scratch::startScratchProject() {
-
 #ifdef ENABLE_MENU
-
     if (hasNativeExtensions) {
-        PopupMenu *popupMenu = new PopupMenu(PopupType::ACCEPT_OR_CANCEL, TranslationManager::getTranslation("ui.popup.extensions"));
-        MenuManager::changeMenu(popupMenu);
-        while (Render::appShouldRun() && popupMenu->accepted == -1) {
-            MenuManager::render();
+        MenuManager menuManager;
+
+        std::string text = TranslationManager::getTranslation("ui.confirm.extensions");
+        menuManager.changeMenu(MenuID::ConfirmationMenu, &text);
+
+        while (Render::appShouldRun() && !ConfirmationMenu::chosen) {
+            Input::getInput(&menuManager);
+            menuManager.render();
+#ifdef __EMSCRIPTEN__
+            emscripten_sleep(0);
+#endif
         }
-        popupMenu->cleanup();
-        if (popupMenu->accepted == 0) {
+
+        if (!ConfirmationMenu::accepted) {
             cleanupScratchProject();
             return false;
         }
     }
-
 #endif
 
     std::pair<bool, bool> code;
@@ -370,6 +374,7 @@ void Scratch::cleanupScratchProject() {
     warpTimer = true;
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
+    Unzip::projectOpened = 0;
 
     Log::log("Cleaned up Scratch project.");
 }

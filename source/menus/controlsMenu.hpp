@@ -1,26 +1,21 @@
 #pragma once
-#include "mainMenu.hpp"
+#include "clay.h"
+#include "image.hpp"
+#include "menu.hpp"
+#include "os.hpp"
+#include "settingsMenu.hpp"
+#include <map>
+#include <nlohmann/json.hpp>
+#include <string>
 
-class ControlsMenu : public Menu {
+class ControlsMenu : public SettingsMenu {
+  private:
+    std::unordered_map<std::string, std::string> controls;
+    std::unordered_map<std::string, std::string> controlStrings;
+    std::string projectName;
+
   public:
-    ButtonObject *backButton = nullptr;
-    ButtonObject *applyButton = nullptr;
-
-    class key {
-      public:
-        ButtonObject *button;
-        std::string control;
-        std::string controlValue;
-    };
-
-    std::vector<key> controlButtons;
-    ControlObject *settingsControl = nullptr;
-    std::string projectPath;
-    bool shouldGoBack = false;
-    ControlsMenu(std::string projPath);
+    ControlsMenu(void *userdata);
     ~ControlsMenu();
-
-    void init() override;
-    void render() override;
-    void cleanup() override;
+    void renderSettings() override;
 };

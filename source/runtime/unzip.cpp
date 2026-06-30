@@ -12,7 +12,6 @@
 #include <image.hpp>
 #include <istream>
 #include <log.hpp>
-#include <menus/loading.hpp>
 #include <random>
 #include <settings.hpp>
 #include <sys/stat.h>
@@ -27,6 +26,8 @@
 #endif
 
 #ifdef ENABLE_LOADSCREEN
+#include <menuManager.hpp>
+#include <menus/loading.hpp>
 #include <thread.hpp>
 #endif
 
@@ -151,18 +152,19 @@ bool Unzip::load() {
     Unzip::projectOpened = 0;
 
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
-
     SE_Thread projectThread;
     if (projectThread.create(projectLoaderThread, nullptr, 0x4000, 0, -1, "ProjectLoader")) {
-        Loading loading;
-        loading.init();
+        MenuManager menuManager;
+        menuManager.changeMenu(MenuID::LoadingMenu);
 
         while (!Unzip::threadFinished) {
-            loading.render();
+            menuManager.render();
+#ifdef __EMSCRIPTEN__
+            emscripten_sleep(0);
+#endif
         }
 
         projectThread.join();
-        loading.cleanup();
 
         if (Unzip::projectOpened != 1) {
             return false;

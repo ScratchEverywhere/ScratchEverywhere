@@ -35,6 +35,10 @@ static touchPosition touch;
 #define BOTTOM_SCREEN_WIDTH 256
 #define SCREEN_HEIGHT 192
 
+bool Input::isControllerConnected() {
+    return true;
+}
+
 std::array<int, 2> Input::getTouchPosition() {
     std::array<int, 2> pos = {touch.px, touch.py};
 
@@ -44,7 +48,7 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
     mousePointer.mouseButton = Mouse::LEFT;
     inputButtons.clear();
     inputKeys.clear();
@@ -93,6 +97,10 @@ void Input::getInput() {
 skipInputCheck:
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
+
+#ifdef ENABLE_MENU
+    if (menuManager) menuManager->handleInput(touchPos[0], touchPos[1], Input::mousePointer.isPressed);
+#endif
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

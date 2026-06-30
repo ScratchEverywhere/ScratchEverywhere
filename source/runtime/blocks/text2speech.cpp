@@ -100,7 +100,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 #endif
 
 #ifdef ENABLE_DECTALK
-    if (forceDectalk || SettingsManager::getConfigSettings().value("UseDectalk",
+    if (forceDectalk || SettingsManager::getConfigSettings().value("useDectalk",
 #ifdef DECTALK_DEFAULT
                                                                    true
 #else

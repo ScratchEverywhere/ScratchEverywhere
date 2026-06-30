@@ -47,7 +47,7 @@ struct SE_Mutex::Impl {
     std::mutex mtx;
 };
 
-SE_Mutex::SE_Mutex() {
+SE_Mutex::SE_Mutex() : impl(nullptr) {
     init();
 }
 

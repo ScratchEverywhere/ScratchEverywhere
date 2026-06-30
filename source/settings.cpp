@@ -14,6 +14,36 @@ void SettingsManager::migrate() {
     if (OS::getScratchFolderLocation() != OS::getConfigFolderLocation() && FileSystem::fileExists(OS::getScratchFolderLocation() + "Settings.json")) {
         FileSystem::renameFile(OS::getScratchFolderLocation() + "Settings.json", OS::getConfigFolderLocation() + "Settings.json");
     }
+
+    // Global Settings
+    std::ifstream migrationIn(OS::getConfigFolderLocation() + "Settings.json");
+    if (migrationIn.good()) {
+        nlohmann::json i;
+
+        migrationIn >> i;
+        migrationIn.close();
+
+        nlohmann::json o = i;
+
+        if (i.contains("EnableUsername") && i["EnableUsername"].is_boolean()) {
+            o["useCustomUsername"] = i["EnableUsername"];
+            o.erase("EnableUsername");
+        }
+
+        if (i.contains("Username") && i["Username"].is_string()) {
+            o["customUsername"] = i["Username"];
+            o.erase("Username");
+        }
+
+        if (i.contains("UseDectalk") && i["UseDectalk"].is_boolean()) {
+            o["useDectalk"] = i["UseDectalk"];
+            o.erase("UseDectalk");
+        }
+
+        std::ofstream migrationOut(OS::getConfigFolderLocation() + "Settings.json");
+        migrationOut << o.dump(4);
+        migrationOut.close();
+    }
 }
 
 nlohmann::json SettingsManager::getConfigSettings() {
@@ -27,7 +57,14 @@ nlohmann::json SettingsManager::getConfigSettings() {
         return json;
     }
 
-    file >> json;
+    try {
+        file >> json;
+    } catch (const nlohmann::json::parse_error &e) {
+        Log::logError("Failed to parse project settings json: " + std::string(e.what()));
+        file.close();
+        return json;
+    }
+
     file.close();
     return json;
 }
@@ -48,7 +85,14 @@ nlohmann::json SettingsManager::getProjectSettings(const std::string &projectNam
         return json;
     }
 
-    file >> json;
+    try {
+        file >> json;
+    } catch (const nlohmann::json::parse_error &e) {
+        Log::logError("Failed to parse project settings json: " + std::string(e.what()));
+        file.close();
+        return json;
+    }
+
     file.close();
 
     if (!json.is_object()) json = nlohmann::json::object();
@@ -60,4 +104,32 @@ void SettingsManager::saveProjectSettings(const nlohmann::json &json, const std:
     std::ofstream outFile(OS::getScratchFolderLocation() + projectName + ".sb3.json");
     outFile << json.dump(4);
     outFile.close();
+}
+
+bool SettingsManager::isProjectUnpacked(const std::string &projectName) {
+    nlohmann::json json;
+
+    std::ifstream file(OS::getScratchFolderLocation() + "UnpackedGames.json");
+    if (!file.good()) {
+        return false;
+    }
+
+    try {
+        file >> json;
+    } catch (const nlohmann::json::parse_error &e) {
+        Log::logError("Failed to parse project settings json: " + std::string(e.what()));
+        file.close();
+        return false;
+    }
+
+    file.close();
+
+    if (json.contains("items") && json["items"].is_array()) {
+        auto &items = json["items"];
+        if (std::find(items.begin(), items.end(), projectName) != items.end()) {
+            return true;
+        }
+    }
+
+    return false;
 }
