@@ -738,7 +738,7 @@ void Parser::loadFields(Block &block, const std::string &blockKey, const nlohman
     }
 }
 
-static constexpr std::array<std::string_view, 12> builtInExtensions = {"music", "pen", "videoSensing", "text2speech", "translate", "makeymakey", "microbit", "ev3", "boost", "wedo2", "goDirect", "coreExtensions"};
+static constexpr std::array<std::string_view, 13> builtInExtensions = {"music", "pen", "videoSensing", "text2speech", "translate", "makeymakey", "microbit", "ev3", "boost", "wedo2", "goDirect", "coreExtensions", "nishiowoDectalk"};
 
 bool Parser::loadExtensions(const nlohmann::json &json) {
     bool hasNativeExts = false;
