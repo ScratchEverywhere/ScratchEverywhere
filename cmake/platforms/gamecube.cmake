@@ -8,7 +8,7 @@ set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 set(SE_CACHING_DEFAULT OFF)
 set(SE_CMAKERC_DEFAULT ON)
 
-set(SE_ALLOW_CMAKERC ON)
+set(SE_ALLOW_CMAKERC OFF)
 set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)
 
@@ -24,4 +24,13 @@ set(SE_HAS_CONTROLLER TRUE)
 
 macro(package_platform)
 	ogc_create_dol(scratch-everywhere)
+
+	add_custom_command(TARGET scratch-everywhere POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.dol" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/boot.dol"
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/assets"
+    	COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/assets"
+		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.zip" --format=zip -- "${CMAKE_CURRENT_BINARY_DIR}/apps"
+		COMMENT "Packaging..."
+	)
 endmacro()

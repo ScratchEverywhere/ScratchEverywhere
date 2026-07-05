@@ -44,7 +44,11 @@ std::string OS::getScratchFolderLocation() {
 }
 
 std::string OS::getRomFSLocation() {
+#ifdef USE_CMAKERC
     return "";
+#else
+    return "assets/";
+#endif
 }
 
 bool OS::isOnline() {
