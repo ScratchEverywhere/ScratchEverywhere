@@ -1,5 +1,10 @@
 #include "window.hpp"
+#include <SDL_syswm.h>
+#include <libdlgmod/libdlgmod.h>
 #include <chrono>
+#if defined(SDL_VIDEO_DRIVER_X11) && ((defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
+#include <cstdlib>
+#endif
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -21,6 +26,10 @@ static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-lik
 #endif
 
 bool WindowSDL1::init(int width, int height, const std::string &title) {
+#if defined(SDL_VIDEO_DRIVER_X11) && ((defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
+    setenv("SDL_VIDEODRIVER", "x11", 1);
+#endif
+
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
         Log::logError("Failed to initialize SDL1");
         return false;
@@ -51,6 +60,18 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     this->height = height;
 
     resize(width, height);
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	SDL_SysWMinfo system_info;
+	SDL_VERSION(&system_info.version);
+	SDL_GetWMInfo(&system_info);
+#if defined(_WIN32) || defined(_WIN64)
+	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
+#elif defined(__APPLE__)
+	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
+#elif (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	widget_set_owner(std::to_string((unsigned long long)system_info.info.x11.window).c_str());
+#endif
 
     // Print SDL version number. could be useful for debugging
     SDL_version ver;
