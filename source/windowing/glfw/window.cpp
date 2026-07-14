@@ -1,5 +1,7 @@
 #include "window.hpp"
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+#include <libdlgmod/libdlgmod.h>
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -15,6 +17,10 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 }
 
 bool WindowGLFW::init(int w, int h, const std::string &title) {
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+#endif
+
     if (!glfwInit()) {
         Log::logError("Failed to initialize GLFW");
         return false;
@@ -38,6 +44,14 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     glfwGetFramebufferSize(window, &width, &height);
+
+#if defined(_WIN32) || defined(_WIN64)
+	widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWin32Window(window)).c_str());
+#elif defined(__APPLE__)
+	widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetCocoaWindow(window)).c_str());
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	widget_set_owner(std::to_string((unsigned long long)glfwGetX11Window(window)).c_str());
+#endif
 
     return true;
 }
