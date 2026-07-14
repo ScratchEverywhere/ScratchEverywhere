@@ -1,4 +1,6 @@
 #include "window.hpp"
+#include <SDL_syswm.h>
+#include <libdlgmod/libdlgmod.h>
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -27,6 +29,10 @@ SDL_Point touchPosition;
 bool WindowSDL2::init(int width, int height, const std::string &title) {
 #if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+#endif
+
+#if defined(SDL_VIDEO_DRIVER_X11) && ((defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
+    SDL_setenv("SDL_VIDEODRIVER", "x11", 1);
 #endif
 
     uint32_t sdlFlags = 0;
@@ -98,6 +104,17 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
 #endif
     resize(dw, dh);
+#endif
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+    SDL_SysWMinfo system_info;
+    SDL_VERSION(&system_info.version);
+#if defined(_WIN32) || defined(_WIN64)
+	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
+#elif defined(__APPLE__)
+	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
+#elif (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	widget_set_owner(std::to_string((unsigned long long)system_info.info.x11.window).c_str());
 #endif
 
     // Print SDL version number. could be useful for debugging
