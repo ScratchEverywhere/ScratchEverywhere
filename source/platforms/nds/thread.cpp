@@ -20,7 +20,7 @@ unsigned int SE_Thread::getCurrentThreadId() { return 0; }
 
 struct SE_Mutex::Impl {};
 
-SE_Mutex::SE_Mutex() {}
+SE_Mutex::SE_Mutex() : impl(nullptr) {}
 
 void SE_Mutex::init() {}
 

@@ -1,3 +1,4 @@
+#include "menus/menuManager.hpp"
 #include "window.hpp"
 #include <blockExecutor.hpp>
 #include <input.hpp>
@@ -30,7 +31,7 @@ std::array<int, 2> Input::getTouchPosition() {
     return {(int)x, (int)y};
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
     inputButtons.clear();
     inputKeys.clear();
     mousePointer.isPressed = input_state_cb(0, RETRO_DEVICE_MOUSE, 0, RETRO_DEVICE_ID_MOUSE_LEFT);

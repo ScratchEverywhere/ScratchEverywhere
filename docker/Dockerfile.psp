@@ -3,6 +3,8 @@ WORKDIR /app
 
 COPY . .
 
+RUN apk add --no-cache patch
+
 RUN psp-cmake -B build/psp -S . -DCMAKE_BUILD_TYPE=Release && make -C build/psp -j 2
 
 FROM scratch AS exporter

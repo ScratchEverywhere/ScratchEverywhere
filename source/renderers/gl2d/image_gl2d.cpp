@@ -93,8 +93,8 @@ void Image_GL2D::render(ImageRenderParams &params) {
     glBindTexture(GL_TEXTURE_2D, textureID);
 
     if (!centered) {
-        x += imgData.width / 2;
-        y += imgData.height / 2;
+        x += (imgData.width / 2) * scale;
+        y += (imgData.height / 2) * scale;
     }
 
     int renderScale = static_cast<int>(std::round(scale * (1 << 12)));

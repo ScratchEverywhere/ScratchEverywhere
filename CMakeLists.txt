@@ -2,13 +2,12 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 1.0.0.3 LANGUAGES CXX C)
 
-# error C7555: use of designated initializers requires at least '/std:c++20'
-if(MSVC)
-	set(CMAKE_CXX_STANDARD 20)
-else()
-	set(CMAKE_CXX_STANDARD 17)
-endif()
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC and a few other things
 
@@ -26,6 +25,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
 	endif()
 endif()
+set(CPM_SOURCE_CACHE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
@@ -142,7 +142,7 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
 
 	if(NOT selected_value IN_LIST valid_options_list)
         message(
-			FATAL_ERROR 
+			FATAL_ERROR
             "Invalid value for ${var_name}: '${selected_value}'. Must be one of: ${valid_options_list}"
         )
     endif()
@@ -204,17 +204,17 @@ if(SE_MENU)
 		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
 	)
 else()
-	if(NINTENDO_DS)
-		file(GLOB_RECURSE GFXFILES
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/Ubuntu-Bold.ttf"
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
-		)
+	file(GLOB_RECURSE GFXFILES
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
+		"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
+	)
+endif()
+
+if(SE_MENU)
+	if(SE_SMALL_FONT)
+		list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge.*")
 	else()
-		file(GLOB_RECURSE GFXFILES
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/ingame/*"
-			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/translations/*"
-		)
+		list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/RedditSansFudge-(Bold|Regular)-small\.ttf")
 	endif()
 endif()
 
@@ -222,8 +222,13 @@ if(NOT SE_SVG)
 	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/ingame/fonts/.*")
 endif()
 
-if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP)
-	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/Ubuntu-Bold.ttf")
+if(SE_MENU AND DEFINED SE_CONTROLLER_TYPE)
+	file(GLOB_RECURSE CONTROLLER_GFX
+	    "${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/controller/${SE_CONTROLLER_TYPE}/*"
+	)
+
+	list(FILTER GFXFILES EXCLUDE REGEX ".*/gfx/menu/controller/.*")
+	list(APPEND GFXFILES ${CONTROLLER_GFX})
 endif()
 
 foreach(file IN LISTS GFXFILES)
@@ -237,8 +242,9 @@ foreach(file IN LISTS GFXFILES)
     configure_file("${file}" "${DEST_PATH}" COPYONLY)
 endforeach()
 
-if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS) AND (SE_MENU OR NINTENDO_DS))
-	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
+if(SE_MENU AND SE_SMALL_FONT)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/RedditSansFudge-Regular-small.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/RedditSansFudge-Regular.ttf" COPYONLY)
+	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/menu/RedditSansFudge-Bold-small.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/RedditSansFudge-Bold.ttf" COPYONLY)
 endif()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
@@ -269,6 +275,10 @@ foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 	)
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
+
+if(NOT SE_MENU)
+    list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/clay_renderer\\.cpp$")
+endif()
 
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
@@ -370,6 +380,12 @@ if(SE_AUDIO)
 endif()
 if(SE_MENU)
 	target_compile_definitions(se-interface INTERFACE ENABLE_MENU)
+
+	if(DEFINED SE_CONTROLLER_TYPE)
+		target_compile_definitions(se-interface INTERFACE "PLATFORM_CONTROLLER_TYPE=\"${SE_CONTROLLER_TYPE}\"")
+	endif()
+
+	se_add_dependency(se-interface clay)
 endif()
 if(SE_LOADSCREEN)
 	target_compile_definitions(se-interface INTERFACE ENABLE_LOADSCREEN)

@@ -1,5 +1,8 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-3ds")
 
+set(SE_CONTROLLER_TYPE "wiiu") # Closest match
+set(SE_SMALL_FONT ON)
+
 set(SE_RENDERER_VALID_OPTIONS "citro2d")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3" "3ds")
 set(SE_AUDIO_ENGINE_DEFAULT "3ds")

@@ -1,4 +1,5 @@
 #include "log.hpp"
+#include "menus/menuManager.hpp"
 #include "window.hpp"
 #ifdef __SWITCH__
 #include <switch.h>
@@ -54,6 +55,13 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
+bool Input::isControllerConnected() {
+#ifdef PLATFORM_HAS_CONTROLLER
+    return controller && controller != nullptr;
+#endif
+    return false;
+}
+
 static constexpr SDL_GameControllerButton SDL2_GAMEPAD_KEYS[] = {
     SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP,
     SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN,
@@ -103,7 +111,8 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
+    inputKeys.clear();
     inputButtons.clear();
     inputKeys.clear();
     mousePointer.isPressed = false;
@@ -221,6 +230,7 @@ void Input::getInput() {
         OS::toExit = true;
 #endif
     }
+
     button_handler(SCRATCH_KEY_INDEX::R_STICK_PRESSED, SDL_CONTROLLER_BUTTON_INVALID);
     button_handler(SCRATCH_KEY_INDEX::L_STICK_PRESSED, SDL_CONTROLLER_BUTTON_INVALID);
     float joyLeftX = SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX);
@@ -240,6 +250,10 @@ void Input::getInput() {
     if (SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > CONTROLLER_DEADZONE_TRIGGER)
         Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::RIGHT_TRIGGER)]);
 
+#ifdef ENABLE_MENU
+    if (menuManager != nullptr && controller != nullptr && std::abs(joyRightY) >= CONTROLLER_DEADZONE_Y) Input::scrollDelta[1] = -joyRightY / 32767.0f * 0.75;
+#endif
+
     Input::leftJoystick.first = joyLeftX / 32767.0f;
     Input::leftJoystick.second = joyLeftY / 32767.0f;
     Input::rightJoystick.first = joyRightX / 32767.0f;
@@ -258,12 +272,15 @@ void Input::getInput() {
         mousePointer.isPressed = touchActive;
         mousePointer.mouseButton = Mouse::LEFT;
         BlockExecutor::doSpriteClicking();
+
+#ifdef ENABLE_MENU
+        if (menuManager != nullptr) menuManager->handleInput(touchPosition.x, touchPosition.y, touchActive);
+#endif
         return;
     }
 #endif
 
 #ifdef PLATFORM_HAS_MOUSE
-
     std::array<int, 2> rawMouse = getTouchPosition();
 
     auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
@@ -275,6 +292,10 @@ void Input::getInput() {
         mousePointer.isPressed = true;
     }
 
+#ifdef ENABLE_MENU
+    if (menuManager != nullptr) menuManager->handleInput(rawMouse[0], rawMouse[1], mousePointer.isPressed);
+#endif
+
     if (buttons & (SDL_BUTTON(SDL_BUTTON_RIGHT))) {
         mousePointer.mouseButton = Mouse::RIGHT;
     } else if (buttons & (SDL_BUTTON(SDL_BUTTON_MIDDLE))) {
@@ -284,7 +305,9 @@ void Input::getInput() {
     }
 #endif
 
-    BlockExecutor::doSpriteClicking();
+    if (!menuManager) {
+        BlockExecutor::doSpriteClicking();
+    }
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

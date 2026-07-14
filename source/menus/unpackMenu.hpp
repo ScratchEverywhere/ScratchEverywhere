@@ -1,25 +1,39 @@
 #pragma once
-#include "mainMenu.hpp"
+#include "clay.h"
+#include "image.hpp"
+#include "menu.hpp"
+#include "os.hpp"
+#include "settingsMenu.hpp"
+#include <map>
+#include <nlohmann/json.hpp>
+#include <string>
+#include <thread.hpp>
+
+struct UnpackParams {
+    std::string projectName;
+    bool deletingProject;
+};
 
 class UnpackMenu : public Menu {
-  public:
-    ControlObject *settingsControl = nullptr;
+  private:
+    SE_Thread thread;
+    UnpackParams *params;
 
-    std::unique_ptr<TextObject> infoText = nullptr;
-    std::unique_ptr<TextObject> descText = nullptr;
-
-    bool shouldGoBack = false;
-
-    std::string filename;
-
-    UnpackMenu();
-    ~UnpackMenu();
+    std::string projectName;
+    bool deletingProject;
+    Clay_String title;
+    std::string text;
 
     static void addToJsonArray(const std::string &filePath, const std::string &value);
-    static std::vector<std::string> getJsonArray(const std::string &filePath);
+
+    static void unpack(void *data);
+
+    std::vector<std::string> getJsonArray(const std::string &filePath);
+
     static void removeFromJsonArray(const std::string &filePath, const std::string &value);
 
-    void init() override;
+  public:
+    UnpackMenu(void *userdata = nullptr, const std::string &title = "Unpack Menu");
+    ~UnpackMenu();
     void render() override;
-    void cleanup() override;
 };

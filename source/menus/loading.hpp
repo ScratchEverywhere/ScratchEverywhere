@@ -1,22 +1,22 @@
 #pragma once
-#include <image.hpp>
-#include <os.hpp>
-#include <text.hpp>
 
-class Loading {
+#include "image.hpp"
+#include "menu.hpp"
+
+class LoadingMenu : public Menu {
   private:
-    std::shared_ptr<Image> block1 = nullptr;
-    std::shared_ptr<Image> block2 = nullptr;
-    std::shared_ptr<Image> block3 = nullptr;
-    std::unique_ptr<TextObject> loadingStateText;
-    Timer deltaTime;
+    std::shared_ptr<Image> block1;
+    std::shared_ptr<Image> block2;
+    std::shared_ptr<Image> block3;
+
     float block1Y;
     float block2Y;
     float block3Y;
-    bool renderBlocks = true;
+
+    Timer deltaTime;
+    float endDelayTimer;
 
   public:
-    void init();
-    void render();
-    void cleanup();
+    LoadingMenu(void *userdata);
+    void render() override;
 };

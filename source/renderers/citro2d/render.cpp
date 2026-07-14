@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "menus/menuManager.hpp"
 #include "speech_manager_c2d.hpp"
 #include <audio.hpp>
 #include <downloader.hpp>
@@ -62,7 +63,7 @@ bool Render::Init() {
     hidScanInput();
     u32 kDown = hidKeysHeld();
     if (kDown & KEY_SELECT) {
-        consoleInit(GFX_BOTTOM, NULL);
+        consoleInit(GFX_TOP, NULL);
         debugMode = true;
         isConsoleInit = true;
     }
@@ -77,6 +78,8 @@ bool Render::Init() {
 
     return true;
 }
+
+static touchPosition touch;
 
 bool Render::appShouldRun() {
     if (OS::toExit) return false;
@@ -424,7 +427,7 @@ void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool
     // }
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
     if (isConsoleInit) renderMode = RenderModes::TOP_SCREEN_ONLY;
     if (!Render::hasFrameBegan) {
         if (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -570,8 +573,11 @@ other_screen_check:
         break;
     }
 
-    C3D_FrameEnd(0);
-    C2D_Flush();
+    if (present) {
+        C3D_FrameEnd(0);
+        C2D_Flush();
+    }
+
     osSetSpeedupEnable(true);
     hasFrameBegan = false;
 }

@@ -1,5 +1,7 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-wii")
 
+set(SE_CONTROLLER_TYPE "wii")
+
 set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")

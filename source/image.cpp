@@ -409,7 +409,7 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
     if (fromScratchProject) {
         if (Unzip::UnpackedInSD) filePath = Unzip::filePath + filePath;
         else filePath = OS::getRomFSLocation() + "project/" + filePath;
-    } else filePath = OS::getRomFSLocation() + filePath;
+    }
 
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
 
