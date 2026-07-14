@@ -517,6 +517,9 @@ void Render::renderSprites() {
         screen_rendering(0, true);
 
         renderMonitors();
+        if (Render::renderMode != Render::BOTH_SCREENS) {
+            drawBlackBars(screenWidth, screenHeight);
+        }
 
         // Draw mouse pointer
         if (Input::mousePointer.isMoving) {
