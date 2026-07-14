@@ -1,5 +1,5 @@
 #include "window.hpp"
-#include "SDL3/SDL_video.h"
+#include <SDL3/SDL_video.h>
 #include <libdlgmod/libdlgmod.h>
 #include <input.hpp>
 #include <log.hpp>
