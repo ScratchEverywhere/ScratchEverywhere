@@ -36,6 +36,8 @@ char nickname[0x21];
 #include <psp2/touch.h>
 #endif
 
+// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
+
 WindowSE *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
