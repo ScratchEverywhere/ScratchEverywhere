@@ -6,6 +6,8 @@
 #include <value.hpp>
 #include <vector>
 
+
+
 SCRATCH_BLOCK(sensing, resettimer) {
     BlockExecutor::timer.start();
     return BlockResult::CONTINUE;
@@ -111,21 +113,23 @@ SCRATCH_BLOCK(sensing, distanceto) {
     return BlockResult::CONTINUE;
 }
 
+// 'Time' is a typedef in <X11/Xlib.h>: use 'TimeSE' as class name to avoid conflicts!
+
 SCRATCH_BLOCK(sensing, dayssince2000) {
-    *outValue = Value(Time::getDaysSince2000());
+    *outValue = Value(TimeSE::getDaysSince2000());
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(sensing, current) {
     std::string inputValue = Scratch::getFieldValue(*block, "CURRENTMENU");
 
-    if (inputValue == "YEAR") *outValue = Value(Time::getYear());
-    else if (inputValue == "MONTH") *outValue = Value(Time::getMonth());
-    else if (inputValue == "DATE") *outValue = Value(Time::getDay());
-    else if (inputValue == "DAYOFWEEK") *outValue = Value(Time::getDayOfWeek());
-    else if (inputValue == "HOUR") *outValue = Value(Time::getHours());
-    else if (inputValue == "MINUTE") *outValue = Value(Time::getMinutes());
-    else if (inputValue == "SECOND") *outValue = Value(Time::getSeconds());
+    if (inputValue == "YEAR") *outValue = Value(TimeSE::getYear());
+    else if (inputValue == "MONTH") *outValue = Value(TimeSE::getMonth());
+    else if (inputValue == "DATE") *outValue = Value(TimeSE::getDay());
+    else if (inputValue == "DAYOFWEEK") *outValue = Value(TimeSE::getDayOfWeek());
+    else if (inputValue == "HOUR") *outValue = Value(TimeSE::getHours());
+    else if (inputValue == "MINUTE") *outValue = Value(TimeSE::getMinutes());
+    else if (inputValue == "SECOND") *outValue = Value(TimeSE::getSeconds());
     else *outValue = Value();
     return BlockResult::CONTINUE;
 }
