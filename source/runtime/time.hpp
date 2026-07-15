@@ -1,7 +1,7 @@
 #include <stdint.h>
 typedef uint16_t u16;
 
-class Time {
+class TimeSE {
   public:
     static int getHours();
 
