@@ -36,7 +36,7 @@ char nickname[0x21];
 #include <psp2/touch.h>
 #endif
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
 SpeechManagerSDL3 *speechManager = nullptr;
