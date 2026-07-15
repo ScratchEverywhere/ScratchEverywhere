@@ -1,6 +1,8 @@
 #pragma once
 #include <window.hpp>
 
+// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
+
 class WindowHeadless : public WindowSE {
   public:
     bool init(int width, int height, const std::string &title) override { return true; }
