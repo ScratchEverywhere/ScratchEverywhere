@@ -457,6 +457,7 @@ se_add_dependency(se-interface nlohmann_json)
 se_add_dependency(se-interface miniz)
 se_add_dependency(se-interface expected-lite)
 se_add_dependency(se-interface __getexecname)
+se_add_dependency(se-interface libdlgmod)
 
 if(SE_CUSTOM_EXTENSIONS)
 	se_add_dependency(se-interface lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
