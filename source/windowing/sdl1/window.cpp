@@ -1,6 +1,8 @@
 #include "window.hpp"
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
+#endif
 #include <chrono>
 #if defined(SDL_VIDEO_DRIVER_X11) && ((defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
 #include <cstdlib>
