@@ -18,10 +18,10 @@
 #include <kits/user/User.h>
 #endif
 #endif
+#include <__getbasepath/internal.h>
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <sstream>
 #endif
-#include <__getbasepath/internal.h>
 
 namespace OS {
 bool toExit = false;
