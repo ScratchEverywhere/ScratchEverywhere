@@ -139,7 +139,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
-    if (!on_disk && !Unzip::filePath.empty()) prefix += "project/";
+    if (!on_disk && !Unzip::UnpackedInSD && !Unzip::filePath.empty()) prefix += "project/";
 
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
@@ -150,7 +150,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
         this->buffer_size = ifs.tellg();
         ifs.seekg(0);
 
-        if (!ifs) return nonstd::make_unexpected("Could not open audio file.");
+        if (!ifs) return nonstd::make_unexpected("Could not open audio file: " + prefix + path);
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         ifs.read((char *)this->buffer, this->buffer_size);

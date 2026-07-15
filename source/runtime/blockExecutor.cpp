@@ -82,6 +82,7 @@ ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block, bool shou
 
     newThread->blockHat = block;
     newThread->nextBlock = block;
+    newThread->parentThread = nullptr;
     newThread->finished = false;
     newThread->id = ++id;
     newThread->sprite = sprite;

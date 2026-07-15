@@ -331,6 +331,7 @@ void Scratch::cleanupScratchProject() {
             Pools::states.pop_back();
             if (deletedStates.insert(state).second) {
                 state->clear();
+                if (state->myBlockThread != nullptr) delete state->myBlockThread;
                 delete state;
             }
         }

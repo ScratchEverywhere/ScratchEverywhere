@@ -70,6 +70,7 @@ struct ScriptThread {
     Sprite *sprite;
     Block *blockHat;
     Block *nextBlock;
+    ScriptThread *parentThread;
     std::unordered_map<Block *, BlockState *> states;
     int finished = true;
     bool withoutScreenRefresh = false;
@@ -150,8 +151,6 @@ inline void BlockState::clear() {
     waitTimer = Timer();
     name = "";
     threads.clear();
-    if (myBlockThread != nullptr) delete myBlockThread;
-    myBlockThread = nullptr;
 }
 
 struct Variable {
