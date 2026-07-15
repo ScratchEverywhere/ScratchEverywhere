@@ -230,13 +230,16 @@ void SettingsMenu::render() {
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 		const std::string newPathGui = get_directory_alt("Select a custom path to load *.sb3 Scratch project files...", "");
 		const std::string newPath = ((newPathGui.empty()) ? Input::openSoftwareKeyboard(projectsPath.c_str()) : newPathGui);
+		if (!newPathGui.empty()) {
+			newPathGui = Input::openSoftwareKeyboard(projectsPath.c_str());
+		}
 #else
 		const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
 #endif
 
         if (newPath.length() > 0) {
             projectsPath = newPath;
-			OS::loadedSettings = false;
+
             updateButtonStates();
         }
     }
