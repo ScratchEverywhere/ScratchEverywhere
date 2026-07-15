@@ -117,7 +117,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 #elif defined(__APPLE__)
 	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
 #elif (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
-	widget_set_owner(std::to_string((unsigned long long)system_info.info.x11.window).c_str());
+	widget_set_owner(std::to_string(system_info.info.x11.window).c_str());
 #endif
 #endif
 
