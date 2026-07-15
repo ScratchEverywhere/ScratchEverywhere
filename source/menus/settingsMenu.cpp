@@ -236,7 +236,7 @@ void SettingsMenu::render() {
 
         if (newPath.length() > 0) {
             projectsPath = newPath;
-
+			OS::loadedSettings = false;
             updateButtonStates();
         }
     }
