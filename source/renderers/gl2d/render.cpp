@@ -12,6 +12,8 @@
 #include <window.hpp>
 #include <windowing/nds/window.hpp>
 
+// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
+
 WindowSE *globalWindow = nullptr;
 SpeechManagerGL2D *speechManager = nullptr;
 
