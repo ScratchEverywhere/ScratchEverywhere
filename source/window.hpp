@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 
+// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
+
 class WindowSE {
   public:
     virtual ~WindowSE() = default;
