@@ -287,7 +287,7 @@ if(SE_EXECUTABLE)
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
 
 	if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-		target_link_libraries(scratch-everywhere PRIVATE se-interface ntdll gdiplus comctl32 shlwapi comdlg32 ole32 oleaut32 uuid)
+		target_link_libraries(scratch-everywhere PRIVATE se-interface shlwapi gdiplus comctl32 comdlg32 ole32 oleaut32 uuid ntdll)
 	elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 		target_link_libraries(scratch-everywhere PRIVATE se-interface "-framework AppKit -framework UniformTypeIdentifiers")
 	elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT WEBOS)
