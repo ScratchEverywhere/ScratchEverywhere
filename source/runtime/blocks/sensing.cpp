@@ -6,8 +6,6 @@
 #include <value.hpp>
 #include <vector>
 
-
-
 SCRATCH_BLOCK(sensing, resettimer) {
     BlockExecutor::timer.start();
     return BlockResult::CONTINUE;
