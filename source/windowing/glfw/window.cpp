@@ -1,14 +1,16 @@
 #include "window.hpp"
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(GLFW_EXPOSE_NATIVE_WIN32)
     #define GLFW_EXPOSE_NATIVE_WIN32
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) && !defined(GLFW_EXPOSE_NATIVE_COCOA)
     #define GLFW_EXPOSE_NATIVE_COCOA
-#elif (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#elif ((defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(GLFW_EXPOSE_NATIVE_X11)
     #define GLFW_EXPOSE_NATIVE_X11
 #endif
 #include <GLFW/glfw3.h>
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <GLFW/glfw3native.h>
 #include <libdlgmod/libdlgmod.h>
+#endif
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
