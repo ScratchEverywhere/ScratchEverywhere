@@ -5,5 +5,5 @@ add_library(windowing_interface INTERFACE)
 
 if (APPLE)
 	execute_process(COMMAND clang "--print-runtime-dir" OUTPUT_VARIABLE CLANG_COMMAND_OUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
-	target_link_libraries(windowing_interface PUBLIC "${CLANG_COMMAND_OUTPUT}/libclang_rt.osx.a")
+	target_link_libraries(windowing_interface INTERFACE "${CLANG_COMMAND_OUTPUT}/libclang_rt.osx.a")
 endif()
