@@ -7,6 +7,6 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 se_add_dependency(windowing_interface glfw)
 
 if (APPLE)
-	execute_process(COMMAND clang "--print-runtime-dir" OUTPUT_VARIABLE CLANG_COMMAND_OUTPUT OUTPUT_STRIP_TRAILING_WHITESPACE)
-	target_link_libraries(windowing_interface INTERFACE "${CLANG_COMMAND_OUTPUT}/libclang_rt.osx.a")
+	find_library(CLANG_RT_OSX libclang_rt.osx.a PATHS "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang" "/Library/Developer/CommandLineTools/usr/lib/clang" PATH_SUFFIXES "lib/darwin")
+    target_link_libraries(windowing_interface INTERFACE ${CLANG_RT_OSX})
 endif()
