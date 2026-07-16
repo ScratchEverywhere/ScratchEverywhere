@@ -1,7 +1,4 @@
 #pragma once
-#if defined(__APPLE__)
-#define SDL_VIDEO_DRIVER_COCOA 1
-#endif
 #include <SDL3/SDL.h>
 #include <window.hpp>
 
