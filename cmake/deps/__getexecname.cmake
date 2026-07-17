@@ -10,6 +10,7 @@ function(_dep_source___getexecname)
 	endif()
 	add_library(__getexecname STATIC "${__getexecname_SOURCE_DIR}/__getbasepath/internal.cpp")
 	target_include_directories(__getexecname PUBLIC "${__getexecname_SOURCE_DIR}")
+	# linker
 	if(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
 		target_link_libraries(__getexecname PUBLIC kvm)
 	elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
