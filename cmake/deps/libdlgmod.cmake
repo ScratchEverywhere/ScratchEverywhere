@@ -8,6 +8,7 @@ function(_dep_source_libdlgmod)
 			GIT_TAG main
 		)
 	endif()
+	# compiler
 	if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		add_library(libdlgmod STATIC "${libdlgmod_SOURCE_DIR}/libdlgmod/win32/libdlgmod.cpp" "${libdlgmod_SOURCE_DIR}/libdlgmod/general/apiprocess/process.cpp" "${libdlgmod_SOURCE_DIR}/libdlgmod/general/xprocess.cpp")
 		target_include_directories(libdlgmod PUBLIC "${libdlgmod_SOURCE_DIR}/libdlgmod/general" "${libdlgmod_SOURCE_DIR}")
@@ -49,8 +50,9 @@ function(_dep_source_libdlgmod)
 		target_compile_definitions(libdlgmod PUBLIC PROCESS_GUIWINDOW_IMPL NULLIFY_STDERR)
 		set_target_properties(libdlgmod PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON POSITION_INDEPENDENT_CODE TRUE)
 	endif()
+	# linker
 	if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-		target_link_libraries(libdlgmod PUBLIC comctl32 comdlg32 ole32 oleaut32 uuid shlwapi gdiplus ntdll)
+		target_link_libraries(libdlgmod PUBLIC ntdll gdiplus comctl32 shlwapi comdlg32 ole32 oleaut32 uuid)
 	elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 		target_link_libraries(libdlgmod PUBLIC "-framework AppKit -framework UniformTypeIdentifiers")
 	elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT WEBOS)
