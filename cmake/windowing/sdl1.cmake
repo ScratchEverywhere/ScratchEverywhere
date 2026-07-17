@@ -5,18 +5,3 @@ add_library(windowing_interface INTERFACE)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 se_add_dependency(windowing_interface SDL)
-
-# compiler
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT WEBOS)
-	target_compile_definitions(windowing_interface INTERFACE USE_SDL_POLLEVENT)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-	target_compile_definitions(windowing_interface INTERFACE USE_SDL_POLLEVENT)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "DragonFly")
-	target_compile_definitions(windowing_interface INTERFACE USE_SDL_POLLEVENT)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
-	target_compile_definitions(windowing_interface INTERFACE USE_SDL_POLLEVENT)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
-	target_compile_definitions(windowing_interface INTERFACE USE_SDL_POLLEVENT)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
-	target_compile_definitions(windowing_interface INTERFACE USE_SDL_POLLEVENT)
-endif()
