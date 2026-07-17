@@ -10,7 +10,7 @@ RUN apk add --no-cache clang lld musl-dev fts cmake make git bash
 COPY --from=osxcross /osxcross /osxcross
 ENV PATH="/osxcross/bin:$PATH"
 ENV LD_LIBRARY_PATH="/osxcross/lib"
-ENV MACOSX_DEPLOYMENT_TARGET="11.0"
+ENV MACOSX_DEPLOYMENT_TARGET="14.0"
 
 COPY . .
 
