@@ -1,12 +1,9 @@
 #include "window.hpp"
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
 #endif
 #include <chrono>
-#if defined(SDL_VIDEO_DRIVER_X11) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
-#include <cstdlib>
-#endif
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -28,10 +25,6 @@ static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-lik
 #endif
 
 bool WindowSDL1::init(int width, int height, const std::string &title) {
-#if defined(SDL_VIDEO_DRIVER_X11) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
-    setenv("SDL_VIDEODRIVER", "x11", 1);
-#endif
-
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
         Log::logError("Failed to initialize SDL1");
         return false;
@@ -63,7 +56,7 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
 
     resize(width, height);
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 	SDL_SysWMinfo system_info;
 	SDL_VERSION(&system_info.version);
 	SDL_GetWMInfo(&system_info);
@@ -71,8 +64,6 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
 	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
 #elif defined(__APPLE__)
 	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
-#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
-	widget_set_owner(std::to_string((unsigned long long)(unsigned long)system_info.info.x11.window).c_str());
 #endif
 #endif
 
