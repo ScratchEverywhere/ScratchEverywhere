@@ -84,6 +84,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 
     this->width = width;
     this->height = height;
+    calculatePixelDensity();
 
 #ifdef RENDERER_OPENGL
     int dw, dh;
@@ -174,6 +175,17 @@ void WindowSDL2::pollEvents() {
     }
 }
 
+void WindowSDL2::calculatePixelDensity() {
+#ifndef __PS4__
+    int logicalW, logicalH, pixelW, pixelH;
+
+    SDL_GetWindowSize(window, &logicalW, &logicalH);
+    SDL_GetWindowSizeInPixels(window, &pixelW, &pixelH);
+
+    this->pixelDensity = static_cast<float>(pixelW) / logicalW;
+#endif
+}
+
 void WindowSDL2::swapBuffers() {
 #ifdef RENDERER_OPENGL
     SDL_GL_SwapWindow(window);
@@ -186,6 +198,9 @@ void WindowSDL2::resize(int width, int height) {
 #ifdef RENDERER_OPENGL
     glViewport(0, 0, width, height);
 #endif
+
+    calculatePixelDensity();
+
     Render::setRenderScale();
     Render::resizeSVGs();
 }
@@ -196,6 +211,10 @@ int WindowSDL2::getWidth() const {
 
 int WindowSDL2::getHeight() const {
     return height;
+}
+
+float WindowSDL2::getPixelDensity() const {
+    return pixelDensity;
 }
 
 void *WindowSDL2::getHandle() {

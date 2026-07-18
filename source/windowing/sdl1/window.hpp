@@ -1,10 +1,6 @@
 #pragma once
-#include <SDL/SDL.h>
+#include <SDL.h>
 #include <window.hpp>
-
-#ifdef RENDERER_OPENGL
-#include <GL/gl.h>
-#endif
 
 class WindowSDL1 : public Window {
   public:
@@ -18,6 +14,7 @@ class WindowSDL1 : public Window {
 
     int getWidth() const override;
     int getHeight() const override;
+    float getPixelDensity() const override;
     void *getHandle() override;
 
   private:

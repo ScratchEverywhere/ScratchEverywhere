@@ -17,6 +17,7 @@
 #include <input.hpp>
 #include <log.hpp>
 #include <math.h>
+#include <memory>
 #include <os.hpp>
 #include <render.hpp>
 #include <set>
@@ -35,6 +36,13 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#endif
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+#include <extensions/interface.hpp>
+#include <extensions/meta.hpp>
+
+std::vector<std::unique_ptr<extensions::Extension>> Scratch::extensions;
 #endif
 
 #if defined(ENABLE_DECTALK) && defined(ENABLE_AUDIO)
@@ -91,12 +99,10 @@ std::string Scratch::customUsername;
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
 bool Scratch::initializeRuntime() {
-    Log::deleteLogFile();
-    Render::debugMode = true;
-
     if (!OS::init()) {
         return false;
     }
+    Log::deleteLogFile();
     TranslationManager::loadLanguage();
     if (!Render::Init()) {
         return false;
@@ -179,8 +185,16 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         Timer scriptTimer(false);
         if (debugVars) scriptTimer.start();
 
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+        extensions::runUpdateFunctions(extensions::PRE_UPDATE);
+#endif
+
         if (checkFPS) Input::getInput();
         BlockExecutor::runThreads();
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+        extensions::runUpdateFunctions(extensions::POST_UPDATE);
+#endif
 
 #ifdef ENABLE_INSPECTOR
         Inspector::processCommands();
@@ -197,10 +211,18 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             speechManager->update();
         }
         if (checkFPS) {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+            extensions::runUpdateFunctions(extensions::PRE_RENDER);
+#endif
+
             Render::renderSprites();
             Scratch::flushCostumeImages();
 
             if (debugVars) stageSprite->variables["SE!__FPS"].value = Value(std::to_string(std::clamp(static_cast<int>(currentFPS), 0, FPS)));
+
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+            extensions::runUpdateFunctions(extensions::POST_RENDER);
+#endif
         }
 #ifdef ENABLE_MENU
 
@@ -264,6 +286,10 @@ bool Scratch::startScratchProject() {
 }
 
 void Scratch::cleanupScratchProject() {
+#ifdef ENABLE_CUSTOM_EXTENSIONS
+    extensions::cleanup();
+#endif
+
     Scratch::cleanupSprites();
     costumeImages.clear();
     Mixer::cleanupAudio();
@@ -305,6 +331,7 @@ void Scratch::cleanupScratchProject() {
             Pools::states.pop_back();
             if (deletedStates.insert(state).second) {
                 state->clear();
+                if (state->myBlockThread != nullptr) delete state->myBlockThread;
                 delete state;
             }
         }
@@ -650,7 +677,8 @@ void Scratch::sortSprites() {
 }
 
 void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
-    const std::string &costumeName = sprite->costumes[sprite->currentCostume].fullName;
+    Costume &costume = sprite->costumes[sprite->currentCostume];
+    const std::string &costumeName = costume.fullName;
 
     auto it = costumeImages.find(costumeName);
     if (it != costumeImages.end()) {
@@ -668,11 +696,13 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
             freeUnusedCostumeImages();
             failedImages.insert(costumeName);
         }
+        sprite->spriteWidth = 0;
+        sprite->spriteHeight = 0;
     };
 
     float scale = (sprite->size / 100);
     if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
-    const bool shouldDownscale = bitmapHalfQuality;
+    const bool shouldDownscale = bitmapHalfQuality && costume.bitmapResolution == 2;
 
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
@@ -693,6 +723,12 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     if (image) {
         sprite->spriteWidth = image->getWidth();
         sprite->spriteHeight = image->getHeight();
+        if (costume.rotationCenterX == 0) {
+            costume.rotationCenterX = sprite->spriteWidth / 2;
+        }
+        if (costume.rotationCenterY == 0) {
+            costume.rotationCenterY = sprite->spriteHeight / 2;
+        }
         costumeImages[costumeName] = image;
     }
 }
@@ -747,7 +783,7 @@ std::string Scratch::getListName(Block &block) {
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
     std::string listId = Scratch::getFieldId(block, "LIST");
     Sprite *targetSprite = nullptr;
-    if (sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
+    if (sprite != nullptr && sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
     if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite;
     if (!targetSprite) {
         for (const auto &[id, list] : stageSprite->lists) {
@@ -757,15 +793,17 @@ std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
                 break;
             }
         }
-        for (const auto &[id, list] : sprite->lists) {
-            if (list.name == getListName(block)) {
-                listId = list.id;
-                targetSprite = sprite;
-                break;
+        if (sprite != nullptr) {
+            for (const auto &[id, list] : sprite->lists) {
+                if (list.name == getListName(block)) {
+                    listId = list.id;
+                    targetSprite = sprite;
+                    break;
+                }
             }
         }
     }
-    if (!targetSprite) {
+    if (!targetSprite && sprite) {
         List newList;
         newList.id = listId;
         newList.name = getListName(block);

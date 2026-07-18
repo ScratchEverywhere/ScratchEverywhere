@@ -13,5 +13,6 @@ class WindowHeadless : public Window {
 
     int getWidth() const override { return 0; }
     int getHeight() const override { return 0; }
+    float getPixelDensity() const override { return 1.0f; }
     void *getHandle() override { return nullptr; }
 };

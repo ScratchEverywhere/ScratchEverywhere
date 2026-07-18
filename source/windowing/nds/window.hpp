@@ -15,6 +15,7 @@ class WindowNDS : public Window {
 
     int getWidth() const override;
     int getHeight() const override;
+    float getPixelDensity() const override;
     void *getHandle() override;
 
   private:

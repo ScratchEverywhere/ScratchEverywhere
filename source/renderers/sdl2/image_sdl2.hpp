@@ -1,6 +1,6 @@
 #pragma once
 #include "nonstd/expected.hpp"
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #include <image.hpp>
 #include <string>
 

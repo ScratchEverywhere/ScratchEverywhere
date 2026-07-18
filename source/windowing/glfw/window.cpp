@@ -75,6 +75,10 @@ int WindowGLFW::getHeight() const {
     return height;
 }
 
+float WindowGLFW::getPixelDensity() const {
+    return 1.0f;
+}
+
 void *WindowGLFW::getHandle() {
     return window;
 }

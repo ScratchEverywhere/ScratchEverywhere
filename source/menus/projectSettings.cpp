@@ -238,8 +238,8 @@ void ProjectSettings::render() {
         return;
     }
 
-    Render::beginFrame(0, 50, 77, 83);
-    Render::beginFrame(1, 50, 77, 83);
+    Render::beginFrame(0, 147, 138, 168);
+    Render::beginFrame(1, 147, 138, 168);
 
     // changeControlsButton->render();
     // if (canUnpacked) UnpackProjectButton->render();

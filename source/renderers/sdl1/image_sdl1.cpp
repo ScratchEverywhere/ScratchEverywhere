@@ -1,8 +1,8 @@
 #include "image_sdl1.hpp"
 #include "nonstd/expected.hpp"
 #include "render.hpp"
-#include <SDL/SDL_gfxBlitFunc.h>
-#include <SDL/SDL_rotozoom.h>
+#include <SDL_gfxBlitFunc.h>
+#include <SDL_rotozoom.h>
 #include <algorithm>
 #include <cctype>
 #include <cstddef>

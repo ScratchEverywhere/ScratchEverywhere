@@ -89,6 +89,10 @@ int Render::getHeight() {
     return SCREEN_HEIGHT;
 }
 
+float Render::getPixelDensity() {
+    return 1.0f;
+}
+
 bool Render::initPen() {
     return false;
 }

@@ -44,7 +44,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
             else
                 strm = new SoundStream(Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, state->name);
             if (strm->error.has_value()) {
-                Log::logError(strm->error.value());
+                Log::logError("[Sound] " + strm->error.value());
                 delete strm;
             }
         }
@@ -102,7 +102,7 @@ SCRATCH_BLOCK(sound, play) {
         else
             strm = new SoundStream(Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, soundFullName);
         if (strm->error.has_value()) {
-            Log::logError(strm->error.value());
+            Log::logError("[Sound] " + strm->error.value());
             delete strm;
             return BlockResult::CONTINUE;
         }
@@ -184,9 +184,6 @@ SCRATCH_BLOCK(sound, cleareffects) {
 }
 
 SCRATCH_BLOCK(sound, changevolumeby) {
-    BlockState *state = thread->getState(block);
-    if (state->completedSteps != 0) return BlockResult::CONTINUE;
-
     Value volume;
     if (!Scratch::getInput(block, "VOLUME", thread, sprite, volume)) return BlockResult::REPEAT;
 
@@ -195,15 +192,10 @@ SCRATCH_BLOCK(sound, changevolumeby) {
     for (Sound sound : sprite->sounds) {
         Mixer::setSoundVolume(sound.fullName, sprite->volume + inputValue);
     }
-
-    state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
 
 SCRATCH_BLOCK(sound, setvolumeto) {
-    BlockState *state = thread->getState(block);
-    if (state->completedSteps != 0) return BlockResult::CONTINUE;
-
     Value volume;
     if (!Scratch::getInput(block, "VOLUME", thread, sprite, volume)) return BlockResult::REPEAT;
 
@@ -212,8 +204,6 @@ SCRATCH_BLOCK(sound, setvolumeto) {
         Mixer::setSoundVolume(sound.fullName, inputValue);
     }
     sprite->volume = inputValue;
-
-    state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
 

@@ -18,7 +18,7 @@
 #include <kits/user/User.h>
 #endif
 #endif
-#include <__getexecname/internal.h>
+#include <__getbasepath/internal.h>
 
 namespace OS {
 bool toExit = false;
@@ -90,22 +90,43 @@ std::string OS::getScratchFolderLocation() {
     const std::string custom = getCustomScratchFolderLocation();
     if (!custom.empty()) return custom;
 
-    const char *execname = __getexecname();
-    if (execname) {
-        std::string execpath = execname;
-        size_t pos = execpath.find_last_of("/\\");
-        if (pos != std::string::npos) {
+    const char *basepath = __getbasepath();
+    std::string cpp_basepath = basepath ? basepath : "";
 #if defined(_WIN32) || defined(_WIN64)
-            return execpath.substr(0, pos + 1) + "scratch-everywhere\\";
-#else
-            return execpath.substr(0, pos + 1) + "scratch-everywhere/";
-#endif
+    return cpp_basepath + "scratch-everywhere\\";
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+    const char *path = std::getenv("PATH");
+    if (path && path[0] != '\0') {
+        std::string str(path);
+        std::string buf;
+        std::stringstream ss(str);
+
+        std::vector<std::string> tokens;
+
+        while (getline(ss, buf, ':')) {
+            tokens.push_back(buf);
+        }
+
+        cpp_basepath.pop_back();
+
+        if (std::find(tokens.begin(), tokens.end(), cpp_basepath) != tokens.end()) {
+            const char *xdgData = std::getenv("XDG_DATA_HOME");
+            if (xdgData && xdgData[0] != '\0') {
+                return (std::filesystem::path(xdgData) / "scratch-everywhere" / "").string();
+            } else {
+                const char *home = std::getenv("HOME");
+                if (!home) {
+                    struct passwd *pw = getpwuid(getuid());
+                    if (pw) home = pw->pw_dir;
+                }
+                if (home) return (std::filesystem::path(home) / ".local" / "share" / "scratch-everywhere" / "").string();
+            }
+        } else {
+            return cpp_basepath + "/scratch-everywhere/";
         }
     }
-#if defined(_WIN32) || defined(_WIN64)
-    return "scratch-everywhere\\";
 #else
-    return "scratch-everywhere/";
+    return cpp_basepath + "scratch-everywhere/";
 #endif
 }
 

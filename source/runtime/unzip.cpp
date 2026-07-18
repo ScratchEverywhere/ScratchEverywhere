@@ -141,7 +141,7 @@ void projectLoaderThread(void *data) {
 void loadInitialImages() {
     Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
     for (auto &currentSprite : Scratch::sprites) {
-        if (!currentSprite->visible || currentSprite->ghostEffect == 100) continue;
+
         Scratch::loadCurrentCostumeImage(currentSprite);
     }
 }
@@ -154,8 +154,6 @@ bool Unzip::load() {
 
     SE_Thread projectThread;
     if (projectThread.create(projectLoaderThread, nullptr, 0x4000, 0, -1, "ProjectLoader")) {
-        projectThread.detach();
-
         Loading loading;
         loading.init();
 
@@ -226,81 +224,40 @@ void Unzip::openScratchProject(void *arg) {
 }
 
 std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
-    std::vector<std::string> projectFiles;
     struct stat dirStat;
 
     if (stat(directory.c_str(), &dirStat) != 0) {
         Log::logWarning("Directory does not exist! " + directory);
         auto potentialError = FileSystem::createDirectory(directory);
         if (!potentialError.has_value()) Log::logWarning("Failed to create directory, " + directory + ", " + potentialError.error());
-        return projectFiles;
+        return {};
     }
 
     if (!(dirStat.st_mode & S_IFDIR)) {
         Log::logWarning("Path is not a directory! " + directory);
-        return projectFiles;
+        return {};
     }
 
-#ifdef _WIN32
-    std::wstring wdirectory(directory.size(), L' ');
-    wdirectory.resize(std::mbstowcs(&wdirectory[0], directory.c_str(), directory.size()));
-    if (wdirectory.back() != L'\\') wdirectory += L"\\";
-    wdirectory += L"*";
-
-    WIN32_FIND_DATAW find_data;
-    HANDLE hfind = FindFirstFileW(wdirectory.c_str(), &find_data);
-
-    do {
-        std::wstring wname(find_data.cFileName);
-
-        if (wcscmp(wname.c_str(), L".") == 0 || wcscmp(wname.c_str(), L"..") == 0)
-            continue;
-
-        if (!(find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-            const wchar_t *ext = wcsrchr(wname.c_str(), L'.');
-            if (ext && _wcsicmp(ext, L".sb3") == 0) {
-                std::string name(wname.size(), ' ');
-                name.resize(std::wcstombs(&name[0], wname.c_str(), wname.size()));
-                projectFiles.push_back(name);
-            }
-        }
-    } while (FindNextFileW(hfind, &find_data));
-
-    FindClose(hfind);
-#else
-    DIR *dir = opendir(directory.c_str());
-    if (!dir) {
-        Log::logWarning("Failed to open directory: " + std::string(strerror(errno)));
-        return projectFiles;
+    auto projectFiles = FileSystem::listDirectory(directory);
+    if (!projectFiles.has_value()) {
+        Log::logError("Error while reading project files: " + projectFiles.error());
+        return {};
     }
 
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
+    projectFiles.value().erase(std::remove_if(projectFiles.value().begin(), projectFiles.value().end(), [](std::string file) {
+                                   if (file.size() < 4) return true;
+                                   return file.compare(file.size() - 4, 4, ".sb3") != 0;
+                               }),
+                               projectFiles.value().end());
 
-        std::string fullPath = directory + entry->d_name;
-
-        struct stat fileStat;
-        if (stat(fullPath.c_str(), &fileStat) == 0 && S_ISREG(fileStat.st_mode)) {
-            const char *ext = strrchr(entry->d_name, '.');
-            if (ext && strcmp(ext, ".sb3") == 0) {
-                projectFiles.push_back(entry->d_name);
-            }
-        }
-    }
-
-    closedir(dir);
-#endif
-
-    std::sort(projectFiles.begin(), projectFiles.end(), [](const std::string &a, const std::string &b) {
+    std::sort(projectFiles.value().begin(), projectFiles.value().end(), [](const std::string &a, const std::string &b) {
         return std::lexicographical_compare(
             a.begin(), a.end(),
             b.begin(), b.end(),
             [](char x, char y) { return std::tolower(x) < std::tolower(y); });
     });
 
-    return projectFiles;
+    return projectFiles.value();
 }
 
 void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {

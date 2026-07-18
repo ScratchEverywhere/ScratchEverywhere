@@ -11,6 +11,6 @@ function(_dep_source___getexecname)
 		)
 	endif()
 
-	add_library(__getexecname STATIC ${__getexecname_SOURCE_DIR}/__getexecname/internal.cpp)
+	add_library(__getexecname STATIC ${__getexecname_SOURCE_DIR}/__getbasepath/internal.cpp)
 	target_include_directories(__getexecname PUBLIC ${__getexecname_SOURCE_DIR})
 endfunction()

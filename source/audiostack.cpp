@@ -139,6 +139,8 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
+    if (!on_disk && !Unzip::UnpackedInSD && !Unzip::filePath.empty()) prefix += "project/";
+
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
 #endif
@@ -148,7 +150,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
         this->buffer_size = ifs.tellg();
         ifs.seekg(0);
 
-        if (!ifs) return nonstd::make_unexpected("Could not open audio file.");
+        if (!ifs) return nonstd::make_unexpected("Could not open audio file: " + prefix + path);
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         ifs.read((char *)this->buffer, this->buffer_size);
@@ -184,7 +186,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 
 SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
     auto potentialError = init(path, cached, on_disk);
-    if (error.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate) {
@@ -300,7 +302,7 @@ bool Mixer::musicInitialized = false;
 
 void Mixer::initMusic() {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
-    if(Mixer::musicInitialized) return;
+    if (Mixer::musicInitialized) return;
 
     std::string prefix = OS::getRomFSLocation();
     std::string path = prefix + "gfx/ingame/scratch.sf2";

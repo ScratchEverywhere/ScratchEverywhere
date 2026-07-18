@@ -20,10 +20,6 @@
 #include <switch.h>
 #endif
 
-#ifdef RENDERER_SDL2
-#include <SDL2/SDL.h>
-#endif
-
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #include <emscripten_browser_file.h>
@@ -66,22 +62,27 @@ bool activateMainMenu() {
 
 void mainLoop() {
     Scratch::startScratchProject();
+
     if (Scratch::nextProject) {
         Log::log(Unzip::filePath);
-        if (!Unzip::load()) {
-            if (Unzip::projectOpened == -3) { // main menu
-                if (!activateMainMenu()) {
-                    exitApp();
-                    exit(0);
-                }
-            } else {
-                exitApp();
-                exit(0);
-            }
+        if (Unzip::load()) {
+            goto skipCheck;
         }
 
+        if (Unzip::projectOpened != -3) { // main menu
+            exitApp();
+            exit(0);
+        }
+
+        if (!activateMainMenu()) {
+            exitApp();
+            exit(0);
+        }
+
+    skipCheck:
         return;
     }
+
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
@@ -91,7 +92,7 @@ void mainLoop() {
     }
 }
 
-#ifdef WINDOWING_SDL1
+#if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
 
 extern "C" int main(int argc, char **argv) {

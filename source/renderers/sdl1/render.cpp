@@ -1,9 +1,9 @@
 #include "render.hpp"
 #include "speech_manager_sdl1.hpp"
-#include <SDL/SDL.h>
-#include <SDL/SDL_gfxBlitFunc.h>
-#include <SDL/SDL_gfxPrimitives.h>
-#include <SDL/SDL_rotozoom.h>
+#include <SDL.h>
+#include <SDL_gfxBlitFunc.h>
+#include <SDL_gfxPrimitives.h>
+#include <SDL_rotozoom.h>
 #include <algorithm>
 #include <audio.hpp>
 #include <cmath>
@@ -94,6 +94,10 @@ int Render::getWidth() {
 int Render::getHeight() {
     if (globalWindow) return globalWindow->getHeight();
     return 405;
+}
+
+float Render::getPixelDensity() {
+    return 1.0f;
 }
 
 bool Render::initPen() {

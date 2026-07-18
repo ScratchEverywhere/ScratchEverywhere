@@ -1,5 +1,6 @@
 #pragma once
 #include "value.hpp"
+#include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -69,6 +70,7 @@ struct ScriptThread {
     Sprite *sprite;
     Block *blockHat;
     Block *nextBlock;
+    ScriptThread *parentThread;
     std::unordered_map<Block *, BlockState *> states;
     int finished = true;
     bool withoutScreenRefresh = false;
@@ -149,8 +151,6 @@ inline void BlockState::clear() {
     waitTimer = Timer();
     name = "";
     threads.clear();
-    if (myBlockThread != nullptr) delete myBlockThread;
-    myBlockThread = nullptr;
 }
 
 struct Variable {
@@ -195,13 +195,12 @@ struct ParsedField {
     std::string id;
 };
 
-using BlockFunc = BlockResult (*)(Block *, ScriptThread *, Sprite *, Value *);
+using BlockFunc = std::function<BlockResult(Block *, ScriptThread *, Sprite *, Value *)>;
 
 struct Block {
     Block *nextBlock = nullptr;
     std::string opcode = "";
     BlockFunc blockFunction = nullptr;
-
     Block *MyBlockDefinitionID = nullptr;
     std::vector<std::string> argumentIDs;
     std::vector<std::string> argumentNames;

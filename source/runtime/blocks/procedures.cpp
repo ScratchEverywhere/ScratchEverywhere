@@ -40,6 +40,7 @@ SCRATCH_BLOCK(procedures, call) {
         }
         newThread->blockHat = block->MyBlockDefinitionID;
         newThread->nextBlock = block->MyBlockDefinitionID;
+        newThread->parentThread = thread;
         newThread->withoutScreenRefresh = !thread->withoutScreenRefresh ? block->MyBlockWithoutScreenRefresh : true;
         newThread->finished = false;
         newThread->returnValue = Value();

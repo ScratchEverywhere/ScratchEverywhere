@@ -12,6 +12,8 @@ Value::Value(std::string val) : value(std::move(val)) {}
 
 Value::Value(bool val) : value(val) {}
 
+Value::Value(Color val) : value(val) {}
+
 Value::Value(Undefined val) : value(val) {}
 
 double Value::asDouble() const {

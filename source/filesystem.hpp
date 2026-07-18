@@ -34,4 +34,11 @@ bool fileExists(const std::string &path);
  * @return The parent path of the given path.
  */
 std::string parentPath(const std::string &path);
+
+/**
+ * List all files in a directory.
+ * @param path The path of the directory.
+ * @return A vector containing all files and folders within the directory.
+ */
+nonstd::expected<std::vector<std::string>, std::string> listDirectory(const std::string &path);
 }; // namespace FileSystem

@@ -138,7 +138,7 @@ SCRATCH_BLOCK(control, stop) {
     };
     if (stopType == "other scripts in sprite") {
         for (ScriptThread *t : BlockExecutor::threads) {
-            if (thread == t || t->sprite != sprite) continue;
+            if (thread == t || thread->parentThread == t || t->sprite != sprite) continue;
             t->finished = true;
         }
         for (Sound sound : sprite->sounds)

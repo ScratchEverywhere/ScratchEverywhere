@@ -1,0 +1,136 @@
+Créé par NateXS!
+Plus de 20 contributeurs!
+Essayez aussi TurboWarp!
+Essayez aussi PenguinMod!
+Essayez aussi Snail IDE!
+Essayez aussi Electramod!
+Essayez aussi tous les autres clones de Scratch!
+Soutenez la Fondation Scratch!
+C'est magique!
+Scratch EVERYWHERE!??
+Oui, EVERYWHERE!!
+C'est sur votre {PlatformName}!
+De la magie pour votre {PlatformName}!
+Directement sur votre {PlatformName}!
+Sur votre {PlatformName}!
+Oooh, belle {PlatformName} vous l'avez ici ! Puis-je l'avoir ?
+{PlatformName} sur Scratch ! ... Attendez, ce n'est pas ça.
+...même sur votre {PlatformName}!
+{PlatformName} Édition!
+{PlatformName}!
+Bientôt disponible sur une console près de chez vous !
+Tout exécuter, tout!
+Scratch est le nouveau Doom!
+"C'est point com!"
+;
+Ce texte d'accueil a été dévoré par un kumquat maléfique. 
+Et les poings!
+0.1 + 0.2 = 0.30000000000000004!
+uiText.titleScreen.splashText14
+TEXTE D'ACCUEIL DRÔLE ET/OU INTELLIGENT
+Vous allez adorer!
+Magique!
+Essayez-le, {UserName}!!!!
+J'ai des démangeaisons partout, que dois-je faire? Ah oui...
+Rejoignez le serveur Discord!
+Contribuez sur GitHub!
+Logiciel libre!
+Anciennement Scratch-3DS!
+Exécution par NateXS!
+Portage 3DS par NateXS!
+Portage DS par NateXS!
+Portage Wii par NateXS!
+Portage PSP par NateXS!
+Portage GameCube par NateXS!
+Par beaucoup de gens!
+Portage Wii U par Grady Link!
+Portage Switch par Grady Link!
+Portage web par Grady Link!
+Portage PS Vita par Dogo6647!
+Portage webOS par Dogo6647!
+Portage PS4 par PwLDev!
+Portage SDL1 par Leap!
+Portage OpenGL par Leap!
+Portage libretro par Nishi!
+Musique du menu par Dogo6647!
+Depuis 2025!
+C++!
+devkitPro!
+vitasdk!
+SDL!
+Ça marche! (la plupart du temps...)
+Waouh.
+La Wii va-t-elle avoir un problème?
+Bêta!
+Déjà vu!
+Jouons, {UserName}!
+Wooh, TurboWarp!
+Wooh, ScratchBox!
+Wooh, softwaregore!
+Wooh, fockerdile - je veux dire dockerfile!
+Vu sur YouTube!
+Approuvé par PolyMars!
+Peut contenir des noix!
+À quoi vous attendez-vous?
+(Point d'exclamation requis!)
+Salut, {UserName}!
+Je te vois, {UserName}.
+Regarde {UserName} jouer sur sa {PlatformName}!
+op op op :itchytongue: 
+BAAANG UNE AUTRE JOURNÉE AU BUREAU BÉBÉ
+ENCORE UNE JOURNÉE AU BUREAU BÉBÉ
+BAAAAANG!!!!!
+BIEN SÛR QUE ÇA ALLAIT CASSER À NOUVEAU
+Encore une fois, le sophisme du jeu du marteau
+AJOUT D'UNE AMÉLIORATION CONSIDÉRABLE DES PERFORMANCES
+Bugs non inclus!
+Nous mangeons tous les bugs!
+Nous corrigeons tous les bugs!
+Sans bugs!
+Il est sans bugs™!
+Il est sans bugs!
+Sans bugs sur votre {PlatformName}!
+Il est sans bugs sur {PlatformName}!
+Décomposition des bords
+Waouh, ce Nate a des flipnotes vraiment sympas
+Hopper Heroes!
+Il peut faire fonctionner Hopper Heroes!
+Il peut tout faire fonctionner!
+Tout!
+Que fait la lune ?
+Que fait Itchy ?
+Qu'est-ce que {UserName} fait?
+Qu'es ce que votre {PlatformName} fait?
+Qu'est-ce que tu fais ?
+De nombreux commits et ce n'est pas fini!
+De nombreux portages et ce n'est pas fini!
+De nombreux contributeurs et ce n'est pas fini!
+De nombreuses étoiles et ce n'est pas fini!
+Beaucoup de forks et ce n'est pas fini!
+Miaou!
+Miau! ^.^
+Mrow! =^..^=
+Miau...
+Mrow...
+Miiaou!
+28245 av. J.-C. ronronnement miau miaulement?
+Le 2 mai, le jour où tout a commencé!
+Les rêves ne meurent jamais!
+PAS pour l'Atari!
+PAS pour votre calculatrice!
+PAS pour votre grille-pain!
+Trop puissant pour un grille-pain!
+NateXS!
+Grady Link!
+PwL!
+Dogo!
+Br0tcraft!
+Leap!
+Rocco!
+Luarpri!
+NishiOwO!
+Extrems!
+DevelopCMD!
+poipole!
+turbofart
+penguinpoop

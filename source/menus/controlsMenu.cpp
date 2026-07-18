@@ -1,4 +1,5 @@
 #include "controlsMenu.hpp"
+#include "sprite.hpp"
 #include "translation.hpp"
 #include <log.hpp>
 #include <settings.hpp>
@@ -27,14 +28,20 @@ void ControlsMenu::init() {
 
     for (auto &block : Scratch::blocks) {
         std::string buttonCheck;
-        if (block->opcode == "sensing_keyoptions") {
-            buttonCheck = block->fields["KEY_OPTION"].value;
+        if (block->opcode == "sensing_keypressed") {
+            if (block->inputs["KEY_OPTION"].inputType == ParsedInput::VALUE) {
+                buttonCheck = block->inputs["KEY_OPTION"].value.asString();
+            }
         } else if (block->opcode == "event_whenkeypressed") {
             buttonCheck = block->fields["KEY_OPTION"].value;
-        } else if (block->opcode == "makeymakey_menu_KEY") {
-            buttonCheck = block->fields["KEY"].value;
-        } else if (block->opcode == "makeymakey_menu_SEQUENCE") {
-            std::string input = block->fields["SEQUENCE"].value;
+        } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
+            if (block->inputs["KEY"].inputType == ParsedInput::VALUE) {
+                buttonCheck = block->inputs["KEY"].value.asString();
+            }
+        } else if (block->opcode == "makeymakey_whenCodePressed") {
+            if (block->inputs["SEQUENCE"].inputType != ParsedInput::VALUE) continue;
+
+            std::string input = block->inputs["SEQUENCE"].value.asString();
             size_t start = 0;
             size_t end;
             while ((end = input.find(' ', start)) != std::string::npos) {
@@ -59,6 +66,13 @@ void ControlsMenu::init() {
     }
 
     Scratch::cleanupScratchProject();
+
+    if (controls.empty()) {
+        Log::logWarning("No controls found in project");
+        MenuManager::changeMenu(MenuManager::previousMenu);
+        return;
+    }
+
     Render::renderMode = Render::BOTH_SCREENS;
 
     settingsControl = new ControlObject();
@@ -69,12 +83,6 @@ void ControlsMenu::init() {
     applyButton->needsToBeSelected = false;
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
-
-    if (controls.empty()) {
-        Log::logWarning("No controls found in project");
-        MenuManager::changeMenu(MenuManager::previousMenu);
-        return;
-    }
 
     double yPosition = 100;
     for (auto &control : controls) {
@@ -147,22 +155,22 @@ void ControlsMenu::render() {
     if (settingsControl->selectedObject->isPressed()) {
 
         // wait till A isnt pressed
-        while (!Input::inputButtons.empty() && Render::appShouldRun()) {
+        while (!Input::inputKeys.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
 
-        while (Input::inputButtons.empty() && Render::appShouldRun()) {
+        while (Input::inputKeys.empty() && Render::appShouldRun()) {
             Input::getInput();
         }
-        if (!Input::inputButtons.empty()) {
+        if (!Input::inputKeys.empty()) {
 
             // remove "any" first
-            auto it = std::find(Input::inputButtons.begin(), Input::inputButtons.end(), "any");
-            if (it != Input::inputButtons.end()) {
-                Input::inputButtons.erase(it);
+            auto it = std::find(Input::inputKeys.begin(), Input::inputKeys.end(), "any");
+            if (it != Input::inputKeys.end()) {
+                Input::inputKeys.erase(it);
             }
 
-            std::string key = Input::inputButtons.back();
+            std::string key = Input::inputKeys.back();
             for (const auto &pair : Input::inputControls) {
                 if (pair.second == key) {
                     // Update the control value
