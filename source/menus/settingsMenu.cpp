@@ -232,12 +232,7 @@ void SettingsMenu::render() {
     if (ChangeFolderPath->isPressed({"a"})) {
 #if defined(USE_LIBDLGMOD)
 		const std::string newPathGui = get_directory_alt("Select a custom path to load *.sb3 Scratch project files...", "");
-		std::string newPath;
-		if (newPathGui.empty()) {
-			newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
-		} else {
-			newPath = newPathGui;
-		}
+		const std::string newPath = ((newPathGui.empty()) ? Input::openSoftwareKeyboard(projectsPath.c_str()) : newPathGui);
 #else
 		const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
 #endif
