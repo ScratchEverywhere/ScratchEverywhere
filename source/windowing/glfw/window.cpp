@@ -4,10 +4,8 @@
     #define GLFW_EXPOSE_NATIVE_COCOA
 #endif
 #include "window.hpp"
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <GLFW/glfw3native.h>
-#endif
 #include <libdlgmod/libdlgmod.h>
 #endif
 #include <algorithm>
