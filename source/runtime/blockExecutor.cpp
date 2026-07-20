@@ -329,7 +329,7 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
                 for (const auto &[paramName, paramValue] : var.parameters) {
                     ParsedField parsedField;
                     parsedField.value = Math::removeQuotations(paramValue);
-                    (newBlock.fields)[paramName] = parsedField;
+                    newBlock.fields.push_back({paramName, parsedField});
                 }
                 if (var.opcode == "looks_costumenumbername")
                     var.displayName = var.spriteName + ": costume " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");

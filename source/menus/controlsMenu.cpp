@@ -29,30 +29,33 @@ void ControlsMenu::init() {
     for (auto &block : Scratch::blocks) {
         std::string buttonCheck;
         if (block->opcode == "sensing_keypressed") {
-            if (block->inputs["KEY_OPTION"].inputType == ParsedInput::VALUE) {
-                buttonCheck = block->inputs["KEY_OPTION"].value.asString();
+            const ParsedInput *input = Scratch::getInput(block, "KEY_OPTION");
+            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
+                buttonCheck = input->value.asString();
             }
         } else if (block->opcode == "event_whenkeypressed") {
-            buttonCheck = block->fields["KEY_OPTION"].value;
+            buttonCheck = Scratch::getFieldValue(*block, "KEY_OPTION");
         } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
-            if (block->inputs["KEY"].inputType == ParsedInput::VALUE) {
-                buttonCheck = block->inputs["KEY"].value.asString();
+            const ParsedInput *input = Scratch::getInput(block, "KEY");
+            if (input != nullptr && input->inputType == ParsedInput::VALUE) {
+                buttonCheck = input->value.asString();
             }
         } else if (block->opcode == "makeymakey_whenCodePressed") {
-            if (block->inputs["SEQUENCE"].inputType != ParsedInput::VALUE) continue;
+            const ParsedInput *input = Scratch::getInput(block, "SEQUENCE");
+            if (input == nullptr || input->inputType != ParsedInput::VALUE) continue;
 
-            std::string input = block->inputs["SEQUENCE"].value.asString();
+            std::string inputSequence = input->value.asString();
             size_t start = 0;
             size_t end;
-            while ((end = input.find(' ', start)) != std::string::npos) {
-                buttonCheck = input.substr(start, end - start);
+            while ((end = inputSequence.find(' ', start)) != std::string::npos) {
+                buttonCheck = inputSequence.substr(start, end - start);
                 if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                     Log::log("Found new control: " + buttonCheck);
                     controls.push_back(buttonCheck);
                 }
                 start = end + 1;
             }
-            buttonCheck = input.substr(start);
+            buttonCheck = inputSequence.substr(start);
             if (buttonCheck != "" && std::find(controls.begin(), controls.end(), buttonCheck) == controls.end()) {
                 Log::log("Found new control: " + buttonCheck);
                 controls.push_back(buttonCheck);

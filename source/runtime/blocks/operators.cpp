@@ -8,8 +8,8 @@
 
 SCRATCH_BLOCK(operator, add) {
     Value num1, num2;
-    if (!Scratch::getInput(block, "NUM1", thread, sprite, num1) ||
-        !Scratch::getInput(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NUM1", thread, sprite, num1) ||
+        !Scratch::getInputValue(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
     *outValue = num1 + num2;
 
     return BlockResult::CONTINUE;
@@ -17,8 +17,8 @@ SCRATCH_BLOCK(operator, add) {
 
 SCRATCH_BLOCK(operator, subtract) {
     Value num1, num2;
-    if (!Scratch::getInput(block, "NUM1", thread, sprite, num1) ||
-        !Scratch::getInput(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NUM1", thread, sprite, num1) ||
+        !Scratch::getInputValue(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
     *outValue = num1 - num2;
 
     return BlockResult::CONTINUE;
@@ -26,8 +26,8 @@ SCRATCH_BLOCK(operator, subtract) {
 
 SCRATCH_BLOCK(operator, multiply) {
     Value num1, num2;
-    if (!Scratch::getInput(block, "NUM1", thread, sprite, num1) ||
-        !Scratch::getInput(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NUM1", thread, sprite, num1) ||
+        !Scratch::getInputValue(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
     *outValue = num1 * num2;
 
     return BlockResult::CONTINUE;
@@ -35,8 +35,8 @@ SCRATCH_BLOCK(operator, multiply) {
 
 SCRATCH_BLOCK(operator, divide) {
     Value num1, num2;
-    if (!Scratch::getInput(block, "NUM1", thread, sprite, num1) ||
-        !Scratch::getInput(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NUM1", thread, sprite, num1) ||
+        !Scratch::getInputValue(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
     *outValue = num1 / num2;
 
     return BlockResult::CONTINUE;
@@ -44,8 +44,8 @@ SCRATCH_BLOCK(operator, divide) {
 
 SCRATCH_BLOCK(operator, random) {
     Value fromValue, toValue;
-    if (!Scratch::getInput(block, "FROM", thread, sprite, fromValue) ||
-        !Scratch::getInput(block, "TO", thread, sprite, toValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "FROM", thread, sprite, fromValue) ||
+        !Scratch::getInputValue(block, "TO", thread, sprite, toValue)) return BlockResult::REPEAT;
     const double a = fromValue.asDouble();
     const double b = toValue.asDouble();
     if (a == b) {
@@ -66,8 +66,8 @@ SCRATCH_BLOCK(operator, random) {
 
 SCRATCH_BLOCK(operator, join) {
     Value string1, string2;
-    if (!Scratch::getInput(block, "STRING1", thread, sprite, string1) ||
-        !Scratch::getInput(block, "STRING2", thread, sprite, string2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "STRING1", thread, sprite, string1) ||
+        !Scratch::getInputValue(block, "STRING2", thread, sprite, string2)) return BlockResult::REPEAT;
     *outValue = Value(string1.asString() + string2.asString());
 
     return BlockResult::CONTINUE;
@@ -75,8 +75,8 @@ SCRATCH_BLOCK(operator, join) {
 
 SCRATCH_BLOCK(operator, letter_of) {
     Value letter, string;
-    if (!Scratch::getInput(block, "LETTER", thread, sprite, letter) ||
-        !Scratch::getInput(block, "STRING", thread, sprite, string)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "LETTER", thread, sprite, letter) ||
+        !Scratch::getInputValue(block, "STRING", thread, sprite, string)) return BlockResult::REPEAT;
     const std::string str = string.asString();
     const double letterValue = letter.asDouble();
 
@@ -92,7 +92,7 @@ SCRATCH_BLOCK(operator, letter_of) {
 
 SCRATCH_BLOCK(operator, length) {
     Value string;
-    if (!Scratch::getInput(block, "STRING", thread, sprite, string)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "STRING", thread, sprite, string)) return BlockResult::REPEAT;
 
     *outValue = Value(static_cast<double>(string.asString().size()));
     return BlockResult::CONTINUE;
@@ -100,8 +100,8 @@ SCRATCH_BLOCK(operator, length) {
 
 SCRATCH_BLOCK(operator, mod) {
     Value num1, num2;
-    if (!Scratch::getInput(block, "NUM1", thread, sprite, num1) ||
-        !Scratch::getInput(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NUM1", thread, sprite, num1) ||
+        !Scratch::getInputValue(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
 
     const double a = num1.asDouble();
     const double b = num2.asDouble();
@@ -120,7 +120,7 @@ SCRATCH_BLOCK(operator, mod) {
 
 SCRATCH_BLOCK(operator, round) {
     Value num;
-    if (!Scratch::getInput(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
     if (!num.isNumeric()) {
         *outValue = Value(0);
         return BlockResult::CONTINUE;
@@ -132,7 +132,7 @@ SCRATCH_BLOCK(operator, round) {
 
 SCRATCH_BLOCK(operator, mathop) {
     Value num;
-    if (!Scratch::getInput(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
 
     if (!num.isNumeric()) {
         *outValue = Value(0);
@@ -170,8 +170,8 @@ SCRATCH_BLOCK(operator, mathop) {
 
 SCRATCH_BLOCK(operator, equals) {
     Value op1, op2;
-    if (!Scratch::getInput(block, "OPERAND1", thread, sprite, op1) ||
-        !Scratch::getInput(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "OPERAND1", thread, sprite, op1) ||
+        !Scratch::getInputValue(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
 
     *outValue = Value(op1 == op2);
     return BlockResult::CONTINUE;
@@ -179,8 +179,8 @@ SCRATCH_BLOCK(operator, equals) {
 
 SCRATCH_BLOCK(operator, gt) {
     Value op1, op2;
-    if (!Scratch::getInput(block, "OPERAND1", thread, sprite, op1) ||
-        !Scratch::getInput(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "OPERAND1", thread, sprite, op1) ||
+        !Scratch::getInputValue(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
 
     *outValue = Value(op1 > op2);
     return BlockResult::CONTINUE;
@@ -188,8 +188,8 @@ SCRATCH_BLOCK(operator, gt) {
 
 SCRATCH_BLOCK(operator, lt) {
     Value op1, op2;
-    if (!Scratch::getInput(block, "OPERAND1", thread, sprite, op1) ||
-        !Scratch::getInput(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "OPERAND1", thread, sprite, op1) ||
+        !Scratch::getInputValue(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
 
     *outValue = Value(op1 < op2);
     return BlockResult::CONTINUE;
@@ -197,8 +197,8 @@ SCRATCH_BLOCK(operator, lt) {
 
 SCRATCH_BLOCK(operator, and) {
     Value op1, op2;
-    if (!Scratch::getInput(block, "OPERAND1", thread, sprite, op1) ||
-        !Scratch::getInput(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "OPERAND1", thread, sprite, op1) ||
+        !Scratch::getInputValue(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
 
     *outValue = Value(op1.asBoolean() and op2.asBoolean());
     return BlockResult::CONTINUE;
@@ -206,8 +206,8 @@ SCRATCH_BLOCK(operator, and) {
 
 SCRATCH_BLOCK(operator, or) {
     Value op1, op2;
-    if (!Scratch::getInput(block, "OPERAND1", thread, sprite, op1) ||
-        !Scratch::getInput(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "OPERAND1", thread, sprite, op1) ||
+        !Scratch::getInputValue(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
 
     *outValue = Value(op1.asBoolean() || op2.asBoolean());
     return BlockResult::CONTINUE;
@@ -215,7 +215,7 @@ SCRATCH_BLOCK(operator, or) {
 
 SCRATCH_BLOCK(operator, not) {
     Value op1;
-    if (!Scratch::getInput(block, "OPERAND", thread, sprite, op1)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "OPERAND", thread, sprite, op1)) return BlockResult::REPEAT;
 
     *outValue = Value(!op1.asBoolean());
     return BlockResult::CONTINUE;
@@ -223,8 +223,8 @@ SCRATCH_BLOCK(operator, not) {
 
 SCRATCH_BLOCK(operator, contains) {
     Value string1Value, string2Value;
-    if (!Scratch::getInput(block, "STRING1", thread, sprite, string1Value) ||
-        !Scratch::getInput(block, "STRING2", thread, sprite, string2Value)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "STRING1", thread, sprite, string1Value) ||
+        !Scratch::getInputValue(block, "STRING2", thread, sprite, string2Value)) return BlockResult::REPEAT;
 
     std::string string1 = string1Value.asString();
     std::string string2 = string2Value.asString();

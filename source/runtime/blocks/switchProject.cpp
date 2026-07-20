@@ -10,7 +10,7 @@ SCRATCH_BLOCK(sceneManager, receivedData) {
 
 SCRATCH_BLOCK(sceneManager, openSB3) {
     Value arg0;
-    if (!Scratch::getInput(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
 
     Log::log("[SceneManager] Open next Project with Block");
     Scratch::nextProject = true;
@@ -38,8 +38,8 @@ SCRATCH_BLOCK(sceneManager, openSB3) {
 
 SCRATCH_BLOCK(sceneManager, openSB3withData) {
     Value arg0, arg1;
-    if (!Scratch::getInput(block, "arg0", thread, sprite, arg0) ||
-        !Scratch::getInput(block, "arg1", thread, sprite, arg1)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "arg0", thread, sprite, arg0) ||
+        !Scratch::getInputValue(block, "arg1", thread, sprite, arg1)) return BlockResult::REPEAT;
 
     Log::log("[SceneManager] Open next Project with Block and data");
     Scratch::nextProject = true;

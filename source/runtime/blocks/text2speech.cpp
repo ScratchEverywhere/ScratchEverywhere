@@ -48,7 +48,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         if (state->completedSteps == 0) {
 
             Value words;
-            if (!Scratch::getInput(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
+            if (!Scratch::getInputValue(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
 
             std::string inputString = words.asString();
 
@@ -117,7 +117,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 
 SCRATCH_BLOCK(text2speech, setVoice) {
     Value voice;
-    if (!Scratch::getInput(block, "VOICE", thread, sprite, voice)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "VOICE", thread, sprite, voice)) return BlockResult::REPEAT;
 
     std::string voiceString = voice.asString();
     if (voiceString == "tenor" || voiceString == "giant") {
@@ -132,7 +132,7 @@ SCRATCH_BLOCK(text2speech, setVoice) {
 
 SCRATCH_BLOCK(text2speech, setLanguage) {
     Value language;
-    if (!Scratch::getInput(block, "LANGUAGE", thread, sprite, language)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "LANGUAGE", thread, sprite, language)) return BlockResult::REPEAT;
 
     std::string languageString = language.asString();
     sprite->textToSpeechData.language = languageString;

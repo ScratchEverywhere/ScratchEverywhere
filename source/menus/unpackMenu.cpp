@@ -54,7 +54,11 @@ void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &
 
     j["items"].push_back(value);
 
-    FileSystem::createDirectory(FileSystem::parentPath(filePath));
+    const auto err = FileSystem::createDirectory(FileSystem::parentPath(filePath));
+    if (!err.has_value()) {
+        Log::logError("Failed to create folder: " + filePath + " : " + err.error());
+        return;
+    }
 
     std::ofstream outFile(filePath);
     if (!outFile) {

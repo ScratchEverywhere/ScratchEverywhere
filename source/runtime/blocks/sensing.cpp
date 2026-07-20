@@ -13,7 +13,7 @@ SCRATCH_BLOCK(sensing, resettimer) {
 
 SCRATCH_BLOCK(sensing, askandwait) {
     Value input;
-    if (!Scratch::getInput(block, "QUESTION", thread, sprite, input)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "QUESTION", thread, sprite, input)) return BlockResult::REPEAT;
     Scratch::answer = Input::openSoftwareKeyboard(input.asString().c_str());
 
     return BlockResult::CONTINUE;
@@ -38,7 +38,7 @@ SCRATCH_BLOCK(sensing, timer) {
 
 SCRATCH_BLOCK(sensing, of) {
     Value object;
-    if (!Scratch::getInput(block, "OBJECT", thread, sprite, object)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "OBJECT", thread, sprite, object)) return BlockResult::REPEAT;
 
     const std::string value = Scratch::getFieldValue(*block, "PROPERTY");
     *outValue = Value(0);
@@ -91,7 +91,7 @@ SCRATCH_BLOCK(sensing, mousey) {
 
 SCRATCH_BLOCK(sensing, distanceto) {
     Value distanceTo;
-    if (!Scratch::getInput(block, "DISTANCETOMENU", thread, sprite, distanceTo)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "DISTANCETOMENU", thread, sprite, distanceTo)) return BlockResult::REPEAT;
 
     if (distanceTo.asString() == "_mouse_") {
         const double dx = Input::mousePointer.x - sprite->xPosition;
@@ -137,7 +137,7 @@ SCRATCH_BLOCK(sensing, answer) {
 
 SCRATCH_BLOCK(sensing, keypressed) {
     Value keyOption;
-    if (!Scratch::getInput(block, "KEY_OPTION", thread, sprite, keyOption)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "KEY_OPTION", thread, sprite, keyOption)) return BlockResult::REPEAT;
     *outValue = Value(false);
 
     for (std::string button : Input::inputKeys) {
@@ -152,7 +152,7 @@ SCRATCH_BLOCK(sensing, keypressed) {
 
 SCRATCH_BLOCK(sensing, touchingobject) {
     Value touchingObject;
-    if (!Scratch::getInput(block, "TOUCHINGOBJECTMENU", thread, sprite, touchingObject)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "TOUCHINGOBJECTMENU", thread, sprite, touchingObject)) return BlockResult::REPEAT;
 
     if (touchingObject.asString() == "_mouse_")
         *outValue = Value(Scratch::isColliding("mouse", sprite));
