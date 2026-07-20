@@ -3,8 +3,6 @@
 #include <cstddef>
 #include <ctime>
 
-// 'Time' is a typedef in <X11/Xlib.h>: use 'TimeSE' as class name to avoid conflicts!
-
 int TimeSE::getHours() {
     const time_t unixTime = time(NULL);
     struct tm *timeStruct = localtime((const time_t *)&unixTime);
