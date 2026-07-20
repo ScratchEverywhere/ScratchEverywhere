@@ -111,8 +111,6 @@ SCRATCH_BLOCK(sensing, distanceto) {
     return BlockResult::CONTINUE;
 }
 
-// 'Time' is a typedef in <X11/Xlib.h>: use 'TimeSE' as class name to avoid conflicts!
-
 SCRATCH_BLOCK(sensing, dayssince2000) {
     *outValue = Value(TimeSE::getDaysSince2000());
     return BlockResult::CONTINUE;
