@@ -4,8 +4,6 @@
 #include <window.hpp>
 #include <windowing/headless/window.hpp>
 
-// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
-
 WindowSE *globalWindow = nullptr;
 
 bool Render::Init() {
