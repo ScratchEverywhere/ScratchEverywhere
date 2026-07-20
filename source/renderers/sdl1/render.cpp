@@ -29,8 +29,6 @@
 #define filledPolygonRGBA GFX_filledPolygonRGBA
 #endif
 
-// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
-
 WindowSE *globalWindow = nullptr;
 SDL_Surface *penSurface = nullptr;
 
