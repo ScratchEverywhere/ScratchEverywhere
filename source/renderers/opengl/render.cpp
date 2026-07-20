@@ -37,8 +37,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
-
 WindowSE *globalWindow = nullptr;
 
 SpeechManagerGL *speechManager = nullptr;
