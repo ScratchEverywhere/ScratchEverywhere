@@ -17,8 +17,6 @@ constexpr unsigned int screenWidth = 400;
 constexpr unsigned int bottomScreenWidth = 320;
 constexpr unsigned int screenHeight = 240;
 
-// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
-
 WindowSE *globalWindow = nullptr;
 SpeechManagerC2D *speechManager = nullptr;
 C3D_RenderTarget *topScreen = nullptr;
