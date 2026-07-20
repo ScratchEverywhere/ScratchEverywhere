@@ -3,8 +3,6 @@
 #define GL_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
-
 class WindowGLFW : public WindowSE {
   public:
     bool init(int width, int height, const std::string &title) override;
