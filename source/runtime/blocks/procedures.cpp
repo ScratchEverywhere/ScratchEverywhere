@@ -61,7 +61,7 @@ SCRATCH_BLOCK(procedures, call) {
     while ((size_t)(state->completedSteps - 1) < block->argumentIDs.size()) {
         int argIdx = state->completedSteps - 1;
         Value argVal;
-        if (!Scratch::getInput(block, block->argumentIDs[argIdx], thread, sprite, argVal))
+        if (!Scratch::getInputValue(block, block->argumentIDs[argIdx], thread, sprite, argVal))
             return BlockResult::REPEAT;
         state->myBlockThread->MyBlocksVariablen[block->argumentIDs[argIdx]] = argVal;
         state->completedSteps++;
@@ -99,7 +99,7 @@ static uint8_t block_procedures_return_reg_ =
     (BlockExecutor::getHandlers()["procedures_return"] = block_procedures_return_, 0);
 BlockResult block_procedures_return_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) {
     Value returnVal;
-    if (!Scratch::getInput(block, "VALUE", thread, sprite, returnVal))
+    if (!Scratch::getInputValue(block, "VALUE", thread, sprite, returnVal))
         return BlockResult::REPEAT;
 
     thread->returnValue = returnVal;

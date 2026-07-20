@@ -8,7 +8,7 @@ SCRATCH_SHADOW_BLOCK(note, NOTE);
 
 SCRATCH_BLOCK(music, setInstrument) {
     Value instrument;
-    if (!Scratch::getInput(block, "INSTRUMENT", thread, sprite, instrument)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "INSTRUMENT", thread, sprite, instrument)) return BlockResult::REPEAT;
 
     sprite->instrument = instrument.asDouble();
 
@@ -18,8 +18,8 @@ SCRATCH_BLOCK(music, setInstrument) {
 SCRATCH_BLOCK(music, playNoteForBeats) {
     Value note, beats;
     BlockState *state;
-    if (!Scratch::getInput(block, "NOTE", thread, sprite, note)) return BlockResult::REPEAT;
-    if (!Scratch::getInput(block, "BEATS", thread, sprite, beats)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NOTE", thread, sprite, note)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "BEATS", thread, sprite, beats)) return BlockResult::REPEAT;
 
     state = thread->getState(block);
 
@@ -44,8 +44,8 @@ SCRATCH_BLOCK(music, playNoteForBeats) {
 SCRATCH_BLOCK(music, playDrumForBeats) {
     Value drum, beats;
     BlockState *state;
-    if (!Scratch::getInput(block, "DRUM", thread, sprite, drum)) return BlockResult::REPEAT;
-    if (!Scratch::getInput(block, "BEATS", thread, sprite, beats)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "DRUM", thread, sprite, drum)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "BEATS", thread, sprite, beats)) return BlockResult::REPEAT;
 
     state = thread->getState(block);
 
@@ -75,7 +75,7 @@ SCRATCH_BLOCK(music, getTempo) {
 
 SCRATCH_BLOCK(music, setTempo) {
     Value tempo;
-    if (!Scratch::getInput(block, "TEMPO", thread, sprite, tempo)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "TEMPO", thread, sprite, tempo)) return BlockResult::REPEAT;
 
     Scratch::tempo = tempo.asDouble();
 
@@ -84,7 +84,7 @@ SCRATCH_BLOCK(music, setTempo) {
 
 SCRATCH_BLOCK(music, changeTempo) {
     Value tempo;
-    if (!Scratch::getInput(block, "TEMPO", thread, sprite, tempo)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "TEMPO", thread, sprite, tempo)) return BlockResult::REPEAT;
 
     Scratch::tempo += tempo.asDouble();
 
@@ -101,7 +101,7 @@ SCRATCH_BLOCK(music, restForBeats) {
         return BlockResult::REPEAT;
     }
     Value beats;
-    if (!Scratch::getInput(block, "BEATS", thread, sprite, beats)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "BEATS", thread, sprite, beats)) return BlockResult::REPEAT;
     state->waitDuration = Mixer::beatsToSec(beats.asDouble()) * 1000;
 
     state->waitTimer.start();

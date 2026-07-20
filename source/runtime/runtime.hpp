@@ -32,8 +32,9 @@ class Scratch {
 
     static bool initializeRuntime();
     static void initializeScratchProject();
-    static bool getInput(Block *block, std::string inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
-    static void resetInput(Block *block, std::string inputName = "");
+    static bool getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
+    static ParsedInput *getInput(Block *block, const std::string &inputName);
+    static void resetInput(Block *block, const std::string &inputName = "");
 
     /**
      * Runs a single step of execution.
@@ -48,6 +49,7 @@ class Scratch {
 
     static std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight);
 
+    static ParsedField *getField(Block &block, const std::string &fieldName);
     static std::string getFieldValue(Block &block, const std::string &fieldName);
     static std::string getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
@@ -60,7 +62,7 @@ class Scratch {
 
     static void gotoXY(Sprite *sprite, double x, double y);
     static void fenceSpriteWithinBounds(Sprite *sprite);
-    static bool isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, std::string targetName = "");
+    static bool isColliding(const std::string &collisionType, Sprite *currentSprite, Sprite *targetSprite = nullptr, const std::string &targetName = "");
     static void switchCostume(Sprite *sprite, double costumeIndex);
     static void setDirection(Sprite *sprite, double direction);
     static void sortSprites();
