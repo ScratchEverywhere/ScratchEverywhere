@@ -26,8 +26,8 @@ SCRATCH_BLOCK(pen, penUp) {
 
 SCRATCH_BLOCK(pen, setPenColorParamTo) {
     Value optionValue, valueValue; // valueValue :)
-    if (!Scratch::getInput(block, "COLOR_PARAM", thread, sprite, optionValue) ||
-        !Scratch::getInput(block, "VALUE", thread, sprite, valueValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "COLOR_PARAM", thread, sprite, optionValue) ||
+        !Scratch::getInputValue(block, "VALUE", thread, sprite, valueValue)) return BlockResult::REPEAT;
 
     const std::string option = optionValue.asString();
     const double value = valueValue.asDouble();
@@ -64,8 +64,8 @@ SCRATCH_BLOCK(pen, setPenColorParamTo) {
 SCRATCH_BLOCK(pen, changePenColorParamBy) {
 
     Value optionValue, valueValue;
-    if (!Scratch::getInput(block, "COLOR_PARAM", thread, sprite, optionValue) ||
-        !Scratch::getInput(block, "VALUE", thread, sprite, valueValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "COLOR_PARAM", thread, sprite, optionValue) ||
+        !Scratch::getInputValue(block, "VALUE", thread, sprite, valueValue)) return BlockResult::REPEAT;
 
     const std::string option = optionValue.asString();
     const double value = valueValue.asDouble();
@@ -100,7 +100,7 @@ SCRATCH_BLOCK(pen, changePenColorParamBy) {
 
 SCRATCH_BLOCK(pen, setPenColorToColor) {
     Value color;
-    if (!Scratch::getInput(block, "COLOR", thread, sprite, color)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "COLOR", thread, sprite, color)) return BlockResult::REPEAT;
     sprite->penData.color = color.asColor();
     sprite->penData.shade = sprite->penData.color.brightness / 2;
     return BlockResult::CONTINUE;
@@ -108,7 +108,7 @@ SCRATCH_BLOCK(pen, setPenColorToColor) {
 
 SCRATCH_BLOCK(pen, setPenSizeTo) {
     Value size;
-    if (!Scratch::getInput(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
 
     sprite->penData.size = size.asDouble();
     if (sprite->penData.size < minPenSize) sprite->penData.size = minPenSize;
@@ -119,7 +119,7 @@ SCRATCH_BLOCK(pen, setPenSizeTo) {
 
 SCRATCH_BLOCK(pen, changePenSizeBy) {
     Value size;
-    if (!Scratch::getInput(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
 
     sprite->penData.size += size.asDouble();
     if (sprite->penData.size < minPenSize) sprite->penData.size = minPenSize;
@@ -150,7 +150,7 @@ SCRATCH_BLOCK(pen, stamp) {
 
 SCRATCH_BLOCK(pen, setPenHueToNumber) {
     Value hue;
-    if (!Scratch::getInput(block, "HUE", thread, sprite, hue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "HUE", thread, sprite, hue)) return BlockResult::REPEAT;
 
     double unwrappedColor = hue.asDouble() / 2;
     sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
@@ -160,7 +160,7 @@ SCRATCH_BLOCK(pen, setPenHueToNumber) {
 
 SCRATCH_BLOCK(pen, changePenHueBy) {
     Value hue;
-    if (!Scratch::getInput(block, "HUE", thread, sprite, hue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "HUE", thread, sprite, hue)) return BlockResult::REPEAT;
 
     double unwrappedColor = sprite->penData.color.hue + hue.asDouble() / 2;
     sprite->penData.color.hue = unwrappedColor - std::floor(unwrappedColor / 101) * 101;
@@ -170,7 +170,7 @@ SCRATCH_BLOCK(pen, changePenHueBy) {
 
 SCRATCH_BLOCK(pen, setPenShadeToNumber) {
     Value shade;
-    if (!Scratch::getInput(block, "SHADE", thread, sprite, shade)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "SHADE", thread, sprite, shade)) return BlockResult::REPEAT;
 
     sprite->penData.shade = std::fmod(shade.asDouble(), 200);
     if (sprite->penData.shade < 0) sprite->penData.shade += 200;
@@ -181,7 +181,7 @@ SCRATCH_BLOCK(pen, setPenShadeToNumber) {
 
 SCRATCH_BLOCK(pen, changePenShadeBy) {
     Value shade;
-    if (!Scratch::getInput(block, "SHADE", thread, sprite, shade)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "SHADE", thread, sprite, shade)) return BlockResult::REPEAT;
 
     sprite->penData.shade += shade.asDouble();
     sprite->penData.shade = std::fmod(sprite->penData.shade, 200);

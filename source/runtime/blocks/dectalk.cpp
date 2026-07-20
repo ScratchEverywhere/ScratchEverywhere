@@ -99,7 +99,7 @@ SCRATCH_BLOCK(nishiowoDectalk, speakAndWait) {
         Value words;
         tts_value *v;
 
-        if (!Scratch::getInput(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
+        if (!Scratch::getInputValue(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
 
         v = new tts_value();
         v->finished = false;

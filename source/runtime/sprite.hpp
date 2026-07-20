@@ -210,8 +210,8 @@ struct Block {
     bool isEndBlock = false;
     bool shadow = false;
 
-    std::unordered_map<std::string, ParsedInput> inputs;
-    std::unordered_map<std::string, ParsedField> fields;
+    std::vector<std::pair<std::string, ParsedInput>> inputs;
+    std::vector<std::pair<std::string, ParsedField>> fields;
 };
 
 struct Sound {

@@ -201,9 +201,9 @@ sol::table extensions::getBlockArgs(Extension *extension, Block *block, ScriptTh
         Value value;
         if (input.second.inputType == ParsedInput::BLOCK && input.second.block->opcode.size() > menuPrefix.size() && input.second.block->opcode.substr(0, menuPrefix.size()) == menuPrefix) {
             const std::string argName = input.second.block->opcode.substr(menuPrefix.size());
-            if (!Scratch::getInput(input.second.block, argName, thread, sprite, value)) continue;
+            if (!Scratch::getInputValue(input.second.block, argName, thread, sprite, value)) continue;
         } else {
-            if (!Scratch::getInput(block, input.first, thread, sprite, value)) continue;
+            if (!Scratch::getInputValue(block, input.first, thread, sprite, value)) continue;
         }
         table[input.first] = valueToObject(extension->luaState, value);
     }

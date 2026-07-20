@@ -13,12 +13,15 @@
 
 SCRATCH_BLOCK(control, if) {
     Value conditionValue;
-    if (!Scratch::getInput(block, "CONDITION", thread, sprite, conditionValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "CONDITION", thread, sprite, conditionValue)) return BlockResult::REPEAT;
 
     const bool condition = conditionValue.asBoolean();
 
     if (condition) {
-        Block *substack = block->inputs["SUBSTACK"].block;
+        const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
+        if (input == nullptr) return BlockResult::CONTINUE;
+
+        Block *substack = input->block;
         if (substack != nullptr) {
             thread->nextBlock = substack;
             return BlockResult::CONTINUE_IMMEDIATELY;
@@ -31,12 +34,15 @@ SCRATCH_BLOCK(control, if) {
 
 SCRATCH_BLOCK(control, if_else) {
     Value conditionValue;
-    if (!Scratch::getInput(block, "CONDITION", thread, sprite, conditionValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "CONDITION", thread, sprite, conditionValue)) return BlockResult::REPEAT;
 
     const bool condition = conditionValue.asBoolean();
     const std::string key = condition ? "SUBSTACK" : "SUBSTACK2";
 
-    Block *substack = block->inputs[key].block;
+    const ParsedInput *input = Scratch::getInput(block, key);
+    if (input == nullptr) return BlockResult::CONTINUE;
+
+    Block *substack = input->block;
     if (substack != nullptr) {
         thread->nextBlock = substack;
         return BlockResult::CONTINUE_IMMEDIATELY;
@@ -48,7 +54,7 @@ SCRATCH_BLOCK(control, if_else) {
 SCRATCH_BLOCK(control, create_clone_of) {
     if (Scratch::cloneCount >= Scratch::maxClones) return BlockResult::CONTINUE;
     Value input;
-    if (!Scratch::getInput(block, "CLONE_OPTION", thread, sprite, input)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "CLONE_OPTION", thread, sprite, input)) return BlockResult::REPEAT;
 
     Sprite *original = nullptr;
     if (input.asString() == "_myself_") {
@@ -125,7 +131,7 @@ SCRATCH_BLOCK(control, delete_this_clone) {
 
 SCRATCH_BLOCK(control, stop) {
     Value stopTypeV;
-    if (!Scratch::getInput(block, "STOP_OPTION", thread, sprite, stopTypeV)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "STOP_OPTION", thread, sprite, stopTypeV)) return BlockResult::REPEAT;
     std::string stopType = stopTypeV.asString();
 
     if (stopType == "all") {
@@ -156,7 +162,10 @@ SCRATCH_BLOCK(control, start_as_clone) {
 SCRATCH_SHADOW_BLOCK(control_create_clone_of_menu, CLONE_OPTION)
 
 SCRATCH_BLOCK(control, forever) {
-    Block *substack = block->inputs["SUBSTACK"].block;
+    const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
+    if (input == nullptr) return BlockResult::REPEAT;
+
+    Block *substack = input->block;
     if (substack != nullptr)
         thread->nextBlock = substack;
     else return BlockResult::REPEAT;
@@ -165,7 +174,7 @@ SCRATCH_BLOCK(control, forever) {
 
 SCRATCH_BLOCK(control, wait_until) {
     Value condition;
-    if (!Scratch::getInput(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
 
     if (condition.asBoolean()) return BlockResult::CONTINUE;
     Scratch::resetInput(block);
@@ -182,7 +191,7 @@ SCRATCH_BLOCK(control, wait) {
         return BlockResult::REPEAT;
     }
     Value duration;
-    if (!Scratch::getInput(block, "DURATION", thread, sprite, duration)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "DURATION", thread, sprite, duration)) return BlockResult::REPEAT;
     state->waitDuration = duration.asDouble() * 1000;
 
     state->waitTimer.start();
@@ -195,7 +204,7 @@ SCRATCH_BLOCK(control, repeat) {
     BlockState *state = thread->getState(block);
     if (state->completedSteps == 0) { // start
         Value repeatTimesValue;
-        if (!Scratch::getInput(block, "TIMES", thread, sprite, repeatTimesValue)) return BlockResult::REPEAT;
+        if (!Scratch::getInputValue(block, "TIMES", thread, sprite, repeatTimesValue)) return BlockResult::REPEAT;
         state->repeatTimes = std::round(repeatTimesValue.asDouble());
 
         state->completedSteps = 1;
@@ -207,7 +216,10 @@ SCRATCH_BLOCK(control, repeat) {
 
     state->repeatTimes--;
 
-    Block *substack = block->inputs["SUBSTACK"].block;
+    const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
+    if (input == nullptr) return BlockResult::REPEAT;
+
+    Block *substack = input->block;
     if (substack != nullptr)
         thread->nextBlock = substack;
     else return BlockResult::REPEAT;
@@ -217,11 +229,14 @@ SCRATCH_BLOCK(control, repeat) {
 
 SCRATCH_BLOCK(control, while) {
     Value condition;
-    if (!Scratch::getInput(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
 
     if (!condition.asBoolean()) return BlockResult::CONTINUE;
 
-    Block *substack = block->inputs["SUBSTACK"].block;
+    const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
+    if (input == nullptr) return BlockResult::REPEAT;
+
+    Block *substack = input->block;
     if (substack != nullptr)
         thread->nextBlock = substack;
     else {
@@ -234,11 +249,14 @@ SCRATCH_BLOCK(control, while) {
 
 SCRATCH_BLOCK(control, repeat_until) {
     Value condition;
-    if (!Scratch::getInput(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;
 
     if (condition.asBoolean()) return BlockResult::CONTINUE;
 
-    Block *substack = block->inputs["SUBSTACK"].block;
+    const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
+    if (input == nullptr) return BlockResult::REPEAT;
+
+    Block *substack = input->block;
     if (substack != nullptr)
         thread->nextBlock = substack;
     else {
@@ -268,7 +286,7 @@ SCRATCH_BLOCK(control, for_each) {
     BlockState *state = thread->getState(block);
 
     Value upperBound;
-    if (!Scratch::getInput(block, "VALUE", thread, sprite, upperBound)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "VALUE", thread, sprite, upperBound)) return BlockResult::REPEAT;
 
     if (state->completedSteps != 1) {
         state->repeatTimes = 0;
@@ -284,7 +302,10 @@ SCRATCH_BLOCK(control, for_each) {
 
     state->repeatTimes++;
 
-    Block *substack = block->inputs["SUBSTACK"].block;
+    const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
+    if (input == nullptr) return BlockResult::REPEAT;
+
+    Block *substack = input->block;
     if (substack != nullptr)
         thread->nextBlock = substack;
     else return BlockResult::REPEAT;
