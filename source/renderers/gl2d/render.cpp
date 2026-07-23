@@ -122,7 +122,7 @@ void Render::renderSprites() {
 
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
-        if (!currentSprite->visible) continue;
+        if (!currentSprite->visible || currentSprite->ghostEffect > 70) continue;
 
         auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
         if (imgFind != Scratch::costumeImages.end()) {
