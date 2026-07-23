@@ -128,6 +128,8 @@ void BlockExecutor::runThreads() {
                                        thread->finished = true;
                                    }
                                }
+                               SpeechManager *speechManager = Render::getSpeechManager();
+                               if (speechManager) speechManager->clearSpeech(s);
                                sortSprites = true;
                                delete s;
                                return true;
