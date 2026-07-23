@@ -247,7 +247,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
             float localX = (dx * s_cos - (-dy) * s_sin) / spriteScale;
             const float localY = (dx * s_sin + dy * s_cos) / spriteScale;
 
-            if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && std::sin(Math::degreesToRadians(sprite->rotation)) < 0)
+            if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
                 localX = -localX;
 
             const float finalX = std::round((localX + costume.rotationCenterX) * invScale);
@@ -278,11 +278,11 @@ collision::AABB collision::getSpriteBounds(Sprite *sprite) {
     offsetX *= scale;
     offsetY *= scale;
 
+    if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
+        offsetX = -offsetX;
+
     float finalX = x + offsetX;
     float finalY = y - offsetY;
-
-    if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
-        finalX = -finalX;
 
     float halfW = (sprite->spriteWidth * scale) / 2.0f;
     float halfH = (sprite->spriteHeight * scale) / 2.0f;
