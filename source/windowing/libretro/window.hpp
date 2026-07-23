@@ -1,7 +1,7 @@
 #pragma once
 #include <window.hpp>
 
-class WindowLibretro : public Window {
+class WindowLibretro : public WindowSE {
   public:
     bool init(int width, int height, const std::string &title) override;
     void cleanup() override;
