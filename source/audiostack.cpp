@@ -12,6 +12,9 @@
 
 CMRC_DECLARE(romfs);
 #endif
+#ifdef __ANDROID__
+#include <SDL_rwops.h>
+#endif
 
 #include <cstdlib>
 #include <fstream>
@@ -141,7 +144,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 
     if (!on_disk && !Unzip::UnpackedInSD && !Unzip::filePath.empty()) prefix += "project/";
 
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC) || defined(__ANDROID__)
     if (cached || Unzip::UnpackedInSD || on_disk) {
 #endif
         std::ifstream ifs(prefix + path, std::ios::binary);
@@ -156,7 +159,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
         ifs.read((char *)this->buffer, this->buffer_size);
 
         ifs.close();
-#ifdef USE_CMAKERC
+#if defined(USE_CMAKERC)
     } else {
         auto fs = cmrc::romfs::get_filesystem();
         if (!fs.exists(prefix + path)) return nonstd::make_unexpected("Audio file not found.");
@@ -166,6 +169,21 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         memcpy(this->buffer, file.begin(), this->buffer_size);
+    }
+#elif defined(__ANDROID__)
+    } else {
+        SDL_RWops *rw = SDL_RWFromFile((prefix + path).c_str(), "rb");
+        if (!rw) return nonstd::make_unexpected("Audio file not found.");
+
+        int64_t size = SDL_RWsize(rw);
+        std::vector<char> file(size);
+
+        SDL_RWread(rw, file.data(), 1, size);
+        SDL_RWclose(rw);
+
+        this->buffer_size = size;
+        this->buffer = (unsigned char *)malloc(this->buffer_size);
+        memcpy(this->buffer, file.data(), this->buffer_size);
     }
 #endif
 
