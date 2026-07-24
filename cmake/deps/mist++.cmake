@@ -6,6 +6,10 @@ function(_dep_source_mist++)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
+    if(ANDROID)
+        se_add_dependency(mbedtls)
+    endif()
+
 	se_add_dependency(libcurl)
 	get_target_property(IS_ALIAS deps::libcurl ALIASED_TARGET)
 	if(IS_ALIAS)

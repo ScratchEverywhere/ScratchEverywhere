@@ -7,9 +7,9 @@ function(_dep_system_libcurl)
 		add_library(libcurl INTERFACE)
 		target_link_libraries(libcurl INTERFACE curl mbedtls mbedx509 mbedcrypto z wut m)
 		target_include_directories(libcurl INTERFACE "${DEVKITPRO}/portlibs/wiiu/include")
-	endif()
+    endif()
 
-	if(SE_CLOUDVARS)
+    if(SE_CLOUDVARS)
 		find_package(CURL QUIET OPTIONAL_COMPONENTS WSS)
 
 		if((NOT CURL_FOUND OR NOT CURL_WSS_FOUND) AND SE_PKGCONF_CURL AND PkgConfig_FOUND)
@@ -42,8 +42,14 @@ function(_dep_source_libcurl)
 	)
 	if(WEBOS)
 		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS OFF")
-	elseif(ANDROID)
-		list(APPEND CURL_OPTIONS "HAVE_FSEEKO OFF") # Support old armeabi-v7a phones
+    elseif(ANDROID)
+		list(APPEND CURL_OPTIONS
+                "CURL_USE_MBEDTLS ON"
+                "MBEDTLS_INCLUDE_DIR ${mbedtls_SOURCE_DIR}/include"
+                "MBEDTLS_LIBRARY mbedtls"
+                "MBEDX509_LIBRARY mbedx509"
+                "MBEDCRYPTO_LIBRARY mbedcrypto"
+                "HAVE_FSEEKO OFF") # Support old armeabi-v7a phones
 	else()
 		list(APPEND CURL_OPTIONS "CURL_USE_MBEDTLS ON")
 	endif()
