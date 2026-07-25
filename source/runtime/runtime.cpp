@@ -712,6 +712,8 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     }
 
     std::shared_ptr<Image> image;
+    const int screenWidth = Render::getWidth();
+    const int screenHeight = Render::getHeight();
 
     auto onErr = [&](std::string error) {
         static std::set<std::string> failedImages;
@@ -725,7 +727,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     };
 
     float scale = (sprite->size / 100);
-    if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+    scale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
     const bool shouldDownscale = bitmapHalfQuality && costume.bitmapResolution == 2;
 
     if (projectType == ProjectType::UNZIPPED) {
