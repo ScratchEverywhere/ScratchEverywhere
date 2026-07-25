@@ -286,11 +286,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 if (data.contains("rotationCenterX")) {
                     newCostume.rotationCenterX = data["rotationCenterX"];
                     if (Scratch::bitmapHalfQuality && !newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterX /= 2;
-                } else newCostume.rotationCenterX = 0;
+                } else newCostume.rotationCenterX = -6767.6767; // will get changed once costume image is loaded
                 if (data.contains("rotationCenterY")) {
                     newCostume.rotationCenterY = data["rotationCenterY"];
                     if (Scratch::bitmapHalfQuality && !newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterY /= 2;
-                } else newCostume.rotationCenterY = 0;
+                } else newCostume.rotationCenterY = -6767.6767; // will get changed once costume image is loaded
                 newSprite->costumes.push_back(newCostume);
                 Parser::log("\t\t" + newCostume.name);
             }

@@ -749,12 +749,13 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     if (image) {
         sprite->spriteWidth = image->getWidth();
         sprite->spriteHeight = image->getHeight();
-        if (costume.rotationCenterX == 0) {
+
+        // if rotation center wasn't present in project.json, set a default one
+        if (costume.rotationCenterX == -6767.6767)
             costume.rotationCenterX = sprite->spriteWidth / 2;
-        }
-        if (costume.rotationCenterY == 0) {
+        if (costume.rotationCenterY == -6767.6767)
             costume.rotationCenterY = sprite->spriteHeight / 2;
-        }
+
         costumeImages[costumeName] = image;
     }
 }
