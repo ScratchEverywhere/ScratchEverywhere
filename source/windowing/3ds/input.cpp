@@ -9,11 +9,7 @@
 #define BOTTOM_SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 
-#define O3DS_MAX_KEYS (size_t)16
-#define N3DS_MAX_KEYS (size_t)24
-
-static bool systemCheck = APT_CheckNew3DS(&systemCheck);
-static const size_t key_amount = (!systemCheck) ? O3DS_MAX_KEYS : N3DS_MAX_KEYS;
+static const size_t key_amount = 24;
 
 // Defining The Keys To Check
 static constexpr u32 III_DS_KEYS[] = {
