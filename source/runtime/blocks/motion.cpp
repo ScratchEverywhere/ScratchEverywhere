@@ -347,6 +347,75 @@ SCRATCH_BLOCK(motion, yscroll) {
     return BlockResult::CONTINUE;
 }
 
+// penguinmod starts here
+
+SCRATCH_BLOCK(motion, changebyxy) {
+    Value dxValue, dyValue;
+    if (!Scratch::getInputValue(block, "DX", thread, sprite, dxValue) ||
+        !Scratch::getInputValue(block, "DY", thread, sprite, dyValue)) return BlockResult::REPEAT;
+    Scratch::gotoXY(sprite, sprite->xPosition + dxValue.asDouble(), sprite->yPosition + dyValue.asDouble());
+
+    return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK(motion, pointtowardsxy) {
+    Value xValue, yValue;
+    if (!Scratch::getInputValue(block, "X", thread, sprite, xValue)) ||
+        !Scratch::getInputValue(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
+	
+    double targetX = 0;
+    double targetY = 0;
+    for (Sprite *currentSprite : Scratch::sprites) {
+        if (!currentSprite->isClone && currentSprite->name == objectName) {
+            targetX = xValue;
+            targetY = yValue;
+            break;
+        }
+    }
+	
+    const double dx = targetX - xValue;
+    const double dy = targetY - yValue;
+	
+    const double angle = 90 - Math::radiansToDegrees(atan2(dy, dx));
+    Scratch::setDirection(sprite, angle);
+    return BlockResult::CONTINUE;
+}
+
+// SCRATCH_BLOCK(motion, ifonspritebounce) {
+// i am not doing ts
+
+SCRATCH_BLOCK(motion, move_sprite_to_scene_side) {
+    Value alignmentValue;
+    if (!Scratch::getInputValue(block, "ALIGNMENT", thread, sprite, alignmentValue)) return BlockResult::REPEAT;
+    const std::string alignmentName = alignmentValue.asString();
+	
+    const double whereWidth = Scratch::projectWidth / 2.0 - 10;
+    const double whereHeight = Scratch::projectHeight / 2.0 - 10;
+	
+    // this isnt exactly how it does it but what do i know
+    if (alignmentName == "bottom-left") {
+        Scratch::gotoXY(sprite, 0 - whereWidth, 0 - whereHeight);
+    } else if (alignmentName == "bottom") {
+        Scratch::gotoXY(sprite, 0, 0 - whereHeight);
+    } else if (alignmentName == "bottom-right") {
+        Scratch::gotoXY(sprite, 0 + whereWidth, 0 - whereHeight);
+    } else if (alignmentName == "middle") {
+        Scratch::gotoXY(sprite, 0, 0);
+    } else if (alignmentName == "top-left") {
+        Scratch::gotoXY(sprite, 0 - whereWidth, 0 + whereHeight);
+    } else if (alignmentName == "top") {
+        Scratch::gotoXY(sprite, 0, 0 + whereHeight);
+    } else if (alignmentName == "top-right") {
+        Scratch::gotoXY(sprite, 0 + whereWidth, 0 + whereHeight);
+    } else if (alignmentName == "left") {
+        Scratch::gotoXY(sprite, 0 - whereWidth, 0);
+    } else if (alignmentName == "right") {
+        Scratch::gotoXY(sprite, 0 + whereWidth, 0);
+    }
+
+}
+
+// i dont know how to do the shadow block thing so this might entirely be broken
 SCRATCH_SHADOW_BLOCK(motion_goto_menu, TO)
 SCRATCH_SHADOW_BLOCK(motion_glideto_menu, TO)
 SCRATCH_SHADOW_BLOCK(motion_pointtowards_menu, TOWARDS)
