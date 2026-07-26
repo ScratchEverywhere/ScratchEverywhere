@@ -331,6 +331,7 @@ void Scratch::cleanupScratchProject() {
             Pools::states.pop_back();
             if (deletedStates.insert(state).second) {
                 state->clear();
+                if (state->myBlockThread != nullptr) delete state->myBlockThread;
                 delete state;
             }
         }
@@ -374,53 +375,64 @@ void Scratch::cleanupScratchProject() {
     Log::log("Cleaned up Scratch project.");
 }
 
-bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
-    if (block->inputs.find(inputName) == block->inputs.end()) {
-        if (block->fields.find(inputName) != block->fields.end()) {
-            outValue = Value(block->fields[inputName].value);
-            return true;
+bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
+    bool found = false;
+    ParsedInput *input = nullptr;
+    for (auto &[name, i] : block->inputs) {
+        if (name == inputName) {
+            found = true;
+            input = &i;
+        }
+    }
+    if (!found) {
+        for (auto &[name, field] : block->fields) {
+            if (name == inputName) {
+                found = true;
+                outValue = Value(field.value);
+                return true;
+            }
         }
         return true;
     }
-    ParsedInput &input = block->inputs.at(inputName);
-    switch (input.inputType) {
+
+    switch (input->inputType) {
     case ParsedInput::InputType::VALUE:
-        outValue = input.value;
+        outValue = input->value;
         return true;
     case ParsedInput::InputType::VARIABLE:
-        if (input.calculated) {
-            outValue = input.value;
+        if (input->calculated) {
+            outValue = input->value;
             return true;
         }
 
-        input.calculated = true;
+        input->calculated = true;
 #ifdef ENABLE_CACHING
-        if (input.variable != nullptr) input.value = input.variable->value;
+        if (input->variable != nullptr) input->value = input->variable->value;
         else {
-            if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
-            else input.value = BlockExecutor::getVariableValue(input.variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+            if (input->list) input->value = BlockExecutor::getListValue(input->variableId, sprite);
+            else input->value = BlockExecutor::getVariableValue(input->variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
         }
 #else
-        if (input.list) input.value = BlockExecutor::getListValue(input.variableId, sprite);
-        else input.value = BlockExecutor::getVariableValue(input.variableId, sprite);
+        if (input->list) input->value = BlockExecutor::getListValue(input->variableId, sprite);
+        else input->value = BlockExecutor::getVariableValue(input->variableId, sprite);
 #endif
-        outValue = input.value;
+        outValue = input->value;
         return true;
     case ParsedInput::InputType::BLOCK: {
-        if (input.calculated) {
-            outValue = input.value;
+        if (input->calculated) {
+            outValue = input->value;
             return true;
         };
-        if (input.block == nullptr) {
+        if (input->block == nullptr) {
             return true;
         }
-        Block *targetBlock = input.block;
-        input.value = Value();
+        Block *targetBlock = input->block;
+        input->value = Value();
 
-        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input.value));
+        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input->value));
         if (res != BlockResult::REPEAT) {
-            input.calculated = true;
-            outValue = input.value;
+            input->calculated = true;
+            outValue = input->value;
             return true;
         }
         return false;
@@ -431,7 +443,16 @@ bool Scratch::getInput(Block *block, std::string inputName, ScriptThread *thread
     return true;
 };
 
-void Scratch::resetInput(Block *block, std::string inputName) {
+ParsedInput *Scratch::getInput(Block *block, const std::string &inputName) {
+    for (auto &[name, input] : block->inputs) {
+        if (name == inputName) {
+            return &input;
+        }
+    }
+    return nullptr;
+}
+
+void Scratch::resetInput(Block *block, const std::string &inputName) {
     if (inputName.empty()) {
         for (auto &[name, input] : block->inputs) {
             input.calculated = false;
@@ -441,9 +462,13 @@ void Scratch::resetInput(Block *block, std::string inputName) {
         }
         return;
     }
-    if (block->inputs.find(inputName) == block->inputs.end()) return;
-    ParsedInput &input = block->inputs.at(inputName);
-    input.calculated = false;
+
+    for (auto &[name, input] : block->inputs) {
+        if (name == inputName) {
+            input.calculated = false;
+            return;
+        }
+    }
 }
 
 void Scratch::greenFlagClicked() {
@@ -562,7 +587,7 @@ void Scratch::cleanupSprites() {
     Scratch::sprites.clear();
 }
 
-bool Scratch::isColliding(std::string collisionType, Sprite *currentSprite, Sprite *targetSprite, std::string targetName) {
+bool Scratch::isColliding(const std::string &collisionType, Sprite *currentSprite, Sprite *targetSprite, const std::string &targetName) {
     if (collisionType == "mouse") {
         if (accurateCollision) return collision::pointInSprite(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
         else return collision::pointInSpriteFast(currentSprite, Input::mousePointer.x, Input::mousePointer.y);
@@ -687,6 +712,8 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     }
 
     std::shared_ptr<Image> image;
+    const int screenWidth = Render::getWidth();
+    const int screenHeight = Render::getHeight();
 
     auto onErr = [&](std::string error) {
         static std::set<std::string> failedImages;
@@ -700,7 +727,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     };
 
     float scale = (sprite->size / 100);
-    if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+    scale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
     const bool shouldDownscale = bitmapHalfQuality && costume.bitmapResolution == 2;
 
     if (projectType == ProjectType::UNZIPPED) {
@@ -722,12 +749,13 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     if (image) {
         sprite->spriteWidth = image->getWidth();
         sprite->spriteHeight = image->getHeight();
-        if (costume.rotationCenterX == 0) {
+
+        // if rotation center wasn't present in project.json, set a default one
+        if (costume.rotationCenterX == -6767.6767)
             costume.rotationCenterX = sprite->spriteWidth / 2;
-        }
-        if (costume.rotationCenterY == 0) {
+        if (costume.rotationCenterY == -6767.6767)
             costume.rotationCenterY = sprite->spriteHeight / 2;
-        }
+
         costumeImages[costumeName] = image;
     }
 }
@@ -755,28 +783,32 @@ void Scratch::freeUnusedCostumeImages() {
     }
 }
 
-std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
-    auto fieldFind = block.fields.find(fieldName);
-    if (fieldFind == block.fields.end()) {
-        return "";
+ParsedField *Scratch::getField(Block &block, const std::string &fieldName) {
+    for (auto &[name, field] : block.fields) {
+        if (name == fieldName) return &field;
     }
-    return fieldFind->second.value;
+    return nullptr;
+}
+
+std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
+    for (auto &[name, field] : block.fields) {
+        if (name == fieldName) return field.value;
+    }
+    return "";
 }
 
 std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
-    auto fieldFind = block.fields.find(fieldName);
-    if (fieldFind == block.fields.end()) {
-        return "";
+    for (auto &[name, field] : block.fields) {
+        if (name == fieldName) return field.id;
     }
-    return fieldFind->second.id;
+    return "";
 }
 
 std::string Scratch::getListName(Block &block) {
-    auto fieldFind = block.fields.find("LIST");
-    if (fieldFind == block.fields.end()) {
-        return "";
+    for (auto &[name, field] : block.fields) {
+        if (name == "LIST") return field.value;
     }
-    return fieldFind->second.value;
+    return "";
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {

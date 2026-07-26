@@ -126,12 +126,15 @@ void Render::resizeSVGs() {
 }
 
 void Render::resizeSVGs(Sprite *sprite) {
+    const int screenWidth = getWidth();
+    const int screenHeight = getHeight();
+
     for (auto &costume : sprite->costumes) {
         auto imgFind = Scratch::costumeImages.find(costume.fullName);
         if (imgFind == Scratch::costumeImages.end()) continue;
 
         float scale = sprite->size / 100;
-        if (sprite->renderInfo.renderScaleY != 0) scale *= sprite->renderInfo.renderScaleY;
+        scale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
 
         auto potentialError = imgFind->second->resizeSVG(scale);
         if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
