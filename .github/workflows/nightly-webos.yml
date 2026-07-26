@@ -13,11 +13,13 @@ on:
       - webos_manifest.json
       - source/runtime/**
       - source/renderers/sdl2/**
+      - source/windowing/sdl2/**
+      - source/audio/sdl2/**
       - source/platforms/
       - source/platforms/pc/**
+      - source/platforms/webos/**
       - source/*
       - source/menus/**
-      - source/audio/sdl2/**
       - gfx/webos/**
       - gfx/menu/**
       - include/**
