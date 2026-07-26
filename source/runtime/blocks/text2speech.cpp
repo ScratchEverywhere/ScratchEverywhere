@@ -120,11 +120,12 @@ SCRATCH_BLOCK(text2speech, setVoice) {
     if (!Scratch::getInputValue(block, "VOICE", thread, sprite, voice)) return BlockResult::REPEAT;
 
     std::string voiceString = voice.asString();
-    if (voiceString == "tenor" || voiceString == "giant") {
+    if (voiceString == "TENOR" || voiceString == "GIANT" || voiceString == "tenor" || voiceString == "giant") {
         voiceString = "male";
     } else {
         voiceString = "female"; // alto squeak kitten and for any unknown values
     }
+    std::cout << voice.asString() << std::endl;
     // sprite->textToSpeechData.playbackRate = 1.0; /ToDo playbackRate is implemeted for Audio, i think? So it could be added?
     sprite->textToSpeechData.gender = voiceString;
     return BlockResult::CONTINUE;
