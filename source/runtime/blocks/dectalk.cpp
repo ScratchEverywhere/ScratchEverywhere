@@ -105,7 +105,6 @@ SCRATCH_BLOCK(nishiowoDectalk, speakAndWait) {
         v->finished = false;
         v->tts = TextToSpeechAllocate();
         v->name = name;
-	std::cout << block->opcode << std::endl;
         v->text = (block->opcode == "text2speech_speakAndWait" ? (sprite->textToSpeechData.gender == "male" ? "[:np]" : "[:nb]") : "") + words.asString();
 
         tts[name] = v;
