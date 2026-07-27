@@ -15,7 +15,7 @@ on:
       - source/renderers/citro2d/**
       - source/*
       - source/menus/**
-      - source/audio/sdl3/**
+      - source/audio/3ds/**
       - gfx/3ds/**
       - gfx/menu/**
       - include/**
