@@ -153,7 +153,7 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-    if (projectThread.create(projectLoaderThread, nullptr, 0x4000, 0, -1, "ProjectLoader")) {
+    if (projectThread.create(projectLoaderThread, nullptr, 0x262144, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
 

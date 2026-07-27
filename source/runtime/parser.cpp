@@ -633,7 +633,7 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
     else Scratch::maxClones = 300;
 }
 
-void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, const nlohmann::json &blockDatas, int indent) {
+void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &blockKey, const nlohmann::json &blockDatas, int indent) {
     auto &blockData = blockDatas[blockKey];
     if (!blockData.contains("inputs") || blockData["inputs"].empty()) return;
 
@@ -875,7 +875,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
     return hasNativeExts;
 }
 
-Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {
+Block *Parser::loadBlock(Sprite *newSprite, const std::string &id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {
     if (!blockDatas.contains(id)) return parentBlock;
     if (!blockDatas[id].contains("opcode")) return parentBlock;
 
