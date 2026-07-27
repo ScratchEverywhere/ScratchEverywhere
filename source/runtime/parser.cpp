@@ -275,7 +275,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 }
                 if (data.contains("bitmapResolution")) {
                     newCostume.bitmapResolution = data["bitmapResolution"];
-                }
+                } else newCostume.bitmapResolution = 1;
                 if (data.contains("dataFormat")) {
                     newCostume.dataFormat = data["dataFormat"];
                     newCostume.isSVG = (newCostume.dataFormat == "svg" || newCostume.dataFormat == "SVG");
@@ -286,11 +286,11 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 if (data.contains("rotationCenterX")) {
                     newCostume.rotationCenterX = data["rotationCenterX"];
                     if (Scratch::bitmapHalfQuality && !newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterX /= 2;
-                } else newCostume.rotationCenterX = 0;
+                } else newCostume.rotationCenterX = -6767.6767; // will get changed once costume image is loaded
                 if (data.contains("rotationCenterY")) {
                     newCostume.rotationCenterY = data["rotationCenterY"];
                     if (Scratch::bitmapHalfQuality && !newCostume.isSVG && newCostume.bitmapResolution == 2) newCostume.rotationCenterY /= 2;
-                } else newCostume.rotationCenterY = 0;
+                } else newCostume.rotationCenterY = -6767.6767; // will get changed once costume image is loaded
                 newSprite->costumes.push_back(newCostume);
                 Parser::log("\t\t" + newCostume.name);
             }
@@ -633,7 +633,7 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
     else Scratch::maxClones = 300;
 }
 
-void Parser::loadInputs(Block &block, Sprite *newSprite, std::string blockKey, const nlohmann::json &blockDatas, int indent) {
+void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &blockKey, const nlohmann::json &blockDatas, int indent) {
     auto &blockData = blockDatas[blockKey];
     if (!blockData.contains("inputs") || blockData["inputs"].empty()) return;
 
@@ -875,7 +875,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
     return hasNativeExts;
 }
 
-Block *Parser::loadBlock(Sprite *newSprite, const std::string id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {
+Block *Parser::loadBlock(Sprite *newSprite, const std::string &id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {
     if (!blockDatas.contains(id)) return parentBlock;
     if (!blockDatas[id].contains("opcode")) return parentBlock;
 
