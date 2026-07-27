@@ -1,7 +1,9 @@
-#include <SDL.h>
+#if defined(RENDERER_SDL3)
+    #include <SDL3/SDL.h>
+#elif defined(RENDERER_SDL2)
+    #include <SDL.h>
+#endif
 #include <thread.hpp>
-
-// just using SDL2 threads/mutexes for now
 
 struct SE_Thread::Impl {
     SDL_Thread *thread;
@@ -14,9 +16,7 @@ struct SDL_ThreadData {
 
 static int SDL_ThreadWrapper(void *data) {
     SDL_ThreadData *ctx = static_cast<SDL_ThreadData *>(data);
-
     ctx->entryPoint(ctx->args);
-
     delete ctx;
     return 0;
 }
@@ -25,12 +25,21 @@ SE_Thread::SE_Thread() : impl(nullptr) {}
 
 bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize, int prio, int coreID, const std::string &name) {
     impl = new Impl;
-
     SDL_ThreadData *ctx = new SDL_ThreadData;
     ctx->entryPoint = entryPoint;
     ctx->args = args;
 
+#if defined(RENDERER_SDL3)
+    SDL_PropertiesID props = SDL_CreateProperties();
+    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_ENTRY_FUNCTION_POINTER, (void *)SDL_ThreadWrapper);
+    SDL_SetPointerProperty(props, SDL_PROP_THREAD_CREATE_USERDATA_POINTER, ctx);
+    SDL_SetStringProperty(props, SDL_PROP_THREAD_CREATE_NAME_STRING, name.c_str());
+    SDL_SetNumberProperty(props, SDL_PROP_THREAD_CREATE_STACKSIZE_NUMBER, (Sint64)stackSize);
+    impl->thread = SDL_CreateThreadWithProperties(props);
+    SDL_DestroyProperties(props);
+#elif defined(RENDERER_SDL2)
     impl->thread = SDL_CreateThreadWithStackSize(SDL_ThreadWrapper, name.c_str(), stackSize, ctx);
+#endif
 
     if (impl->thread == nullptr) {
         delete ctx;
@@ -38,7 +47,6 @@ bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize,
         impl = nullptr;
         return false;
     }
-
     return true;
 }
 
@@ -62,15 +70,27 @@ void SE_Thread::detach() {
 }
 
 void SE_Thread::sleep(uint16_t milliseconds) {
+#if defined(RENDERER_SDL3)
+    SDL_DelayNS((Uint64)milliseconds * SDL_NS_PER_MS);
+#elif defined(RENDERER_SDL2)
     SDL_Delay(milliseconds);
+#endif
 }
 
 unsigned int SE_Thread::getCurrentThreadId() {
+#if defined(RENDERER_SDL3)
+    return static_cast<unsigned int>(SDL_GetCurrentThreadID());
+#elif defined(RENDERER_SDL2)
     return static_cast<unsigned int>(SDL_ThreadID());
+#endif
 }
 
 struct SE_Mutex::Impl {
+#if defined(RENDERER_SDL3) // this is such a minor change whyyyyyyyy
+    SDL_Mutex *mtx;
+#elif defined(RENDERER_SDL2)
     SDL_mutex *mtx;
+#endif
 };
 
 SE_Mutex::SE_Mutex() {
@@ -99,5 +119,9 @@ void SE_Mutex::unlock() {
 }
 
 bool SE_Mutex::tryLock() {
+#if defined(RENDERER_SDL3)
+    return SDL_TryLockMutex(impl->mtx);
+#elif defined(RENDERER_SDL2)
     return SDL_TryLockMutex(impl->mtx) == 0;
+#endif
 }
