@@ -275,7 +275,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 }
                 if (data.contains("bitmapResolution")) {
                     newCostume.bitmapResolution = data["bitmapResolution"];
-                }
+                } else newCostume.bitmapResolution = 1;
                 if (data.contains("dataFormat")) {
                     newCostume.dataFormat = data["dataFormat"];
                     newCostume.isSVG = (newCostume.dataFormat == "svg" || newCostume.dataFormat == "SVG");
