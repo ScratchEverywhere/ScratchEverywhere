@@ -30,6 +30,11 @@
 #include <thread.hpp>
 #endif
 
+#if __ANDROID__
+#include <SDL_rwops.h>
+#include <sstream>
+#endif
+
 #ifdef USE_CMAKERC
 #include <cmrc/cmrc.hpp>
 #include <sstream>
@@ -265,17 +270,24 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
     memset(&archive, 0, sizeof(archive));
     bool initSuccess = false;
 
-#ifdef USE_CMAKERC
     if (Scratch::projectType == ProjectType::EMBEDDED) {
+#if defined(USE_CMAKERC)
         const auto &fs = cmrc::romfs::get_filesystem();
         const auto &romfsFile = fs.open(Unzip::filePath);
         initSuccess = mz_zip_reader_init_mem(&archive, romfsFile.begin(), romfsFile.size(), 0);
+#elif defined(__ANDROID__)
+        SDL_RWops *rw = SDL_RWFromFile(Unzip::filePath.c_str(), "rb");
+        int64_t size = SDL_RWsize(rw);
+        std::vector<char> buffer(size);
+
+        SDL_RWread(rw, buffer.data(), 1, size);
+        SDL_RWclose(rw);
+        initSuccess = mz_zip_reader_init_mem(&archive, buffer.data(), size, 0);
+#endif
     } else {
-#endif
         initSuccess = mz_zip_reader_init_file(&archive, Unzip::filePath.c_str(), 0);
-#ifdef USE_CMAKERC
     }
-#endif
+
     if (!initSuccess) {
         Log::logWarning("Failed to open SB3 archive: " + Unzip::filePath);
         return nullptr;
@@ -318,7 +330,7 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
 #if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
             keepInRam = false;
 #else
-            keepInRam = true;
+                keepInRam = true;
 #endif
         } else {
             keepInRam = setting.get<bool>();
@@ -489,13 +501,13 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         const auto &file = fs.open(folderPath);
         content.assign(file.begin(), file.end());
 #else
-        std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
-        if (!file.is_open()) {
-            Log::logWarning("Project settings file not found in RomFS.");
-            return nlohmann::json();
-        }
-        content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        file.close();
+            std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
+            if (!file.is_open()) {
+                Log::logWarning("Project settings file not found in RomFS.");
+                return nlohmann::json();
+            }
+            content.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            file.close();
 #endif
     } else {
         std::ifstream file(folderPath);
