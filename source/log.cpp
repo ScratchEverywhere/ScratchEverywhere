@@ -85,9 +85,9 @@ void Log::logCritical(std::string message, bool fatal) {
 	#if defined(USE_LIBDLGMOD)
 	const char *title = widget_get_caption();
 	if (fatal) {
-		widget_set_caption("<Fatal>");
+		widget_set_caption("Fatal Error");
 	} else {
-		widget_set_caption("<Critical>");
+		widget_set_caption("Critical Error");
 	}
 	show_error(message.c_str(), fatal);
 	widget_set_caption(title);
