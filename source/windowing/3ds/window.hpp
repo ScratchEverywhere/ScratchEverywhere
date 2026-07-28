@@ -4,7 +4,7 @@
 #include <citro3d.h>
 #include <window.hpp>
 
-class Window3DS : public Window {
+class Window3DS : public WindowSE {
   public:
     bool init(int width, int height, const std::string &title) override;
     void cleanup() override;

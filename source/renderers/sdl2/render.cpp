@@ -53,7 +53,7 @@ char nickname[0x21];
 #include <ogc/exi.h>
 #endif
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
 

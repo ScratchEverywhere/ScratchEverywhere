@@ -12,7 +12,7 @@
 
 SCRATCH_BLOCK(motion, movesteps) {
     Value stepsValue;
-    if (!Scratch::getInput(block, "STEPS", thread, sprite, stepsValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "STEPS", thread, sprite, stepsValue)) return BlockResult::REPEAT;
     const double steps = stepsValue.asDouble();
     const double angle = Math::degreesToRadians(90 - sprite->rotation);
     Scratch::gotoXY(sprite, sprite->xPosition + std::cos(angle) * steps, sprite->yPosition + std::sin(angle) * steps);
@@ -23,7 +23,7 @@ SCRATCH_BLOCK(motion, movesteps) {
 SCRATCH_BLOCK(motion, goto) {
 
     Value objectValue;
-    if (!Scratch::getInput(block, "TO", thread, sprite, objectValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "TO", thread, sprite, objectValue)) return BlockResult::REPEAT;
     std::string object = objectValue.asString();
     if (object == "_random_") {
         Scratch::gotoXY(sprite, rand() % Scratch::projectWidth - Scratch::projectWidth / 2, rand() % Scratch::projectHeight - Scratch::projectHeight / 2);
@@ -42,8 +42,8 @@ SCRATCH_BLOCK(motion, goto) {
 
 SCRATCH_BLOCK(motion, gotoxy) {
     Value xValue, yValue;
-    if (!Scratch::getInput(block, "X", thread, sprite, xValue) ||
-        !Scratch::getInput(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "X", thread, sprite, xValue) ||
+        !Scratch::getInputValue(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
     Scratch::gotoXY(sprite, xValue.asDouble(), yValue.asDouble());
 
     return BlockResult::CONTINUE;
@@ -51,7 +51,7 @@ SCRATCH_BLOCK(motion, gotoxy) {
 
 SCRATCH_BLOCK(motion, turnleft) {
     Value dirValue;
-    if (!Scratch::getInput(block, "DEGREES", thread, sprite, dirValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "DEGREES", thread, sprite, dirValue)) return BlockResult::REPEAT;
     Scratch::setDirection(sprite, sprite->rotation - dirValue.asDouble());
 
     return BlockResult::CONTINUE;
@@ -59,7 +59,7 @@ SCRATCH_BLOCK(motion, turnleft) {
 
 SCRATCH_BLOCK(motion, turnright) {
     Value dirValue;
-    if (!Scratch::getInput(block, "DEGREES", thread, sprite, dirValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "DEGREES", thread, sprite, dirValue)) return BlockResult::REPEAT;
     Scratch::setDirection(sprite, sprite->rotation + dirValue.asDouble());
 
     return BlockResult::CONTINUE;
@@ -67,7 +67,7 @@ SCRATCH_BLOCK(motion, turnright) {
 
 SCRATCH_BLOCK(motion, pointindirection) {
     Value dirValue;
-    if (!Scratch::getInput(block, "DIRECTION", thread, sprite, dirValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "DIRECTION", thread, sprite, dirValue)) return BlockResult::REPEAT;
     Scratch::setDirection(sprite, dirValue.asDouble());
 
     return BlockResult::CONTINUE;
@@ -75,7 +75,7 @@ SCRATCH_BLOCK(motion, pointindirection) {
 
 SCRATCH_BLOCK(motion, changexby) {
     Value dxValue;
-    if (!Scratch::getInput(block, "DX", thread, sprite, dxValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "DX", thread, sprite, dxValue)) return BlockResult::REPEAT;
     Scratch::gotoXY(sprite, sprite->xPosition + dxValue.asDouble(), sprite->yPosition);
 
     return BlockResult::CONTINUE;
@@ -83,7 +83,7 @@ SCRATCH_BLOCK(motion, changexby) {
 
 SCRATCH_BLOCK(motion, changeyby) {
     Value dyValue;
-    if (!Scratch::getInput(block, "DY", thread, sprite, dyValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "DY", thread, sprite, dyValue)) return BlockResult::REPEAT;
     Scratch::gotoXY(sprite, sprite->xPosition, sprite->yPosition + dyValue.asDouble());
 
     return BlockResult::CONTINUE;
@@ -91,7 +91,7 @@ SCRATCH_BLOCK(motion, changeyby) {
 
 SCRATCH_BLOCK(motion, setx) {
     Value xValue;
-    if (!Scratch::getInput(block, "X", thread, sprite, xValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "X", thread, sprite, xValue)) return BlockResult::REPEAT;
     const double X = xValue.asDouble();
     Scratch::gotoXY(sprite, X, sprite->yPosition);
 
@@ -100,7 +100,7 @@ SCRATCH_BLOCK(motion, setx) {
 
 SCRATCH_BLOCK(motion, sety) {
     Value yValue;
-    if (!Scratch::getInput(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
     const double Y = yValue.asDouble();
     Scratch::gotoXY(sprite, sprite->xPosition, Y);
 
@@ -125,8 +125,8 @@ SCRATCH_BLOCK(motion, glideto) {
     }
 
     Value duration, to;
-    if (!Scratch::getInput(block, "SECS", thread, sprite, duration) ||
-        !Scratch::getInput(block, "TO", thread, sprite, to)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "SECS", thread, sprite, duration) ||
+        !Scratch::getInputValue(block, "TO", thread, sprite, to)) return BlockResult::REPEAT;
 
     state->waitDuration = duration.asDouble() * 1000;
 
@@ -177,9 +177,9 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
         return BlockResult::REPEAT;
     }
     Value duration, X, Y;
-    if (!Scratch::getInput(block, "SECS", thread, sprite, duration) ||
-        !Scratch::getInput(block, "X", thread, sprite, X) ||
-        !Scratch::getInput(block, "Y", thread, sprite, Y)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "SECS", thread, sprite, duration) ||
+        !Scratch::getInputValue(block, "X", thread, sprite, X) ||
+        !Scratch::getInputValue(block, "Y", thread, sprite, Y)) return BlockResult::REPEAT;
     state->waitDuration = duration.asDouble() * 1000;
     state->glideEndX = X.asDouble();
     state->glideEndY = Y.asDouble();
@@ -196,7 +196,7 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
 
 SCRATCH_BLOCK(motion, pointtowards) {
     Value towardsValue;
-    if (!Scratch::getInput(block, "TOWARDS", thread, sprite, towardsValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "TOWARDS", thread, sprite, towardsValue)) return BlockResult::REPEAT;
     const std::string objectName = towardsValue.asString();
 
     double targetX = 0;

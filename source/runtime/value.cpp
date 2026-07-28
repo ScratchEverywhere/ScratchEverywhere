@@ -101,24 +101,15 @@ Color Value::asColor() const {
 }
 
 Value Value::operator+(const Value &other) const {
-    Value a = *this;
-    Value b = other;
-
-    return Value(a.asDouble() + b.asDouble());
+    return Value(this->asDouble() + other.asDouble());
 }
 
 Value Value::operator-(const Value &other) const {
-    Value a = *this;
-    Value b = other;
-
-    return Value(a.asDouble() - b.asDouble());
+    return Value(this->asDouble() - other.asDouble());
 }
 
 Value Value::operator*(const Value &other) const {
-    Value a = *this;
-    Value b = other;
-
-    return Value(a.asDouble() * b.asDouble());
+    return Value(this->asDouble() * other.asDouble());
 }
 
 Value Value::operator/(const Value &other) const {
