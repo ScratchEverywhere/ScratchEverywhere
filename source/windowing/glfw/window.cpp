@@ -1,5 +1,13 @@
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(GLFW_EXPOSE_NATIVE_WIN32)
+    #define GLFW_EXPOSE_NATIVE_WIN32
+#elif defined(__APPLE__) && !defined(GLFW_EXPOSE_NATIVE_COCOA)
+    #define GLFW_EXPOSE_NATIVE_COCOA
+#endif
 #include "window.hpp"
-#include <GLFW/glfw3.h>
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#include <GLFW/glfw3native.h>
+#include <libdlgmod/libdlgmod.h>
+#endif
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -38,6 +46,12 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     glfwGetFramebufferSize(window, &width, &height);
+
+#if defined(_WIN32) || defined(_WIN64)
+	widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWin32Window(window)).c_str());
+#elif defined(__APPLE__)
+	widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetCocoaWindow(window)).c_str());
+#endif
 
     return true;
 }

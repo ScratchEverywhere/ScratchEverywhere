@@ -12,7 +12,7 @@
 #include <window.hpp>
 #include <windowing/nds/window.hpp>
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 SpeechManagerGL2D *speechManager = nullptr;
 
 #define SCREEN_WIDTH 256

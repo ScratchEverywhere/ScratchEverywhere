@@ -37,7 +37,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 
 SpeechManagerGL *speechManager = nullptr;
 

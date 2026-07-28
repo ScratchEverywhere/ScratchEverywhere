@@ -1,9 +1,11 @@
 #pragma once
 #include <string>
 
-class Window {
+// 'Window' is a typedef in <X11/Xlib.h>: use 'WindowSE' as class name to avoid conflicts!
+
+class WindowSE {
   public:
-    virtual ~Window() = default;
+    virtual ~WindowSE() = default;
 
     virtual bool init(int width, int height, const std::string &title) = 0;
     virtual void cleanup() = 0;
@@ -19,4 +21,4 @@ class Window {
     virtual void *getHandle() = 0;
 };
 
-extern Window *globalWindow;
+extern WindowSE *globalWindow;
