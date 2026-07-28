@@ -1,7 +1,7 @@
 #pragma once
 #include <window.hpp>
 
-class WindowHeadless : public Window {
+class WindowHeadless : public WindowSE {
   public:
     bool init(int width, int height, const std::string &title) override { return true; }
     void cleanup() override {}

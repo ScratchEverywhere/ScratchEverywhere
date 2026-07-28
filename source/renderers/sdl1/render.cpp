@@ -29,7 +29,7 @@
 #define filledPolygonRGBA GFX_filledPolygonRGBA
 #endif
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 SDL_Surface *penSurface = nullptr;
 
 SpeechManagerSDL1 *speechManager = nullptr;
