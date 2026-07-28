@@ -4,6 +4,7 @@
 #include <libdlgmod/libdlgmod.h>
 #endif
 #include <input.hpp>
+#include <cstdlib>
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
@@ -24,7 +25,7 @@ SDL_Point touchPosition;
 
 bool WindowSDL3::init(int width, int height, const std::string &title) {
 #if defined(VITA)
-    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+    setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
