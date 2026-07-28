@@ -5,6 +5,7 @@
 #endif
 #include <chrono>
 #include <input.hpp>
+#include <cstdlib>
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
@@ -25,6 +26,9 @@ static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-lik
 #endif
 
 bool WindowSDL1::init(int width, int height, const std::string &title) {
+#if defined(VITA)
+    setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+#endif
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
         Log::logError("Failed to initialize SDL1");
         return false;
