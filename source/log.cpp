@@ -13,6 +13,13 @@
 #include <orbis/libkernel.h>
 #endif
 
+/**
+ * See these lines in libdlgmod where the enum below is copied from:
+ * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/win32/libdlgmod.cpp#L112-L120
+ * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/macos/libdlgmod.mm#L49-L57
+ * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/xlib/libdlgmod.cpp#L79-L87
+ */
+
 enum BUTTON_TYPES {
   BUTTON_ABORT,
   BUTTON_IGNORE,
