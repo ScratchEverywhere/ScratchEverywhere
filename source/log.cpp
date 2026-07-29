@@ -69,9 +69,11 @@ void Log::logError(std::string message) {
     writeToFile("<Error> " + message);
 }
 
-// logCritical is a graphical error message
-// Has Abort-button-only when a Fatal Error
-// Adds Ignore button when not Fatal Error:
+/**
+ * logCritical is a graphical error message
+ * Has Abort-button-only when a Fatal Error
+ * Adds Ignore button when not Fatal Error:
+ */
 void Log::logCritical(std::string message, bool fatal) {
     if (lastLog == message) return;
     lastLog = message;
