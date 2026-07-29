@@ -61,7 +61,7 @@ void extensions::input::registerAPI(Extension *extension) {
         if (button.value() == "middle") return Input::mousePointer.mouseButton == Input::Mouse::MIDDLE;
         if (button.value() == "right") return Input::mousePointer.mouseButton == Input::Mouse::RIGHT;
 
-        Log::logError("Invalid mouse button: " + button.value());
+        Log::logCritical("Invalid mouse button: " + button.value(), false);
         return false;
     };
 
