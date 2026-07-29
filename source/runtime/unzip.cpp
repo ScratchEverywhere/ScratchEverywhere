@@ -442,7 +442,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
         }
 
         if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
-            Log::logError("Failed to extract: " + outPath);
+            Log::logCritical("Failed to extract: " + outPath, false);
             mz_zip_reader_end(&zip);
             return false;
         }
