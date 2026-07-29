@@ -510,7 +510,7 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     nlohmann::json json = nlohmann::json::parse(content, nullptr, false);
 
     if (json.is_discarded()) {
-        Log::logError("Failed to parse JSON file: Syntax error.");
+        Log::logCritical("Failed to parse JSON file: Syntax error.", false);
         return nlohmann::json();
     }
 
