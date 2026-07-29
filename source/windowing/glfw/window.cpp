@@ -24,7 +24,7 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 
 bool WindowGLFW::init(int w, int h, const std::string &title) {
     if (!glfwInit()) {
-        Log::logError("Failed to initialize GLFW");
+        Log::logCritical("Failed to initialize GLFW", true);
         return false;
     }
 
@@ -38,7 +38,7 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     window = glfwCreateWindow(w, h, title.c_str(), NULL, NULL);
     if (!window) {
         glfwTerminate();
-        Log::logError("Failed to create GLFW window");
+        Log::logCritical("Failed to create GLFW window", true);
         return false;
     }
 
