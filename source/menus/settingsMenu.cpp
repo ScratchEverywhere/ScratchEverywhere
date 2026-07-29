@@ -292,10 +292,11 @@ void SettingsMenu::render() {
 
 #endif
 
+		OS::customProjectsPath = nullptr;
+		OS::loadedSettings = false;
+
         if (newPath.length() > 0) {
             projectsPath = newPath;
-			OS::customProjectsPath = nullptr;
-			OS::loadedSettings = false;
             updateButtonStates();
         }
     }
