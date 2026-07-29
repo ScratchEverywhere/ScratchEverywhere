@@ -371,7 +371,7 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
 
             int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
             if (file_index < 0) {
-                Log::logError("Failed to extract project.json");
+                Log::logCritical("Failed to extract project.json", false);
                 mz_zip_reader_end(&zipArchive);
                 return project_json;
             }
