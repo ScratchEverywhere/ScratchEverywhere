@@ -10,8 +10,25 @@
 
 #if defined(__PS4__)
 #include <orbis/UserService.h>
+#include <orbis/SystemService.h>
 #include <orbis/libkernel.h>
 #endif
+
+/**
+ * See these lines, in libdlgmod's source code, for reference, where the 'BUTTON_TYPES' enum, below, is copied from:
+ * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/win32/libdlgmod.cpp#L112-L120
+ * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/macos/libdlgmod.mm#L49-L57
+ * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/xlib/libdlgmod.cpp#L79-L87
+ */
+enum BUTTON_TYPES {
+  BUTTON_ABORT,
+  BUTTON_IGNORE,
+  BUTTON_OK,
+  BUTTON_CANCEL,
+  BUTTON_YES,
+  BUTTON_NO,
+  BUTTON_RETRY
+};
 
 // PS4 implementation of logging
 #ifdef __PS4__
@@ -38,6 +55,10 @@ void Log::logCritical(std::string message, bool fatal) {
     	snprintf(logBuffer, 1023, "<SE!> Critical: %s\n", message.c_str());
 	}
 	sceKernelDebugOutText(0, logBuffer);
+	// If fatal, exit the current SE! process instance:
+	if (fatal) {
+		sceSystemServiceLoadExec("exit", nullptr);
+	}
 }
 
 void Log::writeToFile(std::string message) {
@@ -65,7 +86,6 @@ void Log::logError(std::string message) {
     if (lastLog == message) return;
     lastLog = message;
     std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
-
     writeToFile("<Error> " + message);
 }
 
@@ -85,15 +105,33 @@ void Log::logCritical(std::string message, bool fatal) {
 		writeToFile("<Critical> " + message);
 	}
 	#if defined(USE_LIBDLGMOD)
+	// Retrieve caption text and button label strings for later use:
 	const char *title = widget_get_caption();
+	const char *abort = widget_get_button_name(BUTTON_ABORT);
+	const char *ignore = widget_get_button_name(BUTTON_IGNORE);
+	/**
+	 * FIXME: Replace "Fatal Error", "Critical Error", "Abort", and "Ignore"
+	 * hard-coded strings with localization support for various languages...
+	 */
 	if (fatal) {
+		// Titlebar caption text for fatal graphical errors:
 		widget_set_caption("Fatal Error");
 	} else {
+		// Titlebar caption text for non-fatal graphical errors:
 		widget_set_caption("Critical Error");
 	}
+	// 'Abort' button label for all graphical errors:
+	widget_set_button_name(BUTTON_ABORT, "Abort");
+	// 'Ignore' button label for non-fatal graphical errors:
+	widget_set_button_name(BUTTON_IGNORE, "Ignore");
+	// Show the error:
 	show_error(message.c_str(), fatal);
+	// Reset caption text and button labels to original strings:
 	widget_set_caption(title);
+	widget_set_button_name(BUTTON_ABORT, abort);
+	widget_set_button_name(BUTTON_IGNORE, ignore);
 	#else
+	// If fatal, exit the current SE! process instance:
 	if (fatal) {
 		exit(0);
 	}
