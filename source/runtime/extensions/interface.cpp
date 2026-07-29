@@ -165,7 +165,7 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
         &readData);
 
     if (!loadResult.valid()) {
-        Log::logError("Failed to load lua for '" + extension->id + "': " + static_cast<sol::error>(loadResult).what());
+        Log::logCritical("Failed to load lua for '" + extension->id + "': " + static_cast<sol::error>(loadResult).what(), false);
         return;
     }
 
