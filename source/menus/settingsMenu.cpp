@@ -268,7 +268,7 @@ void SettingsMenu::render() {
 
         	while (std::getline(ss, buf, ':')) {
 				size_t pos = buf.find_last_of("/"); 
-				if (cmd == buf.substr(pos + 1)) {
+				if (pos != std::string::npos && cmd == buf.substr(pos + 1)) {
 					// Expected dialog CLI executable exists in path!
 					in_path = true;
 					break;
