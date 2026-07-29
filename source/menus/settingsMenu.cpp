@@ -193,7 +193,7 @@ void SettingsMenu::render() {
     if (ClearCache->isPressed({"a"})) {
         const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
         const auto cderr = FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
-        if (!rderr.has_value() || !cderr.has_value()) Log::logError("Failed to clear cache.");
+        if (!rderr.has_value() || !cderr.has_value()) Log::logCritical("Failed to clear cache.", false);
     }
 
     if (EnableMenuMusic->isPressed({"a"})) {
