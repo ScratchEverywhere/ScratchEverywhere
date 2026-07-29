@@ -466,7 +466,7 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
 
     auto potentialError = FileSystem::removeDirectory(directory);
     if (!potentialError.has_value()) {
-        Log::logError(std::string("Failed to delete folder: ") + potentialError.error());
+        Log::logCritical(std::string("Failed to delete folder: ") + potentialError.error(), false);
         return false;
     }
 
