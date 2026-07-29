@@ -6,4 +6,4 @@ cd "/path/to/scratch/everywhere/app/parent/directory";
 chmod u+x "./scratch-pc.app/Contents/MacOS/scratch-pc";
 xattr -dr com.apple.quarantine "./scratch-pc.app";
 ```
-When distributing, this 'README.md' is not necessary, as it is only for information purposes, and it can be deleted if you don't want it.
+When distributing, this 'README.md' is not necessary, as it is only for information purposes, and it can be deleted if you do not want or need it.
