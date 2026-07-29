@@ -165,12 +165,12 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
         &readData);
 
     if (!loadResult.valid()) {
-        Log::logError("Failed to load lua for '" + extension->id + "': " + static_cast<sol::error>(loadResult).what());
+        Log::logCritical("Failed to load lua for '" + extension->id + "': " + static_cast<sol::error>(loadResult).what(), false);
         return;
     }
 
     sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
-    if (!result.valid()) Log::logError("Error while running lua for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+    if (!result.valid()) Log::logCritical("Error while running lua for extension '" + extension->id + "': " + static_cast<sol::error>(result).what(), false);
 }
 
 Value extensions::objectToValue(sol::object object) {
@@ -226,7 +226,7 @@ void extensions::registerHandlers(Extension *extension) {
             sol::protected_function func = extension->luaState["blocks"][extensionBlock.first];
             sol::protected_function_result result = func(extensions::getBlockArgs(extension, block, thread, sprite));
             if (!result.valid()) {
-                Log::logError("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what());
+                Log::logCritical("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what(), false);
                 runtime::clearData();
                 return BlockResult::CONTINUE;
             }
@@ -241,7 +241,7 @@ void extensions::registerHandlers(Extension *extension) {
             case ExtensionBlockType::HAT:
             case ExtensionBlockType::EVENT:
                 if (!resultObj.is<bool>()) {
-                    Log::logError("Extension block '" + block->opcode + "' returned an invalid type.");
+                    Log::logCritical("Extension block '" + block->opcode + "' returned an invalid type.", false);
                     runtime::clearData();
                     return BlockResult::RETURN;
                 }
@@ -272,7 +272,7 @@ void extensions::runUpdateFunction(Extension *extension, ExtensionUpdateFunction
     const sol::object updateFn = extension->luaState["update"][updateFunctionString(type)];
     if (!updateFn.is<sol::function>()) return;
     sol::protected_function_result result = updateFn.as<sol::protected_function>()();
-    if (!result.valid()) Log::logError("Error running update function for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+    if (!result.valid()) Log::logCritical("Error running update function for extension '" + extension->id + "': " + static_cast<sol::error>(result).what(), false);
 }
 
 void extensions::cleanup() {
