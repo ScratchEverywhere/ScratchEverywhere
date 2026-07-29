@@ -13,6 +13,7 @@ on:
       - source/platforms/
       - source/platforms/nds/**
       - source/renderers/gl2d/**
+      - source/windowing/nds/**
       - source/*
       - source/menus/**
       - source/audio/nds/**
