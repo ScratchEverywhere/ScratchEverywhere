@@ -206,7 +206,7 @@ void Unzip::openScratchProject(void *arg) {
     nlohmann::json project_json = unzipProject(file);
     delete file;
     if (project_json.empty()) {
-        Log::logError("Project.json is empty.");
+        Log::logCritical("Project.json is empty.", false);
         Unzip::projectOpened = -2;
         Unzip::threadFinished = true;
         return;
