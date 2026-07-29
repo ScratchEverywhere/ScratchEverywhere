@@ -2,6 +2,9 @@
     #include <SDL3/SDL.h>
 #elif defined(RENDERER_SDL2)
     #include <SDL.h>
+#elif defined(RENDERER_SDL1)
+    #include <SDL/SDL.h>
+    #include <SDL/SDL_thread.h>
 #endif
 #include <thread.hpp>
 
@@ -39,6 +42,11 @@ bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize,
     SDL_DestroyProperties(props);
 #elif defined(RENDERER_SDL2)
     impl->thread = SDL_CreateThreadWithStackSize(SDL_ThreadWrapper, name.c_str(), stackSize, ctx);
+#elif defined(RENDERER_SDL1)
+    // SDL1 does not support custom stack sizes or thread naming
+    (void)stackSize;
+    (void)name;
+    impl->thread = SDL_CreateThread(SDL_ThreadWrapper, ctx);
 #endif
 
     if (impl->thread == nullptr) {
@@ -64,23 +72,29 @@ void SE_Thread::join() {
 
 void SE_Thread::detach() {
     if (impl != nullptr && impl->thread != nullptr) {
+#if defined(RENDERER_SDL3) || defined(RENDERER_SDL2)
         SDL_DetachThread(impl->thread);
         impl->thread = nullptr;
+#elif defined(RENDERER_SDL1)
+        // SDL1 has no detach - fall back to a blocking wait to avoid leaking the thread handle
+        SDL_WaitThread(impl->thread, nullptr);
+        impl->thread = nullptr;
+#endif
     }
 }
 
 void SE_Thread::sleep(uint16_t milliseconds) {
 #if defined(RENDERER_SDL3)
     SDL_DelayNS((Uint64)milliseconds * SDL_NS_PER_MS);
-#elif defined(RENDERER_SDL2)
-    SDL_Delay(milliseconds);
+#elif defined(RENDERER_SDL2) || defined(RENDERER_SDL1)
+    SDL_Delay((Uint32)milliseconds);
 #endif
 }
 
 unsigned int SE_Thread::getCurrentThreadId() {
 #if defined(RENDERER_SDL3)
     return static_cast<unsigned int>(SDL_GetCurrentThreadID());
-#elif defined(RENDERER_SDL2)
+#elif defined(RENDERER_SDL2) || defined(RENDERER_SDL1)
     return static_cast<unsigned int>(SDL_ThreadID());
 #endif
 }
@@ -88,7 +102,7 @@ unsigned int SE_Thread::getCurrentThreadId() {
 struct SE_Mutex::Impl {
 #if defined(RENDERER_SDL3) // this is such a minor change whyyyyyyyy
     SDL_Mutex *mtx;
-#elif defined(RENDERER_SDL2)
+#elif defined(RENDERER_SDL2) || defined(RENDERER_SDL1)
     SDL_mutex *mtx;
 #endif
 };
@@ -111,11 +125,19 @@ SE_Mutex::~SE_Mutex() {
 }
 
 void SE_Mutex::lock() {
+#if defined(RENDERER_SDL1)
+    SDL_mutexP(impl->mtx);
+#else
     SDL_LockMutex(impl->mtx);
+#endif
 }
 
 void SE_Mutex::unlock() {
+#if defined(RENDERER_SDL1)
+    SDL_mutexV(impl->mtx);
+#else
     SDL_UnlockMutex(impl->mtx);
+#endif
 }
 
 bool SE_Mutex::tryLock() {
@@ -123,5 +145,8 @@ bool SE_Mutex::tryLock() {
     return SDL_TryLockMutex(impl->mtx);
 #elif defined(RENDERER_SDL2)
     return SDL_TryLockMutex(impl->mtx) == 0;
+#elif defined(RENDERER_SDL1)
+    // SDL1 has no try-lock
+    return false;
 #endif
 }

@@ -9,14 +9,16 @@
 static SDL_AudioStream *sdl_stream;
 
 extern "C" void SDLCALL callback(void *userdata, SDL_AudioStream *astream, int additional_amount, int total_amount) {
-    short samples[512];
+    short samples[2048];
 
     while (additional_amount > 0) {
-        Mixer::requestSound(samples, sizeof(samples) / sizeof(samples[0]) / 2);
+        int bytes = SDL_min(additional_amount, (int)sizeof(samples));
+        int frames = bytes / (sizeof(short) * 2);
 
-        SDL_PutAudioStreamData(sdl_stream, (void *)samples, sizeof(samples));
+        Mixer::requestSound(samples, frames);
+        SDL_PutAudioStreamData(astream, samples, frames * sizeof(short) * 2);
 
-        additional_amount -= sizeof(samples);
+        additional_amount -= frames * sizeof(short) * 2;
     }
 }
 

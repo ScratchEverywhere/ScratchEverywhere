@@ -34,11 +34,19 @@ SDL_Surface *penSurface = nullptr;
 
 SpeechManagerSDL1 *speechManager = nullptr;
 
+#if defined(VITA)
+int windowWidth = 960;
+int windowHeight = 544;
+#else
+int windowWidth = 540;
+int windowHeight = 405;
+#endif
+
 bool Render::Init() {
     TTF_Init();
 
     globalWindow = new WindowSDL1();
-    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;
@@ -89,11 +97,11 @@ SpeechManager *Render::getSpeechManager() {
 
 int Render::getWidth() {
     if (globalWindow) return globalWindow->getWidth();
-    return 540;
+    return windowWidth;
 }
 int Render::getHeight() {
     if (globalWindow) return globalWindow->getHeight();
-    return 405;
+    return windowHeight;
 }
 
 float Render::getPixelDensity() {
