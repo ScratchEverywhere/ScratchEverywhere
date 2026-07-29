@@ -365,7 +365,7 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
             zipArchive.m_pRead = miniz_istream_read_func;
 
             if (!mz_zip_reader_init(&zipArchive, file_size, 0)) {
-                Log::logError("Failed to initialize SB3 zip reader from stream.");
+                Log::logCritical("Failed to initialize SB3 zip reader from stream.", false);
                 return project_json;
             }
 
