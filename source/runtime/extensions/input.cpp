@@ -67,7 +67,7 @@ void extensions::input::registerAPI(Extension *extension) {
 
     extension->luaState["input"]["getAxis"] = [](std::string joystick, std::string axis) -> float {
         if (joystick != "left" && joystick != "right") {
-            Log::logError("Invalid joystick: " + joystick);
+            Log::logCritical("Invalid joystick: " + joystick, false);
             return 0;
         }
         if (axis != "x" && axis != "y") {
