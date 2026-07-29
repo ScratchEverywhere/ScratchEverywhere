@@ -13,6 +13,16 @@
 #include <orbis/libkernel.h>
 #endif
 
+enum BUTTON_TYPES {
+  BUTTON_ABORT,
+  BUTTON_IGNORE,
+  BUTTON_OK,
+  BUTTON_CANCEL,
+  BUTTON_YES,
+  BUTTON_NO,
+  BUTTON_RETRY
+};
+
 // PS4 implementation of logging
 #ifdef __PS4__
 char logBuffer[1024];
@@ -85,15 +95,33 @@ void Log::logCritical(std::string message, bool fatal) {
 		writeToFile("<Critical> " + message);
 	}
 	#if defined(USE_LIBDLGMOD)
+	// Retrieve caption text and button label strings for later use:
 	const char *title = widget_get_caption();
+	const char *abort = widget_get_button_name(BUTTON_ABORT);
+	const char *ignore = widget_get_button_name(BUTTON_IGNORE);
+	/**
+	 * FIXME: Replace "Fatal Error", "Critical Error", "Abort", and "Ignore"
+	 * hard-coded strings with localization support for various languages...
+	 */
 	if (fatal) {
+		// Titlebar caption text for fatal graphical errors:
 		widget_set_caption("Fatal Error");
 	} else {
+		// Titlebar caption text for non-fatal graphical errors:
 		widget_set_caption("Critical Error");
 	}
+	// 'Abort' button label for all graphical errors:
+	widget_set_button_name(BUTTON_ABORT, "Abort");
+	// 'Ignore' button label for non-fatal graphical errors:
+	widget_set_button_name(BUTTON_IGNORE, "Ignore");
+	// Show the error:
 	show_error(message.c_str(), fatal);
+	// Reset caption text and button labels to original strings:
 	widget_set_caption(title);
+	widget_set_button_name(BUTTON_ABORT, abort);
+	widget_set_button_name(BUTTON_IGNORE, ignore);
 	#else
+	// If fatal, exit the current SE! process instance:
 	if (fatal) {
 		exit(0);
 	}
