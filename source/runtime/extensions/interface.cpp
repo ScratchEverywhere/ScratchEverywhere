@@ -170,7 +170,7 @@ void extensions::loadLua(Extension *extension, std::istream &data) {
     }
 
     sol::protected_function_result result = static_cast<sol::protected_function>(loadResult)();
-    if (!result.valid()) Log::logError("Error while running lua for extension '" + extension->id + "': " + static_cast<sol::error>(result).what());
+    if (!result.valid()) Log::logCritical("Error while running lua for extension '" + extension->id + "': " + static_cast<sol::error>(result).what(), false);
 }
 
 Value extensions::objectToValue(sol::object object) {
