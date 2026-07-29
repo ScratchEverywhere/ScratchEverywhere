@@ -26,7 +26,7 @@ static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-lik
 
 bool WindowSDL1::init(int width, int height, const std::string &title) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
-        Log::logError("Failed to initialize SDL1");
+        Log::logCritical("Failed to initialize SDL1", true);
         return false;
     }
     SDL_EnableUNICODE(1);
@@ -43,7 +43,7 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
 #endif
 
     if (!window) {
-        Log::logError("Failed to create SDL1 window");
+        Log::logCritical("Failed to create SDL1 window", true);
         return false;
     }
 
