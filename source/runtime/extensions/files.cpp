@@ -19,13 +19,13 @@ struct FilesWrapper {
         if (!hasPermission(ExtensionPermission::LOCALFS)) return;
         if (!FileSystem::fileExists(extensionDataRoot)) {
             if (!FileSystem::createDirectory(extensionDataRoot).has_value()) {
-                Log::logError("Failed to create extension data directory.");
+                Log::logCritical("Failed to create extension data directory.", false);
                 return;
             }
         }
         if (!FileSystem::fileExists(localRoot)) {
             if (!FileSystem::createDirectory(localRoot).has_value()) {
-                Log::logError("Failed to create extension data directory for: " + ext->id);
+                Log::logCritical("Failed to create extension data directory for: " + ext->id, false);
                 return;
             }
         }
