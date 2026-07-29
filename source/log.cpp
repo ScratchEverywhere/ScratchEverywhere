@@ -55,6 +55,7 @@ void Log::logCritical(std::string message, bool fatal) {
     	snprintf(logBuffer, 1023, "<SE!> Critical: %s\n", message.c_str());
 	}
 	sceKernelDebugOutText(0, logBuffer);
+	// If fatal, exit the current SE! process instance:
 	if (fatal) {
 		sceSystemServiceLoadExec("exit", nullptr);
 	}
