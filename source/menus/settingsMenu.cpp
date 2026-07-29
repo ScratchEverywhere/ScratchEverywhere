@@ -322,9 +322,6 @@ void SettingsMenu::render() {
 }
 
 void SettingsMenu::cleanup() {
-	OS::customProjectsPath = nullptr;
-	OS::loadedSettings = false;
-
     if (backButton != nullptr) {
         delete backButton;
         backButton = nullptr;
