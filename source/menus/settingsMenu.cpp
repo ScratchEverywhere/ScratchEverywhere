@@ -254,21 +254,23 @@ void SettingsMenu::render() {
 
     	if (path && path[0] != '\0') {
 
-        	std::string str(path);
+			struct stat st;
         	std::string buf;
+
+        	std::string str(path);
         	std::stringstream ss(str);
 
+            char resolved_path[PATH_MAX];
 			const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
-    		std::string str = ptr ? ptr : "";
-	
+
+			std::string str = ptr ? ptr : "";
     		std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 
     		bool isKDE = (str.find("KDE") != string::npos);
-			std::string cmd = ((isKDE) ? "kdialog" : "zenity");
+			std::string cmd = ((isKDE) ? "/kdialog" : "/zenity");
 
         	while (std::getline(ss, buf, ':')) {
-				size_t pos = buf.find_last_of("/"); 
-				if (pos != std::string::npos && cmd == buf.substr(pos + 1)) {
+				if (realpath((buf + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
 					// Expected dialog CLI executable exists in path!
 					in_path = true;
 					break;
