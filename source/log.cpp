@@ -10,6 +10,7 @@
 
 #if defined(__PS4__)
 #include <orbis/UserService.h>
+#include <orbis/SystemService.h>
 #include <orbis/libkernel.h>
 #endif
 
@@ -54,6 +55,9 @@ void Log::logCritical(std::string message, bool fatal) {
     	snprintf(logBuffer, 1023, "<SE!> Critical: %s\n", message.c_str());
 	}
 	sceKernelDebugOutText(0, logBuffer);
+	if (fatal) {
+		sceSystemServiceLoadExec("exit", nullptr);
+	}
 }
 
 void Log::writeToFile(std::string message) {
@@ -81,7 +85,6 @@ void Log::logError(std::string message) {
     if (lastLog == message) return;
     lastLog = message;
     std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
-
     writeToFile("<Error> " + message);
 }
 
