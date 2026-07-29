@@ -29,7 +29,7 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 #endif
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
-        Log::logError("Failed to initialize SDL3: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to initialize SDL3: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -48,14 +48,14 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 
     window = SDL_CreateWindow(title.c_str(), width, height, flags);
     if (!window) {
-        Log::logError("Failed to create SDL3 window: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to create SDL3 window: " + std::string(SDL_GetError()), true);
         return false;
     }
 
 #ifdef RENDERER_OPENGL
     context = SDL_GL_CreateContext(window);
     if (!context) {
-        Log::logError("Failed to create OpenGL context: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to create OpenGL context: " + std::string(SDL_GetError()), true);
         return false;
     }
 

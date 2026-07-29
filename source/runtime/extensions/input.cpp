@@ -61,17 +61,17 @@ void extensions::input::registerAPI(Extension *extension) {
         if (button.value() == "middle") return Input::mousePointer.mouseButton == Input::Mouse::MIDDLE;
         if (button.value() == "right") return Input::mousePointer.mouseButton == Input::Mouse::RIGHT;
 
-        Log::logError("Invalid mouse button: " + button.value());
+        Log::logCritical("Invalid mouse button: " + button.value(), false);
         return false;
     };
 
     extension->luaState["input"]["getAxis"] = [](std::string joystick, std::string axis) -> float {
         if (joystick != "left" && joystick != "right") {
-            Log::logError("Invalid joystick: " + joystick);
+            Log::logCritical("Invalid joystick: " + joystick, false);
             return 0;
         }
         if (axis != "x" && axis != "y") {
-            Log::logError("Invalid axis: " + axis);
+            Log::logCritical("Invalid axis: " + axis, false);
             return 0;
         }
 
