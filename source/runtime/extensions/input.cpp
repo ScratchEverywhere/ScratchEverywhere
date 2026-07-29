@@ -71,7 +71,7 @@ void extensions::input::registerAPI(Extension *extension) {
             return 0;
         }
         if (axis != "x" && axis != "y") {
-            Log::logError("Invalid axis: " + axis);
+            Log::logCritical("Invalid axis: " + axis, false);
             return 0;
         }
 
