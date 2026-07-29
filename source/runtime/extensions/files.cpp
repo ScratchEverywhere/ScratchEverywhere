@@ -143,7 +143,7 @@ struct FilesWrapper {
 
         auto files = FileSystem::listDirectory(fullPath);
         if (!files.has_value()) {
-            Log::logError("Error while reading directory, " + fullPath + ": " + files.error());
+            Log::logCritical("Error while reading directory, " + fullPath + ": " + files.error(), false);
             return sol::lua_nil;
         }
 
