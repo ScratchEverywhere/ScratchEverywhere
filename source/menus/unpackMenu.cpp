@@ -56,13 +56,13 @@ void UnpackMenu::addToJsonArray(const std::string &filePath, const std::string &
 
     const auto err = FileSystem::createDirectory(FileSystem::parentPath(filePath));
     if (!err.has_value()) {
-        Log::logCritcal("Failed to create folder: " + filePath + " : " + err.error(), false);
+        Log::logCritical("Failed to create folder: " + filePath + " : " + err.error(), false);
         return;
     }
 
     std::ofstream outFile(filePath);
     if (!outFile) {
-        Log::logCritcal("Failed to write JSON file: " + filePath, false);
+        Log::logCritical("Failed to write JSON file: " + filePath, false);
         return;
     }
     outFile << j.dump(2);
