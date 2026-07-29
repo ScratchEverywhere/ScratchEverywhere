@@ -13,6 +13,7 @@ on:
       - cmake/deps/*
       - source/runtime/**
       - source/renderers/citro2d/**
+      - source/windowing/3ds/**
       - source/*
       - source/menus/**
       - source/audio/3ds/**
