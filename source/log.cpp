@@ -14,7 +14,7 @@
 #endif
 
 /**
- * See these lines, in libdlgmod's source code, for reference, where the BUTTON_TYPES enum, below, is copied from:
+ * See these lines, in libdlgmod's source code, for reference, where the 'BUTTON_TYPES' enum, below, is copied from:
  * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/win32/libdlgmod.cpp#L112-L120
  * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/macos/libdlgmod.mm#L49-L57
  * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/xlib/libdlgmod.cpp#L79-L87
