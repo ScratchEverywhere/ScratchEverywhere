@@ -257,8 +257,8 @@ void SettingsMenu::render() {
 			struct stat st;
         	std::string buf;
 
-        	std::string str(path);
-        	std::stringstream ss(str);
+        	std::string cpp_path(path);
+        	std::stringstream ss(cpp_path);
 
             char resolved_path[PATH_MAX];
 			const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
