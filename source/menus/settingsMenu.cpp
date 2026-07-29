@@ -214,6 +214,8 @@ void SettingsMenu::render() {
 
     if (EnableCustomFolderPath->isPressed({"a"}) && OS::getScratchFolderLocation() != OS::getConfigFolderLocation()) {
         UseProjectsPath = !UseProjectsPath;
+		OS::customProjectsPath = nullptr;
+		OS::loadedSettings = false;
         updateButtonStates();
     }
 
@@ -292,7 +294,8 @@ void SettingsMenu::render() {
 
         if (newPath.length() > 0) {
             projectsPath = newPath;
-
+			OS::customProjectsPath = nullptr;
+			OS::loadedSettings = false;
             updateButtonStates();
         }
     }
