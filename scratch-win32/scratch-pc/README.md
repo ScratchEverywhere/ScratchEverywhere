@@ -1,2 +1,2 @@
-# Windows Packing Guide
+# Win32 Packing Guide
 For Windows NSIS Installer packaging: Place the built 'scratch-pc.exe' executable in this folder, next to this 'README.md' file before trying to do anything else. Then load the 'scratch-pc.nsi' script into NSIS and hit the build button to compile your new installer for distribution. NSIS can be downloaded from the official [SourceForge](https://nsis.sourceforge.io/Download) download page. When distributing, this 'README.md' file is not necessary, as it is only for information purposes, and it can be deleted if you do not want it; be sure to delete it before trying to build your installer package.
