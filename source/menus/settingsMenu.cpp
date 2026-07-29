@@ -231,11 +231,55 @@ void SettingsMenu::render() {
     }
 
     if (ChangeFolderPath->isPressed({"a"})) {
+
 #if defined(USE_LIBDLGMOD)
-		const std::string newPathGui = get_directory_alt("Select a custom path to load *.sb3 Scratch project files...", "");
-		const std::string newPath = ((newPathGui.empty()) ? Input::openSoftwareKeyboard(projectsPath.c_str()) : newPathGui);
+
+		// FIXME: Translate this into every localization supported by SE!
+		const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+
+		const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+		const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
+
+#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+
+		bool in_path = false;
+    	const char *path = std::getenv("PATH");
+
+    	if (path && path[0] != '\0') {
+
+        	std::string str(path);
+        	std::string buf;
+        	std::stringstream ss(str);
+
+			const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
+    		std::string str = ptr ? ptr : "";
+	
+    		std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+
+    		bool isKDE = (str.find("KDE") != string::npos);
+			std::string cmd = ((isKDE) ? "kdialog" : "zenity");
+
+        	while (std::getline(ss, buf, ':')) {
+				size_t pos = buf.find_last_of("/"); 
+				if (cmd == buf.substr(pos + 1)) {
+					// Expected dialog CLI executable exists in path!
+					in_path = true;
+					break;
+				}
+			}
+		}
+
+		const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+		const std::string newPath = ((in_path) ? ((newPathGui.empty()) ? projectsPath : newPathGui) : Input::openSoftwareKeyboard(projectsPath.c_str()));
+
+#endif
+
 #else
+
 		const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+
 #endif
 
         if (newPath.length() > 0) {
