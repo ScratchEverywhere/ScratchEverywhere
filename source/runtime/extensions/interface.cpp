@@ -226,7 +226,7 @@ void extensions::registerHandlers(Extension *extension) {
             sol::protected_function func = extension->luaState["blocks"][extensionBlock.first];
             sol::protected_function_result result = func(extensions::getBlockArgs(extension, block, thread, sprite));
             if (!result.valid()) {
-                Log::logError("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what());
+                Log::logCritical("Error running extension block '" + block->opcode + "': " + static_cast<sol::error>(result).what(), false);
                 runtime::clearData();
                 return BlockResult::CONTINUE;
             }
