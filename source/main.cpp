@@ -191,7 +191,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         } else {
             exitApp();
 #if !defined(SE_USE_LIBRARY_BUILD)
-                return 0;
+            return 0;
 #else
             for (int i = 0; i < argc; i++) {
                 free(argv[i]); 
