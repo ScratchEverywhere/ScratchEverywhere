@@ -92,16 +92,41 @@ void mainLoop() {
     }
 }
 
+#if !defined(SE_USE_LIBRARY_BUILD)
 #if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
-
 extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
+#else
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) void scratch_everywhere(const char *sb3) {
+#else
+extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const char *sb3) {
+#endif
+    int argc = 2;
+    char **argv = (char **)malloc(argc * sizeof(char *));
+    if (argv) {
+        for (int i = 0; i < argc; i++) {
+            const char *tmp = (!i) ? "(null)" : sb3;
+            argv[i] = (char *)malloc((strlen(tmp) + 1) * sizeof(char));
+            if (argv[i]) {
+                strcpy(argv[i], tmp);
+            }
+        }
+    }
+#endif
     if (!initApp()) {
         exitApp();
+#if !defined(SE_USE_LIBRARY_BUILD)
         return 1;
+#else
+        for (int i = 0; i < argc; i++) {
+            free(argv[i]); 
+        }
+        free(argv);
+#endif
     }
 
     srand(time(NULL));
@@ -153,12 +178,26 @@ int main(int argc, char **argv) {
 #else
             if (!activateMainMenu()) {
                 exitApp();
+#if !defined(SE_USE_LIBRARY_BUILD)
                 return 0;
+#else
+                for (int i = 0; i < argc; i++) {
+                    free(argv[i]); 
+                }
+                free(argv);
+#endif
             }
 #endif
         } else {
             exitApp();
-            return 0;
+#if !defined(SE_USE_LIBRARY_BUILD)
+                return 0;
+#else
+            for (int i = 0; i < argc; i++) {
+                free(argv[i]); 
+            }
+            free(argv);
+#endif
         }
     }
 
@@ -169,6 +208,13 @@ int main(int argc, char **argv) {
         mainLoop();
 #endif
     exitApp();
+#if !defined(SE_USE_LIBRARY_BUILD)
     return 0;
+#else
+    for (int i = 0; i < argc; i++) {
+        free(argv[i]); 
+    }
+    free(argv);
+#endif
 }
 #endif
