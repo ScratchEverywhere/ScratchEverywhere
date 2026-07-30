@@ -22,7 +22,6 @@ ${If} $InstDir == ""
 		System::Call 'OLE32::CoTaskMemFree(p r2)'
 		StrCpy $0 $1
 	${EndIf}
-
 	StrCpy $InstDir "$0\${APPNAME}"
 ${EndIf}
 FunctionEnd
