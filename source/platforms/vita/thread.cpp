@@ -1,10 +1,10 @@
 #if defined(RENDERER_SDL3)
-    #include <SDL3/SDL.h>
+#include <SDL3/SDL.h>
 #elif defined(RENDERER_SDL2)
-    #include <SDL.h>
+#include <SDL.h>
 #elif defined(RENDERER_SDL1)
-    #include <SDL/SDL.h>
-    #include <SDL/SDL_thread.h>
+#include <SDL/SDL.h>
+#include <SDL/SDL_thread.h>
 #endif
 #include <thread.hpp>
 
