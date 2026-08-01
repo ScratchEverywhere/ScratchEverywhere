@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 1.0.0.3 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.0 LANGUAGES CXX C)
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
@@ -31,7 +31,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
 set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
-set(SE_APP_VERSION "1.0-rc3" CACHE STRING "Version of the outputed app.")
+set(SE_APP_VERSION "1.0" CACHE STRING "Version of the outputed app.")
 
 if(VITA)
 	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
@@ -69,6 +69,8 @@ elseif(NINTENDO_WIIU)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/wiiu.cmake")
 elseif(WEBOS)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/webos.cmake")
+elseif(IOS)
+	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/ios.cmake")
 endif()
 
 if("fallback" IN_LIST SE_DEPS_VALID_OPTIONS)
@@ -266,12 +268,52 @@ foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 		${DIR}/*.cpp
         ${DIR}/*.c
         ${DIR}/*.cc
+		${DIR}/*.mm
+		${DIR}/*.m
 	)
+
+	# Xcode requires appending headers as sources in order to display them
+	if(XCODE)
+		file(GLOB ADDITIONAL_SOURCES
+			${DIR}/*.hpp
+			${DIR}/*.h
+		)
+		list(APPEND SOURCE_FILES ${ADDITIONAL_SOURCES})
+	endif()
+
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
 endforeach()
 
 if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
+endif()
+
+if(APPLE)
+	# App iconset
+	set(MACOSX_ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Icon.icns")
+	set_source_files_properties(${MACOSX_ICON} PROPERTIES
+		MACOSX_PACKAGE_LOCATION "Resources"
+	)
+	list(APPEND SOURCE_FILES ${MACOSX_ICON})
+
+	if(NOT SE_CMAKERC)
+		# Native RomFS implementation with resources
+		file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
+		list(APPEND SOURCE_FILES ${ROMFS_FILES})
+
+		foreach(FILE ${ROMFS_FILES})
+			get_filename_component(DIR_PATH "${FILE}" DIRECTORY)
+			file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${DIR_PATH}")
+
+			set_source_files_properties(${FILE} PROPERTIES
+				MACOSX_PACKAGE_LOCATION "Resources/${REL_PATH}"
+			)
+		endforeach()
+	endif()
+endif()
+
+if(XCODE)
+	source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
 endif()
 
 add_library(se-interface INTERFACE)
@@ -281,7 +323,7 @@ if(SE_EXECUTABLE)
 		set_target_properties(scratch-everywhere PROPERTIES PREFIX "")
 		se_add_dependency(scratch-everywhere libretro)
 	else()
-		add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+		add_executable(scratch-everywhere WIN32 MACOSX_BUNDLE ${SOURCE_FILES})
 	endif()
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
 	if(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
@@ -316,6 +358,11 @@ if(SE_EXECUTABLE)
 	if(EMSCRIPTEN)
 		set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
 		target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
+	endif()
+
+	if(APPLE)
+		set_target_properties(scratch-everywhere PROPERTIES 
+			MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Info.plist.in")
 	endif()
 endif()
 

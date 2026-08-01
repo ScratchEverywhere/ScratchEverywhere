@@ -5,15 +5,15 @@
     <key>CFBundleName</key>
     <string>Scratch Everywhere!</string>
     <key>CFBundleDisplayName</key>
-    <string>Scratch Everywhere!</string>
+    <string>@SE_APP_NAME@</string>
     <key>CFBundleIdentifier</key>
     <string>com.se.scratcheverywhere</string>
     <key>CFBundleVersion</key>
-    <string>1.0-rc3</string>
+    <string>@SE_APP_VERSION@</string>
     <key>CFBundleIconFile</key>
     <string>Icon</string>
     <key>CFBundleExecutable</key>
-    <string>scratch-macOS</string>
+    <string>@SE_OUTPUT_NAME@</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
   </dict>

@@ -26,6 +26,10 @@
 #include <filesystem.hpp>
 #endif
 
+#ifdef __IOS__
+#include <SDL_main.h>
+#endif
+
 static void exitApp() {
     Render::deInit();
     OS::deinit();
@@ -92,7 +96,7 @@ void mainLoop() {
     }
 }
 
-#if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
+#if defined(WINDOWING_SDL1)
 #include <SDL.h>
 
 extern "C" int main(int argc, char **argv) {
