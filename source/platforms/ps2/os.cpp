@@ -1,4 +1,3 @@
-#include <kernel.h>
 #include <os.hpp>
 
 namespace OS {
@@ -23,7 +22,7 @@ bool OS::isEnhancedPlatform() {
 }
 
 std::string OS::getFilesystemRootPrefix() {
-    return "mass:";
+    return "";
 }
 
 std::string OS::getConfigFolderLocation() {
@@ -33,7 +32,7 @@ std::string OS::getConfigFolderLocation() {
 std::string OS::getScratchFolderLocation() {
     const std::string custom = getCustomScratchFolderLocation();
     if (!custom.empty()) return custom;
-    return getFilesystemRootPrefix() + "/scratch-ps2/";
+    return getFilesystemRootPrefix() + "scratch-ps2/";
 }
 
 std::string OS::getRomFSLocation() {
@@ -41,17 +40,16 @@ std::string OS::getRomFSLocation() {
 }
 
 bool OS::isOnline() {
-    // TODO: implement
+    // TODO: Add an actual way to check if online
     return false;
 }
 
+// There is no WI-FI support on ps2
 bool OS::initWifi() {
-    // TODO: implement
     return false;
 }
 
 void OS::deInitWifi() {
-    // TODO: implement
 }
 
 std::string OS::getUsername() {
