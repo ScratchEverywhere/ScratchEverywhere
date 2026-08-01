@@ -19,6 +19,9 @@
 #endif
 #endif
 #include <__getbasepath/internal.h>
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include <sstream>
+#endif
 
 namespace OS {
 bool toExit = false;
@@ -58,7 +61,7 @@ std::string OS::getConfigFolderLocation() {
         path = (std::filesystem::path(szPath) / "scratch-everywhere" / "").string();
         CoTaskMemFree(szPath);
     } else {
-        Log::logError("Could not find RoamingData path.");
+        Log::logCritical("Could not find RoamingData path.", false);
     }
 #elif defined(__APPLE__)
     const char *home = std::getenv("HOME");

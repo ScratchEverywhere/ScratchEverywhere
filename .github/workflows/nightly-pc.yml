@@ -22,6 +22,8 @@ on:
       - source/audio/sdl1/**
       - source/renderers/sdl2/**
       - source/windowing/sdl2/**
+      - source/renderers/sdl3/**
+      - source/windowing/sdl3/**
       - source/audio/sdl2/**
       - source/audio/sdl3/**
       - source/renderers/opengl/**

@@ -153,7 +153,7 @@ bool Unzip::load() {
 #if defined(ENABLE_LOADSCREEN) && defined(ENABLE_MENU)
 
     SE_Thread projectThread;
-    if (projectThread.create(projectLoaderThread, nullptr, 0x4000, 0, -1, "ProjectLoader")) {
+    if (projectThread.create(projectLoaderThread, nullptr, 0x262144, 0, -1, "ProjectLoader")) {
         Loading loading;
         loading.init();
 
@@ -206,7 +206,7 @@ void Unzip::openScratchProject(void *arg) {
     nlohmann::json project_json = unzipProject(file);
     delete file;
     if (project_json.empty()) {
-        Log::logError("Project.json is empty.");
+        Log::logCritical("Project.json is empty.", false);
         Unzip::projectOpened = -2;
         Unzip::threadFinished = true;
         return;
@@ -365,13 +365,13 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
             zipArchive.m_pRead = miniz_istream_read_func;
 
             if (!mz_zip_reader_init(&zipArchive, file_size, 0)) {
-                Log::logError("Failed to initialize SB3 zip reader from stream.");
+                Log::logCritical("Failed to initialize SB3 zip reader from stream.", false);
                 return project_json;
             }
 
             int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
             if (file_index < 0) {
-                Log::logError("Failed to extract project.json");
+                Log::logCritical("Failed to extract project.json", false);
                 mz_zip_reader_end(&zipArchive);
                 return project_json;
             }
@@ -442,7 +442,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
         }
 
         if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
-            Log::logError("Failed to extract: " + outPath);
+            Log::logCritical("Failed to extract: " + outPath, false);
             mz_zip_reader_end(&zip);
             return false;
         }
@@ -466,7 +466,7 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
 
     auto potentialError = FileSystem::removeDirectory(directory);
     if (!potentialError.has_value()) {
-        Log::logError(std::string("Failed to delete folder: ") + potentialError.error());
+        Log::logCritical(std::string("Failed to delete folder: ") + potentialError.error(), false);
         return false;
     }
 
@@ -510,7 +510,7 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     nlohmann::json json = nlohmann::json::parse(content, nullptr, false);
 
     if (json.is_discarded()) {
-        Log::logError("Failed to parse JSON file: Syntax error.");
+        Log::logCritical("Failed to parse JSON file: Syntax error.", false);
         return nlohmann::json();
     }
 

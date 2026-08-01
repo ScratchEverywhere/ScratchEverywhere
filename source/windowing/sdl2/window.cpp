@@ -1,4 +1,8 @@
 #include "window.hpp"
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#include <SDL_syswm.h>
+#include <libdlgmod/libdlgmod.h>
+#endif
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -37,7 +41,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     sdlFlags |= SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER;
 #endif
     if (SDL_Init(sdlFlags) < 0) {
-        Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to initialize SDL2: " + std::string(SDL_GetError()), true);
         return false;
     }
 #endif
@@ -64,14 +68,14 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, flags);
     if (!window) {
-        Log::logError("Failed to create SDL2 window: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to create SDL2 window: " + std::string(SDL_GetError()), true);
         return false;
     }
 
 #ifdef RENDERER_OPENGL
     context = SDL_GL_CreateContext(window);
     if (!context) {
-        Log::logError("Failed to create OpenGL context: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to create OpenGL context: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -98,6 +102,17 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
 #endif
     resize(dw, dh);
+#endif
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+    SDL_SysWMinfo system_info;
+    SDL_VERSION(&system_info.version);
+	SDL_GetWindowWMInfo(window, &system_info);
+#if defined(_WIN32) || defined(_WIN64)
+	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
+#elif defined(__APPLE__)
+	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
+#endif
 #endif
 
     // Print SDL version number. could be useful for debugging
@@ -136,7 +151,7 @@ void WindowSDL2::pollEvents() {
                 int w, h;
 #ifdef RENDERER_OPENGL
                 SDL_GL_GetDrawableSize(window, &w, &h);
-#elif defined(__PS4__)
+#elif defined(__PS4__) || defined(WEBOS)
                 SDL_GetWindowSize(window, &w, &h);
 #else
                 SDL_GetWindowSizeInPixels(window, &w, &h);
@@ -176,7 +191,7 @@ void WindowSDL2::pollEvents() {
 }
 
 void WindowSDL2::calculatePixelDensity() {
-#ifndef __PS4__
+#if !defined(__PS4__) && !defined(WEBOS)
     int logicalW, logicalH, pixelW, pixelH;
 
     SDL_GetWindowSize(window, &logicalW, &logicalH);

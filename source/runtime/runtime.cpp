@@ -112,7 +112,7 @@ bool Scratch::initializeRuntime() {
     TextToSpeechSafeInit();
 #endif
     if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
+        Log::logCritical("Failed to initialize audio.", false);
         return false;
     }
 #endif
@@ -715,15 +715,37 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     const int screenWidth = Render::getWidth();
     const int screenHeight = Render::getHeight();
 
-    auto onErr = [&](std::string error) {
+    auto onErr = [&](std::string error) -> bool {
         static std::set<std::string> failedImages;
         if (failedImages.count(costumeName) == 0) {
             Log::logWarning("Failed to load image: " + costumeName + ": " + error);
             freeUnusedCostumeImages();
             failedImages.insert(costumeName);
+
+            const std::string missingName = "SE__Missingno";
+            const auto missingIt = costumeImages.find(missingName);
+
+            if (missingIt == costumeImages.end()) {
+                if (failedImages.count(missingName) == 0 && error != "LunaSVG failed to render SVG to bitmap") {
+                    auto img = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
+                    if (!img.has_value()) {
+                        Log::logError("Failed to load missing image texture: " + img.error());
+                        failedImages.insert(missingName);
+                    } else {
+                        costumeImages[missingName] = img.value();
+                        image = img.value();
+                        return true;
+                    }
+                }
+            } else {
+                const auto missingImage = costumeImages[missingName];
+                image = missingImage;
+                return true;
+            }
         }
         sprite->spriteWidth = 0;
         sprite->spriteHeight = 0;
+        return false;
     };
 
     float scale = (sprite->size / 100);
@@ -733,28 +755,29 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     if (projectType == ProjectType::UNZIPPED) {
         auto imageOrErr = createImageFromFile(costumeName, true, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
-            onErr(imageOrErr.error());
-            return;
-        }
-        image = imageOrErr.value();
+            if (!onErr(imageOrErr.error()))
+                return;
+        } else
+            image = imageOrErr.value();
     } else {
         auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
-            onErr(imageOrErr.error());
-            return;
-        }
-        image = imageOrErr.value();
+            if (!onErr(imageOrErr.error()))
+                return;
+        } else
+            image = imageOrErr.value();
     }
 
     if (image) {
         sprite->spriteWidth = image->getWidth();
         sprite->spriteHeight = image->getHeight();
-        if (costume.rotationCenterX == 0) {
+
+        // if rotation center wasn't present in project.json, set a default one
+        if (costume.rotationCenterX == -6767.6767)
             costume.rotationCenterX = sprite->spriteWidth / 2;
-        }
-        if (costume.rotationCenterY == 0) {
+        if (costume.rotationCenterY == -6767.6767)
             costume.rotationCenterY = sprite->spriteHeight / 2;
-        }
+
         costumeImages[costumeName] = image;
     }
 }

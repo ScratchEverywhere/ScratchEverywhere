@@ -108,7 +108,7 @@ bool SoundStream::loadFromBuffer() {
     this->type = SoundStreamUnknown;
 
     if (this->buffer == nullptr || this->buffer_size <= 0) {
-        Log::logError("Audio buffer is null.");
+        Log::logCritical("Audio buffer is null.", false);
         return false;
     }
     bool success = false;
@@ -139,7 +139,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
-    if (!on_disk && !Unzip::UnpackedInSD && !Unzip::filePath.empty()) prefix += "project/";
+    if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) prefix += "project/";
 
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {

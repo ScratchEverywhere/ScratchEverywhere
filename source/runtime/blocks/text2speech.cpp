@@ -120,7 +120,7 @@ SCRATCH_BLOCK(text2speech, setVoice) {
     if (!Scratch::getInputValue(block, "VOICE", thread, sprite, voice)) return BlockResult::REPEAT;
 
     std::string voiceString = voice.asString();
-    if (voiceString == "tenor" || voiceString == "giant") {
+    if (voiceString == "TENOR" || voiceString == "GIANT" || voiceString == "tenor" || voiceString == "giant") {
         voiceString = "male";
     } else {
         voiceString = "female"; // alto squeak kitten and for any unknown values
