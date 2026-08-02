@@ -713,7 +713,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     std::shared_ptr<Image> image;
     const int screenWidth = Render::getWidth();
-    const int screenHeight = Render::getHeight();
+    const int screenHeight = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
 
     auto onErr = [&](std::string error) -> bool {
         static std::set<std::string> failedImages;
@@ -729,7 +729,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
                 if (failedImages.count(missingName) == 0 && error != "LunaSVG failed to render SVG to bitmap") {
                     auto img = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
                     if (!img.has_value()) {
-                        Log::logError("Failed to load missing image texture: " + img.error());
+                        Log::logWarning("Failed to load missing image texture: " + img.error());
                         failedImages.insert(missingName);
                     } else {
                         costumeImages[missingName] = img.value();
