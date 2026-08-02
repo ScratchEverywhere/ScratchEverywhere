@@ -21,10 +21,6 @@
 #include <window.hpp>
 #include <windowing/sdl3/window.hpp>
 
-#ifdef __PS2__
-#include <kernel.h>
-#endif
-
 #ifdef __SWITCH__
 #include <switch.h>
 
