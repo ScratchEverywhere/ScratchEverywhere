@@ -155,7 +155,7 @@ void Log::writeToFile(std::string message) {
 void Log::deleteLogFile() {
     std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
     if (std::remove(filePath.c_str()) != 0) {
-        Log::logCritical("Failed to delete log file: " + std::string(std::strerror(errno)), false);
+        Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
     }
 }
 #endif
