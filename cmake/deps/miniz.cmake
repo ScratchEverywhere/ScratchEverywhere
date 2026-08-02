@@ -10,9 +10,6 @@ function(_dep_source_miniz)
 		GITHUB_REPOSITORY richgel999/miniz
 		VERSION 3.1.1
 		GIT_TAG 3.1.1
-		DOWNLOAD_ONLY TRUE
+		OPTIONS "BUILD_TESTS OFF" "BUILD_EXAMPLES OFF"
 	)
-
-	add_library(miniz STATIC ${miniz_SOURCE_DIR}/miniz.c)
-	target_include_directories(miniz PUBLIC ${miniz_SOURCE_DIR})
 endfunction()
