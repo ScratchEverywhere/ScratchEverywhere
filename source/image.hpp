@@ -92,6 +92,14 @@ class Image {
         return getPixels({.x = 0, .y = 0, .w = imgData.width, .h = imgData.height});
     }
 
+    inline uint8_t getAlphaAt(int x, int y) const {
+        if (!imgData.pixels || x < 0 || x >= imgData.width || y < 0 || y >= imgData.height)
+            return 0;
+        const uint8_t *px =
+            static_cast<const uint8_t *>(imgData.pixels) + y * imgData.pitch + x * 4;
+        return px[3];
+    }
+
     int getWidth();
     int getHeight();
 

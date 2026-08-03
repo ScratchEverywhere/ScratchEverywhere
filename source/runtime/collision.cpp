@@ -6,29 +6,33 @@
 #include <cmath>
 #include <log.hpp>
 
-std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int scaleFactor) {
+std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, unsigned int scaleFactor) {
     const auto &costume = sprite->costumes[sprite->currentCostume];
     auto imgFind = Scratch::costumeImages.find(costume.fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("[Collision] Failed to find image for sprite: " + sprite->name);
         return nullptr;
     }
+
     ImageData imgData = imgFind->second->getPixels();
+    if (!imgData.pixels) return nullptr;
 
-    std::shared_ptr<Bitmask> bitmask = std::make_shared<Bitmask>();
-    bitmask->width = imgData.width / scaleFactor;
-    bitmask->height = imgData.height / scaleFactor;
-    bitmask->scaleFactor = (float)scaleFactor / imgData.scale;
-    const unsigned int rowWords = (bitmask->width + 31) / 32;
-    bitmask->bits.resize(rowWords * bitmask->height, 0);
+    auto mask = std::make_shared<CollisionMask>();
+    mask->width = imgData.width / scaleFactor;
+    mask->height = imgData.height / scaleFactor;
+    mask->scaleFactor = (float)scaleFactor / imgData.scale;
 
+    const float centerX = costume.rotationCenterX / mask->scaleFactor;
+    const float centerY = costume.rotationCenterY / mask->scaleFactor;
     float maxDistSq = 0;
-    const float centerX = costume.rotationCenterX / bitmask->scaleFactor;
-    const float centerY = costume.rotationCenterY / bitmask->scaleFactor;
 
     uint32_t *pixels = (uint32_t *)imgData.pixels;
-    for (int y = 0; y < bitmask->height; y++) {
-        for (int x = 0; x < bitmask->width; x++) {
+
+#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
+    mask->alphaPixels.resize(mask->width * mask->height, 0);
+
+    for (int y = 0; y < (int)mask->height; y++) {
+        for (int x = 0; x < (int)mask->width; x++) {
             const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
             const uint8_t alpha = px & 0xFF;
@@ -36,7 +40,7 @@ std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int
             const uint8_t alpha = (px >> 24) & 0xFF;
 #endif
             if (alpha > 0) {
-                bitmask->bits[y * rowWords + (x / 32)] |= (1 << (x % 32));
+                mask->alphaPixels[y * mask->width + x] = alpha;
 
                 const float dx = x - centerX;
                 const float dy = y - centerY;
@@ -46,14 +50,31 @@ std::shared_ptr<Bitmask> collision::generateBitmask(Sprite *sprite, unsigned int
         }
     }
 
-    bitmask->maxRadius = std::sqrt(maxDistSq) * bitmask->scaleFactor;
-
-    // they need the pixel data freed because they make new pixels instead of a reference
-#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
     free(imgData.pixels);
+#else
+    mask->image = imgFind->second;
+    mask->imgScaleFactor = scaleFactor;
+
+    for (int y = 0; y < (int)mask->height; y++) {
+        for (int x = 0; x < (int)mask->width; x++) {
+            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+            const uint8_t alpha = px & 0xFF;
+#else
+            const uint8_t alpha = (px >> 24) & 0xFF;
+#endif
+            if (alpha > 0) {
+                const float dx = x - centerX;
+                const float dy = y - centerY;
+                const float distSq = dx * dx + dy * dy;
+                if (distSq > maxDistSq) maxDistSq = distSq;
+            }
+        }
+    }
 #endif
 
-    return bitmask;
+    mask->maxRadius = std::sqrt(maxDistSq) * mask->scaleFactor;
+    return mask;
 }
 
 static Sprite *getSpriteAbove(Sprite *sprite) {
@@ -82,10 +103,11 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) 
     if (clickMode && pointInSprite(getSpriteAbove(sprite), x, y)) return false;
 
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<Bitmask> bitmask = costume.bitmask;
-    if (bitmask == nullptr) {
-        bitmask = generateBitmask(sprite);
-        if (bitmask == nullptr) return false;
+    std::shared_ptr<CollisionMask> mask = costume.collisionMask;
+    if (mask == nullptr) {
+        mask = generateCollisionMask(sprite);
+        if (mask == nullptr) return false;
+        costume.collisionMask = mask;
     }
 
     const float dx = x - sprite->xPosition;
@@ -93,7 +115,7 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) 
     const float distSq = dx * dx + dy * dy;
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
 
-    const float scaledRadius = bitmask->maxRadius * (spriteSize / 100.0f);
+    const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
     if (distSq > (scaledRadius * scaledRadius)) {
         return false;
     }
@@ -108,28 +130,30 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) 
     if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
         localX = -localX;
 
-    const float invertedScaleFactor = 1.0f / bitmask->scaleFactor;
+    const float invertedScaleFactor = 1.0f / mask->scaleFactor;
     const float finalX = std::round((localX + costume.rotationCenterX) * invertedScaleFactor);
     const float finalY = std::round((localY + costume.rotationCenterY) * invertedScaleFactor);
 
-    return bitmask->getPixel(finalX, finalY);
+    return mask->getPixel(finalX, finalY);
 }
 
 bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     if (a == b) return false;
 
     auto &costumeA = a->costumes[a->currentCostume];
-    std::shared_ptr<Bitmask> bitmaskA = costumeA.bitmask;
-    if (bitmaskA == nullptr) {
-        bitmaskA = generateBitmask(a);
-        if (bitmaskA == nullptr) return false;
+    std::shared_ptr<CollisionMask> maskA = costumeA.collisionMask;
+    if (maskA == nullptr) {
+        maskA = generateCollisionMask(a);
+        if (maskA == nullptr) return false;
+        costumeA.collisionMask = maskA;
     }
 
     auto &costumeB = b->costumes[b->currentCostume];
-    std::shared_ptr<Bitmask> bitmaskB = costumeB.bitmask;
-    if (bitmaskB == nullptr) {
-        bitmaskB = generateBitmask(b);
-        if (bitmaskB == nullptr) return false;
+    std::shared_ptr<CollisionMask> maskB = costumeB.collisionMask;
+    if (maskB == nullptr) {
+        maskB = generateCollisionMask(b);
+        if (maskB == nullptr) return false;
+        costumeB.collisionMask = maskB;
     }
 
     const float dx = a->xPosition - b->xPosition;
@@ -139,8 +163,8 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     const float aSize = !costumeA.isSVG && !Scratch::bitmapHalfQuality ? a->size * 0.5f : a->size;
     const float bSize = !costumeB.isSVG && !Scratch::bitmapHalfQuality ? b->size * 0.5f : b->size;
 
-    const float radiusA = bitmaskA->maxRadius * (aSize / 100.0f);
-    const float radiusB = bitmaskB->maxRadius * (bSize / 100.0f);
+    const float radiusA = maskA->maxRadius * (aSize / 100.0f);
+    const float radiusB = maskB->maxRadius * (bSize / 100.0f);
     const float combinedRadius = radiusA + radiusB;
 
     if (distSq > (combinedRadius * combinedRadius)) return false;
@@ -156,13 +180,13 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     const float sinA = std::sin(radA);
     const float cosA = std::cos(radA);
     const float spriteScaleA = aSize / 100.0f;
-    const float invScaleA = (1.0f / bitmaskA->scaleFactor);
+    const float invScaleA = (1.0f / maskA->scaleFactor);
 
     const float radB = b->rotationStyle == Sprite::RotationStyle::ALL_AROUND ? Math::degreesToRadians(-(b->rotation - 90)) : 0;
     const float sinB = std::sin(radB);
     const float cosB = std::cos(radB);
     const float spriteScaleB = bSize / 100.0f;
-    const float invScaleB = (1.0f / bitmaskB->scaleFactor);
+    const float invScaleB = (1.0f / maskB->scaleFactor);
 
     for (float y = overlapMinY; y <= overlapMaxY; y++) {
         for (float x = overlapMinX; x <= overlapMaxX; x++) {
@@ -180,7 +204,7 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
             const float finalXA = std::round((localXA + costumeA.rotationCenterX) * invScaleA);
             const float finalYA = std::round((localYA + costumeA.rotationCenterY) * invScaleA);
 
-            if (!bitmaskA->getPixel(finalXA, finalYA)) continue;
+            if (!maskA->getPixel(finalXA, finalYA)) continue;
 
             const float dxB = x - b->xPosition;
             const float dyB = y - b->yPosition;
@@ -196,7 +220,7 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
             const float finalXB = std::round((localXB + costumeB.rotationCenterX) * invScaleB);
             const float finalYB = std::round((localYB + costumeB.rotationCenterY) * invScaleB);
 
-            if (bitmaskB->getPixel(finalXB, finalYB)) return true;
+            if (maskB->getPixel(finalXB, finalYB)) return true;
         }
     }
 
@@ -205,17 +229,18 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
 bool collision::spriteOnEdge(Sprite *sprite) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<Bitmask> bitmask = costume.bitmask;
-    if (bitmask == nullptr) {
-        bitmask = generateBitmask(sprite);
-        if (bitmask == nullptr) return false;
+    std::shared_ptr<CollisionMask> mask = costume.collisionMask;
+    if (mask == nullptr) {
+        mask = generateCollisionMask(sprite);
+        if (mask == nullptr) return false;
+        costume.collisionMask = mask;
     }
 
     const float halfWidth = Scratch::projectWidth / 2.0f;
     const float halfHeight = Scratch::projectHeight / 2.0f;
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
 
-    const float scaledRadius = bitmask->maxRadius * (spriteSize / 100.0f);
+    const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
 
     if (sprite->xPosition - scaledRadius > -halfWidth &&
         sprite->xPosition + scaledRadius < halfWidth &&
@@ -228,7 +253,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
     const float s_sin = std::sin(rad);
     const float s_cos = std::cos(rad);
     const float spriteScale = spriteSize / 100.0f;
-    const float invScale = 1.0f / bitmask->scaleFactor;
+    const float invScale = 1.0f / mask->scaleFactor;
 
     const float minX = std::floor(sprite->xPosition - scaledRadius);
     const float maxX = std::ceil(sprite->xPosition + scaledRadius);
@@ -253,7 +278,7 @@ bool collision::spriteOnEdge(Sprite *sprite) {
             const float finalX = std::round((localX + costume.rotationCenterX) * invScale);
             const float finalY = std::round((localY + costume.rotationCenterY) * invScale);
 
-            if (bitmask->getPixel(finalX, finalY)) {
+            if (mask->getPixel(finalX, finalY)) {
                 return true;
             }
         }
