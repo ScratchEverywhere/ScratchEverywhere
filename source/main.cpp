@@ -2,6 +2,9 @@
 #include "image.hpp"
 #include "translation.hpp"
 #include <log.hpp>
+#if defined(__EMSCRIPTEN__) && defined(SE_USE_LIBRARY_BUILD)
+#undef SE_USE_LIBRARY_BUILD
+#endif
 #if defined(ENABLE_MENU) && defined(SE_USE_LIBRARY_BUILD)
 #undef ENABLE_MENU
 #endif
@@ -149,7 +152,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
             const char *tmp = (!i) ? "(null)" : sb3;
             argv[i] = (char *)malloc((strlen(tmp) + 1) * sizeof(char));
             if (argv[i]) {
-                strcpy(argv[i], tmp);
+            	strcpy(argv[i], tmp);
             }
         }
     }
@@ -164,6 +167,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
             free(argv[i]); 
         }
         free(argv);
+		return;
 #endif
     }
 
@@ -190,9 +194,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         while (!FileSystem::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
-#if !defined(SE_USE_LIBRARY_BUILD)
                 exit(0);
-#endif
             }
             emscripten_sleep(0);
         }
@@ -232,17 +234,20 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
                 free(argv[i]); 
             }
             free(argv);
+			return;
 #endif
         }
     }
 
-#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
+#if !defined(SE_USE_LIBRARY_BUILD)
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
     while (1)
         mainLoop();
-#endif  
+#endif
+#else
+	mainLoop();
 #endif
 #if !defined(SE_USE_LIBRARY_BUILD)
 	exitApp();
