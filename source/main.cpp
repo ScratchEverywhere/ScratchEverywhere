@@ -2,12 +2,14 @@
 #include "image.hpp"
 #include "translation.hpp"
 #include <log.hpp>
+#if defined(ENABLE_MENU) && defined(SE_USE_LIBRARY_BUILD)
+#undef ENABLE_MENU
+#endif
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
 #include <cstdlib>
 #include <inspector.hpp>
-#include <menus/mainMenu.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
@@ -69,15 +71,16 @@ void mainLoop() {
             goto skipCheck;
         }
 
+#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
         if (Unzip::projectOpened != -3) { // main menu
             exitApp();
             exit(0);
         }
-
         if (!activateMainMenu()) {
             exitApp();
             exit(0);
         }
+#endif
 
     skipCheck:
         return;
@@ -86,9 +89,15 @@ void mainLoop() {
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
+#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
     if (OS::toExit || !activateMainMenu()) {
+#else
+    if (OS::toExit) {
+#endif
         exitApp();
+#if !defined(SE_USE_LIBRARY_BUILD)
         exit(0);
+#endif
     }
 }
 
@@ -228,6 +237,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         }
     }
 
+#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
@@ -235,6 +245,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         mainLoop();
 #endif
     exitApp();
+#endif
 #if !defined(SE_USE_LIBRARY_BUILD)
     return 0;
 #else
