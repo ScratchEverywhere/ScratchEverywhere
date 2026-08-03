@@ -149,9 +149,7 @@ void Render::deInit() {
     }
 
     SoundPlayer::deinit();
-	#if !defined(SE_USE_LIBRARY_BUILD)
     SDL_Quit();
-	#endif
 }
 
 void *Render::getRenderer() {
