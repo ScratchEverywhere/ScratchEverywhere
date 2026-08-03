@@ -143,6 +143,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         }
     }
 #endif
+#endif
     if (!initApp()) {
         exitApp();
 #if !defined(SE_USE_LIBRARY_BUILD)
