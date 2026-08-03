@@ -105,6 +105,32 @@ extern "C" __declspec(dllexport) void scratch_everywhere(const char *sb3) {
 #else
 extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const char *sb3) {
 #endif
+#if defined(_WIN32) || defined(_WIN64)
+	auto widen = [](std::string str) {
+		if (str.empty()) {
+			return std::wstring(L"");
+		}
+		std::size_t wchar_count = str.size() + 1;
+		std::vector<wchar_t> buf(wchar_count);
+		wchar_count = (std::size_t)MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, buf.data(), (int)wchar_count);
+		if (!wchar_count) { 
+			return std::wstring(L"");
+		}
+		return std::wstring{buf.data(), wchar_count};
+	}
+    int argc = 2;
+    wchar_t **argv = (wchar_t **)malloc(argc * sizeof(wchar_t *));
+    if (argv) {
+        for (int i = 0; i < argc; i++) {
+			std::wstring wsb3 = widen(sb3);
+            const wchar_t *tmp = (!i) ? L"(null)" : wsb3.c_str();
+            argv[i] = (wchar_t *)malloc((strlen(tmp) + 1) * sizeof(wchar_t));
+            if (argv[i]) {
+                wcscpy(argv[i], tmp);
+            }
+        }
+    }
+#else
     int argc = 2;
     char **argv = (char **)malloc(argc * sizeof(char *));
     if (argv) {
