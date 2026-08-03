@@ -32,10 +32,8 @@
 #endif
 
 static void exitApp() {
-	#if !defined(SE_USE_LIBRARY_BUILD)
     Render::deInit();
     OS::deinit();
-	#endif
 }
 
 static bool init = false;
