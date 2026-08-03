@@ -29,8 +29,10 @@
 #endif
 
 static void exitApp() {
+	#if !defined(SE_USE_LIBRARY_BUILD)
     Render::deInit();
     OS::deinit();
+	#endif
 }
 
 static bool initApp() {
@@ -71,7 +73,7 @@ void mainLoop() {
             goto skipCheck;
         }
 
-#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
+#if defined(ENABLE_MENU)
         if (Unzip::projectOpened != -3) { // main menu
             exitApp();
             exit(0);
@@ -89,7 +91,7 @@ void mainLoop() {
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
-#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
+#if defined(ENABLE_MENU)
     if (OS::toExit || !activateMainMenu()) {
 #else
     if (OS::toExit) {
@@ -188,7 +190,9 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         while (!FileSystem::fileExists("/romfs/project.sb3")) {
             if (!Render::appShouldRun()) {
                 exitApp();
+#if !defined(SE_USE_LIBRARY_BUILD)
                 exit(0);
+#endif
             }
             emscripten_sleep(0);
         }
@@ -232,14 +236,16 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         }
     }
 
+#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
     while (1)
         mainLoop();
 #endif  
-	exitApp();
+#endif
 #if !defined(SE_USE_LIBRARY_BUILD)
+	exitApp();
     return 0;
 #else
     for (int i = 0; i < argc; i++) {
