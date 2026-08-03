@@ -38,7 +38,6 @@ static void exitApp() {
 
 static bool init = false;
 static bool initApp() {
-	OS::toExit = false;
 	if (!init) {
     	return Scratch::initializeRuntime();
 		init = true;
