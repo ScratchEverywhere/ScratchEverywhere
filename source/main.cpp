@@ -165,7 +165,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
             free(argv[i]); 
         }
         free(argv);
-		exit(0);
+		return;
 #endif
     }
 
@@ -232,15 +232,20 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
                 free(argv[i]); 
             }
             free(argv);
-			exit(0);
+			return;
 #endif
         }
     }
+
+#if !defined(SE_USE_LIBRARY_BUILD)
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
     while (1)
         mainLoop();
+#endif
+#else
+	mainLoop();
 #endif
 #if !defined(SE_USE_LIBRARY_BUILD)
 	exitApp();
@@ -250,7 +255,6 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         free(argv[i]); 
     }
     free(argv);
-	exit(0);
 #endif
 }
 #endif
