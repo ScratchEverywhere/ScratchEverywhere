@@ -21,10 +21,6 @@
 #include <window.hpp>
 #include <windowing/sdl3/window.hpp>
 
-#ifdef __PS2__
-#include <kernel.h>
-#endif
-
 #ifdef __SWITCH__
 #include <switch.h>
 
@@ -54,7 +50,7 @@ bool Render::Init() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
-#elif defined(PS2)
+#elif defined(__PS2__)
     int windowWidth = 640;
     int windowHeight = 448;
 #else
