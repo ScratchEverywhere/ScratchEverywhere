@@ -232,16 +232,14 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         }
     }
 
-#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
     while (1)
         mainLoop();
 #endif  
-#endif
-#if !defined(SE_USE_LIBRARY_BUILD)
 	exitApp();
+#if !defined(SE_USE_LIBRARY_BUILD)
     return 0;
 #else
     for (int i = 0; i < argc; i++) {
