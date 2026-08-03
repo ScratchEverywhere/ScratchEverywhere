@@ -238,10 +238,10 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
 #else
     while (1)
         mainLoop();
-#endif
-    exitApp();
+#endif  
 #endif
 #if !defined(SE_USE_LIBRARY_BUILD)
+	exitApp();
     return 0;
 #else
     for (int i = 0; i < argc; i++) {
