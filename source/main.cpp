@@ -212,17 +212,12 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
 #else
+#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
             if (!activateMainMenu()) {
                 exitApp();
-#if !defined(SE_USE_LIBRARY_BUILD)
                 return 0;
-#else
-                for (int i = 0; i < argc; i++) {
-                    free(argv[i]); 
-                }
-                free(argv);
-#endif
             }
+#endif
 #endif
         } else {
             exitApp();
