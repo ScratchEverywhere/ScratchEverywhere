@@ -52,12 +52,6 @@ to manually download them from the Scratch website and place them onto your
 console. [ScratchBox](https://scratchbox.dev) has many projects that work well
 with Scratch Everywhere!.
 
-**Scratch Everywhere! has special packaging options for Windows and macOS.**
-When creating a Windows NSIS Installer for Scratch Everywhere!, see
-[this guide](scratch-win32/scratch-pc/README.md). When creating a macOS App
-Bundle for Scratch Everywhere!, see
-[this guide](scratch-macos/scratch-pc.app/Contents/MacOS/README.md).
-
 ## Controls
 
 ![Controls](docs/controls/all.png)
