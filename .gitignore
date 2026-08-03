@@ -53,6 +53,7 @@ main.code-workspace
 # Executables
 *.exe
 *.out
+*.app
 *.3dsx
 *.nacp
 *.pfs0
