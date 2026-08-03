@@ -155,7 +155,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
 #endif
     }
 
-    srand(time(NULL));
+    srand(time(nullptr));
 
     bool enableInspector = false;
     for (int i = 1; i < argc; ++i) {
