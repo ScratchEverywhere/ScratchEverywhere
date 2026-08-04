@@ -278,7 +278,7 @@ foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 			${DIR}/*.hpp
 			${DIR}/*.h
 		)
-		list(APPEND SOURCE_FILES ${ADDITIONAL_SOURCES})
+		list(APPEND DIR_SOURCES ${ADDITIONAL_SOURCES})
 	endif()
 
 	list(APPEND SOURCE_FILES ${DIR_SOURCES})
@@ -289,12 +289,18 @@ if(WIN32)
 endif()
 
 if(APPLE)
-	# App iconset
-	set(MACOSX_ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Icon.icns")
-	set_source_files_properties(${MACOSX_ICON} PROPERTIES
+	if(IOS)
+		# Xcode assets
+		set(ASSET_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Assets.xcassets")
+	else()
+		# App iconset
+		set(ASSET_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Icon.icns")
+	endif()
+	
+	set_source_files_properties(${ASSET_CATALOG} PROPERTIES
 		MACOSX_PACKAGE_LOCATION "Resources"
 	)
-	list(APPEND SOURCE_FILES ${MACOSX_ICON})
+	list(APPEND SOURCE_FILES ${ASSET_CATALOG})
 
 	if(NOT SE_CMAKERC)
 		# Native RomFS implementation with resources
@@ -355,7 +361,9 @@ if(SE_EXECUTABLE)
 
 	if(APPLE)
 		set_target_properties(scratch-everywhere PROPERTIES 
-			MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Info.plist.in")
+			MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Info.plist.in"
+			XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
+		)
 	endif()
 endif()
 
