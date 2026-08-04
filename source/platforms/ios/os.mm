@@ -1,6 +1,6 @@
-#include <os.hpp>
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#include <os.hpp>
 
 #if defined(RENDERER_SDL2)
 
@@ -23,16 +23,15 @@ void OS::deinit() {
 
 std::string OS::getPlatform() {
     UIUserInterfaceIdiom device = [[UIDevice currentDevice] userInterfaceIdiom];
-    
     switch (device) {
-        case UIUserInterfaceIdiomPhone:
-            return "iPhone";
-        case UIUserInterfaceIdiomPad:
-            return "iPad";
-        case UIUserInterfaceIdiomTV:
-            return "Apple TV";
-        default:
-            return "iOS";
+    case UIUserInterfaceIdiomPhone:
+        return "iPhone";
+    case UIUserInterfaceIdiomPad:
+        return "iPad";
+    case UIUserInterfaceIdiomTV:
+        return "Apple TV";
+    default:
+        return "iOS";
     }
 }
 

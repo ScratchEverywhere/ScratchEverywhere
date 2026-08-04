@@ -1,5 +1,5 @@
 #include "window.hpp"
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN32) || defined(_WIN64) || (defined(__APPLE__) && !defined(__IOS__))
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
 #endif
@@ -56,7 +56,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     SDL_GL_SetSwapInterval(1); // Required for VSync
 #endif
 
-#ifdef WEBOS
+#if defined(WEBOS) || defined(__IOS__)
     Uint32 flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI;
 #else
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
@@ -110,7 +110,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 	SDL_GetWindowWMInfo(window, &system_info);
 #if defined(_WIN32) || defined(_WIN64)
 	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) && !defined(__IOS__)
 	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
 #endif
 #endif
