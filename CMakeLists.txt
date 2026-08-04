@@ -253,6 +253,9 @@ endif()
 
 if(SE_MENU AND NOT SE_USE_LIBRARY_BUILD)
 	list(APPEND SOURCES "source/menus")
+else()
+	list(APPEND SOURCES "source/menus/loading.hpp")
+	list(APPEND SOURCES "source/menus/loading.cpp")
 endif()
 
 set(ABSOLUTE_SOURCES "")
