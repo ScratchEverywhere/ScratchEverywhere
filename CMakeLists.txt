@@ -253,6 +253,8 @@ endif()
 
 if(SE_MENU AND NOT SE_USE_LIBRARY_BUILD)
 	list(APPEND SOURCES "source/menus")
+elseif(SE_MENU)
+	list(APPEND SOURCES "source/menus/pauseMenu.cpp")
 endif()
 
 set(ABSOLUTE_SOURCES "")
