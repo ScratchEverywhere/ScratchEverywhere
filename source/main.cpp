@@ -36,13 +36,8 @@ static void exitApp() {
     OS::deinit();
 }
 
-static bool init = false;
 static bool initApp() {
-	if (!init) {
-    	return Scratch::initializeRuntime();
-		init = true;
-	}
-	return init;
+    return Scratch::initializeRuntime();
 }
 
 bool activateMainMenu() {
