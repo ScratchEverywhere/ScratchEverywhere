@@ -286,6 +286,7 @@ if(SE_EXECUTABLE)
 			target_compile_definitions(scratch-everywhere PUBLIC SE_USE_LIBRARY_BUILD)
 		else()
 			add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+			remove_definitions(-DSE_MENU)
 		endif()
 	endif()
 
