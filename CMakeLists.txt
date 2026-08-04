@@ -251,7 +251,7 @@ if(SE_CUSTOM_EXTENSIONS)
 	list(APPEND SOURCES "source/runtime/extensions")
 endif()
 
-if(SE_MENU)
+if(SE_MENU AND NOT SE_USE_LIBRARY_BUILD)
 	list(APPEND SOURCES "source/menus")
 endif()
 
