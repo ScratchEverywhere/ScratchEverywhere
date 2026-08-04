@@ -2,12 +2,6 @@
 #include "image.hpp"
 #include "translation.hpp"
 #include <log.hpp>
-#if defined(__EMSCRIPTEN__) && defined(SE_USE_LIBRARY_BUILD)
-#undef SE_USE_LIBRARY_BUILD
-#endif
-#if defined(ENABLE_MENU) && defined(SE_USE_LIBRARY_BUILD)
-#undef ENABLE_MENU
-#endif
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
