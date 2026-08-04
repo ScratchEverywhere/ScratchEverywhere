@@ -251,11 +251,8 @@ if(SE_CUSTOM_EXTENSIONS)
 	list(APPEND SOURCES "source/runtime/extensions")
 endif()
 
-if(SE_MENU AND NOT SE_USE_LIBRARY_BUILD)
+if(SE_MENU)
 	list(APPEND SOURCES "source/menus")
-else()
-	list(APPEND SOURCES "source/menus/loading.hpp")
-	list(APPEND SOURCES "source/menus/loading.cpp")
 endif()
 
 set(ABSOLUTE_SOURCES "")
