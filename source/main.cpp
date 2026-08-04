@@ -170,7 +170,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
             free(argv[i]); 
         }
         free(argv);
-		return;
+		exit(1);
 #endif
     }
 
@@ -237,7 +237,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
                 free(argv[i]); 
             }
             free(argv);
-			return;
+			exit(0);
 #endif
         }
     }
@@ -260,6 +260,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         free(argv[i]); 
     }
     free(argv);
+	exit(0);
 #endif
 }
 #endif
