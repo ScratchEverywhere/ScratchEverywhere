@@ -157,8 +157,8 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
 #endif
     }
     srand(time(nullptr));
-#if !defined(SE_USE_LIBRARY_BUILD)
     bool enableInspector = false;
+#if !defined(SE_USE_LIBRARY_BUILD)
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--inspector") {
