@@ -31,7 +31,6 @@ static bool shouldExit = false;
 #endif
 
 static void exitApp() {
-	if (shouldExit) shouldExit = false;
     Render::deInit();
     OS::deinit();
 }
