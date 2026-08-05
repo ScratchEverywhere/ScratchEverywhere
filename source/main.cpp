@@ -31,8 +31,8 @@ static bool shouldExit = false;
 #endif
 
 static void exitApp() {
-    Render::deInit();
-    OS::deinit();
+	Render::deInit();
+	OS::deinit();
 }
 
 #if defined(SE_USE_LIBRARY_BUILD)
@@ -41,9 +41,9 @@ extern "C" __declspec(dllexport) void scratch_everywhere_destroy() {
 #else
 extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destroy() {
 #endif
-    shouldExit = true;
-    Render::deInit();
-    OS::deinit();
+	shouldExit = true;
+	Render::deInit();
+	OS::deinit();
 }
 #if defined(_WIN32) || defined(_WIN64)
 /**
@@ -60,9 +60,9 @@ extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere
 #endif
 	static char buffer[4];
 	static std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
-	int first =  (result.first || shouldExit) ? 1 : 0;
+	int first = (result.first || shouldExit) ? 1 : 0;
 	int second = result.second ? 1 : 0;
-    snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
+	snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
 	return static_cast<const char *>(buffer);
 }
 #endif
@@ -73,64 +73,64 @@ static bool initApp() {
 
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
-    MainMenu *menu = new MainMenu();
-    if (Unzip::filePath.empty()) MenuManager::changeMenu(menu);
+	MainMenu *menu = new MainMenu();
+	if (Unzip::filePath.empty()) MenuManager::changeMenu(menu);
 
-    while (Render::appShouldRun()) {
-        MenuManager::render();
+	while (Render::appShouldRun()) {
+		MenuManager::render();
 
-        if (MenuManager::isProjectLoaded != 0) {
-            if (MenuManager::isProjectLoaded == -1) return false;
-            MenuManager::isProjectLoaded = 0;
-            return true;
-        }
+		if (MenuManager::isProjectLoaded != 0) {
+			if (MenuManager::isProjectLoaded == -1) return false;
+			MenuManager::isProjectLoaded = 0;
+			return true;
+		}
 
 #ifdef __EMSCRIPTEN__
-        emscripten_sleep(0);
+		emscripten_sleep(0);
 #endif
 #ifdef ENABLE_INSPECTOR
-        Inspector::processCommands();
+		Inspector::processCommands();
 #endif
-    }
+	}
 #endif
-    return false;
+	return false;
 }
 
 void mainLoop() {
-    Scratch::startScratchProject();
+	Scratch::startScratchProject();
 
-    if (Scratch::nextProject) {
-        Log::log(Unzip::filePath);
-        if (Unzip::load()) {
-            goto skipCheck;
-        }
+	if (Scratch::nextProject) {
+		Log::log(Unzip::filePath);
+		if (Unzip::load()) {
+			goto skipCheck;
+		}
 
 #if defined(ENABLE_MENU)
-        if (Unzip::projectOpened != -3) { // main menu
-            exitApp();
-            exit(0);
-        }
-        if (!activateMainMenu()) {
-            exitApp();
-            exit(0);
-        }
+		if (Unzip::projectOpened != -3) { // main menu
+			exitApp();
+			exit(0);
+		}
+		if (!activateMainMenu()) {
+			exitApp();
+			exit(0);
+		}
 #endif
 
-    skipCheck:
-        return;
-    }
+	skipCheck:
+		return;
+	}
 
-    Unzip::filePath = "";
-    Scratch::nextProject = false;
-    Scratch::dataNextProject = Value();
+	Unzip::filePath = "";
+	Scratch::nextProject = false;
+	Scratch::dataNextProject = Value();
 #if defined(ENABLE_MENU)
-    if (OS::toExit || !activateMainMenu()) {
+	if (OS::toExit || !activateMainMenu()) {
 #else
-    if (OS::toExit) {
+	if (OS::toExit) {
 #endif
-        exitApp();
-        exit(0);
-    }
+		exitApp();
+		exit(0);
+	}
 }
 
 #if !defined(SE_USE_LIBRARY_BUILD)
@@ -147,92 +147,92 @@ extern "C" __declspec(dllexport) void scratch_everywhere_create(const char *sb3)
 extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create(const char *sb3) {
 #endif
 #endif
-    if (!initApp()) {
+	if (!initApp()) {
 #if !defined(SE_USE_LIBRARY_BUILD)
-        exitApp();
-        return 1;
+		exitApp();
+		return 1;
 #endif
-    }
-    srand(time(nullptr));
-    bool enableInspector = false;
+	}
+	srand(time(nullptr));
+	bool enableInspector = false;
 #if !defined(SE_USE_LIBRARY_BUILD)
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg == "--inspector") {
-            enableInspector = true;
-        } else if (Unzip::filePath.empty()) {
+	for (int i = 1; i < argc; ++i) {
+		std::string arg = argv[i];
+		if (arg == "--inspector") {
+			enableInspector = true;
+		} else if (Unzip::filePath.empty()) {
 #if defined(__PC__)
-            Unzip::filePath = arg;
+			Unzip::filePath = arg;
 #endif
-        }
-    }
+		}
+	}
 #endif
 
 #ifdef ENABLE_INSPECTOR
-    if (enableInspector) Inspector::init();
+	if (enableInspector) Inspector::init();
 #endif
 
 #if defined(__EMSCRIPTEN__)
-    if (argc > 1) {
-        while (!FileSystem::fileExists("/romfs/project.sb3")) {
-            if (!Render::appShouldRun()) {
-                exitApp();
-                exit(0);
-            }
-            emscripten_sleep(0);
-        }
-    }
+	if (argc > 1) {
+		while (!FileSystem::fileExists("/romfs/project.sb3")) {
+			if (!Render::appShouldRun()) {
+				exitApp();
+				exit(0);
+			}
+			emscripten_sleep(0);
+		}
+	}
 #endif
 
-    if (!Unzip::load()) {
-        if (Unzip::projectOpened == -3) {
+	if (!Unzip::load()) {
+		if (Unzip::projectOpened == -3) {
 #ifdef __EMSCRIPTEN__
-            bool uploadComplete = false;
-            emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
-                *(bool *)userdata = true;
-                if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
-                std::ofstream f(OS::getScratchFolderLocation() + filename);
-                f << buffer;
-                f.close();
-                Unzip::filePath = OS::getScratchFolderLocation() + filename;
-                Unzip::load(); // TODO: Error handling
-            },
-                                            &uploadComplete);
-            while (Render::appShouldRun() && !uploadComplete)
-                emscripten_sleep(0);
+			bool uploadComplete = false;
+			emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
+				*(bool *)userdata = true;
+				if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
+				std::ofstream f(OS::getScratchFolderLocation() + filename);
+				f << buffer;
+				f.close();
+				Unzip::filePath = OS::getScratchFolderLocation() + filename;
+				Unzip::load(); // TODO: Error handling
+			},
+											&uploadComplete);
+			while (Render::appShouldRun() && !uploadComplete)
+				emscripten_sleep(0);
 #else
 #if defined(ENABLE_MENU)
-            if (!activateMainMenu()) {
-                exitApp();
-                return 0;
-            }
+			if (!activateMainMenu()) {
+				exitApp();
+				return 0;
+			}
 #endif
 #endif
-        } else {
+		} else {
 #if !defined(SE_USE_LIBRARY_BUILD)
-            exitApp();
-            return 0;
+			exitApp();
+			return 0;
 #endif
-        }
-    }
+		}
+	}
 
 #if !defined(SE_USE_LIBRARY_BUILD)
 #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop(mainLoop, 0, 1);
+	emscripten_set_main_loop(mainLoop, 0, 1);
 #else
-    while (1)
-        mainLoop();
+	while (1)
+		mainLoop();
 #endif
 #else
-    shouldExit = false;
+	shouldExit = false;
 	Unzip::filePath = sb3;
 	Unzip::load();
-    Scratch::startScratchProject();
-    scratch_everywhere_destroy();
+	Scratch::startScratchProject();
+	scratch_everywhere_destroy();
 #endif
 #if !defined(SE_USE_LIBRARY_BUILD)
 	exitApp();
-    return 0;
+	return 0;
 #endif
 }
 #endif
