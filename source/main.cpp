@@ -67,13 +67,8 @@ extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere
 }
 #endif
 
-static bool initAppDone = false;
 static bool initApp() {
-	if (!initAppDone) {
-		initAppDone = true;
-		return Scratch::initializeRuntime();
-	}
-	return initAppDone;
+	return Scratch::initializeRuntime();
 }
 
 bool activateMainMenu() {
