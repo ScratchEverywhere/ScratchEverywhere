@@ -25,10 +25,42 @@
 #include <filesystem.hpp>
 #endif
 
+#if defined(SE_USE_LIBRARY_BUILD)
+static ScriptThread monitorDisplayThread;
+#endif
+
+#if !defined(SE_USE_LIBRARY_BUILD)
 static void exitApp() {
+#else
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) void scratch_everywhere_destroy() {
+#else
+extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destroy() {
+#endif
     Render::deInit();
     OS::deinit();
 }
+#if defined(_WIN32) || defined(_WIN64)
+/**
+ * I returned a string split by a colon delimiter character 
+ * because I intend to use this in GameMaker as a GameMaker
+ * extension. GameMaker extension functions can only return
+ * double, const char *, char *, or void. If you don't like
+ * this, please let me know before you change this behavior
+ * -- "samuelvenable" a.k.a. "high on tantor" on github.com
+ */
+extern "C" __declspec(dllexport) const char *scratch_everywhere_step() {
+#else
+extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere_step() {
+#endif
+	static char buffer[4];
+	std::pair<bool, bool> result = stepScratchProject(monitorDisplayThread);
+	bool first  = result.first  ? 1 : 0;
+	bool second = result.second ? 1 : 0;
+    snprintf(buffer, sizeof(buffer), "%s:%s", first, second);
+	return static_cast<const char *>(buffer);
+}
+#endif
 
 static bool initAppDone = false;
 static bool initApp() {
@@ -97,9 +129,7 @@ void mainLoop() {
     if (OS::toExit) {
 #endif
         exitApp();
-#if !defined(SE_USE_LIBRARY_BUILD)
         exit(0);
-#endif
     }
 }
 
@@ -112,59 +142,15 @@ int main(int argc, char **argv) {
 #endif
 #else
 #if defined(_WIN32) || defined(_WIN64)
-extern "C" __declspec(dllexport) void scratch_everywhere(const char *sb3) {
+extern "C" __declspec(dllexport) void scratch_everywhere_create(const char *sb3) {
 #else
-extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const char *sb3) {
-#endif
-#if defined(_WIN32) || defined(_WIN64)
-	auto widen = [](std::string str) {
-		if (str.empty()) {
-			return std::wstring(L"");
-		}
-		std::size_t wchar_count = str.size() + 1;
-		std::vector<wchar_t> buf(wchar_count);
-		wchar_count = (std::size_t)MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, buf.data(), (int)wchar_count);
-		if (!wchar_count) { 
-			return std::wstring(L"");
-		}
-		return std::wstring{buf.data(), wchar_count};
-	}
-    int argc = 2;
-    wchar_t **argv = (wchar_t **)malloc(argc * sizeof(wchar_t *));
-    if (argv) {
-        for (int i = 0; i < argc; i++) {
-			std::wstring wsb3 = widen(sb3);
-            const wchar_t *tmp = (!i) ? L"(null)" : wsb3.c_str();
-            argv[i] = (wchar_t *)malloc((strlen(tmp) + 1) * sizeof(wchar_t));
-            if (argv[i]) {
-                wcscpy(argv[i], tmp);
-            }
-        }
-    }
-#else
-    int argc = 2;
-    char **argv = (char **)malloc(argc * sizeof(char *));
-    if (argv) {
-        for (int i = 0; i < argc; i++) {
-            const char *tmp = (!i) ? "(null)" : sb3;
-            argv[i] = (char *)malloc((strlen(tmp) + 1) * sizeof(char));
-            if (argv[i]) {
-            	strcpy(argv[i], tmp);
-            }
-        }
-    }
+extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create(const char *sb3) {
 #endif
 #endif
     if (!initApp()) {
         exitApp();
 #if !defined(SE_USE_LIBRARY_BUILD)
         return 1;
-#else
-        for (int i = 0; i < argc; i++) {
-            free(argv[i]); 
-        }
-        free(argv);
-		exit(1);
 #endif
     }
 
@@ -226,12 +212,6 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
             exitApp();
 #if !defined(SE_USE_LIBRARY_BUILD)
             return 0;
-#else
-            for (int i = 0; i < argc; i++) {
-                free(argv[i]); 
-            }
-            free(argv);
-			exit(0);
 #endif
         }
     }
@@ -244,16 +224,14 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         mainLoop();
 #endif
 #else
-	mainLoop();
+	Unzip::filePath = sb3;
+	Unzip::load();
+	Scratch::startScratchProject();
 #endif
 #if !defined(SE_USE_LIBRARY_BUILD)
 	exitApp();
     return 0;
 #else
-    for (int i = 0; i < argc; i++) {
-        free(argv[i]); 
-    }
-    free(argv);
 #endif
 }
 #endif
