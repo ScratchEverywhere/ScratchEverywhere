@@ -146,8 +146,8 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
 #endif
 #endif
     if (!initApp()) {
-        exitApp();
 #if !defined(SE_USE_LIBRARY_BUILD)
+        exitApp();
         return 1;
 #endif
     }
