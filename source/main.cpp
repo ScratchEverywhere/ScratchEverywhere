@@ -57,7 +57,7 @@ extern "C" __declspec(dllexport) const char *scratch_everywhere_step() {
 extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere_step() {
 #endif
 	static char buffer[4];
-	std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
+	static std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
 	int first  = result.first  ? 1 : 0;
 	int second = result.second ? 1 : 0;
     snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
@@ -65,13 +65,8 @@ extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere
 }
 #endif
 
-static bool initAppDone = false;
 static bool initApp() {
-	if (!initAppDone) {
-		initAppDone = true;
-    	return Scratch::initializeRuntime();
-	}
-	return initAppDone;
+	return Scratch::initializeRuntime();
 }
 
 bool activateMainMenu() {
@@ -204,7 +199,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
 #else
-#if defined(ENABLE_MENU) && !defined(SE_USE_LIBRARY_BUILD)
+#if defined(ENABLE_MENU)
             if (!activateMainMenu()) {
                 exitApp();
                 return 0;
@@ -212,8 +207,8 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
 #endif
 #endif
         } else {
-            exitApp();
 #if !defined(SE_USE_LIBRARY_BUILD)
+            exitApp();
             return 0;
 #endif
         }
@@ -234,7 +229,6 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
 #if !defined(SE_USE_LIBRARY_BUILD)
 	exitApp();
     return 0;
-#else
 #endif
 }
 #endif
