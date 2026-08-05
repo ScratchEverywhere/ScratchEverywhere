@@ -29,9 +29,12 @@
 static ScriptThread monitorDisplayThread;
 #endif
 
-#if !defined(SE_USE_LIBRARY_BUILD)
 static void exitApp() {
-#else
+    Render::deInit();
+    OS::deinit();
+}
+
+#if defined(SE_USE_LIBRARY_BUILD)
 #if defined(_WIN32) || defined(_WIN64)
 extern "C" __declspec(dllexport) void scratch_everywhere_destroy() {
 #else
