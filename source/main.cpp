@@ -31,6 +31,7 @@ static bool shouldExit = false;
 #endif
 
 static void exitApp() {
+	if (shouldExit) shouldExit = false;
     Render::deInit();
     OS::deinit();
 }
@@ -59,6 +60,7 @@ extern "C" __declspec(dllexport) const char *scratch_everywhere_step() {
 extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere_step() {
 #endif
 	static char buffer[4];
+	if (shouldExit) shouldExit = false;
 	static std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
 	int first = (result.first || shouldExit) ? 1 : 0;
 	int second = result.second ? 1 : 0;
