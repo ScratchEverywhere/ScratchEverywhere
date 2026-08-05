@@ -57,7 +57,7 @@ extern "C" __declspec(dllexport) const char *scratch_everywhere_step() {
 extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere_step() {
 #endif
 	static char buffer[4];
-	std::pair<bool, bool> result = stepScratchProject(monitorDisplayThread);
+	std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
 	int first  = result.first  ? 1 : 0;
 	int second = result.second ? 1 : 0;
     snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
