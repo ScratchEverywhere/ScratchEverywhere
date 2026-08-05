@@ -224,6 +224,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
         mainLoop();
 #endif
 #else
+	shouldExit = false;
 	Unzip::filePath = sb3;
 	Unzip::load();
 	Scratch::startScratchProject();
