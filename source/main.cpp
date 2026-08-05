@@ -27,6 +27,7 @@
 
 #if defined(SE_USE_LIBRARY_BUILD)
 static ScriptThread monitorDisplayThread;
+static bool shouldExit = false;
 #endif
 
 static void exitApp() {
@@ -40,6 +41,7 @@ extern "C" __declspec(dllexport) void scratch_everywhere_destroy() {
 #else
 extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destroy() {
 #endif
+	shouldExit = true;
     Render::deInit();
     OS::deinit();
 }
@@ -58,7 +60,7 @@ extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere
 #endif
 	static char buffer[4];
 	static std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
-	int first  = result.first  ? 1 : 0;
+	int first = (result.first || shouldExit) ? 1 : 0;
 	int second = result.second ? 1 : 0;
     snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
 	return static_cast<const char *>(buffer);
@@ -225,6 +227,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
 	Unzip::filePath = sb3;
 	Unzip::load();
 	Scratch::startScratchProject();
+	scratch_everywhere_destroy();
 #endif
 #if !defined(SE_USE_LIBRARY_BUILD)
 	exitApp();
