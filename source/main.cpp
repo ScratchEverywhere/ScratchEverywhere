@@ -58,9 +58,9 @@ extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere
 #endif
 	static char buffer[4];
 	std::pair<bool, bool> result = stepScratchProject(monitorDisplayThread);
-	bool first  = result.first  ? 1 : 0;
-	bool second = result.second ? 1 : 0;
-    snprintf(buffer, sizeof(buffer), "%s:%s", first, second);
+	int first  = result.first  ? 1 : 0;
+	int second = result.second ? 1 : 0;
+    snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
 	return static_cast<const char *>(buffer);
 }
 #endif
