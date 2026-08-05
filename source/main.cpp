@@ -30,8 +30,13 @@ static void exitApp() {
     OS::deinit();
 }
 
+static bool initAppDone = false;
 static bool initApp() {
-    return Scratch::initializeRuntime();
+	if (!initAppDone) {
+		initAppDone = true;
+    	return Scratch::initializeRuntime();
+	}
+	return initAppDone;
 }
 
 bool activateMainMenu() {
@@ -249,7 +254,6 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere(const 
         free(argv[i]); 
     }
     free(argv);
-	exit(0);
 #endif
 }
 #endif
