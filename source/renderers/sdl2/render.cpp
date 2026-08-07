@@ -77,6 +77,9 @@ bool Render::Init() {
 #elif defined(__PSP__)
     int windowWidth = 480;
     int windowHeight = 272;
+#elif defined(__PS2__)
+    int windowWidth = 640;
+    int windowHeight = 448;
 #elif defined(__PS4__)
     int windowWidth = 1280;
     int windowHeight = 720;
@@ -116,6 +119,9 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
+#ifdef __PS2__
+    SDL_SetHint(SDL_HINT_PS2_DYNAMIC_VSYNC, "1");
+#endif
 #if defined(WEBOS) || defined(__PSP__) || defined(__PS4__)
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
 #else

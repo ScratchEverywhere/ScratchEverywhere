@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__PS2__)
 constexpr unsigned int bitmaskScaleFactor = 3;
 #elif defined(__3DS__) || defined(WII)
 constexpr unsigned int bitmaskScaleFactor = 2;
