@@ -242,7 +242,10 @@ SCRATCH_BLOCK(control, while) {
     if (!condition.asBoolean()) return BlockResult::CONTINUE;
 
     const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
-    if (input == nullptr) return BlockResult::REPEAT;
+    if (input == nullptr) {
+        Scratch::resetInput(block);
+        return BlockResult::REPEAT;
+    }
 
     Block *substack = input->block;
     if (substack != nullptr)
@@ -262,7 +265,10 @@ SCRATCH_BLOCK(control, repeat_until) {
     if (condition.asBoolean()) return BlockResult::CONTINUE;
 
     const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
-    if (input == nullptr) return BlockResult::REPEAT;
+    if (input == nullptr) {
+        Scratch::resetInput(block);
+        return BlockResult::REPEAT;
+    }
 
     Block *substack = input->block;
     if (substack != nullptr)
