@@ -125,6 +125,9 @@ SCRATCH_BLOCK(control, create_clone_of) {
 SCRATCH_BLOCK(control, delete_this_clone) {
     if (!sprite->isClone) return BlockResult::CONTINUE;
     sprite->toDelete = true;
+    for (ScriptThread *t : BlockExecutor::threads) {
+        if (t->sprite == sprite) t->finished = true;
+    }
     Scratch::cloneCount--;
     return BlockResult::RETURN;
 }
@@ -136,6 +139,11 @@ SCRATCH_BLOCK(control, stop) {
 
     if (stopType == "all") {
         BlockExecutor::stopClicked = true;
+        for (Sprite *currentSprite : Scratch::sprites) {
+            for (ScriptThread *t : BlockExecutor::threads) {
+                if (t->sprite->isClone) t->finished = true;
+            }
+        }
         return BlockResult::RETURN;
     };
     if (stopType == "this script") {
