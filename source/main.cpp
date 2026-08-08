@@ -40,6 +40,7 @@ extern "C" __declspec(dllexport) void scratch_everywhere_destroy() {
 #else
 extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destroy() {
 #endif
+	Scratch::cleanupScratchProject();
 	Render::deInit();
 	OS::deinit();
 }
@@ -224,8 +225,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
 #else
 	Unzip::filePath = sb3;
 	Unzip::load();
-	Scratch::startScratchProject();
-	scratch_everywhere_destroy();
+	Scratch::initializeScratchProject();
 #endif
 #if !defined(SE_USE_LIBRARY_BUILD)
 	exitApp();
