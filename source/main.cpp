@@ -219,7 +219,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
-    while (1)
+    while (true)
         mainLoop();
 #endif
 #else
