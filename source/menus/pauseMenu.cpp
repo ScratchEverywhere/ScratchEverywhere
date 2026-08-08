@@ -1,7 +1,8 @@
 #include "pauseMenu.hpp"
 #include "translation.hpp"
+#include "vm/vm.hpp"
 #include <render.hpp>
-#include <runtime.hpp>
+#include <runtime/vm/engine_state.hpp>
 #include <speech_manager.hpp>
 
 PauseMenu::PauseMenu() {
@@ -13,7 +14,7 @@ PauseMenu::~PauseMenu() {
 }
 
 static std::string getTurboString() {
-    return TranslationManager::getTranslation("ui.pause.turbo") + ": " + TranslationManager::getTranslation(Scratch::turbo ? "ui.settings.on" : "ui.settings.off");
+    return TranslationManager::getTranslation("ui.pause.turbo") + ": " + TranslationManager::getTranslation(EngineState::turbo ? "ui.settings.on" : "ui.settings.off");
 }
 
 void PauseMenu::init() {
@@ -66,25 +67,25 @@ void PauseMenu::render() {
     }
 
     if (exitProjectButton->isPressed()) {
-        Scratch::shouldStop = true;
+        EngineState::shouldStop = true;
         shouldUnpause = true;
         return;
     }
 
     if (flagButton->isPressed()) {
-        Scratch::greenFlagClicked();
+        VM::greenFlagClicked();
         shouldUnpause = true;
         return;
     }
 
     if (stopButton->isPressed()) {
-        Scratch::stopClicked();
+        VM::stopAllClicked();
         shouldUnpause = true;
         return;
     }
 
     if (turboButton->isPressed()) {
-        Scratch::turbo = !Scratch::turbo;
+        EngineState::turbo = !EngineState::turbo;
         turboButton->text->setText(getTurboString());
         return;
     }

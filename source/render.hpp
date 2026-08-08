@@ -1,11 +1,11 @@
 #pragma once
 #include "nonstd/expected.hpp"
 #include "os.hpp"
+#include "runtime/data/monitor.hpp"
 #include <chrono>
+#include <cstdint>
 #include <input.hpp>
 #include <math.hpp>
-#include <runtime.hpp>
-#include <sprite.hpp>
 #include <text.hpp>
 #include <vector>
 
@@ -25,7 +25,7 @@ class Render {
     };
 
     static RenderModes renderMode;
-    static std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> monitorTexts;
+    static std::unordered_map<uint16_t, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> monitorTexts;
 
     struct ListMonitorRenderObjects {
         std::unique_ptr<TextObject> name;
@@ -33,9 +33,9 @@ class Render {
         std::vector<std::unique_ptr<TextObject>> items;
         std::vector<std::unique_ptr<TextObject>> indices;
     };
-    static std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
+    static std::unordered_map<uint16_t, ListMonitorRenderObjects> listMonitors;
 
-    static std::unordered_map<std::string, Monitor> monitors;
+    static std::vector<Monitor> monitors;
 
     // --- global render functions
 
@@ -50,7 +50,7 @@ class Render {
      * @param sprite the sprite to calculate.
      * @param isSVG if the sprite's current costume is a Vector image.
      */
-    static void calculateRenderPosition(Sprite *sprite, const bool isSVG);
+    static void calculateRenderPosition(const uint32_t spriteID);
 
     /**
      * Sets the sprite rendering scale, based on the aspect ratio of the project and the window's dimension.
@@ -66,7 +66,7 @@ class Render {
     /**
      * Resizes every SVG costume in a given that is currently loaded.
      */
-    static void resizeSVGs(Sprite *sprite);
+    static void resizeSVGs(uint32_t spriteID);
 
     /**
      * Force updates every sprite's position on screen. Should be called when window size changes.
@@ -92,6 +92,12 @@ class Render {
      * Renders all visible variable and list monitors
      */
     static void renderMonitors(const int &offsetX = 0, const int &offsetY = 0);
+
+    /**
+     * Converts screen coordinates to scratch coordinates
+     */
+
+    static std::pair<float, float> screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight);
 
     // --- renderer specific render functions
 
@@ -174,27 +180,27 @@ class Render {
     /**
      * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
      */
-    static void penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite);
+    static void penMoveFast(double x1, double y1, double x2, double y2, uint32_t spriteID);
 
     /**
      * Called whenever the pen is down and a sprite moves (so a line should be drawn.)
      */
-    static void penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite);
+    static void penMoveAccurate(double x1, double y1, double x2, double y2, uint32_t spriteID);
 
     /**
      * Called on pen down to place a singular dot at the position of the sprite.
      */
-    static void penDotFast(Sprite *sprite);
+    static void penDotFast(uint32_t spriteID);
 
     /**
      * Called on pen down to place a singular dot at the position of the sprite.
      */
-    static void penDotAccurate(Sprite *sprite);
+    static void penDotAccurate(uint32_t spriteID);
 
     /**
      * Called whenever the stamp block is used to place a copy of the sprite onto the pen canvas.
      */
-    static void penStamp(Sprite *sprite);
+    static void penStamp(uint32_t spriteID);
 
     /**
      * Called when the pen canvas needs to be cleared.

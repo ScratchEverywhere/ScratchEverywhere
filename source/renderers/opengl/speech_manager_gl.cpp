@@ -6,7 +6,7 @@
 #include <chrono>
 #include <image.hpp>
 #include <render.hpp>
-#include <runtime.hpp>
+#include <runtime/vm/engine_state.hpp>
 
 SpeechManagerGL::SpeechManagerGL() {
 }
@@ -30,8 +30,8 @@ void SpeechManagerGL::render(int offsetX, int offsetY) {
     // Get window dimensions and scale so speech size aligns with resolution
     int windowWidth = Render::getWidth();
     int windowHeight = Render::getHeight();
-    double scaleX = static_cast<double>(windowWidth) / static_cast<double>(Scratch::projectWidth);
-    double scaleY = static_cast<double>(windowHeight) / static_cast<double>(Scratch::projectHeight);
+    double scaleX = static_cast<double>(windowWidth) / static_cast<double>(EngineState::projectWidth);
+    double scaleY = static_cast<double>(windowHeight) / static_cast<double>(EngineState::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
     size_t visibleObjects = 0;

@@ -2,6 +2,7 @@
 #include <image.hpp>
 #include <os.hpp>
 #include <text.hpp>
+#include <timer.hpp>
 
 class Loading {
   private:

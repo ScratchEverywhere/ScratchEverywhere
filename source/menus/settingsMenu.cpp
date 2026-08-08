@@ -7,8 +7,8 @@
 #include <libdlgmod/libdlgmod.h>
 #if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <algorithm>
-#include <sstream>
 #include <cstdlib>
+#include <sstream>
 #include <sys/stat.h>
 #endif
 #if !defined(USE_LIBDLGMOD)
@@ -17,6 +17,11 @@
 #endif
 #include <filesystem.hpp>
 #include <log.hpp>
+
+// um idk but somehow PATH_MAX wasn't defined so I defined it myself
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 SettingsMenu::SettingsMenu() {
     init();
@@ -216,8 +221,8 @@ void SettingsMenu::render() {
         UseProjectsPath = !UseProjectsPath;
         updateButtonStates();
 
-		OS::customProjectsPath = nullptr;
-		OS::loadedSettings = false;
+        OS::customProjectsPath = nullptr;
+        OS::loadedSettings = false;
     }
 
     if (ChangeUsername->isPressed({"a"})) {
@@ -243,53 +248,53 @@ void SettingsMenu::render() {
 
 #if defined(USE_LIBDLGMOD)
 
-		// FIXME: Translate this into every localization supported by SE!
-		const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
+        // FIXME: Translate this into every localization supported by SE!
+        const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 
-		const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
-		const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
+        const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+        const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
 
 #elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 
-		bool in_path = false;
-    	const char *path = std::getenv("PATH");
+        bool in_path = false;
+        const char *path = std::getenv("PATH");
 
-    	if (path && path[0] != '\0') {
+        if (path && path[0] != '\0') {
 
-			struct stat st;
-        	std::string buf;
+            struct stat st;
+            std::string buf;
 
-        	std::string cpp_path(path);
-        	std::stringstream ss(cpp_path);
+            std::string cpp_path(path);
+            std::stringstream ss(cpp_path);
 
             char resolved_path[PATH_MAX];
-			const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
+            const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
 
-			std::string str = ptr ? ptr : "";
-    		std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+            std::string str = ptr ? ptr : "";
+            std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 
-    		bool isKDE = (str.find("KDE") != std::string::npos);
-			std::string cmd = ((isKDE) ? "/kdialog" : "/zenity");
+            bool isKDE = (str.find("KDE") != std::string::npos);
+            std::string cmd = ((isKDE) ? "/kdialog" : "/zenity");
 
-        	while (std::getline(ss, buf, ':')) {
-				if (realpath((buf + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
-					// Expected dialog CLI executable exists in path!
-					in_path = true;
-					break;
-				}
-			}
-		}
+            while (std::getline(ss, buf, ':')) {
+                if (realpath((buf + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    // Expected dialog CLI executable exists in path!
+                    in_path = true;
+                    break;
+                }
+            }
+        }
 
-		const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
-		const std::string newPath = ((in_path) ? ((newPathGui.empty()) ? projectsPath : newPathGui) : Input::openSoftwareKeyboard(projectsPath.c_str()));
+        const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+        const std::string newPath = ((in_path) ? ((newPathGui.empty()) ? projectsPath : newPathGui) : Input::openSoftwareKeyboard(projectsPath.c_str()));
 
 #endif
 
 #else
 
-		const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+        const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
 
 #endif
 
@@ -298,8 +303,8 @@ void SettingsMenu::render() {
             updateButtonStates();
         }
 
-		OS::customProjectsPath = nullptr;
-		OS::loadedSettings = false;
+        OS::customProjectsPath = nullptr;
+        OS::loadedSettings = false;
     }
 
     if (Language->isPressed({"a"})) {

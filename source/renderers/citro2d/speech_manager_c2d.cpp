@@ -1,7 +1,7 @@
 #include "speech_manager_c2d.hpp"
 #include "image.hpp"
 #include "render.hpp"
-#include "runtime.hpp"
+#include "runtime/vm/engine_state.hpp"
 #include <3ds.h>
 
 SpeechManagerC2D::SpeechManagerC2D() {
@@ -24,8 +24,8 @@ void SpeechManagerC2D::render(int offsetX, int offsetY) {
     // Get screen dimensions and scale so speech size aligns with resolution
     const int SCREEN_WIDTH = Render::renderMode == Render::BOTH_SCREENS ? 400 : Render::getWidth();
     const int SCREEN_HEIGHT = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
-    double scaleX = static_cast<double>(SCREEN_WIDTH) / static_cast<double>(Scratch::projectWidth);
-    double scaleY = static_cast<double>(SCREEN_HEIGHT) / static_cast<double>(Scratch::projectHeight);
+    double scaleX = static_cast<double>(SCREEN_WIDTH) / static_cast<double>(EngineState::projectWidth);
+    double scaleY = static_cast<double>(SCREEN_HEIGHT) / static_cast<double>(EngineState::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
     size_t visibleObjects = 0;

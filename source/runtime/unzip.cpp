@@ -1,8 +1,9 @@
 #include "unzip.hpp"
+#include "entity_manager.hpp"
 #include "input.hpp"
 #include "os.hpp"
-#include "parser.hpp"
-#include "runtime.hpp"
+#include "runtime/compiler/project_loader.hpp"
+#include "runtime/vm/engine_state.hpp"
 #include "translation.hpp"
 #include <cstring>
 #include <ctime>
@@ -18,6 +19,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <vector>
+
+#include "systems/costume_system.hpp"
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -70,7 +73,7 @@ int Unzip::openFile(std::istream *&file) {
 #else
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
-    Scratch::projectType = ProjectType::UNZIPPED;
+    EngineState::projectType = ProjectType::UNZIPPED;
     if (file != nullptr) {
         if (*file) return 1;
         else {
@@ -80,7 +83,7 @@ int Unzip::openFile(std::istream *&file) {
     }
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
-    Scratch::projectType = ProjectType::EMBEDDED;
+    EngineState::projectType = ProjectType::EMBEDDED;
 #ifdef USE_CMAKERC
     if (fs.exists(embeddedFilename)) {
         const auto &romfsFile = fs.open(embeddedFilename);
@@ -102,7 +105,7 @@ int Unzip::openFile(std::istream *&file) {
     }
     // Main menu
     Log::logWarning("No sb3 project, trying Main Menu.");
-    Scratch::projectType = ProjectType::UNEMBEDDED;
+    EngineState::projectType = ProjectType::UNEMBEDDED;
     if (filePath == "") {
         Log::log("Activating main menu...");
         return -1;
@@ -120,7 +123,7 @@ int Unzip::openFile(std::istream *&file) {
 
         return 1;
     }
-    Scratch::projectType = ProjectType::UNZIPPED;
+    EngineState::projectType = ProjectType::UNZIPPED;
     Log::log("Unpacked .sb3 project in SD card");
     // check if Unpacked Project
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
@@ -140,9 +143,9 @@ void projectLoaderThread(void *data) {
 
 void loadInitialImages() {
     Unzip::loadingState = TranslationManager::getTranslation("ui.loading.images");
-    for (auto &currentSprite : Scratch::sprites) {
+    for (uint32_t instanceId : EntityManager::renderOrder) {
 
-        Scratch::loadCurrentCostumeImage(currentSprite);
+        CostumeSystem::loadCurrentCostumeImage(instanceId);
     }
 }
 
@@ -213,10 +216,10 @@ void Unzip::openScratchProject(void *arg) {
     }
 
     loadingState = TranslationManager::getTranslation("ui.loading.extensions");
-    Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
+    // EngineState::hasNativeExtensions = Parser::loadExtensions(project_json);
 
     loadingState = TranslationManager::getTranslation("ui.loading.sprites");
-    Parser::loadSprites(project_json);
+    ProjectLoader::loadProject(project_json);
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
@@ -266,7 +269,7 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
     bool initSuccess = false;
 
 #ifdef USE_CMAKERC
-    if (Scratch::projectType == ProjectType::EMBEDDED) {
+    if (EngineState::projectType == ProjectType::EMBEDDED) {
         const auto &fs = cmrc::romfs::get_filesystem();
         const auto &romfsFile = fs.open(Unzip::filePath);
         initSuccess = mz_zip_reader_init_mem(&archive, romfsFile.begin(), romfsFile.size(), 0);
@@ -311,7 +314,7 @@ static size_t miniz_istream_read_func(void *pOpaque, mz_uint64 file_ofs, void *p
 nlohmann::json Unzip::unzipProject(std::istream *file) {
     nlohmann::json project_json;
 
-    if (Scratch::projectType != ProjectType::UNZIPPED) {
+    if (EngineState::projectType != ProjectType::UNZIPPED) {
         auto setting = Unzip::getSetting("sb3InRam");
         bool keepInRam;
         if (setting.is_null()) {
@@ -325,7 +328,7 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
         }
 
         if (keepInRam) {
-            Scratch::sb3InRam = true;
+            EngineState::sb3InRam = true;
 
             // read the file
             std::streamsize size = file->tellg();
@@ -354,7 +357,7 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
             project_json = nlohmann::json::parse(std::string(json_data, json_size));
             mz_free((void *)json_data);
         } else {
-            Scratch::sb3InRam = false;
+            EngineState::sb3InRam = false;
             memset(&zipArchive, 0, sizeof(zipArchive));
 
             file->seekg(0, std::ios::end);
@@ -477,7 +480,7 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     std::string folderPath = filePath + ".json";
     std::string content;
 
-    if (Scratch::projectType != ProjectType::UNEMBEDDED) {
+    if (EngineState::projectType != ProjectType::UNEMBEDDED) {
 #ifdef USE_CMAKERC
         const auto &fs = cmrc::romfs::get_filesystem();
 

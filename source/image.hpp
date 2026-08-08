@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <memory.h>
 #include <miniz.h>
-#include <sprite.hpp>
 #include <string>
 #include <vector>
 

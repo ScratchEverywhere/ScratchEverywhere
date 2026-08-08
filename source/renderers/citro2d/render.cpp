@@ -1,11 +1,14 @@
 #include "image.hpp"
+#include "runtime/vm/engine_state.hpp"
 #include "speech_manager_c2d.hpp"
+#include "value.hpp"
 #include <audio.hpp>
 #include <downloader.hpp>
 #include <input.hpp>
 #include <log.hpp>
 #include <render.hpp>
-#include <runtime.hpp>
+#include <runtime/scratch_engine.hpp>
+#include <runtime/systems/costume_system.hpp>
 #include <text.hpp>
 #include <unzip.hpp>
 #include <window.hpp>
@@ -278,8 +281,8 @@ void Render::penDotAccurate(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {
-    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
-    if (imgFind == Scratch::costumeImages.end()) {
+    auto imgFind = CostumeSystem::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == CostumeSystem::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
@@ -357,7 +360,7 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
 
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    float projectAspect = static_cast<float>(EngineState::projectWidth) / EngineState::projectHeight;
 
     // Screen is the same size, so it doesn't matter
     if (screenAspect == projectAspect) {
@@ -366,8 +369,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 
     if (screenAspect > projectAspect) {
         // Screen is wider than project,, vertical bars
-        float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
-        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float scale = static_cast<float>(screenHeight) / EngineState::projectHeight;
+        float scaledProjectWidth = EngineState::projectWidth * scale;
         float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
 
         C2D_DrawRectSolid(0, 0, 0.5f, barWidth, screenHeight, clrBlack);                      // Left bar
@@ -376,8 +379,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 
     // Screen is taller than project,, horizontal bars
-    float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
-    float scaledProjectHeight = Scratch::projectHeight * scale;
+    float scale = static_cast<float>(screenWidth) / EngineState::projectWidth;
+    float scaledProjectHeight = EngineState::projectHeight * scale;
     float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
 
     C2D_DrawRectSolid(0, 0, 0.5f, screenWidth, barHeight, clrBlack);                        // Top bar
@@ -387,8 +390,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
 void renderImage(Sprite *currentSprite, const std::string &costumeId, const bool &bottom = false, float xOffset = 0.0f, const int yOffset = 0) {
     if (!currentSprite || currentSprite == nullptr) return;
 
-    auto imgFind = Scratch::costumeImages.find(costumeId);
-    if (imgFind == Scratch::costumeImages.end()) {
+    auto imgFind = CostumeSystem::costumeImages.find(costumeId);
+    if (imgFind == CostumeSystem::costumeImages.end()) {
         return;
     }
 
@@ -433,7 +436,7 @@ void Render::renderSprites() {
     if (penRenderTarget && penRenderTarget != nullptr) flushFastPenQueue();
 
     float slider = osGet3DSliderState();
-    const float depthScale = 8.0f / Scratch::sprites.size();
+    const float depthScale = 8.0f / EntityManager::renderOrder.size();
 
     const float SLIDER_THRESHOLD = 0.0f;
 

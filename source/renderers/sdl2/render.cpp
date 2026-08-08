@@ -1,7 +1,9 @@
 #include "render.hpp"
+#include "blueprint.hpp"
+#include "entity_components.hpp"
+#include "entity_manager.hpp"
 #include "speech_manager.hpp"
 #include "speech_manager_sdl2.hpp"
-#include "sprite.hpp"
 #include <SDL.h>
 #include <algorithm>
 #include <audio.hpp>
@@ -10,7 +12,8 @@
 #include <input.hpp>
 #include <log.hpp>
 #include <render.hpp>
-#include <runtime.hpp>
+#include <runtime/systems/costume_system.hpp>
+#include <runtime/vm/engine_state.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -188,12 +191,12 @@ float Render::getPixelDensity() {
 bool Render::initPen() {
     if (penTexture != nullptr) return true;
 
-    if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
+    if (EngineState::hqPen) {
+        if (EngineState::projectWidth / static_cast<double>(getWidth()) < EngineState::projectHeight / static_cast<double>(getHeight()))
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, EngineState::projectWidth * (getHeight() / static_cast<double>(EngineState::projectHeight)), getHeight());
         else
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
-    } else penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), EngineState::projectHeight * (getWidth() / static_cast<double>(EngineState::projectWidth)));
+    } else penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, EngineState::projectWidth, EngineState::projectHeight);
 
     // Clear the texture
     SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
@@ -204,15 +207,16 @@ bool Render::initPen() {
     return true;
 }
 
-void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
+void Render::penMoveFast(double x1, double y1, double x2, double y2, uint32_t spriteID) {
+    PenState &pen = EntityManager::pen[spriteID];
+    const ColorRGBA rgbColor = CSBT2RGBA(pen.color);
+    const uint8_t alpha = (100.0 - pen.color.transparency) / 100.0 * 255.0;
 
     int penWidth = 640;
     int penHeight = 480;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    const double scale = (penHeight / static_cast<double>(EngineState::projectHeight));
 
     const float sx1 = static_cast<float>(x1 * scale + penWidth / 2.0);
     const float sy1 = static_cast<float>(-y1 * scale + penHeight / 2.0);
@@ -223,7 +227,7 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     const double dy = sy2 - sy1;
 
     const double length = sqrt(dx * dx + dy * dy);
-    const double drawWidth = (sprite->penData.size / 2.0f) * scale;
+    const double drawWidth = (pen.size / 2.0f) * scale;
 
     if (length <= 0) return;
 
@@ -251,20 +255,22 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     penVerts.push_back(v2);
 }
 
-void Render::penDotFast(Sprite *sprite) {
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
+void Render::penDotFast(uint32_t spriteID) {
+    PenState &pen = EntityManager::pen[spriteID];
+    SpriteTransform &transform = EntityManager::transforms[spriteID];
+    const ColorRGBA rgbColor = CSBT2RGBA(pen.color);
+    const uint8_t alpha = (100.0 - pen.color.transparency) / 100.0 * 255.0;
 
     int penWidth = 640;
     int penHeight = 480;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    const double scale = (penHeight / static_cast<double>(EngineState::projectHeight));
 
-    const float sx = static_cast<float>(sprite->xPosition * scale + penWidth / 2.0);
-    const float sy = static_cast<float>(-sprite->yPosition * scale + penHeight / 2.0);
+    const float sx = static_cast<float>(transform.x * scale + penWidth / 2.0);
+    const float sy = static_cast<float>(-transform.y * scale + penHeight / 2.0);
 
-    const float halfSize = static_cast<float>((sprite->penData.size / 2.0f) * scale);
+    const float halfSize = static_cast<float>((pen.size / 2.0f) * scale);
 
     const SDL_Color sdlColor = {
         static_cast<Uint8>(rgbColor.r),
@@ -287,15 +293,16 @@ void Render::penDotFast(Sprite *sprite) {
     penVerts.push_back(v2);
 }
 
-void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, uint32_t spriteID) {
+    PenState &pen = EntityManager::pen[spriteID];
+    const ColorRGBA rgbColor = CSBT2RGBA(pen.color);
+    const uint8_t alpha = (100.0 - pen.color.transparency) / 100.0 * 255.0;
 
     int penWidth = 640;
     int penHeight = 480;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    const double scale = (penHeight / static_cast<double>(EngineState::projectHeight));
 
     const float sx1 = static_cast<float>(x1 * scale + penWidth / 2.0);
     const float sy1 = static_cast<float>(-y1 * scale + penHeight / 2.0);
@@ -306,7 +313,7 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
     const double dy = sy2 - sy1;
 
     const double length = sqrt(dx * dx + dy * dy);
-    const double drawWidth = (sprite->penData.size / 2.0f) * scale;
+    const double drawWidth = (pen.size / 2.0f) * scale;
 
     const SDL_Color sdlColor = {
         static_cast<uint8_t>(rgbColor.r),
@@ -332,7 +339,7 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
         penVerts.push_back(v2);
     }
 
-    const unsigned int circleSegments = std::max(8.0, 8.0f * (sprite->penData.size / 150.0f));
+    const unsigned int circleSegments = std::max(8.0f, 8.0f * (pen.size / 150.0f));
     const double angleStep = 2.0 * M_PI / circleSegments;
 
     for (int i = 0; i < circleSegments; ++i) {
@@ -367,20 +374,22 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
     }
 }
 
-void Render::penDotAccurate(Sprite *sprite) {
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    const uint8_t alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
+void Render::penDotAccurate(uint32_t spriteID) {
+    PenState &pen = EntityManager::pen[spriteID];
+    SpriteTransform &transform = EntityManager::transforms[spriteID];
+    const ColorRGBA rgbColor = CSBT2RGBA(pen.color);
+    const uint8_t alpha = static_cast<Uint8>((100.0 - pen.color.transparency) / 100.0 * 255.0);
 
     int penWidth = 640;
     int penHeight = 480;
     SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
 
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    const double scale = (penHeight / static_cast<double>(EngineState::projectHeight));
 
-    const float sx = static_cast<float>(sprite->xPosition * scale + penWidth / 2.0);
-    const float sy = static_cast<float>(-sprite->yPosition * scale + penHeight / 2.0);
+    const float sx = static_cast<float>(transform.x * scale + penWidth / 2.0);
+    const float sy = static_cast<float>(-transform.y * scale + penHeight / 2.0);
 
-    const float radius = static_cast<float>((sprite->penData.size / 2.0f) * scale);
+    const float radius = static_cast<float>((pen.size / 2.0f) * scale);
 
     const SDL_Color sdlColor = {
         static_cast<uint8_t>(rgbColor.r),
@@ -388,7 +397,7 @@ void Render::penDotAccurate(Sprite *sprite) {
         static_cast<uint8_t>(rgbColor.b),
         static_cast<uint8_t>(alpha)};
 
-    const unsigned int circleSegments = std::max(16.0, 16.0f * (sprite->penData.size / 150.0f));
+    const unsigned int circleSegments = std::max(16.0f, 16.0f * (pen.size / 150.0f));
     const double angleStep = 2.0 * M_PI / circleSegments;
 
     for (int i = 0; i < circleSegments; ++i) {
@@ -410,14 +419,16 @@ void Render::penDotAccurate(Sprite *sprite) {
     }
 }
 
-void Render::penStamp(Sprite *sprite) {
-    auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
-    if (imgFind == Scratch::costumeImages.end()) {
+void Render::penStamp(uint32_t spriteID) {
+    const RenderInfo render = EntityManager::renderInfo[spriteID];
+    const TargetDefinition &def = EntityManager::blueprints[EntityManager::blueprintIds[spriteID]];
+    auto imgFind = CostumeSystem::costumeImages.find(def.costumes[render.costumeId].fullName);
+    if (imgFind == CostumeSystem::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
         return;
     }
 
-    const Costume &costume = sprite->costumes[sprite->currentCostume];
+    const Costume &costume = def.costumes[render.costumeId];
 
     SDL_SetRenderTarget(renderer, penTexture);
 
@@ -431,37 +442,43 @@ void Render::penStamp(Sprite *sprite) {
 
     Image *image = imgFind->second.get();
 
-    const bool isSVG = costume.isSVG;
-    calculateRenderPosition(sprite, isSVG);
+    calculateRenderPosition(spriteID);
 
     // Pen mapping stuff
-    const auto &cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
-    int penX = cords.first + Scratch::projectWidth / 2;
-    int penY = -cords.second + Scratch::projectHeight / 2;
+    const auto &cords = Render::screenToScratchCoords(render.x, render.y, getWidth(), getHeight());
+    int penX = cords.first + EngineState::projectWidth / 2;
+    int penY = -cords.second + EngineState::projectHeight / 2;
 
     float penScale;
-    if (Scratch::hqpen) {
+    const SpriteTransform &transform = EntityManager::transforms[spriteID];
+    if (EngineState::hqPen) {
         int penWidth;
         int penHeight;
         SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
-        const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+        const double scale = (penHeight / static_cast<double>(EngineState::projectHeight));
 
         penX *= scale;
         penY *= scale;
-        penScale = sprite->renderInfo.renderScaleY;
+        penScale = render.scaleY;
     } else {
-        penScale = (sprite->size / 100.0f) / costume.bitmapResolution;
+        penScale = (transform.size / 100.0f) / costume.bitmapResolution;
     }
 
     ImageRenderParams params;
     params.centered = true;
     params.x = penX;
     params.y = penY;
-    params.rotation = sprite->renderInfo.renderRotation;
+    params.rotation = render.rotation;
     params.scale = penScale;
-    params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
-    params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
-    params.brightness = sprite->brightnessEffect;
+    params.flip = (transform.rotationStyle == RotationStyle::LEFT_RIGHT && transform.direction < 0);
+    if (render.hasEffects()) {
+        GraphicEffects &effect = EntityManager::effects[spriteID];
+        params.opacity = 1.0f - (std::clamp(effect.ghost, 0.0f, 100.0f) * 0.01f);
+        params.brightness = effect.brightness;
+    } else {
+        params.opacity = 1.0f;
+        params.brightness = 0.0f;
+    }
 
     image->render(params);
 
@@ -499,12 +516,12 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
 
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    float projectAspect = static_cast<float>(EngineState::projectWidth) / EngineState::projectHeight;
 
     if (screenAspect > projectAspect) {
         // Vertical bars,,,
-        float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
-        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float scale = static_cast<float>(screenHeight) / EngineState::projectHeight;
+        float scaledProjectWidth = EngineState::projectWidth * scale;
         float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -515,8 +532,8 @@ void drawBlackBars(int screenWidth, int screenHeight) {
         SDL_RenderFillRect(renderer, &rightBar);
     } else if (screenAspect < projectAspect) {
         // Horizontal bars,,,
-        float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
-        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float scale = static_cast<float>(screenWidth) / EngineState::projectWidth;
+        float scaledProjectHeight = EngineState::projectHeight * scale;
         float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -532,46 +549,47 @@ void Render::renderSprites() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
-    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
-        Sprite *currentSprite = *it;
-        auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
-        if (imgFind != Scratch::costumeImages.end()) {
+    for (uint32_t instanceId : EntityManager::renderOrder) {
+        if (!EntityManager::activeInstances[instanceId]) continue;
+
+        const auto &rInfo = EntityManager::renderInfo[instanceId];
+
+        if (!rInfo.isVisible()) continue;
+
+        const auto &transform = EntityManager::transforms[instanceId];
+        uint32_t defId = EntityManager::blueprintIds[instanceId];
+        const auto &blueprint = EntityManager::blueprints[defId];
+
+        if (rInfo.costumeId >= blueprint.costumes.size()) continue;
+
+        const auto &currentCostume = blueprint.costumes[rInfo.costumeId];
+
+        auto imgFind = CostumeSystem::costumeImages.find(currentCostume.fullName);
+        if (imgFind != CostumeSystem::costumeImages.end()) {
             Image *image = imgFind->second.get();
 
-            const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
-            calculateRenderPosition(currentSprite, isSVG);
-            if (!currentSprite->visible) continue;
+            calculateRenderPosition(instanceId);
+
+            const auto &effect = EntityManager::effects[instanceId];
 
             ImageRenderParams params;
             params.centered = true;
-            params.x = currentSprite->renderInfo.renderX;
-            params.y = currentSprite->renderInfo.renderY;
-            params.rotation = currentSprite->renderInfo.renderRotation;
-            params.scale = currentSprite->renderInfo.renderScaleY;
-            params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
-            params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
-            params.brightness = currentSprite->brightnessEffect;
+            params.x = rInfo.x;
+            params.y = rInfo.y;
+            params.rotation = rInfo.rotation;
+            params.scale = rInfo.scaleY;
+
+            params.flip = (transform.rotationStyle == RotationStyle::LEFT_RIGHT && transform.direction < 0.0f);
+
+            params.opacity = 1.0f - (std::clamp(effect.ghost, 0.0f, 100.0f) * 0.01f);
+            params.brightness = effect.brightness;
 
             image->render(params);
         }
-        // Draw collision points (for debugging)
-        // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
-        // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
 
-        // for (const auto &point : collisionPoints) {
-        //     double screenX = (point.first * renderScale) + (getWidth() / 2);
-        //     double screenY = (point.second * -renderScale) + (getHeight() / 2);
-
-        //     SDL_Rect debugPointRect;
-        //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
-        //     debugPointRect.y = static_cast<int>(screenY - renderScale);
-        //     debugPointRect.w = static_cast<int>(2 * renderScale);
-        //     debugPointRect.h = static_cast<int>(2 * renderScale);
-
-        //     SDL_RenderFillRect(renderer, &debugPointRect);
-        // }
-
-        if (currentSprite->isStage) renderPenLayer();
+        if (transform.isStage() || instanceId == EntityManager::stageSprite) {
+            renderPenLayer();
+        }
     }
 
     if (speechManager) {
@@ -586,10 +604,12 @@ void Render::renderSprites() {
         SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
         SDL_Rect rect;
         rect.w = rect.h = 5;
-        rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5);
-        rect.y = (Input::mousePointer.y * -1 * renderScale) + (globalWindow->getHeight() * 0.5);
-        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
-        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
+        rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5f);
+        rect.y = (Input::mousePointer.y * -1.0f * renderScale) + (globalWindow->getHeight() * 0.5f);
+
+        Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -EngineState::projectWidth * 0.5f, EngineState::projectWidth * 0.5f);
+        Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -EngineState::projectHeight * 0.5f, EngineState::projectHeight * 0.5f);
+
         SDL_RenderDrawRect(renderer, &rect);
     }
 #endif
@@ -611,12 +631,12 @@ void Render::renderPenLayer() {
 
     SDL_Rect renderRect = {0, 0, 0, 0};
 
-    if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight) {
-        renderRect.x = std::ceil((getWidth() - Scratch::projectWidth * (static_cast<float>(getHeight()) / Scratch::projectHeight)) / 2.0f);
+    if (static_cast<float>(getWidth()) / getHeight() > static_cast<float>(EngineState::projectWidth) / EngineState::projectHeight) {
+        renderRect.x = std::ceil((getWidth() - EngineState::projectWidth * (static_cast<float>(getHeight()) / EngineState::projectHeight)) / 2.0f);
         renderRect.w = getWidth() - renderRect.x * 2;
         renderRect.h = getHeight();
     } else {
-        renderRect.y = std::ceil((getHeight() - Scratch::projectHeight * (static_cast<float>(getWidth()) / Scratch::projectWidth)) / 2.0f);
+        renderRect.y = std::ceil((getHeight() - EngineState::projectHeight * (static_cast<float>(getWidth()) / EngineState::projectWidth)) / 2.0f);
         renderRect.h = getHeight() - renderRect.y * 2;
         renderRect.w = getWidth();
     }
@@ -637,12 +657,12 @@ bool Render::appShouldRun() {
             lastW = currentW;
             lastH = currentH;
 
-            if (Scratch::hqpen) {
+            if (EngineState::hqPen) {
                 SDL_Texture *newTexture;
-                if (Scratch::projectWidth / static_cast<double>(currentW) < Scratch::projectHeight / static_cast<double>(currentH))
-                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (currentH / static_cast<double>(Scratch::projectHeight)), currentH);
+                if (EngineState::projectWidth / static_cast<double>(currentW) < EngineState::projectHeight / static_cast<double>(currentH))
+                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, EngineState::projectWidth * (currentH / static_cast<double>(EngineState::projectHeight)), currentH);
                 else
-                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, currentW, Scratch::projectHeight * (currentW / static_cast<double>(Scratch::projectWidth)));
+                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, currentW, EngineState::projectHeight * (currentW / static_cast<double>(EngineState::projectWidth)));
 
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_NONE);
                 SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_NONE);
