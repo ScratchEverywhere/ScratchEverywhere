@@ -7,7 +7,6 @@
 #endif
 #include <cstdlib>
 #include <inspector.hpp>
-#include <menus/mainMenu.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
@@ -26,10 +25,46 @@
 #include <filesystem.hpp>
 #endif
 
+#if defined(SE_USE_LIBRARY_BUILD)
+static ScriptThread monitorDisplayThread;
+#endif
+
 static void exitApp() {
     Render::deInit();
     OS::deinit();
 }
+
+#if defined(SE_USE_LIBRARY_BUILD)
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) void scratch_everywhere_destroy() {
+#else
+extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destroy() {
+#endif
+    Scratch::cleanupScratchProject();
+    Render::deInit();
+    OS::deinit();
+}
+#if defined(_WIN32) || defined(_WIN64)
+/**
+ * I returned a string split by a colon delimiter character 
+ * because I intend to use this in GameMaker as a GameMaker
+ * extension. GameMaker extension functions can only return
+ * double, const char *, char *, or void. If you don't like
+ * this, please let me know before you change this behavior
+ * -- "samuelvenable" a.k.a. "high on tantor" on github.com
+ */
+extern "C" __declspec(dllexport) const char *scratch_everywhere_step() {
+#else
+extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere_step() {
+#endif
+    static char buffer[4];
+    std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
+    const int first  = result.first  ? 1 : 0;
+    const int second = result.second ? 1 : 0;
+    snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
+    return static_cast<const char *>(buffer);
+}
+#endif
 
 static bool initApp() {
     return Scratch::initializeRuntime();
@@ -69,15 +104,16 @@ void mainLoop() {
             goto skipCheck;
         }
 
+#if defined(ENABLE_MENU)
         if (Unzip::projectOpened != -3) { // main menu
             exitApp();
             exit(0);
         }
-
         if (!activateMainMenu()) {
             exitApp();
             exit(0);
         }
+#endif
 
     skipCheck:
         return;
@@ -86,27 +122,39 @@ void mainLoop() {
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
+#if defined(ENABLE_MENU)
     if (OS::toExit || !activateMainMenu()) {
+#else
+    if (OS::toExit) {
+#endif
         exitApp();
         exit(0);
     }
 }
 
+#if !defined(SE_USE_LIBRARY_BUILD)
 #if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
-
 extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
+#else
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) void scratch_everywhere_create(const char *sb3) {
+#else
+extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create(const char *sb3) {
+#endif
+#endif
     if (!initApp()) {
+#if !defined(SE_USE_LIBRARY_BUILD)
         exitApp();
         return 1;
+#endif
     }
-
-    srand(time(NULL));
-
+    srand(time(nullptr));
     bool enableInspector = false;
+#if !defined(SE_USE_LIBRARY_BUILD)
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--inspector") {
@@ -117,6 +165,7 @@ int main(int argc, char **argv) {
 #endif
         }
     }
+#endif
 
 #ifdef ENABLE_INSPECTOR
     if (enableInspector) Inspector::init();
@@ -151,24 +200,36 @@ int main(int argc, char **argv) {
             while (Render::appShouldRun() && !uploadComplete)
                 emscripten_sleep(0);
 #else
+#if defined(ENABLE_MENU)
             if (!activateMainMenu()) {
                 exitApp();
                 return 0;
             }
 #endif
+#endif
         } else {
+#if !defined(SE_USE_LIBRARY_BUILD)
             exitApp();
             return 0;
+#endif
         }
     }
 
+#if !defined(SE_USE_LIBRARY_BUILD)
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
-    while (1)
+    while (true)
         mainLoop();
 #endif
+#else
+    Unzip::filePath = sb3;
+    Unzip::load();
+    Scratch::initializeScratchProject();
+#endif
+#if !defined(SE_USE_LIBRARY_BUILD)
     exitApp();
     return 0;
+#endif
 }
 #endif
