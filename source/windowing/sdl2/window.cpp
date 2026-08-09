@@ -104,7 +104,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     resize(dw, dh);
 #endif
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN32) || defined(_WIN64) || (defined(__APPLE__) && !defined(__IOS__))
     SDL_SysWMinfo system_info;
     SDL_VERSION(&system_info.version);
 	SDL_GetWindowWMInfo(window, &system_info);
