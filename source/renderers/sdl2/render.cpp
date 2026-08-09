@@ -84,13 +84,13 @@ bool Render::Init() {
     // Freetype has to be initialized before SDL2_ttf
     int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
     if (rc != ORBIS_OK) {
-        Log::logError("Failed to init freetype.");
+        Log::logCritical("Failed to init freetype.", true);
         return false;
     }
 #elif defined(WEBOS)
     // SDL has to be initialized before window creation on webOS
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
-        Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to initialize SDL2: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -123,7 +123,7 @@ bool Render::Init() {
 #endif
     renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, sdlFlags);
     if (renderer == NULL) {
-        Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
+        Log::logCritical("Could not create renderer: " + std::string(SDL_GetError()), true);
         return false;
     }
 
