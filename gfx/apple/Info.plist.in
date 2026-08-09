@@ -3,9 +3,9 @@
 <plist version="1.0">
   <dict>
     <key>CFBundleName</key>
-    <string>Scratch Everywhere!</string>
-    <key>CFBundleDisplayName</key>
     <string>@SE_APP_NAME@</string>
+    <key>CFBundleDisplayName</key>
+    <string>@SE_APP_SHORT_NAME@</string>
     <key>CFBundleIdentifier</key>
     <string>com.se.scratcheverywhere</string>
     <key>CFBundleVersion</key>
@@ -16,9 +16,16 @@
     <string>@SE_OUTPUT_NAME@</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
-    <key>UIFileSharingEnabled</key>
-    <true />
-    <key>LSSupportsOpeningDocumentsInPlace</key>
-    <true />   
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.games</string>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UIRequiresFullScreen</key>
+    <true/>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+      <string>UIInterfaceOrientationLandscapeLeft</string>
+      <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
   </dict>
 </plist>

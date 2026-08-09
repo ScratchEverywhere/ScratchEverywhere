@@ -29,6 +29,7 @@ endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
+set(SE_APP_SHORT_NAME "SE!" CACHE STRING "Short display name of the outputed app.")
 set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
 set(SE_APP_VERSION "1.0" CACHE STRING "Version of the outputed app.")
@@ -291,7 +292,8 @@ endif()
 if(APPLE)
 	if(IOS)
 		# Xcode assets
-		set(ASSET_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Assets.xcassets")
+		set(ASSET_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Assets.xcassets"
+			"${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/LaunchScreen.storyboard")
 	else()
 		# App iconset
 		set(ASSET_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/gfx/apple/Icon.icns")
