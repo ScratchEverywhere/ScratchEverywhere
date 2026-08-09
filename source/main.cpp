@@ -109,6 +109,7 @@ void mainLoop() {
             exitApp();
             exit(0);
         }
+
         if (!activateMainMenu()) {
             exitApp();
             exit(0);
@@ -135,6 +136,7 @@ void mainLoop() {
 #if !defined(SE_USE_LIBRARY_BUILD)
 #if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
 #include <SDL.h>
+
 extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
@@ -152,7 +154,9 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
         return 1;
 #endif
     }
+
     srand(time(nullptr));
+
     bool enableInspector = false;
 #if !defined(SE_USE_LIBRARY_BUILD)
     for (int i = 1; i < argc; ++i) {
