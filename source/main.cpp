@@ -44,7 +44,6 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destro
     Render::deInit();
     OS::deinit();
 }
-#if defined(_WIN32) || defined(_WIN64)
 /**
  * I returned a string split by a colon delimiter character 
  * because I intend to use this in GameMaker as a GameMaker
@@ -53,6 +52,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destro
  * this, please let me know before you change this behavior
  * -- "samuelvenable" a.k.a. "high on tantor" on github.com
  */
+#if defined(_WIN32) || defined(_WIN64)
 extern "C" __declspec(dllexport) const char *scratch_everywhere_step() {
 #else
 extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere_step() {
@@ -219,19 +219,17 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
         }
     }
 
-#if !defined(SE_USE_LIBRARY_BUILD)
+#if defined(SE_USE_LIBRARY_BUILD)
+    Unzip::filePath = sb3;
+    Unzip::load();
+    Scratch::initializeScratchProject();
+#else
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
 #else
     while (true)
         mainLoop();
 #endif
-#else
-    Unzip::filePath = sb3;
-    Unzip::load();
-    Scratch::initializeScratchProject();
-#endif
-#if !defined(SE_USE_LIBRARY_BUILD)
     exitApp();
     return 0;
 #endif
