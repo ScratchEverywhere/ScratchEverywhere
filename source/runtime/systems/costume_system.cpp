@@ -37,7 +37,7 @@ void loadCurrentCostumeImage(uint32_t instanceId) {
 
     std::shared_ptr<Image> image;
     const int screenWidth = Render::getWidth();
-    const int screenHeight = Render::getHeight();
+    const int screenHeight = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
 
     auto onErr = [&](const std::string &error) -> bool {
         static std::set<std::string> failedImages;
@@ -53,7 +53,7 @@ void loadCurrentCostumeImage(uint32_t instanceId) {
                 if (failedImages.count(missingName) == 0 && error != "LunaSVG failed to render SVG to bitmap") {
                     auto img = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0f);
                     if (!img.has_value()) {
-                        Log::logError("[CostumeSystem] Failed to load missing image texture: " + img.error());
+                        Log::logWarning("[CostumeSystem] Failed to load missing image texture: " + img.error());
                         failedImages.insert(missingName);
                     } else {
                         costumeImages[missingName] = img.value();

@@ -1,6 +1,8 @@
 #include "collision.hpp"
 
+#include "../../log.hpp"
 #include "../entity_manager.hpp"
+#include "../systems/costume_system.hpp"
 #include "../vm/engine_state.hpp"
 #include <algorithm>
 #include <cmath>
@@ -15,29 +17,68 @@ static inline float getEffectiveScale(const SpriteTransform &transform, const Co
     return size * 0.01f;
 }
 
-std::shared_ptr<Bitmask> generateBitmask(const Costume &costume, const uint32_t *pixels, uint32_t width, uint32_t height, uint32_t scaleFactor) {
-    auto bitmask = std::make_shared<Bitmask>();
-    bitmask->width = width / scaleFactor;
-    bitmask->height = height / scaleFactor;
-    bitmask->scaleFactor = static_cast<float>(scaleFactor);
+static uint32_t getSpriteAbove(uint32_t instanceId) {
+    const auto &order = EntityManager::renderOrder;
+    if (order.size() <= 1) return UINT32_MAX;
 
-    const unsigned int rowWords = (bitmask->width + 31) / 32;
-    bitmask->bits.resize(rowWords * bitmask->height, 0);
+    const SpriteTransform &transform = EntityManager::transforms[instanceId];
 
-    float maxDistSq = 0.0f;
-    const float centerX = static_cast<float>(costume.rotationCenterX) / bitmask->scaleFactor;
-    const float centerY = static_cast<float>(costume.rotationCenterY) / bitmask->scaleFactor;
+    if (transform.isStage()) {
+        if (order.size() >= 2) {
+            return order[order.size() - 2];
+        }
+        return UINT32_MAX;
+    }
 
-    for (uint32_t y = 0; y < bitmask->height; ++y) {
-        for (uint32_t x = 0; x < bitmask->width; ++x) {
-            const uint32_t px = pixels[(y * scaleFactor) * width + (x * scaleFactor)];
+    for (int i = static_cast<int>(order.size()) - 1; i >= 0; i--) {
+        if (order[i] == instanceId) {
+            if (i + 1 < static_cast<int>(order.size())) {
+                return order[i + 1];
+            }
+            return UINT32_MAX;
+        }
+    }
+
+    return UINT32_MAX;
+}
+
+std::shared_ptr<CollisionMask> generateCollisionMask(uint32_t spriteId, unsigned int scaleFactor) {
+    const auto &render = EntityManager::renderInfo[spriteId];
+    const auto &blueprint = EntityManager::blueprints[EntityManager::blueprintIds[spriteId]];
+    const auto &costume = blueprint.costumes[render.costumeId];
+    auto imgFind = CostumeSystem::costumeImages.find(costume.fullName);
+    if (imgFind == CostumeSystem::costumeImages.end()) {
+        Log::logWarning("[Collision] Failed to find image for sprite: " + blueprint.name);
+        return nullptr;
+    }
+
+    ImageData imgData = imgFind->second->getPixels();
+    if (!imgData.pixels) return nullptr;
+
+    auto mask = std::make_shared<CollisionMask>();
+    mask->width = imgData.width / scaleFactor;
+    mask->height = imgData.height / scaleFactor;
+    mask->scaleFactor = (float)scaleFactor / imgData.scale;
+
+    const float centerX = costume.rotationCenterX / mask->scaleFactor;
+    const float centerY = costume.rotationCenterY / mask->scaleFactor;
+    float maxDistSq = 0;
+
+    uint32_t *pixels = (uint32_t *)imgData.pixels;
+
+#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
+    mask->alphaPixels.resize(mask->width * mask->height, 0);
+
+    for (int y = 0; y < (int)mask->height; y++) {
+        for (int x = 0; x < (int)mask->width; x++) {
+            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
             const uint8_t alpha = px & 0xFF;
 #else
             const uint8_t alpha = (px >> 24) & 0xFF;
 #endif
             if (alpha > 0) {
-                bitmask->bits[y * rowWords + (x / 32)] |= (1U << (x % 32));
+                mask->alphaPixels[y * mask->width + x] = alpha;
 
                 const float dx = x - centerX;
                 const float dy = y - centerY;
@@ -47,8 +88,31 @@ std::shared_ptr<Bitmask> generateBitmask(const Costume &costume, const uint32_t 
         }
     }
 
-    bitmask->maxRadius = std::sqrt(maxDistSq) * bitmask->scaleFactor;
-    return bitmask;
+    free(imgData.pixels);
+#else
+    mask->image = imgFind->second;
+    mask->imgScaleFactor = scaleFactor;
+
+    for (int y = 0; y < (int)mask->height; y++) {
+        for (int x = 0; x < (int)mask->width; x++) {
+            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+            const uint8_t alpha = px & 0xFF;
+#else
+            const uint8_t alpha = (px >> 24) & 0xFF;
+#endif
+            if (alpha > 0) {
+                const float dx = x - centerX;
+                const float dy = y - centerY;
+                const float distSq = dx * dx + dy * dy;
+                if (distSq > maxDistSq) maxDistSq = distSq;
+            }
+        }
+    }
+#endif
+
+    mask->maxRadius = std::sqrt(maxDistSq) * mask->scaleFactor;
+    return mask;
 }
 
 AABB getSpriteBounds(uint32_t instanceId) {
@@ -101,7 +165,7 @@ bool spriteOnEdgeFast(uint32_t instanceId) {
            (box.top >= topEdge) || (box.bottom <= bottomEdge);
 }
 
-bool pointInSprite(uint32_t instanceId, float x, float y) {
+bool pointInSprite(uint32_t instanceId, float x, float y, bool clickMode) {
     if (instanceId >= EntityManager::activeInstances.size() || !EntityManager::activeInstances[instanceId]) {
         return false;
     }
@@ -109,17 +173,24 @@ bool pointInSprite(uint32_t instanceId, float x, float y) {
     if (!render.isVisible()) return false;
     const SpriteTransform &transform = EntityManager::transforms[instanceId];
 
+    if (clickMode) {
+        const uint32_t aboveId = getSpriteAbove(instanceId);
+        if (aboveId != UINT32_MAX && pointInSprite(aboveId, x, y, false)) {
+            return false;
+        }
+    }
+
     const uint32_t defId = EntityManager::blueprintIds[instanceId];
     const Costume &costume = EntityManager::blueprints[defId].costumes[render.costumeId];
 
-    if (!costume.bitmask) return false;
+    if (!costume.collisionMask) return false;
 
     const float dx = x - transform.x;
     const float dy = y - transform.y;
     const float distSq = dx * dx + dy * dy;
     const float spriteScale = getEffectiveScale(transform, costume);
 
-    const float scaledRadius = costume.bitmask->maxRadius * spriteScale;
+    const float scaledRadius = costume.collisionMask->maxRadius * spriteScale;
     if (distSq > (scaledRadius * scaledRadius)) return false;
 
     const float rad = (transform.rotationStyle == RotationStyle::ALL_AROUND)
@@ -136,11 +207,11 @@ bool pointInSprite(uint32_t instanceId, float x, float y) {
         localX = -localX;
     }
 
-    const float invScaleFactor = 1.0f / costume.bitmask->scaleFactor;
+    const float invScaleFactor = 1.0f / costume.collisionMask->scaleFactor;
     const int finalX = static_cast<int>(std::round((localX + costume.rotationCenterX) * invScaleFactor));
     const int finalY = static_cast<int>(std::round((localY + costume.rotationCenterY) * invScaleFactor));
 
-    return costume.bitmask->getPixel(finalX, finalY);
+    return costume.collisionMask->getPixel(finalX, finalY);
 }
 
 bool spriteInSprite(uint32_t instA, uint32_t instB) {
@@ -157,7 +228,7 @@ bool spriteInSprite(uint32_t instA, uint32_t instB) {
     const Costume &costumeA = EntityManager::blueprints[EntityManager::blueprintIds[instA]].costumes[renderA.costumeId];
     const Costume &costumeB = EntityManager::blueprints[EntityManager::blueprintIds[instB]].costumes[renderB.costumeId];
 
-    if (!costumeA.bitmask || !costumeB.bitmask) return false;
+    if (!costumeA.collisionMask || !costumeB.collisionMask) return false;
 
     const float dx = transA.x - transB.x;
     const float dy = transA.y - transB.y;
@@ -166,8 +237,8 @@ bool spriteInSprite(uint32_t instA, uint32_t instB) {
     const float scaleA = getEffectiveScale(transA, costumeA);
     const float scaleB = getEffectiveScale(transB, costumeB);
 
-    const float radiusA = costumeA.bitmask->maxRadius * scaleA;
-    const float radiusB = costumeB.bitmask->maxRadius * scaleB;
+    const float radiusA = costumeA.collisionMask->maxRadius * scaleA;
+    const float radiusB = costumeB.collisionMask->maxRadius * scaleB;
     const float combinedRadius = radiusA + radiusB;
 
     if (distSq > (combinedRadius * combinedRadius)) return false;
@@ -181,12 +252,12 @@ bool spriteInSprite(uint32_t instA, uint32_t instB) {
 
     const float radA = (transA.rotationStyle == RotationStyle::ALL_AROUND) ? (-(transA.direction - 90.0f) * (3.14159265f / 180.0f)) : 0.0f;
     const float sinA = std::sin(radA), cosA = std::cos(radA);
-    const float invScaleA = 1.0f / costumeA.bitmask->scaleFactor;
+    const float invScaleA = 1.0f / costumeA.collisionMask->scaleFactor;
     const float flipA = (transA.rotationStyle == RotationStyle::LEFT_RIGHT && transA.direction < 0.0f) ? -1.0f : 1.0f;
 
     const float radB = (transB.rotationStyle == RotationStyle::ALL_AROUND) ? (-(transB.direction - 90.0f) * (3.14159265f / 180.0f)) : 0.0f;
     const float sinB = std::sin(radB), cosB = std::cos(radB);
-    const float invScaleB = 1.0f / costumeB.bitmask->scaleFactor;
+    const float invScaleB = 1.0f / costumeB.collisionMask->scaleFactor;
     const float flipB = (transB.rotationStyle == RotationStyle::LEFT_RIGHT && transB.direction < 0.0f) ? -1.0f : 1.0f;
 
     const float stepXxA = (cosA / scaleA) * flipA;
@@ -210,11 +281,11 @@ bool spriteInSprite(uint32_t instA, uint32_t instB) {
             const int finalXA = static_cast<int>(std::round((localXA + costumeA.rotationCenterX) * invScaleA));
             const int finalYA = static_cast<int>(std::round((localYA + costumeA.rotationCenterY) * invScaleA));
 
-            if (costumeA.bitmask->getPixel(finalXA, finalYA)) {
+            if (costumeA.collisionMask->getPixel(finalXA, finalYA)) {
                 const int finalXB = static_cast<int>(std::round((localXB + costumeB.rotationCenterX) * invScaleB));
                 const int finalYB = static_cast<int>(std::round((localYB + costumeB.rotationCenterY) * invScaleB));
 
-                if (costumeB.bitmask->getPixel(finalXB, finalYB)) return true;
+                if (costumeB.collisionMask->getPixel(finalXB, finalYB)) return true;
             }
 
             localXA += stepXxA;
@@ -235,12 +306,12 @@ bool spriteOnEdge(uint32_t instanceId) {
     const auto &transform = EntityManager::transforms[instanceId];
     const auto &costume = EntityManager::blueprints[EntityManager::blueprintIds[instanceId]].costumes[EntityManager::renderInfo[instanceId].costumeId];
 
-    if (!costume.bitmask) return false;
+    if (!costume.collisionMask) return false;
 
     const float halfWidth = EngineState::projectWidth * 0.5f;
     const float halfHeight = EngineState::projectHeight * 0.5f;
     const float spriteScale = getEffectiveScale(transform, costume);
-    const float scaledRadius = costume.bitmask->maxRadius * spriteScale;
+    const float scaledRadius = costume.collisionMask->maxRadius * spriteScale;
 
     if (transform.x - scaledRadius > -halfWidth &&
         transform.x + scaledRadius < halfWidth &&
@@ -251,7 +322,7 @@ bool spriteOnEdge(uint32_t instanceId) {
 
     const float rad = (transform.rotationStyle == RotationStyle::ALL_AROUND) ? (-(transform.direction - 90.0f) * (3.14159265f / 180.0f)) : 0.0f;
     const float s_sin = std::sin(rad), s_cos = std::cos(rad);
-    const float invScale = 1.0f / costume.bitmask->scaleFactor;
+    const float invScale = 1.0f / costume.collisionMask->scaleFactor;
     const float flip = (transform.rotationStyle == RotationStyle::LEFT_RIGHT && transform.direction < 0.0f) ? -1.0f : 1.0f;
 
     const float minX = std::floor(transform.x - scaledRadius);
@@ -274,7 +345,7 @@ bool spriteOnEdge(uint32_t instanceId) {
                 const int finalX = static_cast<int>(std::round((localX + costume.rotationCenterX) * invScale));
                 const int finalY = static_cast<int>(std::round((localY + costume.rotationCenterY) * invScale));
 
-                if (costume.bitmask->getPixel(finalX, finalY)) {
+                if (costume.collisionMask->getPixel(finalX, finalY)) {
                     return true;
                 }
             }
