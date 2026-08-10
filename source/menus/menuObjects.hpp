@@ -3,6 +3,7 @@
 #include <os.hpp>
 #include <render.hpp>
 #include <text.hpp>
+#include <timer.hpp>
 
 class MenuObject {
   public:

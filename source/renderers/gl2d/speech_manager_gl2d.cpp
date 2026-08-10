@@ -1,11 +1,11 @@
 #include "speech_manager_gl2d.hpp"
+#include "runtime/vm/engine_state.hpp"
 #include "speech_text_gl2d.hpp"
 #include <image.hpp>
 #include <image_gl2d.hpp>
 #include <math.hpp>
 #include <nds.h>
 #include <render.hpp>
-#include <runtime.hpp>
 
 SpeechManagerGL2D::SpeechManagerGL2D() {
 }
@@ -27,8 +27,8 @@ void SpeechManagerGL2D::render(int offsetX, int offsetY) {
     // Get screen dimensions and scale so speech size aligns with resolution
     int screenWidth = Render::getWidth();
     int screenHeight = Render::getHeight();
-    double scaleX = static_cast<double>(screenWidth) / static_cast<double>(Scratch::projectWidth);
-    double scaleY = static_cast<double>(screenHeight) / static_cast<double>(Scratch::projectHeight);
+    double scaleX = static_cast<double>(screenWidth) / static_cast<double>(EngineState::projectWidth);
+    double scaleY = static_cast<double>(screenHeight) / static_cast<double>(EngineState::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
     uint8_t visibleObjects = 0;

@@ -4,13 +4,13 @@
 #include <switch.h>
 #endif
 #include <algorithm>
-#include <blockExecutor.hpp>
 #include <cctype>
 #include <cstddef>
 #include <input.hpp>
 #include <map>
 #include <render.hpp>
-#include <sprite.hpp>
+#include <runtime/data/entity_components.hpp>
+#include <runtime/scratch_engine.hpp>
 #include <string>
 #include <vector>
 
@@ -247,17 +247,17 @@ void Input::getInput() {
 #endif
 
     if (!inputKeys.empty()) inputKeys.push_back("any");
-    BlockExecutor::executeKeyHats();
+    ScratchEngine::executeKeyHats();
 
 #ifdef PLATFORM_HAS_TOUCH
     if (touchActive) {
         // Transform touch coordinates to Scratch space
-        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
+        auto coords = Render::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
         mousePointer.mouseButton = Mouse::LEFT;
-        BlockExecutor::doSpriteClicking();
+        ScratchEngine::doSpriteClicking();
         return;
     }
 #endif
@@ -266,7 +266,7 @@ void Input::getInput() {
 
     std::array<int, 2> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
+    auto coords = Render::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 
@@ -284,7 +284,7 @@ void Input::getInput() {
     }
 #endif
 
-    BlockExecutor::doSpriteClicking();
+    ScratchEngine::doSpriteClicking();
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

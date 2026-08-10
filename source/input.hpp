@@ -5,11 +5,11 @@
 #include <map>
 #include <nlohmann/json.hpp>
 #include <os.hpp>
-#include <runtime.hpp>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
+#include "runtime/core/value.hpp"
 #include <input_strings.hpp>
 
 class Input {
@@ -28,7 +28,7 @@ class Input {
         } mouseButton;
     };
     static Mouse mousePointer;
-    static Sprite *draggingSprite;
+    static uint32_t draggingSpriteId;
 
     static std::pair<float, float> leftJoystick;
     static std::pair<float, float> rightJoystick;
@@ -38,7 +38,6 @@ class Input {
     static std::map<std::string, std::string> inputControls;
     static std::vector<std::string> inputBuffer;
     static std::unordered_map<std::string, int> keyHeldDuration;
-    static std::unordered_set<Block *> codePressedBlockOpcodes;
 
     // static std::vector<int> getTouchPosition();
     static std::array<int, 2> getTouchPosition();

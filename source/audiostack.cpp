@@ -4,7 +4,8 @@
 #define TSF_IMPLEMENTATION
 #include "audiostack.hpp"
 #include "os.hpp"
-#include "runtime.hpp"
+#include "runtime/core/audio_manager.hpp"
+#include "runtime/vm/engine_state.hpp"
 #include "unzip.hpp"
 #include <log.hpp>
 #ifdef USE_CMAKERC
@@ -139,7 +140,7 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
-    if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) prefix += "project/";
+    if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || EngineState::projectType == ProjectType::UNZIPPED)) prefix += "project/";
 
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
@@ -237,7 +238,7 @@ nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::
 
 SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
     auto potentialError = init(zip, path);
-    if (error.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 SoundStream::~SoundStream() {
@@ -366,6 +367,72 @@ void Mixer::requestSound(short *output, int frames) {
             it = notes.erase(it);
         } else {
             it++;
+        }
+    }
+#endif
+
+#ifdef ENABLE_AUDIO
+    for (auto &chan : AudioManager::getChannels()) {
+        if (!chan.isPlaying || chan.stream == nullptr) continue;
+        SoundStream *s = chan.stream;
+        if (s->paused) continue;
+
+        const float pitch = s->config.pitch;
+        float sprVolume = 1.0f;
+        if (chan.instanceId < EntityManager::audio.size()) {
+            sprVolume = EntityManager::audio[chan.instanceId].volume / 100.0f;
+        }
+        const float volume = (s->config.volume / 100.0f) * sprVolume;
+        const float step = (float)s->rate * pitch / (float)Mixer::rate;
+        int maxFramesNeeded = (int)(frames * step) + 2;
+
+        std::vector<float> decodeBuffer(maxFramesNeeded * s->channels, 0.0f);
+
+        int decoded = s->read(decodeBuffer.data(), maxFramesNeeded);
+        if (decoded <= 0) {
+            chan.isPlaying = false;
+            delete chan.stream;
+            chan.stream = nullptr;
+            chan.playbackId = 0;
+            continue;
+        }
+
+        float pos = 0.0f;
+
+        for (int i = 0; i < frames; i++) {
+            int i0 = (int)pos;
+            int i1 = std::min(i0 + 1, decoded - 1);
+            float frac = pos - i0;
+
+            float left = 0.0f;
+            float right = 0.0f;
+
+            if (s->channels == 1) {
+                float a = decodeBuffer[i0];
+                float b = decodeBuffer[i1];
+                float sample = a + (b - a) * frac;
+                left = right = sample;
+            } else {
+                float aL = decodeBuffer[2 * i0 + 0];
+                float aR = decodeBuffer[2 * i0 + 1];
+                float bL = decodeBuffer[2 * i1 + 0];
+                float bR = decodeBuffer[2 * i1 + 1];
+
+                left = aL + (bL - aL) * frac;
+                right = aR + (bR - aR) * frac;
+            }
+
+            float p = std::clamp(s->config.pan / 100.0f, -1.0f, 1.0f);
+            float panL = (p <= 0.0f) ? 1.0f : 1.0f - p;
+            float panR = (p >= 0.0f) ? 1.0f : 1.0f + p;
+
+            left *= panL * volume;
+            right *= panR * volume;
+
+            mixBuffer[2 * i + 0] += left;
+            mixBuffer[2 * i + 1] += right;
+
+            pos += step;
         }
     }
 #endif
@@ -584,7 +651,7 @@ void Mixer::setAutoClean(std::string name, bool toggle) {
 }
 
 float Mixer::beatsToSec(float v) {
-    return v / (Scratch::tempo / 60.0);
+    return v / (EngineState::tempo / 60.0);
 }
 
 static constexpr int instrument_lut[] = {

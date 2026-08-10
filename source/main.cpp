@@ -1,15 +1,15 @@
 #ifndef LIBRETRO
 #include "image.hpp"
+#include "runtime/scratch_engine.hpp"
+#include "runtime/vm/engine_state.hpp"
 #include "translation.hpp"
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
 #include <cstdlib>
-#include <inspector.hpp>
 #include <menus/mainMenu.hpp>
 #include <render.hpp>
-#include <runtime.hpp>
 #include <unzip.hpp>
 
 #ifdef ENABLE_AUDIO
@@ -32,7 +32,7 @@ static void exitApp() {
 }
 
 static bool initApp() {
-    return Scratch::initializeRuntime();
+    return ScratchEngine::initializeRuntime();
 }
 
 bool activateMainMenu() {
@@ -53,7 +53,7 @@ bool activateMainMenu() {
         emscripten_sleep(0);
 #endif
 #ifdef ENABLE_INSPECTOR
-        Inspector::processCommands();
+        // Inspector::processCommands();
 #endif
     }
 #endif
@@ -61,9 +61,9 @@ bool activateMainMenu() {
 }
 
 void mainLoop() {
-    Scratch::startScratchProject();
+    ScratchEngine::startScratchProject();
 
-    if (Scratch::nextProject) {
+    if (EngineState::nextProject) {
         Log::log(Unzip::filePath);
         if (Unzip::load()) {
             goto skipCheck;
@@ -84,8 +84,8 @@ void mainLoop() {
     }
 
     Unzip::filePath = "";
-    Scratch::nextProject = false;
-    Scratch::dataNextProject = Value();
+    EngineState::nextProject = false;
+    EngineState::dataNextProject = Value();
     if (OS::toExit || !activateMainMenu()) {
         exitApp();
         exit(0);
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
     }
 
 #ifdef ENABLE_INSPECTOR
-    if (enableInspector) Inspector::init();
+    // if (enableInspector) Inspector::init();
 #endif
 
 #if defined(__EMSCRIPTEN__)

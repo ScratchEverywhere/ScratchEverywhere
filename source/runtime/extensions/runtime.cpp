@@ -95,12 +95,7 @@ void extensions::runtime::registerAPI(Extension *extension) {
                                                   "variableId", &ParsedInput::variableId,
                                                   "value", &ParsedInput::value,
                                                   "list", &ParsedInput::list,
-                                                  "calculated", &ParsedInput::calculated
-#ifdef ENABLE_CACHING
-                                                  ,
-                                                  "variable", &ParsedInput::variable
-#endif
-    );
+                                                  "calculated", &ParsedInput::calculated);
 
     extension->luaState.new_enum<ParsedInput::InputType>("InputType", {{"Value", ParsedInput::InputType::VALUE},
                                                                        {"Variable", ParsedInput::InputType::VARIABLE},

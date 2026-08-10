@@ -1,93 +1,91 @@
 #include "render.hpp"
+#include <cstdint>
 #include <log.hpp>
 
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
+#include "blueprint.hpp"
+#include "data/entity_components.hpp"
+#include "runtime/data/monitor.hpp"
+#include "runtime/entity_manager.hpp"
+#include "runtime/systems/costume_system.hpp"
+#include "runtime/vm/engine_state.hpp"
+#include "vm/engine_state.hpp"
+
+std::unordered_map<uint16_t, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
+std::unordered_map<uint16_t, Render::ListMonitorRenderObjects> Render::listMonitors;
 bool Render::debugMode = false;
 float Render::renderScale = 1.0f;
 Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
-std::unordered_map<std::string, Monitor> Render::monitors;
+std::vector<Monitor> Render::monitors;
 
-void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
+void Render::calculateRenderPosition(const uint32_t spriteID ) {
+    RenderInfo &info = EntityManager::renderInfo[spriteID];
+    const uint8_t spatialDirtyMask = DIRTY_POSITION | DIRTY_ROTATION | DIRTY_SIZE;
+    if ((info.dirtyFlags & spatialDirtyMask) == 0) {
+        return;
+    }
+
     const int screenWidth = getWidth();
     const int screenHeight = getHeight();
-    const Costume &costume = sprite->costumes[sprite->currentCostume];
 
-    // If the window size changed, or if the sprite changed costumes
-    if (sprite->renderInfo.forceUpdate || sprite->currentCostume != sprite->renderInfo.oldCostumeID) {
-        // change all renderinfo a bit to update position for all
-        sprite->renderInfo.oldX++;
-        sprite->renderInfo.oldY++;
-        sprite->renderInfo.oldRotation++;
-        sprite->renderInfo.oldSize++;
-        sprite->renderInfo.oldCostumeID = sprite->currentCostume;
-        sprite->renderInfo.forceUpdate = false;
+    const SpriteTransform &transform = EntityManager::transforms[spriteID];
+    const TargetDefinition &blueprint = EntityManager::blueprints[EntityManager::blueprintIds[spriteID]];
+    const Costume &costume = blueprint.costumes[info.costumeId];
+
+    if (info.isSizeDirty()) {
+        info.scaleX = (transform.size * 0.01f) / costume.bitmapResolution;
+
+        if (renderMode != BOTH_SCREENS && screenHeight != EngineState::projectHeight) {
+            float scale = std::min(
+                static_cast<float>(screenWidth) / EngineState::projectWidth,
+                static_cast<float>(screenHeight) / EngineState::projectHeight);
+            info.scaleX *= scale;
+        }
+
+        if (EngineState::bitmapHalfQuality && !costume.isSVG && costume.bitmapResolution == 2) {
+            info.scaleX *= 2.0f;
+        }
+
+        info.scaleY = info.scaleX;
+
+        info.makePositionDirty();
     }
 
-    if (sprite->size != sprite->renderInfo.oldSize) {
-        sprite->renderInfo.oldSize = sprite->size;
-        sprite->renderInfo.oldRotation++;
-        sprite->renderInfo.oldX++;
-        sprite->renderInfo.oldY++;
-        sprite->renderInfo.renderScaleX = (sprite->size * 0.01f) / costume.bitmapResolution;
-
-        if (renderMode != BOTH_SCREENS && screenHeight != Scratch::projectHeight) {
-            float scale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
-            sprite->renderInfo.renderScaleX *= scale;
-        }
-        if (Scratch::bitmapHalfQuality && !isSVG && costume.bitmapResolution == 2) {
-            sprite->renderInfo.renderScaleX *= 2;
-        }
-        sprite->renderInfo.renderScaleY = sprite->renderInfo.renderScaleX;
-    }
-    if (sprite->rotation != sprite->renderInfo.oldRotation) {
-        sprite->renderInfo.oldRotation = sprite->rotation;
-        sprite->renderInfo.oldSize++;
-        sprite->renderInfo.oldX++;
-        sprite->renderInfo.oldY++;
-        if (sprite->rotationStyle == sprite->ALL_AROUND) {
-            sprite->renderInfo.renderRotation = Math::degreesToRadians(sprite->rotation - 90);
+    if (info.isRotationDirty()) {
+        if (transform.rotationStyle == RotationStyle::ALL_AROUND) {
+            info.rotation = Math::degreesToRadians(transform.direction - 90.0f);
         } else {
-            sprite->renderInfo.renderRotation = 0;
+            info.rotation = 0.0f;
         }
+
+        info.makePositionDirty();
     }
-    if (sprite->xPosition != sprite->renderInfo.oldX ||
-        sprite->yPosition != sprite->renderInfo.oldY) {
 
-        sprite->renderInfo.oldX = sprite->xPosition;
-        sprite->renderInfo.oldY = sprite->yPosition;
+    if (info.isPositionDirty()) {
+        float spriteX = transform.x;
+        float spriteY = transform.y;
 
-        float renderX;
-        float renderY;
-        float spriteX = sprite->xPosition;
-        float spriteY = sprite->yPosition;
+        const float rotCenterX = static_cast<float>(costume.rotationCenterX * 2.0);
+        const float rotCenterY = static_cast<float>(costume.rotationCenterY * 2.0);
 
-        float rotCenterX = costume.rotationCenterX * 2;
-        float rotCenterY = costume.rotationCenterY * 2;
+        if (transform.width - rotCenterX != 0.0f || transform.height - rotCenterY != 0.0f) {
+            float offsetX = (transform.width - rotCenterX) * 0.5f;
+            float offsetY = (transform.height - rotCenterY) * 0.5f;
 
-        // Handle if the sprite's image is not centered in the costume editor
-        if (sprite->spriteWidth - rotCenterX != 0.0f ||
-            sprite->spriteHeight - rotCenterY != 0.0f) {
+            if (transform.rotationStyle == RotationStyle::LEFT_RIGHT && transform.direction < 0.0f) {
+                offsetX *= -1.0f;
+            }
 
-            float offsetX = (sprite->spriteWidth - rotCenterX) * 0.5f;
-            float offsetY = (sprite->spriteHeight - rotCenterY) * 0.5f;
-
-            if (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0)
-                offsetX *= -1;
-
-            // Offset based on size
-            float scale = (sprite->size * 0.01f) / costume.bitmapResolution;
+            const float scale = (transform.size * 0.01f) / costume.bitmapResolution;
             offsetX *= scale;
             offsetY *= scale;
 
-            // Offset based on rotation
-            if (sprite->renderInfo.renderRotation != 0.0f) {
-                float rotCos = cos(sprite->renderInfo.renderRotation);
-                float rotSin = sin(sprite->renderInfo.renderRotation);
+            if (info.rotation != 0.0f) {
+                const float rotCos = std::cos(info.rotation);
+                const float rotSin = std::sin(info.rotation);
 
-                float rotX = offsetX * rotCos - offsetY * rotSin;
-                float rotY = offsetX * rotSin + offsetY * rotCos;
+                const float rotX = offsetX * rotCos - offsetY * rotSin;
+                const float rotY = offsetX * rotSin + offsetY * rotCos;
 
                 offsetX = rotX;
                 offsetY = rotY;
@@ -97,44 +95,46 @@ void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
             spriteY -= offsetY;
         }
 
-        if (renderMode != BOTH_SCREENS && (screenWidth != Scratch::projectWidth || screenHeight != Scratch::projectHeight)) {
-            renderX = (spriteX * renderScale) + (screenWidth * 0.5);
-            renderY = (-spriteY * renderScale) + (screenHeight * 0.5);
+        if (renderMode != BOTH_SCREENS && (screenWidth != EngineState::projectWidth || screenHeight != EngineState::projectHeight)) {
+            info.x = (spriteX * renderScale) + (screenWidth * 0.5f);
+            info.y = (-spriteY * renderScale) + (screenHeight * 0.5f);
         } else {
-            renderX = spriteX + (screenWidth * 0.5);
-            renderY = -spriteY + (screenHeight * 0.5);
+            info.x = spriteX + (screenWidth * 0.5f);
+            info.y = -spriteY + (screenHeight * 0.5f);
         }
-
-        sprite->renderInfo.renderX = renderX;
-        sprite->renderInfo.renderY = renderY;
     }
+
+    info.clearDirtyFlags();
 }
 
 void Render::setRenderScale() {
     const int screenWidth = getWidth();
     const int screenHeight = getHeight();
-    renderScale = std::min(static_cast<float>(screenWidth) / Scratch::projectWidth,
-                           static_cast<float>(screenHeight) / Scratch::projectHeight);
+    renderScale = std::min(static_cast<float>(screenWidth) / EngineState::projectWidth,
+                           static_cast<float>(screenHeight) / EngineState::projectHeight);
     if (renderMode == BOTH_SCREENS) renderScale = 1.0f;
     forceUpdateSpritePosition();
 }
 
 void Render::resizeSVGs() {
-    for (auto &sprite : Scratch::sprites) {
-        resizeSVGs(sprite);
+    for (uint32_t spriteID : EntityManager::renderOrder) {
+        resizeSVGs(spriteID);
     }
 }
 
-void Render::resizeSVGs(Sprite *sprite) {
+void Render::resizeSVGs(uint32_t spriteID) {
+    SpriteTransform &transform = EntityManager::transforms[spriteID];
+    TargetDefinition &def = EntityManager::blueprints[EntityManager::blueprintIds[spriteID]];
+
     const int screenWidth = getWidth();
     const int screenHeight = getHeight();
 
-    for (auto &costume : sprite->costumes) {
-        auto imgFind = Scratch::costumeImages.find(costume.fullName);
-        if (imgFind == Scratch::costumeImages.end()) continue;
+    for (auto &costume : def.costumes) {
+        auto imgFind = CostumeSystem::costumeImages.find(costume.fullName);
+        if (imgFind == CostumeSystem::costumeImages.end()) continue;
 
-        float scale = sprite->size / 100;
-        scale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
+        float scale = transform.size / 100;
+        scale *= std::min(static_cast<float>(screenWidth) / EngineState::projectWidth, static_cast<float>(screenHeight) / EngineState::projectHeight);
 
         auto potentialError = imgFind->second->resizeSVG(scale);
         if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
@@ -142,14 +142,16 @@ void Render::resizeSVGs(Sprite *sprite) {
 }
 
 void Render::forceUpdateSpritePosition() {
-    for (auto &sprite : Scratch::sprites) {
-        sprite->renderInfo.forceUpdate = true;
+    for (RenderInfo &render : EntityManager::renderInfo) {
+        render.makePositionDirty();
+        render.makeSizeDirty();
+        render.makeRotationDirty();
     }
 }
 
 bool Render::checkFramerate() {
     static Timer frameTimer;
-    int frameDuration = 1000 / Scratch::FPS;
+    int frameDuration = 1000 / EngineState::fps;
     return frameTimer.hasElapsedAndRestart(frameDuration);
 }
 
@@ -171,20 +173,6 @@ std::string Render::getListValueString(Value value) {
     }
 }
 
-ColorRGBA Render::getMonitorValueColor(const std::string &opcode) {
-    if (opcode.substr(0, 5) == "data_")
-        return {.r = 255, .g = 140, .b = 26, .a = 255};
-    else if (opcode.substr(0, 8) == "sensing_")
-        return {.r = 92, .g = 177, .b = 214, .a = 255};
-    else if (opcode.substr(0, 7) == "motion_")
-        return {.r = 76, .g = 151, .b = 255, .a = 255};
-    else if (opcode.substr(0, 6) == "looks_")
-        return {.r = 153, .g = 102, .b = 255, .a = 255};
-    else if (opcode.substr(0, 6) == "sound_")
-        return {.r = 207, .g = 99, .b = 207, .a = 255};
-    else return {.r = 255, .g = 140, .b = 26, .a = 255};
-}
-
 void Render::renderMonitors(const int &offsetX, const int &offsetY) {
     // get screen scale
     const float scale = renderScale;
@@ -193,337 +181,382 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
 
     // calculate black bar offset
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    float projectAspect = static_cast<float>(EngineState::projectWidth) / EngineState::projectHeight;
     float barOffsetX = 0.0f;
     float barOffsetY = 0.0f;
     if (screenAspect > projectAspect) {
-        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float scaledProjectWidth = EngineState::projectWidth * scale;
         barOffsetX = (screenWidth - scaledProjectWidth) / 2.0f;
     } else if (screenAspect < projectAspect) {
-        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float scaledProjectHeight = EngineState::projectHeight * scale;
         barOffsetY = (screenHeight - scaledProjectHeight) / 2.0f;
     }
 
     // FIXME: the text is slightly lower on OpenGL
-    for (auto &[id, var] : monitors) {
-        if (var.visible) {
+    for (Monitor &var : monitors) {
+        if (!var.visible) {
+            monitorTexts.erase(var.id);
+            listMonitors.erase(var.id);
+            continue;
+        }
 
-            // Weird Turbowarp math for monitor positions on custom sized projects
-            float projectX = (var.x + offsetX) + (Scratch::projectWidth - 480) * 0.5f;
-            float projectY = (var.y + offsetY) + (Scratch::projectHeight - 360) * 0.5f;
+        // Weird Turbowarp math for monitor positions on custom sized projects
+        float projectX = (var.x + offsetX) + (EngineState::projectWidth - 480) * 0.5f;
+        float projectY = (var.y + offsetY) + (EngineState::projectHeight - 360) * 0.5f;
 
-            if (var.mode == "list") {
-                if (listMonitors.find(var.id) == listMonitors.end()) {
-                    ListMonitorRenderObjects newObj;
-                    newObj.name = createTextObject(var.displayName, 0, 0);
-                    newObj.length = createTextObject("", 0, 0);
-                    listMonitors[var.id] = std::move(newObj);
+        if (var.mode == MonitorMode::List) {
+            if (listMonitors.find(var.id) == listMonitors.end()) {
+                ListMonitorRenderObjects newObj;
+                newObj.name = createTextObject(var.displayName, 0, 0);
+                newObj.length = createTextObject("", 0, 0);
+                listMonitors[var.id] = std::move(newObj);
+            }
+            ListMonitorRenderObjects &monitorGfx = listMonitors[var.id];
+            monitorGfx.name->setText(var.displayName);
+            monitorGfx.name->setCenterAligned(true);
+            monitorGfx.name->setScale(1.0f * (scale / 2.0f));
+            monitorGfx.name->setColor(Math::color(0, 0, 0, 255));
+
+            float monitorX = (projectX * scale + barOffsetX) + (4 * scale);
+            float monitorY = (projectY * scale + barOffsetY) + (2 * scale);
+
+            const float boxHeight = monitorGfx.name->getSize()[1] + (2 * scale);
+
+            float monitorW = var.width * scale;
+            float monitorH = var.height * scale;
+
+            const size_t itemsPerPage = std::floor(((monitorH * 0.75) / boxHeight + 4) / 2);
+            const size_t start = var.listPage * itemsPerPage;
+
+            const auto &actualList = EntityManager::lists[var.instanceId].orderedKeys[var.varId].items;
+            const size_t maxPages = actualList.size() / itemsPerPage;
+
+            const size_t end = std::min(start + itemsPerPage, actualList.size());
+
+            // Draw background
+            drawBox(monitorW + (2 * scale), monitorH + (2 * scale), monitorX + (monitorW / 2), monitorY + (monitorH / 2), 194, 204, 217);
+            drawBox(monitorW, monitorH, monitorX + (monitorW / 2), monitorY + (monitorH / 2), 229, 240, 255);
+
+            // List name background
+            drawBox(monitorW, boxHeight, monitorX + monitorW / 2, monitorY + (boxHeight / 2), 255, 255, 255);
+
+            // List name text
+            monitorGfx.name->render(monitorX + (monitorW / 2), monitorY + (4 * scale) + (monitorGfx.name->getSize()[1] / 2));
+
+            // Items
+            if (monitorGfx.items.size() != actualList.size()) {
+                monitorGfx.items.clear();
+                monitorGfx.indices.clear();
+
+                monitorGfx.items.reserve(actualList.size());
+                monitorGfx.indices.reserve(actualList.size());
+
+                for (size_t i = start; i < end && i < actualList.size(); ++i) {
+                    monitorGfx.items.push_back(createTextObject("", 0, 0));
+                    monitorGfx.indices.push_back(createTextObject("", 0, 0));
                 }
-                ListMonitorRenderObjects &monitorGfx = listMonitors[var.id];
-                monitorGfx.name->setText(var.displayName);
-                monitorGfx.name->setCenterAligned(true);
-                monitorGfx.name->setScale(1.0f * (scale / 2.0f));
-                monitorGfx.name->setColor(Math::color(0, 0, 0, 255));
+            }
 
-                float monitorX = (projectX * scale + barOffsetX) + (4 * scale);
-                float monitorY = (projectY * scale + barOffsetY) + (2 * scale);
+            if (!actualList.empty()) {
+                float item_y = 4 * scale;
+                int index = 0;
 
-                const float boxHeight = monitorGfx.name->getSize()[1] + (2 * scale);
+                for (size_t i = start; i < end && i < actualList.size(); ++i) {
+                    const Value &s = actualList[i];
+                    drawBox(monitorW - (24 * scale), boxHeight, monitorX + (22 * scale) + (monitorW - (28 * scale)) / 2, monitorY + boxHeight + item_y + (boxHeight / 2), 252, 102, 44);
 
-                float monitorW = var.width * scale;
-                float monitorH = var.height * scale;
+                    std::unique_ptr<TextObject> &itemText = monitorGfx.items[index];
+                    itemText->setText(getListValueString(s));
+                    itemText->setColor(Math::color(255, 255, 255, 255));
+                    itemText->setScale(1.0f * (scale / 2.0f));
+                    itemText->setCenterAligned(false);
 
-                const size_t itemsPerPage = std::floor(((monitorH * 0.75) / boxHeight + 4) / 2);
-                const size_t start = var.listPage * itemsPerPage;
-                const size_t end = start + itemsPerPage;
-                const size_t maxPages = var.list.size() / itemsPerPage;
+                    std::unique_ptr<TextObject> &itemIndexText = monitorGfx.indices[index];
+                    itemIndexText->setText(std::to_string(i + 1));
+                    itemIndexText->setColor(Math::color(0, 0, 0, 255));
+                    itemIndexText->setScale(1.0f * (scale / 2.0f));
+                    itemIndexText->setCenterAligned(true);
 
-                // Draw background
-                drawBox(monitorW + (2 * scale), monitorH + (2 * scale), monitorX + (monitorW / 2), monitorY + (monitorH / 2), 194, 204, 217);
-                drawBox(monitorW, monitorH, monitorX + (monitorW / 2), monitorY + (monitorH / 2), 229, 240, 255);
+                    itemText->render(monitorX + (24 * scale), monitorY + boxHeight + (4 * scale) + item_y);
+                    itemIndexText->render(monitorX + (10 * scale), monitorY + boxHeight + (12 * scale) + item_y);
 
-                // List name background
-                drawBox(monitorW, boxHeight, monitorX + monitorW / 2, monitorY + (boxHeight / 2), 255, 255, 255);
+                    index++;
+                    item_y += boxHeight + (4 * scale);
+                }
+            } else {
+                std::unique_ptr<TextObject> empty = createTextObject("(empty)", 0, 0);
+                empty->setColor(Math::color(0, 0, 0, 255));
+                empty->setScale(1.0f * (scale / 2.0f));
+                empty->setCenterAligned(true);
+                empty->render(monitorX + (monitorW / 2), monitorY + boxHeight + (12 * scale));
+            }
 
-                // List name text
-                monitorGfx.name->render(monitorX + (monitorW / 2), monitorY + (4 * scale) + (monitorGfx.name->getSize()[1] / 2));
+            // list length background
+            drawBox(monitorW, boxHeight, monitorX + (monitorW / 2), monitorY + monitorH - (boxHeight / 2), 255, 255, 255);
 
-                // Items
-                if (monitorGfx.items.size() != var.list.size()) {
-                    monitorGfx.items.clear();
-                    monitorGfx.indices.clear();
+            // list length text
+            monitorGfx.length->setText("length " + std::to_string(actualList.size()));
+            monitorGfx.length->setCenterAligned(true);
+            monitorGfx.length->setScale(1.0f * (scale / 2.0f));
+            monitorGfx.length->setColor(Math::color(0, 0, 0, 255));
+            monitorGfx.length->render(monitorX + (monitorW / 2), monitorY + monitorH - (6 * scale));
 
-                    monitorGfx.items.reserve(var.list.size());
-                    monitorGfx.indices.reserve(var.list.size());
+            std::array<int, 2> touchPos = Input::getTouchPosition();
 
-                    for (size_t i = start; i < end && i < var.list.size(); ++i) {
-                        monitorGfx.items.push_back(createTextObject("", 0, 0));
-                        monitorGfx.indices.push_back(createTextObject("", 0, 0));
+            // plus button
+            std::unique_ptr<TextObject> plus = createTextObject("+", 0, 0);
+            const int plusPosX = monitorX + (8 * scale);
+            const int plusPosY = monitorY + monitorH - (14 * scale);
+            plus->setCenterAligned(false);
+            plus->setColor(Math::color(0, 0, 0, 255));
+            plus->setScale(1.0f * (scale / 2.0f));
+            plus->render(plusPosX, plusPosY);
+#if 1 // adding to lists is an editor only feature
+#else
+            // This code no longer works because of my second minor runtime update... ( Too lazy to fix it rn)
+            if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
+                touchPos[0] > plusPosX && touchPos[0] < plusPosX + plus->getSize()[0] &&
+                touchPos[1] > plusPosY && touchPos[1] < plusPosY + plus->getSize()[1]) {
+                std::string varValue = Input::openSoftwareKeyboard("Enter new Variable value.");
+                if (varValue.empty()) continue;
+                for (auto &spr : Scratch::sprites) {
+                    if (spr->lists.find(var.id) != spr->lists.end()) {
+                        spr->lists[var.id].items.push_back(Value(varValue));
                     }
                 }
+                var.listPage = static_cast<int>(maxPages);
+            }
+#endif
 
-                if (!var.list.empty()) {
-                    float item_y = 4 * scale;
-                    int index = 0;
-
-                    for (size_t i = start; i < end && i < var.list.size(); ++i) {
-                        const Value &s = var.list[i];
-                        drawBox(monitorW - (24 * scale), boxHeight, monitorX + (22 * scale) + (monitorW - (28 * scale)) / 2, monitorY + boxHeight + item_y + (boxHeight / 2), 252, 102, 44);
-
-                        std::unique_ptr<TextObject> &itemText = monitorGfx.items[index];
-                        itemText->setText(getListValueString(s));
-                        itemText->setColor(Math::color(255, 255, 255, 255));
-                        itemText->setScale(1.0f * (scale / 2.0f));
-                        itemText->setCenterAligned(false);
-
-                        std::unique_ptr<TextObject> &itemIndexText = monitorGfx.indices[index];
-                        itemIndexText->setText(std::to_string(i + 1));
-                        itemIndexText->setColor(Math::color(0, 0, 0, 255));
-                        itemIndexText->setScale(1.0f * (scale / 2.0f));
-                        itemIndexText->setCenterAligned(true);
-
-                        itemText->render(monitorX + (24 * scale), monitorY + boxHeight + (4 * scale) + item_y);
-                        itemIndexText->render(monitorX + (10 * scale), monitorY + boxHeight + (12 * scale) + item_y);
-
-                        index++;
-                        item_y += boxHeight + (4 * scale);
-                    }
-                } else {
-                    std::unique_ptr<TextObject> empty = createTextObject("(empty)", 0, 0);
-                    empty->setColor(Math::color(0, 0, 0, 255));
-                    empty->setScale(1.0f * (scale / 2.0f));
-                    empty->setCenterAligned(true);
-                    empty->render(monitorX + (monitorW / 2), monitorY + boxHeight + (12 * scale));
+            // page buttons
+            if (var.listPage < static_cast<int>(maxPages)) {
+                std::unique_ptr<TextObject> down = createTextObject("\\/", 0, 0);
+                const int downPosX = static_cast<int>(monitorX + monitorW - (18 * scale));
+                const int downPosY = static_cast<int>(monitorY + monitorH - (14 * scale));
+                down->setCenterAligned(false);
+                down->setColor(Math::color(0, 0, 0, 255));
+                down->setScale(1.0f * (scale / 2.0f));
+                down->render(downPosX, downPosY);
+                if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
+                    touchPos[0] > downPosX && touchPos[0] < downPosX + down->getSize()[0] &&
+                    touchPos[1] > downPosY && touchPos[1] < downPosY + down->getSize()[1]) {
+                    var.listPage = std::clamp(var.listPage + 1, 0, static_cast<int>(maxPages));
                 }
+            }
 
-                // list length background
-                drawBox(monitorW, boxHeight, monitorX + (monitorW / 2), monitorY + monitorH - (boxHeight / 2), 255, 255, 255);
+            if (var.listPage > 0) {
+                std::unique_ptr<TextObject> up = createTextObject("/\\", 0, 0);
+                const int upPosX = static_cast<int>(monitorX + monitorW - (8 * scale));
+                const int upPosY = static_cast<int>(monitorY + monitorH - (14 * scale));
+                up->setCenterAligned(false);
+                up->setColor(Math::color(0, 0, 0, 255));
+                up->setScale(1.0f * (scale / 2.0f));
+                up->render(upPosX, upPosY);
+                if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
+                    touchPos[0] > upPosX && touchPos[0] < upPosX + up->getSize()[0] &&
+                    touchPos[1] > upPosY && touchPos[1] < upPosY + up->getSize()[1]) {
+                    var.listPage = std::clamp(var.listPage - 1, 0, static_cast<int>(maxPages));
+                }
+            }
 
-                // list length text
-                monitorGfx.length->setText("length " + std::to_string(var.list.size()));
-                monitorGfx.length->setCenterAligned(true);
-                monitorGfx.length->setScale(1.0f * (scale / 2.0f));
-                monitorGfx.length->setColor(Math::color(0, 0, 0, 255));
-                monitorGfx.length->render(monitorX + (monitorW / 2), monitorY + monitorH - (6 * scale));
+        } else {
+            std::string renderText = getVariableValueString(var.value);
+            if (monitorTexts.find(var.id) == monitorTexts.end()) {
+                monitorTexts[var.id].first = createTextObject(var.displayName.empty() ? " " : var.displayName, var.x, var.y);
+                monitorTexts[var.id].second = createTextObject(renderText.empty() ? " " : renderText, var.x, var.y);
+            } else {
+                monitorTexts[var.id].first->setText(var.displayName);
+                monitorTexts[var.id].second->setText(renderText);
+            }
+
+            std::unique_ptr<TextObject> &nameObj = monitorTexts[var.id].first;
+            std::unique_ptr<TextObject> &valueObj = monitorTexts[var.id].second;
+
+            const std::vector<float> nameSizeBox = nameObj->getSize();
+            const std::vector<float> valueSizeBox = valueObj->getSize();
+
+            // Get color based on opcode
+            ColorRGBA valueBackgroundColor = var.color;
+
+            nameObj->setCenterAligned(false);
+            valueObj->setCenterAligned(false);
+
+            float baseRenderX = projectX * scale + barOffsetX;
+            float baseRenderY = projectY * scale + barOffsetY;
+
+            if (var.mode == MonitorMode::Large) {
+                valueObj->setColor(Math::color(255, 255, 255, 255));
+                valueObj->setScale(1.25f * (scale / 2.0f));
+
+                float valueWidth = std::max(40 * scale, valueSizeBox[0] + (4 * scale));
+
+                // Draw value background
+                drawBox(valueWidth + (2 * scale), valueSizeBox[1] + (2 * scale),
+                        baseRenderX + valueWidth / 2, baseRenderY + valueSizeBox[1] / 2,
+                        194, 204, 217);
+                drawBox(valueWidth, valueSizeBox[1],
+                        baseRenderX + valueWidth / 2, baseRenderY + valueSizeBox[1] / 2,
+                        valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
+
+                float valueCenterX = baseRenderX + (valueWidth / 2) - (valueSizeBox[0] / 2);
+                valueObj->render(valueCenterX, baseRenderY + (3 * scale));
+            } else if (var.mode == MonitorMode::Slider) {
+                nameObj->setColor(Math::color(0, 0, 0, 255));
+                nameObj->setScale(1.0f * (scale / 2.0f));
+                valueObj->setColor(Math::color(255, 255, 255, 255));
+                valueObj->setScale(1.0f * (scale / 2.0f));
+
+                float monitorWidth = 8 * scale;
+                float valueWidth = std::max(40 * scale, valueSizeBox[0] + (8 * scale));
+
+                // Draw name background
+                float nameBackgroundX = baseRenderX + monitorWidth;
+                float nameBackgroundY = baseRenderY + 4 * scale;
+                float nameBackgroundWidth = nameSizeBox[0] + valueWidth;
+                float nameBackgroundHeight = std::max(nameSizeBox[1], valueSizeBox[1]) * 2;
+                drawBox(nameBackgroundWidth + (14 * scale), nameBackgroundHeight + (6 * scale),
+                        nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
+                        194, 204, 217);
+                drawBox(nameBackgroundWidth + (12 * scale), nameBackgroundHeight + (4 * scale),
+                        nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
+                        229, 240, 255);
+
+                monitorWidth += nameSizeBox[0] + (4 * scale);
+
+                // Draw value background
+                float valueBackgroundX = baseRenderX + monitorWidth;
+                float valueBackgroundY = baseRenderY + 4 * scale;
+                drawBox(valueWidth, valueSizeBox[1],
+                        valueBackgroundX + valueWidth / 2, valueBackgroundY + valueSizeBox[1] / 2,
+                        valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
+
+                nameObj->render(nameBackgroundX, nameBackgroundY + (2 * scale));
+                valueObj->render(valueBackgroundX + (valueWidth / 2) - (valueSizeBox[0] / 2), valueBackgroundY + (2 * scale));
+
+                // draw slider
+                drawBox(nameBackgroundWidth * 0.97, 9 * scale, nameBackgroundX + nameBackgroundWidth / 2, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 178, 178, 178, 255);
+                drawBox(nameBackgroundWidth * 0.95, 7 * scale, nameBackgroundX + nameBackgroundWidth / 2, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 239, 239, 239, 255);
+
+                const int minPos = nameBackgroundX + 4 * scale;
+                const int maxPos = nameBackgroundX + nameBackgroundWidth;
+                const double sliderMin = var.sliderMin;
+                const double sliderMax = var.sliderMax;
+                const double value = var.value.asDouble();
+                const int sliderPos = std::clamp(static_cast<int>(minPos + (value - sliderMin) * (maxPos - minPos) / (sliderMax - sliderMin)), minPos, maxPos);
+
+                drawBox(13 * scale, 13 * scale, sliderPos, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 0, 115, 252, 255);
 
                 std::array<int, 2> touchPos = Input::getTouchPosition();
 
-                // plus button
-                std::unique_ptr<TextObject> plus = createTextObject("+", 0, 0);
-                const int plusPosX = monitorX + (8 * scale);
-                const int plusPosY = monitorY + monitorH - (14 * scale);
-                plus->setCenterAligned(false);
-                plus->setColor(Math::color(0, 0, 0, 255));
-                plus->setScale(1.0f * (scale / 2.0f));
-                plus->render(plusPosX, plusPosY);
-#if 1 // adding to lists is an editor only feature
+                if (Input::mousePointer.isPressed && touchPos[0] > nameBackgroundX && touchPos[0] < nameBackgroundX + nameBackgroundWidth &&
+                    touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3) {
 
-#else
-                if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
-                    touchPos[0] > plusPosX && touchPos[0] < plusPosX + plus->getSize()[0] &&
-                    touchPos[1] > plusPosY && touchPos[1] < plusPosY + plus->getSize()[1]) {
-                    std::string varValue = Input::openSoftwareKeyboard("Enter new Variable value.");
-                    if (varValue.empty()) continue;
-                    for (auto &spr : Scratch::sprites) {
-                        if (spr->lists.find(var.id) != spr->lists.end()) {
-                            spr->lists[var.id].items.push_back(Value(varValue));
-                        }
+                    const int clampedX = std::clamp(touchPos[0], minPos, maxPos);
+
+                    const double normalized = static_cast<double>(clampedX - minPos) / static_cast<double>(maxPos - minPos);
+
+                    double newValue = sliderMin + normalized * (sliderMax - sliderMin);
+
+                    if (var.isDiscrete) {
+                        newValue = static_cast<int>(newValue);
+                    } else newValue = std::round(newValue * 100.0) / 100.0;
+
+                    // snap to edges
+                    if (clampedX <= minPos + 5 * scale) {
+                        newValue = sliderMin;
+                    } else if (clampedX >= maxPos - 5 * scale) {
+                        newValue = sliderMax;
                     }
-                    var.listPage = static_cast<int>(maxPages);
-                }
-#endif
 
-                // page buttons
-                if (var.listPage < static_cast<int>(maxPages)) {
-                    std::unique_ptr<TextObject> down = createTextObject("\\/", 0, 0);
-                    const int downPosX = static_cast<int>(monitorX + monitorW - (18 * scale));
-                    const int downPosY = static_cast<int>(monitorY + monitorH - (14 * scale));
-                    down->setCenterAligned(false);
-                    down->setColor(Math::color(0, 0, 0, 255));
-                    down->setScale(1.0f * (scale / 2.0f));
-                    down->render(downPosX, downPosY);
-                    if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
-                        touchPos[0] > downPosX && touchPos[0] < downPosX + down->getSize()[0] &&
-                        touchPos[1] > downPosY && touchPos[1] < downPosY + down->getSize()[1]) {
-                        var.listPage = std::clamp(var.listPage + 1, 0, static_cast<int>(maxPages));
-                    }
-                }
-
-                if (var.listPage > 0) {
-                    std::unique_ptr<TextObject> up = createTextObject("/\\", 0, 0);
-                    const int upPosX = static_cast<int>(monitorX + monitorW - (8 * scale));
-                    const int upPosY = static_cast<int>(monitorY + monitorH - (14 * scale));
-                    up->setCenterAligned(false);
-                    up->setColor(Math::color(0, 0, 0, 255));
-                    up->setScale(1.0f * (scale / 2.0f));
-                    up->render(upPosX, upPosY);
-                    if (Input::mousePointer.isPressed && Input::mousePointer.heldFrames == 1 &&
-                        touchPos[0] > upPosX && touchPos[0] < upPosX + up->getSize()[0] &&
-                        touchPos[1] > upPosY && touchPos[1] < upPosY + up->getSize()[1]) {
-                        var.listPage = std::clamp(var.listPage - 1, 0, static_cast<int>(maxPages));
+                    // not sure if any other monitor types can be sliders,
+                    // Br0t: I hope so, otherwise I'll have to change some things again :(
+                    var.value = Value(newValue);
+                    if (var.varId != EMPTY_VAR_ID) {
+                        EntityManager::variables[var.instanceId].orderedKeys[var.varId].value = Value(newValue);
                     }
                 }
 
             } else {
-                std::string renderText = getVariableValueString(var.value);
-                if (monitorTexts.find(var.id) == monitorTexts.end()) {
-                    monitorTexts[var.id].first = createTextObject(var.displayName.empty() ? " " : var.displayName, var.x, var.y);
-                    monitorTexts[var.id].second = createTextObject(renderText.empty() ? " " : renderText, var.x, var.y);
-                } else {
-                    monitorTexts[var.id].first->setText(var.displayName);
-                    monitorTexts[var.id].second->setText(renderText);
-                }
+                nameObj->setColor(Math::color(0, 0, 0, 255));
+                nameObj->setScale(1.0f * (scale / 2.0f));
+                valueObj->setColor(Math::color(255, 255, 255, 255));
+                valueObj->setScale(1.0f * (scale / 2.0f));
 
-                std::unique_ptr<TextObject> &nameObj = monitorTexts[var.id].first;
-                std::unique_ptr<TextObject> &valueObj = monitorTexts[var.id].second;
+                float monitorWidth = 8 * scale;
+                float valueWidth = std::max(40 * scale, valueSizeBox[0] + (8 * scale));
 
-                const std::vector<float> nameSizeBox = nameObj->getSize();
-                const std::vector<float> valueSizeBox = valueObj->getSize();
+                // Draw name background
+                float nameBackgroundX = baseRenderX + monitorWidth;
+                float nameBackgroundY = baseRenderY + 4 * scale;
+                float nameBackgroundWidth = nameSizeBox[0] + valueWidth;
+                float nameBackgroundHeight = std::max(nameSizeBox[1], valueSizeBox[1]);
+                drawBox(nameBackgroundWidth + (14 * scale), nameBackgroundHeight + (6 * scale),
+                        nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
+                        194, 204, 217);
+                drawBox(nameBackgroundWidth + (12 * scale), nameBackgroundHeight + (4 * scale),
+                        nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
+                        229, 240, 255);
 
-                // Get color based on opcode
-                ColorRGBA valueBackgroundColor = getMonitorValueColor(var.opcode);
+                monitorWidth += nameSizeBox[0] + (4 * scale);
 
-                nameObj->setCenterAligned(false);
-                valueObj->setCenterAligned(false);
+                // Draw value background
+                float valueBackgroundX = baseRenderX + monitorWidth;
+                float valueBackgroundY = baseRenderY + 4 * scale;
+                drawBox(valueWidth, valueSizeBox[1],
+                        valueBackgroundX + valueWidth / 2, valueBackgroundY + valueSizeBox[1] / 2,
+                        valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
 
-                float baseRenderX = projectX * scale + barOffsetX;
-                float baseRenderY = projectY * scale + barOffsetY;
-
-                if (var.mode == "large") {
-                    valueObj->setColor(Math::color(255, 255, 255, 255));
-                    valueObj->setScale(1.25f * (scale / 2.0f));
-
-                    float valueWidth = std::max(40 * scale, valueSizeBox[0] + (4 * scale));
-
-                    // Draw value background
-                    drawBox(valueWidth + (2 * scale), valueSizeBox[1] + (2 * scale),
-                            baseRenderX + valueWidth / 2, baseRenderY + valueSizeBox[1] / 2,
-                            194, 204, 217);
-                    drawBox(valueWidth, valueSizeBox[1],
-                            baseRenderX + valueWidth / 2, baseRenderY + valueSizeBox[1] / 2,
-                            valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
-
-                    float valueCenterX = baseRenderX + (valueWidth / 2) - (valueSizeBox[0] / 2);
-                    valueObj->render(valueCenterX, baseRenderY + (3 * scale));
-                } else if (var.mode == "slider") {
-                    nameObj->setColor(Math::color(0, 0, 0, 255));
-                    nameObj->setScale(1.0f * (scale / 2.0f));
-                    valueObj->setColor(Math::color(255, 255, 255, 255));
-                    valueObj->setScale(1.0f * (scale / 2.0f));
-
-                    float monitorWidth = 8 * scale;
-                    float valueWidth = std::max(40 * scale, valueSizeBox[0] + (8 * scale));
-
-                    // Draw name background
-                    float nameBackgroundX = baseRenderX + monitorWidth;
-                    float nameBackgroundY = baseRenderY + 4 * scale;
-                    float nameBackgroundWidth = nameSizeBox[0] + valueWidth;
-                    float nameBackgroundHeight = std::max(nameSizeBox[1], valueSizeBox[1]) * 2;
-                    drawBox(nameBackgroundWidth + (14 * scale), nameBackgroundHeight + (6 * scale),
-                            nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
-                            194, 204, 217);
-                    drawBox(nameBackgroundWidth + (12 * scale), nameBackgroundHeight + (4 * scale),
-                            nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
-                            229, 240, 255);
-
-                    monitorWidth += nameSizeBox[0] + (4 * scale);
-
-                    // Draw value background
-                    float valueBackgroundX = baseRenderX + monitorWidth;
-                    float valueBackgroundY = baseRenderY + 4 * scale;
-                    drawBox(valueWidth, valueSizeBox[1],
-                            valueBackgroundX + valueWidth / 2, valueBackgroundY + valueSizeBox[1] / 2,
-                            valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
-
-                    nameObj->render(nameBackgroundX, nameBackgroundY + (2 * scale));
-                    valueObj->render(valueBackgroundX + (valueWidth / 2) - (valueSizeBox[0] / 2), valueBackgroundY + (2 * scale));
-
-                    // draw slider
-                    drawBox(nameBackgroundWidth * 0.97, 9 * scale, nameBackgroundX + nameBackgroundWidth / 2, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 178, 178, 178, 255);
-                    drawBox(nameBackgroundWidth * 0.95, 7 * scale, nameBackgroundX + nameBackgroundWidth / 2, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 239, 239, 239, 255);
-
-                    const int minPos = nameBackgroundX + 4 * scale;
-                    const int maxPos = nameBackgroundX + nameBackgroundWidth;
-                    const double sliderMin = var.sliderMin;
-                    const double sliderMax = var.sliderMax;
-                    const double value = var.value.asDouble();
-                    const int sliderPos = std::clamp(static_cast<int>(minPos + (value - sliderMin) * (maxPos - minPos) / (sliderMax - sliderMin)), minPos, maxPos);
-
-                    drawBox(13 * scale, 13 * scale, sliderPos, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 0, 115, 252, 255);
-
-                    std::array<int, 2> touchPos = Input::getTouchPosition();
-
-                    if (Input::mousePointer.isPressed && touchPos[0] > nameBackgroundX && touchPos[0] < nameBackgroundX + nameBackgroundWidth &&
-                        touchPos[1] > nameBackgroundY + (8 * scale) + (7 * scale) && touchPos[1] < nameBackgroundY + (8 * scale) + (7 * scale) * 3) {
-
-                        const int clampedX = std::clamp(touchPos[0], minPos, maxPos);
-
-                        const double normalized = static_cast<double>(clampedX - minPos) / static_cast<double>(maxPos - minPos);
-
-                        double newValue = sliderMin + normalized * (sliderMax - sliderMin);
-
-                        if (var.isDiscrete) {
-                            newValue = static_cast<int>(newValue);
-                        } else newValue = std::round(newValue * 100.0) / 100.0;
-
-                        // snap to edges
-                        if (clampedX <= minPos + 5 * scale) {
-                            newValue = sliderMin;
-                        } else if (clampedX >= maxPos - 5 * scale) {
-                            newValue = sliderMax;
-                        }
-
-                        // not sure if any other monitor types can be sliders, but juuuust in case
-                        if (var.opcode == "data_variable") {
-                            var.value = Value(newValue);
-                            for (auto &spr : Scratch::sprites) {
-                                if (spr->variables.find(var.id) != spr->variables.end())
-                                    BlockExecutor::setVariableValue(var.id, Value(newValue), spr);
-                            }
-                        }
-                    }
-
-                } else {
-                    nameObj->setColor(Math::color(0, 0, 0, 255));
-                    nameObj->setScale(1.0f * (scale / 2.0f));
-                    valueObj->setColor(Math::color(255, 255, 255, 255));
-                    valueObj->setScale(1.0f * (scale / 2.0f));
-
-                    float monitorWidth = 8 * scale;
-                    float valueWidth = std::max(40 * scale, valueSizeBox[0] + (8 * scale));
-
-                    // Draw name background
-                    float nameBackgroundX = baseRenderX + monitorWidth;
-                    float nameBackgroundY = baseRenderY + 4 * scale;
-                    float nameBackgroundWidth = nameSizeBox[0] + valueWidth;
-                    float nameBackgroundHeight = std::max(nameSizeBox[1], valueSizeBox[1]);
-                    drawBox(nameBackgroundWidth + (14 * scale), nameBackgroundHeight + (6 * scale),
-                            nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
-                            194, 204, 217);
-                    drawBox(nameBackgroundWidth + (12 * scale), nameBackgroundHeight + (4 * scale),
-                            nameBackgroundX + 2 + nameBackgroundWidth / 2, nameBackgroundY + nameBackgroundHeight / 2,
-                            229, 240, 255);
-
-                    monitorWidth += nameSizeBox[0] + (4 * scale);
-
-                    // Draw value background
-                    float valueBackgroundX = baseRenderX + monitorWidth;
-                    float valueBackgroundY = baseRenderY + 4 * scale;
-                    drawBox(valueWidth, valueSizeBox[1],
-                            valueBackgroundX + valueWidth / 2, valueBackgroundY + valueSizeBox[1] / 2,
-                            valueBackgroundColor.r, valueBackgroundColor.g, valueBackgroundColor.b);
-
-                    nameObj->render(nameBackgroundX, nameBackgroundY + (2 * scale));
-                    valueObj->render(valueBackgroundX + (valueWidth / 2) - (valueSizeBox[0] / 2), valueBackgroundY + (2 * scale));
-                }
-            }
-        } else {
-            if (monitorTexts.find(var.id) != monitorTexts.end()) {
-                monitorTexts.erase(var.id);
-            }
-            if (listMonitors.find(var.id) != listMonitors.end()) {
-                listMonitors.erase(var.id);
+                nameObj->render(nameBackgroundX, nameBackgroundY + (2 * scale));
+                valueObj->render(valueBackgroundX + (valueWidth / 2) - (valueSizeBox[0] / 2), valueBackgroundY + (2 * scale));
             }
         }
     }
+}
+
+std::pair<float, float> Render::screenToScratchCoords(float screenX, float screenY, int windowWidth, int windowHeight) {
+#ifdef RENDERER_CITRO2D
+    if (Render::renderMode == Render::BOTH_SCREENS) {
+        windowWidth = 400;
+        windowHeight = 480;
+    }
+#endif
+
+    const float projWidth = static_cast<float>(EngineState::projectWidth);
+    const float projHeight = static_cast<float>(EngineState::projectHeight);
+
+    float screenAspect = static_cast<float>(windowWidth) / windowHeight;
+    float projectAspect = projWidth / projHeight;
+
+    float scratchX, scratchY;
+
+    if (screenAspect > projectAspect) {
+        float scale = static_cast<float>(windowHeight) / projHeight;
+        float scaledProjectWidth = projWidth * scale;
+        float barWidth = (windowWidth - scaledProjectWidth) / 2.0f;
+
+        float adjustedX = screenX - barWidth;
+        scratchX = (adjustedX / scaledProjectWidth) * projWidth - (projWidth / 2.0f);
+        scratchY = (projHeight / 2.0f) - (screenY / windowHeight) * projHeight;
+
+    } else if (screenAspect < projectAspect) {
+        float scale = static_cast<float>(windowWidth) / projWidth;
+        float scaledProjectHeight = projHeight * scale;
+        float barHeight = (windowHeight - scaledProjectHeight) / 2.0f;
+
+        float adjustedY = screenY - barHeight;
+        scratchX = (screenX / windowWidth) * projWidth - (projWidth / 2.0f);
+        scratchY = (projHeight / 2.0f) - (adjustedY / scaledProjectHeight) * projHeight;
+
+    } else {
+        float scale = static_cast<float>(windowWidth) / projWidth;
+        scratchX = (screenX / scale) - (projWidth / 2.0f);
+        scratchY = (projHeight / 2.0f) - (screenY / scale);
+#ifdef RENDERER_CITRO2D
+        if (Render::renderMode == Render::BOTH_SCREENS) {
+            scratchY -= 120;
+        }
+#endif
+    }
+
+    return {scratchX, scratchY};
 }

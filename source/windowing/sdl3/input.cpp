@@ -9,7 +9,7 @@
 #include <input.hpp>
 #include <map>
 #include <render.hpp>
-#include <sprite.hpp>
+#include <runtime/data/entity_components.hpp>
 #include <string>
 #include <vector>
 
@@ -178,7 +178,7 @@ void Input::getInput() {
     SDL_free(SDL_GetTouchFingers(*touchID, &numFingers));
     if (numDevices > 0 && numFingers) {
         // Transform touch coordinates to Scratch space
-        auto coords = Scratch::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
+        auto coords = Render::screenToScratchCoords(touchPosition.x, touchPosition.y, Render::getWidth(), Render::getHeight());
         mousePointer.x = coords.first;
         mousePointer.y = coords.second;
         mousePointer.isPressed = touchActive;
@@ -196,7 +196,7 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::array<int, 2> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
+    auto coords = Render::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 

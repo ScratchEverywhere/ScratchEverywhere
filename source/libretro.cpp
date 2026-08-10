@@ -8,10 +8,11 @@ static retro_environment_t environ_cb;
 
 #include <cstring>
 
+#include "runtime/vm/engine_state.hpp"
 #include <audiostack.hpp>
 #include <render.hpp>
 #include <renderers/opengl/render.hpp>
-#include <runtime.hpp>
+#include <runtime/scratch_engine.hpp>
 #include <unzip.hpp>
 
 #ifdef ENABLE_AUDIO
@@ -89,7 +90,7 @@ void retro_run(void) {
 
     se_glBindFramebuffer(GL_FRAMEBUFFER, hw_render.get_current_framebuffer());
 
-    code = Scratch::stepScratchProject(monitorDisplayThread);
+    code = ScratchEngine::stepScratchProject(monitorDisplayThread);
     if (!code.first) {
         /* uhhh idk what do i do here? */
     }
@@ -101,9 +102,9 @@ static void context_reset(void) {
 
     if (!Unzip::load()) return;
 
-    Scratch::initializeRuntime();
+    ScratchEngine::initializeRuntime();
 
-    Scratch::initializeScratchProject();
+    ScratchEngine::initializeScratchProject();
 }
 
 static void context_destroy(void) {
@@ -139,7 +140,7 @@ bool retro_load_game(const struct retro_game_info *info) {
 }
 
 void retro_unload_game(void) {
-    Scratch::cleanupScratchProject();
+    ScratchEngine::cleanupScratchProject();
     Render::deInit();
 }
 

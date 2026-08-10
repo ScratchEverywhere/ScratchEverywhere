@@ -1,5 +1,0 @@
-#include "blockUtils.hpp"
-
-SCRATCH_SHADOW_BLOCK(videoSensing_menu_ATTRIBUTE, ATTRIBUTE)
-SCRATCH_SHADOW_BLOCK(videoSensing_menu_SUBJECT, SUBJECT)
-SCRATCH_SHADOW_BLOCK(videoSensing_menu_VIDEO_STATE, VIDEO_STATE)

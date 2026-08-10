@@ -6,7 +6,7 @@
 #include <input.hpp>
 #include <map>
 #include <render.hpp>
-#include <sprite.hpp>
+#include <runtime/data/entity_components.hpp>
 #include <string>
 #include <vector>
 
@@ -150,7 +150,7 @@ void Input::getInput() {
     // Get raw mouse coordinates
     std::array<int, 2> rawMouse = getTouchPosition();
 
-    auto coords = Scratch::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
+    auto coords = Render::screenToScratchCoords(rawMouse[0], rawMouse[1], Render::getWidth(), Render::getHeight());
     mousePointer.x = coords.first;
     mousePointer.y = coords.second;
 

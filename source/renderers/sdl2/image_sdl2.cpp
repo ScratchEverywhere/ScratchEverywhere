@@ -2,6 +2,7 @@
 #include "nonstd/expected.hpp"
 #include "render.hpp"
 #include <algorithm>
+#include <math.hpp>
 #include <stdexcept>
 #include <string>
 

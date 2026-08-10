@@ -3,6 +3,7 @@
 #include "speech_manager.hpp"
 #include "speech_text_sdl2.hpp"
 #include <SDL.h>
+#include <cstdint>
 #include <memory>
 
 class Image;
@@ -15,10 +16,10 @@ class SpeechManagerSDL2 : public SpeechManager {
 
   protected:
     double getCurrentTime() override;
-    void createSpeechObject(Sprite *sprite, const std::string &message) override;
+    void createSpeechObject(uint32_t spriteID, const std::string &message) override;
 
   private:
-    void renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
+    void renderSpeechIndicator(uint32_t spriteId, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
 
   public:
     SpeechManagerSDL2(SDL_Renderer *renderer);

@@ -1,4 +1,5 @@
 #include "input.hpp"
+#include "runtime/vm/engine_state.hpp"
 #include <log.hpp>
 
 std::pair<float, float> Input::leftJoystick = {0, 0};
@@ -9,14 +10,13 @@ std::vector<std::string> Input::inputKeys;
 std::map<std::string, std::string> Input::inputControls;
 std::vector<std::string> Input::inputBuffer;
 std::unordered_map<std::string, int> Input::keyHeldDuration;
-std::unordered_set<Block *> Input::codePressedBlockOpcodes;
 Input::Mouse Input::mousePointer;
-Sprite *Input::draggingSprite = nullptr;
+uint32_t Input::draggingSpriteId = 0;
 
 void Input::applyControls(std::string controlsFilePath) {
     Input::inputControls.clear();
 
-    if (controlsFilePath != "" && Scratch::projectType == ProjectType::UNEMBEDDED) {
+    if (controlsFilePath != "" && EngineState::projectType == ProjectType::UNEMBEDDED) {
         // load controls from file
         std::ifstream file(controlsFilePath);
         if (file.is_open()) {

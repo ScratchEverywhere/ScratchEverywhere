@@ -1,8 +1,10 @@
 #include "speech_manager_sdl2.hpp"
 #include "image.hpp"
+#include "runtime/data/entity_components.hpp"
 #include <image.hpp>
 #include <render.hpp>
-#include <runtime.hpp>
+#include <runtime/entity_manager.hpp>
+#include <runtime/vm/engine_state.hpp>
 
 SpeechManagerSDL2::SpeechManagerSDL2(SDL_Renderer *renderer) : renderer(renderer) {
 }
@@ -15,9 +17,9 @@ double SpeechManagerSDL2::getCurrentTime() {
     return SDL_GetTicks() / 1000.0;
 }
 
-void SpeechManagerSDL2::createSpeechObject(Sprite *sprite, const std::string &message) {
-    speechObjects[sprite] = std::make_unique<SpeechTextObjectSDL2>(message, 200);
-    static_cast<SpeechTextObjectSDL2 *>(speechObjects[sprite].get())->setRenderer(renderer);
+void SpeechManagerSDL2::createSpeechObject(uint32_t spriteID, const std::string &message) {
+    speechObjects[spriteID] = std::make_unique<SpeechTextObjectSDL2>(message, 200);
+    static_cast<SpeechTextObjectSDL2 *>(speechObjects[spriteID].get())->setRenderer(renderer);
 }
 
 void SpeechManagerSDL2::render(int offsetX, int offsetY) {
@@ -26,26 +28,28 @@ void SpeechManagerSDL2::render(int offsetX, int offsetY) {
     // Get window dimensions and scale so speech size aligns with resolution
     int windowWidth = Render::getWidth();
     int windowHeight = Render::getHeight();
-    double scaleX = static_cast<double>(windowWidth) / static_cast<double>(Scratch::projectWidth);
-    double scaleY = static_cast<double>(windowHeight) / static_cast<double>(Scratch::projectHeight);
+    double scaleX = static_cast<double>(windowWidth) / static_cast<double>(EngineState::projectWidth);
+    double scaleY = static_cast<double>(windowHeight) / static_cast<double>(EngineState::projectHeight);
     double scale = std::min(scaleX, scaleY);
 
     size_t visibleObjects = 0;
-    for (auto &[sprite, obj] : speechObjects) {
-        if (obj && sprite->visible) {
+    for (auto &[spriteID, obj] : speechObjects) {
+        RenderInfo &render = EntityManager::renderInfo[spriteID];
+        SpriteTransform &transform = EntityManager::transforms[spriteID];
+        if (obj && render.isVisible()) {
             visibleObjects++;
             if (visibleObjects == 1) {
                 if (bubbleImage == nullptr) bubbleImage = createImageFromFile("gfx/ingame/speechbubble.svg", false).value();
                 if (speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech.svg", false).value();
             }
             // Apply res-respecting transformations
-            int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (windowWidth / 2));
-            int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));
+            int spriteCenterX = static_cast<int>((transform.x * scale) + (windowWidth / 2));
+            int spriteCenterY = static_cast<int>((transform.y * -scale) + (windowHeight / 2));
 
             // Calculate actual rendered sprite dimensions
             double divisionAmount = 1.0;
-            int spriteWidth = static_cast<int>((sprite->spriteWidth * sprite->size / 100.0) / divisionAmount * scale);
-            int spriteHeight = static_cast<int>((sprite->spriteHeight * sprite->size / 100.0) / divisionAmount * scale);
+            int spriteWidth = static_cast<int>((transform.width * transform.size / 100.0) / divisionAmount * scale);
+            int spriteHeight = static_cast<int>((transform.height * transform.size / 100.0) / divisionAmount * scale);
 
             // Calculate top corners of sprite
             int spriteTop = spriteCenterY - (spriteHeight / 2);
@@ -84,7 +88,7 @@ void SpeechManagerSDL2::render(int offsetX, int offsetY) {
 
             bubbleImage->renderNineslice(bubbleX, bubbleY, bubbleWidth, bubbleHeight, bubblePadding, false);
 
-            renderSpeechIndicator(sprite, spriteCenterX, spriteCenterY, spriteTop, spriteLeft, spriteRight, bubbleX, bubbleY, bubbleWidth, bubbleHeight, scale);
+            renderSpeechIndicator(spriteID, spriteCenterX, spriteCenterY, spriteTop, spriteLeft, spriteRight, bubbleX, bubbleY, bubbleWidth, bubbleHeight, scale);
 
             speechObj->render(textX, textY);
         }
@@ -95,8 +99,8 @@ void SpeechManagerSDL2::render(int offsetX, int offsetY) {
     }
 }
 
-void SpeechManagerSDL2::renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
-    auto styleIt = speechStyles.find(sprite);
+void SpeechManagerSDL2::renderSpeechIndicator(uint32_t spriteID, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale) {
+    auto styleIt = speechStyles.find(spriteID);
     if (styleIt == speechStyles.end()) return;
 
     std::string style = styleIt->second;

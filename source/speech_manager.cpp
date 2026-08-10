@@ -1,29 +1,28 @@
 #include "speech_manager.hpp"
-#include "runtime.hpp"
 
-void SpeechManager::updateSpeechObject(Sprite *sprite, const std::string &message) {
-    auto it = speechObjects.find(sprite);
+void SpeechManager::updateSpeechObject(uint32_t spriteID, const std::string &message) {
+    auto it = speechObjects.find(spriteID);
     if (it != speechObjects.end() && it->second) {
         it->second->setText(message);
     }
 }
 
-bool SpeechManager::hasSpeechObject(Sprite *sprite) {
-    return speechObjects.find(sprite) != speechObjects.end();
+bool SpeechManager::hasSpeechObject(uint32_t spriteID) {
+    return speechObjects.find(spriteID) != speechObjects.end();
 }
 
-void SpeechManager::removeSpeechObject(Sprite *sprite) {
-    speechObjects.erase(sprite);
+void SpeechManager::removeSpeechObject(uint32_t spriteID) {
+    speechObjects.erase(spriteID);
 }
 
 void SpeechManager::clearAllSpeechObjects() {
     speechObjects.clear();
 }
 
-void SpeechManager::showSpeech(Sprite *sprite, const std::string &message, double showForSecs, const std::string &style) {
-    if (!sprite) return;
+void SpeechManager::showSpeech(uint32_t spriteID, const std::string &message, double showForSecs, const std::string &style) {
+    if (!spriteID) return;
 
-    clearSpeech(sprite);
+    clearSpeech(spriteID);
 
     if (message.empty()) return;
     const std::string truncatedMessage = message.substr(0, 330);
@@ -31,27 +30,27 @@ void SpeechManager::showSpeech(Sprite *sprite, const std::string &message, doubl
     // start timer if showForSecs value is given
     if (showForSecs > 0) {
         double now = getCurrentTime();
-        speechStartTimes[sprite] = now;
-        speechDurations[sprite] = showForSecs;
+        speechStartTimes[spriteID] = now;
+        speechDurations[spriteID] = showForSecs;
     }
 
-    speechStyles[sprite] = style;
+    speechStyles[spriteID] = style;
 
     // Create / update speech object
-    if (!hasSpeechObject(sprite)) {
-        createSpeechObject(sprite, truncatedMessage);
+    if (!hasSpeechObject(spriteID)) {
+        createSpeechObject(spriteID, truncatedMessage);
     } else {
-        updateSpeechObject(sprite, truncatedMessage);
+        updateSpeechObject(spriteID, truncatedMessage);
     }
 }
 
-void SpeechManager::clearSpeech(Sprite *sprite) {
-    if (!sprite) return;
+void SpeechManager::clearSpeech(uint32_t spriteID) {
+    if (!spriteID) return;
 
-    speechStartTimes.erase(sprite);
-    removeSpeechObject(sprite);
-    speechStyles.erase(sprite);
-    speechDurations.erase(sprite);
+    speechStartTimes.erase(spriteID);
+    removeSpeechObject(spriteID);
+    speechStyles.erase(spriteID);
+    speechDurations.erase(spriteID);
 }
 
 void SpeechManager::update() {
@@ -59,17 +58,17 @@ void SpeechManager::update() {
 
     // check timers and clear speech objects if they have expired
     for (auto it = speechStartTimes.begin(); it != speechStartTimes.end();) {
-        Sprite *sprite = it->first;
+        uint32_t spriteID = it->first;
         double startTime = it->second;
-        double duration = speechDurations[sprite];
+        double duration = speechDurations[spriteID];
         double elapsed = now - startTime;
 
         if (elapsed >= duration) {
             it = speechStartTimes.erase(it);
 
-            removeSpeechObject(sprite);
-            speechStyles.erase(sprite);
-            speechDurations.erase(sprite);
+            removeSpeechObject(spriteID);
+            speechStyles.erase(spriteID);
+            speechDurations.erase(spriteID);
         } else {
             ++it;
         }

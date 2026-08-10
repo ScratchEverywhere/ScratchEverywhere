@@ -26,8 +26,7 @@
 #include <image.hpp>
 #include <math.hpp>
 #include <render.hpp>
-#include <runtime.hpp>
-#include <sprite.hpp>
+#include <runtime/data/entity_components.hpp>
 #include <string>
 #include <unordered_map>
 #include <unzip.hpp>

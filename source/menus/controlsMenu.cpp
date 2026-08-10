@@ -1,5 +1,5 @@
 #include "controlsMenu.hpp"
-#include "sprite.hpp"
+#include "runtime/scratch_engine.hpp"
 #include "translation.hpp"
 #include <log.hpp>
 #include <settings.hpp>
@@ -25,6 +25,12 @@ void ControlsMenu::init() {
 
     // get controls
     std::vector<std::string> controls;
+
+    // sensing_keypressed  "KEY_OPTION"
+    // event_whenkeypressed "KEY_OPTION"
+    // makeymakey_whenMakeyKeyPressed "KEY"
+    // makeymakey_whenCodePressed "SEQUENCE"
+    /*
 
     for (auto &block : Scratch::blocks) {
         std::string buttonCheck;
@@ -67,8 +73,9 @@ void ControlsMenu::init() {
             controls.push_back(buttonCheck);
         }
     }
+    */
 
-    Scratch::cleanupScratchProject();
+    ScratchEngine::cleanupScratchProject();
 
     if (controls.empty()) {
         Log::logWarning("No controls found in project");
