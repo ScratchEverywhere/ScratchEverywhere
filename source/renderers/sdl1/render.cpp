@@ -38,8 +38,8 @@ SpeechManagerSDL1 *speechManager = nullptr;
 int windowWidth = 960;
 int windowHeight = 544;
 #else
-int windowWidth = 540;
-int windowHeight = 405;
+int windowWidth = 480;
+int windowHeight = 360;
 #endif
 
 bool Render::Init() {

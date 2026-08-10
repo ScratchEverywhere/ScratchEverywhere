@@ -1,5 +1,6 @@
 #include "runtime.hpp"
 #include "blockExecutor.hpp"
+#include "collision.hpp"
 #include "interface.hpp"
 #include "meta.hpp"
 #include "sprite.hpp"
@@ -115,7 +116,7 @@ void extensions::runtime::registerAPI(Extension *extension) {
     extension->luaState.new_usertype<Costume>("Costume",
                                               "id", &Costume::id,
                                               "bitmapResolution", &Costume::bitmapResolution,
-                                              "bitmask", &Costume::bitmask,
+                                              "collisionMask", &Costume::collisionMask,
                                               "rotationCenterX", &Costume::rotationCenterX,
                                               "rotationCenterY", &Costume::rotationCenterY,
                                               "isSVG", &Costume::isSVG,
@@ -123,13 +124,12 @@ void extensions::runtime::registerAPI(Extension *extension) {
                                               "fullName", &Costume::fullName,
                                               "dataFormat", &Costume::dataFormat);
 
-    extension->luaState.new_usertype<Bitmask>("Bitmask",
-                                              "getPixel", &Bitmask::getPixel,
-                                              "bits", &Bitmask::bits,
-                                              "width", &Bitmask::width,
-                                              "height", &Bitmask::height,
-                                              "maxRadius", &Bitmask::maxRadius,
-                                              "scaleFactor", &Bitmask::scaleFactor);
+    extension->luaState.new_usertype<CollisionMask>("CollisionMask",
+                                                    "getPixel", &CollisionMask::getPixel,
+                                                    "width", &CollisionMask::width,
+                                                    "height", &CollisionMask::height,
+                                                    "maxRadius", &CollisionMask::maxRadius,
+                                                    "scaleFactor", &CollisionMask::scaleFactor);
 
     extension->luaState["runtime"] = extension->luaState.create_table();
 

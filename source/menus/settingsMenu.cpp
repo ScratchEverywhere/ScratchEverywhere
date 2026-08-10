@@ -7,6 +7,7 @@
 #include <libdlgmod/libdlgmod.h>
 #if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <algorithm>
+#include <climits>
 #include <cstdlib>
 #include <sstream>
 #include <sys/stat.h>
@@ -17,11 +18,6 @@
 #endif
 #include <filesystem.hpp>
 #include <log.hpp>
-
-// um idk but somehow PATH_MAX wasn't defined so I defined it myself
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
 
 SettingsMenu::SettingsMenu() {
     init();

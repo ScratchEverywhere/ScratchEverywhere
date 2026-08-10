@@ -107,8 +107,8 @@ bool Render::Init() {
         windowHeight = mode.h;
     }
 #else
-    int windowWidth = 540;
-    int windowHeight = 405;
+    int windowWidth = 480;
+    int windowHeight = 360;
 #endif
 
     TTF_Init();

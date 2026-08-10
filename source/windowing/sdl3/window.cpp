@@ -3,8 +3,8 @@
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <libdlgmod/libdlgmod.h>
 #endif
-#include <input.hpp>
 #include <cstdlib>
+#include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
@@ -80,9 +80,9 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     resize(dw, dh);
 
 #if defined(_WIN32) || defined(_WIN64)
-	widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)).c_str());
+    widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)).c_str());
 #elif defined(__APPLE__)
-	widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
+    widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
 #endif
 
     return true;

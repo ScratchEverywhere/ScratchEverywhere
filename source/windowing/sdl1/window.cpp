@@ -4,8 +4,8 @@
 #include <libdlgmod/libdlgmod.h>
 #endif
 #include <chrono>
-#include <input.hpp>
 #include <cstdlib>
+#include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
@@ -61,13 +61,13 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     resize(width, height);
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
-	SDL_SysWMinfo system_info;
-	SDL_VERSION(&system_info.version);
-	SDL_GetWMInfo(&system_info);
+    SDL_SysWMinfo system_info;
+    SDL_VERSION(&system_info.version);
+    SDL_GetWMInfo(&system_info);
 #if defined(_WIN32) || defined(_WIN64)
-	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
+    widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
 #elif defined(__APPLE__)
-	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
+    widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
 #endif
 #endif
 
