@@ -114,7 +114,7 @@ int Unzip::openFile(std::istream *&file) {
         Log::log("Normal .sb3 project in SD card ");
         file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
         if (file == nullptr || !(*file)) {
-            Log::logError("Couldnt find Scratch project file: " + filePath + " jinkies.");
+            Log::logCritical("Couldnt find Scratch project file: " + filePath + " jinkies.", true);
             return 0;
         }
 
@@ -125,7 +125,7 @@ int Unzip::openFile(std::istream *&file) {
     // check if Unpacked Project
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
     if (file == nullptr || !(*file)) {
-        Log::logError("Couldnt open unpacked Scratch project: " + filePath);
+        Log::logCritical("Couldnt open unpacked Scratch project: " + filePath, true);
         return 0;
     }
     filePath = filePath + "/";
@@ -192,7 +192,7 @@ void Unzip::openScratchProject(void *arg) {
 
     int isFileOpen = openFile(file);
     if (isFileOpen == 0) {
-        Log::logError("Failed to open Scratch project.");
+        Log::logCritical("Failed to open Scratch project.", true);
         Unzip::projectOpened = -1;
         Unzip::threadFinished = true;
         return;
@@ -240,7 +240,7 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
 
     auto projectFiles = FileSystem::listDirectory(directory);
     if (!projectFiles.has_value()) {
-        Log::logError("Error while reading project files: " + projectFiles.error());
+        Log::logCritical("Error while reading project files: " + projectFiles.error(), true);
         return {};
     }
 
@@ -414,7 +414,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
     mz_zip_archive zip;
     memset(&zip, 0, sizeof(zip));
     if (!mz_zip_reader_init_file(&zip, zipPath.c_str(), 0)) {
-        Log::logError("Failed to open zip: " + zipPath);
+        Log::logCritical("Failed to open zip: " + zipPath, true);
         return false;
     }
 
