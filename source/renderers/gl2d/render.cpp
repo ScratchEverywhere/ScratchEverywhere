@@ -22,9 +22,9 @@ SpeechManagerGL2D *speechManager = nullptr;
 #define SCREEN_HALF_WIDTH 132.5
 #define SCREEN_HALF_HEIGHT 96
 
-bool Render::Init() {
+bool Render::Init(int width, int height, std::string title) {
     globalWindow = new WindowNDS();
-    if (!globalWindow->init(256, 192, "Scratch Everywhere!")) {
+    if (!globalWindow->init(((width < 0) ? 256 : width), ((height < 0) ? 192 : height), title)) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;
