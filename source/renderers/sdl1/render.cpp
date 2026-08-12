@@ -42,11 +42,11 @@ int windowWidth = 480;
 int windowHeight = 360;
 #endif
 
-bool Render::Init() {
+bool Render::Init(int width, int height, std::string title) {
     TTF_Init();
 
     globalWindow = new WindowSDL1();
-    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+    if (!globalWindow->init(((width < 0) ? windowWidth : width), ((height < 0) ? windowHeight : height), title)) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;
