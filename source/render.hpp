@@ -95,7 +95,7 @@ class Render {
 
     // --- renderer specific render functions
 
-    static bool Init();
+    static bool Init(int width = 480, int height = 360, std::string title = "Scratch Everywhere!");
 
     static bool initPen();
 
