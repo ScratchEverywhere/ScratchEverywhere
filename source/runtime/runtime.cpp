@@ -98,13 +98,13 @@ std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
-bool Scratch::initializeRuntime() {
+bool Scratch::initializeRuntime(int width, int height, std::string title) {
     if (!OS::init()) {
         return false;
     }
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
-    if (!Render::Init()) {
+    if (!Render::Init(width, height, title)) {
         return false;
     }
 #ifdef ENABLE_AUDIO
