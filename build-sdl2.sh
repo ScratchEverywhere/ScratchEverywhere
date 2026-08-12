@@ -1,13 +1,13 @@
 #!/bin/sh
 cd "${0%/*}";
-if [ -d "build-sdl2" ]; then
-	rm -fr build-sdl2;
+if [ -d "build" ]; then
+	rm -fr build;
 fi;
-if [ ! -d "build-sdl2" ]; then
-	mkdir build-sdl2;
+if [ ! -d "build" ]; then
+	mkdir build;
 fi;
-if [ -d "build-sdl2" ]; then
-	cd build-sdl2; 
+if [ -d "build" ]; then
+	cd build; 
 	cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=0 && make;
 	cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=1 && make;
 	if [ `uname -s` = "Darwin" ]; then
