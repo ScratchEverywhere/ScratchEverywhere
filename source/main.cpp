@@ -48,8 +48,8 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destro
  * I returned a string split by a colon delimiter character 
  * because I intend to use this in GameMaker as a GameMaker
  * extension. GameMaker extension functions can only return
- * double, const char *, char *, or void. If you don't like
- * this, please let me know before you change this behavior
+ * double, char *, or void. If you want to change the types
+ * here, please let me know before you change this behavior
  * -- "samuelvenable" a.k.a. "high on tantor" on github.com
  */
 #if defined(_WIN32) || defined(_WIN64)
@@ -62,12 +62,12 @@ extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere
     const int first  = result.first  ? 1 : 0;
     const int second = result.second ? 1 : 0;
     snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
-    return static_cast<const char *>(buffer);
+    return static_cast<char *>(buffer);
 }
 #endif
 
-static bool initApp() {
-    return Scratch::initializeRuntime();
+static bool initApp(int width, int height, std::string title) {
+    return Scratch::initializeRuntime(width, height, title);
 }
 
 bool activateMainMenu() {
@@ -141,14 +141,23 @@ extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
+    if (!initApp(-1, -1, "Scratch Everywhere!")) {
 #else
+/**
+ * I use double arguments for width / height instead of int 
+ * because I intend to use this in GameMaker as a GameMaker
+ * extension. GameMaker extension arguments are limited to: 
+ * double, char *, or void. If you want to change the types
+ * here, please let me know before you change this behavior
+ * -- "samuelvenable" a.k.a. "high on tantor" on github.com
+ */
 #if defined(_WIN32) || defined(_WIN64)
-extern "C" __declspec(dllexport) void scratch_everywhere_create(const char *sb3) {
+extern "C" __declspec(dllexport) void scratch_everywhere_create(char *sb3, double width, double height, char *title) {
 #else
-extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create(const char *sb3) {
+extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create(char *sb3, double width, double height, char *title) {
 #endif
+    if (!initApp((int)width, (int)height, title)) {
 #endif
-    if (!initApp()) {
 #if !defined(SE_USE_LIBRARY_BUILD)
         exitApp();
         return 1;
