@@ -53,9 +53,9 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destro
  * -- "samuelvenable" a.k.a. "high on tantor" on github.com
  */
 #if defined(_WIN32) || defined(_WIN64)
-extern "C" __declspec(dllexport) const char *scratch_everywhere_step() {
+extern "C" __declspec(dllexport) char *scratch_everywhere_step() {
 #else
-extern "C" __attribute__((visibility("default"))) const char *scratch_everywhere_step() {
+extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_step() {
 #endif
     static char buffer[4];
     std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
