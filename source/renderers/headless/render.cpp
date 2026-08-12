@@ -6,7 +6,7 @@
 
 WindowSE *globalWindow = nullptr;
 
-bool Render::Init() {
+bool Render::Init(int width, int height, std::string title) {
     globalWindow = new WindowHeadless();
     globalWindow->init(0, 0, "");
     return true;
