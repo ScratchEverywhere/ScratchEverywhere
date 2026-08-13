@@ -72,6 +72,41 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_step(
     return static_cast<char *>(buffer);
 }
 #endif
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) char *scratch_everywhere_set_parent_window(char *window) {
+#else
+extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_set_parent_window(char *window) {
+#endif
+#if defined(USE_LIBDLGMOD)
+#if !defined(_WIN32) && !defined(_WIN64) && !defined(__APPLE__)
+int XErrorHandlerImpl(Display *display, XErrorEvent *event) {
+  return 0;
+}
+int XIOErrorHandlerImpl(Display *display) {
+  return 0;
+}
+#endif
+#if defined(_WIN32) || defined(_WIN64)
+	HWND scratch_everywhere_window = (HWND)(void *)strtoull(widget_get_owner(), nullptr, 10);
+	HWND scratch_everywhere_parent_window = (HWND)(void *)strtoull(window, nullptr, 10);
+    if (IsIconic(scratch_everywhere_parent_window)) ShowWindow(scratch_everywhere_parent_window, SW_RESTORE);
+	SetWindowLongPtrW(scratch_everywhere_window, GWLP_HWNDPARENT, (LONG_PTR)(void *)scratch_everywhere_parent_window);
+#elif defined(__APPLE__)
+	NSWindow *scratch_everywhere_window = (NSWindow *)(void *)strtoull(widget_get_owner(), nullptr, 10);
+	NSWindow *scratch_everywhere_parent_window = (NSWindow *)(void *)strtoull(window, nullptr, 10);
+	[scratch_everywhere_parent_window addChildWindow:scratch_everywhere_window ordered:NSWindowAbove];
+#else
+  	XSetErrorHandler(XErrorHandlerImpl);
+ 	XSetIOErrorHandler(XIOErrorHandlerImpl);
+	Display *display = XOpenDisplay(nullptr);
+	Window scratch_everywhere_window = (Window)strtoul(widget_get_owner(), nullptr, 10);
+	Window scratch_everywhere_parent_window = (Window)strtoul(window, nullptr, 10);
+	XSetTransientForHint(display, scratch_everywhere_window, scratch_everywhere_parent_window);
+	XCloseDisplay(display);
+#endif
+#endif
+}
+#endif
 
 static bool initApp(int width, int height, std::string title) {
     return Scratch::initializeRuntime(width, height, title);
