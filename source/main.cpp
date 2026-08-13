@@ -30,6 +30,13 @@
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
 #endif
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <AppKit/AppKit.h>
+#else
+#include <X11/Xlib.h>
+#endif
 #endif
 
 #if defined(SE_USE_LIBRARY_BUILD)
