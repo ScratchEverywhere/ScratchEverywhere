@@ -4,7 +4,7 @@
 #define GLFW_EXPOSE_NATIVE_COCOA
 #elif ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(GLFW_EXPOSE_NATIVE_X11)
 #define GLFW_EXPOSE_NATIVE_X11
-#if ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
+#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
 #define GLFW_EXPOSE_NATIVE_WAYLAND
 #endif
 #endif
