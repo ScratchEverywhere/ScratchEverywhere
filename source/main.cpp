@@ -25,6 +25,7 @@
 #include <filesystem.hpp>
 #endif
 
+#if defined(SE_USE_LIBRARY_BUILD)
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
@@ -38,8 +39,6 @@
 #include <X11/Xlib.h>
 #endif
 #endif
-
-#if defined(SE_USE_LIBRARY_BUILD)
 static ScriptThread monitorDisplayThread;
 #endif
 
