@@ -53,7 +53,7 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWin32Window(window)).c_str());
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetCocoaWindow(window)).c_str());
-#elif ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(GLFW_EXPOSE_NATIVE_X11)
+#elif ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
     if (glfwGetPlatform() == GLFW_PLATFORM_X11) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)glfwGetX11Window(window)).c_str());
 	} else {
