@@ -90,7 +90,12 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 	if (!strcmp(not_null_name, "x11")) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)SDL_GetNumberProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0)).c_str());
 	} else {
+#if ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
 		widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER, nullptr)).c_str());
+#else
+		// Wayland backend does not exist:
+		widget_set_owner(std::to_string(0).c_str());
+#endif
 	}
 #endif
 
