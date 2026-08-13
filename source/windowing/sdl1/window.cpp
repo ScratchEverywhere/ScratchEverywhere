@@ -76,7 +76,7 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)system_info.info.x11.window).c_str());
 	} else {
 		// Wayland backend does not exist:
-		widget_set_owner(std::to_string(0).c_str());
+		widget_set_owner("0");
 	}
 #endif
 #endif
