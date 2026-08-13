@@ -4,6 +4,9 @@
 #define GLFW_EXPOSE_NATIVE_COCOA
 #elif ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(GLFW_EXPOSE_NATIVE_X11)
 #define GLFW_EXPOSE_NATIVE_X11
+#if ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
+#define GLFW_EXPOSE_NATIVE_WAYLAND
+#endif
 #endif
 #include "window.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
@@ -57,12 +60,11 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     if (glfwGetPlatform() == GLFW_PLATFORM_X11) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)glfwGetX11Window(window)).c_str());
 	} else {
-		/**
-		 * Wayland does not support setting the "transient for hint"
-		 * across windows beloning to separate application processes
-		 * therefore we set the parent window to no window at all...
-		 */
+		#if ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
+		widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWaylandWindow(window)).c_str());
+		#else
 		widget_set_owner(std::to_string(0).c_str());
+		#endif
 	}
 #endif
 
