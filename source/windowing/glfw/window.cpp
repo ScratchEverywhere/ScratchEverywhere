@@ -64,7 +64,7 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
 		widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWaylandWindow(window)).c_str());
 #else
 		// Wayland backend does not exist:
-		widget_set_owner(std::to_string(0).c_str());
+		widget_set_owner("0");
 #endif
 	}
 #endif
