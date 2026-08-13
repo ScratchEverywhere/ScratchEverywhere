@@ -1,5 +1,5 @@
 #include "window.hpp"
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
 #endif
@@ -68,6 +68,19 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
+#elif ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	char namebuf[4];
+	int maxlen = sizeof(namebuf);
+	if (!strcmp(SDL_VideoDriverName(namebuf, maxlen), "x11")) {
+		widget_set_owner(std::to_string((unsigned long long)(unsigned long)system_info.info.x11.window).c_str());
+	} else {
+		/**
+		 * Wayland does not support setting the "transient for hint"
+		 * across windows beloning to separate application processes
+		 * therefore we set the parent window to no window at all...
+		 */
+		widget_set_owner(std::to_string(0).c_str());
+	}
 #endif
 #endif
 
