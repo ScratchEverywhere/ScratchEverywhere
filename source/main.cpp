@@ -102,6 +102,7 @@ extern "C" __declspec(dllexport) void scratch_everywhere_set_parent_window(char 
 extern "C" __attribute__((visibility("default"))) void scratch_everywhere_set_parent_window(char *window) {
 #endif
 	scratch_everywhere_parent_window_string = window;
+#if defined(USE_LIBDLGMOD)
 #if defined(_WIN32) || defined(_WIN64)
 	HWND scratch_everywhere_window = (HWND)(void *)strtoull(widget_get_owner(), nullptr, 10);
 	HWND scratch_everywhere_parent_window = (HWND)(void *)strtoull(window, nullptr, 10);
@@ -119,6 +120,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_set_pa
 	Window scratch_everywhere_parent_window = (Window)strtoul(window, nullptr, 10);
 	XSetTransientForHint(display, scratch_everywhere_window, scratch_everywhere_parent_window);
 	XCloseDisplay(display);
+#endif
 #endif
 }
 #endif
