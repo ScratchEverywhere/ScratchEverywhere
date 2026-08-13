@@ -2,6 +2,7 @@
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
+#include <cstring>
 #endif
 #include <input.hpp>
 #include <log.hpp>
