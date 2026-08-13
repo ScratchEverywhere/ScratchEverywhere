@@ -79,11 +79,6 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_step(
     return static_cast<char *>(buffer);
 }
 #endif
-#if defined(_WIN32) || defined(_WIN64)
-extern "C" __declspec(dllexport) char *scratch_everywhere_set_parent_window(char *window) {
-#else
-extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_set_parent_window(char *window) {
-#endif
 #if defined(USE_LIBDLGMOD)
 #if !defined(_WIN32) && !defined(_WIN64) && !defined(__APPLE__)
 int XErrorHandlerImpl(Display *display, XErrorEvent *event) {
@@ -93,6 +88,21 @@ int XIOErrorHandlerImpl(Display *display) {
   return 0;
 }
 #endif
+#endif
+std::string scratch_everywhere_parent_window_string = "0";
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) char *scratch_everywhere_get_parent_window() {
+#else
+extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_get_parent_window() {
+#endif
+	return (char *)scratch_everywhere_parent_window_string.c_str();
+}
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) void scratch_everywhere_set_parent_window(char *window) {
+#else
+extern "C" __attribute__((visibility("default"))) void scratch_everywhere_set_parent_window(char *window) {
+#endif
+	scratch_everywhere_parent_window_string = window;
 #if defined(_WIN32) || defined(_WIN64)
 	HWND scratch_everywhere_window = (HWND)(void *)strtoull(widget_get_owner(), nullptr, 10);
 	HWND scratch_everywhere_parent_window = (HWND)(void *)strtoull(window, nullptr, 10);
@@ -110,7 +120,6 @@ int XIOErrorHandlerImpl(Display *display) {
 	Window scratch_everywhere_parent_window = (Window)strtoul(window, nullptr, 10);
 	XSetTransientForHint(display, scratch_everywhere_window, scratch_everywhere_parent_window);
 	XCloseDisplay(display);
-#endif
 #endif
 }
 #endif
