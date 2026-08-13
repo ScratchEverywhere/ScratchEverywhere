@@ -60,7 +60,7 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     int platform = glfwGetPlatform();
 	if (platform == GLFW_PLATFORM_X11) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)glfwGetX11Window(window)).c_str());
-#if ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
+#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
 	} else if (platform == GLFW_PLATFORM_WAYLAND) {
 		widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWaylandWindow(window)).c_str());
 	} else {
