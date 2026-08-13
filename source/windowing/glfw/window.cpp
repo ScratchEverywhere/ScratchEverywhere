@@ -63,6 +63,7 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
 #if ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
 		widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWaylandWindow(window)).c_str());
 #else
+		// Wayland backend does not exist:
 		widget_set_owner(std::to_string(0).c_str());
 #endif
 	}
