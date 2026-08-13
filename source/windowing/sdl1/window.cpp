@@ -74,9 +74,6 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
 	int maxlen = sizeof(namebuf);
 	if (!strcmp(SDL_VideoDriverName(namebuf, maxlen), "x11")) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)system_info.info.x11.window).c_str());
-	} else {
-		// Wayland backend does not exist:
-		widget_set_owner("0");
 	}
 #endif
 #endif
