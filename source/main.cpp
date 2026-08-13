@@ -5,6 +5,7 @@
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
 #endif
+#include <string>
 #include <cstdlib>
 #include <inspector.hpp>
 #include <render.hpp>
