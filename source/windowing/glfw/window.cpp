@@ -4,9 +4,6 @@
 #define GLFW_EXPOSE_NATIVE_COCOA
 #elif ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(GLFW_EXPOSE_NATIVE_X11)
 #define GLFW_EXPOSE_NATIVE_X11
-#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
-#define GLFW_EXPOSE_NATIVE_WAYLAND
-#endif
 #endif
 #include "window.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
@@ -57,18 +54,8 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetCocoaWindow(window)).c_str());
 #elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
-    int platform = glfwGetPlatform();
-	if (platform == GLFW_PLATFORM_X11) {
+	if (glfwGetPlatform() == GLFW_PLATFORM_X11) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)glfwGetX11Window(window)).c_str());
-#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
-	} else if (platform == GLFW_PLATFORM_WAYLAND) {
-		widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWaylandWindow(window)).c_str());
-	} else {
-#else
-	} else {
-#endif
-		// Wayland backend does not exist:
-		widget_set_owner("0");
 	}
 #endif
 
