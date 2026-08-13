@@ -90,12 +90,7 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 	if (!strcmp(not_null_name, "x11")) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)SDL_GetNumberProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0)).c_str());
 	} else {
-		/**
-		 * Wayland does not support setting the "transient for hint"
-		 * across windows beloning to separate application processes
-		 * therefore we set the parent window to no window at all...
-		 */
-		widget_set_owner(std::to_string(0).c_str());
+		widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WAYLAND_XDG_TOPLEVEL_POINTER, nullptr)).c_str());
 	}
 #endif
 
