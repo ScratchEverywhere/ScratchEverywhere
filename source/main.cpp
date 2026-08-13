@@ -78,7 +78,6 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_step(
     snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
     return static_cast<char *>(buffer);
 }
-#endif
 #if defined(USE_LIBDLGMOD)
 #if !defined(_WIN32) && !defined(_WIN64) && !defined(__APPLE__)
 static int XErrorHandlerImpl(Display *display, XErrorEvent *event) {
@@ -308,3 +307,4 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_creat
     return 0;
 #endif
 }
+#endif
