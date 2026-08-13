@@ -307,4 +307,3 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_creat
     return 0;
 #endif
 }
-#endif
