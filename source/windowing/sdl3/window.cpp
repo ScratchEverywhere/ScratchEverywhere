@@ -84,6 +84,19 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)).c_str());
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
+#elif ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	const char *name = SDL_GetCurrentVideoDriver();
+	const char *not_null_name = name ? name : "";
+	if (!strcmp(not_null_name, "x11")) {
+		widget_set_owner(std::to_string((unsigned long long)(unsigned long)SDL_GetNumberProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0)).c_str());
+	} else {
+		/**
+		 * Wayland does not support setting the "transient for hint"
+		 * across windows beloning to separate application processes
+		 * therefore we set the parent window to no window at all...
+		 */
+		widget_set_owner(std::to_string(0).c_str());
+	}
 #endif
 
     return true;
