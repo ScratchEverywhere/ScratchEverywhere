@@ -211,9 +211,9 @@ int main(int argc, char **argv) {
  * -- "samuelvenable" a.k.a. "high on tantor" on github.com
  */
 #if defined(_WIN32) || defined(_WIN64)
-extern "C" __declspec(dllexport) void scratch_everywhere_create(char *sb3, double width, double height, char *title) {
+extern "C" __declspec(dllexport) char *scratch_everywhere_create(char *sb3, double width, double height, char *title) {
 #else
-extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create(char *sb3, double width, double height, char *title) {
+extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_create(char *sb3, double width, double height, char *title) {
 #endif
     if (!initApp((int)width, (int)height, title)) {
 #endif
@@ -291,6 +291,11 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_create
     Unzip::filePath = sb3;
     Unzip::load();
     Scratch::initializeScratchProject();
+#if defined(USE_LIBDLGMOD)
+	return (char *)widget_get_owner();
+#else
+	return (char *)"0";
+#endif
 #else
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(mainLoop, 0, 1);
