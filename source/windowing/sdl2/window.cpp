@@ -120,7 +120,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 		widget_set_owner(std::to_string((unsigned long long)(unsigned long)system_info.info.x11.window).c_str());
 #if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__)
 	} else if (!strcmp(not_null_name, "wayland")) {
-		widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.wl.xdg_toplevel).c_str());
+		widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.wl.surface).c_str());
 	} else {
 #else
 	} else {
