@@ -80,10 +80,10 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_step(
 #endif
 #if defined(USE_LIBDLGMOD)
 #if !defined(_WIN32) && !defined(_WIN64) && !defined(__APPLE__)
-int XErrorHandlerImpl(Display *display, XErrorEvent *event) {
+static int XErrorHandlerImpl(Display *display, XErrorEvent *event) {
   return 0;
 }
-int XIOErrorHandlerImpl(Display *display) {
+static int XIOErrorHandlerImpl(Display *display) {
   return 0;
 }
 #endif
