@@ -3,6 +3,12 @@
 #include "menuObjects.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
+#endif
 #include <filesystem.hpp>
 #include <log.hpp>
 
@@ -185,8 +191,9 @@ void SettingsMenu::render() {
     Render::beginFrame(1, 108, 100, 128);
 
     if (ClearCache->isPressed({"a"})) {
-        FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
-        FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
+        const auto rderr = FileSystem::removeDirectory(OS::getScratchFolderLocation() + "cache/");
+        const auto cderr = FileSystem::createDirectory(OS::getScratchFolderLocation() + "cache/");
+        if (!rderr.has_value() || !cderr.has_value()) Log::logError("Failed to clear cache.");
     }
 
     if (EnableMenuMusic->isPressed({"a"})) {
@@ -224,7 +231,13 @@ void SettingsMenu::render() {
     }
 
     if (ChangeFolderPath->isPressed({"a"})) {
-        const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+#if defined(USE_LIBDLGMOD)
+		const std::string newPathGui = get_directory_alt("Select a custom path to load *.sb3 Scratch project files...", "");
+		const std::string newPath = ((newPathGui.empty()) ? Input::openSoftwareKeyboard(projectsPath.c_str()) : newPathGui);
+#else
+		const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+#endif
+
         if (newPath.length() > 0) {
             projectsPath = newPath;
 

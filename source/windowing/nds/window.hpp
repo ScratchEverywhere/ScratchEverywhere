@@ -3,7 +3,7 @@
 #include <nds.h>
 #include <window.hpp>
 
-class WindowNDS : public Window {
+class WindowNDS : public WindowSE {
   public:
     bool init(int width, int height, const std::string &title) override;
     void cleanup() override;

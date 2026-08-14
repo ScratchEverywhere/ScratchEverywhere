@@ -1,6 +1,10 @@
 #include "window.hpp"
-#include "SDL3/SDL_video.h"
+#include <SDL3/SDL_video.h>
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#include <libdlgmod/libdlgmod.h>
+#endif
 #include <input.hpp>
+#include <cstdlib>
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
@@ -21,7 +25,7 @@ SDL_Point touchPosition;
 
 bool WindowSDL3::init(int width, int height, const std::string &title) {
 #if defined(VITA)
-    SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+    setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
@@ -74,6 +78,12 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     int dw, dh;
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
     resize(dw, dh);
+
+#if defined(_WIN32) || defined(_WIN64)
+	widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)).c_str());
+#elif defined(__APPLE__)
+	widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
+#endif
 
     return true;
 }

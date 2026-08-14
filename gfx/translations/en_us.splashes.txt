@@ -41,6 +41,7 @@ Runtime by NateXS!
 DS port by NateXS!
 Wii port by NateXS!
 PSP port by NateXS!
+PS2 port by Luarpri!
 GameCube port by NateXS!
 By a lot of people!
 Wii U port by Grady Link!
@@ -61,7 +62,7 @@ SDL!
 It works! (most of the time...)
 Woah.
 Are wii gonna have a problem?
-Beta!
+Released!
 Deja vu!
 Let's play, {UserName}!
 Woo, TurboWarp!

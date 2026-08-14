@@ -8,7 +8,7 @@ constexpr unsigned int MAX_LIST_ITEMS = 200000;
 
 SCRATCH_BLOCK(data, setvariableto) {
     Value value;
-    if (!Scratch::getInput(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
 
     BlockExecutor::setVariableValue(Scratch::getFieldId(*block, "VARIABLE"), value, sprite);
     return BlockResult::CONTINUE;
@@ -16,7 +16,7 @@ SCRATCH_BLOCK(data, setvariableto) {
 
 SCRATCH_BLOCK(data, changevariableby) {
     Value value;
-    if (!Scratch::getInput(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "VALUE", thread, sprite, value)) return BlockResult::REPEAT;
 
     const std::string varId = Scratch::getFieldId(*block, "VARIABLE");
     BlockExecutor::setVariableValue(varId, value + BlockExecutor::getVariableValue(varId, sprite), sprite);
@@ -61,7 +61,7 @@ SCRATCH_BLOCK(data, hidelist) {
 
 SCRATCH_BLOCK(data, addtolist) {
     Value item;
-    if (!Scratch::getInput(block, "ITEM", thread, sprite, item)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "ITEM", thread, sprite, item)) return BlockResult::REPEAT;
 
     auto items = Scratch::getListItems(*block, sprite);
 
@@ -72,7 +72,7 @@ SCRATCH_BLOCK(data, addtolist) {
 
 SCRATCH_BLOCK(data, deleteoflist) {
     Value index;
-    if (!Scratch::getInput(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
 
     auto items = Scratch::getListItems(*block, sprite);
 
@@ -116,8 +116,8 @@ SCRATCH_BLOCK(data, deletealloflist) {
 
 SCRATCH_BLOCK(data, insertatlist) {
     Value item, index;
-    if (!Scratch::getInput(block, "ITEM", thread, sprite, item) ||
-        !Scratch::getInput(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "ITEM", thread, sprite, item) ||
+        !Scratch::getInputValue(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
 
     auto items = Scratch::getListItems(*block, sprite);
 
@@ -150,8 +150,8 @@ SCRATCH_BLOCK(data, insertatlist) {
 
 SCRATCH_BLOCK(data, replaceitemoflist) {
     Value item, index;
-    if (!Scratch::getInput(block, "ITEM", thread, sprite, item) ||
-        !Scratch::getInput(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "ITEM", thread, sprite, item) ||
+        !Scratch::getInputValue(block, "INDEX", thread, sprite, index)) return BlockResult::REPEAT;
 
     auto items = Scratch::getListItems(*block, sprite);
 
@@ -182,7 +182,7 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
 
 SCRATCH_BLOCK(data, itemoflist) {
     Value indexStrVal;
-    if (!Scratch::getInput(block, "INDEX", thread, sprite, indexStrVal)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "INDEX", thread, sprite, indexStrVal)) return BlockResult::REPEAT;
 
     const auto &items = Scratch::getListItems(*block, sprite);
 
@@ -212,7 +212,7 @@ SCRATCH_BLOCK(data, itemoflist) {
 
 SCRATCH_BLOCK(data, itemnumoflist) {
     Value itemToFind;
-    if (!Scratch::getInput(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
 
     const auto &items = Scratch::getListItems(*block, sprite);
 
@@ -240,7 +240,7 @@ SCRATCH_BLOCK(data, lengthoflist) {
 
 SCRATCH_BLOCK(data, listcontainsitem) {
     Value itemToFind;
-    if (!Scratch::getInput(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
 
     const auto &items = Scratch::getListItems(*block, sprite);
 

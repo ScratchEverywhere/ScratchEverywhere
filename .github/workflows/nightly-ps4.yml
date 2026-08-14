@@ -13,6 +13,7 @@ on:
       - source/platforms/
       - source/platforms/ps4/**
       - source/renderers/sdl2/**
+      - source/windowing/sdl2/**
       - source/*
       - source/menus/**
       - source/audio/sdl2/**
