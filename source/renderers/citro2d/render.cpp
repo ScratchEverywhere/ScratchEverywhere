@@ -144,7 +144,7 @@ bool Render::initPen() {
 
     if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) {
         penRenderTarget = nullptr;
-        Log::logError("Failed to create pen texture.");
+        Log::logCritical("Failed to create pen texture.", false);
         return false;
     } else {
         penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);

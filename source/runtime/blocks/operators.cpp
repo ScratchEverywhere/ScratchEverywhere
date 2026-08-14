@@ -134,14 +134,9 @@ SCRATCH_BLOCK(operator, mathop) {
     Value num;
     if (!Scratch::getInputValue(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
 
-    if (!num.isNumeric()) {
-        *outValue = Value(0);
-        return BlockResult::CONTINUE;
-    }
-
     const std::string operation = Scratch::getFieldValue(*block, "OPERATOR");
-
     const double value = num.asDouble();
+
     if (operation == "abs") *outValue = Value(abs(value));
     else if (operation == "floor") *outValue = Value(floor(value));
     else if (operation == "ceiling") *outValue = Value(ceil(value));

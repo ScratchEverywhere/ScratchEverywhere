@@ -87,13 +87,13 @@ bool Render::Init() {
     // Freetype has to be initialized before SDL2_ttf
     int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
     if (rc != ORBIS_OK) {
-        Log::logError("Failed to init freetype.");
+        Log::logCritical("Failed to init freetype.", true);
         return false;
     }
 #elif defined(WEBOS)
     // SDL has to be initialized before window creation on webOS
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
-        Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to initialize SDL2: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -107,8 +107,8 @@ bool Render::Init() {
         windowHeight = mode.h;
     }
 #else
-    int windowWidth = 540;
-    int windowHeight = 405;
+    int windowWidth = 480;
+    int windowHeight = 360;
 #endif
 
     TTF_Init();
@@ -128,8 +128,8 @@ bool Render::Init() {
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 #endif
     renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, sdlFlags);
-    if (renderer == NULL) {
-        Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
+    if (renderer == nullptr) {
+        Log::logCritical("Could not create renderer: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -216,7 +216,7 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
 
     int penWidth = 640;
     int penHeight = 480;
-    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+    SDL_QueryTexture(penTexture, nullptr, nullptr, &penWidth, &penHeight);
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
@@ -263,7 +263,7 @@ void Render::penDotFast(Sprite *sprite) {
 
     int penWidth = 640;
     int penHeight = 480;
-    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+    SDL_QueryTexture(penTexture, nullptr, nullptr, &penWidth, &penHeight);
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
@@ -299,7 +299,7 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
 
     int penWidth = 640;
     int penHeight = 480;
-    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+    SDL_QueryTexture(penTexture, nullptr, nullptr, &penWidth, &penHeight);
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
@@ -379,7 +379,7 @@ void Render::penDotAccurate(Sprite *sprite) {
 
     int penWidth = 640;
     int penHeight = 480;
-    SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+    SDL_QueryTexture(penTexture, nullptr, nullptr, &penWidth, &penHeight);
 
     const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
@@ -430,7 +430,7 @@ void Render::penStamp(Sprite *sprite) {
     // clear line draw queue so stamp can be rendered on top
     if (!penVerts.empty()) {
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
         penVerts.clear();
     }
@@ -449,7 +449,7 @@ void Render::penStamp(Sprite *sprite) {
     if (Scratch::hqpen) {
         int penWidth;
         int penHeight;
-        SDL_QueryTexture(penTexture, NULL, NULL, &penWidth, &penHeight);
+        SDL_QueryTexture(penTexture, nullptr, nullptr, &penWidth, &penHeight);
         const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
 
         penX *= scale;
@@ -471,7 +471,7 @@ void Render::penStamp(Sprite *sprite) {
 
     image->render(params);
 
-    SDL_SetRenderTarget(renderer, NULL);
+    SDL_SetRenderTarget(renderer, nullptr);
 }
 
 void Render::penClear() {
@@ -479,7 +479,7 @@ void Render::penClear() {
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, NULL);
+    SDL_SetRenderTarget(renderer, nullptr);
     if (!penVerts.empty()) penVerts.clear();
 }
 
@@ -608,10 +608,10 @@ void Render::renderPenLayer() {
         SDL_SetRenderTarget(renderer, penTexture);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-        SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         penVerts.clear();
 
-        SDL_SetRenderTarget(renderer, NULL);
+        SDL_SetRenderTarget(renderer, nullptr);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 
@@ -627,7 +627,7 @@ void Render::renderPenLayer() {
         renderRect.w = getWidth();
     }
 
-    SDL_RenderCopy(renderer, penTexture, NULL, &renderRect);
+    SDL_RenderCopy(renderer, penTexture, nullptr, &renderRect);
 }
 
 bool Render::appShouldRun() {

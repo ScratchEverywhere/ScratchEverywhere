@@ -769,7 +769,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         if (FileSystem::fileExists(nativePath)) {
             void *extensionHandle = dlopen(nativePath.c_str(), RTLD_NOW | RTLD_GLOBAL);
             if (!extensionHandle) {
-                Log::logError("Failed to load native extension, '" + targetID + "', dlerror: " + dlerror());
+                Log::logCritical("Failed to load native extension, '" + targetID + "', dlerror: " + dlerror(), false);
             } else {
                 Log::log("Loaded native extension: " + targetID);
                 hasNativeExts = true;

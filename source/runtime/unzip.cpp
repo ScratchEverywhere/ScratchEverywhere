@@ -114,7 +114,7 @@ int Unzip::openFile(std::istream *&file) {
         Log::log("Normal .sb3 project in SD card ");
         file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
         if (file == nullptr || !(*file)) {
-            Log::logError("Couldnt find Scratch project file: " + filePath + " jinkies.");
+            Log::logCritical("Couldnt find Scratch project file: " + filePath + " jinkies.", true);
             return 0;
         }
 
@@ -125,7 +125,7 @@ int Unzip::openFile(std::istream *&file) {
     // check if Unpacked Project
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
     if (file == nullptr || !(*file)) {
-        Log::logError("Couldnt open unpacked Scratch project: " + filePath);
+        Log::logCritical("Couldnt open unpacked Scratch project: " + filePath, true);
         return 0;
     }
     filePath = filePath + "/";
@@ -196,7 +196,7 @@ void Unzip::openScratchProject(void *arg) {
 
     int isFileOpen = openFile(file);
     if (isFileOpen == 0) {
-        Log::logError("Failed to open Scratch project.");
+        Log::logCritical("Failed to open Scratch project.", true);
         Unzip::projectOpened = -1;
         Unzip::threadFinished = true;
         return;
@@ -210,7 +210,7 @@ void Unzip::openScratchProject(void *arg) {
     nlohmann::json project_json = unzipProject(file);
     delete file;
     if (project_json.empty()) {
-        Log::logError("Project.json is empty.");
+        Log::logCritical("Project.json is empty.", false);
         Unzip::projectOpened = -2;
         Unzip::threadFinished = true;
         return;
@@ -244,7 +244,7 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
 
     auto projectFiles = FileSystem::listDirectory(directory);
     if (!projectFiles.has_value()) {
-        Log::logError("Error while reading project files: " + projectFiles.error());
+        Log::logCritical("Error while reading project files: " + projectFiles.error(), true);
         return {};
     }
 
@@ -369,13 +369,13 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
             zipArchive.m_pRead = miniz_istream_read_func;
 
             if (!mz_zip_reader_init(&zipArchive, file_size, 0)) {
-                Log::logError("Failed to initialize SB3 zip reader from stream.");
+                Log::logCritical("Failed to initialize SB3 zip reader from stream.", false);
                 return project_json;
             }
 
             int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
             if (file_index < 0) {
-                Log::logError("Failed to extract project.json");
+                Log::logCritical("Failed to extract project.json", false);
                 mz_zip_reader_end(&zipArchive);
                 return project_json;
             }
@@ -418,7 +418,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
     mz_zip_archive zip;
     memset(&zip, 0, sizeof(zip));
     if (!mz_zip_reader_init_file(&zip, zipPath.c_str(), 0)) {
-        Log::logError("Failed to open zip: " + zipPath);
+        Log::logCritical("Failed to open zip: " + zipPath, true);
         return false;
     }
 
@@ -446,7 +446,7 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
         }
 
         if (!mz_zip_reader_extract_to_file(&zip, i, outPath.c_str(), 0)) {
-            Log::logError("Failed to extract: " + outPath);
+            Log::logCritical("Failed to extract: " + outPath, false);
             mz_zip_reader_end(&zip);
             return false;
         }
@@ -470,7 +470,7 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
 
     auto potentialError = FileSystem::removeDirectory(directory);
     if (!potentialError.has_value()) {
-        Log::logError(std::string("Failed to delete folder: ") + potentialError.error());
+        Log::logCritical(std::string("Failed to delete folder: ") + potentialError.error(), false);
         return false;
     }
 
@@ -514,7 +514,7 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     nlohmann::json json = nlohmann::json::parse(content, nullptr, false);
 
     if (json.is_discarded()) {
-        Log::logError("Failed to parse JSON file: Syntax error.");
+        Log::logCritical("Failed to parse JSON file: Syntax error.", false);
         return nlohmann::json();
     }
 

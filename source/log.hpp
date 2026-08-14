@@ -5,6 +5,7 @@ namespace Log {
 void log(std::string message);
 void logWarning(std::string message);
 void logError(std::string message);
+void logCritical(std::string message, bool fatal);
 void writeToFile(std::string message);
 void deleteLogFile();
 } // namespace Log

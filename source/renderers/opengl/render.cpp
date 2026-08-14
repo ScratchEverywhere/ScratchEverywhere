@@ -60,7 +60,7 @@ bool Render::Init() {
 #error "No windowing backend defined"
 #endif
 
-    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+    if (!globalWindow->init(480, 360, "Scratch Everywhere!")) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;
