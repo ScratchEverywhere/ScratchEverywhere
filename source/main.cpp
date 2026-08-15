@@ -328,8 +328,8 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_creat
 		[[(NSWindow *)parent standardWindowButton:NSWindowCloseButton] setEnabled:NO];
 #endif
 	}
-	scratch_everywhere_set_parent_window((char *)scratch_everywhere_parent_window_string.c_str())
 #endif
+	scratch_everywhere_set_parent_window((char *)scratch_everywhere_parent_window_string.c_str());
 #endif
 	if (scratch_everywhere_is_blocking) {
 		while (true) {
