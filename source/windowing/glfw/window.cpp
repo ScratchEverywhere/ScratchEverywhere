@@ -9,6 +9,9 @@
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <GLFW/glfw3native.h>
 #include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
 #endif
 #include <algorithm>
 #include <input.hpp>
@@ -31,7 +34,11 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     }
 
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+#else
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+#endif
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_ALPHA_BITS, 8);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
