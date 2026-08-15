@@ -54,6 +54,18 @@ extern "C" __declspec(dllexport) void scratch_everywhere_destroy() {
 #else
 extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destroy() {
 #endif
+#if defined(USE_LIBDLGMOD)
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+	void *parent = (void *)(std::uintptr_t)strtoull(scratch_everywhere_parent_window_string.c_str(), nullptr, 10);
+	if (parent) {
+#if defined(_WIN32) || defined(_WIN64)
+		EnableWindow((HWND)parent, TRUE);
+#elif defined(__APPLE__)
+		[(NSWindow *)parent standardWindowButton:NSWindowCloseButton] setEnabled:YES];
+#endif
+	}
+#endif
+#endif
     Scratch::cleanupScratchProject();
     Render::deInit();
     OS::deinit();
@@ -72,9 +84,9 @@ extern "C" __declspec(dllexport) char *scratch_everywhere_step() {
 extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_step() {
 #endif
     static char buffer[4];
-    std::pair<bool, bool> result = Scratch::stepScratchProject(monitorDisplayThread);
-    const int first  = result.first  ? 1 : 0;
-    const int second = result.second ? 1 : 0;
+    std::pair<bool, bool> code = Scratch::stepScratchProject(monitorDisplayThread);
+    const int first  = code.first  ? 1 : 0;
+    const int second = code.second ? 1 : 0;
     snprintf(buffer, sizeof(buffer), "%d:%d", first, second);
     return static_cast<char *>(buffer);
 }
@@ -88,6 +100,21 @@ static int XIOErrorHandlerImpl(Display *display) {
 }
 #endif
 #endif
+bool scratch_everywhere_is_blocking = false;
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) double scratch_everywhere_get_is_blocking() {
+#else
+extern "C" __attribute__((visibility("default"))) double scratch_everywhere_get_is_blocking() {
+#endif
+	return scratch_everywhere_is_blocking;
+}
+#if defined(_WIN32) || defined(_WIN64)
+extern "C" __declspec(dllexport) void scratch_everywhere_set_is_blocking(double blocking) {
+#else
+extern "C" __attribute__((visibility("default"))) void scratch_everywhere_set_is_blocking(double blocking) {
+#endif
+	scratch_everywhere_is_blocking = (bool)(int)blocking;
+}
 std::string scratch_everywhere_parent_window_string = "0";
 #if defined(_WIN32) || defined(_WIN64)
 extern "C" __declspec(dllexport) char *scratch_everywhere_get_parent_window() {
@@ -291,6 +318,26 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_creat
     Unzip::filePath = sb3;
     Unzip::load();
     Scratch::initializeScratchProject();
+#if defined(USE_LIBDLGMOD)
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+	void *parent = (void *)(std::uintptr_t)strtoull(scratch_everywhere_parent_window_string.c_str(), nullptr, 10);
+	if (parent) {
+#if defined(_WIN32) || defined(_WIN64)
+		EnableWindow((HWND)parent, FALSE);
+#elif defined(__APPLE__)
+		[(NSWindow *)parent standardWindowButton:NSWindowCloseButton] setEnabled:NO];
+#endif
+	}
+#endif
+#endif
+	if (scratch_everywhere_is_blocking) {
+		while (true) {
+			std::pair<bool, bool> code = Scratch::stepScratchProject(monitorDisplayThread);
+    		if (!code.first) {
+				break;
+			}
+		}
+	}
 #if defined(USE_LIBDLGMOD)
 	return (char *)widget_get_owner();
 #else
