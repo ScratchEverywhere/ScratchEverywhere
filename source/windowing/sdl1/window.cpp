@@ -144,12 +144,20 @@ void WindowSDL1::resize(int width, int height) {
     this->width = width;
     this->height = height;
 #ifdef RENDERER_OPENGL
+#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
+    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL);
+#else
     window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+#endif
     if (window) {
         glViewport(0, 0, width, height);
     }
 #else
+#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
+    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+#else
     window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+#endif
 #endif
     Render::setRenderScale();
     Render::resizeSVGs();
