@@ -49,6 +49,8 @@ static void exitApp() {
 }
 
 #if defined(SE_USE_LIBRARY_BUILD)
+bool scratch_everywhere_is_blocking = false;
+std::string scratch_everywhere_parent_window_string = "0";
 #if defined(_WIN32) || defined(_WIN64)
 extern "C" __declspec(dllexport) void scratch_everywhere_destroy() {
 #else
@@ -100,7 +102,6 @@ static int XIOErrorHandlerImpl(Display *display) {
 }
 #endif
 #endif
-bool scratch_everywhere_is_blocking = false;
 #if defined(_WIN32) || defined(_WIN64)
 extern "C" __declspec(dllexport) double scratch_everywhere_get_is_blocking() {
 #else
@@ -115,7 +116,6 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_set_is
 #endif
 	scratch_everywhere_is_blocking = (bool)(int)blocking;
 }
-std::string scratch_everywhere_parent_window_string = "0";
 #if defined(_WIN32) || defined(_WIN64)
 extern "C" __declspec(dllexport) char *scratch_everywhere_get_parent_window() {
 #else
