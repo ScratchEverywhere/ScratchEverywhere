@@ -2,6 +2,9 @@
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
 #include <cstring>
 #endif
 #include <chrono>
@@ -42,9 +45,17 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
+#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
+    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL);
+#else
     window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+#endif
+#else
+#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
+    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
 #else
     window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+#endif
 #endif
 
     if (!window) {
