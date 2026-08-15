@@ -45,7 +45,11 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 #endif
 
+#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
+    SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#else
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#endif
 #ifdef RENDERER_OPENGL
     flags |= SDL_WINDOW_OPENGL;
 #endif
