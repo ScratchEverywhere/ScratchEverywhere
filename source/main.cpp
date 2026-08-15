@@ -58,7 +58,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destro
 #endif
 #if defined(USE_LIBDLGMOD)
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
-	void *parent = (void *)(std::uintptr_t)strtoull(scratch_everywhere_parent_window_string.c_str(), nullptr, 10);
+	void *parent = (void *)strtoull(scratch_everywhere_parent_window_string.c_str(), nullptr, 10);
 	if (parent) {
 #if defined(_WIN32) || defined(_WIN64)
 		EnableWindow((HWND)parent, TRUE);
@@ -320,7 +320,7 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_creat
     Scratch::initializeScratchProject();
 #if defined(USE_LIBDLGMOD)
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
-	void *parent = (void *)(std::uintptr_t)strtoull(scratch_everywhere_parent_window_string.c_str(), nullptr, 10);
+	void *parent = (void *)strtoull(scratch_everywhere_parent_window_string.c_str(), nullptr, 10);
 	if (parent) {
 #if defined(_WIN32) || defined(_WIN64)
 		EnableWindow((HWND)parent, FALSE);
