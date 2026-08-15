@@ -63,7 +63,7 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_destro
 #if defined(_WIN32) || defined(_WIN64)
 		EnableWindow((HWND)parent, TRUE);
 #elif defined(__APPLE__)
-		[(NSWindow *)parent standardWindowButton:NSWindowCloseButton] setEnabled:YES];
+		[[(NSWindow *)parent standardWindowButton:NSWindowCloseButton] setEnabled:YES];
 #endif
 	}
 #endif
@@ -325,7 +325,7 @@ extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_creat
 #if defined(_WIN32) || defined(_WIN64)
 		EnableWindow((HWND)parent, FALSE);
 #elif defined(__APPLE__)
-		[(NSWindow *)parent standardWindowButton:NSWindowCloseButton] setEnabled:NO];
+		[[(NSWindow *)parent standardWindowButton:NSWindowCloseButton] setEnabled:NO];
 #endif
 	}
 #endif
