@@ -63,7 +63,11 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 #ifdef WEBOS
     Uint32 flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI;
 #else
+#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
+    Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI;
+#else
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+#endif
 #endif
 
 #ifdef RENDERER_OPENGL
