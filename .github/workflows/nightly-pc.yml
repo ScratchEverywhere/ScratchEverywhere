@@ -84,7 +84,7 @@ jobs:
               WINDOWING=glfw
               AUDIO_ENGINE=sdl3
               EXT_ARGS=-DSDL_WAYLAND=OFF
-          - name: OpenGL
+          - name: OpenGL Core
             artifact: Scratch Everywhere! Linux OpenGL Core Nightly
             build-args: |
               RENDERER=opengl_core
