@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 1.0 LANGUAGES CXX C)
 
+if(APPLE)
+	enable_language(OBJC)
+endif()
+
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
 	set(CMAKE_CXX_STANDARD 20)

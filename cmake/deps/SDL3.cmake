@@ -5,11 +5,17 @@ endfunction()
 function(_dep_source_SDL3)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
 
+	if(NOT SE_WINDOWING STREQUAL "sdl3" AND NOT SE_RENDERER STREQUAL "sdl3") # Audio Only
+		set(SDL3_OPTIONS "SDL_RENDER OFF" "SDL_VIDEO OFF" "SDL_COCOA OFF" "SDL_JOYSTICK OFF" "SDL_HAPTIC OFF" "SDL_VIVANTE OFF" "SDL_OFFSCREEN OFF" "SDL_HIDAPI OFF")
+	else()
+		set(SDL3_OPTIONS "")
+	endif()
+
 	CPMAddPackage(
 		NAME SDL3
-		VERSION 3.2.26
+		VERSION 3.4.14
 		GITHUB_REPOSITORY libsdl-org/SDL
-		GIT_TAG main # Fixes SDL3_Mixer, we're wating for the 3.4.0 release
-		OPTIONS "SDL_TEST_LIBRARY OFF"
+		GIT_TAG release-3.4.14
+		OPTIONS "SDL_TEST_LIBRARY OFF" ${SDL3_OPTIONS}
 	)
 endfunction()
