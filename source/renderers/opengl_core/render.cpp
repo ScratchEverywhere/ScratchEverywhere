@@ -33,6 +33,12 @@
 #include <unzip.hpp>
 #include <vector>
 
+#ifdef LIBRETRO
+#include <libretro.h>
+
+extern struct retro_hw_render_callback hw_render;
+#endif
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -297,6 +303,14 @@ static void setupQuadGeometry() {
     glBindVertexArray(0);
 }
 
+static GLuint getMainFBO() {
+#ifdef LIBRETRO
+    return (GLuint)hw_render.get_current_framebuffer();
+#else
+    return 0;
+#endif
+}
+
 static bool createPenFBO() {
     if (Scratch::hqpen) {
         if (Scratch::projectWidth / static_cast<double>(Render::getWidth()) <
@@ -325,7 +339,7 @@ static bool createPenFBO() {
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, penTexture, 0);
 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
 
     if (status != GL_FRAMEBUFFER_COMPLETE) {
         Log::logError("[GL Core] Pen FBO incomplete");
@@ -339,7 +353,7 @@ static bool createPenFBO() {
     glViewport(0, 0, penWidth, penHeight);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
 
     return true;
 }
@@ -481,7 +495,15 @@ bool Render::Init() {
         return false;
     }
 
-    // Load OpenGL 4.1 core functions via GLAD.
+#if defined(WINDOWING_LIBRETRO)
+    if (!gladLoadGL((GLADloadfunc)hw_render.get_proc_address)) {
+        Log::logError("[GL Core] Failed to initialize GLAD via Libretro proc address");
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+        return false;
+    }
+#else
     if (!gladLoaderLoadGL()) {
         Log::logError("[GL Core] Failed to initialize GLAD");
         globalWindow->cleanup();
@@ -489,6 +511,7 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
+#endif
 
     const char *renderer = (const char *)glGetString(GL_RENDERER);
     const char *version = (const char *)glGetString(GL_VERSION);
@@ -580,12 +603,12 @@ bool Render::initPen() {
 }
 
 void Render::penClear() {
-    if (penFBO == 0) return;
+    if (penFBO == getMainFBO()) return;
     glBindFramebuffer(GL_FRAMEBUFFER, penFBO);
     glViewport(0, 0, penWidth, penHeight);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
 }
 
 static void penBegin() {
@@ -596,7 +619,7 @@ static void penBegin() {
 }
 
 static void penEnd() {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
     glViewport(0, 0, Render::getWidth(), Render::getHeight());
 }
 

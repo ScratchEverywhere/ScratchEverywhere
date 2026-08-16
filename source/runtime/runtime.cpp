@@ -104,9 +104,11 @@ bool Scratch::initializeRuntime() {
     }
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
+#ifndef LIBRETRO
     if (!Render::Init()) {
         return false;
     }
+#endif
 #ifdef ENABLE_AUDIO
 #ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();
