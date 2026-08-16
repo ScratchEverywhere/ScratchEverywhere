@@ -54,7 +54,7 @@ jobs:
       matrix:
         include:
           - name: SDL2
-            artifact: Scratch Everywhere! Linux Nightly
+            artifact: Scratch Everywhere! Linux SDL2 Nightly
             build-args: |
               RENDERER=sdl3
               WINDOWING=sdl3
