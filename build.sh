@@ -11,8 +11,12 @@ if [ -d "build" ]; then
 	if [ "$OS" = "Windows_NT" ]; then
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=0 && ninja;
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=1 && ninja;
-		ldd "./scratch-pc.exe" | grep "$MSYSTEM_PREFIX" | awk '{ print $3 }' | xargs -I {} cp -f {} "./";
-		ldd "./libscratch.dll" | grep "$MSYSTEM_PREFIX" | awk '{ print $3 }' | xargs -I {} cp -f {} "./";
+		if [ -f "scratch-pc.exe" ]; then
+			ldd "./scratch-pc.exe" | grep "$MSYSTEM_PREFIX" | awk '{ print $3 }' | xargs -I {} cp -f {} "./";
+		fi;
+		if [ -f "libscratch.dll" ]; then
+			ldd "./libscratch.dll" | grep "$MSYSTEM_PREFIX" | awk '{ print $3 }' | xargs -I {} cp -f {} "./";
+		fi;
 	else
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=0 && make;
 		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=1 && make;
