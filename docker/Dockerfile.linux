@@ -2,14 +2,14 @@ FROM gcc:14 AS main_builder
 
 WORKDIR /app
 
-ARG RENDERER=sdl2
-ARG WINDOWING=sdl2
-ARG AUDIO_ENGINE=sdl2
+ARG RENDERER=opengl_core
+ARG WINDOWING=glfw
+ARG AUDIO_ENGINE=sdl3
 ARG EXT_ARGS=
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev
 
-RUN if [ "$RENDERER" = "opengl" ]; then \
+RUN if [ "$RENDERER" = "opengl" ] || [ $RENDERER = "opengl_core" ]; then \
         apt-get update && apt-get install -y --no-install-recommends libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl1-mesa-dev; \
     fi; \
     if [ "$WINDOWING" = "glfw" ]; then \
@@ -22,7 +22,7 @@ RUN if [ "$RENDERER" = "opengl" ]; then \
 		apt-get update && apt-get install -y libasound2-dev libpulse-dev libjack-dev libpipewire-0.3-dev; \
 	fi; \
     # TODO: trim this down..... (currently just copied from SDL3's dep list)
-    if [ "$RENDERER" = "sdl3" ] || [ "$WINDOWING" = "sdl3" ] || [ "$AUDIO_ENGINE" = "sdl3" ]; then \
+    if [ "$RENDERER" = "sdl3" ] || [ "$WINDOWING" = "sdl3" ]; then \
         apt-get update && apt-get install -y --no-install-recommends gnome-desktop-testing libaudio-dev libfribidi-dev libsndio-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev libthai-dev; \
     fi
 
