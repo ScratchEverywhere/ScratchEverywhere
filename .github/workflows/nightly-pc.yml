@@ -55,7 +55,10 @@ jobs:
         include:
           - name: SDL2
             artifact: Scratch Everywhere! Linux Nightly
-            build-args: ""
+            build-args: |
+              RENDERER=sdl3
+              WINDOWING=sdl3
+              AUDIO_ENGINE=sdl3
           - name: SDL3
             artifact: Scratch Everywhere! Linux SDL3 Nightly
             build-args: |
