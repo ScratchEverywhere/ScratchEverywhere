@@ -28,13 +28,15 @@ int Math::color(int r, int g, int b, int a) {
     int g5 = g >> 3;
     int b5 = b >> 3;
     return RGB15(r5, g5, b5);
-#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_OPENGL)
+#elif defined(RENDERER_SDL1) || defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     return (r << 24) |
            (g << 16) |
            (b << 8) |
            a;
 #elif defined(RENDERER_CITRO2D)
     return C2D_Color32(r, g, b, a);
+#elif !defined(RENDERER_HEADLESS)
+#error You forgot to add your new renderer here didn't you...
 #endif
     return 0;
 }

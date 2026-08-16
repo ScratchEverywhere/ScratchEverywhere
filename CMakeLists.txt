@@ -155,7 +155,7 @@ cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLAT
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NOT DEFINED SE_RENDERER_PRIORITY)
-	set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+	set(SE_RENDERER_PRIORITY "opengl_core" "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")

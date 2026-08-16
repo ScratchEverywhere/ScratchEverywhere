@@ -1,5 +1,6 @@
 #include "blockExecutor.hpp"
 #include "blockUtils.hpp"
+#include "math.hpp"
 #include "runtime.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -408,35 +409,15 @@ SCRATCH_BLOCK(looks, seteffectto) {
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
 
     if (effect == "COLOR") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Color effect is not supported yet.");
-            logged = true;
-        }
+        sprite->colorEffect = amount.asDouble();
     } else if (effect == "FISHEYE") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Fisheye effect is not supported yet.");
-            logged = true;
-        }
+        sprite->fisheyeEffect = amount.asDouble();
     } else if (effect == "WHIRL") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Whirl effect is not supported yet.");
-            logged = true;
-        }
+        sprite->whirlEffect = amount.asDouble();
     } else if (effect == "PIXELATE") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Pixelate effect is not supported yet.");
-            logged = true;
-        }
+        sprite->pixelateEffect = amount.asDouble();
     } else if (effect == "MOSAIC") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Mosaic effect is not supported yet.");
-            logged = true;
-        }
+        sprite->mosaicEffect = amount.asDouble();
     } else if (effect == "BRIGHTNESS") {
         sprite->brightnessEffect = std::clamp(amount.asDouble(), -100.0, 100.0);
     } else if (effect == "GHOST") {
@@ -456,15 +437,15 @@ SCRATCH_BLOCK(looks, changeeffectby) {
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
 
     if (effect == "COLOR") {
-        Log::logWarning("Color effect is not supported yet.");
+        sprite->colorEffect += amount.asDouble();
     } else if (effect == "FISHEYE") {
-        Log::logWarning("Fisheye effect is not supported yet.");
+        sprite->fisheyeEffect += amount.asDouble();
     } else if (effect == "WHIRL") {
-        Log::logWarning("Whirl effect is not supported yet.");
+        sprite->whirlEffect += amount.asDouble();
     } else if (effect == "PIXELATE") {
-        Log::logWarning("Pixelate effect is not supported yet.");
+        sprite->pixelateEffect += amount.asDouble();
     } else if (effect == "MOSAIC") {
-        Log::logWarning("Mosaic effect is not supported yet.");
+        sprite->mosaicEffect += amount.asDouble();
     } else if (effect == "BRIGHTNESS") {
         sprite->brightnessEffect += amount.asDouble();
         sprite->brightnessEffect = std::clamp(sprite->brightnessEffect, -100.0f, 100.0f);
