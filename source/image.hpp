@@ -28,6 +28,12 @@ struct ImageRenderParams {
     float rotation = 0;
     bool flip = false;
     ImageSubrect *subrect = nullptr;
+
+    float colorEffect = 0.0f;
+    float fisheyeEffect = 0.0f;
+    float whirlEffect = 0.0f;
+    float pixelateEffect = 0.0f;
+    float mosaicEffect = 0.0f;
 };
 
 enum ImageFormat {
