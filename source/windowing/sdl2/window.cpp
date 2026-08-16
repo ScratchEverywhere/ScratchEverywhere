@@ -9,6 +9,8 @@
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render.hpp>
+#elif defined(RENDERER_OPENGL_CORE)
+#include <renderers/opengl_core/render.hpp>
 #else
 #include <renderers/sdl2/render.hpp>
 #endif
@@ -52,6 +54,14 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+#elif defined(RENDERER_OPENGL_CORE)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #elif defined(__PS4__)
     SDL_GL_SetSwapInterval(1); // Required for VSync
 #endif
@@ -72,7 +82,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
         return false;
     }
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     context = SDL_GL_CreateContext(window);
     if (!context) {
         Log::logCritical("Failed to create OpenGL context: " + std::string(SDL_GetError()), true);
@@ -90,7 +100,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     this->height = height;
     calculatePixelDensity();
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     int dw, dh;
     SDL_GL_GetDrawableSize(window, &dw, &dh);
     resize(dw, dh);
@@ -128,7 +138,7 @@ void WindowSDL2::cleanup() {
     if (controller) SDL_GameControllerClose(controller);
 #endif
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     SDL_GL_DeleteContext(context);
 #endif
     SDL_DestroyWindow(window);
@@ -149,7 +159,7 @@ void WindowSDL2::pollEvents() {
         case SDL_WINDOWEVENT:
             if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 int w, h;
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
                 SDL_GL_GetDrawableSize(window, &w, &h);
 #elif defined(__PS4__) || defined(WEBOS)
                 SDL_GetWindowSize(window, &w, &h);
@@ -202,7 +212,7 @@ void WindowSDL2::calculatePixelDensity() {
 }
 
 void WindowSDL2::swapBuffers() {
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     SDL_GL_SwapWindow(window);
 #endif
 }
@@ -210,7 +220,7 @@ void WindowSDL2::swapBuffers() {
 void WindowSDL2::resize(int width, int height) {
     this->width = width;
     this->height = height;
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     glViewport(0, 0, width, height);
 #endif
 
