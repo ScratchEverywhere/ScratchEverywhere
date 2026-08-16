@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 RUN if [ "$RENDERER" = "opengl" ] || [ $RENDERER = "opengl_core" ]; then \
         apt-get install -y --no-install-recommends libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl1-mesa-dev; \
     fi; \
-	if [ $RENDERER = "opengl-core" ]; then \
+	if [ $RENDERER = "opengl_core" ]; then \
 		 apt-get install -y --no-install-recommends python3-jinja2; \
 	fi; \
     if [ "$WINDOWING" = "glfw" ]; then \
