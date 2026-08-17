@@ -98,14 +98,14 @@ std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
-bool Scratch::initializeRuntime(int width, int height, std::string title) {
+bool Scratch::initializeRuntime(int width, int height, bool resizable, std::string title) {
     if (!OS::init()) {
         return false;
     }
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
 #ifndef LIBRETRO
-    if (!Render::Init(width, height, title)) {
+    if (!Render::Init(width, height, resizable, title)) {
         return false;
     }
 #endif
