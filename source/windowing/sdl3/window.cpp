@@ -29,7 +29,7 @@ bool touchActive = false;
 SDL_Point touchPosition;
 #endif
 
-bool WindowSDL3::init(int width, int height, const std::string &title) {
+bool WindowSDL3::init(int width, int height, bool resizable, const std::string &title) {
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
@@ -55,11 +55,11 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
-#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
-    SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
-#else
-    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-#endif
+    if (resizable) {
+        SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+	} else {
+        SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+	}
 #ifdef RENDERER_OPENGL
     flags |= SDL_WINDOW_OPENGL;
 #endif
