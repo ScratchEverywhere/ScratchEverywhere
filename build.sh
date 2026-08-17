@@ -9,8 +9,8 @@ fi;
 if [ -d "build" ]; then
 	cd build;
 	if [ "$OS" = "Windows_NT" ]; then
-		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=0 && ninja;
-		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=1 && ninja;
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="opengl_core" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=0 && ninja;
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="opengl_core" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=1 && ninja;
 		if [ -f "scratch-pc.exe" ]; then
 			ldd "./scratch-pc.exe" | grep "$MSYSTEM_PREFIX" | awk '{ print $3 }' | xargs -I {} cp -f {} "./";
 		fi;
@@ -18,8 +18,8 @@ if [ -d "build" ]; then
 			ldd "./libscratch.dll" | grep "$MSYSTEM_PREFIX" | awk '{ print $3 }' | xargs -I {} cp -f {} "./";
 		fi;
 	else
-		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=0 && make;
-		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="sdl2" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=1 && make;
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="opengl_core" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=0 && make;
+		cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER="opengl_core" -DSE_WINDOWING="sdl2" -DSE_AUDIO_ENGINE="sdl2" -DSE_USE_LIBRARY_BUILD=1 && make;
 	fi;
 	if [ `uname -s` = "Darwin" ]; then
     	if sw_vers | grep -q "macOS\|Mac OS X"; then
