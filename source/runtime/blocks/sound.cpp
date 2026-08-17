@@ -47,6 +47,8 @@ SCRATCH_BLOCK(sound, playuntildone) {
                 Log::logError("[Sound] " + strm->error.value());
                 delete strm;
             }
+
+            strm->config.volume = sprite->volume;
         }
 
         state->completedSteps = 1;
@@ -107,6 +109,7 @@ SCRATCH_BLOCK(sound, play) {
             return BlockResult::CONTINUE;
         }
 
+        strm->config.volume = sprite->volume;
         Mixer::setAutoClean(soundFullName, true);
     }
 #endif
