@@ -22,7 +22,7 @@ SpeechManagerGL2D *speechManager = nullptr;
 #define SCREEN_HALF_WIDTH 132.5
 #define SCREEN_HALF_HEIGHT 96
 
-bool Render::Init(int width, int height, std::string title) {
+bool Render::Init(int width, int height, bool resizable, std::string title) {
     globalWindow = new WindowNDS();
     if (!globalWindow->init(((width < 0) ? 256 : width), ((height < 0) ? 192 : height), title)) {
         delete globalWindow;
