@@ -55,10 +55,11 @@ bool WindowSDL3::init(int width, int height, bool resizable, const std::string &
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
+	SDL_WindowFlags flags = 0;
     if (resizable) {
-        SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
 	} else {
-        SDL_WindowFlags flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
 	}
 #ifdef RENDERER_OPENGL
     flags |= SDL_WINDOW_OPENGL;
