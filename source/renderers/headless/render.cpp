@@ -8,7 +8,7 @@ WindowSE *globalWindow = nullptr;
 
 bool Render::Init(int width, int height, bool resizable, std::string title) {
     globalWindow = new WindowHeadless();
-    globalWindow->init(0, 0, "");
+    globalWindow->init(0, 0, false, "");
     return true;
 }
 
