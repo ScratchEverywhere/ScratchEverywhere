@@ -1,7 +1,7 @@
 include("${CMAKE_SOURCE_DIR}/cmake/platforms/pc.cmake")
 include("${CMAKE_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
-set(SE_RENDERER_VALID_OPTIONS "opengl")
+set(SE_RENDERER_VALID_OPTIONS "opengl" "opengl_core")
 set(SE_WINDOWING_VALID_OPTIONS "libretro")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "libretro")
 

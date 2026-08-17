@@ -104,9 +104,11 @@ bool Scratch::initializeRuntime(int width, int height, std::string title) {
     }
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
+#ifndef LIBRETRO
     if (!Render::Init(width, height, title)) {
         return false;
     }
+#endif
 #ifdef ENABLE_AUDIO
 #ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();

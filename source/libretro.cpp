@@ -1,7 +1,10 @@
 #ifdef LIBRETRO
 #include <libretro.h>
+#include <window.hpp>
 
-static struct retro_hw_render_callback hw_render;
+extern WindowSE *globalWindow;
+
+struct retro_hw_render_callback hw_render;
 static retro_audio_sample_t audio_sample_cb;
 static retro_audio_sample_batch_t audio_sample_batch_cb;
 static retro_environment_t environ_cb;
@@ -42,17 +45,6 @@ unsigned retro_api_version() {
     return RETRO_API_VERSION;
 }
 
-void retro_get_system_av_info(struct retro_system_av_info *info) {
-    info->timing.fps = 0;
-    info->timing.sample_rate = Mixer::rate;
-
-    info->geometry.base_width = WIDTH;
-    info->geometry.base_height = HEIGHT;
-    info->geometry.max_width = 2048;
-    info->geometry.max_height = 2048;
-    info->geometry.aspect_ratio = 4.0 / 3.0;
-}
-
 void retro_get_system_info(struct retro_system_info *info) {
     memset(info, 0, sizeof(*info));
     info->library_name = "Scratch Everywhere";
@@ -64,10 +56,6 @@ void retro_get_system_info(struct retro_system_info *info) {
 void retro_set_controller_port_device(unsigned port, unsigned device) {
 }
 
-void retro_set_environment(retro_environment_t cb) {
-    environ_cb = cb;
-}
-
 void retro_set_audio_sample(retro_audio_sample_t cb) {
     audio_sample_cb = cb;
 }
@@ -76,7 +64,73 @@ void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) {
     audio_sample_batch_cb = cb;
 }
 
+static int current_width = 540;
+static int current_height = 405;
+
+static void update_variables(void) {
+    struct retro_variable var = {"scratch_internal_resolution", NULL};
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
+        int old_w = current_width;
+        int old_h = current_height;
+
+        if (strcmp(var.value, "1080x810") == 0) {
+            current_width = 1080;
+            current_height = 810;
+        } else if (strcmp(var.value, "1620x1215") == 0) {
+            current_width = 1620;
+            current_height = 1215;
+        } else if (strcmp(var.value, "2160x1620") == 0) {
+            current_width = 2160;
+            current_height = 1620;
+        } else if (strcmp(var.value, "2880x2160") == 0) {
+            current_width = 2880;
+            current_height = 2160;
+        } else {
+            current_width = 540;
+            current_height = 405;
+        }
+
+        if (old_w != current_width || old_h != current_height) {
+            if (globalWindow) {
+                globalWindow->resize(current_width, current_height);
+            }
+
+            struct retro_system_av_info av_info;
+            retro_get_system_av_info(&av_info);
+            environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
+        }
+    }
+}
+
+static void set_core_options(void) {
+    static const struct retro_variable vars[] = {
+        {"scratch_internal_resolution", "Internal Resolution; 540x405|1080x810|1620x1215|2160x1620|2880x2160"},
+        {NULL, NULL}};
+    environ_cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void *)vars);
+}
+
+void retro_get_system_av_info(struct retro_system_av_info *info) {
+    info->timing.fps = 60.0;
+    info->timing.sample_rate = Mixer::rate;
+
+    info->geometry.base_width = current_width;
+    info->geometry.base_height = current_height;
+    info->geometry.max_width = 3840;
+    info->geometry.max_height = 2160;
+    info->geometry.aspect_ratio = 4.0 / 3.0;
+}
+
+void retro_set_environment(retro_environment_t cb) {
+    environ_cb = cb;
+    set_core_options();
+}
+
 void retro_run(void) {
+    bool updated = false;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated) {
+        update_variables();
+    }
+
     std::pair<bool, bool> code;
     int samples = 0.06 * Mixer::rate;
     short stream[samples * 2];
@@ -99,6 +153,10 @@ void retro_run(void) {
 static void context_reset(void) {
     se_glBindFramebuffer = (SE_PFNGLBINDFRAMEBUFFERPROC)hw_render.get_proc_address("glBindFramebuffer");
 
+    update_variables();
+
+    if (!Render::Init()) return;
+
     if (!Unzip::load()) return;
 
     Scratch::initializeRuntime();
@@ -107,10 +165,18 @@ static void context_reset(void) {
 }
 
 static void context_destroy(void) {
+    Render::deInit();
 }
 
 static bool init_hw_context(void) {
+#ifdef RENDERER_OPENGL
     hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
+#elif defined(RENDERER_OPENGL_CORE)
+    hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
+    hw_render.version_major = 4;
+    hw_render.version_minor = 1;
+#endif
+
     hw_render.context_reset = context_reset;
     hw_render.context_destroy = context_destroy;
     hw_render.depth = false;
@@ -140,7 +206,6 @@ bool retro_load_game(const struct retro_game_info *info) {
 
 void retro_unload_game(void) {
     Scratch::cleanupScratchProject();
-    Render::deInit();
 }
 
 bool retro_load_game_special(unsigned type, const struct retro_game_info *info, size_t num) {
