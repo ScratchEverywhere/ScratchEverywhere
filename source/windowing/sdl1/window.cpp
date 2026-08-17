@@ -29,7 +29,11 @@ static auto lastFrameTime = std::chrono::high_resolution_clock::now();
 static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-like behavior
 #endif
 
-bool WindowSDL1::init(int width, int height, const std::string &title) {
+static resizableGlobal = true; // SDL1 only supports creating one window at a time
+
+bool WindowSDL1::init(int w, int h, bool resizable, const std::string &title) {
+	resizableGlobal = resizable;
+
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
@@ -45,17 +49,17 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL);
+	if (resizable) {
+    	window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+	} else {
+		window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL);
+	}
 #else
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
-#endif
-#else
-#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
-#else
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
-#endif
+	if (resizable) {
+    	window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+	} else {
+		window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	}
 #endif
 
     if (!window) {
@@ -144,20 +148,20 @@ void WindowSDL1::resize(int width, int height) {
     this->width = width;
     this->height = height;
 #ifdef RENDERER_OPENGL
-#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL);
-#else
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
-#endif
+	if (resizableGlobal) {
+    	window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+	} else {
+		window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL);
+	}
     if (window) {
         glViewport(0, 0, width, height);
     }
 #else
-#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
-#else
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
-#endif
+	if (resizableGlobal) {
+    	window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+	} else {
+		window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+	}
 #endif
     Render::setRenderScale();
     Render::resizeSVGs();
