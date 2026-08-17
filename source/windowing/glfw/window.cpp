@@ -27,18 +27,14 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-bool WindowGLFW::init(int w, int h, const std::string &title) {
+bool WindowGLFW::init(int w, int h, bool resizable, const std::string &title) {
     if (!glfwInit()) {
         Log::logCritical("Failed to initialize GLFW", true);
         return false;
     }
 
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-#else
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-#endif
+    glfwWindowHint(GLFW_RESIZABLE, ((resizable) ? GLFW_TRUE : GLFW_FALSE));
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_ALPHA_BITS, 8);
 
