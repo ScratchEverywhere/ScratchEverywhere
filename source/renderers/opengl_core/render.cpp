@@ -489,7 +489,7 @@ bool Render::Init(int width, int height, bool resizable, std::string title) {
 #error "No windowing backend defined"
 #endif
 
-	if (!globalWindow->init(((width < 0) ? 540 : width), ((height < 0) ? 405 : height), resizable, title)) {
+    if (!globalWindow->init(((width < 0) ? 540 : width), ((height < 0) ? 405 : height), resizable, title)) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;
