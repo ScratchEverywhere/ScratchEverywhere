@@ -51,7 +51,7 @@ struct FastPenData {
 
 static std::vector<FastPenData> fastPenQueue;
 
-bool Render::Init(int width, int height, std::string title) {
+bool Render::Init(int width, int height, bool resizable, std::string title) {
     globalWindow = new Window3DS();
     if (!globalWindow->init(((width < 0) ? 400 : width), ((height < 0) ? 240 : height), title)) {
         delete globalWindow;
