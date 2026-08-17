@@ -152,8 +152,8 @@ extern "C" __attribute__((visibility("default"))) void scratch_everywhere_set_pa
 }
 #endif
 
-static bool initApp(int width, int height, std::string title) {
-    return Scratch::initializeRuntime(width, height, title);
+static bool initApp(int width, int height, bool resizable, std::string title) {
+    return Scratch::initializeRuntime(width, height, resizable, title);
 }
 
 bool activateMainMenu() {
@@ -227,7 +227,7 @@ extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
-    if (!initApp(-1, -1, "Scratch Everywhere!")) {
+    if (!initApp(-1, -1, true, "Scratch Everywhere!")) {
 #else
 /**
  * I use double arguments for width / height instead of int 
@@ -242,7 +242,7 @@ extern "C" __declspec(dllexport) char *scratch_everywhere_create(char *sb3, doub
 #else
 extern "C" __attribute__((visibility("default"))) char *scratch_everywhere_create(char *sb3, double width, double height, char *title) {
 #endif
-    if (!initApp((int)width, (int)height, title)) {
+    if (!initApp((int)width, (int)height, false, title)) {
 #endif
 #if !defined(SE_USE_LIBRARY_BUILD)
         exitApp();
