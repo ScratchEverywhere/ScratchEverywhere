@@ -34,7 +34,7 @@ bool touchActive = false;
 SDL_Point touchPosition;
 #endif
 
-bool WindowSDL2::init(int width, int height, const std::string &title) {
+bool WindowSDL2::init(int width, int height, bool resizable, const std::string &title) {
 #if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
@@ -73,11 +73,11 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 #ifdef WEBOS
     Uint32 flags = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_ALLOW_HIGHDPI;
 #else
-#if defined(USE_LIBDLGMOD) && defined(SE_USE_LIBRARY_BUILD)
-    Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI;
-#else
-    Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
-#endif
+    if (resizable) {
+        Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+	} else {
+        Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI;
+    }
 #endif
 
 #ifdef RENDERER_OPENGL
