@@ -7,7 +7,6 @@
 #endif
 #include <cstdlib>
 #include <inspector.hpp>
-#include <menus/mainMenu.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
@@ -74,10 +73,12 @@ void mainLoop() {
             exit(0);
         }
 
+#ifdef ENABLE_MENU
         if (!activateMainMenu()) {
             exitApp();
             exit(0);
         }
+#endif
 
     skipCheck:
         return;
