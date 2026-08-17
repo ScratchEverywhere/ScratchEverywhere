@@ -474,7 +474,7 @@ static void drawSolidQuad(float x0, float y0, float x1, float y1,
     glDeleteBuffers(1, &ebo);
 }
 
-bool Render::Init() {
+bool Render::Init(int width, int height, std::string title) {
 #if defined(WINDOWING_GLFW)
     globalWindow = new WindowGLFW();
 #elif defined(WINDOWING_SDL1)
@@ -489,7 +489,7 @@ bool Render::Init() {
 #error "No windowing backend defined"
 #endif
 
-    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+	if (!globalWindow->init(((width < 0) ? 540 : width), ((height < 0) ? 405 : height), title)) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;
