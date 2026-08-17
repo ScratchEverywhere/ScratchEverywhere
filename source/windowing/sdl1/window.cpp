@@ -29,7 +29,7 @@ static auto lastFrameTime = std::chrono::high_resolution_clock::now();
 static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-like behavior
 #endif
 
-static resizableGlobal = true; // SDL1 only supports creating one window at a time
+static bool resizableGlobal = true; // SDL1 only supports creating one window at a time
 
 bool WindowSDL1::init(int w, int h, bool resizable, const std::string &title) {
     resizableGlobal = resizable;
