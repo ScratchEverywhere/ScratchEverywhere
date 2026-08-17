@@ -68,7 +68,7 @@ void mainLoop() {
             goto skipCheck;
         }
 
-        if (Unzip::projectOpened != -3) { // main menu
+        if (Unzip::projectOpened != -3) {
             exitApp();
             exit(0);
         }
