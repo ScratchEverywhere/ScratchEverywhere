@@ -87,7 +87,11 @@ void mainLoop() {
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
+#ifdef ENABLE_MENU
     if (OS::toExit || !activateMainMenu()) {
+#else
+    if (OS::toExit) {
+#endif
         exitApp();
         exit(0);
     }
