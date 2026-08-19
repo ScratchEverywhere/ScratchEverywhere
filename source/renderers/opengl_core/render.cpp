@@ -777,10 +777,10 @@ void Render::renderPenLayer() {
 
     float model[16] = {};
     model[0] = drawW;
-    model[5] = drawH;
+    model[5] = -drawH;
     model[10] = 1.0f;
     model[12] = drawX;
-    model[13] = drawY;
+    model[13] = drawY + drawH;
     model[15] = 1.0f;
 
     glUseProgram(spriteProgram);
