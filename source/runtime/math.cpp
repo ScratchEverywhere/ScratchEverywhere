@@ -95,6 +95,8 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
     }
 
     double conversion = 0;
+
+#if defined(__cpp_lib_to_chars) && (__cpp_lib_to_chars >= 201611L)
     auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), conversion);
 
     if (ec == std::errc::invalid_argument || ptr != str.data() + str.size()) {
@@ -105,6 +107,28 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
         if (!str.empty() && str.front() == '-') return -std::numeric_limits<double>::infinity();
         return std::numeric_limits<double>::infinity();
     }
+#else
+    char stack_buf[128];
+    if (str.size() >= sizeof(stack_buf)) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+
+    std::memcpy(stack_buf, str.data(), str.size());
+    stack_buf[str.size()] = '\0';
+
+    char *endptr = nullptr;
+    errno = 0;
+    conversion = std::strtod(stack_buf, &endptr);
+
+    if (endptr != stack_buf + str.size()) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+
+    if (errno == ERANGE) {
+        if (!str.empty() && str.front() == '-') return -std::numeric_limits<double>::infinity();
+        return std::numeric_limits<double>::infinity();
+    }
+#endif
 
     return conversion;
 }
