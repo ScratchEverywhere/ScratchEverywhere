@@ -370,49 +370,48 @@ static void destroyPenFBO() {
     penWidth = penHeight = 0;
 }
 
+static GLuint dynamicVAO = 0, dynamicVBO = 0;
+
+static void ensureDynamicBuffers() {
+    if (dynamicVAO == 0) {
+        glGenVertexArrays(1, &dynamicVAO);
+        glGenBuffers(1, &dynamicVBO);
+        glBindVertexArray(dynamicVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+        glBindVertexArray(0);
+    }
+}
+
 static void drawSolidRect(float x, float y, float w, float h,
                           float r, float g, float b, float a,
                           const float proj[16]) {
+    ensureDynamicBuffers();
+
     glUseProgram(solidProgram);
     glUniformMatrix4fv(glGetUniformLocation(solidProgram, "u_projection"), 1, GL_FALSE, proj);
     glUniform4f(glGetUniformLocation(solidProgram, "u_color"), r, g, b, a);
 
     float verts[] = {
-        x,
-        y,
-        x + w,
-        y,
-        x + w,
-        y + h,
-        x,
-        y + h,
-    };
-    static const GLuint idx[] = {0, 1, 2, 2, 3, 0};
+        x, y,
+        x + w, y,
+        x + w, y + h,
+        x, y + h};
 
-    GLuint vao = 0, vbo = 0, ebo = 0;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
-
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindVertexArray(dynamicVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STREAM_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idx), idx, GL_STREAM_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
 
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-
+    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     glBindVertexArray(0);
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &ebo);
 }
 
 static void drawSolidCircle(float cx, float cy, float radius,
                             float r, float g, float b, float a,
                             const float proj[16], int segments = 24) {
+    ensureDynamicBuffers();
+
     glUseProgram(solidProgram);
     glUniformMatrix4fv(glGetUniformLocation(solidProgram, "u_projection"), 1, GL_FALSE, proj);
     glUniform4f(glGetUniformLocation(solidProgram, "u_color"), r, g, b, a);
@@ -427,51 +426,61 @@ static void drawSolidCircle(float cx, float cy, float radius,
         verts.push_back(cy + std::sin(angle) * radius);
     }
 
-    GLuint vao = 0, vbo = 0;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindVertexArray(dynamicVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
     glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STREAM_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, (GLsizei)(verts.size() / 2));
-
     glBindVertexArray(0);
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &vbo);
 }
 
-static void drawSolidQuad(float x0, float y0, float x1, float y1,
-                          float x2, float y2, float x3, float y3,
-                          float r, float g, float b, float a,
-                          const float proj[16]) {
+static void drawSolidCapsule(float x1, float y1, float x2, float y2, float radius,
+                             float r, float g, float b, float a,
+                             const float proj[16], int capSegments = 12) {
+    float dx = x2 - x1, dy = y2 - y1;
+    float length = std::sqrt(dx * dx + dy * dy);
+
+    if (length <= 0.001f) {
+        drawSolidCircle(x1, y1, radius, r, g, b, a, proj, capSegments * 2);
+        return;
+    }
+
+    ensureDynamicBuffers();
+
     glUseProgram(solidProgram);
     glUniformMatrix4fv(glGetUniformLocation(solidProgram, "u_projection"), 1, GL_FALSE, proj);
     glUniform4f(glGetUniformLocation(solidProgram, "u_color"), r, g, b, a);
 
-    float verts[] = {x0, y0, x1, y1, x2, y2, x3, y3};
-    static const GLuint idx[] = {0, 1, 2, 2, 3, 0};
+    float phi = std::atan2(dy, dx);
+    std::vector<float> verts;
+    verts.reserve(((capSegments + 1) * 2 + 2) * 2);
 
-    GLuint vao = 0, vbo = 0, ebo = 0;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STREAM_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(idx), idx, GL_STREAM_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+    verts.push_back((x1 + x2) * 0.5f);
+    verts.push_back((y1 + y2) * 0.5f);
 
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    float startAngle2 = phi - (float)M_PI_2;
+    for (int i = 0; i <= capSegments; ++i) {
+        float angle = startAngle2 + (i * (float)M_PI / capSegments);
+        verts.push_back(x2 + std::cos(angle) * radius);
+        verts.push_back(y2 + std::sin(angle) * radius);
+    }
 
+    float startAngle1 = phi + (float)M_PI_2;
+    for (int i = 0; i <= capSegments; ++i) {
+        float angle = startAngle1 + (i * (float)M_PI / capSegments);
+        verts.push_back(x1 + std::cos(angle) * radius);
+        verts.push_back(y1 + std::sin(angle) * radius);
+    }
+
+    verts.push_back(verts[2]);
+    verts.push_back(verts[3]);
+
+    glBindVertexArray(dynamicVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STREAM_DRAW);
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, (GLsizei)(verts.size() / 2));
     glBindVertexArray(0);
-    glDeleteVertexArrays(1, &vao);
-    glDeleteBuffers(1, &vbo);
-    glDeleteBuffers(1, &ebo);
 }
 
 bool Render::Init(int width, int height, bool resizable, std::string title) {
@@ -649,22 +658,7 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
     buildOrtho(proj, 0.0f, (float)penWidth, (float)penHeight, 0.0f);
 
     penBegin();
-
-    float dx = px2 - px1, dy = py2 - py1;
-    float length = std::sqrt(dx * dx + dy * dy);
-    if (length > 0.001f) {
-        float nx = -dy / length * radius;
-        float ny = dx / length * radius;
-        drawSolidQuad(px1 + nx, py1 + ny,
-                      px1 - nx, py1 - ny,
-                      px2 - nx, py2 - ny,
-                      px2 + nx, py2 + ny,
-                      r, g, b, alpha, proj);
-    }
-
-    drawSolidCircle(px1, py1, radius, r, g, b, alpha, proj);
-    drawSolidCircle(px2, py2, radius, r, g, b, alpha, proj);
-
+    drawSolidCapsule(px1, py1, px2, py2, radius, r, g, b, alpha, proj);
     penEnd();
 }
 
@@ -777,10 +771,10 @@ void Render::renderPenLayer() {
 
     float model[16] = {};
     model[0] = drawW;
-    model[5] = drawH;
+    model[5] = -drawH;
     model[10] = 1.0f;
     model[12] = drawX;
-    model[13] = drawY;
+    model[13] = drawY + drawH;
     model[15] = 1.0f;
 
     glUseProgram(spriteProgram);

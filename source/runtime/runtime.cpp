@@ -377,19 +377,19 @@ void Scratch::cleanupScratchProject() {
     Log::log("Cleaned up Scratch project.");
 }
 
-bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
-    bool found = false;
+bool Scratch::getInputValue(Block *block, std::string_view inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
     ParsedInput *input = nullptr;
+
     for (auto &[name, i] : block->inputs) {
         if (name == inputName) {
-            found = true;
             input = &i;
+            break;
         }
     }
-    if (!found) {
+
+    if (!input) {
         for (auto &[name, field] : block->fields) {
             if (name == inputName) {
-                found = true;
                 outValue = Value(field.value);
                 return true;
             }
@@ -409,14 +409,19 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
 
         input->calculated = true;
 #ifdef ENABLE_CACHING
-        if (input->variable != nullptr) input->value = input->variable->value;
-        else {
-            if (input->list) input->value = BlockExecutor::getListValue(input->variableId, sprite);
-            else input->value = BlockExecutor::getVariableValue(input->variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        if (input->variable != nullptr) {
+            input->value = input->variable->value;
+        } else if (input->list) {
+            input->value = BlockExecutor::getListValue(input->variableId, sprite);
+        } else {
+            input->value = BlockExecutor::getVariableValue(input->variableId, sprite);
         }
 #else
-        if (input->list) input->value = BlockExecutor::getListValue(input->variableId, sprite);
-        else input->value = BlockExecutor::getVariableValue(input->variableId, sprite);
+        if (input->list) {
+            input->value = BlockExecutor::getListValue(input->variableId, sprite);
+        } else {
+            input->value = BlockExecutor::getVariableValue(input->variableId, sprite);
+        }
 #endif
         outValue = input->value;
         return true;
@@ -424,10 +429,11 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
         if (input->calculated) {
             outValue = input->value;
             return true;
-        };
+        }
         if (input->block == nullptr) {
             return true;
         }
+
         Block *targetBlock = input->block;
         input->value = Value();
 
@@ -438,12 +444,11 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
             return true;
         }
         return false;
-        return true;
     }
     }
 
     return true;
-};
+}
 
 ParsedInput *Scratch::getInput(Block *block, const std::string &inputName) {
     for (auto &[name, input] : block->inputs) {

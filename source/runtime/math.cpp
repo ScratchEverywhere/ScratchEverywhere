@@ -2,6 +2,7 @@
 #include "nonstd/expected.hpp"
 #include <algorithm>
 #include <cerrno>
+#include <charconv>
 #include <cstdlib>
 #include <ctime>
 #include <limits>
@@ -41,13 +42,13 @@ int Math::color(int r, int g, int b, int a) {
     return 0;
 }
 
-nonstd::expected<double, std::string> Math::parseNumber(std::string str) {
-    // Scratch has whitespace trimming
-    while (!str.empty() && std::isspace(str[0])) {
-        str.erase(0, 1);
+nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
+    // Trim whitespace
+    while (!str.empty() && std::isspace(static_cast<unsigned char>(str.front()))) {
+        str.remove_prefix(1);
     }
-    while (!str.empty() && std::isspace(str.back())) {
-        str.pop_back();
+    while (!str.empty() && std::isspace(static_cast<unsigned char>(str.back()))) {
+        str.remove_suffix(1);
     }
 
     if (str.empty()) return nonstd::make_unexpected("Invalid Argument");
@@ -59,69 +60,75 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string str) {
     }
 
     uint8_t base = 0;
-    std::string validcharacters = "0123456789+-eE.";
-    if (str[0] == '0') {
-        if (str[1] == 'x' || str[1] == 'X') {
-            base = 16;
-            validcharacters = "0123456789ABCDEFabcedef";
-        } else if (str[1] == 'b' || str[1] == 'B') {
-            base = 2;
-            validcharacters = "01";
-        } else if (str[1] == 'o' || str[1] == 'O') {
-            base = 8;
-            validcharacters = "01234567";
-        }
-        if (base != 0) str = str.substr(2, str.length() - 2);
+    if (str.size() >= 2 && str[0] == '0') {
+        char second = str[1];
+        if (second == 'x' || second == 'X') base = 16;
+        else if (second == 'b' || second == 'B') base = 2;
+        else if (second == 'o' || second == 'O') base = 8;
+        if (base != 0) str.remove_prefix(2);
     }
 
-    for (size_t i = 0; i < str.length(); i++) {
-        if (validcharacters.find(str[i]) == std::string::npos) {
+    if (base != 0) {
+        double conversion = 0;
+        for (char c : str) {
+            int digit;
+            if (c >= '0' && c <= '9') digit = c - '0';
+            else if (c >= 'A' && c <= 'F') digit = c - 'A' + 10;
+            else if (c >= 'a' && c <= 'f') digit = c - 'a' + 10;
+            else return nonstd::make_unexpected("Invalid Argument");
+
+            if (digit >= base) return nonstd::make_unexpected("Invalid Argument");
+            conversion = conversion * base + digit;
+        }
+        return conversion;
+    }
+
+    size_t e_pos = str.find_first_of("eE");
+    if (e_pos != std::string_view::npos) {
+        if (str.find('.', e_pos + 1) != std::string_view::npos) {
             return nonstd::make_unexpected("Invalid Argument");
         }
-        if (base == 0) {
-            if (i == str.length() - 1 && (str[i] == '+' || str[i] == '-' || str[i] == 'e' || str[i] == 'E')) {
-                // implementation differece, "1e" doesn't work in Scratch but works
-                // with std::stod()
-                // signs (+, -) should also not be at the end
-                return nonstd::make_unexpected("Invalid Argument");
-            }
-            if ((str[i] == 'e' || str[i] == 'E') && str.find('.', i + 1) != std::string::npos) {
-                // implementation differece, decimal point after e doesn't work in
-                // Scratch but works with std::stod()
-                return nonstd::make_unexpected("Invalid Argument");
-            }
-        }
+    }
+
+    if (!str.empty() && str.front() == '+') {
+        str.remove_prefix(1);
     }
 
     double conversion = 0;
-    char *endptr = nullptr;
 
+#if defined(__cpp_lib_to_chars) && (__cpp_lib_to_chars >= 201611L)
+    auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), conversion);
+
+    if (ec == std::errc::invalid_argument || ptr != str.data() + str.size()) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+
+    if (ec == std::errc::result_out_of_range) {
+        if (!str.empty() && str.front() == '-') return -std::numeric_limits<double>::infinity();
+        return std::numeric_limits<double>::infinity();
+    }
+#else
+    char stack_buf[128];
+    if (str.size() >= sizeof(stack_buf)) {
+        return nonstd::make_unexpected("Invalid Argument");
+    }
+
+    std::memcpy(stack_buf, str.data(), str.size());
+    stack_buf[str.size()] = '\0';
+
+    char *endptr = nullptr;
     errno = 0;
-    if (base == 0) {
-        conversion = std::strtod(str.c_str(), &endptr);
-    } else {
-        int power = 0;
-        int digit = 0;
-        char c;
-        for (int i = str.length() - 1; i >= 0; i--) {
-            c = str[i];
-            if (c >= '0' && c <= '9') {
-                digit = c - '0';
-            } else if (c >= 'A' && c <= 'F') {
-                digit = c - 'A' + 10;
-            } else if (c >= 'a' && c <= 'f') {
-                digit = c - 'a' + 10;
-            } else {
-                return nonstd::make_unexpected("Invalid Argument");
-            }
-            conversion += digit * std::pow(base, power);
-            power++;
-        }
+    conversion = std::strtod(stack_buf, &endptr);
+
+    if (endptr != stack_buf + str.size()) {
+        return nonstd::make_unexpected("Invalid Argument");
     }
+
     if (errno == ERANGE) {
-        if (str[0] == '-') return -std::numeric_limits<double>::infinity();
-        else return std::numeric_limits<double>::infinity();
+        if (!str.empty() && str.front() == '-') return -std::numeric_limits<double>::infinity();
+        return std::numeric_limits<double>::infinity();
     }
+#endif
 
     return conversion;
 }

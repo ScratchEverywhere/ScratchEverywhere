@@ -32,7 +32,7 @@ class Scratch {
 
     static bool initializeRuntime(int width = -1, int height = -1, bool resizable = true, std::string title = "Scratch Everywhere!");
     static void initializeScratchProject();
-    static bool getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
+    static bool getInputValue(Block *block, std::string_view inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
     static ParsedInput *getInput(Block *block, const std::string &inputName);
     static void resetInput(Block *block, const std::string &inputName = "");
 
