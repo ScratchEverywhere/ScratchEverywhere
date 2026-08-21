@@ -1,0 +1,13 @@
+FROM ps2dev/ps2dev:latest AS main_builder
+
+RUN apk add --no-cache cmake make mpc1 mpfr4 gmp git
+
+WORKDIR /app
+
+COPY . .
+
+RUN cmake -B build-ps2 -S . -DCMAKE_TOOLCHAIN_FILE=$PS2SDK/ps2dev.cmake -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=sdl3 -DSE_WINDOWING=sdl3 -DSE_AUDIO_ENGINE=sdl3 -DPS2=ON && make -C build-ps2 -j 2
+
+FROM scratch AS exporter
+
+COPY --from=main_builder /app/build-ps2/scratch-ps2.elf /
