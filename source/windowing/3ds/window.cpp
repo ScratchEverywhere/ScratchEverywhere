@@ -1,7 +1,7 @@
 #include "window.hpp"
 #include <iostream>
 
-bool Window3DS::init(int w, int h, const std::string &title) {
+bool Window3DS::init(int w, int h, bool resizable, const std::string &title) {
     gfxInitDefault();
 
     C3D_Init(0x100000);

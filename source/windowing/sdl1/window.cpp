@@ -1,7 +1,11 @@
 #include "window.hpp"
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
+#include <cstring>
 #endif
 #include <chrono>
 #include <cstdlib>
@@ -25,7 +29,11 @@ static auto lastFrameTime = std::chrono::high_resolution_clock::now();
 static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-like behavior
 #endif
 
-bool WindowSDL1::init(int width, int height, const std::string &title) {
+static bool resizableGlobal = true; // SDL1 only supports creating one window at a time
+
+bool WindowSDL1::init(int w, int h, bool resizable, const std::string &title) {
+    resizableGlobal = resizable;
+
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
@@ -41,9 +49,17 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+    if (resizable) {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+    } else {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL);
+    }
 #else
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+    if (resizable) {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+    } else {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+    }
 #endif
 
     if (!window) {
@@ -60,7 +76,7 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
 
     resize(width, height);
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
     SDL_SysWMinfo system_info;
     SDL_VERSION(&system_info.version);
     SDL_GetWMInfo(&system_info);
@@ -68,6 +84,12 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
+#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+    char namebuf[4];
+    int maxlen = sizeof(namebuf);
+    if (!strcmp(SDL_VideoDriverName(namebuf, maxlen), "x11")) {
+        widget_set_owner(std::to_string((unsigned long long)(unsigned long)system_info.info.x11.window).c_str());
+    }
 #endif
 #endif
 
@@ -126,12 +148,20 @@ void WindowSDL1::resize(int width, int height) {
     this->width = width;
     this->height = height;
 #ifdef RENDERER_OPENGL
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+    if (resizableGlobal) {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
+    } else {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL);
+    }
     if (window) {
         glViewport(0, 0, width, height);
     }
 #else
-    window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+    if (resizableGlobal) {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);
+    } else {
+        window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF);
+    }
 #endif
     Render::setRenderScale();
     Render::resizeSVGs();

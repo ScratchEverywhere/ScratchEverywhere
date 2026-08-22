@@ -483,7 +483,7 @@ static void drawSolidCapsule(float x1, float y1, float x2, float y2, float radiu
     glBindVertexArray(0);
 }
 
-bool Render::Init() {
+bool Render::Init(int width, int height, bool resizable, std::string title) {
 #if defined(WINDOWING_GLFW)
     globalWindow = new WindowGLFW();
 #elif defined(WINDOWING_SDL1)
@@ -498,7 +498,7 @@ bool Render::Init() {
 #error "No windowing backend defined"
 #endif
 
-    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+    if (!globalWindow->init(((width < 0) ? 540 : width), ((height < 0) ? 405 : height), resizable, title)) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;

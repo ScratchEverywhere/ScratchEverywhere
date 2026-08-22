@@ -2,11 +2,16 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #elif defined(__APPLE__) && !defined(GLFW_EXPOSE_NATIVE_COCOA)
 #define GLFW_EXPOSE_NATIVE_COCOA
+#elif ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(GLFW_EXPOSE_NATIVE_X11)
+#define GLFW_EXPOSE_NATIVE_X11
 #endif
 #include "window.hpp"
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <GLFW/glfw3native.h>
 #include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
 #endif
 #include <algorithm>
 #include <input.hpp>
@@ -22,14 +27,14 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-bool WindowGLFW::init(int w, int h, const std::string &title) {
+bool WindowGLFW::init(int w, int h, bool resizable, const std::string &title) {
     if (!glfwInit()) {
         Log::logCritical("Failed to initialize GLFW", true);
         return false;
     }
 
     glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, ((resizable) ? GLFW_TRUE : GLFW_FALSE));
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_ALPHA_BITS, 8);
 
@@ -59,6 +64,10 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWin32Window(window)).c_str());
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetCocoaWindow(window)).c_str());
+#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	if (glfwGetPlatform() == GLFW_PLATFORM_X11) {
+		widget_set_owner(std::to_string((unsigned long long)(unsigned long)glfwGetX11Window(window)).c_str());
+	}
 #endif
 
     return true;

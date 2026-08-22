@@ -98,14 +98,14 @@ std::string Scratch::customUsername;
 
 std::unordered_map<std::string, std::shared_ptr<Image>> Scratch::costumeImages;
 
-bool Scratch::initializeRuntime() {
+bool Scratch::initializeRuntime(int width, int height, bool resizable, std::string title) {
     if (!OS::init()) {
         return false;
     }
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
 #ifndef LIBRETRO
-    if (!Render::Init()) {
+    if (!Render::Init(width, height, resizable, title)) {
         return false;
     }
 #endif
@@ -114,7 +114,7 @@ bool Scratch::initializeRuntime() {
     TextToSpeechSafeInit();
 #endif
     if (!SoundPlayer::init()) {
-        Log::logCritical("Failed to initialize audio.", false);
+        Log::logError("Failed to initialize audio.");
         return false;
     }
 #endif
