@@ -31,6 +31,8 @@ SDL_Point touchPosition;
 bool WindowSDL2::init(int width, int height, const std::string &title) {
 #if defined(VITA)
     SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+#elif defined(__UBUNTUTOUCH__)
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "mir");
 #endif
 
     uint32_t sdlFlags = 0;
@@ -96,7 +98,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     resize(dw, dh);
 #else
     int dw, dh;
-#if defined(__PS4__) || defined(WEBOS)
+#if defined(__PS4__) || defined(WEBOS) || defined(__UBUNTUTOUCH__)
     SDL_GetWindowSize(window, &dw, &dh);
 #else
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
@@ -151,7 +153,7 @@ void WindowSDL2::pollEvents() {
                 int w, h;
 #ifdef RENDERER_OPENGL
                 SDL_GL_GetDrawableSize(window, &w, &h);
-#elif defined(__PS4__) || defined(WEBOS)
+#elif defined(__PS4__) || defined(WEBOS) || defined(__UBUNTUTOUCH__)
                 SDL_GetWindowSize(window, &w, &h);
 #else
                 SDL_GetWindowSizeInPixels(window, &w, &h);
@@ -191,7 +193,7 @@ void WindowSDL2::pollEvents() {
 }
 
 void WindowSDL2::calculatePixelDensity() {
-#if !defined(__PS4__) && !defined(WEBOS)
+#if !defined(__PS4__) && !defined(WEBOS) && !defined(__UBUNTUTOUCH__)
     int logicalW, logicalH, pixelW, pixelH;
 
     SDL_GetWindowSize(window, &logicalW, &logicalH);

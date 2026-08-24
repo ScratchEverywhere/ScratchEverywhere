@@ -22,12 +22,23 @@ endfunction()
 
 function(_dep_source_SDL2_ttf)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+	if(UBUNTU_TOUCH)
+		set(SDL2TTF_VERSION "2.0.15")
+	else()
+		set(SDL2TTF_VERSION "2.24.0")
+	endif()
 
 	CPMAddPackage(
 		NAME SDL2_ttf
-		VERSION 2.24.0
+		VERSION ${SDL2TTF_VERSION}
 		GITHUB_REPOSITORY libsdl-org/SDL_ttf
-		GIT_TAG release-2.24.0
+		GIT_TAG release-${SDL2TTF_VERSION}
 		OPTIONS "SDL2TTF_VENDORED ON"
 	)
+
+	if(TARGET SDL2_ttf) # for older sdl2_ttf
+		target_include_directories(SDL2_ttf INTERFACE
+			"$<BUILD_INTERFACE:${SDL2_ttf_SOURCE_DIR}/>"
+		)
+	endif()
 endfunction()

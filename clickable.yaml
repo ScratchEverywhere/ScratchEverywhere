@@ -1,0 +1,25 @@
+clickable_minimum_required: 8.0.0
+framework: ubuntu-sdk-16.04.5
+build_dir: ${ROOT}/build/ut/${ARCH_TRIPLET}
+builder: custom
+image_setup:
+    run:
+        - add-apt-repository ppa:ubuntu-toolchain-r/test
+        - apt update
+        - apt install -y gcc-8 g++-8
+build: cmake -B . -S ../../../ -DCMAKE_CXX_COMPILER=g++-8 -DSE_CLOUDVARS=OFF -DUBUNTU_TOUCH=ON -DSE_FORCE_SOURCE_SDL2=ON -DSE_FORCE_SOURCE_SDL2_ttf=ON -DSE_CUSTOM_EXTENSIONS=OFF -DSE_CMAKERC=OFF -DSE_DECTALK=OFF -DSE_RENDERER=sdl2 && CXX=g++-8 cmake --build .
+dependencies_host:
+    - libaudio-dev
+    - libfribidi-dev
+    - libdrm-dev
+    - libgbm-dev
+    - libgl1-mesa-dev
+    - libgles2-mesa-dev
+    - libegl1-mesa-dev
+    - libdbus-1-dev
+    - libibus-1.0-dev
+    - libudev-dev
+    - libthai-dev
+    - libfreetype6-dev
+    - libmbedtls-dev
+    - g++-8
