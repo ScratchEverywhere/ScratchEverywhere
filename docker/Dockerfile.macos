@@ -22,7 +22,8 @@ RUN mkdir build && cd build && \
 	-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET \
 	-DSE_CLOUDVARS=OFF \
 	-DSE_DOWNLOAD=OFF \
-	-DSE_AUDIO_ENGINE=sdl3 \
+	-DSE_AUDIO_ENGINE=sdl2 \
+	-DSE_WINDOWING=sdl2 \
 	-DCMAKE_BUILD_TYPE=Release \
 	.. && \
 	cmake --build . -j 2

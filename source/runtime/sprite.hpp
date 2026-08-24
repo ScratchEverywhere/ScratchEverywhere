@@ -212,6 +212,11 @@ struct Block {
 
     std::vector<std::pair<std::string, ParsedInput>> inputs;
     std::vector<std::pair<std::string, ParsedField>> fields;
+
+    std::unordered_map<std::string, ParsedInput *> inputMap;
+    std::unordered_map<std::string, ParsedField *> fieldMap;
+
+    bool recalculateInputs = false;
 };
 
 struct Sound {

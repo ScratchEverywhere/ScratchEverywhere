@@ -160,6 +160,7 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         thread.nextBlock = currentBlock->nextBlock;
 
         var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
+        currentBlock->recalculateInputs = false;
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
             Scratch::resetInput(currentBlock);
