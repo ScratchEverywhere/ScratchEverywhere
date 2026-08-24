@@ -52,7 +52,7 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 #endif
 
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     flags |= SDL_WINDOW_OPENGL;
 #endif
 

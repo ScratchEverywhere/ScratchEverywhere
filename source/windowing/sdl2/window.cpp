@@ -72,7 +72,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #endif
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     flags |= SDL_WINDOW_OPENGL;
 #endif
 
