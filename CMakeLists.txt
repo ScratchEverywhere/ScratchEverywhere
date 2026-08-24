@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.16)
 
 project(ScratchEverywhere VERSION 1.0 LANGUAGES CXX C)
 
+if(APPLE)
+	enable_language(OBJC)
+endif()
+
 # error C7555: use of designated initializers requires at least '/std:c++20'
 if(MSVC)
 	set(CMAKE_CXX_STANDARD 20)
@@ -155,7 +159,7 @@ cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLAT
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NOT DEFINED SE_RENDERER_PRIORITY)
-	set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+	set(SE_RENDERER_PRIORITY "opengl_core" "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
@@ -436,7 +440,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	se_add_dependency(se-interface libdlgmod)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 	se_add_dependency(se-interface libdlgmod)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT WEBOS)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID AND NOT WEBOS)
 	se_add_dependency(se-interface libdlgmod)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
 	se_add_dependency(se-interface libdlgmod)

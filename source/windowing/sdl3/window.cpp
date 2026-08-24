@@ -3,13 +3,15 @@
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <libdlgmod/libdlgmod.h>
 #endif
-#include <input.hpp>
 #include <cstdlib>
+#include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render.hpp>
+#elif defined(RENDERER_OPENGL_CORE)
+#include <renderers/opengl_core/render.hpp>
 #else
 #include <renderers/sdl3/render.hpp>
 #endif
@@ -29,7 +31,7 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 #endif
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS)) {
-        Log::logError("Failed to initialize SDL3: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to initialize SDL3: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -39,6 +41,14 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+#elif defined(RENDERER_OPENGL_CORE)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
@@ -48,14 +58,14 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
 
     window = SDL_CreateWindow(title.c_str(), width, height, flags);
     if (!window) {
-        Log::logError("Failed to create SDL3 window: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to create SDL3 window: " + std::string(SDL_GetError()), true);
         return false;
     }
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     context = SDL_GL_CreateContext(window);
     if (!context) {
-        Log::logError("Failed to create OpenGL context: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to create OpenGL context: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -80,9 +90,9 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     resize(dw, dh);
 
 #if defined(_WIN32) || defined(_WIN64)
-	widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)).c_str());
+    widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)).c_str());
 #elif defined(__APPLE__)
-	widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
+    widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
 #endif
 
     return true;
@@ -92,7 +102,7 @@ void WindowSDL3::cleanup() {
 #ifdef PLATFORM_HAS_CONTROLLER
     if (controller) SDL_CloseGamepad(controller);
 #endif
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     SDL_GL_DestroyContext(context);
 #endif
     SDL_DestroyWindow(window);
@@ -147,7 +157,7 @@ void WindowSDL3::pollEvents() {
 }
 
 void WindowSDL3::swapBuffers() {
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     SDL_GL_SwapWindow(window);
 #endif
 }
@@ -156,7 +166,7 @@ void WindowSDL3::resize(int width, int height) {
     this->width = width;
     this->height = height;
     this->pixelDensity = SDL_GetWindowPixelDensity(window);
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     glViewport(0, 0, width, height);
 #endif
     Render::setRenderScale();

@@ -9,6 +9,8 @@
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render.hpp>
+#elif defined(RENDERER_OPENGL_CORE)
+#include <renderers/opengl_core/render.hpp>
 #else
 #include <renderers/sdl2/render.hpp>
 #endif
@@ -43,7 +45,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     sdlFlags |= SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER;
 #endif
     if (SDL_Init(sdlFlags) < 0) {
-        Log::logError("Failed to initialize SDL2: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to initialize SDL2: " + std::string(SDL_GetError()), true);
         return false;
     }
 #endif
@@ -54,6 +56,14 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+#elif defined(RENDERER_OPENGL_CORE)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #elif defined(__PS4__)
     SDL_GL_SetSwapInterval(1); // Required for VSync
 #endif
@@ -70,14 +80,14 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 
     window = SDL_CreateWindow(title.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, flags);
     if (!window) {
-        Log::logError("Failed to create SDL2 window: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to create SDL2 window: " + std::string(SDL_GetError()), true);
         return false;
     }
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     context = SDL_GL_CreateContext(window);
     if (!context) {
-        Log::logError("Failed to create OpenGL context: " + std::string(SDL_GetError()));
+        Log::logCritical("Failed to create OpenGL context: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -92,7 +102,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     this->height = height;
     calculatePixelDensity();
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     int dw, dh;
     SDL_GL_GetDrawableSize(window, &dw, &dh);
     resize(dw, dh);
@@ -109,11 +119,11 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
     SDL_SysWMinfo system_info;
     SDL_VERSION(&system_info.version);
-	SDL_GetWindowWMInfo(window, &system_info);
+    SDL_GetWindowWMInfo(window, &system_info);
 #if defined(_WIN32) || defined(_WIN64)
-	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
+    widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
 #elif defined(__APPLE__)
-	widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
+    widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
 #endif
 #endif
 
@@ -130,7 +140,7 @@ void WindowSDL2::cleanup() {
     if (controller) SDL_GameControllerClose(controller);
 #endif
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     SDL_GL_DeleteContext(context);
 #endif
     SDL_DestroyWindow(window);
@@ -151,7 +161,7 @@ void WindowSDL2::pollEvents() {
         case SDL_WINDOWEVENT:
             if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 int w, h;
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
                 SDL_GL_GetDrawableSize(window, &w, &h);
 #elif defined(__PS4__) || defined(WEBOS) || defined(__UBUNTUTOUCH__)
                 SDL_GetWindowSize(window, &w, &h);
@@ -204,7 +214,7 @@ void WindowSDL2::calculatePixelDensity() {
 }
 
 void WindowSDL2::swapBuffers() {
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     SDL_GL_SwapWindow(window);
 #endif
 }
@@ -212,7 +222,7 @@ void WindowSDL2::swapBuffers() {
 void WindowSDL2::resize(int width, int height) {
     this->width = width;
     this->height = height;
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     glViewport(0, 0, width, height);
 #endif
 

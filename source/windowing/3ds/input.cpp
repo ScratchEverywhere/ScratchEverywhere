@@ -113,7 +113,7 @@ void Input::getInput() {
         goto skipInputCheck;
     }
 
-    inputButtons.push_back("any");
+    inputKeys.push_back("any");
     for (size_t i = 0; i < key_amount; i++) {
         // Ignore L Stick & R Stick Pressed Events
         if ((III_DS_KEYS[i]) == NULL) {

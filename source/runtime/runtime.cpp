@@ -104,15 +104,17 @@ bool Scratch::initializeRuntime() {
     }
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
+#ifndef LIBRETRO
     if (!Render::Init()) {
         return false;
     }
+#endif
 #ifdef ENABLE_AUDIO
 #ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();
 #endif
     if (!SoundPlayer::init()) {
-        Log::logError("Failed to initialize audio.");
+        Log::logCritical("Failed to initialize audio.", false);
         return false;
     }
 #endif
@@ -376,99 +378,98 @@ void Scratch::cleanupScratchProject() {
 }
 
 bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
-    bool found = false;
-    ParsedInput *input = nullptr;
-    for (auto &[name, i] : block->inputs) {
-        if (name == inputName) {
-            found = true;
-            input = &i;
-        }
-    }
-    if (!found) {
-        for (auto &[name, field] : block->fields) {
-            if (name == inputName) {
-                found = true;
-                outValue = Value(field.value);
-                return true;
-            }
+    const auto &input = block->inputMap.find(inputName);
+
+    if (input == block->inputMap.end()) {
+        const auto &field = block->fieldMap.find(inputName);
+
+        if (field != block->fieldMap.end()) {
+            outValue = Value(field->second->value);
         }
         return true;
     }
 
-    switch (input->inputType) {
+    if (block->recalculateInputs) {
+        input->second->calculated = false;
+    }
+
+    switch (input->second->inputType) {
     case ParsedInput::InputType::VALUE:
-        outValue = input->value;
+        outValue = input->second->value;
         return true;
     case ParsedInput::InputType::VARIABLE:
-        if (input->calculated) {
-            outValue = input->value;
+        if (input->second->calculated) {
+            outValue = input->second->value;
             return true;
         }
 
-        input->calculated = true;
+        input->second->calculated = true;
 #ifdef ENABLE_CACHING
-        if (input->variable != nullptr) input->value = input->variable->value;
-        else {
-            if (input->list) input->value = BlockExecutor::getListValue(input->variableId, sprite);
-            else input->value = BlockExecutor::getVariableValue(input->variableId, sprite); // Remember, do not pass block to this method as that will use the field named `VARIABLE` not the input we're fetching
+        if (input->second->variable != nullptr) {
+            input->second->value = input->second->variable->value;
+        } else if (input->second->list) {
+            input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
+        } else {
+            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
         }
 #else
-        if (input->list) input->value = BlockExecutor::getListValue(input->variableId, sprite);
-        else input->value = BlockExecutor::getVariableValue(input->variableId, sprite);
+        if (input->second->list) {
+            input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
+        } else {
+            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
+        }
 #endif
-        outValue = input->value;
+        outValue = input->second->value;
         return true;
     case ParsedInput::InputType::BLOCK: {
-        if (input->calculated) {
-            outValue = input->value;
-            return true;
-        };
-        if (input->block == nullptr) {
+        if (input->second->calculated) {
+            outValue = input->second->value;
             return true;
         }
-        Block *targetBlock = input->block;
-        input->value = Value();
+        if (input->second->block == nullptr) {
+            return true;
+        }
 
-        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input->value));
+        Block *targetBlock = input->second->block;
+        input->second->value = Value();
+
+        if (block->recalculateInputs) targetBlock->recalculateInputs = true;
+
+        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input->second->value));
+        targetBlock->recalculateInputs = false;
         if (res != BlockResult::REPEAT) {
-            input->calculated = true;
-            outValue = input->value;
+            input->second->calculated = true;
+            outValue = input->second->value;
             return true;
         }
         return false;
-        return true;
     }
     }
 
     return true;
-};
+}
 
 ParsedInput *Scratch::getInput(Block *block, const std::string &inputName) {
-    for (auto &[name, input] : block->inputs) {
-        if (name == inputName) {
-            return &input;
-        }
-    }
+    const auto &input = block->inputMap.find(inputName);
+    if (input != block->inputMap.end()) return input->second;
+
     return nullptr;
 }
 
 void Scratch::resetInput(Block *block, const std::string &inputName) {
     if (inputName.empty()) {
-        for (auto &[name, input] : block->inputs) {
+        /*for (auto &[name, input] : block->inputs) {
             input.calculated = false;
             if (input.inputType == ParsedInput::InputType::BLOCK && input.block != nullptr) {
                 Scratch::resetInput(input.block, "");
             }
-        }
+        }*/
+        block->recalculateInputs = true;
         return;
     }
 
-    for (auto &[name, input] : block->inputs) {
-        if (name == inputName) {
-            input.calculated = false;
-            return;
-        }
-    }
+    const auto &input = block->inputMap.find(inputName);
+    if (input != block->inputMap.end()) input->second->calculated = false;
 }
 
 void Scratch::greenFlagClicked() {
@@ -713,7 +714,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 
     std::shared_ptr<Image> image;
     const int screenWidth = Render::getWidth();
-    const int screenHeight = Render::getHeight();
+    const int screenHeight = Render::renderMode == Render::BOTH_SCREENS ? 480 : Render::getHeight();
 
     auto onErr = [&](std::string error) -> bool {
         static std::set<std::string> failedImages;
@@ -729,7 +730,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
                 if (failedImages.count(missingName) == 0 && error != "LunaSVG failed to render SVG to bitmap") {
                     auto img = createImageFromFile("gfx/ingame/missing.png", false, false, 1.0);
                     if (!img.has_value()) {
-                        Log::logError("Failed to load missing image texture: " + img.error());
+                        Log::logWarning("Failed to load missing image texture: " + img.error());
                         failedImages.insert(missingName);
                     } else {
                         costumeImages[missingName] = img.value();
@@ -806,30 +807,30 @@ void Scratch::freeUnusedCostumeImages() {
 }
 
 ParsedField *Scratch::getField(Block &block, const std::string &fieldName) {
-    for (auto &[name, field] : block.fields) {
-        if (name == fieldName) return &field;
-    }
+    const auto &field = block.fieldMap.find(fieldName);
+    if (field != block.fieldMap.end()) return field->second;
+
     return nullptr;
 }
 
 std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
-    for (auto &[name, field] : block.fields) {
-        if (name == fieldName) return field.value;
-    }
+    const auto &field = block.fieldMap.find(fieldName);
+    if (field != block.fieldMap.end()) return field->second->value;
+
     return "";
 }
 
 std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
-    for (auto &[name, field] : block.fields) {
-        if (name == fieldName) return field.id;
-    }
+    const auto &field = block.fieldMap.find(fieldName);
+    if (field != block.fieldMap.end()) return field->second->id;
+
     return "";
 }
 
 std::string Scratch::getListName(Block &block) {
-    for (auto &[name, field] : block.fields) {
-        if (name == "LIST") return field.value;
-    }
+    const auto &field = block.fieldMap.find("LIST");
+    if (field != block.fieldMap.end()) return field->second->value;
+
     return "";
 }
 

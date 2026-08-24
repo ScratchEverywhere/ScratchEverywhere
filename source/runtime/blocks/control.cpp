@@ -125,6 +125,9 @@ SCRATCH_BLOCK(control, create_clone_of) {
 SCRATCH_BLOCK(control, delete_this_clone) {
     if (!sprite->isClone) return BlockResult::CONTINUE;
     sprite->toDelete = true;
+    for (ScriptThread *t : BlockExecutor::threads) {
+        if (t->sprite == sprite) t->finished = true;
+    }
     Scratch::cloneCount--;
     return BlockResult::RETURN;
 }
@@ -136,6 +139,11 @@ SCRATCH_BLOCK(control, stop) {
 
     if (stopType == "all") {
         BlockExecutor::stopClicked = true;
+        for (Sprite *currentSprite : Scratch::sprites) {
+            for (ScriptThread *t : BlockExecutor::threads) {
+                if (t->sprite->isClone) t->finished = true;
+            }
+        }
         return BlockResult::RETURN;
     };
     if (stopType == "this script") {
@@ -234,7 +242,10 @@ SCRATCH_BLOCK(control, while) {
     if (!condition.asBoolean()) return BlockResult::CONTINUE;
 
     const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
-    if (input == nullptr) return BlockResult::REPEAT;
+    if (input == nullptr) {
+        Scratch::resetInput(block);
+        return BlockResult::REPEAT;
+    }
 
     Block *substack = input->block;
     if (substack != nullptr)
@@ -254,7 +265,10 @@ SCRATCH_BLOCK(control, repeat_until) {
     if (condition.asBoolean()) return BlockResult::CONTINUE;
 
     const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
-    if (input == nullptr) return BlockResult::REPEAT;
+    if (input == nullptr) {
+        Scratch::resetInput(block);
+        return BlockResult::REPEAT;
+    }
 
     Block *substack = input->block;
     if (substack != nullptr)

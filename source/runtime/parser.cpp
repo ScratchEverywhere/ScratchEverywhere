@@ -645,6 +645,8 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
         delete block;
     };
 
+    block.inputs.reserve(blockData["inputs"].size());
+    block.inputMap.reserve(blockData["inputs"].size());
     for (const auto &[inputName, data] : blockData["inputs"].items()) {
         int type = data[0];
         auto &inputValue = data[1];
@@ -652,7 +654,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
         if (type == 1) {
             if (inputValue.is_array() || block.opcode == "procedures_definition") {
                 block.inputs.push_back({inputName, ParsedInput(Value::fromJson(inputValue))});
-                // block.inputs[inputName] = ParsedInput(Value::fromJson(inputValue));
+                block.inputMap[inputName] = &block.inputs.back().second;
                 if (inputValue.is_array() && inputValue.size() > 1) {
                     std::string valueStr;
                     if (inputValue[1].is_string()) {
@@ -673,19 +675,19 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
                     const auto &it = getShadowBlocks().find(newBlock->opcode);
                     if (it != getShadowBlocks().end()) {
                         block.inputs.push_back({inputName, ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)))});
-                        // block.inputs[inputName] = ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)));
+                        block.inputMap[inputName] = &block.inputs.back().second;
                         removeBlock(newBlock);
                         continue;
                     }
 
                     block.inputs.push_back({inputName, ParsedInput(newBlock)});
-                    // block.inputs[inputName] = ParsedInput(newBlock);
+                    block.inputMap[inputName] = &block.inputs.back().second;
                 }
             }
         } else if (type == 2 || type == 3) {
             if (inputValue.is_array()) {
                 block.inputs.push_back({inputName, ParsedInput(inputValue[2].get<std::string>())});
-                // block.inputs[inputName] = ParsedInput(inputValue[2].get<std::string>());
+                block.inputMap[inputName] = &block.inputs.back().second;
                 if (inputValue[0].get<int>() == 13) block.inputs.back().second.list = true;
                 Parser::log(indentStr + "\t" + inputName + ": var[" + inputValue[1].get<std::string>() + "]");
             } else {
@@ -697,7 +699,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
                     const auto &it = getShadowBlocks().find(newBlock->opcode);
                     if (it != getShadowBlocks().end()) {
                         block.inputs.push_back({inputName, ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)))});
-                        // block.inputs[inputName] = ParsedInput(Value(Scratch::getFieldValue(*newBlock, it->second)));
+                        block.inputMap[inputName] = &block.inputs.back().second;
                         removeBlock(newBlock);
                         continue;
                     }
@@ -709,6 +711,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
         const ParsedInput *num2 = Scratch::getInput(newBlock, "NUM2");                                                              \
         if (num1 && num2 && num1->inputType == ParsedInput::InputType::VALUE && num2->inputType == ParsedInput::InputType::VALUE) { \
             block.inputs.push_back({inputName, ParsedInput(num1->value OPERATOR num2->value)});                                     \
+            block.inputMap[inputName] = &block.inputs.back().second;                                                                \
             removeBlock(newBlock);                                                                                                  \
             continue;                                                                                                               \
         }                                                                                                                           \
@@ -719,6 +722,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
                     CHECK_NUM_CONSTANT_FOLDING(operator_divide, /)
                     CHECK_NUM_CONSTANT_FOLDING(operator_subtract, -)
                     block.inputs.push_back({inputName, ParsedInput(newBlock)});
+                    block.inputMap[inputName] = &block.inputs.back().second;
                 }
             }
         }
@@ -731,6 +735,8 @@ void Parser::loadFields(Block &block, const std::string &blockKey, const nlohman
 
     std::string indentStr(indent, '\t');
 
+    block.fields.reserve(blockData["fields"].size());
+    block.fieldMap.reserve(blockData["fields"].size());
     for (const auto &[name, field] : blockData["fields"].items()) {
         ParsedField parsedField;
         if (field.is_array() && !field.empty()) {
@@ -744,7 +750,7 @@ void Parser::loadFields(Block &block, const std::string &blockKey, const nlohman
             }
         }
         block.fields.push_back({name, parsedField});
-        // block.fields[name] = parsedField;
+        block.fieldMap[name] = &block.fields.back().second;
     }
 }
 
@@ -769,7 +775,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         if (FileSystem::fileExists(nativePath)) {
             void *extensionHandle = dlopen(nativePath.c_str(), RTLD_NOW | RTLD_GLOBAL);
             if (!extensionHandle) {
-                Log::logError("Failed to load native extension, '" + targetID + "', dlerror: " + dlerror());
+                Log::logCritical("Failed to load native extension, '" + targetID + "', dlerror: " + dlerror(), false);
             } else {
                 Log::log("Loaded native extension: " + targetID);
                 hasNativeExts = true;
