@@ -637,6 +637,7 @@ void Render::renderPenLayer() {
     }
 
     SDL_RenderCopy(renderer, penTexture, nullptr, &renderRect);
+#endif
 }
 
 bool Render::appShouldRun() {
