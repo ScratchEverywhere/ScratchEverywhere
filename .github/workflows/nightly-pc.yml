@@ -53,6 +53,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: Headless Library
+            artifact: Scratch Everywhere! Linux Headless Library Nightly
+            build-args: |
+              RENDERER=headless
+              WINDOWING=headless
+              AUDIO_ENGINE=headless
+              EXT_ARGS=-DSE_LIBRARY=TRUE
           - name: SDL2
             artifact: Scratch Everywhere! Linux SDL2 Nightly
             build-args: |
