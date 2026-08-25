@@ -44,8 +44,8 @@ SCRATCH_BLOCK(translate, getTranslate) {
     BlockState *state = thread->getState(block);
     if (state->completedSteps == 0) {
         Value wordsInput, languageInput;
-        if (!Scratch::getInput(block, "WORDS", thread, sprite, wordsInput) ||
-            !Scratch::getInput(block, "LANGUAGE", thread, sprite, languageInput)) return BlockResult::REPEAT;
+        if (!Scratch::getInputValue(block, "WORDS", thread, sprite, wordsInput) ||
+            !Scratch::getInputValue(block, "LANGUAGE", thread, sprite, languageInput)) return BlockResult::REPEAT;
 
         std::string words = wordsInput.asString();
         if (std::all_of(words.begin(), words.end(), ::isdigit)) {

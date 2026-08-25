@@ -1,5 +1,13 @@
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(GLFW_EXPOSE_NATIVE_WIN32)
+#define GLFW_EXPOSE_NATIVE_WIN32
+#elif defined(__APPLE__) && !defined(GLFW_EXPOSE_NATIVE_COCOA)
+#define GLFW_EXPOSE_NATIVE_COCOA
+#endif
 #include "window.hpp"
-#include <GLFW/glfw3.h>
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#include <GLFW/glfw3native.h>
+#include <libdlgmod/libdlgmod.h>
+#endif
 #include <algorithm>
 #include <input.hpp>
 #include <iostream>
@@ -16,7 +24,7 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 
 bool WindowGLFW::init(int w, int h, const std::string &title) {
     if (!glfwInit()) {
-        Log::logError("Failed to initialize GLFW");
+        Log::logCritical("Failed to initialize GLFW", true);
         return false;
     }
 
@@ -24,13 +32,21 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_ALPHA_BITS, 8);
+
+#ifdef RENDERER_OPENGL
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+#elif defined(RENDERER_OPENGL_CORE)
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 
     window = glfwCreateWindow(w, h, title.c_str(), NULL, NULL);
     if (!window) {
         glfwTerminate();
-        Log::logError("Failed to create GLFW window");
+        Log::logCritical("Failed to create GLFW window", true);
         return false;
     }
 
@@ -38,6 +54,12 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     glfwGetFramebufferSize(window, &width, &height);
+
+#if defined(_WIN32) || defined(_WIN64)
+    widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetWin32Window(window)).c_str());
+#elif defined(__APPLE__)
+    widget_set_owner(std::to_string((unsigned long long)(void *)glfwGetCocoaWindow(window)).c_str());
+#endif
 
     return true;
 }

@@ -37,7 +37,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 
 SpeechManagerGL *speechManager = nullptr;
 
@@ -60,7 +60,7 @@ bool Render::Init() {
 #error "No windowing backend defined"
 #endif
 
-    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+    if (!globalWindow->init(480, 360, "Scratch Everywhere!")) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;

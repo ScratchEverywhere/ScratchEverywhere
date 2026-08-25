@@ -21,7 +21,7 @@ SCRATCH_BLOCK(event, whenstageclicked) {
 SCRATCH_BLOCK(event, broadcast) {
     Value broadcast;
 
-    if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
     std::string broadcastStr = broadcast.asString();
     std::transform(broadcastStr.begin(), broadcastStr.end(), broadcastStr.begin(), ::tolower);
 
@@ -46,7 +46,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     if (state->completedSteps == 0) {
         Value broadcastValue;
 
-        if (!Scratch::getInput(block, "BROADCAST_INPUT", thread, sprite, broadcastValue)) return BlockResult::REPEAT;
+        if (!Scratch::getInputValue(block, "BROADCAST_INPUT", thread, sprite, broadcastValue)) return BlockResult::REPEAT;
         std::string broadcastStr = broadcastValue.asString();
         std::transform(broadcastStr.begin(), broadcastStr.end(), broadcastStr.begin(), ::tolower);
 

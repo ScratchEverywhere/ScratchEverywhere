@@ -36,7 +36,7 @@ char nickname[0x21];
 #include <psp2/touch.h>
 #endif
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
 SDL_Texture *penTexture = nullptr;
 SpeechManagerSDL3 *speechManager = nullptr;
@@ -51,8 +51,8 @@ bool Render::Init() {
     int windowWidth = 960;
     int windowHeight = 544;
 #else
-    int windowWidth = 540;
-    int windowHeight = 405;
+    int windowWidth = 480;
+    int windowHeight = 360;
 #endif
 
     TTF_Init();
@@ -65,8 +65,8 @@ bool Render::Init() {
     }
 
     renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), "");
-    if (renderer == NULL) {
-        Log::logError("Could not create renderer: " + std::string(SDL_GetError()));
+    if (renderer == nullptr) {
+        Log::logCritical("Could not create renderer: " + std::string(SDL_GetError()), true);
         return false;
     }
 
@@ -368,7 +368,7 @@ void Render::penStamp(Sprite *sprite) {
     // clear line draw queue so stamp can be rendered on top
     if (!penVerts.empty()) {
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
         penVerts.clear();
     }
@@ -409,7 +409,7 @@ void Render::penStamp(Sprite *sprite) {
 
     image->render(params);
 
-    SDL_SetRenderTarget(renderer, NULL);
+    SDL_SetRenderTarget(renderer, nullptr);
 }
 
 void Render::penClear() {
@@ -417,7 +417,7 @@ void Render::penClear() {
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, NULL);
+    SDL_SetRenderTarget(renderer, nullptr);
     penVerts.clear();
 }
 
@@ -547,10 +547,10 @@ void Render::renderPenLayer() {
         SDL_SetRenderTarget(renderer, penTexture);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
-        SDL_RenderGeometry(renderer, NULL, penVerts.data(), penVerts.size(), NULL, 0);
+        SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         penVerts.clear();
 
-        SDL_SetRenderTarget(renderer, NULL);
+        SDL_SetRenderTarget(renderer, nullptr);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 
@@ -566,7 +566,7 @@ void Render::renderPenLayer() {
         renderRect.w = getWidth();
     }
 
-    SDL_RenderTexture(renderer, penTexture, NULL, &renderRect);
+    SDL_RenderTexture(renderer, penTexture, nullptr, &renderRect);
 }
 
 bool Render::appShouldRun() {

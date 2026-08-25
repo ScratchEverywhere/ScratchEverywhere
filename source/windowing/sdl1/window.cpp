@@ -1,5 +1,10 @@
 #include "window.hpp"
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#include <SDL_syswm.h>
+#include <libdlgmod/libdlgmod.h>
+#endif
 #include <chrono>
+#include <cstdlib>
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
@@ -21,8 +26,11 @@ static const int TARGET_FPS = 60; // SDL1 OpenGL target frame rate for VSync-lik
 #endif
 
 bool WindowSDL1::init(int width, int height, const std::string &title) {
+#if defined(VITA)
+    setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
+#endif
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
-        Log::logError("Failed to initialize SDL1");
+        Log::logCritical("Failed to initialize SDL1", true);
         return false;
     }
     SDL_EnableUNICODE(1);
@@ -39,7 +47,7 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
 #endif
 
     if (!window) {
-        Log::logError("Failed to create SDL1 window");
+        Log::logCritical("Failed to create SDL1 window", true);
         return false;
     }
 
@@ -51,6 +59,17 @@ bool WindowSDL1::init(int width, int height, const std::string &title) {
     this->height = height;
 
     resize(width, height);
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+    SDL_SysWMinfo system_info;
+    SDL_VERSION(&system_info.version);
+    SDL_GetWMInfo(&system_info);
+#if defined(_WIN32) || defined(_WIN64)
+    widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.win.window).c_str());
+#elif defined(__APPLE__)
+    widget_set_owner(std::to_string((unsigned long long)(void *)system_info.info.cocoa.window).c_str());
+#endif
+#endif
 
     // Print SDL version number. could be useful for debugging
     SDL_version ver;

@@ -7,7 +7,7 @@
 void SettingsManager::migrate() {
     auto potentialError = FileSystem::createDirectory(OS::getConfigFolderLocation());
     if (!potentialError.has_value()) {
-        Log::logError("Could not make config directory: " + potentialError.error());
+        Log::logCritical("Could not make config directory: " + potentialError.error(), false);
         return;
     }
 

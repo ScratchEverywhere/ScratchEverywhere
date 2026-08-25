@@ -1,5 +1,6 @@
 #include "runtime.hpp"
 #include "blockExecutor.hpp"
+#include "collision.hpp"
 #include "interface.hpp"
 #include "meta.hpp"
 #include "sprite.hpp"
@@ -86,7 +87,7 @@ void extensions::runtime::registerAPI(Extension *extension) {
                                            "items", &List::items);
 
     // i hate u
-    extension->luaState.new_usertype<Block>("Block", "nextBlock", &Block::nextBlock, "argumentNames", &Block::argumentNames, "hasReturnValue", &Block::hasReturnValue, "shadow", &Block::shadow, "argumentIDs", &Block::argumentIDs, "argumentDefaults", &Block::argumentDefaults, "MyBlockDefinitionID", &Block::MyBlockDefinitionID, "opcode", &Block::opcode, "MyBlockWithoutScreenRefresh", &Block::MyBlockWithoutScreenRefresh, "isEndBlock", &Block::isEndBlock, "getInput", [](Block &b, const std::string &key) -> sol::optional<ParsedInput> {auto it = b.inputs.find(key);if (it != b.inputs.end()) return it->second;return sol::nullopt; }, "getField", [](Block &b, const std::string &key) -> sol::optional<ParsedField> {auto it = b.fields.find(key);if (it != b.fields.end()) return it->second;return sol::nullopt; });
+    extension->luaState.new_usertype<Block>("Block", "nextBlock", &Block::nextBlock, "argumentNames", &Block::argumentNames, "hasReturnValue", &Block::hasReturnValue, "shadow", &Block::shadow, "argumentIDs", &Block::argumentIDs, "argumentDefaults", &Block::argumentDefaults, "MyBlockDefinitionID", &Block::MyBlockDefinitionID, "opcode", &Block::opcode, "MyBlockWithoutScreenRefresh", &Block::MyBlockWithoutScreenRefresh, "isEndBlock", &Block::isEndBlock, "getInput", [](Block &b, const std::string &key) -> sol::optional<ParsedInput> {const auto* i = Scratch::getInput(&b,key);if(i != nullptr) return *i;return sol::nullopt; }, "getField", [](Block &b, const std::string &key) -> sol::optional<ParsedField> {const auto* f = Scratch::getField(b,key); if(f != nullptr) return *f;return sol::nullopt; });
 
     extension->luaState.new_usertype<ParsedInput>("ParsedInput",
                                                   "block", &ParsedInput::block,
@@ -120,7 +121,7 @@ void extensions::runtime::registerAPI(Extension *extension) {
     extension->luaState.new_usertype<Costume>("Costume",
                                               "id", &Costume::id,
                                               "bitmapResolution", &Costume::bitmapResolution,
-                                              "bitmask", &Costume::bitmask,
+                                              "collisionMask", &Costume::collisionMask,
                                               "rotationCenterX", &Costume::rotationCenterX,
                                               "rotationCenterY", &Costume::rotationCenterY,
                                               "isSVG", &Costume::isSVG,
@@ -128,13 +129,12 @@ void extensions::runtime::registerAPI(Extension *extension) {
                                               "fullName", &Costume::fullName,
                                               "dataFormat", &Costume::dataFormat);
 
-    extension->luaState.new_usertype<Bitmask>("Bitmask",
-                                              "getPixel", &Bitmask::getPixel,
-                                              "bits", &Bitmask::bits,
-                                              "width", &Bitmask::width,
-                                              "height", &Bitmask::height,
-                                              "maxRadius", &Bitmask::maxRadius,
-                                              "scaleFactor", &Bitmask::scaleFactor);
+    extension->luaState.new_usertype<CollisionMask>("CollisionMask",
+                                                    "getPixel", &CollisionMask::getPixel,
+                                                    "width", &CollisionMask::width,
+                                                    "height", &CollisionMask::height,
+                                                    "maxRadius", &CollisionMask::maxRadius,
+                                                    "scaleFactor", &CollisionMask::scaleFactor);
 
     extension->luaState["runtime"] = extension->luaState.create_table();
 

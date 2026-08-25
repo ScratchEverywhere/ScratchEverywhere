@@ -20,6 +20,9 @@
 #endif
 #endif
 #include <__getbasepath/internal.h>
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include <sstream>
+#endif
 
 namespace OS {
 bool toExit = false;
@@ -59,7 +62,7 @@ std::string OS::getConfigFolderLocation() {
         path = (std::filesystem::path(szPath) / "scratch-everywhere" / "").string();
         CoTaskMemFree(szPath);
     } else {
-        Log::logError("Could not find RoamingData path.");
+        Log::logCritical("Could not find RoamingData path.", false);
     }
 #elif defined(__APPLE__)
     const char *home = std::getenv("HOME");
@@ -95,6 +98,37 @@ std::string OS::getScratchFolderLocation() {
     std::string cpp_basepath = basepath ? basepath : "";
 #if defined(_WIN32) || defined(_WIN64)
     return cpp_basepath + "scratch-everywhere\\";
+#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+    const char *path = std::getenv("PATH");
+    if (path && path[0] != '\0') {
+        std::string str(path);
+        std::string buf;
+        std::stringstream ss(str);
+
+        std::vector<std::string> tokens;
+
+        while (getline(ss, buf, ':')) {
+            tokens.push_back(buf);
+        }
+
+        cpp_basepath.pop_back();
+
+        if (std::find(tokens.begin(), tokens.end(), cpp_basepath) != tokens.end()) {
+            const char *xdgData = std::getenv("XDG_DATA_HOME");
+            if (xdgData && xdgData[0] != '\0') {
+                return (std::filesystem::path(xdgData) / "scratch-everywhere" / "").string();
+            } else {
+                const char *home = std::getenv("HOME");
+                if (!home) {
+                    struct passwd *pw = getpwuid(getuid());
+                    if (pw) home = pw->pw_dir;
+                }
+                if (home) return (std::filesystem::path(home) / ".local" / "share" / "scratch-everywhere" / "").string();
+            }
+        } else {
+            return cpp_basepath + "/scratch-everywhere/";
+        }
+    }
 #else
     return cpp_basepath + "scratch-everywhere/";
 #endif

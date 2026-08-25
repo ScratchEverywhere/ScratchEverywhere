@@ -4,7 +4,7 @@
 #include <window.hpp>
 #include <windowing/headless/window.hpp>
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 
 bool Render::Init() {
     globalWindow = new WindowHeadless();

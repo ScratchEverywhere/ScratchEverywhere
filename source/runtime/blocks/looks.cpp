@@ -1,5 +1,6 @@
 #include "blockExecutor.hpp"
 #include "blockUtils.hpp"
+#include "math.hpp"
 #include "runtime.hpp"
 #include <algorithm>
 #include <cstddef>
@@ -15,7 +16,7 @@ SCRATCH_BLOCK(looks, say) {
     if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
 
     Value messageValue;
-    if (!Scratch::getInput(block, "MESSAGE", thread, sprite, messageValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "MESSAGE", thread, sprite, messageValue)) return BlockResult::REPEAT;
 
     std::string message = messageValue.asString();
 
@@ -32,8 +33,8 @@ SCRATCH_BLOCK(looks, sayforsecs) {
     SpeechManager *speechManager = Render::getSpeechManager();
     if (state->completedSteps == 0) {
         Value seconds, message;
-        if (!Scratch::getInput(block, "SECS", thread, sprite, seconds) ||
-            !Scratch::getInput(block, "MESSAGE", thread, sprite, message)) return BlockResult::REPEAT;
+        if (!Scratch::getInputValue(block, "SECS", thread, sprite, seconds) ||
+            !Scratch::getInputValue(block, "MESSAGE", thread, sprite, message)) return BlockResult::REPEAT;
 
         state->waitDuration = seconds.asDouble() * 1000; // convert to milliseconds
         state->waitTimer.start();
@@ -55,7 +56,7 @@ SCRATCH_BLOCK(looks, think) {
     SpeechManager *speechManager = Render::getSpeechManager();
 
     Value messageValue;
-    if (!Scratch::getInput(block, "MESSAGE", thread, sprite, messageValue)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "MESSAGE", thread, sprite, messageValue)) return BlockResult::REPEAT;
 
     std::string message = messageValue.asString();
 
@@ -69,8 +70,8 @@ SCRATCH_BLOCK(looks, thinkforsecs) {
     SpeechManager *speechManager = Render::getSpeechManager();
     if (state->completedSteps == 0) {
         Value seconds, message;
-        if (!Scratch::getInput(block, "SECS", thread, sprite, seconds) ||
-            !Scratch::getInput(block, "MESSAGE", thread, sprite, message)) return BlockResult::REPEAT;
+        if (!Scratch::getInputValue(block, "SECS", thread, sprite, seconds) ||
+            !Scratch::getInputValue(block, "MESSAGE", thread, sprite, message)) return BlockResult::REPEAT;
 
         state->waitDuration = seconds.asDouble() * 1000; // convert to milliseconds
         state->waitTimer.start();
@@ -102,7 +103,7 @@ SCRATCH_BLOCK(looks, hide) {
 
 SCRATCH_BLOCK(looks, switchcostumeto) {
     Value costume;
-    if (!Scratch::getInput(block, "COSTUME", thread, sprite, costume)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "COSTUME", thread, sprite, costume)) return BlockResult::REPEAT;
 
     if (costume.isDouble()) {
         Scratch::switchCostume(sprite, costume.isNaN() ? 0 : costume.asDouble() - 1);
@@ -139,7 +140,7 @@ SCRATCH_BLOCK(looks, nextcostume) {
 
 SCRATCH_BLOCK(looks, switchbackdropto) {
     Value backdrop;
-    if (!Scratch::getInput(block, "BACKDROP", thread, sprite, backdrop)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "BACKDROP", thread, sprite, backdrop)) return BlockResult::REPEAT;
 
     if (backdrop.isDouble()) {
         Scratch::switchCostume(Scratch::stageSprite, backdrop.isNaN() ? 0 : backdrop.asDouble() - 1);
@@ -190,7 +191,7 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
     BlockState *state = thread->getState(block);
     if (state->completedSteps < 1) {
         Value backdrop;
-        if (!Scratch::getInput(block, "BACKDROP", thread, sprite, backdrop)) return BlockResult::REPEAT;
+        if (!Scratch::getInputValue(block, "BACKDROP", thread, sprite, backdrop)) return BlockResult::REPEAT;
 
         if (backdrop.isDouble()) {
             const double bk = backdrop.isNaN() ? 0 : backdrop.asDouble() - 1;
@@ -273,7 +274,7 @@ SCRATCH_BLOCK(looks, nextbackdrop) {
 SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
     if (sprite->isStage) return BlockResult::CONTINUE;
     Value num;
-    if (!Scratch::getInput(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
 
     const std::string forwardBackward = Scratch::getFieldValue(*block, "FORWARD_BACKWARD");
     if (!num.isNumeric()) return BlockResult::CONTINUE;
@@ -330,7 +331,7 @@ SCRATCH_BLOCK(looks, gotofrontback) {
 
 SCRATCH_BLOCK(looks, setsizeto) {
     Value size;
-    if (!Scratch::getInput(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
 
     if (!Scratch::fencing) {
         sprite->size = size.asDouble();
@@ -364,7 +365,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
 
 SCRATCH_BLOCK(looks, changesizeby) {
     Value size;
-    if (!Scratch::getInput(block, "CHANGE", thread, sprite, size)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "CHANGE", thread, sprite, size)) return BlockResult::REPEAT;
 
     if (!Scratch::fencing) {
         sprite->size += size.asDouble();
@@ -400,7 +401,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
 
 SCRATCH_BLOCK(looks, seteffectto) {
     Value amount;
-    if (!Scratch::getInput(block, "VALUE", thread, sprite, amount)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "VALUE", thread, sprite, amount)) return BlockResult::REPEAT;
 
     std::string effect = Scratch::getFieldValue(*block, "EFFECT");
     std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
@@ -408,35 +409,15 @@ SCRATCH_BLOCK(looks, seteffectto) {
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
 
     if (effect == "COLOR") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Color effect is not supported yet.");
-            logged = true;
-        }
+        sprite->colorEffect = amount.asDouble();
     } else if (effect == "FISHEYE") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Fisheye effect is not supported yet.");
-            logged = true;
-        }
+        sprite->fisheyeEffect = amount.asDouble();
     } else if (effect == "WHIRL") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Whirl effect is not supported yet.");
-            logged = true;
-        }
+        sprite->whirlEffect = amount.asDouble();
     } else if (effect == "PIXELATE") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Pixelate effect is not supported yet.");
-            logged = true;
-        }
+        sprite->pixelateEffect = amount.asDouble();
     } else if (effect == "MOSAIC") {
-        static bool logged = false;
-        if (!logged) {
-            Log::logWarning("Mosaic effect is not supported yet.");
-            logged = true;
-        }
+        sprite->mosaicEffect = amount.asDouble();
     } else if (effect == "BRIGHTNESS") {
         sprite->brightnessEffect = std::clamp(amount.asDouble(), -100.0, 100.0);
     } else if (effect == "GHOST") {
@@ -448,7 +429,7 @@ SCRATCH_BLOCK(looks, seteffectto) {
 }
 SCRATCH_BLOCK(looks, changeeffectby) {
     Value amount;
-    if (!Scratch::getInput(block, "CHANGE", thread, sprite, amount)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValue(block, "CHANGE", thread, sprite, amount)) return BlockResult::REPEAT;
 
     std::string effect = Scratch::getFieldValue(*block, "EFFECT");
     std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
@@ -456,15 +437,15 @@ SCRATCH_BLOCK(looks, changeeffectby) {
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
 
     if (effect == "COLOR") {
-        Log::logWarning("Color effect is not supported yet.");
+        sprite->colorEffect += amount.asDouble();
     } else if (effect == "FISHEYE") {
-        Log::logWarning("Fisheye effect is not supported yet.");
+        sprite->fisheyeEffect += amount.asDouble();
     } else if (effect == "WHIRL") {
-        Log::logWarning("Whirl effect is not supported yet.");
+        sprite->whirlEffect += amount.asDouble();
     } else if (effect == "PIXELATE") {
-        Log::logWarning("Pixelate effect is not supported yet.");
+        sprite->pixelateEffect += amount.asDouble();
     } else if (effect == "MOSAIC") {
-        Log::logWarning("Mosaic effect is not supported yet.");
+        sprite->mosaicEffect += amount.asDouble();
     } else if (effect == "BRIGHTNESS") {
         sprite->brightnessEffect += amount.asDouble();
         sprite->brightnessEffect = std::clamp(sprite->brightnessEffect, -100.0f, 100.0f);

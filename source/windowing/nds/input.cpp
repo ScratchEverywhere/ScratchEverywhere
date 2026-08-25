@@ -74,7 +74,7 @@ void Input::getInput(MenuManager *menuManager) {
         goto skipInputCheck;
     }
 
-    inputButtons.push_back("any");
+    inputKeys.push_back("any");
 
     // Send Key Codes
     for (size_t i = 0; i < KEY_AMOUNT; i++) {

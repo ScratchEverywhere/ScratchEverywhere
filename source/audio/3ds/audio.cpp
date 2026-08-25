@@ -6,7 +6,7 @@
 #include <string.h>
 
 #ifdef ENABLE_AUDIO
-static constexpr unsigned int SAMPLESPERBUF = Mixer::rate / 30;
+static constexpr unsigned int SAMPLESPERBUF = Mixer::rate / 20;
 static constexpr unsigned int BUFFER_SIZE_BYTES = SAMPLESPERBUF * sizeof(int16_t) * 2;
 
 static Thread audioThread;

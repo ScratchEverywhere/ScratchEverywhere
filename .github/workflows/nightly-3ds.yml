@@ -13,9 +13,10 @@ on:
       - cmake/deps/*
       - source/runtime/**
       - source/renderers/citro2d/**
+      - source/windowing/3ds/**
       - source/*
       - source/menus/**
-      - source/audio/sdl3/**
+      - source/audio/3ds/**
       - gfx/3ds/**
       - gfx/menu/**
       - include/**

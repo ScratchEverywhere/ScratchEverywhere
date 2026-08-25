@@ -1,6 +1,6 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-pc")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2" "sdl3" "opengl")
+set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2" "sdl3" "opengl" "opengl_core")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "source" "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51" "luajit")
@@ -21,11 +21,7 @@ set(SE_HAS_THREADS ON)
 set(SE_HAS_TOUCH TRUE)
 set(SE_HAS_MOUSE TRUE)
 set(SE_HAS_KEYBOARD TRUE)
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND (CMAKE_CROSSCOMPILING OR CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS 10.11)) # joystick doesn't work on MacOS with current Dockerfile
-	set(SE_HAS_CONTROLLER FALSE)
-else()
-	set(SE_HAS_CONTROLLER TRUE)
-endif()
+set(SE_HAS_CONTROLLER TRUE)
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT CMAKE_CROSSCOMPILING)
 	set(SE_ASAN ON)

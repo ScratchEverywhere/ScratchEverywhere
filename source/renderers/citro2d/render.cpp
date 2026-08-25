@@ -18,7 +18,7 @@ constexpr unsigned int screenWidth = 400;
 constexpr unsigned int bottomScreenWidth = 320;
 constexpr unsigned int screenHeight = 240;
 
-Window *globalWindow = nullptr;
+WindowSE *globalWindow = nullptr;
 SpeechManagerC2D *speechManager = nullptr;
 C3D_RenderTarget *topScreen = nullptr;
 C3D_RenderTarget *topScreenRightEye = nullptr;
@@ -147,7 +147,7 @@ bool Render::initPen() {
 
     if (!C3D_TexInitVRAM(penImage.tex, penTex->width, penTex->height, GPU_RGBA8)) {
         penRenderTarget = nullptr;
-        Log::logError("Failed to create pen texture.");
+        Log::logCritical("Failed to create pen texture.", false);
         return false;
     } else {
         penRenderTarget = C3D_RenderTargetCreateFromTex(penImage.tex, GPU_TEXFACE_2D, 0, GPU_RB_DEPTH16);
@@ -520,6 +520,9 @@ void Render::renderSprites(bool present) {
         screen_rendering(0, true);
 
         renderMonitors();
+        if (Render::renderMode != Render::BOTH_SCREENS) {
+            drawBlackBars(screenWidth, screenHeight);
+        }
 
         // Draw mouse pointer
         if (Input::mousePointer.isMoving) {

@@ -70,6 +70,7 @@ struct ScriptThread {
     Sprite *sprite;
     Block *blockHat;
     Block *nextBlock;
+    ScriptThread *parentThread;
     std::unordered_map<Block *, BlockState *> states;
     int finished = true;
     bool withoutScreenRefresh = false;
@@ -150,8 +151,6 @@ inline void BlockState::clear() {
     waitTimer = Timer();
     name = "";
     threads.clear();
-    if (myBlockThread != nullptr) delete myBlockThread;
-    myBlockThread = nullptr;
 }
 
 struct Variable {
@@ -211,8 +210,13 @@ struct Block {
     bool isEndBlock = false;
     bool shadow = false;
 
-    std::unordered_map<std::string, ParsedInput> inputs;
-    std::unordered_map<std::string, ParsedField> fields;
+    std::vector<std::pair<std::string, ParsedInput>> inputs;
+    std::vector<std::pair<std::string, ParsedField>> fields;
+
+    std::unordered_map<std::string, ParsedInput *> inputMap;
+    std::unordered_map<std::string, ParsedField *> fieldMap;
+
+    bool recalculateInputs = false;
 };
 
 struct Sound {
@@ -224,20 +228,7 @@ struct Sound {
     int sampleCount;
 };
 
-struct Bitmask {
-    float maxRadius = 0;
-
-    unsigned int width = 0;
-    unsigned int height = 0;
-    float scaleFactor = 0;
-    std::vector<uint32_t> bits;
-
-    bool getPixel(int x, int y) const {
-        if (x < 0 || x >= width || y < 0 || y >= height) return false;
-        int index = y * ((width + 31) / 32) + (x / 32);
-        return bits[index] & (1 << (x % 32));
-    }
-};
+struct CollisionMask;
 
 struct Costume {
     std::string id;
@@ -249,7 +240,7 @@ struct Costume {
     double rotationCenterX;
     double rotationCenterY;
 
-    std::shared_ptr<Bitmask> bitmask = nullptr;
+    std::shared_ptr<CollisionMask> collisionMask = nullptr;
 };
 
 struct Broadcast {
@@ -305,7 +296,11 @@ class Sprite {
     /** Costume effects */
     float ghostEffect;
     float brightnessEffect;
-    float colorEffect;
+    float colorEffect = 0.0f;
+    float fisheyeEffect = 0.0f;
+    float whirlEffect = 0.0f;
+    float pixelateEffect = 0.0f;
+    float mosaicEffect = 0.0f;
 
     /** Audio effects */
     float volume = 100.0f;

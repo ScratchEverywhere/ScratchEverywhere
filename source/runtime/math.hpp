@@ -10,7 +10,7 @@
 namespace Math {
 
 bool isNumber(const std::string &str);
-nonstd::expected<double, std::string> parseNumber(std::string str);
+nonstd::expected<double, std::string> parseNumber(std::string_view str);
 
 std::string toString(double number);
 
