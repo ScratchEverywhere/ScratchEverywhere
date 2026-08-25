@@ -81,7 +81,7 @@ bool WindowSDL2::init(int width, int height, bool resizable, const std::string &
     }
 #endif
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     flags |= SDL_WINDOW_OPENGL;
 #endif
 

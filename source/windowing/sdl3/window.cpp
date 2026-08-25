@@ -61,7 +61,7 @@ bool WindowSDL3::init(int width, int height, bool resizable, const std::string &
 	} else {
         flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
 	}
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     flags |= SDL_WINDOW_OPENGL;
 #endif
 
