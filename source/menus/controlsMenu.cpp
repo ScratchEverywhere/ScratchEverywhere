@@ -65,19 +65,19 @@ ControlsMenu::ControlsMenu(void *userdata) {
     for (auto &block : Scratch::blocks) {
         std::string buttonCheck;
         if (block->opcode == "sensing_keypressed") {
-            if (block->inputs["KEY_OPTION"].inputType == ParsedInput::VALUE) {
-                buttonCheck = block->inputs["KEY_OPTION"].value.asString();
+            if (block->inputMap["KEY_OPTION"]->inputType == ParsedInput::VALUE) {
+                buttonCheck = block->inputMap["KEY_OPTION"]->value.asString();
             }
         } else if (block->opcode == "event_whenkeypressed") {
-            buttonCheck = block->fields["KEY_OPTION"].value;
+            buttonCheck = block->fieldMap["KEY_OPTION"]->value;
         } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
-            if (block->inputs["KEY"].inputType == ParsedInput::VALUE) {
-                buttonCheck = block->inputs["KEY"].value.asString();
+            if (block->inputMap["KEY"]->inputType == ParsedInput::VALUE) {
+                buttonCheck = block->inputMap["KEY"]->value.asString();
             }
         } else if (block->opcode == "makeymakey_whenCodePressed") {
-            if (block->inputs["SEQUENCE"].inputType != ParsedInput::VALUE) continue;
+            if (block->inputMap["SEQUENCE"]->inputType != ParsedInput::VALUE) continue;
 
-            std::string input = block->inputs["SEQUENCE"].value.asString();
+            std::string input = block->inputMap["SEQUENCE"]->value.asString();
             size_t start = 0;
             size_t end;
             while ((end = input.find(' ', start)) != std::string::npos) {
