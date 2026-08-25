@@ -1,4 +1,4 @@
-#include "render.hpp"
+#include "render_sdl3.hpp"
 #include "speech_manager_sdl3.hpp"
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 #include <window.hpp>
-#include <windowing/sdl3/window.hpp>
+#include <windowing/sdl3/window_sdl3.hpp>
 
 #ifdef __SWITCH__
 #include <switch.h>

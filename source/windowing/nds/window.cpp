@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_nds.hpp"
 #include "os.hpp"
 #include <fat.h>
 #include <filesystem.h>

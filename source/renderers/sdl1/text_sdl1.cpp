@@ -1,5 +1,5 @@
 #include "text_sdl1.hpp"
-#include "render.hpp"
+#include "render_sdl1.hpp"
 #include <SDL_gfxBlitFunc.h>
 #include <SDL_rotozoom.h>
 #include <SDL_video.h>

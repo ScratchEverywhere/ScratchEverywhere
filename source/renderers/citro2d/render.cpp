@@ -9,7 +9,7 @@
 #include <text.hpp>
 #include <unzip.hpp>
 #include <window.hpp>
-#include <windowing/3ds/window.hpp>
+#include <windowing/3ds/window_3ds.hpp>
 
 static u8 is_2ds = CFGU_GetModelNintendo2DS(&is_2ds);
 

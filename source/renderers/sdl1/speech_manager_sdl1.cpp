@@ -1,5 +1,5 @@
 #include "speech_manager_sdl1.hpp"
-#include "render.hpp"
+#include "render_sdl1.hpp"
 #include <SDL.h>
 #include <SDL_gfxBlitFunc.h>
 #include <SDL_rotozoom.h>

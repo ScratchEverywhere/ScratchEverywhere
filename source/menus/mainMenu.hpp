@@ -1,4 +1,5 @@
 #pragma once
+#include <se_export.hpp>
 #include "menuObjects.hpp"
 #include "os.hpp"
 #include "text.hpp"
@@ -11,7 +12,7 @@
 #include <whb/sdcard.h>
 #endif
 
-class Menu {
+class SE_EXPORT Menu {
   public:
     bool isInitialized = false;
     virtual void init() = 0;
@@ -20,7 +21,7 @@ class Menu {
     virtual ~Menu();
 };
 
-class MenuManager {
+class SE_EXPORT MenuManager {
   private:
     static Menu *currentMenu;
 
@@ -33,7 +34,7 @@ class MenuManager {
     static void cleanup();
 };
 
-class MainMenu : public Menu {
+class SE_EXPORT MainMenu : public Menu {
   private:
   public:
     bool shouldExit = false;

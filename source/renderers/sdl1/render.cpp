@@ -1,4 +1,4 @@
-#include "render.hpp"
+#include "render_sdl1.hpp"
 #include "speech_manager_sdl1.hpp"
 #include <SDL.h>
 #include <SDL_gfxBlitFunc.h>
@@ -22,7 +22,7 @@
 #include <unzip.hpp>
 #include <vector>
 #include <window.hpp>
-#include <windowing/sdl1/window.hpp>
+#include <windowing/sdl1/window_sdl1.hpp>
 
 #ifdef __MINGW32__
 #define filledCircleRGBA GFX_filledCircleRGBA

@@ -1,4 +1,4 @@
-#include "render.hpp"
+#include "render_sdl2.hpp"
 #include "speech_manager.hpp"
 #include "speech_manager_sdl2.hpp"
 #include "sprite.hpp"
@@ -14,7 +14,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <windowing/sdl2/window.hpp>
+#include <windowing/sdl2/window_sdl2.hpp>
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>

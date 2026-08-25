@@ -7,6 +7,7 @@ if(APPLE)
 endif()
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
+# tldr: MSVC strictly enforces the standard as designated initializers were a compiler extension until C++20
 if(MSVC)
 	set(CMAKE_CXX_STANDARD 20)
 else()
@@ -91,6 +92,8 @@ endif()
 
 set(SE_OUTPUT_NAME "${SE_DEFAULT_OUTPUT_NAME}" CACHE STRING "File name of the outputed executable")
 
+option(SE_LIBRARY "Build as a library instead of an executable" OFF)
+
 option(SE_EXECUTABLE "Build the main executable." ${PROJECT_IS_TOP_LEVEL})
 
 option(SE_AUDIO "Enables audio in SE!" ON)
@@ -103,6 +106,9 @@ cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUD
 cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
+if(SE_LIBRARY)
+	set(SE_MENU OFF CACHE BOOL "Enables the SE! Main Menu." FORCE)
+endif()
 
 if(NOT DEFINED SE_DECTALK_DEFAULT)
 	set(SE_DECTALK_DEFAULT OFF)
@@ -113,7 +119,7 @@ else()
 	option(SE_DECTALK "Build DECtalk for TTS." OFF)
 endif()
 
-#  disable menu if a project is in RomFS
+# disable menu if a project is in RomFS
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3" OR LIBRETRO)
 	set(SE_MENU OFF)
 	set(SE_LOADSCREEN OFF)
@@ -249,6 +255,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
+
 set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_CUSTOM_EXTENSIONS)
@@ -262,6 +269,13 @@ endif()
 set(ABSOLUTE_SOURCES "")
 foreach(src IN LISTS SOURCES)
     list(APPEND ABSOLUTE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+endforeach()
+
+set(ABSOLUTE_INCLUDES "")
+foreach(src IN LISTS SOURCES)
+	string(REPLACE "source" "include" inc "${src}")
+	list(APPEND ABSOLUTE_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/${inc}")
+	list(APPEND ABSOLUTE_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
 endforeach()
 
 set(SOURCE_FILES)
@@ -278,14 +292,25 @@ if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
 
+if(SE_LIBRARY)
+	list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/main\\.cpp$")
+	list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/libretro\\.cpp$")
+endif()
+
 add_library(se-interface INTERFACE)
 if(SE_EXECUTABLE)
 	if(LIBRETRO)
 		add_library(scratch-everywhere SHARED ${SOURCE_FILES})
 		set_target_properties(scratch-everywhere PROPERTIES PREFIX "")
 		se_add_dependency(scratch-everywhere libretro)
+	elseif(SE_LIBRARY)
+		add_library(scratch-everywhere ${SOURCE_FILES})
 	else()
 		add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+	endif()
+
+	if(SE_LIBRARY)
+		target_compile_definitions(scratch-everywhere PRIVATE SE_BUILD_LIBRARY)
 	endif()
 
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
@@ -467,7 +492,7 @@ if(SE_BITMAP)
 	se_add_dependency(se-interface stb_image)
 endif()
 
-target_include_directories(se-interface INTERFACE ${ABSOLUTE_SOURCES})
+target_include_directories(se-interface INTERFACE ${ABSOLUTE_INCLUDES})
 
 if(COMMAND package_platform)
 	package_platform()
