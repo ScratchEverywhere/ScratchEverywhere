@@ -512,7 +512,7 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
-#else
+#elif !defined(WINDOWING_SDL3) && !defined(WINDOWING_SDL2)
     if (!gladLoaderLoadGL()) {
         Log::logError("[GL Core] Failed to initialize GLAD");
         globalWindow->cleanup();
