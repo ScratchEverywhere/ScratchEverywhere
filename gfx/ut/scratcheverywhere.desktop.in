@@ -1,0 +1,7 @@
+[Desktop Entry]
+_Name=Scratch Everywhere!
+Exec=scratch-ut %U
+Icon=assets/logo.svg
+Terminal=false
+Type=Application
+X-Lomiri-Touch=true

@@ -5,8 +5,8 @@ function(_check_dep_target DEP_NAME)
 		return()
 	endif()
 
-	set(CANDIDATES ${DEP_NAME} ${DEP_NAME}::${DEP_NAME} ${DEP_NAME}::${DEP_NAME}-static PkgConfig::${DEP_NAME})
-	
+	set(CANDIDATES ${DEP_NAME} ${DEP_NAME}main ${DEP_NAME}::${DEP_NAME} ${DEP_NAME}::${DEP_NAME}main ${DEP_NAME}::${DEP_NAME}-static PkgConfig::${DEP_NAME})
+
 	foreach(CANDIDATE ${CANDIDATES})
 		if(TARGET ${CANDIDATE})
 			get_target_property(IS_ALIAS ${CANDIDATE} ALIASED_TARGET)

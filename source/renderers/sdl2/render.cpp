@@ -59,7 +59,12 @@ SDL_Texture *penTexture = nullptr;
 
 SpeechManagerSDL2 *speechManager = nullptr;
 
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+#define SDL_HAS_GEOMETRY 1
 static std::vector<SDL_Vertex> penVerts;
+#else
+#define SDL_HAS_GEOMETRY 0
+#endif
 
 bool Render::Init() {
 #ifdef __WIIU__
@@ -204,6 +209,7 @@ bool Render::initPen() {
     return true;
 }
 
+#if SDL_HAS_GEOMETRY
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
@@ -476,6 +482,14 @@ void Render::penClear() {
     SDL_SetRenderTarget(renderer, nullptr);
     if (!penVerts.empty()) penVerts.clear();
 }
+#else
+void Render::penMoveFast(double, double, double, double, Sprite *) {} // stub pen for SDL2 versions that don't support the geometry API
+void Render::penDotFast(Sprite *) {}
+void Render::penMoveAccurate(double, double, double, double, Sprite *) {}
+void Render::penDotAccurate(Sprite *) {}
+void Render::penStamp(Sprite *) {}
+void Render::penClear() {}
+#endif
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
@@ -598,6 +612,7 @@ void Render::renderSprites() {
 }
 
 void Render::renderPenLayer() {
+#if SDL_HAS_GEOMETRY
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(renderer, penTexture);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
@@ -622,6 +637,7 @@ void Render::renderPenLayer() {
     }
 
     SDL_RenderCopy(renderer, penTexture, nullptr, &renderRect);
+#endif
 }
 
 bool Render::appShouldRun() {
