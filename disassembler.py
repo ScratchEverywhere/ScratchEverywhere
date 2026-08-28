@@ -4,23 +4,18 @@ import os
 import re
 
 def parse_opcodes_from_header(header_path):
-    """
-    Liest die C++-Header-Datei und extrahiert alle Opcode-Namen aus dem enum class Opcode.
-    Gibt ein dict {opcode_index: opcode_name} zurück.
-    """
     try:
         with open(header_path, 'r', encoding='utf-8') as f:
             content = f.read()
     except FileNotFoundError:
         raise FileNotFoundError(
-            f"Opcode-Header nicht gefunden: {header_path}\n"
-            "Bitte passen Sie den Pfad in der Variable OPCODE_HEADER_PATH an."
+            f"Opcode-Header Not found: {header_path}\n"
         )
 
     pattern = r'enum\s+Opcode\s*:\s*uint16_t\s*\{([^}]*)\}'
     match = re.search(pattern, content, re.DOTALL)
     if not match:
-        raise ValueError("Konnte 'enum class Opcode' im Header nicht finden.")
+        raise ValueError("'enum Opcode' Not found.")
 
     enum_body = match.group(1)
     tokens = enum_body.split(',')
