@@ -99,6 +99,13 @@ bool WindowSDL2::init(int width, int height, bool resizable, const std::string &
     }
 
     SDL_GL_SetSwapInterval(1); // VSync
+
+#ifdef RENDERER_OPENGL_CORE
+    if (!gladLoaderLoadGL()) {
+        Log::logCritical("Failed to initialize GLAD", true);
+        return false;
+    }
+#endif
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
