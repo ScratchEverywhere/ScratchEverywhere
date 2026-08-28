@@ -18,7 +18,7 @@ Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
 bool Render::hasFrameBegan;
 std::vector<Monitor> Render::monitors;
 
-void Render::calculateRenderPosition(const uint32_t spriteID ) {
+void Render::calculateRenderPosition(const uint32_t spriteID) {
     RenderInfo &info = EntityManager::renderInfo[spriteID];
     const uint8_t spatialDirtyMask = DIRTY_POSITION | DIRTY_ROTATION | DIRTY_SIZE;
     if ((info.dirtyFlags & spatialDirtyMask) == 0) {
@@ -205,6 +205,9 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
         float projectY = (var.y + offsetY) + (EngineState::projectHeight - 360) * 0.5f;
 
         if (var.mode == MonitorMode::List) {
+            if (var.varId == EMPTY_VAR_ID || var.varId >= EntityManager::lists[var.instanceId].orderedKeys.size()) {
+                continue;
+            }
             if (listMonitors.find(var.id) == listMonitors.end()) {
                 ListMonitorRenderObjects newObj;
                 newObj.name = createTextObject(var.displayName, 0, 0);
@@ -227,8 +230,7 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
 
             const size_t itemsPerPage = std::floor(((monitorH * 0.75) / boxHeight + 4) / 2);
             const size_t start = var.listPage * itemsPerPage;
-
-            const auto &actualList = EntityManager::lists[var.instanceId].orderedKeys[var.varId].items;
+            const auto &actualList = EntityManager::lists[var.instanceId].orderedKeys[static_cast<size_t>(var.varId)].items;
             const size_t maxPages = actualList.size() / itemsPerPage;
 
             const size_t end = std::min(start + itemsPerPage, actualList.size());

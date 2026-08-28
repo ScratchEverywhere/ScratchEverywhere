@@ -6,6 +6,7 @@
 #include "bytecode_chunk.hpp"
 #include "compiler_context.hpp"
 #include "entity_components.hpp"
+CompilerContext *stageContext = nullptr;
 
 CompileResult CompilerContext::compileExpression(const std::string blockId) {
     if (!blocksJson.contains(blockId))
@@ -89,11 +90,11 @@ CompileResult CompilerContext::compileInput(const std::string &inputName) {
             if (inputValue[0].get<int>() == 12) {
                 // Variable
                 BytecodeChunk chunk;
-                if (targetDef.variables.count(id)) {
+                if (targetDef.variables.count(id) > 0) {
                     uint16_t variableId = targetDef.variables[id];
                     chunk.emitOpcode(static_cast<uint16_t>(Opcode::PUSH_PRI_VAR));
                     chunk.emit16(variableId);
-                } else if (stageContext->targetDef.variables.count(id)) {
+                } else if (stageContext->targetDef.variables.count(id) > 0) {
                     uint16_t variableId = stageContext->targetDef.variables[id];
                     chunk.emitOpcode(static_cast<uint16_t>(Opcode::PUSH_PUB_VAR));
                     chunk.emit16(variableId);
@@ -122,6 +123,8 @@ CompileResult CompilerContext::compileInput(const std::string &inputName) {
                 return CompileResult::Constant(val);
             }
         }
+        Log::log("[CompilerContext] Compiling " + inputName + " in block " + currentBlock + " as expression");
+        Log::log("ID: " + inputValue.get<std::string>());
         return compileExpression(inputValue.get<std::string>());
     }
 
@@ -148,6 +151,8 @@ void CompilerContext::parseProcedures() {
         std::string proccode = "";
         std::vector<std::string> argIds;
         bool warp = false;
+
+        std::vector<std::string> argNames;
 
         if (data.contains("inputs") && data["inputs"].contains("custom_block")) {
             const auto &customBlockInput = data["inputs"]["custom_block"];
@@ -184,6 +189,23 @@ void CompilerContext::parseProcedures() {
                                 }
                             }
                         }
+                        if (mutation.contains("argumentnames")) {
+                            if (mutation["argumentnames"].is_string()) {
+                                std::string argStr = mutation["argumentnames"].get<std::string>();
+                                if (!argStr.empty()) {
+                                    auto parsedArgs = nlohmann::json::parse(argStr, nullptr, false);
+                                    if (parsedArgs.is_array()) {
+                                        for (const auto &item : parsedArgs) {
+                                            if (item.is_string()) argNames.push_back(item.get<std::string>());
+                                        }
+                                    }
+                                }
+                            } else if (mutation["argumentnames"].is_array()) {
+                                for (const auto &item : mutation["argumentnames"]) {
+                                    if (item.is_string()) argNames.push_back(item.get<std::string>());
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -196,6 +218,7 @@ void CompilerContext::parseProcedures() {
         ProcedureCompileInfo &info = procedureTable.proccodeToInfo[proccode];
         info.warp = warp;
         info.argumentIdsInOrder = argIds;
+        info.argumentNamesInOrder = argNames;
     }
 }
 
@@ -257,31 +280,58 @@ void CompilerContext::parseScripts() {
         if (it == hatMap.end()) {
             continue;
         }
-
+        currentBlock = id;
         HatParseResult hatRes = it->second(*this, data);
-        if (!hatRes.isValid) continue;
-
-        if (hatRes.hatType == HatType::THIS_SPRITE_CLICKED || hatRes.hatType == HatType::STAGE_CLICKED) {
-            EntityManager::transforms[spriteIndex].setShouldClick(true);
-        }
-
         uint32_t currentBytecodeOffset = static_cast<uint32_t>(targetDef.bytecode.size());
-
-        targetDef.hatListeners.push_back(HatListener{
-            static_cast<uint16_t>(hatRes.hatType),
-            hatRes.eventParamId,
-            currentBytecodeOffset});
 
         std::string firstStatement = "";
         if (data.contains("next") && data["next"].is_string()) {
             firstStatement = data["next"].get<std::string>();
         }
-
-        BytecodeChunk chunk;
-        if (!firstStatement.empty()) {
-            compileSequence(firstStatement, chunk);
+        if (firstStatement.empty()) {
+            continue;
         }
-        chunk.emitOpcode(static_cast<uint16_t>(Opcode::RETURN));
+        targetDef.hatListeners.push_back(HatListener{
+            static_cast<uint16_t>(hatRes.hatType),
+            hatRes.eventParamId,
+            currentBytecodeOffset});
+        BytecodeChunk chunk;
+
+        if (!hatRes.isValid) continue;
+
+        if (hatRes.hatType == HatType::THIS_SPRITE_CLICKED || hatRes.hatType == HatType::STAGE_CLICKED) {
+            EntityManager::transforms[spriteIndex].setShouldClick(true);
+        } else if (hatRes.hatType == HatType::GREATER_THAN) {
+            BytecodeChunk loopChunk;
+            currentBlock = id;
+            CompileResult varRes = compileInput("VALUE");
+            loopChunk.emitPushConstant(Value(0.0));
+            loopChunk.emitOpcode(static_cast<uint16_t>(Opcode::YIELD));
+
+            if (varRes.isConstant) {
+                loopChunk.emitPushConstant(varRes.constantValue);
+            } else {
+                loopChunk.append(std::move(varRes.chunk));
+            }
+            if (hatRes.eventParamId == 0) {
+                loopChunk.emitOpcode(static_cast<uint16_t>(Opcode::sensing_timer));
+            } else {
+                loopChunk.emitOpcode(static_cast<uint16_t>(Opcode::sensing_loudness));
+            }
+
+            loopChunk.emitOpcode(static_cast<uint16_t>(Opcode::event_when_larger_then));
+            loopChunk.emitOpcode(static_cast<uint16_t>(Opcode::JUMP_BACK_IF_FALSE));
+            loopChunk.emit16(static_cast<uint16_t>(loopChunk.code.size() - 3));
+            chunk.append(std::move(loopChunk));
+        }
+
+        compileSequence(firstStatement, chunk);
+        if (hatRes.hatType == HatType::GREATER_THAN) {
+            chunk.emitOpcode(static_cast<uint16_t>(Opcode::JUMP_BACK));
+            chunk.emit16(static_cast<int16_t>(chunk.code.size() - 3));
+        } else {
+            chunk.emitOpcode(static_cast<uint16_t>(Opcode::RETURN));
+        }
 
         size_t baseOffset = targetDef.bytecode.size();
         for (const auto &patch : chunk.unresolvedProcedureCalls) {

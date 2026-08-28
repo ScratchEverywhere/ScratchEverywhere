@@ -35,7 +35,7 @@ class StringPool {
         freeSlots.reserve(32);
         getOrInsert("");
     }
-
+    static const std::vector<StringEntry> &getPool() { return pool; }
     static uint32_t getOrInsert(std::string_view str) {
         auto it = lookup.find(str);
         if (it != lookup.end()) {
@@ -199,4 +199,5 @@ class Value {
     bool strictEquals(const Value &other) const;
 
     static Value fromJson(const nlohmann::json &jsonVal);
+    static nlohmann::json toJson(const Value &val);
 };

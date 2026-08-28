@@ -4,7 +4,7 @@
 
 class ProjectLoader {
   public:
-    static void loadProject(nlohmann::json &json);
+    static bool loadProject(nlohmann::json &json);
 
   private:
     static void loadAdvancedProjectSettings(const nlohmann::json &json);

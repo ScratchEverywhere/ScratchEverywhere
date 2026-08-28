@@ -19,7 +19,9 @@ class SettingsMenu : public Menu {
     ButtonObject *ClearCache = nullptr;
     ButtonObject *Language = nullptr;
     ButtonObject *dectalkButton = nullptr;
-
+#ifdef __PC__
+    ButtonObject *ExportBytecode = nullptr;
+#endif
     bool UseCostumeUsername = false;
     std::string username;
 

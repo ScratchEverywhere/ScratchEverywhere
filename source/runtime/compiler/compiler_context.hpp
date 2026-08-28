@@ -23,6 +23,7 @@ struct ProcedureCompileInfo {
     bool compiled = false;
     bool warp = false;
     std::vector<std::string> argumentIdsInOrder;
+    std::vector<std::string> argumentNamesInOrder;
 };
 
 class ProcedureTable {
@@ -94,8 +95,6 @@ class CompilerContext {
 
     CompileResult compileInput(const std::string &inputName);
 
-    const nlohmann::json &getBlock(const std::string &blockId) const { return blocksJson[blockId]; }
-    const nlohmann::json &getCurrentBlock() const { return blocksJson[currentBlock]; }
     void parseScripts();
     void parseVariables(const nlohmann::json &vars);
     void parseLists(const nlohmann::json &lists);
@@ -104,4 +103,4 @@ class CompilerContext {
     void parseBroadcasts(const nlohmann::json &broadcastsJson);
 };
 
-static inline CompilerContext *stageContext = nullptr;
+extern CompilerContext *stageContext;

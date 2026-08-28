@@ -219,7 +219,12 @@ void Unzip::openScratchProject(void *arg) {
     // EngineState::hasNativeExtensions = Parser::loadExtensions(project_json);
 
     loadingState = TranslationManager::getTranslation("ui.loading.sprites");
-    ProjectLoader::loadProject(project_json);
+    if (!ProjectLoader::loadProject(project_json)) {
+        Log::logError("Project has too many sprites (more than UINT16_MAX).");
+        Unzip::projectOpened = -4;
+        Unzip::threadFinished = true;
+        return;
+    }
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;

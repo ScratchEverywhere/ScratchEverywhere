@@ -1,19 +1,30 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
 #include <utility>
 
-struct ScratchEngine {
-    static bool initializeRuntime();
+namespace ScratchEngine {
+bool initializeRuntime();
 
-    static void initializeScratchProject();
+void initializeScratchProject();
 
-    // i dont like that pair
-    static std::pair<bool, bool> stepScratchProject(float delta);
+// i dont like that pair
+std::pair<bool, bool> stepScratchProject();
 
-    static bool startScratchProject();
+bool startScratchProject();
 
-    static void cleanupScratchProject();
+void cleanupScratchProject();
 
-    static void executeKeyHats();
-    static void doSpriteClicking();
+void executeKeyHats();
+inline uint32_t fnv1a_32(const std::string &str) {
+    uint32_t hash = 2166136261u;
+    for (char c : str) {
+        hash ^= static_cast<uint32_t>(c);
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+void doSpriteClicking();
 }; // namespace ScratchEngine

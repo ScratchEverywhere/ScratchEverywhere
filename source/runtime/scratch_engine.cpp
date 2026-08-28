@@ -20,6 +20,7 @@
 #include <audio.hpp>
 #include <input.hpp>
 
+bool EngineState::exportBytecode = false;
 uint32_t EngineState::dispatchId = 0;
 int EngineState::projectWidth = 480;
 int EngineState::projectHeight = 360;
@@ -54,14 +55,6 @@ bool EngineState::debugVars = false;
 Timer EngineState::fpsTimer;
 Timer EngineState::timer;
 
-namespace {
-uint32_t normalizeHatEventParam(const std::string &keyName) {
-    std::string normalized = Input::convertToKey(Value(keyName), false);
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) { return std::tolower(c); });
-    return static_cast<uint32_t>(std::hash<std::string>{}(normalized));
-}
-} // namespace
-
 void ScratchEngine::executeKeyHats() {
     for (auto &entry : Input::keyHeldDuration) {
         if (std::find(Input::inputKeys.begin(), Input::inputKeys.end(), entry.first) == Input::inputKeys.end()) {
@@ -87,7 +80,9 @@ void ScratchEngine::executeKeyHats() {
             Input::inputBuffer.erase(Input::inputBuffer.begin());
         }
 
-        const uint32_t keyId = normalizeHatEventParam(key);
+        std::string normalized = Input::convertToKey(Value(key), false);
+        std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) { return std::tolower(c); });
+        const uint32_t keyId = fnv1a_32(normalized);
         VM::dispatchEvent(static_cast<uint16_t>(HatType::KEY_PRESSED), keyId, false, 0);
     }
 }
@@ -189,16 +184,15 @@ void ScratchEngine::initializeScratchProject() {
 #endif
     Render::setRenderScale();
 
-    // VM Event auslösen
-    Log::log("triggering green flag clicked");
     VM::greenFlagClicked();
-    Log::log("triggered green flag clicked");
     if (EngineState::debugVars) {
         EngineState::fpsTimer.start();
     }
 }
 
-std::pair<bool, bool> ScratchEngine::stepScratchProject(float deltaTime) {
+std::pair<bool, bool> ScratchEngine::stepScratchProject() {
+    static Timer frameTimer;
+    static bool frameTimerStarted = false;
     if (!Render::appShouldRun()) {
 #ifdef ENABLE_MENU
         if (EngineState::pauseMenu != nullptr) {
@@ -241,6 +235,13 @@ std::pair<bool, bool> ScratchEngine::stepScratchProject(float deltaTime) {
 #endif
 
         if (checkFPS) Input::getInput();
+
+        float deltaTime = 0.0f;
+        if (frameTimerStarted) {
+            deltaTime = static_cast<float>(frameTimer.getTimeMsDouble()) / 1000.0f;
+        }
+        frameTimer.start();
+        frameTimerStarted = true;
 
         VM::runThreads(deltaTime);
 
@@ -322,14 +323,8 @@ bool ScratchEngine::startScratchProject() {
 
     initializeScratchProject();
 
-    Timer frameTimer;
-    frameTimer.start();
-
     while (true) {
-        float deltaTime = static_cast<float>(frameTimer.getTimeMsDouble()) / 1000.0f;
-        frameTimer.start();
-
-        auto [shouldContinue, restartNeeded] = stepScratchProject(deltaTime);
+        auto [shouldContinue, restartNeeded] = stepScratchProject();
         if (!shouldContinue) {
             cleanupScratchProject();
             return restartNeeded;

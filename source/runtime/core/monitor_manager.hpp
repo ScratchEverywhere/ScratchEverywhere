@@ -17,8 +17,13 @@ struct MonitorManager {
                 continue;
             }
 
-            if (monitor.varId != 0xFFFF) {
-                monitor.value = EntityManager::variables[monitor.instanceId].orderedKeys[monitor.varId].value;
+            if (monitor.varId != EMPTY_VAR_ID && monitor.mode != MonitorMode::List) {
+                auto &varVec = EntityManager::variables[monitor.instanceId].orderedKeys;
+                if (monitor.varId < varVec.size()) {
+                    monitor.value = varVec[monitor.varId].value;
+                } else {
+                    monitor.value = Value();
+                }
                 continue;
             }
 

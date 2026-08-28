@@ -13,11 +13,14 @@
 #endif
 
 class ConstantPool {
-  private:
-    static inline std::vector<Value> pool;
-
   public:
+    static std::vector<Value> &getPool() {
+        static std::vector<Value> pool;
+        return pool;
+    }
+
     static uint16_t getOrInsert(const Value &val) { // I hope that uint16_t are enough constants. (65536 const values)
+        auto &pool = getPool();
         for (size_t i = 0; i < pool.size(); ++i) {
             if (pool[i].strictEquals(val)) {
                 return static_cast<uint16_t>(i);
@@ -33,12 +36,12 @@ class ConstantPool {
     }
 
     static const Value &get(uint16_t index) {
-        return pool[index];
+        return getPool()[index];
     }
 
-    static const std::vector<Value> &getValues() { return pool; }
-    static Value getCopy(uint16_t idx) { return pool[idx]; }
-    static void clear() { pool.clear(); }
+    static const std::vector<Value> &getValues() { return getPool(); }
+    static Value getCopy(uint16_t idx) { return getPool()[idx]; }
+    static void clear() { getPool().clear(); }
 };
 
 enum class ProjectType {
@@ -48,6 +51,7 @@ enum class ProjectType {
 };
 
 namespace EngineState {
+extern bool exportBytecode;
 extern uint32_t dispatchId;
 extern int fps;
 extern Timer fpsTimer;

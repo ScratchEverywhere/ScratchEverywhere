@@ -11,17 +11,16 @@ class EntityManager {
     static inline std::vector<uint32_t> freeInstances;
     static inline std::vector<uint32_t> pendingClones;
     static inline std::vector<uint32_t> pendingDeletions;
-    static inline std::vector<uint32_t> pendingBroadcasts;
-
-    static uint32_t allocateInstance(uint32_t defId);
+    static uint32_t allocateInstance(uint16_t defId);
 
   public:
+    static inline bool dirtyPointer = true;
     static inline uint16_t cloneCount = 0;
     static inline std::vector<TargetDefinition> blueprints;
 
     static inline std::vector<SpriteTransform> transforms;
     static inline std::vector<RenderInfo> renderInfo;
-    static inline std::vector<uint32_t> blueprintIds;
+    static inline std::vector<uint16_t> blueprintIds;
     static inline std::vector<bool> activeInstances;
 
     static inline std::vector<Variables> variables;
@@ -33,12 +32,13 @@ class EntityManager {
     static inline std::vector<PenState> pen;
 
     static inline uint32_t stageSprite;
+    static inline TargetDefinition *stageBlueprint;
     static inline std::vector<uint32_t> renderOrder;
     static inline bool layerOrderDirty;
 
     static inline std::vector<uint32_t> spritesToClick;
 
-    static uint32_t createInstance(uint32_t defId);
+    static uint32_t createInstance(uint16_t defId);
 
     static void queueClone(uint32_t sourceId);
     static void queueDeletion(uint32_t instanceId);
@@ -51,13 +51,11 @@ class EntityManager {
 
     static void queueBroadcast(uint32_t broadcastId);
 
-    static void flushPendingBroadcasts();
-
     static void flushPendingClones();
 
     static void flushPendingDeletions();
 
-    static void reserve(int spriteAmount);
+    static void reserve(uint16_t spriteAmount, uint16_t cloneAmount);
 
     static uint32_t addOneEmptySprite();
 

@@ -42,7 +42,7 @@ class BytecodeChunk {
             if (d < 0.0 && d >= -UINT16_MAX) {
                 Log::log("Pushing negative int: " + std::to_string(d));
                 code.push_back(static_cast<uint16_t>(Opcode::PUSH_NEG_INT));
-                code.push_back(static_cast<uint16_t>(d));
+                code.push_back(static_cast<uint16_t>(-d));
                 return;
             }
         }
@@ -96,13 +96,8 @@ class BytecodeChunk {
         code[placeholderIndex] = static_cast<uint16_t>(offset);
     }
 
-    void emitBackwardJump(uint16_t jumpOpcode, size_t targetIndex) {
-        size_t offset = (code.size() + 2) - targetIndex;
-        if (offset > UINT16_MAX) {
-            // same problem as before
-            throw std::runtime_error("Jump offset too large (> 65535)!");
-        }
-        code.push_back(jumpOpcode);
+    void emitBackwardJump(uint16_t offset) {
+        code.push_back(static_cast<uint16_t>(Opcode::JUMP_BACK));
         code.push_back(static_cast<uint16_t>(offset));
     }
 };

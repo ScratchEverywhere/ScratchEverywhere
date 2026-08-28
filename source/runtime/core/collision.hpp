@@ -29,6 +29,8 @@ struct CollisionMask {
     std::shared_ptr<Image> image;
     unsigned int imgScaleFactor = 1;
 
+    
+
     bool getPixel(int x, int y) const {
         if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) return false;
         return image && image->getAlphaAt(x * imgScaleFactor, y * imgScaleFactor) > 0;

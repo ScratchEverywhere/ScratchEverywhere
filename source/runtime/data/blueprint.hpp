@@ -9,14 +9,13 @@
 
 struct HatListener {
     uint16_t hatType;
-    uint16_t eventParamId;
+    uint32_t eventParamId;
     uint32_t bytecodeOffset;
 };
 
 struct TargetDefinition {
     std::string name;
     bool isStage = false;
-    uint32_t index = 0;
 
     std::vector<Costume> costumes;
     std::vector<Sound> sounds;

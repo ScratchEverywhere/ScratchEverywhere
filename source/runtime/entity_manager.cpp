@@ -3,10 +3,11 @@
 #include "opcodes/opcodes.hpp"
 #include "vm/engine_state.hpp"
 #include "vm/vm.hpp"
+#include "vm_types.hpp"
 #include <render.hpp>
 #include <speech_manager.hpp>
 
-uint32_t EntityManager::allocateInstance(uint32_t defId) {
+uint32_t EntityManager::allocateInstance(uint16_t defId) {
     uint32_t id;
     if (!freeInstances.empty()) {
         id = freeInstances.back();
@@ -34,11 +35,12 @@ uint32_t EntityManager::allocateInstance(uint32_t defId) {
         effects.push_back({});
         audio.push_back({});
         pen.push_back({});
+        dirtyPointer = true;
     }
     return id;
 }
 
-uint32_t EntityManager::createInstance(uint32_t defId) {
+uint32_t EntityManager::createInstance(uint16_t defId) {
     uint32_t id = allocateInstance(defId);
     renderOrder.push_back(id);
     syncLayerIndices();
@@ -66,7 +68,7 @@ void EntityManager::flushPendingClones() {
 
         transforms[cloneId] = transforms[sourceId];
         transforms[cloneId].instanceId = cloneId;
-        transforms[cloneId].flags |= FLAG_IS_CLONE;
+        transforms[cloneId].setClone(true);
 
         renderInfo[cloneId] = renderInfo[sourceId];
         variables[cloneId] = variables[sourceId];
@@ -146,24 +148,11 @@ void EntityManager::goToBackLayer(uint32_t instanceId) {
     }
 }
 
-void EntityManager::queueBroadcast(uint32_t broadcastId) {
-    pendingBroadcasts.push_back(broadcastId);
-}
-
-void EntityManager::flushPendingBroadcasts() {
-    for (uint32_t broadcastId : pendingBroadcasts) {
-        EngineState::dispatchId++;
-        VM::dispatchEvent(static_cast<uint32_t>(HatType::BROADCAST_RECEIVED), broadcastId, true, EngineState::dispatchId);
-    }
-    pendingBroadcasts.clear();
-}
-
 void EntityManager::resetEntityManager() {
     cloneCount = 0;
     freeInstances.clear();
     pendingClones.clear();
     pendingDeletions.clear();
-    pendingBroadcasts.clear();
     blueprints.clear();
     transforms.clear();
     renderInfo.clear();
@@ -207,18 +196,18 @@ void EntityManager::flushPendingDeletions() {
     layerOrderDirty = true;
 }
 
-void EntityManager::reserve(int spriteAmount) {
+void EntityManager::reserve(uint16_t spriteAmount, uint16_t cloneAmount) {
     blueprints.reserve(spriteAmount);
-    transforms.reserve(spriteAmount);
-    renderInfo.reserve(spriteAmount);
-    blueprintIds.reserve(spriteAmount);
-    activeInstances.reserve(spriteAmount);
-    variables.reserve(spriteAmount);
-    lists.reserve(spriteAmount);
-    ttsData.reserve(spriteAmount);
-    effects.reserve(spriteAmount);
-    audio.reserve(spriteAmount);
-    pen.reserve(spriteAmount);
+    transforms.reserve(spriteAmount + cloneAmount);
+    renderInfo.reserve(spriteAmount + cloneAmount);
+    blueprintIds.reserve(spriteAmount + cloneAmount);
+    activeInstances.reserve(spriteAmount + cloneAmount);
+    variables.reserve(spriteAmount + cloneAmount);
+    lists.reserve(spriteAmount + cloneAmount);
+    ttsData.reserve(spriteAmount + cloneAmount);
+    effects.reserve(spriteAmount + cloneAmount);
+    audio.reserve(spriteAmount + cloneAmount);
+    pen.reserve(spriteAmount + cloneAmount);
     renderOrder.reserve(spriteAmount);
 }
 

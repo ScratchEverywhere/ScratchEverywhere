@@ -557,7 +557,7 @@ void Render::renderSprites() {
         if (!rInfo.isVisible()) continue;
 
         const auto &transform = EntityManager::transforms[instanceId];
-        uint32_t defId = EntityManager::blueprintIds[instanceId];
+        uint16_t defId = EntityManager::blueprintIds[instanceId];
         const auto &blueprint = EntityManager::blueprints[defId];
 
         if (rInfo.costumeId >= blueprint.costumes.size()) continue;

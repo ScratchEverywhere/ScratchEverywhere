@@ -18,7 +18,7 @@ void loadCurrentCostumeImage(uint32_t instanceId) {
 
     auto &transform = EntityManager::transforms[instanceId];
     const auto &render = EntityManager::renderInfo[instanceId];
-    const uint32_t defId = EntityManager::blueprintIds[instanceId];
+    const uint16_t defId = EntityManager::blueprintIds[instanceId];
     auto &blueprint = EntityManager::blueprints[defId];
 
     if (render.costumeId >= blueprint.costumes.size()) {

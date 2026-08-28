@@ -118,7 +118,7 @@ std::shared_ptr<CollisionMask> generateCollisionMask(uint32_t spriteId, unsigned
 AABB getSpriteBounds(uint32_t instanceId) {
     const auto &transform = EntityManager::transforms[instanceId];
     const auto &render = EntityManager::renderInfo[instanceId];
-    const uint32_t defId = EntityManager::blueprintIds[instanceId];
+    const uint16_t defId = EntityManager::blueprintIds[instanceId];
     const auto &costume = EntityManager::blueprints[defId].costumes[render.costumeId];
 
     const float scale = getEffectiveScale(transform, costume);
@@ -180,7 +180,7 @@ bool pointInSprite(uint32_t instanceId, float x, float y, bool clickMode) {
         }
     }
 
-    const uint32_t defId = EntityManager::blueprintIds[instanceId];
+    const uint16_t defId = EntityManager::blueprintIds[instanceId];
     const Costume &costume = EntityManager::blueprints[defId].costumes[render.costumeId];
 
     if (!costume.collisionMask) return false;

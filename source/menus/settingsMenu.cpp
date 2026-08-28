@@ -1,4 +1,5 @@
 #include "settingsMenu.hpp"
+#include "engine_state.hpp"
 #include "languageMenu.hpp"
 #include "menuObjects.hpp"
 #include "settings.hpp"
@@ -72,10 +73,16 @@ void SettingsMenu::init() {
     if (json.contains("UseDectalk") && json["UseDectalk"].is_boolean()) {
         UseDectalk = json["UseDectalk"].get<bool>();
     }
-
 #ifdef ENABLE_DECTALK
     dectalkButton = new ButtonObject(getDectalkString(), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
     dectalkButton->text->setColor(Math::color(0, 0, 0, 255));
+#endif
+#ifdef __PC__
+    ExportBytecode = new ButtonObject(TranslationManager::getTranslation("ui.settings.exportBytecode") + TranslationManager::getTranslation(EngineState::exportBytecode ? "ui.settings.on" : "ui.settings.off"), "gfx/menu/projectBox.svg", 200, 370, "gfx/menu/Ubuntu-Bold", true);
+    ExportBytecode->text->setColor(Math::color(0, 0, 0, 255));
+#endif
+#if defined __PC__ && defined ENABLE_DECTALK
+    ExportBytecode->y = 420;
 #endif
 
     if (json.contains("EnableUsername") && json["EnableUsername"].is_boolean()) {
@@ -105,6 +112,10 @@ void SettingsMenu::init() {
         menuMusic = json["MenuMusic"].get<bool>();
     }
 
+    if (json.contains("ExportBytecode") && json["ExportBytecode"].is_boolean()) {
+        EngineState::exportBytecode = json["ExportBytecode"].get<bool>();
+    }
+
     updateButtonStates();
 
     // settingsControl->buttonObjects.push_back(Credits);
@@ -117,6 +128,9 @@ void SettingsMenu::init() {
     settingsControl->buttonObjects.push_back(Language);
 #ifdef ENABLE_DECTALK
     settingsControl->buttonObjects.push_back(dectalkButton);
+#endif
+#ifdef __PC__
+    settingsControl->buttonObjects.push_back(ExportBytecode);
 #endif
 
     settingsControl->enableScrolling = true;
@@ -136,9 +150,19 @@ void SettingsMenu::updateButtonStates() {
     ClearCache->buttonDown = Language;
     Language->buttonUp = ClearCache;
     Language->buttonDown = EnableUsername;
+#ifdef __PC__
+    ExportBytecode->buttonUp = Language;
+    ExportBytecode->buttonDown = EnableUsername;
+    Language->buttonDown = ExportBytecode;
+#endif
 #ifdef ENABLE_DECTALK
     Language->buttonDown = dectalkButton;
+    dectalkButton->buttonDown = EnableUsername;
     dectalkButton->buttonUp = Language;
+#ifdef __PC__
+    dectalkButton->buttonDown = ExportBytecode;
+    ExportBytecode->buttonUp = dectalkButton;
+#endif
 #endif
 
     ClearCache->text->setText(TranslationManager::getTranslation("ui.settings.cache"));
@@ -316,6 +340,13 @@ void SettingsMenu::render() {
         return;
     }
 #endif
+#ifdef __PC__
+    if (ExportBytecode->isPressed({"a"})) {
+        EngineState::exportBytecode = !EngineState::exportBytecode;
+        ExportBytecode->text->setText(TranslationManager::getTranslation("ui.settings.exportBytecode") + ": " + TranslationManager::getTranslation((EngineState::exportBytecode ? "ui.settings.on" : "ui.settings.off")));
+        return;
+    }
+#endif
 
     backButton->render();
     settingsControl->render();
@@ -367,6 +398,12 @@ void SettingsMenu::cleanup() {
         delete dectalkButton;
         dectalkButton = nullptr;
     }
+#ifdef __PC__
+    if (ExportBytecode != nullptr) {
+        delete ExportBytecode;
+        ExportBytecode = nullptr;
+    }
+#endif
 
     // save settings
     nlohmann::json json;
@@ -377,6 +414,7 @@ void SettingsMenu::cleanup() {
     json["MenuMusic"] = menuMusic;
     json["Language"] = TranslationManager::getLoadedLanguage().key;
     json["UseDectalk"] = UseDectalk;
+    json["ExportBytecode"] = EngineState::exportBytecode;
     SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;

@@ -5,6 +5,15 @@
 class VM {
   private:
     static inline std::unordered_map<uint16_t, uint32_t> activeDispatchCounts;
+    struct newThreadInfo {
+        uint32_t instanceId;
+        uint32_t defId;
+        uint32_t bytecodeOffset;
+        bool restartThread;
+        uint16_t dispatchId;
+    };
+    static inline std::vector<newThreadInfo> newThreads;
+    static inline void createNewThreads();
 
     static inline BlockResult executeByteCode(VMThread *thread);
 
@@ -20,8 +29,8 @@ class VM {
 
     static bool threadsWithDispatchIdAreRunning(uint16_t dispatchId);
 
-    static void createThread(uint32_t instanceId, uint32_t defId, uint32_t bytecodeOffset,
-                             bool restartThread = false, uint16_t dispatchId = 0);
+    static void addThread(uint32_t instanceId, uint32_t defId, uint32_t bytecodeOffset,
+                          bool restartThread = false, uint16_t dispatchId = 0);
 
     static void killAllThreadsOfInstance(uint32_t instanceId);
 

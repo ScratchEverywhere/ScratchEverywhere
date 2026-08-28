@@ -1,5 +1,8 @@
 #pragma once
 
+#include "../data/blueprint.hpp"
+#include "../data/entity_components.hpp"
+#include "blueprint.hpp"
 #include <cstdint>
 #include <vector>
 
@@ -34,13 +37,31 @@ struct CallFrame {
 
 #define DISPATCH_ID_NONE 0
 
+struct GlideInfo {
+    float startX = 0.0f, startY = 0.0f;
+    float endX = 0.0f, endY = 0.0f;
+    float durationSecs = 0.0f;
+};
+
 struct VMThread {
+    VMThread() = default;
+    ~VMThread() {
+        if (glideInfo) delete glideInfo;
+    }
+    VMThread(const VMThread &other) = delete;
+    VMThread &operator=(const VMThread &other) = delete;
+    VMThread(VMThread &&other) = default;
+    VMThread &operator=(VMThread &&other) = default;
+
     uint32_t pc = 0;
     uint32_t bytecodeOffset = 0;
-    uint32_t instanceId = 0;
-    uint32_t defId = 0;
+    SpriteTransform *transform = nullptr;
+    RenderInfo *renderInfo = nullptr;
+    TargetDefinition *definition = nullptr;
+    uint32_t instanceId;
+    uint16_t defId;
 
-    float sleepTimer = 0.0f;
+    double sleepTimer = 0.0f;
     uint16_t spawnDispatchId = DISPATCH_ID_NONE;
     uint32_t waitHandle = DISPATCH_ID_NONE;
 
@@ -49,4 +70,7 @@ struct VMThread {
 
     ThreadState state = ThreadState::NEW;
     bool isWarp = false;
+
+    bool isGliding = false;
+    GlideInfo *glideInfo = nullptr;
 };

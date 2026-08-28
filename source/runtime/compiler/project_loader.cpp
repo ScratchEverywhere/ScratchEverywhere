@@ -9,15 +9,65 @@
 #include "../unzip.hpp"
 #include "bytecode_chunk.hpp"
 #include "compiler_context.hpp"
+#include <cstdint>
 #include <filesystem.hpp>
 #include <render.hpp>
 
-void ProjectLoader::loadProject(nlohmann::json &json) {
+#ifdef __PC__
+void exportBytecodeData(const std::vector<CompilerContext> &contexts) {
+    nlohmann::json root;
+
+    root["constants"] = nlohmann::json::array();
+    for (const Value &v : ConstantPool::getValues()) {
+        root["constants"].push_back(Value::toJson(v));
+    }
+
+    root["strings"] = nlohmann::json::array();
+    for (const auto &entry : StringPool::getPool()) {
+        root["strings"].push_back(entry.data);
+    }
+
+    root["sprites"] = nlohmann::json::array();
+    for (const CompilerContext &ctx : contexts) {
+        const TargetDefinition &def = EntityManager::blueprints[ctx.spriteIndex];
+        nlohmann::json sprite;
+        sprite["name"] = def.name;
+        sprite["isStage"] = def.isStage;
+        sprite["bytecode"] = def.bytecode;
+
+        sprite["hatListeners"] = nlohmann::json::array();
+        for (const auto &hl : def.hatListeners) {
+            sprite["hatListeners"].push_back({{"type", hl.hatType},
+                                              {"eventParamId", hl.eventParamId},
+                                              {"offset", hl.bytecodeOffset}});
+        }
+
+        sprite["variables"] = def.variables;
+        sprite["lists"] = def.lists;
+        sprite["broadcasts"] = def.broadcasts;
+
+        sprite["procedures"] = nlohmann::json::array();
+        for (const auto &[proccode, addr] : ctx.procedureTable.proccodeToAddress) {
+            sprite["procedures"].push_back({{"proccode", proccode},
+                                            {"address", addr}});
+        }
+
+        root["sprites"].push_back(sprite);
+    }
+
+    std::ofstream out("bytecode_export.json");
+    out << root.dump(2);
+}
+#endif
+
+bool ProjectLoader::loadProject(nlohmann::json &json) {
+    ConstantPool::clear();
+    StringPool::resetAll();
     nlohmann::json &targets = json["targets"];
     int spriteAmount = targets.size();
-
-    EntityManager::reserve(spriteAmount);
-
+    if (spriteAmount > UINT16_MAX) return false;
+    EntityManager::reserve(spriteAmount, 300); // Should we already reserve for 300 clones?
+    EntityManager::dirtyPointer = true;
     std::vector<CompilerContext> contexts;
     contexts.reserve(spriteAmount);
 
@@ -38,8 +88,10 @@ void ProjectLoader::loadProject(nlohmann::json &json) {
             transform.setStage(def.isStage);
             if (def.isStage) {
                 EntityManager::stageSprite = spriteIndex;
+                EntityManager::stageBlueprint = &def;
                 loadAdvancedProjectSettings(target);
                 stageContext = &context;
+                stageContext->targetDef = def;
             }
         }
         if (target.contains("draggable")) {
@@ -113,17 +165,6 @@ void ProjectLoader::loadProject(nlohmann::json &json) {
         }
         Log::log("[ProjectLoader] Parsed " + std::to_string(def.broadcasts.size()) + " broadcasts for sprite: " + def.name);
     }
-    Log::log("[ProjectLoader] Parsed " + std::to_string(contexts.size()) + " sprites and stage.");
-    for (CompilerContext &context : contexts) {
-        Log::log("[ProjectLoader] Parsing scripts for sprite: " + EntityManager::blueprints[context.spriteIndex].name);
-        context.parseScripts();
-        // Log ByteCode:
-        Log::log("[ProjectLoader] ByteCode for sprite " + EntityManager::blueprints[context.spriteIndex].name + ":");
-        for (const auto &script : EntityManager::blueprints[context.spriteIndex].bytecode) {
-            Log::log(std::to_string(script));
-        }
-    }
-    Log::log("[ProjectLoader] Parsed all scripts.");
 
     std::unordered_map<std::string, ParserHandler> &map = ParserRegistry::getParserMap();
     if (json.contains("monitors") && json["monitors"].is_array() && !json["monitors"].empty()) {
@@ -193,6 +234,13 @@ void ProjectLoader::loadProject(nlohmann::json &json) {
             } else if (monitorJson["params"].contains("LIST")) {
                 std::string listName = monitorJson["params"]["LIST"].get<std::string>();
                 newMonitor.displayName += listName;
+                auto &targetLists = EntityManager::blueprints[newMonitor.instanceId].lists;
+                auto it = targetLists.find(varId);
+                if (it != targetLists.end()) {
+                    newMonitor.varId = it->second;
+                } else {
+                    newMonitor.varId = EMPTY_VAR_ID;
+                }
                 monitorJson["params"]["LIST"] = varId;
             }
             Log::log("[ProjectLoader] Monitor display name: " + newMonitor.displayName + ", varId: " + std::to_string(newMonitor.varId) + ", instanceId: " + std::to_string(newMonitor.instanceId));
@@ -214,6 +262,25 @@ void ProjectLoader::loadProject(nlohmann::json &json) {
             Render::monitors.push_back(std::move(newMonitor));
         }
     }
+    Log::log("[ProjectLoader] Parsed " + std::to_string(contexts.size()) + " sprites and stage.");
+    for (CompilerContext &context : contexts) {
+        Log::log("[ProjectLoader] Parsing scripts for sprite: " + EntityManager::blueprints[context.spriteIndex].name);
+        context.parseScripts();
+        Log::log("[ProjectLoader] ByteCode for sprite " + EntityManager::blueprints[context.spriteIndex].name + " (length: " + std::to_string(EntityManager::blueprints[context.spriteIndex].bytecode.size()) + ")");
+        for (const auto &script : EntityManager::blueprints[context.spriteIndex].bytecode) {
+            Log::log(std::to_string(script));
+        }
+    }
+    Log::log("[ProjectLoader] Parsed all scripts.");
+#ifdef __PC__
+    if (EngineState::exportBytecode) {
+        Log::log("[ProjectLoader] Exporting bytecode data...");
+        exportBytecodeData(contexts);
+    } else {
+        Log::log("[ProjectLoader] Not exporting bytecode data");
+    }
+#endif
+    return true;
 }
 void ProjectLoader::loadAdvancedProjectSettings(const nlohmann::json &json) {
     if (!json.contains("comments")) return;

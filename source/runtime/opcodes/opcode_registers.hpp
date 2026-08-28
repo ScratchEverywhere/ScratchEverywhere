@@ -5,7 +5,7 @@
 
 struct HatParseResult {
     HatType hatType;
-    uint16_t eventParamId = 0;
+    uint32_t eventParamId = 0;
     bool isValid = true;
 };
 
@@ -69,6 +69,16 @@ class HatBlockRegistry {
             static const std::vector<std::string> inputs = {__VA_ARGS__};                    \
             return ParserRegistry::compileStandard(ctx, opcodeEnum, inputs, Purity::Impure); \
         });                                                                                  \
+    }
+
+#define REGISTER_STANDARD_PURE_PARSER(scratchStringName, opcodeEnum, ...)                  \
+    namespace {                                                                            \
+    static const bool CONCAT(reg_parse_, __LINE__) = ParserRegistry::registerParser(       \
+        scratchStringName,                                                                 \
+        [](CompilerContext &ctx) -> CompileResult {                                        \
+            static const std::vector<std::string> inputs = {__VA_ARGS__};                  \
+            return ParserRegistry::compileStandard(ctx, opcodeEnum, inputs, Purity::Pure); \
+        });                                                                                \
     }
 
 #define DEFINE_CUSTOM_PARSER(scratchStringName, funcId)                                                                         \

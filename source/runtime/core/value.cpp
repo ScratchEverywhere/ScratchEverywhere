@@ -280,3 +280,14 @@ Value Value::fromJson(const nlohmann::json &jsonVal) {
     }
     return Value(0);
 }
+
+nlohmann::json Value::toJson(const Value &val) {
+    if (val.isBoolean()) return val.asBoolean();
+    if (val.isDouble()) return val.asDouble();
+    if (val.isString()) return val.asString();
+    if (val.isColor()) {
+        Color c = val.asColor();
+        return nlohmann::json::array({c.hue, c.saturation, c.brightness, c.transparency});
+    }
+    return nullptr;
+}
