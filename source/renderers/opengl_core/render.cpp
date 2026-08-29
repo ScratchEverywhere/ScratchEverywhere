@@ -821,7 +821,7 @@ static void drawBlackBars(int screenWidth, int screenHeight, const float proj[16
     }
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
     glViewport(0, 0, getWidth(), getHeight());
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -868,7 +868,7 @@ void Render::renderSprites() {
     drawBlackBars(getWidth(), getHeight(), proj);
     renderMonitors();
 
-    endFrame(true);
+    if (present) endFrame(true);
 }
 
 bool Render::appShouldRun() {

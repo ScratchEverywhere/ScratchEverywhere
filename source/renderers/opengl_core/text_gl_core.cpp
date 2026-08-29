@@ -155,9 +155,9 @@ bool TextObjectGLCore::loadFont(std::string fontPath) {
 
     font = new FontDataCore();
     font->fontName = fontPath;
-    font->atlasWidth = 512;
-    font->atlasHeight = 512;
-    font->fontSize = 33.3f;
+    font->atlasWidth = 2048;
+    font->atlasHeight = 2048;
+    font->fontSize = 100.0f;
     font->firstChar = 32;
     font->numChars = 96;
     font->usageCount = 1;

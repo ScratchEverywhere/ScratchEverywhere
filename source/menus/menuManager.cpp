@@ -48,6 +48,9 @@ extern C3D_RenderTarget *topScreen;
 #elif defined(RENDERER_OPENGL)
 #include <GL/gl.h>
 #include <renderers/opengl/clay_renderer.hpp>
+#elif defined(RENDERER_OPENGL_CORE)
+#include <renderers/opengl_core/clay_renderer.hpp>
+#include <renderers/opengl_core/render.hpp>
 #endif
 
 #ifdef USE_CMAKERC
@@ -217,6 +220,14 @@ void MenuManager::initClay() {
         Log::logError("Failed to load bold menu font.");
     }
     Clay_SetMeasureTextFunction(Clay_OpenGL_MeasureText, nullptr);
+#elif defined(RENDERER_OPENGL_CORE)
+    if (!Clay_OpenGLCore_RegisterFont("gfx/menu/RedditSansFudge-Regular")) {
+        Log::logError("Failed to load menu font.");
+    }
+    if (!Clay_OpenGLCore_RegisterFont("gfx/menu/RedditSansFudge-Bold")) {
+        Log::logError("Failed to load bold menu font.");
+    }
+    Clay_SetMeasureTextFunction(Clay_OpenGLCore_MeasureText, nullptr);
 #endif
 }
 
@@ -301,6 +312,12 @@ void MenuManager::render() {
         glClear(GL_COLOR_BUFFER_BIT);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#elif defined(RENDERER_OPENGL_CORE)
+        glViewport(0, 0, windowWidth, windowHeight);
+        glClearColor(66.0f / 255.0f, 44.0f / 255.0f, 66.0f / 255.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 #endif
     }
 
@@ -340,6 +357,13 @@ void MenuManager::render() {
     Clay_RenderCommandArray renderCommands = Clay_EndLayout(deltaTimer.getTimeMsDouble() / 1000.0f);
 
     Clay_OpenGL_Render(dimensions, renderCommands);
+
+    if (globalWindow) globalWindow->swapBuffers();
+#elif defined(RENDERER_OPENGL_CORE)
+    Clay_Dimensions dimensions = {static_cast<float>(windowWidth), static_cast<float>(windowHeight)};
+    Clay_RenderCommandArray renderCommands = Clay_EndLayout(deltaTimer.getTimeMsDouble() / 1000.0f);
+
+    Clay_OpenGLCore_Render(dimensions, renderCommands);
 
     if (globalWindow) globalWindow->swapBuffers();
 #endif
