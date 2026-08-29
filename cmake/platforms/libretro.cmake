@@ -1,5 +1,4 @@
 include("${CMAKE_SOURCE_DIR}/cmake/platforms/pc.cmake")
-include("${CMAKE_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
 set(SE_RENDERER_VALID_OPTIONS "opengl" "opengl_core")
 set(SE_WINDOWING_VALID_OPTIONS "libretro")
@@ -12,6 +11,9 @@ set(SE_PLATFORM "libretro")
 
 set(SE_CMAKERC_DEFAULT ON)
 set(SE_ALLOW_CMAKERC ON)
+
+set(SE_ALLOW_CLOUDVARS OFF)
+set(SE_ALLOW_DOWNLOAD OFF)
 
 list(APPEND SE_PLATFORM_DEFINITIONS "LIBRETRO")
 
