@@ -6,13 +6,12 @@ This is the internal documentation for our relatively complicated CMake setup.
 
 Dependencies are managed with [Catalog](https://github.com/catalog-cmake/catalog),
 bootstrapped from `/cmake/cl-bootstrap.cmake` (vendored) and its shared recipe
-registry at [catalog-cmake/repo](https://github.com/catalog-cmake/repo). `SE_DEPS`
-(`fallback`, `source`, `system`) still controls how far into Catalog's stage
-pipeline (`toolchain` -> `system` -> `package` -> `prebuilt` -> `source`) a
-dependency is allowed to resolve: `system` restricts to `toolchain system`,
-`source` restricts to `toolchain source`, and `fallback` (the default) uses
-Catalog's full pipeline. This is implemented in `CMakeLists.txt` by setting
-`CL_STAGES` before the dependency-loading section.
+registry at [catalog-cmake/repo](https://github.com/catalog-cmake/repo).
+There's no more SE-specific `SE_DEPS` mode - Catalog's native stage pipeline
+(`toolchain` -> `system` -> `package` -> `prebuilt` -> `source`) and its own
+`CL_STAGES`/per-dependency override vars are the standard now; use those
+directly (e.g. `-DCL_STAGES=source`, or Catalog's `VERSION`/`STATIC`/`OPTIONS`
+keywords on a given `cl_add_dep` call) instead of anything SE-specific.
 
 ### Loading Dependencies
 
@@ -32,13 +31,14 @@ the registry lookup by package name is case-sensitive.
 
 A handful of dependencies need SE-specific behavior the shared registry
 recipe doesn't have (websocket-enabled cloud-vars libcurl, the
-`SE_LUA_BACKEND` luajit/lua5.1 fallback, SE's audio-only SDL2/SDL3 build
-trimming, libdlgmod's `SE_WINDOWING`-based event polling, a pinned working
-miniz tag, and the vendored `ryuJS` single-file dependency). These live in
-`/cmake/recipes/*.cmake` and are registered with `cl_add_recipe(name path)`
-near the top of `CMakeLists.txt`, which takes precedence over the shared
-registry's recipe of the same name. Everything else resolves straight from
-the registry via `cl_repo()`.
+`SE_LUA_BACKEND` luajit/lua5.1 fallback and the `sol2` binding built on top of
+it, libdlgmod's `SE_WINDOWING`-based event polling, and the vendored `ryuJS`
+single-file dependency). These live in `/cmake/recipes/*.cmake` and are
+registered with `cl_add_recipe(name path)` near the top of `CMakeLists.txt`,
+which takes precedence over the shared registry's recipe of the same name.
+Everything else - including SDL2/SDL3's audio-only build trimming, done with
+plain `SOURCE_OPTIONS` on the `cl_add_dep` call instead of a recipe override -
+resolves straight from the registry via `cl_repo()`.
 
 ## Backends
 
