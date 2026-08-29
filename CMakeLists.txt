@@ -438,7 +438,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 endif()
 
 if(SE_CUSTOM_EXTENSIONS)
-	cl_add_dep(se-interface lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
+	cl_add_dep(se-interface lua51) # No idea why i need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
 	cl_add_dep(se-interface sol2)
 endif()
 
