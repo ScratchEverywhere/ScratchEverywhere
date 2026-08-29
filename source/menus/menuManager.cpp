@@ -283,7 +283,38 @@ void MenuManager::render() {
 
     if (launchProjectQueued) {
         launchProjectQueued = false;
-        launchProject(queuedProjectPath);
+        if (launchProject(queuedProjectPath) && Unzip::projectOpened > 0) {
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderClear(renderer);
+            SDL_RenderPresent(renderer);
+#elif defined(RENDERER_SDL1)
+            SDL_Surface *window = static_cast<SDL_Surface *>(Render::getRenderer());
+            SDL_FillRect(window, NULL, SDL_MapRGBA(window->format, 0, 0, 0, 255));
+            SDL_Flip(window);
+#elif defined(RENDERER_CITRO2D)
+            C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+            C2D_TargetClear(bottomScreen, C2D_Color32(0, 0, 0, 255));
+            C2D_TargetClear(topScreen, C2D_Color32(0, 0, 0, 255));
+            C3D_FrameEnd(0);
+#elif defined(RENDERER_GL2D)
+            glBegin2D();
+            glClearColor(0, 0, 0, 31);
+            lcdMainOnBottom();
+            glEnd2D();
+            glFlush(GL_TRANS_MANUALSORT);
+#elif defined(RENDERER_OPENGL)
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            if (globalWindow) globalWindow->swapBuffers();
+#elif defined(RENDERER_OPENGL_CORE)
+            glViewport(0, 0, Render::getWidth(), Render::getHeight());
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+            if (globalWindow) globalWindow->swapBuffers();
+#endif
+            return;
+        }
     }
 
     if (menuQueue.first != MenuID::None) {
