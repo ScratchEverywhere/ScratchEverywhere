@@ -13,3 +13,6 @@ typedef struct
 Clay_Dimensions SDL_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData);
 
 void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderCommands, SDL_Font *fonts);
+
+// Frees textures cached by Clay_SDL_Render's text rendering path.
+void Clay_SDL_FreeTextCache();

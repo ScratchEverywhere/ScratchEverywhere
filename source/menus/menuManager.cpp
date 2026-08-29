@@ -235,6 +235,9 @@ void MenuManager::freeClay() {
 #if defined(RENDERER_SDL2) || defined(RENDERER_SDL3) || defined(RENDERER_SDL1)
     if (components::fonts[components::FONT_ID_BODY_16].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_16].font);
     if (components::fonts[components::FONT_ID_BODY_BOLD_48].font) TTF_CloseFont(components::fonts[components::FONT_ID_BODY_BOLD_48].font);
+#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
+    Clay_SDL_FreeTextCache();
+#endif
 #elif defined(RENDERER_CITRO2D)
     for (auto &font : components::fonts)
         C2D_FontFree(font.second);

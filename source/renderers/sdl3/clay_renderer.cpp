@@ -6,12 +6,51 @@
 #include <clay.h>
 #include <math.h>
 #include <stdio.h>
+#include <string>
+#include <unordered_map>
 
 #ifndef M_PI
 #define M_PI 3.14159
 #endif
 
 #define CLAY_COLOR_TO_SDL_COLOR_ARGS(color) color.r, color.g, color.b, color.a
+
+// Rendering text every frame means calling TTF_SetFontSize (which clears the
+// font's whole glyph cache) and creating/destroying a GPU texture per text
+// element, per frame - very expensive on weak/embedded SDL3 targets. Instead,
+// cache the rendered texture per (font, size, color, content) and only
+// regenerate it when that combination actually changes. Entries unused for a
+// while are evicted.
+namespace {
+struct CachedText {
+    SDL_Texture *texture = nullptr;
+    int width = 0;
+    int height = 0;
+    uint64_t lastUsedFrame = 0;
+};
+
+std::unordered_map<std::string, CachedText> textTextureCache;
+uint64_t currentRenderFrame = 0;
+constexpr uint64_t TEXT_CACHE_EVICTION_FRAMES = 180; // ~3s at 60fps
+
+std::string makeTextCacheKey(const Clay_TextRenderData &config) {
+    char prefix[64];
+    snprintf(prefix, sizeof(prefix), "%u|%u|%u,%u,%u,%u|", config.fontId, config.fontSize,
+              (unsigned)config.textColor.r, (unsigned)config.textColor.g,
+              (unsigned)config.textColor.b, (unsigned)config.textColor.a);
+
+    std::string key(prefix);
+    key.append(config.stringContents.chars, config.stringContents.length);
+    return key;
+}
+} // namespace
+
+void Clay_SDL_FreeTextCache() {
+    for (auto &[key, cached] : textTextureCache) {
+        if (cached.texture) SDL_DestroyTexture(cached.texture);
+    }
+    textTextureCache.clear();
+}
 
 Clay_Dimensions SDL_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData) {
     SDL_Font *fonts = (SDL_Font *)userData;
@@ -298,6 +337,8 @@ static void SDL_RenderCornerBorder(SDL_Renderer *renderer, Clay_BoundingBox *bou
 SDL_Rect currentClippingRectangle;
 
 void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderCommands, SDL_Font *fonts) {
+    ++currentRenderFrame;
+
     for (uint32_t i = 0; i < renderCommands.length; i++) {
         Clay_RenderCommand *renderCommand = Clay_RenderCommandArray_Get(&renderCommands, i);
         Clay_BoundingBox boundingBox = renderCommand->boundingBox;
@@ -321,17 +362,33 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
         }
         case CLAY_RENDER_COMMAND_TYPE_TEXT: {
             Clay_TextRenderData *config = &renderCommand->renderData.text;
-            char *cloned = (char *)calloc(config->stringContents.length + 1, 1);
-            memcpy(cloned, config->stringContents.chars, config->stringContents.length);
-            TTF_Font *font = fonts[config->fontId].font;
-            TTF_SetFontSize(font, config->fontSize);
-            SDL_Surface *surface = TTF_RenderText_Blended(font, cloned, 0, (SDL_Color){
-                                                                               .r = (Uint8)config->textColor.r,
-                                                                               .g = (Uint8)config->textColor.g,
-                                                                               .b = (Uint8)config->textColor.b,
-                                                                               .a = (Uint8)config->textColor.a,
-                                                                           });
-            SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+            std::string key = makeTextCacheKey(*config);
+            auto it = textTextureCache.find(key);
+            if (it == textTextureCache.end()) {
+                char *cloned = (char *)calloc(config->stringContents.length + 1, 1);
+                memcpy(cloned, config->stringContents.chars, config->stringContents.length);
+                TTF_Font *font = fonts[config->fontId].font;
+                TTF_SetFontSize(font, config->fontSize);
+                SDL_Surface *surface = TTF_RenderText_Blended(font, cloned, 0, (SDL_Color){
+                                                                                   .r = (Uint8)config->textColor.r,
+                                                                                   .g = (Uint8)config->textColor.g,
+                                                                                   .b = (Uint8)config->textColor.b,
+                                                                                   .a = (Uint8)config->textColor.a,
+                                                                               });
+
+                CachedText cached;
+                cached.texture = SDL_CreateTextureFromSurface(renderer, surface);
+                cached.width = surface->w;
+                cached.height = surface->h;
+
+                SDL_DestroySurface(surface);
+                free(cloned);
+
+                it = textTextureCache.emplace(std::move(key), cached).first;
+            }
+
+            it->second.lastUsedFrame = currentRenderFrame;
 
             SDL_FRect destination = (SDL_FRect){
                 .x = boundingBox.x,
@@ -339,11 +396,7 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
                 .w = boundingBox.width,
                 .h = boundingBox.height,
             };
-            SDL_RenderTexture(renderer, texture, NULL, &destination);
-
-            SDL_DestroyTexture(texture);
-            SDL_DestroySurface(surface);
-            free(cloned);
+            SDL_RenderTexture(renderer, it->second.texture, NULL, &destination);
             break;
         }
         case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
@@ -451,6 +504,15 @@ void Clay_SDL_Render(SDL_Renderer *renderer, Clay_RenderCommandArray renderComma
             fprintf(stderr, "Error: unhandled render command: %d\n", renderCommand->commandType);
             exit(1);
         }
+        }
+    }
+
+    for (auto it = textTextureCache.begin(); it != textTextureCache.end();) {
+        if (currentRenderFrame - it->second.lastUsedFrame > TEXT_CACHE_EVICTION_FRAMES) {
+            SDL_DestroyTexture(it->second.texture);
+            it = textTextureCache.erase(it);
+        } else {
+            ++it;
         }
     }
 }

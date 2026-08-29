@@ -310,17 +310,28 @@ void Clay_Citro2D_Render(C3D_RenderTarget *renderTarget, Clay_Dimensions dimensi
             break;
         }
         case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START: {
-            C2D_SceneBegin(renderTarget);
-            // clang-format off
-      C3D_SetScissor(GPU_SCISSOR_NORMAL,
-                     dimensions.height - box.height - box.y,
-                     dimensions.width - box.width - box.x,
-                     dimensions.height - box.y,
-                     dimensions.width - box.x);
-            // clang-format on
+            // citro2d batches draw calls and only actually submits them to the
+            // GPU on a flush (texture switch, C2D_Flush, or C2D_SceneBegin).
+            // The scissor rect is GPU state that applies at submit time, not at
+            // queue time, so anything queued before this point must be flushed
+            // under the OLD scissor state before we change it - otherwise it
+            // gets drawn later using whatever scissor happens to be current
+            // then. C2D_Flush() alone does this without C2D_SceneBegin's extra
+            // (and unneeded, since the target never changes mid-frame here)
+            // C3D_FrameDrawOn/C2D_SceneTarget render-target rebind.
+            C2D_Flush();
+            C3D_SetScissor(GPU_SCISSOR_NORMAL,
+                           dimensions.height - box.height - box.y,
+                           dimensions.width - box.width - box.x,
+                           dimensions.height - box.y,
+                           dimensions.width - box.x);
             break;
         }
         case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END: {
+            // Same reasoning as SCISSOR_START: flush what was queued under the
+            // clip before turning it off, so later draws aren't retroactively
+            // clipped too.
+            C2D_Flush();
             C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
             break;
         }

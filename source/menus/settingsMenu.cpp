@@ -13,6 +13,12 @@
 #include <runtime.hpp>
 #include <settings.hpp>
 
+#if defined(__3DS__) || defined(__PSP__) || defined(__NDS__)
+constexpr float settingsFontScale = 1.5f;
+#else
+constexpr float settingsFontScale = 1.0f;
+#endif
+
 void SettingsMenu::init(const std::string &title) {
     for (const auto &[setting, translationKey] : translationNames) {
         names[setting] = TranslationManager::getTranslation(translationKey);
@@ -53,7 +59,7 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 
     const int value = settings[setting].get<int>();
 
-    const uint16_t fontSize = 16 * menuManager->scale;
+    const uint16_t fontSize = 16 * menuManager->scale * settingsFontScale;
     const float width = 120 * menuManager->scale;
     const float height = 25 * menuManager->scale;
     const uint16_t borderWidth = 3 * menuManager->scale;
@@ -136,7 +142,7 @@ void SettingsMenu::renderSlider(const std::string &setting) {
 void SettingsMenu::renderToggle(const std::string &setting) {
     renderOrder.push_back(setting);
 
-    const uint16_t fontSize = 16 * menuManager->scale;
+    const uint16_t fontSize = 16 * menuManager->scale * settingsFontScale;
     const float height = 25 * menuManager->scale;
     const uint16_t borderWidth = 3 * menuManager->scale;
     const uint16_t padding = 5 * menuManager->scale;
@@ -213,7 +219,7 @@ void SettingsMenu::renderInputButton(const std::string &setting) {
 			}
 		}, &hoverData.at(setting));
 
-		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale * settingsFontScale) }));
 	}
     // clang-format on
 }
@@ -243,7 +249,7 @@ void SettingsMenu::renderButton(const std::string &setting) {
 			} else hoverData->pressed = false;
 		}, &hoverData.at(setting));
 
-		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale) }));
+		CLAY_TEXT(((Clay_String){ false, static_cast<int32_t>(names.at(setting).length()), names.at(setting).c_str() }), CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_16, .fontSize = static_cast<uint16_t>(16 * menuManager->scale * settingsFontScale) }));
 	}
     // clang-format on
 }
@@ -319,7 +325,7 @@ void SettingsMenu::render() {
 				.childAlignment = { .x = CLAY_ALIGN_X_CENTER }
 			}
 		}) {
-			CLAY_TEXT(title, CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale) }));
+			CLAY_TEXT(title, CLAY_TEXT_CONFIG({ .textColor = {255, 255, 255, 255}, .fontId = components::FONT_ID_BODY_BOLD_48, .fontSize = static_cast<uint16_t>(24 * menuManager->scale * settingsFontScale) }));
 		}
 
 		renderOrder.clear();
