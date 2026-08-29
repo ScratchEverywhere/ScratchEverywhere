@@ -1,4 +1,3 @@
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
 
 function(add_extension TARGET)
 	add_library(${TARGET} SHARED ${ARGN})
