@@ -6,4 +6,5 @@ set(CATALOG_RECIPES
 	ryuJS:ryujs.cmake
 	plutovg:plutovg.cmake
 	clay:clay.cmake
+	nlohmann_json:nlohmann_json.cmake
 )
