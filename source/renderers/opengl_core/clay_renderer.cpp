@@ -136,7 +136,7 @@ Clay_Dimensions Clay_OpenGLCore_MeasureText(Clay_StringSlice slice, Clay_TextEle
     memcpy(cvTextBuffer, slice.chars, length);
     cvTextBuffer[length] = '\0';
 
-    obj->setScale((float)config->fontSize / 48.0f);
+    obj->setScale((float)config->fontSize / 96.0f);
     const auto size = obj->getStringSize(cvTextBuffer);
 
     return {
@@ -355,7 +355,7 @@ void Clay_OpenGLCore_Render(Clay_Dimensions dimensions, Clay_RenderCommandArray 
             }
 
             uint32_t color = ((uint32_t)config->textColor.r << 24) | ((uint32_t)config->textColor.g << 16) |
-                              ((uint32_t)config->textColor.b << 8) | (uint32_t)config->textColor.a;
+                             ((uint32_t)config->textColor.b << 8) | (uint32_t)config->textColor.a;
             const auto &obj = fontList[config->fontId];
 
             Clay_StringSlice string = config->stringContents;
@@ -364,7 +364,7 @@ void Clay_OpenGLCore_Render(Clay_Dimensions dimensions, Clay_RenderCommandArray 
             cvTextBuffer[length] = '\0';
 
             obj->setColor(color);
-            obj->setScale((float)config->fontSize / 48.0f);
+            obj->setScale((float)config->fontSize / 96.0f);
             obj->setText(cvTextBuffer);
 
             obj->render(box.x, box.y);
