@@ -57,10 +57,9 @@ nlohmann::json SettingsManager::getConfigSettings() {
         return json;
     }
 
-    try {
-        file >> json;
-    } catch (const nlohmann::json::parse_error &e) {
-        Log::logError("Failed to parse project settings json: " + std::string(e.what()));
+    json = nlohmann::json::parse(file, nullptr, false);
+    if (json.is_discarded()) {
+        Log::logError("Failed to parse project settings json");
         file.close();
         return json;
     }
@@ -85,10 +84,9 @@ nlohmann::json SettingsManager::getProjectSettings(const std::string &projectNam
         return json;
     }
 
-    try {
-        file >> json;
-    } catch (const nlohmann::json::parse_error &e) {
-        Log::logError("Failed to parse project settings json: " + std::string(e.what()));
+    json = nlohmann::json::parse(file, nullptr, false);
+    if (json.is_discarded()) {
+        Log::logError("Failed to parse project settings json");
         file.close();
         return json;
     }
@@ -114,12 +112,11 @@ bool SettingsManager::isProjectUnpacked(const std::string &projectName) {
         return false;
     }
 
-    try {
-        file >> json;
-    } catch (const nlohmann::json::parse_error &e) {
-        Log::logError("Failed to parse project settings json: " + std::string(e.what()));
+    json = nlohmann::json::parse(file, nullptr, false);
+    if (json.is_discarded()) {
+        Log::logError("Failed to parse project settings json");
         file.close();
-        return false;
+        return json;
     }
 
     file.close();
