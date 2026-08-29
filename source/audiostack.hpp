@@ -48,9 +48,9 @@ class SoundConfig {
  * more than wav/mp3
  */
 class SoundStream {
-    unsigned char *buffer;
-    size_t buffer_size;
-    int (*callback)(SoundStream *strm, float *iwave, int length);
+    unsigned char *buffer = nullptr;
+    size_t buffer_size = 0;
+    int (*callback)(SoundStream *strm, float *iwave, int length) = nullptr;
 
     bool loadAsWAV();
     bool loadAsMP3();
@@ -65,21 +65,21 @@ class SoundStream {
     drmp3 mp3;
 #endif
 #if !defined(NO_VORBIS)
-    stb_vorbis *vorbis;
+    stb_vorbis *vorbis = nullptr;
 #endif
 #endif
 
     std::string name;
 
-    int type;
+    int type = SoundStreamUnknown;
 
-    int channels;
-    int rate;
+    int channels = 0;
+    int rate = 0;
     SoundConfig config;
 
-    bool paused;
-    bool auto_clean;
-    bool no_lock;
+    bool paused = false;
+    bool auto_clean = false;
+    bool no_lock = false;
 
     /**
      * Set if an error occurs in the constructor.

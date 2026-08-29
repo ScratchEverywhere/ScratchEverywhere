@@ -24,24 +24,6 @@ void MainMenu::onResize() {
 }
 
 void MainMenu::render() {
-#ifdef __NDS__
-    constexpr const char *songName = "gfx/nds/mm_ds.wav";
-#else
-    constexpr const char *songName = "gfx/menu/mm_splash.ogg";
-#endif
-    if (!Mixer::isSoundPlaying(songName)) {
-        SoundStream *strm = new SoundStream(songName);
-        if (strm->error.has_value()) {
-            Log::logError(strm->error.value());
-            delete strm;
-        } else {
-            Mixer::setAutoClean(songName, true);
-
-            const auto &settings = SettingsManager::getConfigSettings();
-            Mixer::setSoundVolume(songName, settings.value("musicVolume", 100));
-        }
-    }
-
     // clang-format off
 	CLAY(CLAY_ID("main"), (Clay_ElementDeclaration){
 		.layout = {

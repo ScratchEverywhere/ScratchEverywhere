@@ -242,6 +242,26 @@ void MenuManager::freeClay() {
     free(clayMemory.memory);
 }
 
+static void ensureMenuMusic() {
+#ifdef __NDS__
+    constexpr const char *songName = "gfx/nds/mm_ds.wav";
+#else
+    constexpr const char *songName = "gfx/menu/mm_splash.ogg";
+#endif
+    if (!Mixer::isSoundPlaying(songName)) {
+        SoundStream *strm = new SoundStream(songName);
+        if (strm->error.has_value()) {
+            Log::logError(strm->error.value());
+            delete strm;
+        } else {
+            Mixer::setAutoClean(songName, true);
+
+            const auto &settings = SettingsManager::getConfigSettings();
+            Mixer::setSoundVolume(songName, settings.value("musicVolume", 100));
+        }
+    }
+}
+
 void MenuManager::render() {
     static Timer deltaTimer;
 
@@ -288,6 +308,7 @@ void MenuManager::render() {
 #endif
 
     if (currentMenuID != MenuID::PauseMenu) {
+        ensureMenuMusic();
 #if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
         SDL_SetRenderDrawColor(renderer, 66, 44, 66, 255);
         SDL_RenderClear(renderer);

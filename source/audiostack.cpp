@@ -237,7 +237,7 @@ nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::
 
 SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
     auto potentialError = init(zip, path);
-    if (error.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 SoundStream::~SoundStream() {
