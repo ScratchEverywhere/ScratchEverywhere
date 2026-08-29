@@ -6,19 +6,19 @@ function(_recipe_libcurl_toolchain)
 	endif()
 endfunction()
 
-function(_recipe_libcurl_system)
-	if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-		cmake_host_system_information(RESULT DISTRO QUERY DISTRIB_INFO)
-
-		# Oh poor Debian people!
-		if(DISTRO_ID STREQUAL "debian" AND DISTRO_VERSION_ID VERSION_GREATER_EQUAL "13")
-			set(BAD_DEBIAN 1)
-		else()
-			set(BAD_DEBIAN 0)
-		endif()
-	endif()
-	
+function(_recipe_libcurl_system)	
 	if(NOT CMAKE_CROSSCOMPILING)
+		if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+			cmake_host_system_information(RESULT DISTRO QUERY DISTRIB_INFO)
+
+			# Oh poor Debian people!
+			if(DISTRO_ID STREQUAL "debian" AND DISTRO_VERSION_ID VERSION_GREATER_EQUAL "13")
+				set(BAD_DEBIAN 1)
+			else()
+				set(BAD_DEBIAN 0)
+			endif()
+		endif()
+
 		if(SE_CLOUDVARS)
 			find_package(CURL CONFIG QUIET OPTIONAL_COMPONENTS WSS)
 			if(TARGET CURL::libcurl AND CURL_WSS_FOUND)
@@ -45,6 +45,8 @@ function(_recipe_libcurl_system)
 				return()
 			endif()
 		endif()
+	else()
+		set(BAD_DEBIAN 0)
 	endif()
 
 	find_package(PkgConfig QUIET)
