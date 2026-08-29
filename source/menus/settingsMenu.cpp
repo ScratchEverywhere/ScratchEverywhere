@@ -3,6 +3,7 @@
 #include "filesystem.hpp"
 #include "image.hpp"
 #include "menuManager.hpp"
+#include "os.hpp"
 #include "translation.hpp"
 #include <clay.h>
 #include <cstring>
@@ -12,6 +13,65 @@
 #include <regex>
 #include <runtime.hpp>
 #include <settings.hpp>
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include <libdlgmod/libdlgmod.h>
+#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include <algorithm>
+#include <climits>
+#include <cstdlib>
+#include <sstream>
+#include <sys/stat.h>
+#endif
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
+#endif
+
+static std::string pickProjectsFolder(const std::string &currentPath) {
+#if defined(USE_LIBDLGMOD)
+    // FIXME: Translate this into every localization supported by SE!
+    const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+    const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+    return newPathGui.empty() ? currentPath : newPathGui;
+#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+    bool in_path = false;
+    const char *path = std::getenv("PATH");
+
+    if (path && path[0] != '\0') {
+        struct stat st;
+        std::string buf;
+
+        std::string cpp_path(path);
+        std::stringstream ss(cpp_path);
+
+        char resolved_path[PATH_MAX];
+        const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
+
+        std::string str = ptr ? ptr : "";
+        std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+
+        bool isKDE = (str.find("KDE") != std::string::npos);
+        std::string cmd = (isKDE ? "/kdialog" : "/zenity");
+
+        while (std::getline(ss, buf, ':')) {
+            if (realpath((buf + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                // Expected dialog CLI executable exists in path!
+                in_path = true;
+                break;
+            }
+        }
+    }
+
+    const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+    return in_path ? (newPathGui.empty() ? currentPath : newPathGui) : Input::openSoftwareKeyboard(currentPath.c_str());
+#endif
+#else
+    return Input::openSoftwareKeyboard(currentPath.c_str());
+#endif
+}
 
 #if defined(__3DS__) || defined(__PSP__) || defined(__NDS__)
 constexpr float settingsFontScale = 1.5f;
@@ -168,6 +228,12 @@ void SettingsMenu::renderToggle(const std::string &setting) {
 			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
 				hoverData.settings[hoverData.key] = !hoverData.settings[hoverData.key];
 				hoverData.animationTimer.start();
+
+				if (hoverData.key == "UseProjectsPath") {
+					// Force the custom projects path to be re-read next time it's needed.
+					OS::customProjectsPath = nullptr;
+					OS::loadedSettings = false;
+				}
 			}
 		}, &hoverData.at(setting));
 
@@ -214,8 +280,19 @@ void SettingsMenu::renderInputButton(const std::string &setting) {
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto hoverData = *(const Settings_HoverData*)userdata;
 			if (pointerData.state == CLAY_POINTER_DATA_PRESSED_THIS_FRAME) {
-				const std::string newContent = Input::openSoftwareKeyboard(hoverData.settings[hoverData.key].get<std::string>().c_str());
-				if (std::regex_match(newContent, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))) hoverData.settings[hoverData.key] = newContent;
+				const std::string currentValue = hoverData.settings[hoverData.key].get<std::string>();
+
+				if (hoverData.key == "ProjectsPath") {
+					const std::string newPath = pickProjectsFolder(currentValue);
+					if (!newPath.empty()) {
+						hoverData.settings[hoverData.key] = newPath;
+						OS::customProjectsPath = nullptr;
+						OS::loadedSettings = false;
+					}
+				} else {
+					const std::string newContent = Input::openSoftwareKeyboard(currentValue.c_str());
+					if (std::regex_match(newContent, std::regex("(?=.*[A-Za-z0-9_])[A-Za-z0-9_ ]+"))) hoverData.settings[hoverData.key] = newContent;
+				}
 			}
 		}, &hoverData.at(setting));
 
