@@ -55,7 +55,10 @@ function(_recipe_lua51_source)
 		file(GLOB lua_sources "${CL_SOURCE_DIR}/src/*.c")
 		list(REMOVE_ITEM lua_sources "${CL_SOURCE_DIR}/src/lua.c" "${CL_SOURCE_DIR}/src/luac.c") # We only need the lib
 		add_library(lua51 STATIC ${lua_sources})
-		target_include_directories(lua51 SYSTEM PUBLIC $<BUILD_INTERFACE:${CL_SOURCE_DIR}/src>)
+		target_include_directories(lua51 SYSTEM PUBLIC
+			$<BUILD_INTERFACE:${CL_SOURCE_DIR}/src>
+			$<BUILD_INTERFACE:${CL_SOURCE_DIR}/etc>
+		)
 
 		set(SE_USED_LUA "lua51" CACHE INTERNAL "Resolved Lua backend used by lua51/sol2")
 	endif()
