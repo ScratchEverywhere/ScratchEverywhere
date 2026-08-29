@@ -27,6 +27,8 @@ static uint16_t numFonts = 0;
 static GLuint claySolidProgram = 0;
 static GLuint clayVAO = 0;
 static GLuint clayVBO = 0;
+static GLint clayProjLoc = -1;
+static GLint clayColorLoc = -1;
 
 static const char *kClaySolidVert = R"glsl(
 #version 410 core
@@ -81,6 +83,14 @@ static void ensureClaySolidProgram() {
     glDeleteShader(vert);
     glDeleteShader(frag);
 
+    // Uniform locations are fixed once the program is linked - look them up
+    // once here instead of doing a glGetUniformLocation() string lookup on
+    // every single shape draw call (rounded rects/borders issue several
+    // draws each, so this was adding up to hundreds of redundant hashmap
+    // lookups per frame with a busy list on screen).
+    clayProjLoc = glGetUniformLocation(claySolidProgram, "u_projection");
+    clayColorLoc = glGetUniformLocation(claySolidProgram, "u_color");
+
     glGenVertexArrays(1, &clayVAO);
     glGenBuffers(1, &clayVBO);
     glBindVertexArray(clayVAO);
@@ -105,9 +115,8 @@ static void drawClayShape(const std::vector<float> &verts, GLenum mode, const Cl
     if (verts.empty()) return;
 
     glUseProgram(claySolidProgram);
-    glUniformMatrix4fv(glGetUniformLocation(claySolidProgram, "u_projection"), 1, GL_FALSE, proj);
-    glUniform4f(glGetUniformLocation(claySolidProgram, "u_color"),
-                color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+    glUniformMatrix4fv(clayProjLoc, 1, GL_FALSE, proj);
+    glUniform4f(clayColorLoc, color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
 
     glBindVertexArray(clayVAO);
     glBindBuffer(GL_ARRAY_BUFFER, clayVBO);
@@ -123,6 +132,26 @@ bool Clay_OpenGLCore_RegisterFont(const std::string &fontPath) {
     numFonts++;
     fontList.push_back(std::move(obj));
     return true;
+}
+
+void Clay_OpenGLCore_FreeFonts() {
+    fontList.clear();
+    numFonts = 0;
+
+    if (clayVBO) {
+        glDeleteBuffers(1, &clayVBO);
+        clayVBO = 0;
+    }
+    if (clayVAO) {
+        glDeleteVertexArrays(1, &clayVAO);
+        clayVAO = 0;
+    }
+    if (claySolidProgram) {
+        glDeleteProgram(claySolidProgram);
+        claySolidProgram = 0;
+    }
+    clayProjLoc = -1;
+    clayColorLoc = -1;
 }
 
 Clay_Dimensions Clay_OpenGLCore_MeasureText(Clay_StringSlice slice, Clay_TextElementConfig *config, void *userData) {

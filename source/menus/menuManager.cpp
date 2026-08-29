@@ -116,6 +116,11 @@ bool MenuManager::launchProject(const std::string path) {
     return true;
 }
 
+void MenuManager::queueLaunchProject(const std::string &path) {
+    launchProjectQueued = true;
+    queuedProjectPath = path;
+}
+
 void MenuManager::back(void *userdata) {
     if (history.empty()) return;
     currentMenu = std::move(createMenu(history.top(), userdata));
@@ -241,6 +246,12 @@ void MenuManager::freeClay() {
 #elif defined(RENDERER_CITRO2D)
     for (auto &font : components::fonts)
         C2D_FontFree(font.second);
+#elif defined(RENDERER_OPENGL_CORE)
+    Clay_OpenGLCore_FreeFonts();
+#elif defined(RENDERER_OPENGL)
+    Clay_OpenGL_FreeFonts();
+#elif defined(RENDERER_GL2D)
+    Clay_GL2D_FreeFonts();
 #endif
     free(clayMemory.memory);
 }
@@ -269,6 +280,11 @@ void MenuManager::render() {
     static Timer deltaTimer;
 
     static constexpr float maxScale = 2;
+
+    if (launchProjectQueued) {
+        launchProjectQueued = false;
+        launchProject(queuedProjectPath);
+    }
 
     if (menuQueue.first != MenuID::None) {
         if (Input::mousePointer.isPressed) {

@@ -47,6 +47,9 @@ class MenuManager {
     bool backQueued = false;
     void *backUserdata;
 
+    bool launchProjectQueued = false;
+    std::string queuedProjectPath;
+
     static void initClay();
     static void freeClay();
 
@@ -55,6 +58,7 @@ class MenuManager {
     void changeMenu(MenuID id, void *userdata = nullptr);
     void queueChangeMenu(MenuID id, void *userdata = nullptr);
     bool launchProject(const std::string path);
+    void queueLaunchProject(const std::string &path);
     void render();
     void onResize();
     void back(void *userdata = nullptr);

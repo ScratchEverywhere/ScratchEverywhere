@@ -38,6 +38,11 @@ bool Clay_OpenGL_RegisterFont(const std::string &fontPath) {
     return true;
 }
 
+void Clay_OpenGL_FreeFonts() {
+    fontList.clear();
+    numFonts = 0;
+}
+
 Clay_Dimensions Clay_OpenGL_MeasureText(Clay_StringSlice slice, Clay_TextElementConfig *config, void *userData) {
     if (numFonts == 0 || config->fontId + 1 > numFonts) {
         return {.width = 0.0f, .height = 0.0f};

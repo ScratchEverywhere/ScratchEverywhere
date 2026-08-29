@@ -323,7 +323,7 @@ void renderProjectListItem(const ProjectInfo &projectInfo, std::shared_ptr<Image
 		Clay_OnHover([](Clay_ElementId id, Clay_PointerData pointerData, void *userdata) {
 			const auto projectHoverData = (const ProjectHoverData*)userdata;
 			if (pointerData.state != CLAY_POINTER_DATA_RELEASED_THIS_FRAME || Input::mousePointer.mouseButton != Input::Mouse::LEFT) return;
-			projectHoverData->menuManager->launchProject(projectHoverData->projectInfo->path);
+			projectHoverData->menuManager->queueLaunchProject(projectHoverData->projectInfo->path);
 		}, &hoverDatas[i]);
 
 		if (image) {
