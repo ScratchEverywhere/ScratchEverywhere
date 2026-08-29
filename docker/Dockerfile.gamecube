@@ -1,4 +1,5 @@
 FROM ghcr.io/extremscorner/libogc2:latest AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 
 COPY . .
