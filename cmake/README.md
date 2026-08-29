@@ -32,13 +32,17 @@ the registry lookup by package name is case-sensitive.
 A handful of dependencies need SE-specific behavior the shared registry
 recipe doesn't have (websocket-enabled cloud-vars libcurl, the
 `SE_LUA_BACKEND` luajit/lua5.1 fallback and the `sol2` binding built on top of
-it, libdlgmod's `SE_WINDOWING`-based event polling, and the vendored `ryuJS`
-single-file dependency). These live in `/cmake/recipes/*.cmake` and are
-registered with `cl_add_recipe(name path)` near the top of `CMakeLists.txt`,
-which takes precedence over the shared registry's recipe of the same name.
-Everything else - including SDL2/SDL3's audio-only build trimming, done with
-plain `SOURCE_OPTIONS` on the `cl_add_dep` call instead of a recipe override -
-resolves straight from the registry via `cl_repo()`.
+it, libdlgmod's `SE_WINDOWING`-based event polling, the vendored `ryuJS`
+single-file dependency, and plutovg's single-threaded build flags). These
+live in `/cmake/recipes/*.cmake` as their own local Catalog repo (with its own
+`meta.cmake`), loaded with a second `cl_repo(cmake/recipes)` call right after
+the shared registry's `cl_repo()` in `CMakeLists.txt` - Catalog resolves a
+package name against the *last* repo that defines it (`catalog-cmake/catalog@bd7112a`),
+so this repo's recipes transparently override the shared registry's ones of
+the same name without needing per-package `cl_add_recipe()` calls. Everything
+else - including SDL2/SDL3's audio-only build trimming, done with plain
+`SOURCE_OPTIONS` on the `cl_add_dep` call instead of a recipe override -
+resolves straight from the shared registry.
 
 ## Backends
 
