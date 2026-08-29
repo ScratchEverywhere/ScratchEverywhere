@@ -299,6 +299,7 @@ int Mixer::gus_seq = 0;
 std::unordered_map<int, float> Mixer::notes;
 bool Mixer::musicInitialized = false;
 
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
 typedef struct CxxFileStream {
     FileStream base;
 
@@ -311,7 +312,6 @@ typedef struct CxxFileStream {
 #endif
 } CxxFileStream;
 
-#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
 static int CxxFileStream_Read(FileStream *self, void *buf, int size) {
     CxxFileStream *cfs = (CxxFileStream *)self;
 
@@ -321,6 +321,9 @@ static int CxxFileStream_Read(FileStream *self, void *buf, int size) {
     memcpy(buf, cfs->data + cfs->seek, sz);
     cfs->seek += sz;
 #else
+    cfs->ifs.read((char*)buf, size);
+
+    int sz = cfs->ifs.gcount();
 #endif
 
     return sz;
@@ -330,6 +333,7 @@ static void CxxFileStream_Seek(FileStream *self, FileStreamBigUInt pos) {
 #ifdef USE_CMAKERC
     ((CxxFileStream *)self)->seek = pos;
 #else
+    ((CxxFileStream *)self)->ifs.seekg(pos);
 #endif
 }
 
@@ -337,6 +341,7 @@ static FileStreamBigUInt CxxFileStream_Tell(FileStream *self) {
 #ifdef USE_CMAKERC
     return ((CxxFileStream *)self)->seek;
 #else
+    return ((CxxFileStream *)self)->ifs.tellg();
 #endif
 }
 
@@ -364,8 +369,8 @@ static FileStream *CxxFileStream_New(const char *path, void *arg) {
     self->size = it.end() - it.begin();
     self->seek = 0;
 #else
-    cfgfs.ifs = std::ifstream(path, std::ios::binary);
-    if (!cfgfs.ifs.good()) {
+    self->ifs = std::ifstream(path, std::ios::binary);
+    if (!self->ifs.good()) {
         delete self;
 
         return nullptr;
