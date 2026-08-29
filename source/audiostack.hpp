@@ -17,7 +17,7 @@
 #include <stb_vorbis.c>
 #endif
 #if !defined(NO_MUSIC)
-#include <tsf.h>
+#include <turbosynth/guspat.h>
 #endif
 #endif
 #include "nonstd/expected.hpp"
@@ -108,10 +108,9 @@ class Mixer {
 
     static SE_Mutex mutex;
 #ifdef ENABLE_AUDIO
-    static tsf *hTsf;
+    static GUSPatSynth *synth;
 #endif
-    static void *sf2_buffer;
-    static int sf2_seq;
+    static int gus_seq;
     static std::unordered_map<std::string, SoundStream *> streams;
     static std::unordered_map<int, float> notes;
     static std::unordered_map<std::string, SoundConfig> configs;

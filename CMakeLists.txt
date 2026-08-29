@@ -336,7 +336,7 @@ if(SE_AUDIO)
 		cl_add_dep(se-interface stb_vorbis)
 	endif()
 	cl_add_dep(se-interface dr_libs)
-	cl_add_dep(se-interface tsf)
+	cl_add_dep(se-interface turbosynth)
 endif()
 
 if(SE_ALLOW_NATIVE_EXTENSIONS)
