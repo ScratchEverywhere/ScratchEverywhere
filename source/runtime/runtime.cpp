@@ -114,7 +114,7 @@ bool Scratch::initializeRuntime(int width, int height, bool resizable, std::stri
     TextToSpeechSafeInit();
 #endif
     if (!SoundPlayer::init()) {
-        Log::logCritical("Failed to initialize audio.", true);
+        Log::logCritical("Failed to initialize audio", true);
         return false;
     }
 #endif
