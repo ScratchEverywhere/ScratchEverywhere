@@ -374,7 +374,7 @@ void Scratch::cleanupScratchProject() {
     projectType = ProjectType::UNEMBEDDED;
     Render::renderMode = Render::TOP_SCREEN_ONLY;
 
-    Log::log("Cleaned up Scratch project.");
+    Log::log("Cleaned up Scratch project");
 }
 
 bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
