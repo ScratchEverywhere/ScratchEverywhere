@@ -21,7 +21,12 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 include(CMakeDependentOption)
 
 set(CATALOG_CACHE_DIR "${CMAKE_BINARY_DIR}/.cache/catalog")
-set(CATALOG_REQ_TYPE PREFER_STATIC)
+
+if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT ANDROID AND NOT WEBOS)
+	set(CATALOG_REQ_TYPE PREFER_STATIC)
+	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cl-bootstrap.cmake")
 cl_repo()
 cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
