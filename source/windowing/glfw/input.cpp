@@ -16,6 +16,10 @@ extern std::string customUsername;
 static bool g_inputActive = false;
 static std::string g_inputText = "";
 
+bool Input::isControllerConnected() {
+    return glfwJoystickPresent(GLFW_JOYSTICK_1) && glfwJoystickIsGamepad(GLFW_JOYSTICK_1);
+}
+
 static constexpr uint32_t GLFW_GAMEPAD_KEYS[] = {
     GLFW_GAMEPAD_BUTTON_DPAD_UP,
     GLFW_GAMEPAD_BUTTON_DPAD_DOWN,
@@ -52,13 +56,18 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
     inputButtons.clear();
     inputKeys.clear();
     mousePointer.isPressed = (glfwGetMouseButton((GLFWwindow *)globalWindow->getHandle(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
     mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
 
     std::array<int, 2> touchPos = getTouchPosition();
+
+#ifdef ENABLE_MENU
+    if (menuManager != nullptr) menuManager->handleInput((float)touchPos[0], (float)touchPos[1], mousePointer.isPressed);
+#endif
+
     auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
     mousePointer.x = (int)coords.first;
     mousePointer.y = (int)coords.second;
@@ -178,6 +187,10 @@ void Input::getInput() {
                 Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::LEFT_TRIGGER)]);
             if (state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.5f)
                 Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::RIGHT_TRIGGER)]);
+
+#ifdef ENABLE_MENU
+            if (menuManager != nullptr && std::abs(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) >= 0.5) Input::scrollDelta[1] = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y] * 0.75;
+#endif
 
             Input::leftJoystick.first = state.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
             Input::leftJoystick.second = state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];

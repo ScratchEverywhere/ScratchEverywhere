@@ -1,5 +1,7 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-nx")
 
+set(SE_CONTROLLER_TYPE "switch")
+
 set(SE_RENDERER_VALID_OPTIONS "sdl2")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")

@@ -156,6 +156,7 @@ bool WindowSDL2::shouldClose() {
 }
 
 void WindowSDL2::pollEvents() {
+    Input::scrollDelta = {0, 0};
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -203,6 +204,10 @@ void WindowSDL2::pollEvents() {
             touchActive = false;
             break;
 #endif
+        case SDL_MOUSEWHEEL:
+            Input::scrollDelta[0] = event.wheel.x;
+            Input::scrollDelta[1] = event.wheel.y;
+            break;
         }
     }
 }

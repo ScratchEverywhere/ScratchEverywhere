@@ -1,22 +1,23 @@
 #pragma once
-#include "mainMenu.hpp"
+
+#include "image.hpp"
+#include "menu.hpp"
+#include <memory>
+#include <vector>
 
 class PauseMenu : public Menu {
   private:
+    std::shared_ptr<Image> indicator;
+    int selected = -1;
+
+    std::vector<Clay_String> buttonTexts;
+
+    void renderButton(unsigned int id, Clay_String text, void (*cb)());
+
   public:
-    ControlObject *pauseControl = nullptr;
-    ButtonObject *backButton = nullptr;
-    ButtonObject *exitProjectButton = nullptr;
-    ButtonObject *flagButton = nullptr;
-    ButtonObject *stopButton = nullptr;
-    ButtonObject *turboButton = nullptr;
+    static bool shouldUnpause;
 
-    bool shouldUnpause = false;
-
-    PauseMenu();
+    PauseMenu(void *userdata);
     ~PauseMenu();
-
-    void init() override;
     void render() override;
-    void cleanup() override;
 };

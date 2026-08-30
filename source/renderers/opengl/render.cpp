@@ -473,7 +473,7 @@ void Render::renderPenLayer() {
     glEnd();
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
     glViewport(0, 0, getWidth(), getHeight());
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -521,7 +521,7 @@ void Render::renderSprites() {
     drawBlackBars(getWidth(), getHeight());
     renderMonitors();
 
-    endFrame(true);
+    if (present) endFrame(true);
 }
 
 bool Render::appShouldRun() {

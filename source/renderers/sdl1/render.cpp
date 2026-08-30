@@ -303,7 +303,7 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
     SDL_Surface *window = static_cast<SDL_Surface *>(getRenderer());
     SDL_FillRect(window, NULL, SDL_MapRGB(window->format, 255, 255, 255));
 
@@ -357,8 +357,10 @@ void Render::renderSprites() {
     drawBlackBars(getWidth(), getHeight());
     renderMonitors();
 
-    SDL_Flip(window);
-    if (globalWindow) globalWindow->swapBuffers();
+    if (present) {
+        SDL_Flip(window);
+        if (globalWindow) globalWindow->swapBuffers();
+    }
 }
 
 void Render::renderPenLayer() {

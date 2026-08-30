@@ -1,13 +1,13 @@
+#include <cstdlib>
+#include <input.hpp>
+#include <memory>
+#include <menus/menuManager.hpp>
 #ifndef LIBRETRO
 #include "image.hpp"
 #include "translation.hpp"
-#include <log.hpp>
-#ifdef ENABLE_MENU
-#include <menus/mainMenu.hpp>
-#endif
 #include <cstdlib>
 #include <inspector.hpp>
-#include <menus/mainMenu.hpp>
+#include <log.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
@@ -27,25 +27,34 @@
 #endif
 
 static void exitApp() {
+#ifdef ENABLE_MENU
+    MenuManager::freeClay();
+#endif
     Render::deInit();
     OS::deinit();
 }
 
 static bool initApp() {
-    return Scratch::initializeRuntime();
+    const bool result = Scratch::initializeRuntime();
+#ifdef ENABLE_MENU
+    MenuManager::initClay();
+#endif
+    return result;
 }
 
 bool activateMainMenu() {
 #ifdef ENABLE_MENU
-    MainMenu *menu = new MainMenu();
-    if (Unzip::filePath.empty()) MenuManager::changeMenu(menu);
+    MenuManager menuManager;
+    Render::menuManager = &menuManager;
+
+    menuManager.changeMenu(MenuID::MainMenu);
 
     while (Render::appShouldRun()) {
-        MenuManager::render();
+        Input::getInput(&menuManager);
 
-        if (MenuManager::isProjectLoaded != 0) {
-            if (MenuManager::isProjectLoaded == -1) return false;
-            MenuManager::isProjectLoaded = 0;
+        menuManager.render();
+        if (Unzip::projectOpened > 0) {
+            Render::menuManager = nullptr;
             return true;
         }
 
@@ -56,6 +65,7 @@ bool activateMainMenu() {
         Inspector::processCommands();
 #endif
     }
+    Render::menuManager = nullptr;
 #endif
     return false;
 }
@@ -160,6 +170,7 @@ int main(int argc, char **argv) {
             exitApp();
             return 0;
         }
+        if (!activateMainMenu()) return 0;
     }
 
 #ifdef __EMSCRIPTEN__
@@ -168,7 +179,7 @@ int main(int argc, char **argv) {
     while (1)
         mainLoop();
 #endif
-    exitApp();
+
     return 0;
 }
 #endif

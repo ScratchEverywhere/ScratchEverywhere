@@ -35,7 +35,7 @@
   "ui.loading.sprites": "스프라이트 불러오는 중",
   "ui.loading.extensions": "확장 기능 불러오는 중",
   "ui.loading.finish": "마무리 중!",
-  "ui.popup.extensions": "경고! 이 프로젝트에는 네이티브 확장 기능이 포함되어 있습니다. 네이티브 확장 기능은 기기에 대한 전체 접근 권한을 가집니다.",
+  "ui.confirm.extensions": "경고! 이 프로젝트에는 네이티브 확장 기능이 포함되어 있습니다. 네이티브 확장 기능은 기기에 대한 전체 접근 권한을 가집니다.",
   "version.prefix.beta": "베타 빌드",
   "version.prefix.release": "정식 버전",
   "version.prefix.releaseCanidate": "릴리스 후보",

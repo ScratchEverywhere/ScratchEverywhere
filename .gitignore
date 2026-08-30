@@ -96,3 +96,6 @@ CMakeSettings.json
 
 # Debug files
 perf.data*
+
+# GIMP
+.comments/

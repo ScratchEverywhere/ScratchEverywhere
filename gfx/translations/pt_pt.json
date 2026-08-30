@@ -35,7 +35,7 @@
   "ui.loading.sprites": "A carregar Sprites",
   "ui.loading.extensions": "A carregar Extenções",
   "ui.loading.finish": "Finalizando!",
-  "ui.popup.extensions": "Aviso! Este projeto contém Extenções Nativas. As Extensões Nativas têm acesso total ao seu dispositivo!",
+  "ui.confirm.extensions": "Aviso! Este projeto contém Extenções Nativas. As Extensões Nativas têm acesso total ao seu dispositivo!",
   "version.prefix.beta": "Construção Beta",
   "version.prefix.release": "Lançamento",
   "version.prefix.releaseCanidate": "Candidato a Lançamento",

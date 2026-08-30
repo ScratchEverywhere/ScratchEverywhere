@@ -35,7 +35,7 @@
   "ui.loading.sprites": "Carregando Sprites...",
   "ui.loading.extensions": "Carregando Extensões...",
   "ui.loading.finish": "Terminando...",
-  "ui.popup.extensions": "!AVISO! Este projeto tem extensões não-originais/extensões custom/externas, estas extensões tem ACESSO TOTAL a o seu sistema, então tome cuidado para não rodar uma que quebre/bricka seu sistema. !AVISO!",
+  "ui.confirm.extensions": "!AVISO! Este projeto tem extensões não-originais/extensões custom/externas, estas extensões tem ACESSO TOTAL a o seu sistema, então tome cuidado para não rodar uma que quebre/bricka seu sistema. !AVISO!",
   "version.prefix.beta": "Build Beta/Antecipada",
   "version.prefix.release": "Lancamento",
   "version.prefix.releaseCanidate": "Candidato de Lancamento/Acceso antecipado",

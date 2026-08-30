@@ -36,10 +36,9 @@
   "ui.loading.sprites": "Cargando sprites",
   "ui.loading.extensions": "Cargando extensiones",
   "ui.loading.finish": "Terminando",
-  "ui.popup.extensions": "¡Cuidado! Este proyecto contiene extensiones nativas. Las extensiones nativas tienen acceso completo a tu dispositivo.",
+  "ui.confirm.extensions": "¡Cuidado! Este proyecto contiene extensiones nativas. Las extensiones nativas tienen acceso completo a tu dispositivo.",
   "version.prefix.beta": "Compilación Beta",
   "version.prefix.release": "Lanzamiento",
   "version.prefix.releaseCanidate": "Lanzamiento candidato",
   "version.prefix.nightly": "Nightly"
 }
-

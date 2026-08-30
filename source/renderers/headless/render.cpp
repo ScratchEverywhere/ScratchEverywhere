@@ -75,7 +75,7 @@ float Render::getPixelDensity() {
     return 1.0f;
 }
 
-void Render::renderSprites() {
+void Render::renderSprites(bool present) {
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {

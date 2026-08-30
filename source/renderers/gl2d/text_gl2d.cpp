@@ -13,7 +13,9 @@ TextObjectGL2D::TextObjectGL2D(std::string txt, double posX, double posY, std::s
     // Load font file
     if (fontPath == "") fontPath = "gfx/menu/Ubuntu-Bold";
     fontPath = OS::getRomFSLocation() + fontPath + ".ttf";
-    loadFont(fontPath, fontSize);
+    if (!loadFont(fontPath, fontSize)) {
+        Log::logError("Failed to load font! " + fontPath);
+    }
 }
 
 bool TextObjectGL2D::loadFont(std::string fontPath, int fontSize) {
@@ -30,7 +32,7 @@ bool TextObjectGL2D::loadFont(std::string fontPath, int fontSize) {
 
     FILE *fontFile = fopen(fontPath.c_str(), "rb");
     if (!fontFile) {
-        Log::logError("Failed to open font file");
+        Log::logError("Failed to open font file: " + fontPath);
         return false;
     }
 
@@ -122,10 +124,10 @@ bool TextObjectGL2D::loadFont(std::string fontPath, int fontSize) {
     free(indexedAtlas);
 
     if (data.textureID < 0) {
-        Log::logWarning("Failed to load font. " +
-                        (data.textureID == -1
-                             ? std::string(" Out of VRAM!")
-                             : " Error " + std::to_string(data.textureID)));
+        Log::logError("Failed to load font. " +
+                      (data.textureID == -1
+                           ? std::string(" Out of VRAM!")
+                           : " Error " + std::to_string(data.textureID)));
 
         return false;
     }
@@ -200,7 +202,6 @@ void TextObjectGL2D::render(int xPos, int yPos) {
 
     glBindTexture(0, font->textureID);
     glPolyFmt(POLY_ALPHA(31) | POLY_CULL_NONE | POLY_ID(0));
-    scale = std::max(minScale, scale);
 
     float startX = (float)(xPos);
     float startY = (float)(yPos + getSize()[1]);

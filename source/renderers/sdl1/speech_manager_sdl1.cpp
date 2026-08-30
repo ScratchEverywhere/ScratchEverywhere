@@ -1,4 +1,5 @@
 #include "speech_manager_sdl1.hpp"
+#include "os.hpp"
 #include "render.hpp"
 #include <SDL.h>
 #include <SDL_gfxBlitFunc.h>
@@ -38,7 +39,7 @@ void SpeechManagerSDL1::render(int offsetX, int offsetY) {
     for (auto &[sprite, obj] : speechObjects) {
         if (obj && sprite->visible) {
             visibleObjects++;
-            if (visibleObjects == 1 && speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech_simple.svg", false).value();
+            if (visibleObjects == 1 && speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile(OS::getRomFSLocation() + "gfx/ingame/speech_simple.svg", false).value();
             // Apply res-respecting transformations
             int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (windowWidth / 2));
             int spriteCenterY = static_cast<int>((sprite->yPosition * -scale) + (windowHeight / 2));

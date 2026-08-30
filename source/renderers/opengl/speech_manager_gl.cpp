@@ -39,8 +39,8 @@ void SpeechManagerGL::render(int offsetX, int offsetY) {
         if (obj && sprite->visible) {
             visibleObjects++;
             if (visibleObjects == 1) {
-                if (bubbleImage == nullptr) bubbleImage = createImageFromFile("gfx/ingame/speechbubble.svg", false).value();
-                if (speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile("gfx/ingame/speech.svg", false).value();
+                if (bubbleImage == nullptr) bubbleImage = createImageFromFile(OS::getRomFSLocation() + "gfx/ingame/speechbubble.svg", false).value();
+                if (speechIndicatorImage == nullptr) speechIndicatorImage = createImageFromFile(OS::getRomFSLocation() + "gfx/ingame/speech.svg", false).value();
             }
             // Apply res-respecting transformations
             int spriteCenterX = static_cast<int>((sprite->xPosition * scale) + (windowWidth / 2));

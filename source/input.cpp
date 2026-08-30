@@ -4,6 +4,7 @@
 std::pair<float, float> Input::leftJoystick = {0, 0};
 std::pair<float, float> Input::rightJoystick = {0, 0};
 
+std::array<float, 2> Input::scrollDelta;
 std::vector<std::string> Input::inputButtons;
 std::vector<std::string> Input::inputKeys;
 std::map<std::string, std::string> Input::inputControls;

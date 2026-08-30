@@ -5,4 +5,6 @@ set(CATALOG_RECIPES
 	libdlgmod:libdlgmod.cmake
 	ryuJS:ryujs.cmake
 	plutovg:plutovg.cmake
+	clay:clay.cmake
+	nlohmann_json:nlohmann_json.cmake
 )

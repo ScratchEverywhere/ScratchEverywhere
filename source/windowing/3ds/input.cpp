@@ -1,3 +1,9 @@
+#include "input.hpp"
+#include "3ds/services/hid.h"
+#include "blockExecutor.hpp"
+#include "input.hpp"
+#include "menus/menuManager.hpp"
+#include "render.hpp"
 #include "window.hpp"
 #include <3ds.h>
 #include <blockExecutor.hpp>
@@ -64,6 +70,10 @@ extern bool cloudProject;
 extern bool useCustomUsername;
 extern std::string customUsername;
 
+bool Input::isControllerConnected() {
+    return true;
+}
+
 std::array<int, 2> Input::getTouchPosition() {
     std::array<int, 2> pos = {touch.px, touch.py};
 
@@ -73,7 +83,7 @@ std::array<int, 2> Input::getTouchPosition() {
     return pos;
 }
 
-void Input::getInput() {
+void Input::getInput(MenuManager *menuManager) {
     mousePointer.mouseButton = Mouse::LEFT;
     inputButtons.clear();
     inputKeys.clear();
@@ -162,6 +172,10 @@ skipInputCheck:
 
     BlockExecutor::executeKeyHats();
     BlockExecutor::doSpriteClicking();
+
+#ifdef ENABLE_MENU
+    if (menuManager) menuManager->handleInput(touchPos[0], touchPos[1], Input::mousePointer.isPressed);
+#endif
 }
 
 std::string Input::openSoftwareKeyboard(const char *hintText) {

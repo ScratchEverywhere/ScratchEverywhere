@@ -1,5 +1,7 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-vita")
 
+set(SE_CONTROLLER_TYPE "playstation")
+
 set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
