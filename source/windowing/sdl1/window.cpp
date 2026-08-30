@@ -5,7 +5,6 @@
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
 #endif
-#include <cstdlib>
 #include <cstring>
 #endif
 #include <chrono>
