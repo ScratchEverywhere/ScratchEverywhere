@@ -4,7 +4,7 @@
 
 class WindowSDL2 : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override;
+    bool init(int width, int height, bool resizable, const std::string &title) override;
     void cleanup() override;
 
     bool shouldClose() override;

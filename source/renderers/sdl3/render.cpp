@@ -43,7 +43,7 @@ SpeechManagerSDL3 *speechManager = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
-bool Render::Init() {
+bool Render::Init(int width, int height, bool resizable, std::string title) {
 #ifdef __SWITCH__
     int windowWidth = 1280;
     int windowHeight = 720;
@@ -58,7 +58,7 @@ bool Render::Init() {
     TTF_Init();
 
     globalWindow = new WindowSDL3();
-    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+    if (!globalWindow->init(((width < 0) ? windowWidth : width), ((height < 0) ? windowHeight : height), resizable, title)) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;

@@ -7,7 +7,6 @@
 #endif
 #include <cstdlib>
 #include <inspector.hpp>
-#include <menus/mainMenu.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
@@ -69,15 +68,17 @@ void mainLoop() {
             goto skipCheck;
         }
 
-        if (Unzip::projectOpened != -3) { // main menu
+        if (Unzip::projectOpened != -3) {
             exitApp();
             exit(0);
         }
 
+#ifdef ENABLE_MENU
         if (!activateMainMenu()) {
             exitApp();
             exit(0);
         }
+#endif
 
     skipCheck:
         return;
@@ -86,7 +87,11 @@ void mainLoop() {
     Unzip::filePath = "";
     Scratch::nextProject = false;
     Scratch::dataNextProject = Value();
+#ifdef ENABLE_MENU
     if (OS::toExit || !activateMainMenu()) {
+#else
+    if (OS::toExit) {
+#endif
         exitApp();
         exit(0);
     }

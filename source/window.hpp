@@ -7,7 +7,7 @@ class WindowSE {
   public:
     virtual ~WindowSE() = default;
 
-    virtual bool init(int width, int height, const std::string &title) = 0;
+    virtual bool init(int width, int height, bool resizable, const std::string &title) = 0;
     virtual void cleanup() = 0;
 
     virtual bool shouldClose() = 0;

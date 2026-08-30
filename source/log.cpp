@@ -15,10 +15,11 @@
 #endif
 
 /**
- * See these lines, in libdlgmod's source code, for reference, where the 'BUTTON_TYPES' enum, below, is copied from:
- * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/win32/libdlgmod.cpp#L112-L120
- * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/macos/libdlgmod.mm#L49-L57
- * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/xlib/libdlgmod.cpp#L79-L87
+ * See these lines in libdlgmod's source, for reference, 
+ * where the 'BUTTON_TYPES' enum, below, is copied from:
+ * https://github.com/samuelvenable/libdlgmod/blob/main/libdlgmod/win32/libdlgmod.cpp#L112-L120
+ * https://github.com/samuelvenable/libdlgmod/blob/main/libdlgmod/macos/libdlgmod.mm#L57-L65
+ * https://github.com/samuelvenable/libdlgmod/blob/main/libdlgmod/xlib/libdlgmod.cpp#L79-L87
  */
 enum BUTTON_TYPES {
     BUTTON_ABORT,
@@ -118,7 +119,7 @@ void Log::logCritical(std::string message, bool fatal) {
         widget_set_caption("Fatal Error");
     } else {
         // Titlebar caption text for non-fatal graphical errors:
-        widget_set_caption("Critical Error");
+        widget_set_caption("Error");
     }
     // 'Abort' button label for all graphical errors:
     widget_set_button_name(BUTTON_ABORT, "Abort");

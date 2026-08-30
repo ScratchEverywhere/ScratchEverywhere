@@ -30,7 +30,7 @@ class Scratch {
     static std::vector<std::unique_ptr<extensions::Extension>> extensions;
 #endif
 
-    static bool initializeRuntime();
+    static bool initializeRuntime(int width = -1, int height = -1, bool resizable = true, std::string title = "Scratch Everywhere!");
     static void initializeScratchProject();
     static bool getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
     static ParsedInput *getInput(Block *block, const std::string &inputName);

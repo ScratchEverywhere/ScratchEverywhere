@@ -1,7 +1,11 @@
 #include "window.hpp"
 #include <SDL3/SDL_video.h>
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
+#include <cstring>
 #endif
 #include <cstdlib>
 #include <input.hpp>
@@ -25,7 +29,7 @@ bool touchActive = false;
 SDL_Point touchPosition;
 #endif
 
-bool WindowSDL3::init(int width, int height, const std::string &title) {
+bool WindowSDL3::init(int width, int height, bool resizable, const std::string &title) {
 #if defined(VITA)
     setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);
 #endif
@@ -51,7 +55,12 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
-    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+	SDL_WindowFlags flags = 0;
+    if (resizable) {
+        flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+	} else {
+        flags = SDL_WINDOW_HIGH_PIXEL_DENSITY;
+	}
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     flags |= SDL_WINDOW_OPENGL;
 #endif
@@ -100,6 +109,12 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)).c_str());
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
+#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+	const char *name = SDL_GetCurrentVideoDriver();
+	const char *not_null_name = name ? name : "";
+	if (!strcmp(not_null_name, "x11")) {
+		widget_set_owner(std::to_string((unsigned long long)(unsigned long)SDL_GetNumberProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_WINDOW_NUMBER, 0)).c_str());
+	}
 #endif
 
     return true;

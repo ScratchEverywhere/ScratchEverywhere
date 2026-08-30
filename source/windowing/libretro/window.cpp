@@ -20,7 +20,7 @@ extern "C" void retro_set_video_refresh(retro_video_refresh_t cb) {
     video_refresh_cb = cb;
 }
 
-bool WindowLibretro::init(int w, int h, const std::string &title) {
+bool WindowLibretro::init(int w, int h, bool resizable, const std::string &title) {
     resize(w, h);
 
     return true;

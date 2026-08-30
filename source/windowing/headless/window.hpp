@@ -3,7 +3,7 @@
 
 class WindowHeadless : public WindowSE {
   public:
-    bool init(int width, int height, const std::string &title) override { return true; }
+    bool init(int width, int height, bool resizable, const std::string &title) override { return true; }
     void cleanup() override {}
 
     bool shouldClose() override { return false; }
