@@ -293,56 +293,123 @@ std::unordered_map<std::string, SoundStream *> Mixer::streams;
 std::unordered_map<std::string, SoundConfig> Mixer::configs;
 SE_Mutex Mixer::mutex;
 #ifdef ENABLE_AUDIO
-tsf *Mixer::hTsf = nullptr;
+GUSPatSynth *Mixer::synth = nullptr;
 #endif
-void *Mixer::sf2_buffer = nullptr;
-int Mixer::sf2_seq = 0;
+int Mixer::gus_seq = 0;
 std::unordered_map<int, float> Mixer::notes;
 bool Mixer::musicInitialized = false;
 
-void Mixer::initMusic() {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
-    if (Mixer::musicInitialized) return;
+typedef struct CxxFileStream {
+    FileStream base;
 
-    std::string prefix = OS::getRomFSLocation();
-    std::string path = prefix + "gfx/ingame/scratch.sf2";
-    size_t size;
+#ifdef USE_CMAKERC
+    unsigned char *data;
+    FileStreamBigUInt size;
+    FileStreamBigUInt seek;
+#else
+    std::ifstream ifs;
+#endif
+} CxxFileStream;
+
+static int CxxFileStream_Read(FileStream *self, void *buf, int size) {
+    CxxFileStream *cfs = (CxxFileStream *)self;
+
+#ifdef USE_CMAKERC
+    int sz = size > (cfs->size - cfs->seek) ? (cfs->size - cfs->seek) : size;
+
+    memcpy(buf, cfs->data + cfs->seek, sz);
+    cfs->seek += sz;
+#else
+    cfs->ifs.read((char*)buf, size);
+
+    int sz = cfs->ifs.gcount();
+#endif
+
+    return sz;
+}
+
+static void CxxFileStream_Seek(FileStream *self, FileStreamBigUInt pos) {
+#ifdef USE_CMAKERC
+    ((CxxFileStream *)self)->seek = pos;
+#else
+    ((CxxFileStream *)self)->ifs.seekg(pos);
+#endif
+}
+
+static FileStreamBigUInt CxxFileStream_Tell(FileStream *self) {
+#ifdef USE_CMAKERC
+    return ((CxxFileStream *)self)->seek;
+#else
+    return ((CxxFileStream *)self)->ifs.tellg();
+#endif
+}
+
+static void CxxFileStream_Close(FileStream *self) {
+    CxxFileStream *cfs = (CxxFileStream *)self;
+
+    free(self->path);
+    delete cfs;
+}
+
+static FileStream *CxxFileStream_New(const char *path, void *arg) {
+    CxxFileStream *self = new CxxFileStream();
 
 #ifdef USE_CMAKERC
     auto fs = cmrc::romfs::get_filesystem();
-    if (fs.exists(path)) {
-        const auto &file = fs.open(path);
+    if (!fs.exists(path)) {
+        delete self;
 
-        size = file.size();
-
-        Mixer::sf2_buffer = malloc(size);
-        memcpy(Mixer::sf2_buffer, file.begin(), size);
+        return nullptr;
     }
+
+    auto it = fs.open(path);
+
+    self->data = (unsigned char *)it.begin();
+    self->size = it.end() - it.begin();
+    self->seek = 0;
 #else
-    std::ifstream ifs(path, std::ios::binary);
+    self->ifs = std::ifstream(path, std::ios::binary);
+    if (!self->ifs.good()) {
+        delete self;
 
-    ifs.seekg(0, std::ios::end);
-    size = ifs.tellg();
-    ifs.seekg(0);
-
-    if (ifs.good()) {
-        Mixer::sf2_buffer = malloc(size);
-
-        ifs.read((char *)Mixer::sf2_buffer, size);
-
-        ifs.close();
+        return nullptr;
     }
 #endif
 
-    if (Mixer::sf2_buffer) {
-        Mixer::hTsf = tsf_load_memory(Mixer::sf2_buffer, size);
-    }
+    self->base.New = CxxFileStream_New;
+    self->base.Read = CxxFileStream_Read;
+    self->base.Seek = CxxFileStream_Seek;
+    self->base.Tell = CxxFileStream_Tell;
+    self->base.Close = CxxFileStream_Close;
+    self->base.newArg = arg;
+    self->base.path = (char *)malloc(strlen(path) + 1);
+    strcpy(self->base.path, path);
 
-    if (Mixer::hTsf) {
-        tsf_set_output(Mixer::hTsf, TSF_STEREO_INTERLEAVED, Mixer::rate, 0);
-    }
+    return (FileStream *)self;
+}
+#endif
 
-    Mixer::musicInitialized = true;
+void Mixer::initMusic() {
+#if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
+    CxxFileStream *cfgfs = nullptr;
+
+    if (Mixer::musicInitialized) return;
+
+    std::string prefix = OS::getRomFSLocation();
+    std::string path = prefix + "gfx/ingame/synth/scratch.cfg";
+
+    cfgfs = (CxxFileStream *)CxxFileStream_New(path.c_str(), nullptr);
+
+    if (cfgfs == nullptr) {
+        Mixer::synth = nullptr;
+        Mixer::musicInitialized = false;
+    } else {
+        Mixer::synth = GUSPatSynth_New((FileStream *)cfgfs, Mixer::rate);
+        Mixer::musicInitialized = true;
+
+        FileStream_Destroy((FileStream *)cfgfs);
+    }
 #endif
 }
 
@@ -354,15 +421,15 @@ void Mixer::requestSound(short *output, int frames) {
     Mixer::mutex.lock();
 
 #ifndef NO_MUSIC
-    if (Mixer::hTsf) {
-        tsf_render_float(Mixer::hTsf, mixBuffer.data(), frames, 0);
+    if (Mixer::synth) {
+        GUSPatSynth_RenderFloat(Mixer::synth, mixBuffer.data(), frames);
     }
 
     for (auto it = notes.begin(); it != notes.end();) {
         it->second -= (float)frames / Mixer::rate;
 
         if (it->second <= 0) {
-            tsf_channel_note_off_all(Mixer::hTsf, it->first);
+            GUSPatSynth_NoteOffAll(Mixer::synth, it->first);
             it = notes.erase(it);
         } else {
             it++;
@@ -460,13 +527,9 @@ void Mixer::cleanupAudio() {
     Mixer::notes.clear();
 
 #ifndef NO_MUSIC
-    if (Mixer::hTsf) {
-        tsf_close(Mixer::hTsf);
-        Mixer::hTsf = nullptr;
-    }
-    if (Mixer::sf2_buffer) {
-        free(Mixer::sf2_buffer);
-        Mixer::sf2_buffer = nullptr;
+    if (Mixer::synth) {
+        GUSPatSynth_Destroy(Mixer::synth);
+        Mixer::synth = nullptr;
     }
     Mixer::musicInitialized = false;
 #endif
@@ -615,7 +678,7 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     int n;
 
-    if (!Mixer::hTsf) return -1;
+    if (!Mixer::synth) return -1;
 
     instrument = ((instrument - 1) % (sizeof(instrument_lut) / sizeof(instrument_lut[0])));
 
@@ -623,10 +686,9 @@ int Mixer::note(int instrument, int note, float volume, float beats) {
 
     Mixer::mutex.lock();
 
-    n = Mixer::sf2_seq++;
-    tsf_channel_set_presetnumber(Mixer::hTsf, n, instrument_lut[instrument]);
-    tsf_channel_set_volume(Mixer::hTsf, n, volume);
-    tsf_channel_note_on(Mixer::hTsf, n, note, 1.0);
+    n = Mixer::gus_seq++ % 128;
+    GUSPatSynth_SetProgram(Mixer::synth, n, instrument_lut[instrument], 0);
+    GUSPatSynth_Note(Mixer::synth, n, note, volume * 127);
 
     Mixer::notes[n] = Mixer::beatsToSec(beats);
 
@@ -662,7 +724,7 @@ int Mixer::drum(int drum, float volume, float beats) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     int n;
 
-    if (!Mixer::hTsf) return -1;
+    if (!Mixer::synth) return -1;
 
     drum = ((drum - 1) % (sizeof(drum_lut) / sizeof(drum_lut[0])));
 
@@ -670,10 +732,9 @@ int Mixer::drum(int drum, float volume, float beats) {
 
     Mixer::mutex.lock();
 
-    n = Mixer::sf2_seq++;
-    tsf_channel_set_presetnumber(Mixer::hTsf, n, drum_lut[drum], 1);
-    tsf_channel_set_volume(Mixer::hTsf, n, volume);
-    tsf_channel_note_on(Mixer::hTsf, n, drum_lut[drum], 1.0);
+    n = Mixer::gus_seq++ % 128;
+    GUSPatSynth_SetProgram(Mixer::synth, n, drum_lut[drum], 1);
+    GUSPatSynth_Note(Mixer::synth, n, drum_lut[drum], volume * 127);
 
     Mixer::notes[n] = Mixer::beatsToSec(beats);
 
@@ -688,7 +749,7 @@ bool Mixer::isInstrumentPlaying(int channel) {
 #if defined(ENABLE_AUDIO) && !defined(NO_MUSIC)
     bool v = false;
 
-    if (!Mixer::hTsf) return 0;
+    if (!Mixer::synth) return 0;
 
     Mixer::mutex.lock();
 
