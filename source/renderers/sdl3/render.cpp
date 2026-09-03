@@ -38,6 +38,7 @@ char nickname[0x21];
 
 WindowSE *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
+static SDL_Texture *mainRenderTarget = nullptr;
 SDL_Texture *penTexture = nullptr;
 SpeechManagerSDL3 *speechManager = nullptr;
 
@@ -98,6 +99,16 @@ void *Render::getRenderer() {
     return static_cast<void *>(renderer);
 }
 
+void Render::setRenderTarget(void *renderTarget) {
+    mainRenderTarget = static_cast<SDL_Texture *>(renderTarget);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
+}
+
+void Render::clearRenderTarget() {
+    mainRenderTarget = nullptr;
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
+}
+
 bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
     return speechManager != nullptr;
@@ -143,7 +154,7 @@ bool Render::initPen() {
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
 
     return true;
 }
@@ -409,7 +420,7 @@ void Render::penStamp(Sprite *sprite) {
 
     image->render(params);
 
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
 }
 
 void Render::penClear() {
@@ -417,7 +428,7 @@ void Render::penClear() {
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
     penVerts.clear();
 }
 
@@ -550,7 +561,7 @@ void Render::renderPenLayer() {
         SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         penVerts.clear();
 
-        SDL_SetRenderTarget(renderer, nullptr);
+        SDL_SetRenderTarget(renderer, mainRenderTarget);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 

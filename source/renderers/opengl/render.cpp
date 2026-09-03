@@ -110,6 +110,13 @@ void *Render::getRenderer() {
     return nullptr;
 }
 
+void Render::setRenderTarget(void *renderTarget) {
+    Log::logWarning("Render::setRenderTarget is not supported by the legacy OpenGL renderer");
+}
+
+void Render::clearRenderTarget() {
+}
+
 bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerGL();
     return speechManager != nullptr;

@@ -24,6 +24,12 @@ void *Render::getRenderer() {
     return nullptr;
 }
 
+void Render::setRenderTarget(void *renderTarget) {
+}
+
+void Render::clearRenderTarget() {
+}
+
 bool Render::createSpeechManager() {
     return false;
 }

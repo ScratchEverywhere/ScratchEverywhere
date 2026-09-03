@@ -91,6 +91,13 @@ void *Render::getRenderer() {
     return nullptr;
 }
 
+void Render::setRenderTarget(void *renderTarget) {
+    Log::logWarning("Render::setRenderTarget is not supported by the citro2d renderer");
+}
+
+void Render::clearRenderTarget() {
+}
+
 bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerC2D();
     return speechManager != nullptr;

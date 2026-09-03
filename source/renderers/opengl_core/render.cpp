@@ -303,7 +303,11 @@ static void setupQuadGeometry() {
     glBindVertexArray(0);
 }
 
+static GLuint overrideFBO = 0;
+static bool hasOverrideFBO = false;
+
 static GLuint getMainFBO() {
+    if (hasOverrideFBO) return overrideFBO;
 #ifdef LIBRETRO
     return (GLuint)hw_render.get_current_framebuffer();
 #else
@@ -586,6 +590,17 @@ void Render::deInit() {
 }
 
 void *Render::getRenderer() { return nullptr; }
+
+void Render::setRenderTarget(void *renderTarget) {
+    overrideFBO = static_cast<GLuint>(reinterpret_cast<uintptr_t>(renderTarget));
+    hasOverrideFBO = true;
+    glBindFramebuffer(GL_FRAMEBUFFER, overrideFBO);
+}
+
+void Render::clearRenderTarget() {
+    hasOverrideFBO = false;
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+}
 
 bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerGLCore();

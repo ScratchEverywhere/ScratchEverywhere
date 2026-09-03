@@ -2,6 +2,8 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 
+extern SDL_Surface *mainSurface;
+
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 #define RMASK 0xff000000
 #define GMASK 0x00ff0000

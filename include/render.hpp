@@ -1,11 +1,11 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include "os.hpp"
 #include <chrono>
 #include <input.hpp>
 #include <math.hpp>
 #include <runtime.hpp>
+#include <se_export.hpp>
 #include <sprite.hpp>
 #include <text.hpp>
 #include <vector>
@@ -101,6 +101,9 @@ class SE_EXPORT Render {
     static bool initPen();
 
     static void deInit();
+
+    static void setRenderTarget(void *renderTarget);
+    static void clearRenderTarget();
 
     /**
      * [SDL] returns the current renderer.

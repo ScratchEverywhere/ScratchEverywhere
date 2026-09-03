@@ -56,7 +56,7 @@ TextObjectSDL1::TextObjectSDL1(std::string txt, double posX, double posY, std::s
 
     // Set initial text
     setText(txt);
-    setRenderer(static_cast<SDL_Surface *>(Render::getRenderer()));
+    setRenderer(mainSurface);
 }
 
 TextObjectSDL1::~TextObjectSDL1() {
