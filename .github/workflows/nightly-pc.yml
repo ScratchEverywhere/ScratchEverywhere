@@ -59,7 +59,7 @@ jobs:
               RENDERER=headless
               WINDOWING=headless
               AUDIO_ENGINE=headless
-              EXT_ARGS=-DSE_LIBRARY=TRUE
+              LIBRARY_MODE=TRUE
           - name: SDL2
             artifact: Scratch Everywhere! Linux SDL2 Nightly
             build-args: |

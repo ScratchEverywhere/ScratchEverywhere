@@ -6,6 +6,7 @@ WORKDIR /app
 ARG RENDERER=opengl_core
 ARG WINDOWING=glfw
 ARG AUDIO_ENGINE=sdl3
+ARG LIBRARY_MODE=FALSE
 ARG EXT_ARGS=
 
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev
@@ -32,7 +33,10 @@ RUN if [ "$RENDERER" = "opengl" ] || [ $RENDERER = "opengl_core" ]; then \
 
 COPY . .
 
-RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} ${EXT_ARGS} && cmake --build . -j 2
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -DSE_RENDERER=${RENDERER} -DSE_WINDOWING=${WINDOWING} -DSE_AUDIO_ENGINE=${AUDIO_ENGINE} -DSE_LIBRARY=${LIBRARY_MODE} ${EXT_ARGS} && cmake --build . -j 2 && \
+    if [ "$LIBRARY_MODE" = "TRUE" ]; then \
+        cp libscratch-pc.a scratch-pc; \
+    fi
 
 FROM scratch AS exporter
 
