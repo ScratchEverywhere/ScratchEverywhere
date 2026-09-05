@@ -1,7 +1,8 @@
 #pragma once
+#include <se_export.hpp>
 #include "mainMenu.hpp"
 
-class ProjectMenu : public Menu {
+class SE_EXPORT ProjectMenu : public Menu {
   public:
     bool hasProjects;
     bool shouldGoBack = false;

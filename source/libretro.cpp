@@ -13,7 +13,7 @@ static retro_environment_t environ_cb;
 
 #include <audiostack.hpp>
 #include <render.hpp>
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
 

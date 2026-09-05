@@ -1,18 +1,18 @@
-#include "render.hpp"
+#include "render_opengl_core.hpp"
 #include "speech_manager_gl_core.hpp"
 #include <image_gl_core.hpp>
 #include <log.hpp>
 #include <window.hpp>
 #if defined(WINDOWING_GLFW)
-#include <windowing/glfw/window.hpp>
+#include <windowing/glfw/window_glfw.hpp>
 #elif defined(WINDOWING_SDL1)
-#include <windowing/sdl1/window.hpp>
+#include <windowing/sdl1/window_sdl1.hpp>
 #elif defined(WINDOWING_SDL2)
-#include <windowing/sdl2/window.hpp>
+#include <windowing/sdl2/window_sdl2.hpp>
 #elif defined(WINDOWING_SDL3)
-#include <windowing/sdl3/window.hpp>
+#include <windowing/sdl3/window_sdl3.hpp>
 #elif defined(WINDOWING_LIBRETRO)
-#include <windowing/libretro/window.hpp>
+#include <windowing/libretro/window_libretro.hpp>
 #else
 #error "No windowing backend defined"
 #endif
@@ -303,7 +303,11 @@ static void setupQuadGeometry() {
     glBindVertexArray(0);
 }
 
+static GLuint overrideFBO = 0;
+static bool hasOverrideFBO = false;
+
 static GLuint getMainFBO() {
+    if (hasOverrideFBO) return overrideFBO;
 #ifdef LIBRETRO
     return (GLuint)hw_render.get_current_framebuffer();
 #else
@@ -586,6 +590,17 @@ void Render::deInit() {
 }
 
 void *Render::getRenderer() { return nullptr; }
+
+void Render::setRenderTarget(void *renderTarget) {
+    overrideFBO = static_cast<GLuint>(reinterpret_cast<uintptr_t>(renderTarget));
+    hasOverrideFBO = true;
+    glBindFramebuffer(GL_FRAMEBUFFER, overrideFBO);
+}
+
+void Render::clearRenderTarget() {
+    hasOverrideFBO = false;
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+}
 
 bool Render::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerGLCore();

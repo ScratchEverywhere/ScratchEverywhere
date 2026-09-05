@@ -1,5 +1,5 @@
 #include "text_gl.hpp"
-#include "render.hpp"
+#include "render_opengl.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

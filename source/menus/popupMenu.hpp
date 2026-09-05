@@ -1,4 +1,5 @@
 #pragma once
+#include <se_export.hpp>
 #include "mainMenu.hpp"
 #include "menuObjects.hpp"
 #include "text.hpp"
@@ -7,7 +8,7 @@ enum class PopupType : uint8_t {
     ACCEPT_OR_CANCEL,
 };
 
-class PopupMenu : public Menu {
+class SE_EXPORT PopupMenu : public Menu {
   private:
     PopupType type;
     std::string text;

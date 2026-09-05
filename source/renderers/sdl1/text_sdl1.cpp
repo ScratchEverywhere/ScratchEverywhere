@@ -1,5 +1,5 @@
 #include "text_sdl1.hpp"
-#include "render.hpp"
+#include "render_sdl1.hpp"
 #include <SDL_gfxBlitFunc.h>
 #include <SDL_rotozoom.h>
 #include <SDL_video.h>
@@ -56,7 +56,7 @@ TextObjectSDL1::TextObjectSDL1(std::string txt, double posX, double posY, std::s
 
     // Set initial text
     setText(txt);
-    setRenderer(static_cast<SDL_Surface *>(Render::getRenderer()));
+    setRenderer(mainSurface);
 }
 
 TextObjectSDL1::~TextObjectSDL1() {

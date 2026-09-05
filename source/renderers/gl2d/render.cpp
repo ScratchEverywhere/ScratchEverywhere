@@ -10,7 +10,7 @@
 #include <render.hpp>
 #include <unordered_map>
 #include <window.hpp>
-#include <windowing/nds/window.hpp>
+#include <windowing/nds/window_nds.hpp>
 
 WindowSE *globalWindow = nullptr;
 SpeechManagerGL2D *speechManager = nullptr;
@@ -49,6 +49,12 @@ void Render::deInit() {
 
 void *Render::getRenderer() {
     return nullptr;
+}
+
+void Render::setRenderTarget(void *renderTarget) {
+}
+
+void Render::clearRenderTarget() {
 }
 
 bool Render::createSpeechManager() {

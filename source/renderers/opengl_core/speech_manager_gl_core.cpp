@@ -1,6 +1,6 @@
 #include "speech_manager_gl_core.hpp"
 #include "image_gl_core.hpp"
-#include "render.hpp"
+#include "render_opengl_core.hpp"
 #include "speech_text_gl_core.hpp"
 #include <algorithm>
 #include <chrono>

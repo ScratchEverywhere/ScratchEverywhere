@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_sdl3.hpp"
 #include <SDL3/SDL_video.h>
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <libdlgmod/libdlgmod.h>
@@ -9,11 +9,11 @@
 #include <math.hpp>
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
 #elif defined(RENDERER_OPENGL_CORE)
-#include <renderers/opengl_core/render.hpp>
+#include <renderers/opengl_core/render_opengl_core.hpp>
 #else
-#include <renderers/sdl3/render.hpp>
+#include <renderers/sdl3/render_sdl3.hpp>
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER

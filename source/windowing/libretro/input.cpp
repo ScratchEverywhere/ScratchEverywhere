@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_libretro.hpp"
 #include <blockExecutor.hpp>
 #include <input.hpp>
 #include <libretro.h>

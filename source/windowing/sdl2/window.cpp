@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_sdl2.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
@@ -8,11 +8,11 @@
 #include <math.hpp>
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
 #elif defined(RENDERER_OPENGL_CORE)
-#include <renderers/opengl_core/render.hpp>
+#include <renderers/opengl_core/render_opengl_core.hpp>
 #else
-#include <renderers/sdl2/render.hpp>
+#include <renderers/sdl2/render_sdl2.hpp>
 #endif
 
 #ifdef __PS4__
