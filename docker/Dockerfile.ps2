@@ -1,4 +1,5 @@
 FROM ps2dev/ps2dev:latest AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
 
 RUN apk add --no-cache cmake make mpc1 mpfr4 gmp git
 
