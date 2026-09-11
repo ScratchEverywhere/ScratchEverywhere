@@ -1,10 +1,11 @@
 #pragma once
+#include <se_export.hpp>
 #include <image.hpp>
 #include <os.hpp>
 #include <render.hpp>
 #include <text.hpp>
 
-class MenuObject {
+class SE_EXPORT MenuObject {
   public:
     double x = 0;
     double y = 0;
@@ -16,7 +17,7 @@ class MenuObject {
     std::vector<double> getScaledPosition(double xPos, double yPos);
 };
 
-class JollySnow {
+class SE_EXPORT JollySnow {
   private:
     typedef struct {
         float x, y;
@@ -72,7 +73,7 @@ class JollySnow {
     }
 };
 
-class MenuImage : public MenuObject {
+class SE_EXPORT MenuImage : public MenuObject {
   public:
     std::shared_ptr<Image> image;
     void render(double xPos = 0, double yPos = 0) override;
@@ -94,7 +95,7 @@ class MenuImage : public MenuObject {
     double renderY;
 };
 
-class MenuText : public MenuObject {
+class SE_EXPORT MenuText : public MenuObject {
   private:
     std::string originalText;
 
@@ -116,7 +117,7 @@ class MenuText : public MenuObject {
     double renderY;
 };
 
-class ButtonObject : public MenuObject {
+class SE_EXPORT ButtonObject : public MenuObject {
   private:
     bool pressedLastFrame = false;
     std::array<int, 2> lastFrameTouchPos;
@@ -152,7 +153,7 @@ class ButtonObject : public MenuObject {
     virtual ~ButtonObject();
 };
 
-class ControlObject : public MenuObject {
+class SE_EXPORT ControlObject : public MenuObject {
   private:
     Timer animationTimer;
     int minY, maxY;

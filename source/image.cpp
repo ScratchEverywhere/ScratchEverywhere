@@ -34,6 +34,8 @@
 #include <image_c2d.hpp>
 #elif defined(RENDERER_GL2D)
 #include <image_gl2d.hpp>
+#elif defined(RENDERER_OPENGL_CORE)
+#include <image_gl_core.hpp>
 #elif defined(RENDERER_HEADLESS)
 #include <image_headless.hpp>
 #endif
@@ -101,6 +103,8 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
     Image *rawImg = new Image_GL(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_GL2D)
     Image *rawImg = new Image_GL2D(filePath, fromScratchProject, bitmapHalfQuality, scale);
+#elif defined(RENDERER_OPENGL_CORE)
+    Image *rawImg = new Image_GLCore(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_HEADLESS)
     Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #else
@@ -144,6 +148,8 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
     Image *rawImg = new Image_GL(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_GL2D)
     Image *rawImg = new Image_GL2D(filePath, zip, bitmapHalfQuality, scale);
+#elif defined(RENDERER_OPENGL_CORE)
+    Image *rawImg = new Image_GLCore(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_HEADLESS)
     Image *rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
 #else

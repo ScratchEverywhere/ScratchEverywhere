@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_nds.hpp"
 #include <input.hpp>
 
 #include <nds.h>

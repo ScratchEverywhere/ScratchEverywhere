@@ -9,6 +9,7 @@
 # syntax=docker/dockerfile:1.6
 
 FROM node:20-trixie-slim AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 
 # --- Build tools, webOS ares CLI ---

@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_3ds.hpp"
 #include <3ds.h>
 #include <blockExecutor.hpp>
 #include <input.hpp>

@@ -1,4 +1,5 @@
 FROM gradylink/pacbrew:latest AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 
 COPY . .

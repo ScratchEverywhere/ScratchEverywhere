@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_sdl1.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
@@ -11,9 +11,9 @@
 #include <render.hpp>
 #include <thread>
 #ifdef RENDERER_OPENGL
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
 #else
-#include <renderers/sdl1/render.hpp>
+#include <renderers/sdl1/render_sdl1.hpp>
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER

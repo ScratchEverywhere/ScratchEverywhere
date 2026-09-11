@@ -1,8 +1,9 @@
 #pragma once
+#include <se_export.hpp>
 #include "mainMenu.hpp"
 #include "menuObjects.hpp"
 
-class ProjectSettings : public Menu {
+class SE_EXPORT ProjectSettings : public Menu {
   private:
   public:
     ControlObject *settingsControl = nullptr;

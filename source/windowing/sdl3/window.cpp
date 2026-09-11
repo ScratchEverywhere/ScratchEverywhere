@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_sdl3.hpp"
 #include <SDL3/SDL_video.h>
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <libdlgmod/libdlgmod.h>
@@ -9,9 +9,11 @@
 #include <math.hpp>
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
+#elif defined(RENDERER_OPENGL_CORE)
+#include <renderers/opengl_core/render_opengl_core.hpp>
 #else
-#include <renderers/sdl3/render.hpp>
+#include <renderers/sdl3/render_sdl3.hpp>
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -39,10 +41,18 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+#elif defined(RENDERER_OPENGL_CORE)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     flags |= SDL_WINDOW_OPENGL;
 #endif
 
@@ -52,7 +62,7 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
         return false;
     }
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     context = SDL_GL_CreateContext(window);
     if (!context) {
         Log::logCritical("Failed to create OpenGL context: " + std::string(SDL_GetError()), true);
@@ -60,6 +70,13 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     }
 
     SDL_GL_SetSwapInterval(1); // VSync
+
+#ifdef RENDERER_OPENGL_CORE
+    if (!gladLoaderLoadGL()) {
+        Log::logCritical("Failed to initialize GLAD", true);
+        return false;
+    }
+#endif
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
@@ -92,7 +109,7 @@ void WindowSDL3::cleanup() {
 #ifdef PLATFORM_HAS_CONTROLLER
     if (controller) SDL_CloseGamepad(controller);
 #endif
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     SDL_GL_DestroyContext(context);
 #endif
     SDL_DestroyWindow(window);
@@ -147,7 +164,7 @@ void WindowSDL3::pollEvents() {
 }
 
 void WindowSDL3::swapBuffers() {
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     SDL_GL_SwapWindow(window);
 #endif
 }
@@ -156,7 +173,7 @@ void WindowSDL3::resize(int width, int height) {
     this->width = width;
     this->height = height;
     this->pixelDensity = SDL_GetWindowPixelDensity(window);
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     glViewport(0, 0, width, height);
 #endif
     Render::setRenderScale();

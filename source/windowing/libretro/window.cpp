@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_libretro.hpp"
 #include <libretro.h>
 
 #include <algorithm>
@@ -6,7 +6,7 @@
 #include <iostream>
 #include <math.hpp>
 #include <render.hpp>
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
 #include <text.hpp>
 
 static retro_video_refresh_t video_refresh_cb;

@@ -1,9 +1,10 @@
 #pragma once
+#include <se_export.hpp>
 #include <image.hpp>
 #include <os.hpp>
 #include <text.hpp>
 
-class Loading {
+class SE_EXPORT Loading {
   private:
     std::shared_ptr<Image> block1 = nullptr;
     std::shared_ptr<Image> block2 = nullptr;

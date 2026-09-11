@@ -12,6 +12,8 @@
 #include <renderers/opengl/text_gl.hpp>
 #elif defined(RENDERER_GL2D)
 #include <renderers/gl2d/text_gl2d.hpp>
+#elif defined(RENDERER_OPENGL_CORE)
+#include <renderers/opengl_core/text_gl_core.hpp>
 #elif defined(RENDERER_HEADLESS)
 #include <renderers/headless/text_headless.hpp>
 #endif
@@ -35,6 +37,8 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
     return std::make_unique<TextObjectGL>(txt, posX, posY, fontPath);
 #elif defined(RENDERER_GL2D)
     return std::make_unique<TextObjectGL2D>(txt, posX, posY, fontPath);
+#elif defined(RENDERER_OPENGL_CORE)
+    return std::make_unique<TextObjectGLCore>(txt, posX, posY, fontPath);
 #elif defined(RENDERER_HEADLESS)
     return std::make_unique<TextObjectHeadless>(txt, posX, posY, fontPath);
 #else
@@ -122,5 +126,7 @@ void TextObject::cleanupText() {
     TextObjectGL::cleanupText();
 #elif defined(RENDERER_GL2D)
     TextObjectGL2D::cleanupText();
+#elif defined(RENDERER_OPENGL_CORE)
+    TextObjectGLCore::cleanupText();
 #endif
 }

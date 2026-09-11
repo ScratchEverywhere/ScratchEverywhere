@@ -4,53 +4,45 @@ This is the internal documentation for our relatively complicated CMake setup.
 
 ## Dependencies
 
-The core part of our CMake setup is the dependencies. Dependency files reside in
-`/cmake/deps/example_dep.cmake`. Our dependency loading system is designed for 3
-modes: `fallback`, `source`, `system`; `source` forces dependencies to be built
-from source, `system` forces dependencies to be present on the system, and
-`fallback` will use system dependencies if possible and otherwise fallback to
-building dependencies from source.
+Dependencies are managed with [Catalog](https://github.com/catalog-cmake/catalog),
+bootstrapped from `/cmake/cl-bootstrap.cmake` (vendored) and its shared recipe
+registry at [catalog-cmake/repo](https://github.com/catalog-cmake/repo).
+There's no more SE-specific `SE_DEPS` mode - Catalog's native stage pipeline
+(`toolchain` -> `system` -> `package` -> `prebuilt` -> `source`) and its own
+`CL_STAGES`/per-dependency override vars are the standard now; use those
+directly (e.g. `-DCL_STAGES=source`, or Catalog's `VERSION`/`STATIC`/`OPTIONS`
+keywords on a given `cl_add_dep` call) instead of anything SE-specific.
 
 ### Loading Dependencies
 
-In order to load dependencies you use the `se_add_dependency` function present
-in `/cmake/deps/add_dependency.cmake`. `se_add_dependency` either takes in 2 or
-1 arguments. The 2 argument syntax takes in a target and a dependency name,
-linking the dependency to the target. The 1 argument syntax simply loads a
-library. The 1 argument syntax tends to be used for dependencies that rely on
-other dependencies which can be seen in `/cmake/deps/mist++.cmake`. All
-libraries are loaded to `deps::library_name` which is not guarenteed to be an
-alias or not.
+Dependencies are loaded with `cl_add_dep(target dependency_name)` (or
+`cl_add_dep(dependency_name)` with no target for a dependency that only other
+dependencies compose on top of, e.g. `libcurl` inside `mistpp`'s recipe). All
+libraries are loaded to `deps::dependency_name`, which Catalog aliases
+automatically from whichever real target a recipe stage produces.
 
-### Dependency Files
+Dependency **names must match the registry's `meta.cmake` casing exactly**
+(e.g. `GLAD`, `GLFW`, `SDL2`, `mistpp` - see `~/catalog-repo/meta.cmake` or
+wherever that repo is checked out) - CMake function names are case-insensitive
+so a recipe's `_recipe_<name>_<stage>` functions still resolve either way, but
+the registry lookup by package name is case-sensitive.
 
-`se_add_dependency` will automatically detect any of the following targets as
-the output library from a dependency file:
+### Project-local recipe overrides
 
-- `library_name`
-- `library_name::library_name`
-- `library_name::library_name-static`
-- `PkgConfig::library_name`
-- `deps::library_name`
-
-If `deps::library_name` isn't set it will alias it to the above.
-
-Dependency files are split into 3 phases. If a target is detected by
-`se_add_dependency` during any of these phases it will stop searching.
-
-The first phase is the global scope, this will be loaded regardless of what mode
-SE! is loading dependencies in. The global scope is designed for platforms
-defining specific versions of libraries that must be used in that way no matter
-what mode we're building in. A good example of the global scope in use can be
-found in `/cmake/deps/libcurl.cmake`.
-
-The second phase will be run if SE! is building in `fallback` or `system` mode.
-In this phase `se_add_dependency` will run the `_dep_system_library_name`
-function and check for an outputed target.
-
-The second phase will be run if SE! is building in `fallback` or `source` mode.
-In this phase `se_add_dependency` will run the `_dep_source_library_name`
-function and check for an outputed target.
+A handful of dependencies need SE-specific behavior the shared registry
+recipe doesn't have (websocket-enabled cloud-vars libcurl, the
+`SE_LUA_BACKEND` luajit/lua5.1 fallback and the `sol2` binding built on top of
+it, libdlgmod's `SE_WINDOWING`-based event polling, the vendored `ryuJS`
+single-file dependency, and plutovg's single-threaded build flags). These
+live in `/cmake/recipes/*.cmake` as their own local Catalog repo (with its own
+`meta.cmake`), loaded with a second `cl_repo(cmake/recipes)` call right after
+the shared registry's `cl_repo()` in `CMakeLists.txt` - Catalog resolves a
+package name against the *last* repo that defines it (`catalog-cmake/catalog@bd7112a`),
+so this repo's recipes transparently override the shared registry's ones of
+the same name without needing per-package `cl_add_recipe()` calls. Everything
+else - including SDL2/SDL3's audio-only build trimming, done with plain
+`SOURCE_OPTIONS` on the `cl_add_dep` call instead of a recipe override -
+resolves straight from the shared registry.
 
 ## Backends
 

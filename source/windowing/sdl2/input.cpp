@@ -1,5 +1,5 @@
 #include "log.hpp"
-#include "window.hpp"
+#include "window_sdl2.hpp"
 #ifdef __SWITCH__
 #include <switch.h>
 #endif

@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_3ds.hpp"
 #include <iostream>
 
 bool Window3DS::init(int w, int h, const std::string &title) {

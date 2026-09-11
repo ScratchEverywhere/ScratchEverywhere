@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 1.0 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.1 LANGUAGES CXX C)
+
+if(APPLE)
+	enable_language(OBJC)
+endif()
 
 # error C7555: use of designated initializers requires at least '/std:c++20'
+# tldr: MSVC strictly enforces the standard as designated initializers were a compiler extension until C++20
 if(MSVC)
 	set(CMAKE_CXX_STANDARD 20)
 else()
@@ -16,22 +21,21 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 
 include(CMakeDependentOption)
 
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
-	message(STATUS "Downloading CPM.cmake...")
-	file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-	file(DOWNLOAD "https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake"
-		 "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake"
-		 STATUS status LOG log_content)
-	if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
-		message(FATAL_ERROR "Failed to download CPM.cmake: ${status}\n${log_content}")
-	endif()
+set(CATALOG_CACHE_DIR "${CMAKE_BINARY_DIR}/.cache/catalog")
+
+if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS)
+	set(CATALOG_REQ_TYPE PREFER_STATIC)
+	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cl-bootstrap.cmake")
+cl_repo()
+cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
 set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
-set(SE_APP_VERSION "1.0" CACHE STRING "Version of the outputed app.")
+set(SE_APP_VERSION "1.1" CACHE STRING "Version of the outputed app.")
 
 if(VITA)
 	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
@@ -73,21 +77,9 @@ elseif(WEBOS)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/webos.cmake")
 endif()
 
-if("fallback" IN_LIST SE_DEPS_VALID_OPTIONS)
-	set(SE_DEPS "fallback" CACHE STRING "The method used to gather dependencies.")
-elseif("source" IN_LIST SE_DEPS_VALID_OPTIONS)
-	set(SE_DEPS "source" CACHE STRING "The method used to gather dependencies.")
-else()
-	set(SE_DEPS "system" CACHE STRING "The method used to gather dependencies.")
-endif()
-if(NOT SE_DEPS IN_LIST SE_DEPS_VALID_OPTIONS)
-	message(
-		FATAL_ERROR
-		"Invalid value for SE_DEPS: '${SE_DEPS}'. Must be one of: ${SE_DEPS_VALID_OPTIONS}"
-	)
-endif()
-
 set(SE_OUTPUT_NAME "${SE_DEFAULT_OUTPUT_NAME}" CACHE STRING "File name of the outputed executable")
+
+option(SE_LIBRARY "Build as a library instead of an executable" OFF)
 
 option(SE_EXECUTABLE "Build the main executable." ${PROJECT_IS_TOP_LEVEL})
 
@@ -101,6 +93,9 @@ cmake_dependent_option(SE_CLOUDVARS "Enable cloud variables." ON "SE_ALLOW_CLOUD
 cmake_dependent_option(SE_DOWNLOAD "Enable the ability to use the internet to download files, such as Text-To-Speech blocks." ON "SE_ALLOW_DOWNLOAD" OFF)
 
 option(SE_MENU "Enables the SE! Main Menu." ON)
+if(SE_LIBRARY)
+	set(SE_MENU OFF CACHE BOOL "Enables the SE! Main Menu." FORCE)
+endif()
 
 if(NOT DEFINED SE_DECTALK_DEFAULT)
 	set(SE_DECTALK_DEFAULT OFF)
@@ -111,7 +106,7 @@ else()
 	option(SE_DECTALK "Build DECtalk for TTS." OFF)
 endif()
 
-#  disable menu if a project is in RomFS
+# disable menu if a project is in RomFS
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project" OR EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/romfs/project.sb3" OR LIBRETRO)
 	set(SE_MENU OFF)
 	set(SE_LOADSCREEN OFF)
@@ -157,7 +152,7 @@ cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLAT
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NOT DEFINED SE_RENDERER_PRIORITY)
-	set(SE_RENDERER_PRIORITY "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+	set(SE_RENDERER_PRIORITY "opengl_core" "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
@@ -243,10 +238,9 @@ if((NINTENDO_DS OR NINTENDO_GAMECUBE OR PSP OR NINTENDO_3DS OR PS2) AND (SE_MENU
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/nds/Ubuntu-Bold.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/Ubuntu-Bold.ttf" COPYONLY)
 endif()
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/deps/add_dependency.cmake")
-
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
+
 set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_CUSTOM_EXTENSIONS)
@@ -260,6 +254,13 @@ endif()
 set(ABSOLUTE_SOURCES "")
 foreach(src IN LISTS SOURCES)
     list(APPEND ABSOLUTE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
+endforeach()
+
+set(ABSOLUTE_INCLUDES "")
+foreach(src IN LISTS SOURCES)
+	string(REPLACE "source" "include" inc "${src}")
+	list(APPEND ABSOLUTE_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/${inc}")
+	list(APPEND ABSOLUTE_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
 endforeach()
 
 set(SOURCE_FILES)
@@ -276,14 +277,25 @@ if(WIN32)
 	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
 endif()
 
+if(SE_LIBRARY)
+	list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/main\\.cpp$")
+	list(FILTER SOURCE_FILES EXCLUDE REGEX ".*/libretro\\.cpp$")
+endif()
+
 add_library(se-interface INTERFACE)
 if(SE_EXECUTABLE)
 	if(LIBRETRO)
 		add_library(scratch-everywhere SHARED ${SOURCE_FILES})
 		set_target_properties(scratch-everywhere PROPERTIES PREFIX "")
-		se_add_dependency(scratch-everywhere libretro)
+		cl_add_dep(scratch-everywhere libretro)
+	elseif(SE_LIBRARY)
+		add_library(scratch-everywhere ${SOURCE_FILES})
 	else()
 		add_executable(scratch-everywhere WIN32 ${SOURCE_FILES})
+	endif()
+
+	if(SE_LIBRARY)
+		target_compile_definitions(scratch-everywhere PRIVATE SE_BUILD_LIBRARY)
 	endif()
 
 	set_target_properties(scratch-everywhere PROPERTIES OUTPUT_NAME "${SE_OUTPUT_NAME}")
@@ -348,10 +360,10 @@ target_link_libraries(se-interface INTERFACE windowing_interface)
 if(SE_AUDIO)
 	target_link_libraries(se-interface INTERFACE audio_interface)
 	if(NOT NINTENDO_DS)
-		se_add_dependency(se-interface stb_vorbis)
+		cl_add_dep(se-interface stb_vorbis)
 	endif()
-	se_add_dependency(se-interface dr_libs)
-	se_add_dependency(se-interface tsf)
+	cl_add_dep(se-interface dr_libs)
+	cl_add_dep(se-interface tsf)
 endif()
 
 if(SE_ALLOW_NATIVE_EXTENSIONS)
@@ -371,16 +383,16 @@ if(SE_LOADSCREEN)
 endif()
 if(SE_DOWNLOAD)
 	target_compile_definitions(se-interface INTERFACE ENABLE_DOWNLOAD)
-	se_add_dependency(se-interface libcurl)
+	cl_add_dep(se-interface libcurl)
 endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(se-interface INTERFACE ENABLE_CLOUDVARS)
-	se_add_dependency(se-interface mist++)
+	cl_add_dep(se-interface mistpp)
 endif()
 
 if(SE_DECTALK)
 	target_compile_definitions(se-interface INTERFACE ENABLE_DECTALK)
-	se_add_dependency(se-interface dtc)
+	cl_add_dep(se-interface dtc)
 endif()
 
 if(SE_DECTALK_DEFAULT)
@@ -416,56 +428,30 @@ if(SE_HAS_CONTROLLER)
 	target_compile_definitions(se-interface INTERFACE PLATFORM_HAS_CONTROLLER)
 endif()
 
-CPMAddPackage(
-	NAME poipole807_ryuJS
-	GITHUB_REPOSITORY poipole807/ryuJS
-	VERSION 3.0
-)
-add_library(ryuJS STATIC
-  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.c
-  ${poipole807_ryuJS_SOURCE_DIR}/ryu/d2s.h
-)
-target_include_directories(ryuJS PUBLIC
-  ${poipole807_ryuJS_SOURCE_DIR}
-)
-target_link_libraries(se-interface INTERFACE ryuJS)
+cl_add_dep(se-interface ryuJS)
 
-se_add_dependency(se-interface nlohmann_json)
-se_add_dependency(se-interface miniz)
-se_add_dependency(se-interface expected-lite)
-se_add_dependency(se-interface __getexecname)
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	se_add_dependency(se-interface libdlgmod)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-	se_add_dependency(se-interface libdlgmod)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID AND NOT WEBOS)
-	se_add_dependency(se-interface libdlgmod)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-	se_add_dependency(se-interface libdlgmod)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "DragonFly")
-	se_add_dependency(se-interface libdlgmod)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
-	se_add_dependency(se-interface libdlgmod)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
-	se_add_dependency(se-interface libdlgmod)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
-	se_add_dependency(se-interface libdlgmod)
+cl_add_dep(se-interface nlohmann_json)
+cl_add_dep(se-interface miniz)
+cl_add_dep(se-interface expected-lite)
+cl_add_dep(se-interface __getexecname)
+if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS)
+	cl_add_dep(se-interface libdlgmod)
 endif()
 
 if(SE_CUSTOM_EXTENSIONS)
-	se_add_dependency(se-interface lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
-	se_add_dependency(se-interface sol2)
+	cl_add_dep(se-interface lua51) # No idea why i fucking need this, it should be handled by sol2.cmake but it wasn't working with the system deps so...
+	cl_add_dep(se-interface sol2)
 endif()
 
 if(SE_SVG)
-	se_add_dependency(se-interface lunasvg)
+	cl_add_dep(se-interface lunasvg)
 endif()
 
 if(SE_BITMAP)
-	se_add_dependency(se-interface stb_image)
+	cl_add_dep(se-interface stb_image)
 endif()
 
-target_include_directories(se-interface INTERFACE ${ABSOLUTE_SOURCES})
+target_include_directories(se-interface INTERFACE ${ABSOLUTE_INCLUDES})
 
 if(COMMAND package_platform)
 	package_platform()
