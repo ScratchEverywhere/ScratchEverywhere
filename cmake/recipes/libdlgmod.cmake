@@ -46,7 +46,7 @@ function(_recipe_libdlgmod_source)
 
 	# Believe it or not all these if-platform checks are actually necessary; do not ask me why; it makes just as little sense to me as you.
 	# I tried having USE_SDL_POLLEVENT, USE_SDL2_POLLEVENT, and USE_SDL3_POLLEVENT defined on platforms besides these and everything broke.
-	if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT ANDROID AND NOT WEBOS)
+	if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO)
 		if(SE_WINDOWING STREQUAL "sdl1")
 			cl_add_dep(libdlgmod SDL)
 			target_compile_definitions(libdlgmod PUBLIC USE_SDL_POLLEVENT)
@@ -62,7 +62,7 @@ function(_recipe_libdlgmod_source)
 	# linker
 	if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
 		target_link_libraries(libdlgmod PUBLIC ntdll gdiplus comctl32 shlwapi comdlg32 ole32 oleaut32 uuid)
-	elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+	elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND NOT IOS)
 		target_link_libraries(libdlgmod PUBLIC "-framework AppKit" "-framework UniformTypeIdentifiers")
 	elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 		target_include_directories(libdlgmod PUBLIC "${LIBDLGMOD_DIR}/xlib/nfd/src/include")
