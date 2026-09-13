@@ -323,7 +323,7 @@ Image_GLCore::Image_GLCore(std::string filePath, bool fromScratchProject, bool b
     setInitialTexture();
 }
 
-Image_GLCore::Image_GLCore(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image_GLCore::Image_GLCore(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     GLint glMaxTextureSize = 0;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
     maxTextureSize = {(unsigned)glMaxTextureSize, (unsigned)glMaxTextureSize};

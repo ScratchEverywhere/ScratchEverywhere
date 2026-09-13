@@ -42,7 +42,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
             if (Scratch::projectType == ProjectType::UNZIPPED)
                 strm = new SoundStream(state->name);
             else
-                strm = new SoundStream(Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, state->name);
+                strm = new SoundStream(Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, state->name);
             if (strm->error.has_value()) {
                 Log::logError("[Sound] " + strm->error.value());
                 delete strm;
@@ -102,7 +102,7 @@ SCRATCH_BLOCK(sound, play) {
         if (Scratch::projectType == ProjectType::UNZIPPED)
             strm = new SoundStream(soundFullName, false);
         else
-            strm = new SoundStream(Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, soundFullName);
+            strm = new SoundStream(Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, soundFullName);
         if (strm->error.has_value()) {
             Log::logError("[Sound] " + strm->error.value());
             delete strm;
