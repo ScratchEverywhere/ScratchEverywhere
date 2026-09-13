@@ -108,7 +108,7 @@ void Render::clearRenderTarget() {
 }
 
 bool Render::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3();
     return speechManager != nullptr;
 }
 
@@ -118,7 +118,7 @@ void Render::destroySpeechManager() {
 }
 
 SpeechManager *Render::getSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3();
     return speechManager;
 }
 

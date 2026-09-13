@@ -155,7 +155,7 @@ void Render::clearRenderTarget() {
 }
 
 bool Render::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL2(renderer);
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL2();
     return speechManager != nullptr;
 }
 

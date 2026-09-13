@@ -56,7 +56,6 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #endif
 }
 
-// stolen from SpeechText
 std::string TextObject::wrap(int maxWidth) {
     const std::string text = getText();
     if (text.empty()) {

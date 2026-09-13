@@ -83,7 +83,7 @@ void *Render::getRenderer() {
 }
 
 bool Render::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL1(static_cast<SDL_Surface *>(globalWindow->getHandle()));
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL1();
     return speechManager != nullptr;
 }
 
