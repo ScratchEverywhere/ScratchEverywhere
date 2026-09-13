@@ -441,10 +441,7 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive
     void *raw_data = nullptr;
     size_t file_size = 0;
     if (zip != nullptr) {
-        int file_index = zip->locateFile(filePath);
-        if (file_index < 0) return nonstd::make_unexpected("Image not found in SB3: " + filePath);
-
-        raw_data = zip->extractToHeap(file_index, &file_size);
+        raw_data = zip->extractToHeap(filePath, &file_size);
     } else {
         raw_data = Unzip::getFileInSB3(filePath, &file_size);
     }

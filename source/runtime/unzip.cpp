@@ -280,14 +280,12 @@ void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
         return nullptr;
     }
 
-    int file_index = archive->locateFile(fileName);
-    if (file_index < 0) {
+    size_t size = 0;
+    void *data = archive->extractToHeap(fileName, &size);
+    if (!data) {
         Log::logWarning("File not found in SB3: " + fileName);
         return nullptr;
     }
-
-    size_t size = 0;
-    void *data = archive->extractToHeap(file_index, &size);
 
     if (outSize != nullptr) {
         *outSize = size;
@@ -331,13 +329,11 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
             }
 
             // extract project.json
-            int file_index = zipArchive->locateFile("project.json");
-            if (file_index < 0) {
+            size_t json_size;
+            void *json_data = zipArchive->extractToHeap("project.json", &json_size);
+            if (!json_data) {
                 return project_json;
             }
-
-            size_t json_size;
-            void *json_data = zipArchive->extractToHeap(file_index, &json_size);
 
             // Parse JSON file
             project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
@@ -356,17 +352,11 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
                 return project_json;
             }
 
-            int file_index = zipArchive->locateFile("project.json");
-            if (file_index < 0) {
-                Log::logCritical("Failed to extract project.json", false);
-                zipArchive.reset();
-                return project_json;
-            }
-
             size_t json_size;
-            void *json_data = zipArchive->extractToHeap(file_index, &json_size);
-
-            if (json_data) {
+            void *json_data = zipArchive->extractToHeap("project.json", &json_size);
+            if (!json_data) {
+                Log::logCritical("Failed to extract project.json", false);
+            } else {
                 project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
                 zipArchive->freeHeap(json_data);
             }
@@ -409,26 +399,26 @@ bool Unzip::extractProject(const std::string &zipPath, const std::string &destFo
         return false;
     }
 
-    int numFiles = zip->getNumFiles();
-    for (int i = 0; i < numFiles; i++) {
-        std::string filename;
-        if (!zip->getFilename(i, filename)) continue;
-
+    bool hadError = false;
+    bool walked = zip->extractAll([&](const std::string &filename) -> std::string {
         if (filename.find('/') != std::string::npos || filename.find('\\') != std::string::npos)
-            continue;
+            return "";
 
         std::string outPath = destFolder + "/" + filename;
 
         auto potentialError = FileSystem::createDirectory(FileSystem::parentPath(outPath));
         if (!potentialError.has_value()) {
             Log::logError(potentialError.error());
-            return false;
+            hadError = true;
+            return "";
         }
 
-        if (!zip->extractToFile(i, outPath)) {
-            Log::logCritical("Failed to extract: " + outPath, false);
-            return false;
-        }
+        return outPath;
+    });
+
+    if (!walked || hadError) {
+        Log::logCritical("Failed to extract zip: " + zipPath, false);
+        return false;
     }
 
     return true;

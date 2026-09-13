@@ -209,13 +209,10 @@ nonstd::expected<void, std::string> SoundStream::init(ZipArchive *zip, std::stri
 
 #ifdef ENABLE_AUDIO
     if (zip != nullptr) {
-        int file_index = zip->locateFile(path);
-
-        if (file_index < 0) {
+        this->buffer = (unsigned char *)zip->extractToHeap(path, &this->buffer_size);
+        if (!this->buffer) {
             return nonstd::make_unexpected("Audio not found in zip");
         }
-
-        this->buffer = (unsigned char *)zip->extractToHeap(file_index, &this->buffer_size);
     } else {
         this->buffer = (unsigned char *)Unzip::getFileInSB3(path, &this->buffer_size);
     }

@@ -159,6 +159,9 @@ set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "3ds" "nds" "headless" "li
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${SE_WINDOWING}.cmake")
 
+set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz" "minizip")
+set_preferred_cache_var(SE_ZIP_BACKEND "miniz" "${SE_ZIP_BACKEND_VALID_OPTIONS}" "Select the zip library used to read .sb3 archives.")
+
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "libretro")
 if(SE_AUDIO_ENGINE_DEFAULT IN_LIST SE_AUDIO_ENGINE_VALID_OPTIONS)
@@ -239,7 +242,7 @@ endif()
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 
-set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_CUSTOM_EXTENSIONS)
 	list(APPEND SOURCES "source/runtime/extensions")
@@ -429,7 +432,13 @@ endif()
 cl_add_dep(se-interface ryuJS)
 
 cl_add_dep(se-interface nlohmann_json)
-cl_add_dep(se-interface miniz)
+if(SE_ZIP_BACKEND STREQUAL "minizip")
+	set(CL_DISABLE_system_minizip TRUE)
+	set(CL_DISABLE_package_minizip TRUE)
+	cl_add_dep(se-interface minizip)
+else()
+	cl_add_dep(se-interface miniz)
+endif()
 cl_add_dep(se-interface expected-lite)
 cl_add_dep(se-interface __getexecname)
 if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS)

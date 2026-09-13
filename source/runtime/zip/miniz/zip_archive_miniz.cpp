@@ -32,36 +32,30 @@ class MinizZipArchive : public ZipArchive {
         return opened;
     }
 
-    int getNumFiles() const override {
-        if (!opened) return 0;
-        return static_cast<int>(mz_zip_reader_get_num_files(const_cast<mz_zip_archive *>(&archive)));
-    }
-
-    int locateFile(const std::string &name) const override {
-        if (!opened) return -1;
-        return mz_zip_reader_locate_file(const_cast<mz_zip_archive *>(&archive), name.c_str(), nullptr, 0);
-    }
-
-    bool getFilename(int index, std::string &outName) const override {
-        if (!opened) return false;
-        mz_zip_archive_file_stat st;
-        if (!mz_zip_reader_file_stat(const_cast<mz_zip_archive *>(&archive), index, &st)) return false;
-        outName = st.m_filename;
-        return true;
-    }
-
-    void *extractToHeap(int index, size_t *outSize) override {
+    void *extractToHeap(const std::string &name, size_t *outSize) override {
         if (!opened) return nullptr;
-        return mz_zip_reader_extract_to_heap(&archive, index, outSize, 0);
+        int file_index = mz_zip_reader_locate_file(&archive, name.c_str(), nullptr, 0);
+        if (file_index < 0) return nullptr;
+        return mz_zip_reader_extract_to_heap(&archive, file_index, outSize, 0);
     }
 
     void freeHeap(void *ptr) override {
         mz_free(ptr);
     }
 
-    bool extractToFile(int index, const std::string &outPath) override {
+    bool extractAll(const std::function<std::string(const std::string &)> &decide) override {
         if (!opened) return false;
-        return mz_zip_reader_extract_to_file(&archive, index, outPath.c_str(), 0);
+        mz_uint numFiles = mz_zip_reader_get_num_files(&archive);
+        for (mz_uint i = 0; i < numFiles; i++) {
+            mz_zip_archive_file_stat st;
+            if (!mz_zip_reader_file_stat(&archive, i, &st)) continue;
+
+            std::string outPath = decide(st.m_filename);
+            if (outPath.empty()) continue;
+
+            if (!mz_zip_reader_extract_to_file(&archive, i, outPath.c_str(), 0)) return false;
+        }
+        return true;
     }
 
   private:
