@@ -104,11 +104,11 @@ SCRATCH_BLOCK(looks, switchcostumeto) {
     if (!Scratch::getInputValue(block, "COSTUME", thread, sprite, costume)) return BlockResult::REPEAT;
 
     if (costume.isDouble()) {
-        Scratch::switchCostume(sprite, costume.isNaN() ? 0 : costume.asDouble() - 1);
+        Scratch::switchCostume(sprite, costume.isNaN() ? 0 : costume.get<double>() - 1);
         return BlockResult::CONTINUE;
     }
 
-    const std::string &costumeString = costume.asString();
+    const std::string &costumeString = costume.get<std::string>();
     for (size_t i = 0; i < sprite->costumes.size(); i++) {
         if (sprite->costumes[i].name == costumeString) {
             Scratch::switchCostume(sprite, i);
@@ -116,16 +116,16 @@ SCRATCH_BLOCK(looks, switchcostumeto) {
         }
     }
 
-    if (costume.asString() == "next costume") {
+    if (costumeString == "next costume") {
         Scratch::switchCostume(sprite, ++sprite->currentCostume);
         return BlockResult::CONTINUE;
-    } else if (costume.asString() == "previous costume") {
+    } else if (costumeString == "previous costume") {
         Scratch::switchCostume(sprite, --sprite->currentCostume);
         return BlockResult::CONTINUE;
     }
 
     if (costume.isNumeric()) {
-        Scratch::switchCostume(sprite, costume.asDouble() - 1);
+        Scratch::switchCostume(sprite, costume.get<double>() - 1);
         return BlockResult::CONTINUE;
     }
 
@@ -144,7 +144,7 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
     const std::string &backdropString = backdrop.asString();
 
     if (backdrop.isDouble()) {
-        Scratch::switchCostume(Scratch::stageSprite, backdrop.isNaN() ? 0 : backdrop.asDouble() - 1);
+        Scratch::switchCostume(Scratch::stageSprite, backdrop.isNaN() ? 0 : backdrop.get<double>() - 1);
         goto end;
     }
 
@@ -155,13 +155,13 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
         }
     }
 
-    if (backdrop.asString() == "next backdrop") {
+    if (backdropString == "next backdrop") {
         Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
         goto end;
-    } else if (backdrop.asString() == "previous backdrop") {
+    } else if (backdropString == "previous backdrop") {
         Scratch::switchCostume(Scratch::stageSprite, --Scratch::stageSprite->currentCostume);
         goto end;
-    } else if (backdrop.asString() == "random backdrop") {
+    } else if (backdropString == "random backdrop") {
         if (Scratch::stageSprite->costumes.size() == 1) goto end;
         int randomIndex = std::rand() % (Scratch::stageSprite->costumes.size() - 1);
         if (randomIndex >= Scratch::stageSprite->currentCostume) randomIndex++;
@@ -170,7 +170,7 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
     }
 
     if (backdrop.isNumeric()) {
-        Scratch::switchCostume(Scratch::stageSprite, backdrop.asDouble() - 1);
+        Scratch::switchCostume(Scratch::stageSprite, backdrop.get<double>() - 1);
         goto end;
     }
 
@@ -195,7 +195,7 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
         if (!Scratch::getInputValue(block, "BACKDROP", thread, sprite, backdrop)) return BlockResult::REPEAT;
 
         if (backdrop.isDouble()) {
-            const double bk = backdrop.isNaN() ? 0 : backdrop.asDouble() - 1;
+            const double bk = backdrop.isNaN() ? 0 : backdrop.get<double>() - 1;
             if (bk < 0 || bk >= sprite->costumes.size()) return BlockResult::CONTINUE;
             Scratch::switchCostume(Scratch::stageSprite, bk);
         } else {
@@ -225,7 +225,7 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
                         found = true;
                     }
                 } else if (backdrop.isNumeric()) {
-                    Scratch::switchCostume(Scratch::stageSprite, backdrop.asDouble() - 1);
+                    Scratch::switchCostume(Scratch::stageSprite, backdrop.get<double>() - 1);
                     found = true;
                 }
             }
@@ -335,14 +335,14 @@ SCRATCH_BLOCK(looks, setsizeto) {
     if (!Scratch::getInputValue(block, "SIZE", thread, sprite, size)) return BlockResult::REPEAT;
 
     if (!Scratch::fencing) {
-        sprite->size = size.asDouble();
+        sprite->size = size.get<double>();
 
         Render::resizeSVGs(sprite);
         return BlockResult::CONTINUE;
     }
 
     if (size.isNumeric()) {
-        const double inputSizePercent = size.asDouble();
+        const double inputSizePercent = size.get<double>();
 
         double minScale;
         double maxScale;
@@ -369,14 +369,14 @@ SCRATCH_BLOCK(looks, changesizeby) {
     if (!Scratch::getInputValue(block, "CHANGE", thread, sprite, size)) return BlockResult::REPEAT;
 
     if (!Scratch::fencing) {
-        sprite->size += size.asDouble();
+        sprite->size += size.get<double>();
 
         Render::resizeSVGs(sprite);
         return BlockResult::CONTINUE;
     }
 
     if (size.isNumeric()) {
-        sprite->size += size.asDouble();
+        sprite->size += size.get<double>();
 
         double minScale;
         double maxScale;
@@ -410,19 +410,19 @@ SCRATCH_BLOCK(looks, seteffectto) {
     if (!amount.isNumeric()) return BlockResult::CONTINUE;
 
     if (effect == "COLOR") {
-        sprite->colorEffect = amount.asDouble();
+        sprite->colorEffect = amount.get<double>();
     } else if (effect == "FISHEYE") {
-        sprite->fisheyeEffect = amount.asDouble();
+        sprite->fisheyeEffect = amount.get<double>();
     } else if (effect == "WHIRL") {
-        sprite->whirlEffect = amount.asDouble();
+        sprite->whirlEffect = amount.get<double>();
     } else if (effect == "PIXELATE") {
-        sprite->pixelateEffect = amount.asDouble();
+        sprite->pixelateEffect = amount.get<double>();
     } else if (effect == "MOSAIC") {
-        sprite->mosaicEffect = amount.asDouble();
+        sprite->mosaicEffect = amount.get<double>();
     } else if (effect == "BRIGHTNESS") {
-        sprite->brightnessEffect = std::clamp(amount.asDouble(), -100.0, 100.0);
+        sprite->brightnessEffect = std::clamp(amount.get<double>(), -100.0, 100.0);
     } else if (effect == "GHOST") {
-        sprite->ghostEffect = std::clamp(amount.asDouble(), 0.0, 100.0);
+        sprite->ghostEffect = std::clamp(amount.get<double>(), 0.0, 100.0);
     }
 
     if (sprite->visible) Scratch::forceRedraw = true;

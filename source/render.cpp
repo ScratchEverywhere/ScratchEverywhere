@@ -155,11 +155,11 @@ bool Render::checkFramerate() {
 
 std::string Render::getVariableValueString(Value value) {
     if (value.isDouble()) {
-        return Math::toString(std::round(value.asDouble() * 1e6) / 1e6); // js Number(value.toFixed(6))
+        return Math::toString(std::round(value.get<double>() * 1e6) / 1e6); // js Number(value.toFixed(6))
     } else if (value.isUndefined()) {
         return ""; // Scratch keeps the original value, leave blank for now
     } else {
-        return value.asString();
+        return value.get<std::string>();
     }
 }
 
@@ -446,7 +446,7 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
                     const int maxPos = nameBackgroundX + nameBackgroundWidth;
                     const double sliderMin = var.sliderMin;
                     const double sliderMax = var.sliderMax;
-                    const double value = var.value.asDouble();
+                    const double value = var.value.get<double>();
                     const int sliderPos = std::clamp(static_cast<int>(minPos + (value - sliderMin) * (maxPos - minPos) / (sliderMax - sliderMin)), minPos, maxPos);
 
                     drawBox(13 * scale, 13 * scale, sliderPos, nameBackgroundY + (8 * scale) + nameBackgroundHeight / 2, 0, 115, 252, 255);

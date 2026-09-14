@@ -165,10 +165,10 @@ SCRATCH_BLOCK(pen, changePenHueBy) {
 }
 
 SCRATCH_BLOCK(pen, setPenShadeToNumber) {
-    Value shade;
-    if (!Scratch::getInputValue(block, "SHADE", thread, sprite, shade)) return BlockResult::REPEAT;
+    double shade;
+    if (!Scratch::getInputValueAs(block, "SHADE", thread, sprite, shade)) return BlockResult::REPEAT;
 
-    sprite->penData.shade = std::fmod(shade.asDouble(), 200);
+    sprite->penData.shade = std::fmod(shade, 200);
     if (sprite->penData.shade < 0) sprite->penData.shade += 200;
 
     sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);

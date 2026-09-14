@@ -48,7 +48,7 @@ SCRATCH_BLOCK(translate, getTranslate) {
         if (!Scratch::getInputValue(block, "WORDS", thread, sprite, wordsInput) ||
             !Scratch::getInputValueAs(block, "LANGUAGE", thread, sprite, lang)) return BlockResult::REPEAT;
 
-        std::string words = wordsInput.asString();
+        std::string words = wordsInput.get<std::string>();
         if (std::all_of(words.begin(), words.end(), ::isdigit)) {
             *outValue = wordsInput;
             thread->eraseState(block);

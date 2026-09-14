@@ -95,7 +95,7 @@ SCRATCH_BLOCK(data, deleteoflist) {
         return BlockResult::CONTINUE;
     }
 
-    double d = index.asDouble();
+    double d = index.get<double>();
     if (std::isfinite(d)) {
         const double ind = std::floor(d) - 1; // Convert to 0-based index
 
@@ -135,7 +135,7 @@ SCRATCH_BLOCK(data, insertatlist) {
         return BlockResult::CONTINUE;
     }
 
-    double d = index.asDouble();
+    double d = index.get<double>();
     if (std::isfinite(d)) {
         const double idx = std::floor(d) - 1; // Convert to 0-based index
 
@@ -168,7 +168,7 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
         return BlockResult::CONTINUE;
     }
 
-    double d = index.asDouble();
+    double d = index.get<double>();
     if (std::isfinite(d)) {
         double idx = std::floor(d) - 1;
 
@@ -198,7 +198,7 @@ SCRATCH_BLOCK(data, itemoflist) {
         int idx = rand() % items->size();
         *outValue = (*items)[idx];
     } else {
-        double d = indexStrVal.asDouble();
+        double d = indexStrVal.get<double>();
         if (std::isfinite(d)) {
             double index = std::floor(d) - 1;
             if (index >= 0 && index < static_cast<double>(items->size())) {
@@ -271,7 +271,7 @@ SCRATCH_BLOCK(data, listcontents) {
         int i = 0;
 
         for (const auto &item : *items) {
-            if (!(item.isString() && item.asString().length() == 1)) {
+            if (!(item.isString() && item.get<std::string>().length() == 1)) {
                 allSingle = false;
             }
         }

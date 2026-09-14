@@ -46,8 +46,8 @@ SCRATCH_BLOCK(operator, random) {
     Value fromValue, toValue;
     if (!Scratch::getInputValue(block, "FROM", thread, sprite, fromValue) ||
         !Scratch::getInputValue(block, "TO", thread, sprite, toValue)) return BlockResult::REPEAT;
-    const double a = fromValue.asDouble();
-    const double b = toValue.asDouble();
+    const double a = fromValue.get<double>();
+    const double b = toValue.get<double>();
     if (a == b) {
         *outValue = fromValue;
 
@@ -90,10 +90,10 @@ SCRATCH_BLOCK(operator, letter_of) {
 }
 
 SCRATCH_BLOCK(operator, length) {
-    Value string;
-    if (!Scratch::getInputValue(block, "STRING", thread, sprite, string)) return BlockResult::REPEAT;
+    std::string string;
+    if (!Scratch::getInputValueAs(block, "STRING", thread, sprite, string)) return BlockResult::REPEAT;
 
-    *outValue = Value(static_cast<double>(string.asString().size()));
+    *outValue = Value(static_cast<double>(string.size()));
     return BlockResult::CONTINUE;
 }
 
