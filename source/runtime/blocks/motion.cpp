@@ -11,9 +11,8 @@
 #include <value.hpp>
 
 SCRATCH_BLOCK(motion, movesteps) {
-    Value stepsValue;
-    if (!Scratch::getInputValue(block, "STEPS", thread, sprite, stepsValue)) return BlockResult::REPEAT;
-    const double steps = stepsValue.asDouble();
+    double steps;
+    if (!Scratch::getInputValueAs(block, "STEPS", thread, sprite, steps)) return BlockResult::REPEAT;
     const double angle = Math::degreesToRadians(90 - sprite->rotation);
     Scratch::gotoXY(sprite, sprite->xPosition + std::cos(angle) * steps, sprite->yPosition + std::sin(angle) * steps);
 
@@ -21,10 +20,8 @@ SCRATCH_BLOCK(motion, movesteps) {
 }
 
 SCRATCH_BLOCK(motion, goto) {
-
-    Value objectValue;
-    if (!Scratch::getInputValue(block, "TO", thread, sprite, objectValue)) return BlockResult::REPEAT;
-    std::string object = objectValue.asString();
+    std::string object;
+    if (!Scratch::getInputValueAs(block, "TO", thread, sprite, object)) return BlockResult::REPEAT;
     if (object == "_random_") {
         Scratch::gotoXY(sprite, rand() % Scratch::projectWidth - Scratch::projectWidth / 2, rand() % Scratch::projectHeight - Scratch::projectHeight / 2);
     } else if (object == "_mouse_") {
@@ -41,68 +38,66 @@ SCRATCH_BLOCK(motion, goto) {
 }
 
 SCRATCH_BLOCK(motion, gotoxy) {
-    Value xValue, yValue;
-    if (!Scratch::getInputValue(block, "X", thread, sprite, xValue) ||
-        !Scratch::getInputValue(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
-    Scratch::gotoXY(sprite, xValue.asDouble(), yValue.asDouble());
+    double x, y;
+    if (!Scratch::getInputValueAs(block, "X", thread, sprite, x) ||
+        !Scratch::getInputValueAs(block, "Y", thread, sprite, y)) return BlockResult::REPEAT;
+    Scratch::gotoXY(sprite, x, y);
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, turnleft) {
-    Value dirValue;
-    if (!Scratch::getInputValue(block, "DEGREES", thread, sprite, dirValue)) return BlockResult::REPEAT;
-    Scratch::setDirection(sprite, sprite->rotation - dirValue.asDouble());
+    double dir;
+    if (!Scratch::getInputValueAs(block, "DEGREES", thread, sprite, dir)) return BlockResult::REPEAT;
+    Scratch::setDirection(sprite, sprite->rotation - dir);
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, turnright) {
-    Value dirValue;
-    if (!Scratch::getInputValue(block, "DEGREES", thread, sprite, dirValue)) return BlockResult::REPEAT;
-    Scratch::setDirection(sprite, sprite->rotation + dirValue.asDouble());
+    double dir;
+    if (!Scratch::getInputValueAs(block, "DEGREES", thread, sprite, dir)) return BlockResult::REPEAT;
+    Scratch::setDirection(sprite, sprite->rotation + dir);
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, pointindirection) {
-    Value dirValue;
-    if (!Scratch::getInputValue(block, "DIRECTION", thread, sprite, dirValue)) return BlockResult::REPEAT;
-    Scratch::setDirection(sprite, dirValue.asDouble());
+    double dir;
+    if (!Scratch::getInputValueAs(block, "DIRECTION", thread, sprite, dir)) return BlockResult::REPEAT;
+    Scratch::setDirection(sprite, dir);
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, changexby) {
-    Value dxValue;
-    if (!Scratch::getInputValue(block, "DX", thread, sprite, dxValue)) return BlockResult::REPEAT;
-    Scratch::gotoXY(sprite, sprite->xPosition + dxValue.asDouble(), sprite->yPosition);
+    double dx;
+    if (!Scratch::getInputValueAs(block, "DX", thread, sprite, dx)) return BlockResult::REPEAT;
+    Scratch::gotoXY(sprite, sprite->xPosition + dx, sprite->yPosition);
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, changeyby) {
-    Value dyValue;
-    if (!Scratch::getInputValue(block, "DY", thread, sprite, dyValue)) return BlockResult::REPEAT;
-    Scratch::gotoXY(sprite, sprite->xPosition, sprite->yPosition + dyValue.asDouble());
+    double dy;
+    if (!Scratch::getInputValueAs(block, "DY", thread, sprite, dy)) return BlockResult::REPEAT;
+    Scratch::gotoXY(sprite, sprite->xPosition, sprite->yPosition + dy);
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, setx) {
-    Value xValue;
-    if (!Scratch::getInputValue(block, "X", thread, sprite, xValue)) return BlockResult::REPEAT;
-    const double X = xValue.asDouble();
-    Scratch::gotoXY(sprite, X, sprite->yPosition);
+    double x;
+    if (!Scratch::getInputValueAs(block, "X", thread, sprite, x)) return BlockResult::REPEAT;
+    Scratch::gotoXY(sprite, x, sprite->yPosition);
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(motion, sety) {
-    Value yValue;
-    if (!Scratch::getInputValue(block, "Y", thread, sprite, yValue)) return BlockResult::REPEAT;
-    const double Y = yValue.asDouble();
-    Scratch::gotoXY(sprite, sprite->xPosition, Y);
+    double y;
+    if (!Scratch::getInputValueAs(block, "Y", thread, sprite, y)) return BlockResult::REPEAT;
+    Scratch::gotoXY(sprite, sprite->xPosition, y);
 
     return BlockResult::CONTINUE;
 }
@@ -124,16 +119,16 @@ SCRATCH_BLOCK(motion, glideto) {
         return BlockResult::REPEAT;
     }
 
-    Value duration, to;
-    if (!Scratch::getInputValue(block, "SECS", thread, sprite, duration) ||
-        !Scratch::getInputValue(block, "TO", thread, sprite, to)) return BlockResult::REPEAT;
+    double duration;
+    std::string input;
+    if (!Scratch::getInputValueAs(block, "SECS", thread, sprite, duration) ||
+        !Scratch::getInputValueAs(block, "TO", thread, sprite, input)) return BlockResult::REPEAT;
 
-    state->waitDuration = duration.asDouble() * 1000;
+    state->waitDuration = duration * 1000;
 
     state->waitTimer.start();
     state->glideStartX = sprite->xPosition;
     state->glideStartY = sprite->yPosition;
-    const std::string input = to.asString();
 
     double positionXStr = sprite->xPosition;
     double positionYStr = sprite->yPosition;
@@ -176,13 +171,13 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
         Scratch::gotoXY(sprite, state->glideStartX + (state->glideEndX - state->glideStartX) * progress, state->glideStartY + (state->glideEndY - state->glideStartY) * progress);
         return BlockResult::REPEAT;
     }
-    Value duration, X, Y;
-    if (!Scratch::getInputValue(block, "SECS", thread, sprite, duration) ||
-        !Scratch::getInputValue(block, "X", thread, sprite, X) ||
-        !Scratch::getInputValue(block, "Y", thread, sprite, Y)) return BlockResult::REPEAT;
-    state->waitDuration = duration.asDouble() * 1000;
-    state->glideEndX = X.asDouble();
-    state->glideEndY = Y.asDouble();
+    double duration, x, y;
+    if (!Scratch::getInputValueAs(block, "SECS", thread, sprite, duration) ||
+        !Scratch::getInputValueAs(block, "X", thread, sprite, x) ||
+        !Scratch::getInputValueAs(block, "Y", thread, sprite, y)) return BlockResult::REPEAT;
+    state->waitDuration = duration * 1000;
+    state->glideEndX = x;
+    state->glideEndY = y;
     state->waitTimer.start();
     state->glideStartX = sprite->xPosition;
     state->glideStartY = sprite->yPosition;
@@ -195,9 +190,8 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
 }
 
 SCRATCH_BLOCK(motion, pointtowards) {
-    Value towardsValue;
-    if (!Scratch::getInputValue(block, "TOWARDS", thread, sprite, towardsValue)) return BlockResult::REPEAT;
-    const std::string objectName = towardsValue.asString();
+    std::string objectName;
+    if (!Scratch::getInputValueAs(block, "TOWARDS", thread, sprite, objectName)) return BlockResult::REPEAT;
 
     double targetX = 0;
     double targetY = 0;

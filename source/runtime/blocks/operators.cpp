@@ -68,22 +68,21 @@ SCRATCH_BLOCK(operator, join) {
     Value string1, string2;
     if (!Scratch::getInputValue(block, "STRING1", thread, sprite, string1) ||
         !Scratch::getInputValue(block, "STRING2", thread, sprite, string2)) return BlockResult::REPEAT;
-    *outValue = Value(string1.asString() + string2.asString());
+    *outValue = Value(string1.get<std::string>() + string2.get<std::string>());
 
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(operator, letter_of) {
-    Value letter, string;
-    if (!Scratch::getInputValue(block, "LETTER", thread, sprite, letter) ||
-        !Scratch::getInputValue(block, "STRING", thread, sprite, string)) return BlockResult::REPEAT;
-    const std::string str = string.asString();
-    const double letterValue = letter.asDouble();
+    double letter;
+    std::string str;
+    if (!Scratch::getInputValueAs(block, "LETTER", thread, sprite, letter) ||
+        !Scratch::getInputValueAs(block, "STRING", thread, sprite, str)) return BlockResult::REPEAT;
 
-    if (!letter.isNumeric() || str == "") {
+    if (str == "") {
         return BlockResult::CONTINUE;
     }
-    const int index = std::floor(letterValue) - 1;
+    const int index = std::floor(letter) - 1;
     if (index >= 0 && index < static_cast<int>(str.size())) {
         *outValue = Value(std::string(1, str[index]));
     }
@@ -99,12 +98,9 @@ SCRATCH_BLOCK(operator, length) {
 }
 
 SCRATCH_BLOCK(operator, mod) {
-    Value num1, num2;
-    if (!Scratch::getInputValue(block, "NUM1", thread, sprite, num1) ||
-        !Scratch::getInputValue(block, "NUM2", thread, sprite, num2)) return BlockResult::REPEAT;
-
-    const double a = num1.asDouble();
-    const double b = num2.asDouble();
+    double a, b;
+    if (!Scratch::getInputValueAs(block, "NUM1", thread, sprite, a) ||
+        !Scratch::getInputValueAs(block, "NUM2", thread, sprite, b)) return BlockResult::REPEAT;
 
     if (b == 0.0) {
         *outValue = Value(std::numeric_limits<double>::quiet_NaN());
@@ -119,23 +115,18 @@ SCRATCH_BLOCK(operator, mod) {
 }
 
 SCRATCH_BLOCK(operator, round) {
-    Value num;
-    if (!Scratch::getInputValue(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
-    if (!num.isNumeric()) {
-        *outValue = Value(0);
-        return BlockResult::CONTINUE;
-    }
+    double num;
+    if (!Scratch::getInputValueAs(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
 
-    *outValue = Value(std::round(num.asDouble()));
+    *outValue = Value(std::round(num));
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(operator, mathop) {
-    Value num;
-    if (!Scratch::getInputValue(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
+    double value;
+    if (!Scratch::getInputValueAs(block, "NUM", thread, sprite, value)) return BlockResult::REPEAT;
 
     const std::string operation = Scratch::getFieldValue(*block, "OPERATOR");
-    const double value = num.asDouble();
 
     if (operation == "abs") *outValue = Value(abs(value));
     else if (operation == "floor") *outValue = Value(floor(value));
@@ -191,38 +182,35 @@ SCRATCH_BLOCK(operator, lt) {
 }
 
 SCRATCH_BLOCK(operator, and) {
-    Value op1, op2;
-    if (!Scratch::getInputValue(block, "OPERAND1", thread, sprite, op1) ||
-        !Scratch::getInputValue(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
+    bool op1, op2;
+    if (!Scratch::getInputValueAs(block, "OPERAND1", thread, sprite, op1) ||
+        !Scratch::getInputValueAs(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
 
-    *outValue = Value(op1.asBoolean() and op2.asBoolean());
+    *outValue = Value(op1 && op2);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(operator, or) {
-    Value op1, op2;
-    if (!Scratch::getInputValue(block, "OPERAND1", thread, sprite, op1) ||
-        !Scratch::getInputValue(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
+    bool op1, op2;
+    if (!Scratch::getInputValueAs(block, "OPERAND1", thread, sprite, op1) ||
+        !Scratch::getInputValueAs(block, "OPERAND2", thread, sprite, op2)) return BlockResult::REPEAT;
 
-    *outValue = Value(op1.asBoolean() || op2.asBoolean());
+    *outValue = Value(op1 || op2);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(operator, not) {
-    Value op1;
-    if (!Scratch::getInputValue(block, "OPERAND", thread, sprite, op1)) return BlockResult::REPEAT;
+    bool op1;
+    if (!Scratch::getInputValueAs(block, "OPERAND", thread, sprite, op1)) return BlockResult::REPEAT;
 
-    *outValue = Value(!op1.asBoolean());
+    *outValue = Value(!op1);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(operator, contains) {
-    Value string1Value, string2Value;
-    if (!Scratch::getInputValue(block, "STRING1", thread, sprite, string1Value) ||
-        !Scratch::getInputValue(block, "STRING2", thread, sprite, string2Value)) return BlockResult::REPEAT;
-
-    std::string string1 = string1Value.asString();
-    std::string string2 = string2Value.asString();
+    std::string string1, string2;
+    if (!Scratch::getInputValueAs(block, "STRING1", thread, sprite, string1) ||
+        !Scratch::getInputValueAs(block, "STRING2", thread, sprite, string2)) return BlockResult::REPEAT;
 
     if (string2.empty()) {
         thread->eraseState(block);
