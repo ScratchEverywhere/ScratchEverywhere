@@ -63,9 +63,9 @@ jobs:
           - name: SDL2
             artifact: Scratch Everywhere! Linux SDL2 Nightly
             build-args: |
-              RENDERER=sdl3
-              WINDOWING=sdl3
-              AUDIO_ENGINE=sdl3
+              RENDERER=sdl2
+              WINDOWING=sdl2
+              AUDIO_ENGINE=sdl2
           - name: SDL3
             artifact: Scratch Everywhere! Linux SDL3 Nightly
             build-args: |
