@@ -7,6 +7,12 @@
 #ifdef ENABLE_BITMAP
 #ifdef __WIIU__
 #define STBI_NO_THREAD_LOCALS
+#elif defined(__PS2__)
+#define STBI_NO_THREAD_LOCALS
+#define STBI_NO_HDR
+#define STBI_NO_LINEAR
+#define STBI_NO_PIC
+#define STBI_NO_PNM
 #endif
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
