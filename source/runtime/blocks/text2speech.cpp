@@ -47,14 +47,12 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
         BlockState *state = thread->getState(block);
         if (state->completedSteps == 0) {
 
-            Value words;
-            if (!Scratch::getInputValue(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
-
-            std::string inputString = words.asString();
+            std::string words;
+            if (!Scratch::getInputValueAs(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
 
             std::string voice = sprite->textToSpeechData.gender;
             std::string language = sprite->textToSpeechData.language;
-            state->name = "http://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(inputString);
+            state->name = "http://synthesis-service.scratch.mit.edu/synth?locale=" + language + "&gender=" + voice + "&text=" + urlEncode(words);
             std::string tempDir = OS::getScratchFolderLocation() + "cache/";
             std::size_t h = std::hash<std::string>{}(state->name);
             std::string safeName = "t2s_temp_" + std::to_string(h) + ".mp3";
@@ -66,7 +64,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
             state->completedSteps = 2;
             if (!DownloadManager::init()) return BlockResult::CONTINUE;
             if (FileSystem::fileExists(tempFile) && !DownloadManager::isDownloading(state->name)) {
-                Log::log("[TextToSpeech] audio already downloaded: " + inputString);
+                Log::log("[TextToSpeech] audio already downloaded: " + words);
                 SoundStream *strm = new SoundStream(tempFile, false, true);
                 if (strm->error.has_value()) {
                     Log::logError("[TextToSpeech] " + strm->error.value());
@@ -75,7 +73,7 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
                 return BlockResult::REPEAT;
             }
             if (!DownloadManager::isDownloading(state->name)) {
-                Log::log("[TextToSpeech] starting download for: " + inputString + " -> " + tempFile);
+                Log::log("[TextToSpeech] starting download for: " + words + " -> " + tempFile);
                 DownloadManager::addDownload(state->name, tempFile);
                 state->completedSteps = 1;
                 return BlockResult::REPEAT;
@@ -116,25 +114,21 @@ SCRATCH_BLOCK(text2speech, speakAndWait) {
 }
 
 SCRATCH_BLOCK(text2speech, setVoice) {
-    Value voice;
-    if (!Scratch::getInputValue(block, "VOICE", thread, sprite, voice)) return BlockResult::REPEAT;
+    std::string voice;
+    if (!Scratch::getInputValueAs(block, "VOICE", thread, sprite, voice)) return BlockResult::REPEAT;
 
-    std::string voiceString = voice.asString();
-    if (voiceString == "TENOR" || voiceString == "GIANT" || voiceString == "tenor" || voiceString == "giant") {
-        voiceString = "male";
+    if (voice == "TENOR" || voice == "GIANT" || voice == "tenor" || voice == "giant") {
+        voice = "male";
     } else {
-        voiceString = "female"; // alto squeak kitten and for any unknown values
+        voice = "female"; // alto squeak kitten and for any unknown values
     }
     // sprite->textToSpeechData.playbackRate = 1.0; /ToDo playbackRate is implemeted for Audio, i think? So it could be added?
-    sprite->textToSpeechData.gender = voiceString;
+    sprite->textToSpeechData.gender = voice;
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(text2speech, setLanguage) {
-    Value language;
-    if (!Scratch::getInputValue(block, "LANGUAGE", thread, sprite, language)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValueAs(block, "LANGUAGE", thread, sprite, sprite->textToSpeechData.language)) return BlockResult::REPEAT;
 
-    std::string languageString = language.asString();
-    sprite->textToSpeechData.language = languageString;
     return BlockResult::CONTINUE;
 }

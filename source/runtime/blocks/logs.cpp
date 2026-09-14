@@ -2,25 +2,25 @@
 #include <log.hpp>
 
 SCRATCH_BLOCK(logs, log) {
-    Value arg0;
-    if (!Scratch::getInputValue(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
+    std::string arg0;
+    if (!Scratch::getInputValueAs(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
 
-    Log::log("[PROJECT] " + arg0.asString());
+    Log::log("[PROJECT] " + arg0);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(logs, warn) {
-    Value arg0;
-    if (!Scratch::getInputValue(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
+    std::string arg0;
+    if (!Scratch::getInputValueAs(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
 
-    Log::logWarning("[PROJECT] " + arg0.asString());
+    Log::logWarning("[PROJECT] " + arg0);
     return BlockResult::CONTINUE;
 }
 
 SCRATCH_BLOCK(logs, error) {
-    Value arg0;
-    if (!Scratch::getInputValue(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
+    std::string arg0;
+    if (!Scratch::getInputValueAs(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
 
-    Log::logError("[PROJECT] " + arg0.asString());
+    Log::logError("[PROJECT] " + arg0);
     return BlockResult::CONTINUE;
 }

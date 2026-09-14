@@ -1,9 +1,9 @@
 #pragma once
-#include <se_export.hpp>
 #include "blockExecutor.hpp"
 #include "sprite.hpp"
 #include <image.hpp>
 #include <nlohmann/json.hpp>
+#include <se_export.hpp>
 #include <string>
 #include <time.hpp>
 #include <unordered_map>
@@ -34,6 +34,15 @@ class SE_EXPORT Scratch {
     static bool initializeRuntime();
     static void initializeScratchProject();
     static bool getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
+
+    template <typename T>
+    static bool getInputValueAs(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, T &outValue) {
+        Value tmp;
+        if (!getInputValue(block, inputName, thread, sprite, tmp)) return false;
+        outValue = tmp.get<T>();
+        return true;
+    }
+
     static ParsedInput *getInput(Block *block, const std::string &inputName);
     static void resetInput(Block *block, const std::string &inputName = "");
 

@@ -43,18 +43,19 @@ SCRATCH_BLOCK(translate, getTranslate) {
 #if defined(ENABLE_DOWNLOAD)
     BlockState *state = thread->getState(block);
     if (state->completedSteps == 0) {
-        Value wordsInput, languageInput;
+        Value wordsInput;
+        std::string lang;
         if (!Scratch::getInputValue(block, "WORDS", thread, sprite, wordsInput) ||
-            !Scratch::getInputValue(block, "LANGUAGE", thread, sprite, languageInput)) return BlockResult::REPEAT;
+            !Scratch::getInputValueAs(block, "LANGUAGE", thread, sprite, lang)) return BlockResult::REPEAT;
 
-        std::string words = wordsInput.asString();
+        std::string words = wordsInput.get<std::string>();
         if (std::all_of(words.begin(), words.end(), ::isdigit)) {
             *outValue = wordsInput;
             thread->eraseState(block);
             return BlockResult::CONTINUE;
         }
 
-        std::string langCode = getCodeFromArg(languageInput.asString());
+        std::string langCode = getCodeFromArg(lang);
 
         state->name = "https://trampoline.turbowarp.org/translate/translate?language=" + langCode + "&text=" + urlEncode(words);
         std::string tempDir = OS::getScratchFolderLocation() + "cache/";

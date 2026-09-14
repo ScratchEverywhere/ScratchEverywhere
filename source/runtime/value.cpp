@@ -100,27 +100,6 @@ Color Value::asColor() const {
     return RGBA2CSBO({static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)});
 }
 
-Value Value::operator+(const Value &other) const {
-    return Value(this->asDouble() + other.asDouble());
-}
-
-Value Value::operator-(const Value &other) const {
-    return Value(this->asDouble() - other.asDouble());
-}
-
-Value Value::operator*(const Value &other) const {
-    return Value(this->asDouble() * other.asDouble());
-}
-
-Value Value::operator/(const Value &other) const {
-    Value a = *this;
-    Value b = other;
-    if (!a.isNumeric()) a = Value(0);
-    if (!b.isNumeric()) b = Value(0);
-
-    return Value(a.asDouble() / b.asDouble());
-}
-
 bool Value::operator==(const Value &other) const {
     std::string string1 = asString();
     std::string string2 = other.asString();

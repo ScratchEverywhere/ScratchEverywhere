@@ -434,7 +434,7 @@ cl_add_dep(se-interface nlohmann_json)
 cl_add_dep(se-interface miniz)
 cl_add_dep(se-interface expected-lite)
 cl_add_dep(se-interface __getexecname)
-if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS)
+if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO)
 	cl_add_dep(se-interface libdlgmod)
 endif()
 
