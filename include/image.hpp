@@ -7,10 +7,10 @@
 #endif
 #include <cstddef>
 #include <memory.h>
-#include <miniz.h>
 #include <sprite.hpp>
 #include <string>
 #include <vector>
+#include <zip_archive.hpp>
 
 struct SE_EXPORT ImageSubrect {
     int x = 0;
@@ -89,9 +89,9 @@ class SE_EXPORT Image {
     std::optional<std::string> error;
     Image() {}
     Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-    Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
     nonstd::expected<void, std::string> init(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-    nonstd::expected<void, std::string> init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    nonstd::expected<void, std::string> init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
     virtual ~Image();
 
     virtual ImageData getPixels(ImageSubrect rect);
@@ -119,4 +119,4 @@ class SE_EXPORT Image {
 };
 
 SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);

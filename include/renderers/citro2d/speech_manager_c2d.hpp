@@ -1,26 +1,29 @@
 #pragma once
 #include <se_export.hpp>
 
-#include "speech_text_c2d.hpp"
-#include <memory>
 #include <speech_manager.hpp>
 
-class Image;
-
 class SE_EXPORT SpeechManagerC2D : public SpeechManager {
-  private:
-    std::shared_ptr<Image> speechIndicatorImage = nullptr;
-
   protected:
-    double getCurrentTime() override;
-    void createSpeechObject(Sprite *sprite, const std::string &message) override;
+    SpeechTextConfig getSpeechTextConfig() override {
+        // 3DS speech text uses a bolder font, rasterised at the font atlas'
+        // default 30px nominal size then scaled down to 16px, and a
+        // narrower wrap width to suit its small screens.
+        return {"gfx/menu/Ubuntu-Bold", 16.0f / 30.0f, 100};
+    }
 
-  private:
-    void renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
+    SpeechRenderConfig getSpeechRenderConfig() override {
+        SpeechRenderConfig config;
+        config.style = SpeechBubbleStyle::Fast;
+        config.rescaleTextEachFrame = false;
+        config.topGap = 30;
+        config.clampTextYToTextHeight = false;
+        return config;
+    }
+
+    void getScreenSize(int &outWidth, int &outHeight) override;
 
   public:
     SpeechManagerC2D();
-    ~SpeechManagerC2D();
-
-    void render(int offsetX = 0, int offsetY = 0) override;
+    ~SpeechManagerC2D() override;
 };

@@ -307,10 +307,9 @@ void Scratch::cleanupScratchProject() {
 
     // Clean up ZIP archive if it was initialized
     if (projectType != ProjectType::UNZIPPED) {
-        mz_zip_reader_end(&Unzip::zipArchive);
+        Unzip::zipArchive.reset();
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
-        memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
     }
 
     DownloadManager::deinit();
@@ -767,7 +766,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         } else
             image = imageOrErr.value();
     } else {
-        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, shouldDownscale, scale);
+        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
             if (!onErr(imageOrErr.error()))
                 return;

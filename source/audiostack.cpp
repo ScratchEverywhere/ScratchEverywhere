@@ -205,17 +205,14 @@ SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, fl
     Mixer::mutex.unlock();
 }
 
-nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::string path) {
+nonstd::expected<void, std::string> SoundStream::init(ZipArchive *zip, std::string path) {
 
 #ifdef ENABLE_AUDIO
     if (zip != nullptr) {
-        int file_index = mz_zip_reader_locate_file(zip, path.c_str(), nullptr, 0);
-
-        if (file_index < 0) {
+        this->buffer = (unsigned char *)zip->extractToHeap(path, &this->buffer_size);
+        if (!this->buffer) {
             return nonstd::make_unexpected("Audio not found in zip");
         }
-
-        this->buffer = (unsigned char *)mz_zip_reader_extract_to_heap(zip, file_index, &this->buffer_size, 0);
     } else {
         this->buffer = (unsigned char *)Unzip::getFileInSB3(path, &this->buffer_size);
     }
@@ -235,7 +232,7 @@ nonstd::expected<void, std::string> SoundStream::init(mz_zip_archive *zip, std::
     return nonstd::make_unexpected("Audio not enabled.");
 }
 
-SoundStream::SoundStream(mz_zip_archive *zip, std::string path) {
+SoundStream::SoundStream(ZipArchive *zip, std::string path) {
     auto potentialError = init(zip, path);
     if (error.has_value()) error = potentialError.error();
 }

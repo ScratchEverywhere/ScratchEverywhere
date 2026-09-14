@@ -1,5 +1,15 @@
+#include "utf8.hpp"
+#include <cstdio>
+#include <log.hpp>
+#include <os.hpp>
 #include <string>
 #include <text.hpp>
+
+#ifdef USE_CMAKERC
+#include <cmrc/cmrc.hpp>
+CMRC_DECLARE(romfs);
+#endif
+
 #ifdef RENDERER_CITRO2D
 #include <renderers/citro2d/text_c2d.hpp>
 #elif defined(RENDERER_SDL2)
@@ -46,7 +56,6 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
 #endif
 }
 
-// stolen from SpeechText
 std::string TextObject::wrap(int maxWidth) {
     const std::string text = getText();
     if (text.empty()) {
@@ -114,19 +123,158 @@ std::string TextObject::wrap(int maxWidth) {
 }
 
 void TextObject::cleanupText() {
-#ifdef RENDERER_CITRO2D
-    TextObjectC2D::cleanupText();
-#elif defined(RENDERER_SDL2)
-    TextObjectSDL2::cleanupText();
-#elif defined(RENDERER_SDL3)
-    TextObjectSDL3::cleanupText();
-#elif defined(RENDERER_SDL1)
-    TextObjectSDL1::cleanupText();
-#elif defined(RENDERER_OPENGL)
-    TextObjectGL::cleanupText();
-#elif defined(RENDERER_GL2D)
-    TextObjectGL2D::cleanupText();
-#elif defined(RENDERER_OPENGL_CORE)
-    TextObjectGLCore::cleanupText();
+#ifndef RENDERER_HEADLESS
+    TextObjectBase::cleanupText();
 #endif
+}
+
+static std::vector<unsigned char> readFontFile(const std::string &fullPath) {
+#ifdef USE_CMAKERC
+    auto fs = cmrc::romfs::get_filesystem();
+    if (!fs.exists(fullPath)) {
+        Log::logError("Failed to open font file: " + fullPath);
+        return {};
+    }
+    auto file = fs.open(fullPath);
+    return std::vector<unsigned char>(file.begin(), file.end());
+#else
+    FILE *f = fopen(fullPath.c_str(), "rb");
+    if (!f) {
+        Log::logError("Failed to open font file: " + fullPath);
+        return {};
+    }
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    std::vector<unsigned char> buffer((size_t)size);
+    if (fread(buffer.data(), 1, (size_t)size, f) != (size_t)size) {
+        fclose(f);
+        Log::logError("Failed to read font file: " + fullPath);
+        return {};
+    }
+    fclose(f);
+    return buffer;
+#endif
+}
+
+static std::vector<std::string> splitByNewlines(const std::string &text) {
+    std::vector<std::string> lines;
+    std::string current;
+    for (char c : text) {
+        if (c == '\n') {
+            lines.push_back(current);
+            current.clear();
+        } else {
+            current += c;
+        }
+    }
+    lines.push_back(current);
+    return lines;
+}
+
+TextObjectBase::TextObjectBase(std::string txt, double posX, double posY, std::string fontPath, float nominalSize)
+    : TextObject(txt, posX, posY, fontPath), nominalPixelSize(nominalSize) {
+    if (loadFont(fontPath)) {
+        relayout();
+    }
+}
+
+TextObjectBase::~TextObjectBase() = default;
+
+bool TextObjectBase::loadFont(std::string fontPath) {
+    if (fontPath.empty()) fontPath = "gfx/ingame/fonts/NotoSans-Medium";
+    std::string fullPath = OS::getRomFSLocation() + fontPath + ".ttf";
+
+    fontAtlas = FontManager::acquire(fullPath);
+    if (!fontAtlas->isValid()) {
+        auto buffer = readFontFile(fullPath);
+        if (buffer.empty()) return false;
+        if (!fontAtlas->loadFromMemory(std::move(buffer))) return false;
+    }
+    return true;
+}
+
+void TextObjectBase::relayout() {
+    layoutLines.clear();
+    layoutWidth = 0;
+    layoutHeight = 0;
+    glyphScale = 1.0f;
+
+    if (!fontAtlas || !fontAtlas->isValid()) return;
+
+    std::vector<std::string> rawLines = splitByNewlines(text);
+
+    std::vector<std::vector<uint32_t>> codepointLines;
+    codepointLines.reserve(rawLines.size());
+    std::vector<uint32_t> allCodepoints;
+    for (const auto &line : rawLines) {
+        auto cps = utf8::decode(line);
+        allCodepoints.insert(allCodepoints.end(), cps.begin(), cps.end());
+        codepointLines.push_back(std::move(cps));
+    }
+
+    float requestedPixelSize = nominalPixelSize * scale;
+    if (requestedPixelSize < 1.0f) requestedPixelSize = 1.0f;
+
+    fontBucket = fontAtlas->pickBucket(requestedPixelSize, fontBucket);
+    FontGeneration &gen = fontAtlas->ensureGeneration(fontBucket, allCodepoints);
+
+    glyphScale = requestedPixelSize / (float)gen.pixelSize;
+    const float lineHeightPx = gen.ascent - gen.descent + gen.lineGap;
+
+    layoutLines.reserve(codepointLines.size());
+    float maxWidth = 0;
+
+    for (const auto &cps : codepointLines) {
+        std::vector<GlyphQuad> glyphs;
+        glyphs.reserve(cps.size());
+        float penX = 0, penY = 0;
+
+        for (uint32_t cp : cps) {
+            GlyphQuad q;
+            fontAtlas->getGlyphQuad(gen, cp, penX, penY, q);
+            if (q.valid) glyphs.push_back(q);
+        }
+
+        if (penX > maxWidth) maxWidth = penX;
+        layoutLines.push_back(std::move(glyphs));
+    }
+
+    layoutWidth = maxWidth * glyphScale;
+    layoutHeight = lineHeightPx * (float)codepointLines.size() * glyphScale;
+}
+
+FontGeneration &TextObjectBase::touchGeneration() {
+    static const std::vector<uint32_t> empty;
+    return fontAtlas->ensureGeneration(fontBucket, empty);
+}
+
+void TextObjectBase::setText(std::string txt) {
+    if (text == txt) return;
+    text = txt;
+    relayout();
+}
+
+void TextObjectBase::setScale(float scl) {
+    if (scale == scl) return;
+    scale = scl;
+    relayout();
+}
+
+std::vector<float> TextObjectBase::getSize() {
+    return {layoutWidth, layoutHeight};
+}
+
+std::vector<float> TextObjectBase::getStringSize(const std::string &txt) {
+    const std::string oldText = text;
+    text = txt;
+    relayout();
+    std::vector<float> size = getSize();
+    text = oldText;
+    relayout();
+    return size;
+}
+
+void TextObjectBase::cleanupText() {
+    FontManager::cleanup();
 }

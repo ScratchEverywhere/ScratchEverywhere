@@ -61,7 +61,7 @@ Image_GL2D::Image_GL2D(std::string filePath, bool fromScratchProject, bool bitma
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
-Image_GL2D::Image_GL2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image_GL2D::Image_GL2D(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {1024, 1024};
     auto initResult = init(filePath, zip, bitmapHalfQuality, scale);
 

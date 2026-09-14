@@ -1,6 +1,7 @@
 #pragma once
-#include <se_export.hpp>
+#include "font_atlas.hpp"
 #include <memory>
+#include <se_export.hpp>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,7 @@ class SE_EXPORT TextObject : public Object {
      * @param text String of text to be displayed.
      * @param positionX
      * @param positionY
-     * @param fontPath Path of a font file (.ttf for SDL, .bcfnt for 3DS)
+     * @param fontPath Path of a .ttf font file, relative to the romfs root, without the extension
      */
     TextObject(std::string txt, double posX, double posY, std::string fontPath = "");
     virtual ~TextObject() = default;
@@ -89,3 +90,34 @@ class SE_EXPORT TextObject : public Object {
 };
 
 SE_EXPORT std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, double posY, std::string fontPath = "");
+
+class SE_EXPORT TextObjectBase : public TextObject {
+  protected:
+    std::shared_ptr<FontAtlas> fontAtlas;
+    int fontBucket = 0;
+    float nominalPixelSize;
+
+    std::vector<std::vector<GlyphQuad>> layoutLines;
+    float layoutWidth = 0;
+    float layoutHeight = 0;
+
+    float glyphScale = 1.0f;
+
+    TextObjectBase(std::string txt, double posX, double posY, std::string fontPath, float nominalPixelSize);
+    ~TextObjectBase() override;
+
+    bool loadFont(std::string fontPath);
+    void relayout();
+
+    FontGeneration &touchGeneration();
+
+    virtual void uploadAtlas(FontGeneration &gen) = 0;
+
+  public:
+    void setText(std::string txt) override;
+    void setScale(float scl) override;
+    std::vector<float> getSize() override;
+    std::vector<float> getStringSize(const std::string &txt) override;
+
+    static void cleanupText();
+};

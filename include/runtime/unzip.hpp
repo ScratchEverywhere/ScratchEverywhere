@@ -2,11 +2,12 @@
 #include <se_export.hpp>
 
 #include <iosfwd>
-#include <miniz.h>
+#include <memory>
 #include <os.hpp>
 #include <parser.hpp>
 #include <string>
 #include <vector>
+#include <zip_archive.hpp>
 
 #ifdef ENABLE_CLOUDVARS
 extern std::string projectJSON;
@@ -19,7 +20,7 @@ class SE_EXPORT Unzip {
     static volatile bool threadFinished;
     static std::string filePath;
     static bool UnpackedInSD;
-    static mz_zip_archive zipArchive;
+    static std::unique_ptr<ZipArchive> zipArchive;
     static std::vector<char> zipBuffer;
 
     static void openScratchProject(void *arg);
