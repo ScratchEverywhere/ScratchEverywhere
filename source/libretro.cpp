@@ -1,6 +1,7 @@
 #ifdef LIBRETRO
 #include <libretro.h>
 #include <window.hpp>
+#include <runtime.hpp>
 
 extern WindowSE *globalWindow;
 
