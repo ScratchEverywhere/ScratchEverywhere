@@ -243,6 +243,7 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code) {
 }
 
 void retro_reset(void) {
+Scratch::greenFlagClicked();
 }
 }
 #endif
