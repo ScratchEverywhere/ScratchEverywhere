@@ -2,6 +2,7 @@
 #include "color.hpp"
 #include "compiler_hints.hpp"
 #include "math.hpp"
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>
 #include <string>
@@ -13,11 +14,12 @@ struct SE_EXPORT Undefined {};
 
 class SE_EXPORT Value {
   private:
-    std::variant<double, std::string, bool, Color, Undefined> value;
+    // Copying strings is really expensive . . . I *think* this is safe.
+    std::variant<double, std::shared_ptr<const std::string>, bool, Color, Undefined> value;
 
   public:
     // constructors
-    Value() : value(std::string()) {}
+    Value() : value(std::make_shared<const std::string>()) {}
 
     explicit Value(int val);
     explicit Value(double val);
@@ -31,7 +33,7 @@ class SE_EXPORT Value {
         return std::holds_alternative<double>(value);
     }
     inline bool isString() const {
-        return std::holds_alternative<std::string>(value);
+        return std::holds_alternative<std::shared_ptr<const std::string>>(value);
     }
     inline bool isBoolean() const {
         return std::holds_alternative<bool>(value);
@@ -46,7 +48,7 @@ class SE_EXPORT Value {
         if (isDouble() || isBoolean()) {
             return true;
         } else if (isString()) {
-            auto &strValue = std::get<std::string>(value);
+            auto &strValue = *std::get<std::shared_ptr<const std::string>>(value);
             return Math::isNumber(strValue);
         }
 
@@ -100,7 +102,7 @@ class SE_EXPORT Value {
             return asBoolean();
         } else if constexpr (std::is_same_v<T, std::string>) {
             SE_LIKELY_IF(isString()) {
-                return std::get<std::string>(value);
+                return *std::get<std::shared_ptr<const std::string>>(value);
             }
             return asString();
         } else if constexpr (std::is_same_v<T, Color>) {
@@ -108,6 +110,11 @@ class SE_EXPORT Value {
         } else {
             static_assert(!sizeof(T), "Value::get<T>() has no implementation for this T");
         }
+    }
+
+    SE_FORCEINLINE const std::string *tryGetStringRef() const {
+        if (isString()) return std::get<std::shared_ptr<const std::string>>(value).get();
+        return nullptr;
     }
 
     SE_FORCEINLINE Value operator+(const Value &other) const {
