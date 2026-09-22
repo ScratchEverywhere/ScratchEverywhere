@@ -5,7 +5,7 @@
 #include "translation.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <libdlgmod/libdlgmod.h>
-#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
@@ -14,6 +14,7 @@
 #endif
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
+#endif
 #endif
 #include <filesystem.hpp>
 #include <log.hpp>
