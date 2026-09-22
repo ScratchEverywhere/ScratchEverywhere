@@ -5,6 +5,9 @@
 #include "translation.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <libdlgmod/libdlgmod.h>
+#if defined(_WIN32) || defined(_WIN64)
+#include <algorithm>
+#endif
 #if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <algorithm>
 #include <climits>
@@ -250,9 +253,14 @@ void SettingsMenu::render() {
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 
         const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+
+#if defined(_WIN32) || defined(_WIN64)
+		std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
+#endif
+
         const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
 
-#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 
         bool in_path = false;
         const char *path = std::getenv("PATH");
