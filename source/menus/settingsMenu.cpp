@@ -250,6 +250,8 @@ void SettingsMenu::render() {
         // FIXME: Translate this into every localization supported by SE!
         const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
 
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+
 #if defined(_WIN32) || defined(_WIN64)
 
 		std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
