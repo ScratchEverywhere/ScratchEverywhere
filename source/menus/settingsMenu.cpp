@@ -15,7 +15,6 @@
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
 #endif
-#endif
 #include <filesystem.hpp>
 #include <log.hpp>
 
