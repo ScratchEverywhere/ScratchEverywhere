@@ -258,7 +258,7 @@ void SettingsMenu::render() {
 		std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
 #endif
 
-        const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
+        std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
 
 #elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 
@@ -292,13 +292,13 @@ void SettingsMenu::render() {
         }
 
         std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
-        const std::string newPath = ((in_path) ? ((newPathGui.empty()) ? projectsPath : newPathGui) : Input::openSoftwareKeyboard(projectsPath.c_str()));
+        std::string newPath = ((in_path) ? ((newPathGui.empty()) ? projectsPath : newPathGui) : Input::openSoftwareKeyboard(projectsPath.c_str()));
 
 #endif
 
 #else
 
-        const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+        std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
 
 #endif
 
