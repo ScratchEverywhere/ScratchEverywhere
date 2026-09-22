@@ -259,7 +259,7 @@ void SettingsMenu::render() {
 
         const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
 
-#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 
         bool in_path = false;
         const char *path = std::getenv("PATH");
