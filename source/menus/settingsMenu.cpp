@@ -246,15 +246,20 @@ void SettingsMenu::render() {
     if (ChangeFolderPath->isPressed({"a"})) {
 
 #if defined(USE_LIBDLGMOD)
+
         // FIXME: Translate this into every localization supported by SE!
         const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+
+        std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+
 #if defined(_WIN32) || defined(_WIN64)
-		std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
 		std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
-#elif defined(__APPLE__)
-		const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
 #endif
+
         const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
+
 #elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 
         bool in_path = false;
@@ -285,12 +290,16 @@ void SettingsMenu::render() {
                 }
             }
         }
-        const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+
+        std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
         const std::string newPath = ((in_path) ? ((newPathGui.empty()) ? projectsPath : newPathGui) : Input::openSoftwareKeyboard(projectsPath.c_str()));
+
 #endif
 
 #else
+
         const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+
 #endif
 
         if (newPath.length() > 0) {
