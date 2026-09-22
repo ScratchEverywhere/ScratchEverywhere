@@ -271,8 +271,8 @@ void SettingsMenu::render() {
             std::string str = ptr ? ptr : "";
             std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 
-            bool isKDE = (str.find("KDE") != std::string::npos);
-            std::string cmd = ((isKDE) ? "/kdialog" : "/zenity");
+            bool isKdeTdeOrLxqt = (str.find("KDE") != string::npos || str.find("TDE") != string::npos || str.find("LXQT") != string::npos);
+            std::string cmd = ((isKdeTdeOrLxqt) ? "/kdialog" : "/zenity");
 
             while (std::getline(ss, buf, ':')) {
                 if (realpath((buf + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
