@@ -13,6 +13,7 @@ else()
 	set(CMAKE_CXX_STANDARD 17)
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC and a few other things
 
@@ -146,7 +147,7 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
 
 	if(NOT selected_value IN_LIST valid_options_list)
         message(
-			FATAL_ERROR 
+			FATAL_ERROR
             "Invalid value for ${var_name}: '${selected_value}'. Must be one of: ${valid_options_list}"
         )
     endif()

@@ -37,7 +37,7 @@ int Math::color(int r, int g, int b, int a) {
 #elif defined(RENDERER_CITRO2D)
     return C2D_Color32(r, g, b, a);
 #elif !defined(RENDERER_HEADLESS)
-#error You forgot to add your new renderer here didn't you...
+#error You forgot to add your new renderer here didn’t you...
 #endif
     return 0;
 }

@@ -22,7 +22,7 @@ endfunction()
 
 function(_dep_source_SDL2_ttf)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CPM.cmake")
-	if(UBUNTU_TOUCH)
+	if(NUBUNTU_TOUCH)
 		set(SDL2TTF_VERSION "2.0.15")
 	else()
 		set(SDL2TTF_VERSION "2.24.0")
@@ -36,7 +36,7 @@ function(_dep_source_SDL2_ttf)
 		OPTIONS "SDL2TTF_VENDORED ON"
 	)
 
-	if(TARGET SDL2_ttf) # for older sdl2_ttf
+	if(NUBUNTU_TOUCH AND TARGET SDL2_ttf) # for older sdl2_ttf
 		target_include_directories(SDL2_ttf INTERFACE
 			"$<BUILD_INTERFACE:${SDL2_ttf_SOURCE_DIR}/>"
 		)
