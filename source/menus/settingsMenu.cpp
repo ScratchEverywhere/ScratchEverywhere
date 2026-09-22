@@ -252,15 +252,10 @@ void SettingsMenu::render() {
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 
+        std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+
 #if defined(_WIN32) || defined(_WIN64)
-
-		std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
 		std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
-
-#elif defined(__APPLE__)
-
-		std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
-
 #endif
 
         const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
