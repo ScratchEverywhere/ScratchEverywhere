@@ -302,7 +302,9 @@ void SettingsMenu::render() {
 #endif
 
 #else
+
         const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
+
 #endif
 
         if (newPath.length() > 0) {
