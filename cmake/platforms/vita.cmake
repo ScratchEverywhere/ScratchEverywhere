@@ -31,7 +31,12 @@ endif()
 
 macro(package_platform)
 	include("${VITASDK}/share/vita.cmake" REQUIRED)
+
+	target_link_options(scratch-everywhere PRIVATE "-Wl,--defsym=__sce_headroom=0x10000")
+
 	target_link_libraries(se-interface INTERFACE SceAppUtil_stub)
+
+	target_link_libraries(se-interface INTERFACE SceShaccCgExt SceShaccCg_stub stdc++ taihen_stub_weak)
 
 	if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
 		set(PROJ_FILE FILE ${CMAKE_SOURCE_DIR}/romfs/project.sb3 project.sb3)

@@ -1,21 +1,25 @@
 #pragma once
-#include <se_export.hpp>
 #include "color.hpp"
+#include "compiler_hints.hpp"
 #include "math.hpp"
+#include <memory>
 #include <nlohmann/json.hpp>
+#include <se_export.hpp>
 #include <string>
 
+#include <type_traits>
 #include <variant>
 
 struct SE_EXPORT Undefined {};
 
 class SE_EXPORT Value {
   private:
-    std::variant<double, std::string, bool, Color, Undefined> value;
+    // Copying strings is really expensive . . . I *think* this is safe.
+    std::variant<double, std::shared_ptr<const std::string>, bool, Color, Undefined> value;
 
   public:
     // constructors
-    Value() : value(std::string()) {}
+    Value() : value(std::make_shared<const std::string>()) {}
 
     explicit Value(int val);
     explicit Value(double val);
@@ -29,7 +33,7 @@ class SE_EXPORT Value {
         return std::holds_alternative<double>(value);
     }
     inline bool isString() const {
-        return std::holds_alternative<std::string>(value);
+        return std::holds_alternative<std::shared_ptr<const std::string>>(value);
     }
     inline bool isBoolean() const {
         return std::holds_alternative<bool>(value);
@@ -44,7 +48,7 @@ class SE_EXPORT Value {
         if (isDouble() || isBoolean()) {
             return true;
         } else if (isString()) {
-            auto &strValue = std::get<std::string>(value);
+            auto &strValue = *std::get<std::shared_ptr<const std::string>>(value);
             return Math::isNumber(strValue);
         }
 
@@ -62,14 +66,74 @@ class SE_EXPORT Value {
 
     Color asColor() const;
 
-    // Arithmetic operations
-    Value operator+(const Value &other) const;
+    template <typename T>
+    SE_FORCEINLINE T get() const {
+        if constexpr (std::is_same_v<T, double>) {
+            SE_LIKELY_IF(isDouble()) {
+                const double d = std::get<double>(value);
+                SE_UNLIKELY_IF(std::isnan(d)) {
+                    return 0.0;
+                }
+                return d;
+            }
+            return asDouble();
+        } else if constexpr (std::is_same_v<T, float>) {
+            SE_LIKELY_IF(isDouble()) {
+                const double d = std::get<double>(value);
+                SE_UNLIKELY_IF(std::isnan(d)) {
+                    return 0.0;
+                }
+                return static_cast<float>(d);
+            }
+            return static_cast<float>(asDouble());
+        } else if constexpr (std::is_same_v<T, int>) {
+            SE_LIKELY_IF(isDouble()) {
+                const double d = std::get<double>(value);
+                SE_UNLIKELY_IF(std::isnan(d)) {
+                    return 0;
+                }
+                return static_cast<int>(d);
+            }
+            return static_cast<int>(asDouble());
+        } else if constexpr (std::is_same_v<T, bool>) {
+            SE_LIKELY_IF(isBoolean()) {
+                return std::get<bool>(value);
+            }
+            return asBoolean();
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            SE_LIKELY_IF(isString()) {
+                return *std::get<std::shared_ptr<const std::string>>(value);
+            }
+            return asString();
+        } else if constexpr (std::is_same_v<T, Color>) {
+            return asColor();
+        } else {
+            static_assert(!sizeof(T), "Value::get<T>() has no implementation for this T");
+        }
+    }
 
-    Value operator-(const Value &other) const;
+    SE_FORCEINLINE const std::string *tryGetStringRef() const {
+        if (isString()) return std::get<std::shared_ptr<const std::string>>(value).get();
+        return nullptr;
+    }
 
-    Value operator*(const Value &other) const;
+    SE_FORCEINLINE Value operator+(const Value &other) const {
+        return Value(get<double>() + other.get<double>());
+    }
 
-    Value operator/(const Value &other) const;
+    SE_FORCEINLINE Value operator-(const Value &other) const {
+        return Value(get<double>() - other.get<double>());
+    }
+
+    SE_FORCEINLINE Value operator*(const Value &other) const {
+        return Value(get<double>() * other.get<double>());
+    }
+
+    SE_FORCEINLINE Value operator/(const Value &other) const {
+        const double a = isNumeric() ? get<double>() : 0.0;
+        const double b = other.isNumeric() ? other.get<double>() : 0.0;
+        return Value(a / b);
+    }
 
     // Comparison operators
     bool operator==(const Value &other) const;

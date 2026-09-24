@@ -61,11 +61,12 @@ void Input::buttonPress(std::string button) {
 
 std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
     if (keyName.isDouble()) {
-        if (keyName.asDouble() >= 48 && keyName.asDouble() <= 90) {
-            return std::string(1, std::tolower(static_cast<char>(static_cast<int>(keyName.asDouble()))));
+        const double key = keyName.get<double>();
+        if (key >= 48 && key <= 90) {
+            return std::string(1, std::tolower(static_cast<char>(static_cast<int>(key))));
         }
 
-        switch (static_cast<int>(keyName.asDouble())) {
+        switch (static_cast<int>(key)) {
         case 32:
             return "space";
             break;
@@ -84,7 +85,7 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
         };
     }
 
-    std::string key = keyName.asString();
+    std::string key = keyName.get<std::string>();
 
     if (uppercaseKeys) {
         if (key == "SPACE") return "space";

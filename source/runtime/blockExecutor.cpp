@@ -160,7 +160,6 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         thread.nextBlock = currentBlock->nextBlock;
 
         var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
-        currentBlock->recalculateInputs = false;
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
             Scratch::resetInput(currentBlock);
@@ -385,7 +384,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
             std::string result;
             std::string seperator = "";
             for (const auto &item : listIt->second.items) {
-                if (item.asString().size() > 1 || !item.isString()) {
+                if (!item.isString() || item.get<std::string>().size() > 1) {
                     seperator = " ";
                     break;
                 }
@@ -404,7 +403,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
         std::string result;
         std::string seperator = "";
         for (const auto &item : globalListIt->second.items) {
-            if (item.asString().size() > 1 || !item.isString()) {
+            if (!item.isString() || item.get<std::string>().size() > 1) {
                 seperator = " ";
                 break;
             }

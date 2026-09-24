@@ -9,12 +9,10 @@ SCRATCH_BLOCK(sceneManager, receivedData) {
 }
 
 SCRATCH_BLOCK(sceneManager, openSB3) {
-    Value arg0;
-    if (!Scratch::getInputValue(block, "arg0", thread, sprite, arg0)) return BlockResult::REPEAT;
+    if (!Scratch::getInputValueAs(block, "arg0", thread, sprite, Unzip::filePath)) return BlockResult::REPEAT;
 
     Log::log("[SceneManager] Open next Project with Block");
     Scratch::nextProject = true;
-    Unzip::filePath = arg0.asString();
     if (Unzip::filePath.rfind("sd:", 0) == 0) {
         const std::string drivePrefix = OS::getFilesystemRootPrefix();
         Unzip::filePath.replace(0, 3, drivePrefix);
@@ -37,13 +35,12 @@ SCRATCH_BLOCK(sceneManager, openSB3) {
 }
 
 SCRATCH_BLOCK(sceneManager, openSB3withData) {
-    Value arg0, arg1;
-    if (!Scratch::getInputValue(block, "arg0", thread, sprite, arg0) ||
+    Value arg1;
+    if (!Scratch::getInputValueAs(block, "arg0", thread, sprite, Unzip::filePath) ||
         !Scratch::getInputValue(block, "arg1", thread, sprite, arg1)) return BlockResult::REPEAT;
 
     Log::log("[SceneManager] Open next Project with Block and data");
     Scratch::nextProject = true;
-    Unzip::filePath = arg0.asString();
     if (Unzip::filePath.rfind("sd:", 0) == 0) {
         const std::string drivePrefix = OS::getFilesystemRootPrefix();
         Unzip::filePath.replace(0, 3, drivePrefix);

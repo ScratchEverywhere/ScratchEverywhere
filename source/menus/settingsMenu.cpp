@@ -3,9 +3,12 @@
 #include "menuObjects.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <libdlgmod/libdlgmod.h>
-#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#if defined(_WIN32) || defined(_WIN64)
+#include <algorithm>
+#endif
+#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
@@ -249,10 +252,15 @@ void SettingsMenu::render() {
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 
-        const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+        std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+
+#if defined(_WIN32) || defined(_WIN64)
+		std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
+#endif
+
         const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
 
-#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 
         bool in_path = false;
         const char *path = std::getenv("PATH");
@@ -271,8 +279,8 @@ void SettingsMenu::render() {
             std::string str = ptr ? ptr : "";
             std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 
-            bool isKDE = (str.find("KDE") != std::string::npos);
-            std::string cmd = ((isKDE) ? "/kdialog" : "/zenity");
+            bool isKdeTdeOrLxqt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || str.find("LXQT") != std::string::npos);
+            std::string cmd = ((isKdeTdeOrLxqt) ? "/kdialog" : "/zenity");
 
             while (std::getline(ss, buf, ':')) {
                 if (realpath((buf + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
@@ -283,7 +291,7 @@ void SettingsMenu::render() {
             }
         }
 
-        const std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
+        std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
         const std::string newPath = ((in_path) ? ((newPathGui.empty()) ? projectsPath : newPathGui) : Input::openSoftwareKeyboard(projectsPath.c_str()));
 
 #endif
