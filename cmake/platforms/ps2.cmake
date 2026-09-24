@@ -21,9 +21,9 @@ set(SE_HAS_CONTROLLER TRUE)
 set(SE_PLATFORM_DEFINITIONS "__PS2__")
 set(SE_PLATFORM "ps2")
 
-target_compile_options(scratch-everywhere PRIVATE -fno-pic -fno-pie -mxgot -G0)
-target_link_options(scratch-everywhere PRIVATE "-fno-pic" "-fno-pie" "-lpng" "-lz")
-target_link_libraries(se-interface INTERFACE -lpng -lz)
+add_compile_options(-fno-pic -fno-pie -mxgot -G0)
+add_link_options(-fno-pic -fno-pie -lpng -lz)
+link_libraries(-lpng -lz)
 
 macro(package_platform)
     set_target_properties(scratch-everywhere PROPERTIES 
