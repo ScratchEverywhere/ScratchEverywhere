@@ -131,8 +131,8 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) 
         localX = -localX;
 
     const float invertedScaleFactor = 1.0f / mask->scaleFactor;
-    const float finalX = std::round((localX + costume.rotationCenterX) * invertedScaleFactor);
-    const float finalY = std::round((localY + costume.rotationCenterY) * invertedScaleFactor);
+    const float finalX = round( (localX + costume.rotationCenterX) * invertedScaleFactor);
+    const float finalY = round( (localY + costume.rotationCenterY) * invertedScaleFactor);
 
     return mask->getPixel(finalX, finalY);
 }
@@ -201,8 +201,8 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
             if (a->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && a->rotation < 0)
                 localXA = -localXA;
 
-            const float finalXA = std::round((localXA + costumeA.rotationCenterX) * invScaleA);
-            const float finalYA = std::round((localYA + costumeA.rotationCenterY) * invScaleA);
+            const float finalXA = round( (localXA + costumeA.rotationCenterX) * invScaleA );
+            const float finalYA = round( (localYA + costumeA.rotationCenterY) * invScaleA );
 
             if (!maskA->getPixel(finalXA, finalYA)) continue;
 
@@ -217,8 +217,8 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
             if (b->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && b->rotation < 0)
                 localXB = -localXB;
 
-            const float finalXB = std::round((localXB + costumeB.rotationCenterX) * invScaleB);
-            const float finalYB = std::round((localYB + costumeB.rotationCenterY) * invScaleB);
+            const float finalXB = round((localXB + costumeB.rotationCenterX) * invScaleB);
+            const float finalYB = round((localYB + costumeB.rotationCenterY) * invScaleB);
 
             if (maskB->getPixel(finalXB, finalYB)) return true;
         }
@@ -275,8 +275,8 @@ bool collision::spriteOnEdge(Sprite *sprite) {
             if (sprite->rotationStyle == Sprite::RotationStyle::LEFT_RIGHT && sprite->rotation < 0)
                 localX = -localX;
 
-            const float finalX = std::round((localX + costume.rotationCenterX) * invScale);
-            const float finalY = std::round((localY + costume.rotationCenterY) * invScale);
+            const float finalX = round( (localX + costume.rotationCenterX) * invScale);
+            const float finalY = round( (localY + costume.rotationCenterY) * invScale);
 
             if (mask->getPixel(finalX, finalY)) {
                 return true;

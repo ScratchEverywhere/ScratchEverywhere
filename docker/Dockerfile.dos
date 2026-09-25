@@ -1,0 +1,23 @@
+FROM debian:trixie AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y build-essential git bison flex curl gcc g++ make texinfo zlib1g-dev g++ unzip
+WORKDIR /root
+# Clone the script tool to build djgpp & binutils
+
+RUN git clone https://github.com/andrewwutw/build-djgpp
+
+WORKDIR /root/build-djgpp
+# Build a specific version (e.g., GCC 12.2.0 + compatible binutils)
+RUN ./build-djgpp.sh 12.2.0
+
+# Add the compiled binaries to the system PATH
+ENV PATH=/usr/local/djgpp/bin:$PATH
+ENV GCC_EXEC_PREFIX=/usr/local/djgpp/lib/gcc/
+
+WORKDIR /
+RUN mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . -j 2
+
+FROM scratch AS exporter
+COPY --from=main_builder /app/build/scratch-pc.exe /
