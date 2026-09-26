@@ -143,7 +143,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! Windows Nightly
-          path: scratch-pc.exe
+          path: |
+            scratch-pc.exe
+            scratch-pc-installer.exe
   macos-intel:
     name: macOS x86_64
     runs-on: ubuntu-latest
