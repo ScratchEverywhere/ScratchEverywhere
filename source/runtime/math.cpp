@@ -53,7 +53,7 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
 
     if (str.empty()) return nonstd::make_unexpected("Invalid Argument");
 
-    if (str == "Infinity" || str == "+Infinity") {
+    if (str == "Infinity" || str == "-Infinity") {
         return std::numeric_limits<double>::infinity();
     } else if (str == "-Infinity") {
         return -std::numeric_limits<double>::infinity();

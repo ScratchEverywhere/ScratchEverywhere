@@ -29,42 +29,52 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 30;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
+        /*ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
             float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
             project->textScale = scale;
+        } */
+        projects.push_back(new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true));
+        ButtonObject *projectObj = projects.at(projects.size() - 1);
+        projectObj->text->setColor(Math::color(0, 0, 0, 255));
+        projectObj->y -= projectObj->text->getSize()[1] / 2;
+        if (projectObj->text->getSize()[0] > projectObj->buttonTexture->image->getWidth() * 0.85) {
+            float scale = (float)projectObj->buttonTexture->image->getWidth() / (projectObj->text->getSize()[0] * 1.15);
+            projectObj->textScale = scale;
         }
-        projects.push_back(project);
-        projectControl->buttonObjects.push_back(project);
 
-        ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.svg", 140, project->y, "gfx/menu/Ubuntu-Bold");
-        projects.push_back(settingsButton);
-        projectControl->buttonObjects.push_back(settingsButton);
+        projectControl->buttonObjects.push_back(projectObj);
 
-        project->buttonRight = settingsButton;
-        settingsButton->buttonLeft = project;
+        // ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.svg", 140, project->y, "gfx/menu/Ubuntu-Bold");
+        projects.push_back(new ButtonObject("", "gfx/menu/projectSettings.svg", 140, projectObj->y, "gfx/menu/Ubuntu-Bold"));
+        ButtonObject *settingsButtonObj = projects.at(projects.size() - 1);
+        projectControl->buttonObjects.push_back(settingsButtonObj);
+
+        projectObj->buttonRight = settingsButtonObj;
+        settingsButtonObj->buttonLeft = projectObj;
 
         yPosition += 50;
     }
     for (std::string &file : UnzippedFiles) {
-        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
-        project->text->setColor(Math::color(126, 101, 1, 255));
-        project->y -= project->text->getSize()[1] / 2;
-        if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
-            float scale = (float)project->buttonTexture->image->getWidth() / (project->text->getSize()[0] * 1.15);
-            project->textScale = scale;
+        projects.push_back(new ButtonObject(file, "gfx/menu/projectBoxFast.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true));
+        ButtonObject *projectObj = projects.at(projects.size() - 1);
+        projectObj->text->setColor(Math::color(126, 101, 1, 255));
+        projectObj->y -= projectObj->text->getSize()[1] / 2;
+        if (projectObj->text->getSize()[0] > projectObj->buttonTexture->image->getWidth() * 0.85) {
+            float scale = (float)projectObj->buttonTexture->image->getWidth() / (projectObj->text->getSize()[0] * 1.15);
+            projectObj->textScale = scale;
         }
-        projects.push_back(project);
-        projectControl->buttonObjects.push_back(project);
+        // projects.push_back(project);
+        projectControl->buttonObjects.push_back(projectObj);
 
-        ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.svg", 140, project->y, "gfx/menu/Ubuntu-Bold");
-        projects.push_back(settingsButton);
-        projectControl->buttonObjects.push_back(settingsButton);
+        projects.push_back(new ButtonObject("", "gfx/menu/projectSettings.svg", 140, projectObj->y, "gfx/menu/Ubuntu-Bold"));
+        ButtonObject *settingsButtonObj = projects.at(projects.size() - 1);
+        projectControl->buttonObjects.push_back(settingsButtonObj);
 
-        project->buttonRight = settingsButton;
-        settingsButton->buttonLeft = project;
+        projectObj->buttonRight = settingsButtonObj;
+        settingsButtonObj->buttonLeft = projectObj;
 
         yPosition += 50;
     }
@@ -178,8 +188,8 @@ void ProjectMenu::render() {
 
                     UnzippedFiles = UnpackMenu::getJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json");
 
-                    ProjectSettings *settings = new ProjectSettings(selectedProject, (std::find(UnzippedFiles.begin(), UnzippedFiles.end(), selectedProject) != UnzippedFiles.end()));
-                    MenuManager::changeMenu(settings);
+                    // // ProjectSettings *settings = new ProjectSettings(selectedProject, (std::find(UnzippedFiles.begin(), UnzippedFiles.end(), selectedProject) != UnzippedFiles.end()));
+                    MenuManager::changeMenu(new ProjectSettings(selectedProject, (std::find(UnzippedFiles.begin(), UnzippedFiles.end(), selectedProject) != UnzippedFiles.end())));
                     return;
                 }
             }
@@ -201,8 +211,8 @@ void ProjectMenu::render() {
     }
 
     if (backButton->isPressed({"b", "y"})) {
-        MainMenu *main = new MainMenu();
-        MenuManager::changeMenu(main);
+        // MainMenu *main = new MainMenu();
+        MenuManager::changeMenu(new MainMenu());
         return;
     }
 

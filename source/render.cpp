@@ -155,7 +155,7 @@ bool Render::checkFramerate() {
 
 std::string Render::getVariableValueString(Value value) {
     if (value.isDouble()) {
-        return Math::toString(std::round(value.get<double>() * 1e6) / 1e6); // js Number(value.toFixed(6))
+        return Math::toString(round(value.get<double>() * 1e6) / 1e6); // js Number(value.toFixed(6))
     } else if (value.isUndefined()) {
         return ""; // Scratch keeps the original value, leave blank for now
     } else {
@@ -464,7 +464,7 @@ void Render::renderMonitors(const int &offsetX, const int &offsetY) {
 
                         if (var.isDiscrete) {
                             newValue = static_cast<int>(newValue);
-                        } else newValue = std::round(newValue * 100.0) / 100.0;
+                        } else newValue = round(newValue * 100.0) / 100.0;
 
                         // snap to edges
                         if (clampedX <= minPos + 5 * scale) {

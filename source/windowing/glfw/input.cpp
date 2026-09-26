@@ -142,37 +142,42 @@ void Input::getInput() {
                 }
             }
 
-            auto axis_handler = [&](float axis, std::array<std::string, 2> states) {
-                if (abs(axis) <= 0.5f) {
+            auto axis_handler = [&](float x_axis, float y_axis, std::array<std::string, 4> states) {
+                if (abs(x_axis) <= 0.5f && abs(y_axis <= 0.5f)) {
                     return;
                 }
 
-                int8_t sign = (int8_t)(axis / abs(axis));
-                switch (sign) {
-                case 1:
-                    Input::buttonPress(states[0]);
-                    break;
-                case -1:
-                    Input::buttonPress(states[1]);
-                    break;
+                int8_t signs[2] = {
+                    (int8_t)(x_axis / abs(x_axis)),
+                    (int8_t)(y_axis / abs(y_axis))
+                };
+
+                for (int i = 0; i < 2; i++) {
+                    switch(signs[i]) {
+                        case 1:
+                            Input::buttonPress(states[0 + 2*i]);
+                            break;
+                        case -1:
+                            Input::buttonPress(states[1 + 2*i]);
+                            break;
+                    }; 
+
                 }
             };
 
-            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X],
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X], state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y],
                          {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_RIGHT)],
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_LEFT)]});
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_LEFT)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_DOWN)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_UP)]
+                        });
 
-            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_DOWN)],
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::L_STICK_UP)]});
-
-            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X],
+            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X], state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y],
                          {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_RIGHT)],
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_LEFT)]});
-
-            axis_handler(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y],
-                         {CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_DOWN)],
-                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_UP)]});
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_LEFT)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_DOWN)],
+                          CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::R_STICK_UP)]
+                        });
 
             if (state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER] > 0.5f)
                 Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::LEFT_TRIGGER)]);

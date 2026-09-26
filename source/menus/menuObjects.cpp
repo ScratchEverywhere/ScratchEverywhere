@@ -315,13 +315,12 @@ void ControlObject::render(double xPos, double yPos) {
     if (selectedObject == nullptr) return;
     const float lerpSpeed = 0.1f;
     std::array<int, 2> touchPos = Input::getTouchPosition();
-    bool isEmpty = (touchPos[0] == 0 || touchPos[1] == 0);
+    bool isEmpty = (touchPos[0] == -1 || touchPos[1] == -1);
 
     if (!isEmpty && lastFrameTouchPos[0] != touchPos[0] && lastFrameTouchPos[1] != touchPos[1]) {
         mousePriority = true;
     }
 
-    std::array<int, 2> empty;
     if (enableScrolling) {
         if (Input::mousePointer.isPressed) {
             // Touch scrolling

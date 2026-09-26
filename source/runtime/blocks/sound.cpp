@@ -31,7 +31,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
         // If not found by name and input is a number, try index-based lookup
         if (!soundFound) {
             if (soundValue.isNaN() || !soundValue.isNumeric()) return BlockResult::CONTINUE;
-            double index = std::trunc(soundValue.get<double>());
+            double index = trunc(soundValue.get<double>());
             double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
             state->name = sprite->sounds[soundIndex].fullName;
             soundFound = true;
@@ -91,7 +91,7 @@ SCRATCH_BLOCK(sound, play) {
     // If not found by name and input is a number, try index-based lookup
     if (!soundFound) {
         if (soundValue.isNaN() || !soundValue.isNumeric()) return BlockResult::CONTINUE;
-        double index = std::trunc(soundValue.get<double>());
+        double index = trunc(soundValue.get<double>());
         double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
         soundFullName = sprite->sounds[soundIndex].fullName;
         soundFound = true;
