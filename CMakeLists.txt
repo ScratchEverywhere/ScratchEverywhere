@@ -77,10 +77,6 @@ elseif(DOS)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/platforms/dos.cmake")
 endif()
 
-if(DJGPP OR DOS)
-    find_package(Threads REQUIRED)
-endif()
-
 set(SE_OUTPUT_NAME "${SE_DEFAULT_OUTPUT_NAME}" CACHE STRING "File name of the outputed executable")
 
 option(SE_LIBRARY "Build as a library instead of an executable" OFF)
