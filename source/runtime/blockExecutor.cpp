@@ -155,6 +155,8 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
     Timer executionTimer(false);
     if (Scratch::warpTimer) executionTimer.start();
     Block *currentBlock = nullptr;
+    unsigned int blocksSinceTimeCheck = 0;
+    constexpr unsigned int timeCheckInterval = 64;
     do {
         currentBlock = thread.nextBlock;
         thread.nextBlock = currentBlock->nextBlock;
@@ -165,8 +167,9 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
             Scratch::resetInput(currentBlock);
         }
 
-        if (Scratch::warpTimer && thread.withoutScreenRefresh && executionTimer.getTimeMs() > 500) {
-            break;
+        if (Scratch::warpTimer && thread.withoutScreenRefresh && ++blocksSinceTimeCheck >= timeCheckInterval) {
+            blocksSinceTimeCheck = 0;
+            if (executionTimer.getTimeMs() > 500) break;
         }
 
     } while ((var == BlockResult::CONTINUE_IMMEDIATELY || (var == BlockResult::CONTINUE && (!currentBlock->isEndBlock || thread.withoutScreenRefresh))) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
