@@ -841,36 +841,39 @@ std::string Scratch::getListName(Block &block) {
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
     std::string listId = Scratch::getFieldId(block, "LIST");
-    Sprite *targetSprite = nullptr;
-    if (sprite != nullptr && sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
-    if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite;
-    if (!targetSprite) {
-        for (const auto &[id, list] : stageSprite->lists) {
+
+    List *targetList = nullptr;
+    if (sprite != nullptr) {
+        auto it = sprite->lists.find(listId);
+        if (it != sprite->lists.end()) targetList = &it->second;
+    }
+    {
+        auto it = stageSprite->lists.find(listId);
+        if (it != stageSprite->lists.end()) targetList = &it->second;
+    }
+    if (!targetList) {
+        for (auto &[id, list] : stageSprite->lists) {
             if (list.name == getListName(block)) {
-                listId = list.id;
-                targetSprite = stageSprite;
+                targetList = &list;
                 break;
             }
         }
-        if (sprite != nullptr) {
-            for (const auto &[id, list] : sprite->lists) {
+        if (!targetList && sprite != nullptr) {
+            for (auto &[id, list] : sprite->lists) {
                 if (list.name == getListName(block)) {
-                    listId = list.id;
-                    targetSprite = sprite;
+                    targetList = &list;
                     break;
                 }
             }
         }
     }
-    if (!targetSprite && sprite) {
-        List newList;
+    if (!targetList && sprite) {
+        List &newList = sprite->lists[listId];
         newList.id = listId;
         newList.name = getListName(block);
-        newList.items = {};
-        sprite->lists[listId] = newList;
-        targetSprite = sprite;
+        targetList = &newList;
     }
-    return &targetSprite->lists[listId].items;
+    return targetList ? &targetList->items : nullptr;
 }
 
 void Scratch::createDebugMonitor(const std::string &name, int x, int y) {

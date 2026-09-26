@@ -12,16 +12,21 @@ class SharedString {
 
     Control *ctrl;
 
+    static Control *emptyControl() {
+        static Control empty{std::string()};
+        return &empty;
+    }
+
     void release() {
-        if (ctrl && --ctrl->refcount == 0) delete ctrl;
+        if (ctrl && ctrl != emptyControl() && --ctrl->refcount == 0) delete ctrl;
     }
 
   public:
-    SharedString() : ctrl(new Control(std::string())) {}
-    explicit SharedString(std::string s) : ctrl(new Control(std::move(s))) {}
+    SharedString() : ctrl(emptyControl()) {}
+    explicit SharedString(std::string s) : ctrl(s.empty() ? emptyControl() : new Control(std::move(s))) {}
 
     SharedString(const SharedString &other) noexcept : ctrl(other.ctrl) {
-        if (ctrl) ++ctrl->refcount;
+        if (ctrl && ctrl != emptyControl()) ++ctrl->refcount;
     }
 
     SharedString(SharedString &&other) noexcept : ctrl(other.ctrl) {
@@ -32,7 +37,7 @@ class SharedString {
         if (this != &other) {
             release();
             ctrl = other.ctrl;
-            if (ctrl) ++ctrl->refcount;
+            if (ctrl && ctrl != emptyControl()) ++ctrl->refcount;
         }
         return *this;
     }
