@@ -34,9 +34,9 @@ jobs:
       image: devkitpro/devkita64:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Create `romfs` directory
         run: mkdir romfs
       - name: Build and Export
@@ -48,7 +48,7 @@ jobs:
           outputs: type=local,dest=.
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! Switch Nightly
           path: scratch-nx.nro

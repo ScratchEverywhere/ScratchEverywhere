@@ -100,13 +100,13 @@ jobs:
               EXT_ARGS=-DSDL_WAYLAND=OFF
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.linux
@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: scratch-pc
@@ -125,13 +125,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.windows
@@ -140,7 +140,7 @@ jobs:
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! Windows Nightly
           path: scratch-pc.exe
@@ -149,13 +149,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.macos
@@ -164,7 +164,7 @@ jobs:
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
           path: scratch-pc
@@ -173,13 +173,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and Export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.macos
@@ -189,7 +189,7 @@ jobs:
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
           path: scratch-pc
@@ -200,12 +200,12 @@ jobs:
     needs: [macos-arm, macos-intel]
     steps:
       - name: Download Intel Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Scratch Everywhere! macOS x86_64 Nightly
           path: intel-build
       - name: Download ARM Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Scratch Everywhere! macOS ARM64 Nightly
           path: arm-build
@@ -217,7 +217,7 @@ jobs:
         run: ./lipo -output scratch-pc -create arm-build/scratch-pc intel-build/scratch-pc
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Scratch Everywhere! macOS Universal Nightly
           path: scratch-pc
