@@ -2,6 +2,7 @@
 #include "color.hpp"
 #include "compiler_hints.hpp"
 #include "math.hpp"
+#include "shared_string.hpp"
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>
@@ -15,11 +16,11 @@ struct SE_EXPORT Undefined {};
 class SE_EXPORT Value {
   private:
     // Copying strings is really expensive . . . I *think* this is safe.
-    std::variant<double, std::shared_ptr<const std::string>, bool, Color, Undefined> value;
+    std::variant<double, SharedString, bool, Color, Undefined> value;
 
   public:
     // constructors
-    Value() : value(std::make_shared<const std::string>()) {}
+    Value() : value(SharedString()) {}
 
     explicit Value(int val);
     explicit Value(double val);
@@ -33,7 +34,7 @@ class SE_EXPORT Value {
         return std::holds_alternative<double>(value);
     }
     inline bool isString() const {
-        return std::holds_alternative<std::shared_ptr<const std::string>>(value);
+        return std::holds_alternative<SharedString>(value);
     }
     inline bool isBoolean() const {
         return std::holds_alternative<bool>(value);
@@ -48,7 +49,7 @@ class SE_EXPORT Value {
         if (isDouble() || isBoolean()) {
             return true;
         } else if (isString()) {
-            auto &strValue = *std::get<std::shared_ptr<const std::string>>(value);
+            auto &strValue = *std::get<SharedString>(value);
             return Math::isNumber(strValue);
         }
 
@@ -102,7 +103,7 @@ class SE_EXPORT Value {
             return asBoolean();
         } else if constexpr (std::is_same_v<T, std::string>) {
             SE_LIKELY_IF(isString()) {
-                return *std::get<std::shared_ptr<const std::string>>(value);
+                return *std::get<SharedString>(value);
             }
             return asString();
         } else if constexpr (std::is_same_v<T, Color>) {
@@ -113,7 +114,7 @@ class SE_EXPORT Value {
     }
 
     SE_FORCEINLINE const std::string *tryGetStringRef() const {
-        if (isString()) return std::get<std::shared_ptr<const std::string>>(value).get();
+        if (isString()) return std::get<SharedString>(value).get();
         return nullptr;
     }
 

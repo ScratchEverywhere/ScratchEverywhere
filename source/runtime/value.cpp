@@ -8,7 +8,7 @@ Value::Value(int val) : value(static_cast<double>(val)) {}
 
 Value::Value(double val) : value(val) {}
 
-Value::Value(std::string val) : value(std::make_shared<const std::string>(std::move(val))) {}
+Value::Value(std::string val) : value(SharedString(std::move(val))) {}
 
 Value::Value(bool val) : value(val) {}
 
@@ -21,7 +21,7 @@ double Value::asDouble() const {
         if (isNaN()) return 0.0;
         return std::get<double>(value);
     } else if (isString()) {
-        auto &strValue = *std::get<std::shared_ptr<const std::string>>(value);
+        auto &strValue = *std::get<SharedString>(value);
         return Math::parseNumber(strValue).value_or(0);
     } else if (isColor()) {
         const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
@@ -37,7 +37,7 @@ std::string Value::asString() const {
     if (isDouble()) {
         return Math::toString(std::get<double>(value));
     } else if (isString()) {
-        return *std::get<std::shared_ptr<const std::string>>(value);
+        return *std::get<SharedString>(value);
     } else if (isBoolean()) {
         return std::get<bool>(value) ? "true" : "false";
     } else if (isUndefined()) {
@@ -69,7 +69,7 @@ bool Value::asBoolean() const {
         return std::get<double>(value) != 0.0 && !isNaN();
     }
     if (isString()) {
-        std::string strValue = *std::get<std::shared_ptr<const std::string>>(value);
+        std::string strValue = *std::get<SharedString>(value);
         std::transform(strValue.begin(), strValue.end(), strValue.begin(), ::tolower);
         return strValue != "" && strValue != "0" && strValue != "false";
     }

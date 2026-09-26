@@ -431,7 +431,6 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
         }
 
         Block *targetBlock = input->second->block;
-        input->second->value = Value();
 
         if (block->recalculateInputs) targetBlock->recalculateInputs = true;
 
