@@ -18,7 +18,7 @@ class SE_EXPORT Image_C2D : public Image {
 
     Image_C2D(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
-    Image_C2D(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image_C2D(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_C2D() override;
 

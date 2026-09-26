@@ -1,214 +1,92 @@
 #include "text_sdl1.hpp"
 #include "render_sdl1.hpp"
-#include <SDL_gfxBlitFunc.h>
 #include <SDL_rotozoom.h>
-#include <SDL_video.h>
-#include <iostream>
-#include <log.hpp>
-#include <os.hpp>
-#include <ostream>
-#include <render.hpp>
-#include <string>
-#include <text.hpp>
-#include <unordered_map>
-#include <vector>
-
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
-#endif
-
-std::unordered_map<std::string, TTF_Font *> TextObjectSDL1::fonts;
-std::unordered_map<std::string, size_t> TextObjectSDL1::fontUsageCount;
+#include <cmath>
 
 TextObjectSDL1::TextObjectSDL1(std::string txt, double posX, double posY, std::string fontPath)
-    : TextObject(txt, posX, posY, fontPath) {
-
-    // get font
-    if (fontPath.empty()) {
-        fontPath = "gfx/ingame/fonts/NotoSans-Medium";
-    }
-    fontPath = OS::getRomFSLocation() + fontPath;
-    fontPath = fontPath + ".ttf";
-
-    // open font if not loaded
-    if (fonts.find(fontPath) == fonts.end()) {
-#ifdef USE_CMAKERC
-        const auto &file = cmrc::romfs::get_filesystem().open(fontPath);
-        TTF_Font *loadedFont = TTF_OpenFontRW(SDL_RWFromConstMem(file.begin(), file.size()), 1, 30);
-#else
-        TTF_Font *loadedFont = TTF_OpenFont(fontPath.c_str(), 30);
-#endif
-        if (!loadedFont) {
-            Log::logError("Failed to load font " + fontPath + ": " + TTF_GetError());
-        } else {
-            fonts[fontPath] = loadedFont;
-            fontUsageCount[fontPath] = 1;
-            pathFont = fontPath;
-            font = loadedFont;
-        }
-    } else {
-        font = fonts[fontPath];
-        pathFont = fontPath;
-        fontUsageCount[fontPath]++;
-    }
-
-    // Set initial text
-    setText(txt);
-    setRenderer(mainSurface);
+    : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {
 }
 
-TextObjectSDL1::~TextObjectSDL1() {
-    if (texture) {
-        SDL_FreeSurface(texture);
-        texture = nullptr;
-    }
+TextObjectSDL1::~TextObjectSDL1() = default;
 
-    if (font && !pathFont.empty()) {
-        fontUsageCount[pathFont]--;
-        if (fontUsageCount[pathFont] <= 0) {
-            TTF_CloseFont(fonts[pathFont]);
-            fonts.erase(pathFont);
-            fontUsageCount.erase(pathFont);
-        }
-    }
+void TextObjectSDL1::setRenderer(void *r) {
+    renderer = static_cast<SDL_Surface *>(r);
 }
 
-std::vector<std::string> TextObjectSDL1::splitTextByNewlines(const std::string &text) {
-    std::vector<std::string> lines;
-    std::string currentLine;
-
-    for (char c : text) {
-        if (c == '\n') {
-            lines.push_back(currentLine);
-            currentLine.clear();
-        } else {
-            currentLine += c;
-        }
-    }
-    if (!currentLine.empty() || text.back() == '\n') {
-        lines.push_back(currentLine);
-    }
-
-    return lines;
-}
-
-void TextObjectSDL1::updateTexture() {
-    if (!font || !renderer || text.empty()) return;
-
-    // Clean up old texture
-    if (texture) {
-        SDL_FreeSurface(texture);
-        texture = nullptr;
-    }
-
-    // Convert color from integer to SDL_Color
-    SDL_Color sdlColor = {
-        (Uint8)((color >> 24) & 0xFF), // R
-        (Uint8)((color >> 16) & 0xFF), // G
-        (Uint8)((color >> 8) & 0xFF),  // B
-        (Uint8)(color & 0xFF)          // A
-    };
-
-    // Split text into lines
-    std::vector<std::string> lines = splitTextByNewlines(text);
-
-    if (lines.empty()) {
-        textWidth = 0;
-        textHeight = 0;
-        return;
-    }
-
-    // Get font metrics
-    int lineSkip = TTF_FontLineSkip(font);
-
-    // Calculate total dimensions needed
-    int maxWidth = 0;
-    int totalHeight = lineSkip * lines.size();
-
-    // Find the widest line
-    for (const auto &line : lines) {
-        if (!line.empty()) {
-            int w, h;
-            TTF_SizeUTF8(font, line.c_str(), &w, &h);
-            maxWidth = std::max(maxWidth, w);
-        }
-    }
-
-    // Handle case where all lines are empty
-    if (maxWidth == 0) {
-        int w, h;
-        TTF_SizeUTF8(font, " ", &w, &h);
-        maxWidth = 1;
-        totalHeight = h * lines.size();
-    }
-
-    // Create a surface to compose all lines
-    SDL_Surface *compositeSurface = SDL_CreateRGBSurface(
-        SDL_HWSURFACE, maxWidth, totalHeight, 32, RMASK, GMASK, BMASK, AMASK);
-
-    // Make the surface transparent
-    SDL_FillRect(compositeSurface, NULL, SDL_MapRGBA(compositeSurface->format, sdlColor.r, sdlColor.g, sdlColor.b, 0));
-    SDL_SetAlpha(compositeSurface, SDL_SRCALPHA, 255);
-
-    // Render each line onto the composite surface
-    Sint16 currentY = 0;
-    for (const auto &line : lines) {
-        if (!line.empty()) {
-            SDL_Surface *lineSurface = TTF_RenderUTF8_Blended(font, line.c_str(), sdlColor);
-            if (lineSurface) {
-                SDL_Rect destRect = {0, currentY, static_cast<Uint16>(lineSurface->w), static_cast<Uint16>(lineSurface->h)};
-                SDL_gfxBlitRGBA(lineSurface, nullptr, compositeSurface, &destRect);
-                SDL_FreeSurface(lineSurface);
-            }
-        }
-        currentY += lineSkip;
-    }
-
-    // Create texture from composite surface
-    texture = SDL_DisplayFormatAlpha(compositeSurface);
-    memorySize = compositeSurface->w * compositeSurface->h * 4;
-
-    if (!texture) Log::logError("Failed to create text texture: " + std::string(SDL_GetError()));
-
-    // Store dimensions
-    textWidth = compositeSurface->w;
-    textHeight = compositeSurface->h;
-
-    SDL_FreeSurface(compositeSurface);
-}
-void TextObjectSDL1::setColor(int clr) {
-    if (color == clr) return;
-    TextObject::setColor(clr);
-    updateTexture();
-}
-
-void TextObjectSDL1::setText(std::string txt) {
-    if (text == txt) return;
-    text = txt;
-    updateTexture();
+void TextObjectSDL1::uploadAtlas(FontGeneration &gen) {
+    gen.dirty = false;
 }
 
 void TextObjectSDL1::render(int xPos, int yPos) {
-    if (!texture || !renderer) return;
+    if (!renderer || !fontAtlas || !fontAtlas->isValid() || layoutLines.empty()) return;
 
-    SDL_Surface *surface = texture;
-    bool free = false;
+    FontGeneration &gen = touchGeneration();
+    if (gen.dirty) uploadAtlas(gen);
 
-    if (scale != 1.0f) {
-        surface = zoomSurface(texture, scale, scale, SMOOTHING_OFF);
-        if (!surface) {
-            surface = texture;
-        } else {
-            free = true;
+    const int compW = std::max(1, (int)std::ceil(layoutWidth / glyphScale));
+    const int compH = std::max(1, (int)std::ceil(layoutHeight / glyphScale));
+
+    SDL_Surface *composite = SDL_CreateRGBSurface(SDL_HWSURFACE, compW, compH, 32, RMASK, GMASK, BMASK, AMASK);
+    if (!composite) return;
+    SDL_FillRect(composite, nullptr, SDL_MapRGBA(composite->format, 0, 0, 0, 0));
+
+    const Uint8 r = (color >> 24) & 0xFF;
+    const Uint8 g = (color >> 16) & 0xFF;
+    const Uint8 b = (color >> 8) & 0xFF;
+    const Uint8 a = color & 0xFF;
+
+    const float lineHeight = gen.ascent - gen.descent + gen.lineGap;
+
+    SDL_LockSurface(composite);
+    for (size_t li = 0; li < layoutLines.size(); ++li) {
+        const auto &glyphs = layoutLines[li];
+        if (glyphs.empty()) continue;
+
+        const float lineY = (float)li * lineHeight + gen.ascent;
+
+        for (const GlyphQuad &q : glyphs) {
+            const int sx = (int)(q.s0 * gen.atlasWidth);
+            const int sy = (int)(q.t0 * gen.atlasHeight);
+            const int gw = (int)((q.s1 - q.s0) * gen.atlasWidth);
+            const int gh = (int)((q.t1 - q.t0) * gen.atlasHeight);
+            const int dx0 = (int)q.x0;
+            const int dy0 = (int)(lineY + q.y0);
+
+            for (int row = 0; row < gh; ++row) {
+                const int dy = dy0 + row;
+                if (dy < 0 || dy >= compH) continue;
+                const int srcRow = sy + row;
+
+                for (int col = 0; col < gw; ++col) {
+                    const int dx = dx0 + col;
+                    if (dx < 0 || dx >= compW) continue;
+
+                    unsigned char alpha = gen.pixels[(size_t)srcRow * gen.atlasWidth + (sx + col)];
+                    if (alpha == 0) continue;
+
+                    Uint8 combinedA = (Uint8)(((int)alpha * a) / 255);
+                    Uint32 *px = (Uint32 *)((Uint8 *)composite->pixels + dy * composite->pitch + dx * 4);
+                    *px = SDL_MapRGBA(composite->format, r, g, b, combinedA);
+                }
+            }
+        }
+    }
+    SDL_UnlockSurface(composite);
+    SDL_SetAlpha(composite, SDL_SRCALPHA, 255);
+
+    SDL_Surface *surface = composite;
+    bool freeSurface = false;
+    if (std::fabs(glyphScale - 1.0f) > 0.001f) {
+        SDL_Surface *scaled = zoomSurface(composite, glyphScale, glyphScale, SMOOTHING_OFF);
+        if (scaled) {
+            surface = scaled;
+            freeSurface = true;
         }
     }
 
     SDL_Rect destRect;
     destRect.w = surface->w;
     destRect.h = surface->h;
-
     if (centerAligned) {
         destRect.x = xPos - (destRect.w / 2);
         destRect.y = yPos - (destRect.h / 2);
@@ -219,42 +97,6 @@ void TextObjectSDL1::render(int xPos, int yPos) {
 
     SDL_BlitSurface(surface, nullptr, renderer, &destRect);
 
-    if (free) {
-        SDL_FreeSurface(surface);
-    }
-}
-
-std::vector<float> TextObjectSDL1::getSize() {
-    if (!texture) {
-        return {0.0f, 0.0f};
-    }
-
-    return {(float)textWidth * scale, (float)textHeight * scale};
-}
-
-std::vector<float> TextObjectSDL1::getStringSize(const std::string &txt) {
-    if (!font) return {0.0f, 0.0f};
-
-    int w, h;
-    TTF_SizeUTF8(font, text.c_str(), &w, &h);
-    return {w * scale, h * scale};
-}
-
-void TextObjectSDL1::setRenderer(void *r) {
-    renderer = static_cast<SDL_Surface *>(r);
-    updateTexture();
-}
-
-void TextObjectSDL1::cleanupText() {
-    for (auto &[fontPath, font] : fonts) {
-        if (font) {
-            TTF_CloseFont(font);
-        }
-    }
-
-    // Clear the maps
-    fonts.clear();
-    fontUsageCount.clear();
-
-    Log::log("Cleaned up all text.");
+    if (freeSurface) SDL_FreeSurface(surface);
+    SDL_FreeSurface(composite);
 }

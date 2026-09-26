@@ -1,25 +1,12 @@
 #include "text_gl_core.hpp"
 #include "render_opengl_core.hpp"
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <cstdint>
 #include <log.hpp>
-#include <math.hpp>
-#include <os.hpp>
 #include <vector>
 
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-CMRC_DECLARE(romfs);
-#endif
-
 static GLuint textProgram = 0;
-static GLuint textVAO = 0;
 
-static const char *kTextVert = R"glsl(
+static const char *textVertSrc = R"glsl(
 #version 410 core
 layout(location = 0) in vec2 a_pos;
 layout(location = 1) in vec2 a_uv;
@@ -31,7 +18,7 @@ void main() {
 }
 )glsl";
 
-static const char *kTextFrag = R"glsl(
+static const char *textFragSrc = R"glsl(
 #version 410 core
 in  vec2 v_uv;
 out vec4 frag_color;
@@ -62,19 +49,15 @@ static GLuint compileTextShader(GLenum type, const char *src) {
 static void ensureTextProgram() {
     if (textProgram) return;
 
-    GLuint v = compileTextShader(GL_VERTEX_SHADER, kTextVert);
-    GLuint f = compileTextShader(GL_FRAGMENT_SHADER, kTextFrag);
+    GLuint v = compileTextShader(GL_VERTEX_SHADER, textVertSrc);
+    GLuint f = compileTextShader(GL_FRAGMENT_SHADER, textFragSrc);
     textProgram = glCreateProgram();
     glAttachShader(textProgram, v);
     glAttachShader(textProgram, f);
     glLinkProgram(textProgram);
     glDeleteShader(v);
     glDeleteShader(f);
-
-    glGenVertexArrays(1, &textVAO);
 }
-
-std::unordered_map<std::string, FontDataCore *> TextObjectGLCore::fonts;
 
 static void buildOrthoText(float out[16], float l, float r, float b, float t) {
     for (int i = 0; i < 16; ++i)
@@ -87,162 +70,43 @@ static void buildOrthoText(float out[16], float l, float r, float b, float t) {
     out[15] = 1.0f;
 }
 
-static std::vector<std::string> splitLines(const std::string &text) {
-    std::vector<std::string> lines;
-    std::string cur;
-    for (char c : text) {
-        if (c == '\n') {
-            lines.push_back(cur);
-            cur.clear();
-        } else cur += c;
-    }
-    lines.push_back(cur);
-    return lines;
-}
+static constexpr float nominalFontSize = 33.3f;
 
 TextObjectGLCore::TextObjectGLCore(std::string txt, double posX, double posY, std::string fontPath)
-    : TextObject(txt, posX, posY, fontPath) {
-
-    if (fontPath.empty()) fontPath = "gfx/ingame/fonts/NotoSans-Medium";
-    std::string fullPath = OS::getRomFSLocation() + fontPath + ".ttf";
-
-    if (loadFont(fullPath)) {
-        setText(txt);
-    }
+    : TextObjectBase(txt, posX, posY, fontPath, nominalFontSize) {
 }
 
-TextObjectGLCore::~TextObjectGLCore() {
-    if (!font) return;
-    font->usageCount--;
-    if (font->usageCount == 0) {
-        glDeleteTextures(1, &font->textureID);
-        free(font->charData);
-        fonts.erase(font->fontName);
-        delete font;
-    }
-    font = nullptr;
-}
-
-bool TextObjectGLCore::loadFont(std::string fontPath) {
-    auto it = fonts.find(fontPath);
-    if (it != fonts.end()) {
-        font = it->second;
-        font->usageCount++;
-        setDimensions();
-        return true;
-    }
-
-#ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(fontPath);
-    auto *fontBuffer = (unsigned char *)malloc(file.size() + 1);
-    std::copy(file.begin(), file.end(), fontBuffer);
-    size_t size = file.size();
-#else
-    FILE *fontFile = fopen(fontPath.c_str(), "rb");
-    if (!fontFile) {
-        Log::logError("[GL Core Text] Failed to open font: " + fontPath);
-        return false;
-    }
-    fseek(fontFile, 0, SEEK_END);
-    size_t size = (size_t)ftell(fontFile);
-    fseek(fontFile, 0, SEEK_SET);
-    auto *fontBuffer = (unsigned char *)malloc(size);
-    fread(fontBuffer, size, 1, fontFile);
-    fclose(fontFile);
-#endif
-
-    if (!fontBuffer) return false;
-
-    font = new FontDataCore();
-    font->fontName = fontPath;
-    font->atlasWidth = 512;
-    font->atlasHeight = 512;
-    font->fontSize = 33.3f;
-    font->firstChar = 32;
-    font->numChars = 96;
-    font->usageCount = 1;
-    font->charData = (stbtt_bakedchar *)malloc(sizeof(stbtt_bakedchar) * 96);
-
-    auto *bitmap = (unsigned char *)malloc(font->atlasWidth * font->atlasHeight);
-    if (!bitmap) {
-        free(fontBuffer);
-        free(font->charData);
-        delete font;
-        font = nullptr;
-        return false;
-    }
-
-    stbtt_BakeFontBitmap(fontBuffer, 0, font->fontSize,
-                         bitmap, font->atlasWidth, font->atlasHeight,
-                         font->firstChar, font->numChars, font->charData);
-
-    stbtt_fontinfo info;
-    if (stbtt_InitFont(&info, fontBuffer, 0)) {
-        int ascent, descent, lineGap;
-        stbtt_GetFontVMetrics(&info, &ascent, &descent, &lineGap);
-        float sc = stbtt_ScaleForPixelHeight(&info, font->fontSize);
-        font->ascent = (float)ascent * sc;
-        font->descent = (float)descent * sc;
-        font->lineGap = (float)lineGap * sc;
+void TextObjectGLCore::uploadAtlas(FontGeneration &gen) {
+    GLuint texId;
+    if (gen.backendHandle) {
+        texId = (GLuint)(uintptr_t)gen.backendHandle;
     } else {
-        font->ascent = font->fontSize * 0.8f;
-        font->descent = -font->fontSize * 0.2f;
-        font->lineGap = 0.0f;
+        glGenTextures(1, &texId);
+        gen.backendHandle = (void *)(uintptr_t)texId;
+        gen.destroyBackendHandle = [](void *handle) {
+            GLuint id = (GLuint)(uintptr_t)handle;
+            glDeleteTextures(1, &id);
+        };
     }
-    free(fontBuffer);
 
-    ensureTextProgram();
-    glGenTextures(1, &font->textureID);
-    glBindTexture(GL_TEXTURE_2D, font->textureID);
+    glBindTexture(GL_TEXTURE_2D, texId);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED,
-                 font->atlasWidth, font->atlasHeight,
-                 0, GL_RED, GL_UNSIGNED_BYTE, bitmap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, gen.atlasWidth, gen.atlasHeight, 0, GL_RED, GL_UNSIGNED_BYTE, gen.pixels.data());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    free(bitmap);
-    fonts[fontPath] = font;
-    return true;
-}
-
-void TextObjectGLCore::setDimensions() {
-    if (!font) {
-        width = height = minY = 0;
-        return;
-    }
-
-    auto lines = splitLines(text);
-    float lineHeight = font->ascent - font->descent + font->lineGap;
-    float maxWidth = 0;
-
-    for (const auto &line : lines) {
-        float x = 0, y = 0;
-        for (unsigned char c : line) {
-            if (c < font->firstChar || c >= font->firstChar + font->numChars) c = 'x';
-            stbtt_aligned_quad q;
-            stbtt_GetBakedQuad(font->charData, font->atlasWidth, font->atlasHeight,
-                               c - font->firstChar, &x, &y, &q, 1);
-        }
-        if (x > maxWidth) maxWidth = x;
-    }
-
-    width = maxWidth;
-    height = lineHeight * (float)lines.size();
-    minY = font->ascent;
-}
-
-void TextObjectGLCore::setText(std::string txt) {
-    text = txt;
-    setDimensions();
+    gen.dirty = false;
 }
 
 void TextObjectGLCore::render(int xPos, int yPos) {
-    if (!font) return;
+    if (!fontAtlas || !fontAtlas->isValid() || layoutLines.empty()) return;
 
     ensureTextProgram();
+
+    FontGeneration &gen = touchGeneration();
+    if (gen.dirty) uploadAtlas(gen);
 
     GLint vp[4];
     glGetIntegerv(GL_VIEWPORT, vp);
@@ -257,12 +121,11 @@ void TextObjectGLCore::render(int xPos, int yPos) {
     float drawX = (float)xPos;
     float drawY = (float)yPos;
     if (centerAligned) {
-        drawX -= (width * scale) / 2.0f;
-        drawY -= (height * scale) / 2.0f;
+        drawX -= layoutWidth / 2.0f;
+        drawY -= layoutHeight / 2.0f;
     }
 
-    auto lines = splitLines(text);
-    float lineHeight = font->ascent - font->descent + font->lineGap;
+    const float lineHeight = (gen.ascent - gen.descent + gen.lineGap) * glyphScale;
 
     glUseProgram(textProgram);
     glUniformMatrix4fv(glGetUniformLocation(textProgram, "u_projection"), 1, GL_FALSE, proj);
@@ -270,32 +133,28 @@ void TextObjectGLCore::render(int xPos, int yPos) {
     glUniform4f(glGetUniformLocation(textProgram, "u_color"), cr, cg, cb, ca);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, font->textureID);
+    glBindTexture(GL_TEXTURE_2D, (GLuint)(uintptr_t)gen.backendHandle);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    for (size_t li = 0; li < lines.size(); ++li) {
-        float x = 0.0f, y = 0.0f;
+    for (size_t li = 0; li < layoutLines.size(); ++li) {
+        const auto &glyphs = layoutLines[li];
+        if (glyphs.empty()) continue;
+
         float lineX = drawX;
-        float lineY = drawY + ((float)li * lineHeight + font->ascent) * scale;
+        float lineY = drawY + (float)li * lineHeight + gen.ascent * glyphScale;
 
         std::vector<float> verts;
-        verts.reserve(lines[li].size() * 4 * 4);
+        verts.reserve(glyphs.size() * 4 * 4);
         std::vector<GLuint> indices;
-        indices.reserve(lines[li].size() * 6);
+        indices.reserve(glyphs.size() * 6);
         GLuint vi = 0;
 
-        for (unsigned char c : lines[li]) {
-            if (c < font->firstChar || c >= font->firstChar + font->numChars) c = 'x';
-
-            stbtt_aligned_quad q;
-            stbtt_GetBakedQuad(font->charData, font->atlasWidth, font->atlasHeight,
-                               c - font->firstChar, &x, &y, &q, 1);
-
-            float qx0 = lineX + q.x0 * scale;
-            float qy0 = lineY + q.y0 * scale;
-            float qx1 = lineX + q.x1 * scale;
-            float qy1 = lineY + q.y1 * scale;
+        for (const GlyphQuad &q : glyphs) {
+            float qx0 = lineX + q.x0 * glyphScale;
+            float qy0 = lineY + q.y0 * glyphScale;
+            float qx1 = lineX + q.x1 * glyphScale;
+            float qy1 = lineY + q.y1 * glyphScale;
 
             verts.insert(verts.end(), {qx0, qy0, q.s0, q.t0,
                                        qx1, qy0, q.s1, q.t0,
@@ -304,8 +163,6 @@ void TextObjectGLCore::render(int xPos, int yPos) {
             indices.insert(indices.end(), {vi, vi + 1, vi + 2, vi + 2, vi + 3, vi});
             vi += 4;
         }
-
-        if (verts.empty()) continue;
 
         GLuint vao = 0, vbo = 0, ebo = 0;
         glGenVertexArrays(1, &vao);
@@ -327,35 +184,5 @@ void TextObjectGLCore::render(int xPos, int yPos) {
         glDeleteVertexArrays(1, &vao);
         glDeleteBuffers(1, &vbo);
         glDeleteBuffers(1, &ebo);
-    }
-}
-
-std::vector<float> TextObjectGLCore::getSize() {
-    return {width * scale, height * scale};
-}
-
-std::vector<float> TextObjectGLCore::getStringSize(const std::string &txt) {
-    const std::string old = getText();
-    setText(txt);
-    auto sz = getSize();
-    setText(old);
-    return sz;
-}
-
-void TextObjectGLCore::cleanupText() {
-    for (auto &[id, data] : fonts) {
-        glDeleteTextures(1, &data->textureID);
-        free(data->charData);
-        delete data;
-    }
-    fonts.clear();
-
-    if (textProgram) {
-        glDeleteProgram(textProgram);
-        textProgram = 0;
-    }
-    if (textVAO) {
-        glDeleteVertexArrays(1, &textVAO);
-        textVAO = 0;
     }
 }
