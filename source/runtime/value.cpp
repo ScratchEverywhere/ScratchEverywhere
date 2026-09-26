@@ -4,30 +4,30 @@
 #include <os.hpp>
 #include <regex>
 
-Value::Value(int val) : value(static_cast<double>(val)) {}
+Value::Value(int val) : tag(Tag::Double) { storage.d = static_cast<double>(val); }
 
-Value::Value(double val) : value(val) {}
+Value::Value(double val) : tag(Tag::Double) { storage.d = val; }
 
-Value::Value(std::string val) : value(SharedString(std::move(val))) {}
+Value::Value(std::string val) : tag(Tag::String) { new (&storage.s) SharedString(std::move(val)); }
 
-Value::Value(bool val) : value(val) {}
+Value::Value(bool val) : tag(Tag::Bool) { storage.b = val; }
 
-Value::Value(Color val) : value(val) {}
+Value::Value(Color val) : tag(Tag::Color) { storage.c = val; }
 
-Value::Value(Undefined val) : value(val) {}
+Value::Value(Undefined) : tag(Tag::Undefined) {}
 
 double Value::asDouble() const {
     if (isDouble()) {
         if (isNaN()) return 0.0;
-        return std::get<double>(value);
+        return storage.d;
     } else if (isString()) {
-        auto &strValue = *std::get<SharedString>(value);
+        auto &strValue = *storage.s;
         return Math::parseNumber(strValue).value_or(0);
     } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(storage.c);
         return rgb.r * 0x10000 + rgb.g * 0x100 + rgb.b;
     } else if (isBoolean()) {
-        return std::get<bool>(value) ? 1 : 0;
+        return storage.b ? 1 : 0;
     }
 
     return 0.0;
@@ -35,15 +35,15 @@ double Value::asDouble() const {
 
 std::string Value::asString() const {
     if (isDouble()) {
-        return Math::toString(std::get<double>(value));
+        return Math::toString(storage.d);
     } else if (isString()) {
-        return *std::get<SharedString>(value);
+        return *storage.s;
     } else if (isBoolean()) {
-        return std::get<bool>(value) ? "true" : "false";
+        return storage.b ? "true" : "false";
     } else if (isUndefined()) {
         return "undefined";
     } else if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(storage.c);
         const char hex_chars[] = "0123456789abcdef";
         const unsigned char r = static_cast<unsigned char>(rgb.r);
         const unsigned char g = static_cast<unsigned char>(rgb.g);
@@ -63,18 +63,18 @@ std::string Value::asString() const {
 
 bool Value::asBoolean() const {
     if (isBoolean()) {
-        return std::get<bool>(value);
+        return storage.b;
     }
     if (isDouble()) {
-        return std::get<double>(value) != 0.0 && !isNaN();
+        return storage.d != 0.0 && !isNaN();
     }
     if (isString()) {
-        std::string strValue = *std::get<SharedString>(value);
+        std::string strValue = *storage.s;
         std::transform(strValue.begin(), strValue.end(), strValue.begin(), ::tolower);
         return strValue != "" && strValue != "0" && strValue != "false";
     }
     if (isColor()) {
-        const ColorRGBA rgb = CSBT2RGBA(std::get<Color>(value));
+        const ColorRGBA rgb = CSBT2RGBA(storage.c);
         return rgb.r != 0 || rgb.g != 0 || rgb.b != 0 || rgb.a != 0;
     }
     return false;

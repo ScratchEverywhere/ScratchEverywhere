@@ -3,24 +3,81 @@
 #include "compiler_hints.hpp"
 #include "math.hpp"
 #include "shared_string.hpp"
-#include <memory>
+#include <cstdint>
+#include <new>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>
 #include <string>
-
 #include <type_traits>
-#include <variant>
+#include <utility>
 
 struct SE_EXPORT Undefined {};
 
 class SE_EXPORT Value {
   private:
-    // Copying strings is really expensive . . . I *think* this is safe.
-    std::variant<double, SharedString, bool, Color, Undefined> value;
+    enum class Tag : uint8_t { Double,
+                               String,
+                               Bool,
+                               Color,
+                               Undefined };
+
+    // Faster than std::variant :)
+    Tag tag;
+    union Storage {
+        double d;
+        SharedString s;
+        bool b;
+        ::Color c;
+
+        Storage() {}
+        ~Storage() {}
+    } storage;
+
+    SE_FORCEINLINE void destroyActive() {
+        if (tag == Tag::String) storage.s.~SharedString();
+    }
+
+    SE_FORCEINLINE void constructFrom(const Value &other) {
+        switch (other.tag) {
+        case Tag::String:
+            new (&storage.s) SharedString(other.storage.s);
+            break;
+        case Tag::Double:
+            storage.d = other.storage.d;
+            break;
+        case Tag::Bool:
+            storage.b = other.storage.b;
+            break;
+        case Tag::Color:
+            storage.c = other.storage.c;
+            break;
+        case Tag::Undefined:
+            break;
+        }
+    }
+
+    SE_FORCEINLINE void constructFrom(Value &&other) {
+        switch (other.tag) {
+        case Tag::String:
+            new (&storage.s) SharedString(std::move(other.storage.s));
+            break;
+        case Tag::Double:
+            storage.d = other.storage.d;
+            break;
+        case Tag::Bool:
+            storage.b = other.storage.b;
+            break;
+        case Tag::Color:
+            storage.c = other.storage.c;
+            break;
+        case Tag::Undefined:
+            break;
+        }
+    }
 
   public:
     // constructors
-    Value() : value(SharedString()) {}
+    Value() : tag(Tag::String) { new (&storage.s) SharedString(); }
 
     explicit Value(int val);
     explicit Value(double val);
@@ -29,34 +86,63 @@ class SE_EXPORT Value {
     explicit Value(Color val);
     explicit Value(Undefined val);
 
+    Value(const Value &other) : tag(other.tag) { constructFrom(other); }
+    Value(Value &&other) noexcept : tag(other.tag) { constructFrom(std::move(other)); }
+
+    Value &operator=(const Value &other) {
+        if (this == &other) return *this;
+        if (tag == Tag::String && other.tag == Tag::String) {
+            storage.s = other.storage.s;
+            return *this;
+        }
+        destroyActive();
+        tag = other.tag;
+        constructFrom(other);
+        return *this;
+    }
+
+    Value &operator=(Value &&other) noexcept {
+        if (this == &other) return *this;
+        if (tag == Tag::String && other.tag == Tag::String) {
+            storage.s = std::move(other.storage.s);
+            return *this;
+        }
+        destroyActive();
+        tag = other.tag;
+        constructFrom(std::move(other));
+        return *this;
+    }
+
+    ~Value() { destroyActive(); }
+
     // type checks
     inline bool isDouble() const {
-        return std::holds_alternative<double>(value);
+        return tag == Tag::Double;
     }
     inline bool isString() const {
-        return std::holds_alternative<SharedString>(value);
+        return tag == Tag::String;
     }
     inline bool isBoolean() const {
-        return std::holds_alternative<bool>(value);
+        return tag == Tag::Bool;
     }
     inline bool isColor() const {
-        return std::holds_alternative<Color>(value);
+        return tag == Tag::Color;
     }
     inline bool isUndefined() const {
-        return std::holds_alternative<Undefined>(value);
+        return tag == Tag::Undefined;
     }
     inline bool isNumeric() const {
         if (isDouble() || isBoolean()) {
             return true;
         } else if (isString()) {
-            auto &strValue = *std::get<SharedString>(value);
+            auto &strValue = *storage.s;
             return Math::isNumber(strValue);
         }
 
         return false;
     }
     inline bool isNaN() const {
-        return isDouble() && std::isnan(std::get<double>(value));
+        return isDouble() && std::isnan(storage.d);
     }
 
     double asDouble() const;
@@ -71,7 +157,7 @@ class SE_EXPORT Value {
     SE_FORCEINLINE T get() const {
         if constexpr (std::is_same_v<T, double>) {
             SE_LIKELY_IF(isDouble()) {
-                const double d = std::get<double>(value);
+                const double d = storage.d;
                 SE_UNLIKELY_IF(std::isnan(d)) {
                     return 0.0;
                 }
@@ -80,7 +166,7 @@ class SE_EXPORT Value {
             return asDouble();
         } else if constexpr (std::is_same_v<T, float>) {
             SE_LIKELY_IF(isDouble()) {
-                const double d = std::get<double>(value);
+                const double d = storage.d;
                 SE_UNLIKELY_IF(std::isnan(d)) {
                     return 0.0;
                 }
@@ -89,7 +175,7 @@ class SE_EXPORT Value {
             return static_cast<float>(asDouble());
         } else if constexpr (std::is_same_v<T, int>) {
             SE_LIKELY_IF(isDouble()) {
-                const double d = std::get<double>(value);
+                const double d = storage.d;
                 SE_UNLIKELY_IF(std::isnan(d)) {
                     return 0;
                 }
@@ -98,12 +184,12 @@ class SE_EXPORT Value {
             return static_cast<int>(asDouble());
         } else if constexpr (std::is_same_v<T, bool>) {
             SE_LIKELY_IF(isBoolean()) {
-                return std::get<bool>(value);
+                return storage.b;
             }
             return asBoolean();
         } else if constexpr (std::is_same_v<T, std::string>) {
             SE_LIKELY_IF(isString()) {
-                return *std::get<SharedString>(value);
+                return *storage.s;
             }
             return asString();
         } else if constexpr (std::is_same_v<T, Color>) {
@@ -114,7 +200,7 @@ class SE_EXPORT Value {
     }
 
     SE_FORCEINLINE const std::string *tryGetStringRef() const {
-        if (isString()) return std::get<SharedString>(value).get();
+        if (isString()) return storage.s.get();
         return nullptr;
     }
 
