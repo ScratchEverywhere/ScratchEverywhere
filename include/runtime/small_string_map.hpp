@@ -39,4 +39,11 @@ class SmallStringMap {
         entries.push_back({key, V{}});
         return entries.back().second;
     }
+
+    void erase(const std::string &key) {
+        auto it = find(key);
+        if (it != entries.end()) entries.erase(it);
+    }
+
+    void clear() { entries.clear(); }
 };

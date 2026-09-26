@@ -77,7 +77,7 @@ struct SE_EXPORT ScriptThread {
     int finished = true;
     bool withoutScreenRefresh = false;
 
-    std::unordered_map<std::string, Value> MyBlocksVariablen;
+    SmallStringMap<Value> MyBlocksVariablen;
     Value returnValue;
 
     std::vector<Block *> callStack;
