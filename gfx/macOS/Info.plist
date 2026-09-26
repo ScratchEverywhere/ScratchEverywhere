@@ -16,5 +16,7 @@
     <string>scratch-macOS</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
   </dict>
 </plist>

@@ -32,6 +32,10 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cl-bootstrap.cmake")
 cl_repo()
 cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 
+if(APPLE AND NOT IOS)
+	set(CL_SDL2_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/sdl2-macos-gpu.patch")
+endif()
+
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
 set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")

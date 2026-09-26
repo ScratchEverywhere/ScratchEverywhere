@@ -1,0 +1,10 @@
+--- a/src/video/cocoa/SDL_cocoaopengl.m
++++ b/src/video/cocoa/SDL_cocoaopengl.m
+@@ -294,6 +294,11 @@
+     }
+
+     attr[i++] = NSOpenGLPFAAllowOfflineRenderers;
++    attr[i++] = kCGLPFASupportsAutomaticGraphicsSwitching;
+
+     profile = NSOpenGLProfileVersionLegacy;
+     if (_this->gl_config.profile_mask == SDL_GL_CONTEXT_PROFILE_CORE) {
