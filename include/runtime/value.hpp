@@ -2,8 +2,8 @@
 #include "color.hpp"
 #include "compiler_hints.hpp"
 #include "math.hpp"
-#include "shared_string.hpp"
 #include <cstdint>
+#include <memory>
 #include <new>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>
@@ -25,7 +25,7 @@ class SE_EXPORT Value {
     Tag tag;
     union Storage {
         double d;
-        SharedString s;
+        std::shared_ptr<const std::string> s;
         bool b;
         ::Color c;
 
@@ -34,13 +34,13 @@ class SE_EXPORT Value {
     } storage;
 
     SE_FORCEINLINE void destroyActive() {
-        if (tag == Tag::String) storage.s.~SharedString();
+        if (tag == Tag::String) storage.s.~shared_ptr();
     }
 
     SE_FORCEINLINE void constructFrom(const Value &other) {
         switch (other.tag) {
         case Tag::String:
-            new (&storage.s) SharedString(other.storage.s);
+            new (&storage.s) std::shared_ptr<const std::string>(other.storage.s);
             break;
         case Tag::Double:
             storage.d = other.storage.d;
@@ -59,7 +59,7 @@ class SE_EXPORT Value {
     SE_FORCEINLINE void constructFrom(Value &&other) {
         switch (other.tag) {
         case Tag::String:
-            new (&storage.s) SharedString(std::move(other.storage.s));
+            new (&storage.s) std::shared_ptr<const std::string>(std::move(other.storage.s));
             break;
         case Tag::Double:
             storage.d = other.storage.d;
@@ -77,7 +77,7 @@ class SE_EXPORT Value {
 
   public:
     // constructors
-    Value() : tag(Tag::String) { new (&storage.s) SharedString(); }
+    Value() : tag(Tag::String) { new (&storage.s) std::shared_ptr<const std::string>(std::make_shared<const std::string>()); }
 
     explicit Value(int val);
     explicit Value(double val);
