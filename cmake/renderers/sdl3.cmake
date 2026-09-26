@@ -3,6 +3,12 @@ if(TARGET renderer_interface)
 endif()
 add_library(renderer_interface INTERFACE)
 
+if(PS2) # rapid test
+set(SDLTTF_HARFBUZZ OFF CACHE BOOL "h" FORCE)
+else()
+set(SDLTTF_HARFBUZZ ON CACHE BOOL "h" FORCE)
+endif()
+
 cl_add_dep(renderer_interface SDL3)
 cl_add_dep(renderer_interface SDL3_ttf)
 
