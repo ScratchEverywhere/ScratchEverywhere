@@ -279,11 +279,16 @@ void SettingsMenu::render() {
             std::string str = ptr ? ptr : "";
             std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 
-            bool isKdeTdeOrLxqt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || str.find("LXQT") != std::string::npos);
-            std::string cmd = ((isKdeTdeOrLxqt) ? "/kdialog" : "/zenity");
+            bool is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || 
+			    str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos || 
+			    str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos || 
+			    str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos || 
+			    str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
+
+            std::string cmd = ((is_qt) ? "kdialog" : "zenity");
 
             while (std::getline(ss, buf, ':')) {
-                if (realpath((buf + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
                     // Expected dialog CLI executable exists in path!
                     in_path = true;
                     break;
