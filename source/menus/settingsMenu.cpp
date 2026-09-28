@@ -264,36 +264,98 @@ void SettingsMenu::render() {
 
         bool in_path = false;
         const char *path = std::getenv("PATH");
-
         if (path && path[0] != '\0') {
 
-            struct stat st;
-            std::string buf;
-
-            std::string cpp_path(path);
-            std::stringstream ss(cpp_path);
-
-            char resolved_path[PATH_MAX];
             const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
+			if (ptr && ptr[0] != '\0') {
 
-            std::string str = ptr ? ptr : "";
-            std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+            	std::string str = ptr;
+            	std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 
-            bool is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || 
-			    str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos || 
-			    str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos || 
-			    str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos || 
-			    str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
+            	bool is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || 
+			    	str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos || 
+			    	str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos || 
+			    	str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos || 
+			    	str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
 
-            std::string cmd = ((is_qt) ? "kdialog" : "zenity");
+				/*
+				 * I know this is a lot more code than it used to be, but we have to 
+				 * take into account falling back to kdialog if zenity doesn't exist 
+				 * and vise-versa. A fatal GUI X11 error shows when neither exist...
+				 */
 
-            while (std::getline(ss, buf, ':')) {
-                if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
-                    // Expected dialog CLI executable exists in path!
-                    in_path = true;
-                    break;
-                }
-            }
+				if (is_qt) {
+					struct stat st;
+					std::string buf;
+
+            		std::string cpp_path(path);
+            		std::stringstream ss(cpp_path);
+
+            		char resolved_path[PATH_MAX];
+            		std::string cmd = "kdialog";
+
+            		while (std::getline(ss, buf, ':')) {
+                		if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    		// Expected dialog CLI executable exists in path!
+                   			in_path = true;
+                    		break;
+                		}
+            		}
+					if (!in_path) {
+						struct stat st;
+						std::string buf;
+
+            			std::string cpp_path(path);
+            			std::stringstream ss(cpp_path);
+
+            			char resolved_path[PATH_MAX];
+            			std::string cmd = "zenity";
+
+            			while (std::getline(ss, buf, ':')) {
+                			if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    			// Expected dialog CLI executable exists in path!
+                   				in_path = true;
+                    			break;
+                			}
+            			}
+					}
+				} else {
+					struct stat st;
+					std::string buf;
+
+            		std::string cpp_path(path);
+            		std::stringstream ss(cpp_path);
+
+            		char resolved_path[PATH_MAX];
+            		std::string cmd = "zenity";
+
+            		while (std::getline(ss, buf, ':')) {
+                		if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    		// Expected dialog CLI executable exists in path!
+                   			in_path = true;
+                    		break;
+                		}
+            		}
+					if (!in_path) {
+						struct stat st;
+						std::string buf;
+
+            			std::string cpp_path(path);
+            			std::stringstream ss(cpp_path);
+
+            			char resolved_path[PATH_MAX];
+            			std::string cmd = "kdialog";
+
+            			while (std::getline(ss, buf, ':')) {
+                			if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                    			// Expected dialog CLI executable exists in path!
+                   				in_path = true;
+                    			break;
+                			}
+            			}
+					}
+				}
+			}
         }
 
         std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
