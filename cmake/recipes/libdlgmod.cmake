@@ -47,6 +47,8 @@ function(_recipe_libdlgmod_source)
 	# Believe it or not all these if-platform checks are actually necessary; do not ask me why; it makes just as little sense to me as you.
 	# I tried having USE_SDL_POLLEVENT, USE_SDL2_POLLEVENT, and USE_SDL3_POLLEVENT defined on platforms besides these and everything broke.
 	if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO)
+		# Suppress fatal GUI X11 error dialog when zenity+kdialog are not found in $PATH
+		target_compile_definitions(libdlgmod PUBLIC LIBDLGMOD_SUPPRESS_DEPENDENCY_ERROR)
 		if(SE_WINDOWING STREQUAL "sdl1")
 			cl_add_dep(libdlgmod SDL)
 			target_compile_definitions(libdlgmod PUBLIC USE_SDL_POLLEVENT)
