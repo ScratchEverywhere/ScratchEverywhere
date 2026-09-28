@@ -207,7 +207,7 @@ int main(int argc, char **argv) {
         }
     }
 #endif
-    
+
     if (!initApp()) {
         exitApp();
         return 1;
