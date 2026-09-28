@@ -1,6 +1,20 @@
 #ifndef LIBRETRO
 #include "image.hpp"
 #include "translation.hpp"
+
+#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include "hasdeps.hpp"
+#include <libdlgmod/libdlgmod.h>
+#if !defined(USE_LIBDLGMOD)
+#define USE_LIBDLGMOD
+#endif
+#include <algorithm>
+#include <climits>
+#include <cstdlib>
+#include <sstream>
+#include <sys/stat.h>
+#endif
+
 #include <log.hpp>
 #ifdef ENABLE_MENU
 #include <menus/mainMenu.hpp>
