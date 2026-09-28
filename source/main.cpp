@@ -113,7 +113,7 @@ void mainLoop() {
 
 bool in_path = true;
 bool hasdeps() {
-  return in_path;
+    return in_path;
 }
 
 #if defined(WINDOWING_SDL1) || defined(WINDOWING_SDL2)
