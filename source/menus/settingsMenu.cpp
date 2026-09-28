@@ -8,13 +8,6 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <algorithm>
 #endif
-#if (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
-#include <algorithm>
-#include <climits>
-#include <cstdlib>
-#include <sstream>
-#include <sys/stat.h>
-#endif
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
 #endif
@@ -250,7 +243,7 @@ void SettingsMenu::render() {
         // FIXME: Translate this into every localization supported by SE!
         const char *folder_picker_dialog_titlebar_caption = "Select a custom path to load *.sb3 Scratch project files...";
 
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 
         std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
 
@@ -259,109 +252,6 @@ void SettingsMenu::render() {
 #endif
 
         const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
-
-#elif (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
-
-        bool in_path = false;
-        const char *path = std::getenv("PATH");
-        if (path && path[0] != '\0') {
-
-            const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
-			if (ptr && ptr[0] != '\0') {
-
-            	std::string str = ptr;
-            	std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-
-            	bool is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || 
-			    	str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos || 
-			    	str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos || 
-			    	str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos || 
-			    	str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
-
-				/*
-				 * I know this is a lot more code than it used to be, but we have to 
-				 * take into account falling back to kdialog if zenity doesn't exist 
-				 * and vise-versa. A fatal GUI X11 error shows when neither exist...
-				 */
-
-				if (is_qt) {
-					struct stat st;
-					std::string buf;
-
-            		std::string cpp_path(path);
-            		std::stringstream ss(cpp_path);
-
-            		char resolved_path[PATH_MAX];
-            		std::string cmd = "kdialog";
-
-            		while (std::getline(ss, buf, ':')) {
-                		if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
-                    		// Expected dialog CLI executable exists in path!
-                   			in_path = true;
-                    		break;
-                		}
-            		}
-					if (!in_path) {
-						struct stat st;
-						std::string buf;
-
-            			std::string cpp_path(path);
-            			std::stringstream ss(cpp_path);
-
-            			char resolved_path[PATH_MAX];
-            			std::string cmd = "zenity";
-
-            			while (std::getline(ss, buf, ':')) {
-                			if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
-                    			// Expected dialog CLI executable exists in path!
-                   				in_path = true;
-                    			break;
-                			}
-            			}
-					}
-				} else {
-					struct stat st;
-					std::string buf;
-
-            		std::string cpp_path(path);
-            		std::stringstream ss(cpp_path);
-
-            		char resolved_path[PATH_MAX];
-            		std::string cmd = "zenity";
-
-            		while (std::getline(ss, buf, ':')) {
-                		if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
-                    		// Expected dialog CLI executable exists in path!
-                   			in_path = true;
-                    		break;
-                		}
-            		}
-					if (!in_path) {
-						struct stat st;
-						std::string buf;
-
-            			std::string cpp_path(path);
-            			std::stringstream ss(cpp_path);
-
-            			char resolved_path[PATH_MAX];
-            			std::string cmd = "kdialog";
-
-            			while (std::getline(ss, buf, ':')) {
-                			if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
-                    			// Expected dialog CLI executable exists in path!
-                   				in_path = true;
-                    			break;
-                			}
-            			}
-					}
-				}
-			}
-        }
-
-        std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
-        const std::string newPath = ((in_path) ? ((newPathGui.empty()) ? projectsPath : newPathGui) : Input::openSoftwareKeyboard(projectsPath.c_str()));
-
-#endif
 
 #else
 
