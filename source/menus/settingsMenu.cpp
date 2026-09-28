@@ -3,6 +3,7 @@
 #include "menuObjects.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
+#include "hasdeps.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <libdlgmod/libdlgmod.h>
 #if defined(_WIN32) || defined(_WIN64)
@@ -248,10 +249,10 @@ void SettingsMenu::render() {
         std::string newPathGui = get_directory_alt(folder_picker_dialog_titlebar_caption, "");
 
 #if defined(_WIN32) || defined(_WIN64)
-		std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
+        std::replace(newPathGui.begin(), newPathGui.end(), '\\', '/'); // Normalize path separators
 #endif
 
-        const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
+        const std::string newPath = ((newPathGui.empty()) ? ((!hasdeps()) ? Input::openSoftwareKeyboard(projectsPath.c_str()) : projectsPath) : newPathGui);
 
 #endif
 
