@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
                     if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
                         // Expected dialog CLI executable exists in path!
                         widget_set_system("KDialog");
-                           in_path = true;
+                        in_path = true;
                         break;
                     }
                 }
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
                         if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
                             // Expected dialog CLI executable exists in path!
                             widget_set_system("Zenity");
-                               in_path = true;
+                            in_path = true;
                             break;
                         }
                     }
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
                     if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
                         // Expected dialog CLI executable exists in path!
                         widget_set_system("Zenity");
-                           in_path = true;
+                        in_path = true;
                         break;
                     }
                 }
@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
                         if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
                             // Expected dialog CLI executable exists in path!
                             widget_set_system("KDialog");
-                               in_path = true;
+                            in_path = true;
                             break;
                         }
                     }
