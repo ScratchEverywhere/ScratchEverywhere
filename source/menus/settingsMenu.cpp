@@ -253,6 +253,8 @@ void SettingsMenu::render() {
 
         const std::string newPath = ((newPathGui.empty()) ? projectsPath : newPathGui);
 
+#endif
+
 #else
 
         const std::string newPath = Input::openSoftwareKeyboard(projectsPath.c_str());
