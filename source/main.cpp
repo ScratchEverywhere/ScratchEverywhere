@@ -123,6 +123,102 @@ extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
+#if defined(USE_LIBDLGMOD) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
+    in_path = false;
+    const char *path = std::getenv("PATH");
+    if (path && path[0] != '\0') {
+
+        const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
+        if (ptr && ptr[0] != '\0') {
+
+            std::string str = ptr;
+            std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+
+            bool is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || 
+                str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos || 
+                str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos || 
+                str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos || 
+                str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
+
+            if (is_qt) {
+                struct stat st;
+                std::string buf;
+
+                std::string cpp_path(path);
+                std::stringstream ss(cpp_path);
+
+                char resolved_path[PATH_MAX];
+                std::string cmd = "kdialog";
+
+                while (std::getline(ss, buf, ':')) {
+                    if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                        // Expected dialog CLI executable exists in path!
+                        widget_set_system("KDialog");
+                        in_path = true;
+                        break;
+                    }
+                }
+                if (!in_path) {
+                    struct stat st;
+                    std::string buf;
+
+                    std::string cpp_path(path);
+                    std::stringstream ss(cpp_path);
+
+                    char resolved_path[PATH_MAX];
+                    std::string cmd = "zenity";
+
+                    while (std::getline(ss, buf, ':')) {
+                        if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                            // Expected dialog CLI executable exists in path!
+                            widget_set_system("Zenity");
+                            in_path = true;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                struct stat st;
+                std::string buf;
+
+                std::string cpp_path(path);
+                std::stringstream ss(cpp_path);
+
+                char resolved_path[PATH_MAX];
+                std::string cmd = "zenity";
+
+                while (std::getline(ss, buf, ':')) {
+                    if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                        // Expected dialog CLI executable exists in path!
+                        widget_set_system("Zenity");
+                        in_path = true;
+                        break;
+                    }
+                }
+                if (!in_path) {
+                    struct stat st;
+                    std::string buf;
+
+                    std::string cpp_path(path);
+                    std::stringstream ss(cpp_path);
+
+                    char resolved_path[PATH_MAX];
+                    std::string cmd = "kdialog";
+
+                    while (std::getline(ss, buf, ':')) {
+                        if (realpath((buf + std::string("/") + cmd).c_str(), resolved_path) && !stat(resolved_path, &st) && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR)) {
+                            // Expected dialog CLI executable exists in path!
+                            widget_set_system("KDialog");
+                            in_path = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+#endif
+
     if (!initApp()) {
         exitApp();
         return 1;
