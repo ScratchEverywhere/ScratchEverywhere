@@ -93,15 +93,12 @@ void Image_GLCore::render(ImageRenderParams &params) {
     float pivotX = centered ? 0.5f : 0.0f;
     float pivotY = centered ? 0.5f : 0.0f;
 
-    float drawX = x;
-    if (flip) drawX += renderWidth * std::abs(scaleX);
-
     float model[16];
     buildModelMatrix(model,
-                     drawX, y,
+                     x, y,
                      (float)renderWidth * scaleX,
                      (float)renderHeight * scaleY,
-                     -rotation,
+                     rotation,
                      pivotX, pivotY);
 
     float proj[16];

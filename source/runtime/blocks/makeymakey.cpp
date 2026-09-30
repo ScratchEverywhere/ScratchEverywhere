@@ -15,10 +15,9 @@ SCRATCH_BLOCK(makeymakey, whenMakeyKeyPressed) {
 
 SCRATCH_BLOCK(makeymakey, whenCodePressed) {
     if (Input::codePressedBlockOpcodes.find(block) != Input::codePressedBlockOpcodes.end()) return BlockResult::RETURN;
-    Value sequence;
-    if (!Scratch::getInputValue(block, "SEQUENCE", thread, sprite, sequence)) return BlockResult::REPEAT;
+    std::string input;
+    if (!Scratch::getInputValueAs(block, "SEQUENCE", thread, sprite, input)) return BlockResult::REPEAT;
 
-    std::string input = sequence.asString();
     std::vector<std::string> keySequence;
     size_t start = 0;
     size_t end = input.find(' ');

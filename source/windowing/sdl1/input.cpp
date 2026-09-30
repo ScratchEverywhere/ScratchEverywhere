@@ -37,6 +37,8 @@ std::array<int, 2> Input::getTouchPosition() {
     SDL_GetMouseState(&rawMouseX, &rawMouseY);
     pos[0] = rawMouseX;
     pos[1] = rawMouseY;
+    Input::applyInputViewportOffset(pos[0], pos[1]);
+    Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
 #endif
 
     return pos;

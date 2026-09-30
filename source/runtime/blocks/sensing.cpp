@@ -12,9 +12,9 @@ SCRATCH_BLOCK(sensing, resettimer) {
 }
 
 SCRATCH_BLOCK(sensing, askandwait) {
-    Value input;
-    if (!Scratch::getInputValue(block, "QUESTION", thread, sprite, input)) return BlockResult::REPEAT;
-    Scratch::answer = Input::openSoftwareKeyboard(input.asString().c_str());
+    std::string input;
+    if (!Scratch::getInputValueAs(block, "QUESTION", thread, sprite, input)) return BlockResult::REPEAT;
+    Scratch::answer = Input::openSoftwareKeyboard(input.c_str());
 
     return BlockResult::CONTINUE;
 }
@@ -37,15 +37,15 @@ SCRATCH_BLOCK(sensing, timer) {
 }
 
 SCRATCH_BLOCK(sensing, of) {
-    Value object;
-    if (!Scratch::getInputValue(block, "OBJECT", thread, sprite, object)) return BlockResult::REPEAT;
+    std::string object;
+    if (!Scratch::getInputValueAs(block, "OBJECT", thread, sprite, object)) return BlockResult::REPEAT;
 
     const std::string value = Scratch::getFieldValue(*block, "PROPERTY");
     *outValue = Value(0);
 
     Sprite *spriteObject = nullptr;
     for (Sprite *currentSprite : Scratch::sprites) {
-        if (!currentSprite->isClone && (currentSprite->name == object.asString() || (object.asString() == "_stage_" && currentSprite->isStage))) {
+        if (!currentSprite->isClone && (currentSprite->name == object || (object == "_stage_" && currentSprite->isStage))) {
             spriteObject = currentSprite;
             break;
         }
@@ -90,10 +90,10 @@ SCRATCH_BLOCK(sensing, mousey) {
 }
 
 SCRATCH_BLOCK(sensing, distanceto) {
-    Value distanceTo;
-    if (!Scratch::getInputValue(block, "DISTANCETOMENU", thread, sprite, distanceTo)) return BlockResult::REPEAT;
+    std::string distanceTo;
+    if (!Scratch::getInputValueAs(block, "DISTANCETOMENU", thread, sprite, distanceTo)) return BlockResult::REPEAT;
 
-    if (distanceTo.asString() == "_mouse_") {
+    if (distanceTo == "_mouse_") {
         const double dx = Input::mousePointer.x - sprite->xPosition;
         const double dy = Input::mousePointer.y - sprite->yPosition;
         *outValue = Value(std::sqrt(dx * dx + dy * dy));
@@ -101,7 +101,7 @@ SCRATCH_BLOCK(sensing, distanceto) {
     }
 
     for (Sprite *currentSprite : Scratch::sprites) {
-        if (currentSprite->isClone || currentSprite->name != distanceTo.asString()) continue;
+        if (currentSprite->isClone || currentSprite->name != distanceTo) continue;
         const double dx = currentSprite->xPosition - sprite->xPosition;
         const double dy = currentSprite->yPosition - sprite->yPosition;
         *outValue = Value(std::sqrt(dx * dx + dy * dy));
@@ -151,20 +151,20 @@ SCRATCH_BLOCK(sensing, keypressed) {
 }
 
 SCRATCH_BLOCK(sensing, touchingobject) {
-    Value touchingObject;
-    if (!Scratch::getInputValue(block, "TOUCHINGOBJECTMENU", thread, sprite, touchingObject)) return BlockResult::REPEAT;
+    std::string touchingObject;
+    if (!Scratch::getInputValueAs(block, "TOUCHINGOBJECTMENU", thread, sprite, touchingObject)) return BlockResult::REPEAT;
 
-    if (touchingObject.asString() == "_mouse_")
+    if (touchingObject == "_mouse_")
         *outValue = Value(Scratch::isColliding("mouse", sprite));
-    else if (touchingObject.asString() == "_edge_")
+    else if (touchingObject == "_edge_")
         *outValue = Value(Scratch::isColliding("edge", sprite));
     else {
         *outValue = Value(false);
         for (size_t i = 0; i < Scratch::sprites.size(); i++) {
             Sprite *currentSprite = Scratch::sprites[i];
             if (currentSprite == sprite) continue;
-            if (currentSprite->name == touchingObject.asString() &&
-                Scratch::isColliding("sprite", sprite, currentSprite, touchingObject.asString())) {
+            if (currentSprite->name == touchingObject &&
+                Scratch::isColliding("sprite", sprite, currentSprite, touchingObject)) {
                 *outValue = Value(true);
                 return BlockResult::CONTINUE;
             }

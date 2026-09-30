@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 1.0 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.1 LANGUAGES CXX C)
 
 if(APPLE)
 	enable_language(OBJC)
@@ -32,10 +32,14 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cl-bootstrap.cmake")
 cl_repo()
 cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 
+if(APPLE AND NOT IOS)
+	set(CL_SDL2_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/sdl2-macos-gpu.patch")
+endif()
+
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
 set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
-set(SE_APP_VERSION "1.0" CACHE STRING "Version of the outputed app.")
+set(SE_APP_VERSION "1.1" CACHE STRING "Version of the outputed app.")
 
 if(VITA)
 	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
@@ -441,7 +445,7 @@ else()
 endif()
 cl_add_dep(se-interface expected-lite)
 cl_add_dep(se-interface __getexecname)
-if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS)
+if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO)
 	cl_add_dep(se-interface libdlgmod)
 endif()
 

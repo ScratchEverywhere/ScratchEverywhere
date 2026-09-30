@@ -1,5 +1,6 @@
 #pragma once
 #include <se_export.hpp>
+#include "small_string_map.hpp"
 #include "value.hpp"
 #include <functional>
 #include <memory>
@@ -76,7 +77,7 @@ struct SE_EXPORT ScriptThread {
     int finished = true;
     bool withoutScreenRefresh = false;
 
-    std::unordered_map<std::string, Value> MyBlocksVariablen;
+    SmallStringMap<Value> MyBlocksVariablen;
     Value returnValue;
 
     std::vector<Block *> callStack;
@@ -214,8 +215,8 @@ struct SE_EXPORT Block {
     std::vector<std::pair<std::string, ParsedInput>> inputs;
     std::vector<std::pair<std::string, ParsedField>> fields;
 
-    std::unordered_map<std::string, ParsedInput *> inputMap;
-    std::unordered_map<std::string, ParsedField *> fieldMap;
+    SmallStringMap<ParsedInput *> inputMap;
+    SmallStringMap<ParsedField *> fieldMap;
 
     bool recalculateInputs = false;
 };

@@ -51,6 +51,11 @@ static GLuint penTexture = 0;
 static int penWidth = 0;
 static int penHeight = 0;
 
+static GLuint penMSFBO = 0;
+static GLuint penMSColorRB = 0;
+static bool penNeedsResolve = false;
+static constexpr GLsizei kPenSamples = 4;
+
 GLuint spriteProgram = 0;
 
 static GLuint solidProgram = 0;
@@ -332,8 +337,8 @@ static bool createPenFBO() {
 
     glGenTextures(1, &penTexture);
     glBindTexture(GL_TEXTURE_2D, penTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -359,10 +364,44 @@ static bool createPenFBO() {
     glClear(GL_COLOR_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
 
+    glGenRenderbuffers(1, &penMSColorRB);
+    glBindRenderbuffer(GL_RENDERBUFFER, penMSColorRB);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, kPenSamples, GL_RGBA8, penWidth, penHeight);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    glGenFramebuffers(1, &penMSFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, penMSFBO);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, penMSColorRB);
+
+    GLenum msStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (msStatus != GL_FRAMEBUFFER_COMPLETE) {
+        Log::logError("[GL Core] Pen multisample FBO incomplete");
+        glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+        glDeleteFramebuffers(1, &penMSFBO);
+        glDeleteRenderbuffers(1, &penMSColorRB);
+        glDeleteFramebuffers(1, &penFBO);
+        glDeleteTextures(1, &penTexture);
+        penMSFBO = penMSColorRB = penFBO = penTexture = 0;
+        return false;
+    }
+
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+    penNeedsResolve = false;
+
     return true;
 }
 
 static void destroyPenFBO() {
+    if (penMSFBO) {
+        glDeleteFramebuffers(1, &penMSFBO);
+        penMSFBO = 0;
+    }
+    if (penMSColorRB) {
+        glDeleteRenderbuffers(1, &penMSColorRB);
+        penMSColorRB = 0;
+    }
     if (penFBO) {
         glDeleteFramebuffers(1, &penFBO);
         penFBO = 0;
@@ -372,6 +411,16 @@ static void destroyPenFBO() {
         penTexture = 0;
     }
     penWidth = penHeight = 0;
+    penNeedsResolve = false;
+}
+
+static void resolvePenFBOIfNeeded() {
+    if (!penNeedsResolve) return;
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, penMSFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, penFBO);
+    glBlitFramebuffer(0, 0, penWidth, penHeight, 0, 0, penWidth, penHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+    penNeedsResolve = false;
 }
 
 static GLuint dynamicVAO = 0, dynamicVBO = 0;
@@ -628,15 +677,16 @@ bool Render::initPen() {
 
 void Render::penClear() {
     if (penFBO == getMainFBO()) return;
-    glBindFramebuffer(GL_FRAMEBUFFER, penFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, penMSFBO);
     glViewport(0, 0, penWidth, penHeight);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+    penNeedsResolve = true;
 }
 
 static void penBegin() {
-    glBindFramebuffer(GL_FRAMEBUFFER, penFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, penMSFBO);
     glViewport(0, 0, penWidth, penHeight);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -645,6 +695,7 @@ static void penBegin() {
 static void penEnd() {
     glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
     glViewport(0, 0, Render::getWidth(), Render::getHeight());
+    penNeedsResolve = true;
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
@@ -765,6 +816,8 @@ void Render::drawBox(int w, int h, int x, int y,
 void Render::renderPenLayer() {
     if (penTexture == 0) return;
 
+    resolvePenFBOIfNeeded();
+
     float projectAspect = (float)Scratch::projectWidth / Scratch::projectHeight;
     float windowAspect = (float)getWidth() / getHeight();
 
@@ -808,7 +861,7 @@ void Render::renderPenLayer() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, penTexture);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     glBindVertexArray(quadVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);

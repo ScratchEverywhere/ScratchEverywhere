@@ -19,11 +19,10 @@ SCRATCH_BLOCK(event, whenstageclicked) {
 }
 
 SCRATCH_BLOCK(event, broadcast) {
-    Value broadcast;
+    std::string broadcast;
 
-    if (!Scratch::getInputValue(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
-    std::string broadcastStr = broadcast.asString();
-    std::transform(broadcastStr.begin(), broadcastStr.end(), broadcastStr.begin(), ::tolower);
+    if (!Scratch::getInputValueAs(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
+    std::transform(broadcast.begin(), broadcast.end(), broadcast.begin(), ::tolower);
 
     for (auto &spr : Scratch::sprites) {
         if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
@@ -32,7 +31,7 @@ SCRATCH_BLOCK(event, broadcast) {
             std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
             std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
 
-            if (broadcastOption == broadcastStr) {
+            if (broadcastOption == broadcast) {
                 BlockExecutor::startThread(spr, hat);
             }
         }
@@ -44,11 +43,10 @@ SCRATCH_BLOCK(event, broadcast) {
 SCRATCH_BLOCK(event, broadcastandwait) {
     BlockState *state = thread->getState(block);
     if (state->completedSteps == 0) {
-        Value broadcastValue;
+        std::string broadcast;
 
-        if (!Scratch::getInputValue(block, "BROADCAST_INPUT", thread, sprite, broadcastValue)) return BlockResult::REPEAT;
-        std::string broadcastStr = broadcastValue.asString();
-        std::transform(broadcastStr.begin(), broadcastStr.end(), broadcastStr.begin(), ::tolower);
+        if (!Scratch::getInputValueAs(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
+        std::transform(broadcast.begin(), broadcast.end(), broadcast.begin(), ::tolower);
 
         for (auto &spr : Scratch::sprites) {
             if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
@@ -57,7 +55,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
                 std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
                 std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
 
-                if (broadcastOption == broadcastStr) {
+                if (broadcastOption == broadcast) {
                     state->threads.push_back(BlockExecutor::startThread(spr, hat)->id);
                 }
             }
@@ -81,7 +79,7 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     return BlockResult::CONTINUE;
 }
 
-// TODO: This is currently very poorly optimized. Please fix it, thank you.
+// FIXME: This is currently very poorly optimized. Please fix it, thank you.
 SCRATCH_BLOCK(event, whenkeypressed) {
     return BlockResult::CONTINUE;
 }

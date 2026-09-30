@@ -155,19 +155,21 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
     Timer executionTimer(false);
     if (Scratch::warpTimer) executionTimer.start();
     Block *currentBlock = nullptr;
+    unsigned int blocksSinceTimeCheck = 0;
+    constexpr unsigned int timeCheckInterval = 64;
     do {
         currentBlock = thread.nextBlock;
         thread.nextBlock = currentBlock->nextBlock;
 
         var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
-        currentBlock->recalculateInputs = false;
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
             Scratch::resetInput(currentBlock);
         }
 
-        if (Scratch::warpTimer && thread.withoutScreenRefresh && executionTimer.getTimeMs() > 500) {
-            break;
+        if (Scratch::warpTimer && thread.withoutScreenRefresh && ++blocksSinceTimeCheck >= timeCheckInterval) {
+            blocksSinceTimeCheck = 0;
+            if (executionTimer.getTimeMs() > 500) break;
         }
 
     } while ((var == BlockResult::CONTINUE_IMMEDIATELY || (var == BlockResult::CONTINUE && (!currentBlock->isEndBlock || thread.withoutScreenRefresh))) && !thread.finished && thread.nextBlock != nullptr && !Scratch::shouldStop);
@@ -385,7 +387,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
             std::string result;
             std::string seperator = "";
             for (const auto &item : listIt->second.items) {
-                if (item.asString().size() > 1 || !item.isString()) {
+                if (!item.isString() || item.get<std::string>().size() > 1) {
                     seperator = " ";
                     break;
                 }
@@ -404,7 +406,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
         std::string result;
         std::string seperator = "";
         for (const auto &item : globalListIt->second.items) {
-            if (item.asString().size() > 1 || !item.isString()) {
+            if (!item.isString() || item.get<std::string>().size() > 1) {
                 seperator = " ";
                 break;
             }

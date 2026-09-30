@@ -1,6 +1,7 @@
 #ifdef LIBRETRO
 #include <libretro.h>
 #include <window.hpp>
+#include <runtime.hpp>
 
 extern WindowSE *globalWindow;
 
@@ -243,6 +244,7 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code) {
 }
 
 void retro_reset(void) {
+Scratch::greenFlagClicked();
 }
 }
 #endif

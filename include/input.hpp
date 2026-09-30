@@ -1,5 +1,4 @@
 #pragma once
-#include <se_export.hpp>
 #include <algorithm>
 #include <array>
 #include <fstream>
@@ -7,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <os.hpp>
 #include <runtime.hpp>
+#include <se_export.hpp>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -45,6 +45,17 @@ class SE_EXPORT Input {
     static std::array<int, 2> getTouchPosition();
 
     static void getInput();
+
+    static int inputViewportX, inputViewportY, inputViewportW, inputViewportH;
+    static void setInputViewport(int x, int y, int w, int h);
+    static void clearInputViewport();
+    static bool hasInputViewport();
+    static void applyInputViewportOffset(int &x, int &y);
+    static void scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int renderHeight);
+
+    static void *inputWindowHandleOverride;
+    static void setInputWindowHandle(void *handle);
+    static void clearInputWindowHandle();
 
     static void applyControls(std::string controlsFilePath = "");
     static void buttonPress(std::string button);
