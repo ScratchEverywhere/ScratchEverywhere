@@ -1,6 +1,6 @@
+#include "os.hpp"
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#include <os.hpp>
 
 #if defined(RENDERER_SDL2)
 

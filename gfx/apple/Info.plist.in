@@ -16,8 +16,47 @@
     <string>@SE_OUTPUT_NAME@</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+      <dict>
+        <key>CFBundleTypeName</key>
+        <string>Scratch 3 Project</string>
+        <key>CFBundleTypeRole</key>
+        <string>Viewer</string>
+        <key>LSHandlerRank</key>
+        <string>Owner</string>
+        <key>LSItemContentTypes</key>
+        <array>
+          <string>com.se.sb3</string>
+        </array>
+      </dict>
+    </array>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.games</string>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+      <dict>
+        <key>UTTypeDescription</key>
+        <string>Scratch 3 Project</string>
+        <key>UTTypeIdentifier</key>
+        <string>com.se.sb3</string>
+          <key>UTTypeConformsTo</key>
+          <array>
+            <string>public.data</string>
+          </array>
+          <key>UTTypeTagSpecification</key>
+          <dict>
+            <key>public.filename-extension</key>
+            <array>
+              <string>sb3</string>
+            </array>
+          </dict>
+      </dict>
+    </array>
+    <key>UIFileSharingEnabled</key>
+    <true/>
     <key>UILaunchStoryboardName</key>
     <string>LaunchScreen</string>
     <key>UIRequiresFullScreen</key>
