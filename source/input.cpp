@@ -122,7 +122,7 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
         case 39:
             return "right arrow";
             break;
-        case 50:
+        case 40:
             return "down arrow";
             break;
         };
