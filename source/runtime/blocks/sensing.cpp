@@ -1,7 +1,7 @@
 #include "blockUtils.hpp"
 #include <cmath>
 #include <input.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 #include <utility>
 #include <value.hpp>
 #include <vector>

@@ -1,8 +1,8 @@
 #pragma once
 #include <se_export.hpp>
 
-#include "sprite.hpp"
 #include "text.hpp"
+#include "types.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>

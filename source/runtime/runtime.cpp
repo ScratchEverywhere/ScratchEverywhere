@@ -5,8 +5,8 @@
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
-#include "sprite.hpp"
 #include "translation.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include <audio.hpp>
 #include <cmath>

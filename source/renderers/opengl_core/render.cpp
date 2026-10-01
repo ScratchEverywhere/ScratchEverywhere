@@ -27,8 +27,8 @@
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <sprite.hpp>
 #include <string>
+#include <types.hpp>
 #include <unordered_map>
 #include <unzip.hpp>
 #include <vector>

@@ -6,8 +6,8 @@
 #include <input.hpp>
 #include <map>
 #include <render.hpp>
-#include <sprite.hpp>
 #include <string>
+#include <types.hpp>
 #include <vector>
 
 #ifdef PLATFORM_HAS_CONTROLLER

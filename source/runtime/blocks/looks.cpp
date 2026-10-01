@@ -9,7 +9,7 @@
 #include <render.hpp>
 #include <set>
 #include <speech_manager.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 #include <value.hpp>
 
 SCRATCH_BLOCK(looks, say) {

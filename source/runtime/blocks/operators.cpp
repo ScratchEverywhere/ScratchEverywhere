@@ -3,7 +3,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <math.h>
-#include <sprite.hpp>
+#include <types.hpp>
 #include <value.hpp>
 
 SCRATCH_BLOCK(operator, add) {

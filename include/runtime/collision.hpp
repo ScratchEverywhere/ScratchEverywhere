@@ -1,7 +1,7 @@
 #pragma once
 #include <se_export.hpp>
 
-#include "sprite.hpp"
+#include "types.hpp"
 #include <image.hpp>
 #include <memory>
 #include <vector>

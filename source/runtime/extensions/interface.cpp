@@ -7,8 +7,8 @@
 #include "log.hpp"
 #include "meta.hpp"
 #include "runtime_extension.hpp"
-#include "sprite.hpp"
 #include "timer.hpp"
+#include "types.hpp"
 #include "value.hpp"
 #include <os.hpp>
 #include <runtime.hpp>

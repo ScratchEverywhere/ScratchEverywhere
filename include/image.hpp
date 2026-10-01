@@ -8,8 +8,8 @@
 #include <cstddef>
 #include <memory.h>
 #include <miniz.h>
-#include <sprite.hpp>
 #include <string>
+#include <types.hpp>
 #include <vector>
 
 struct SE_EXPORT ImageSubrect {
