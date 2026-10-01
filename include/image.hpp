@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <optional>
+#include <se_export.hpp>
 #ifdef ENABLE_SVG
 #include "lunasvg.h"
 #endif

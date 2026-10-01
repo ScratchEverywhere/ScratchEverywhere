@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <image.hpp>
+#include <se_export.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>

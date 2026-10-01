@@ -1,8 +1,8 @@
 #pragma once
-#include <se_export.hpp>
 #include <cstdint>
 #include <nonstd/expected.hpp>
 #include <ryu/d2s.h>
+#include <se_export.hpp>
 #include <string>
 #ifndef M_PI
 #define M_PI 3.1415926535897932

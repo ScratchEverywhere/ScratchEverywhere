@@ -1,10 +1,10 @@
 #pragma once
-#include <se_export.hpp>
 #include "small_string_map.hpp"
 #include "value.hpp"
 #include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <se_export.hpp>
 #include <string>
 #include <timer.hpp>
 #include <unordered_map>

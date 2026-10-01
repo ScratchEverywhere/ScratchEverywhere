@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include "mainMenu.hpp"
 #include "menuObjects.hpp"
+#include <se_export.hpp>
 
 class SE_EXPORT ProjectSettings : public Menu {
   private:

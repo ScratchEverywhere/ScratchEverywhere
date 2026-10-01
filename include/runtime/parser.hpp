@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include <nlohmann/json.hpp>
+#include <se_export.hpp>
 #include <sprite.hpp>
 #include <unordered_map>
 

@@ -1,10 +1,10 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <3ds.h>
 #include <citro2d.h>
 #include <citro3d.h>
 #include <image.hpp>
+#include <se_export.hpp>
 #include <string>
 
 class SE_EXPORT Image_C2D : public Image {
