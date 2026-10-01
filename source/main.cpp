@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
     if (path && path[0] != '\0') {
 
         const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
-        std::string str = ((ptr && ptr[0] != '\0') ? ptr : "");
+        std::string str = ((ptr) ? ptr : "");
 
         if (!str.empty()) {
             std::transform(str.begin(), str.end(), str.begin(), ::toupper);
