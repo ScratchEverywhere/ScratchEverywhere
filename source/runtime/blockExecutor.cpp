@@ -113,7 +113,7 @@ void BlockExecutor::runThreads() {
             continue;
         }
 
-        var = runThread(*thread, *thread->sprite, nullptr);
+        var = runThread(*thread, *thread->sprite);
 
         if (Scratch::shouldStop) return;
         i++;
@@ -149,7 +149,7 @@ void BlockExecutor::runThreads() {
     }
 }
 
-BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value *outValue) {
+BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite) {
     if (thread.nextBlock == nullptr) return BlockResult::RETURN;
     BlockResult var = BlockResult::CONTINUE;
     Timer executionTimer(false);
@@ -161,7 +161,34 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         currentBlock = thread.nextBlock;
         thread.nextBlock = currentBlock->nextBlock;
 
-        var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
+        switch (currentBlock->blockFunction.type) {
+        case ParsedInput::Type::Value: {
+            Value blockOutValue;
+            var = currentBlock->blockFunction.func.value(currentBlock, &thread, &sprite, &blockOutValue);
+            break;
+        }
+        case ParsedInput::Type::Number: {
+            double blockOutDouble;
+            var = currentBlock->blockFunction.func.number(currentBlock, &thread, &sprite, &blockOutDouble);
+            break;
+        }
+        case ParsedInput::Type::String: {
+            std::string blockOutString;
+            var = currentBlock->blockFunction.func.string(currentBlock, &thread, &sprite, &blockOutString);
+            break;
+        }
+        case ParsedInput::Type::Boolean: {
+            bool blockOutBool;
+            var = currentBlock->blockFunction.func.boolean(currentBlock, &thread, &sprite, &blockOutBool);
+            break;
+        }
+        case ParsedInput::Type::Color: {
+            Color blockOutColor;
+            var = currentBlock->blockFunction.func.color(currentBlock, &thread, &sprite, &blockOutColor);
+            break;
+        }
+        }
+
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
             Scratch::resetInput(currentBlock);
@@ -355,7 +382,7 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
                     }
                 }
                 auto handlerIt = getHandlers().find(var.opcode);
-                if (handlerIt != getHandlers().end() && handlerIt->second != nullptr) {
+                if (handlerIt != getHandlers().end()) {
                     handlerIt->second(&newBlock, thread, sprite, &var.value);
                 } else {
                     Log::logWarning("[BlockExecutor] No handler found for monitor opcode: " + var.opcode);

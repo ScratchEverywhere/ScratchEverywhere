@@ -28,9 +28,9 @@
  *
  * @sa BlockExecutor
  */
-#define SCRATCH_BLOCK(category, id)                                                                                                    \
-    static BlockResult block_##category##_##id##_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue);                \
-    static uint8_t block_##category##_##id##_reg_ = (BlockExecutor::getHandlers()[#category "_" #id] = block_##category##_##id##_, 0); \
+#define SCRATCH_BLOCK(category, id)                                                                                                               \
+    static BlockResult block_##category##_##id##_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue);                           \
+    static uint8_t block_##category##_##id##_reg_ = (BlockExecutor::getHandlers()[#category "_" #id] = BlockFunc(block_##category##_##id##_), 0); \
     static BlockResult block_##category##_##id##_(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue)
 
 #define SCRATCH_SHADOW_BLOCK(opcode, fieldId) static uint8_t shadow_block_##opcode##_reg_ = (Parser::getShadowBlocks()[#opcode] = #fieldId, 0);

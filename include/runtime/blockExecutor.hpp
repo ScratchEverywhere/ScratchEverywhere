@@ -70,7 +70,7 @@ class SE_EXPORT BlockExecutor {
      */
     static ScriptThread *startThread(Sprite *sprite, Block *blockID, bool shouldRestart = true);
     static void runThreads();
-    static BlockResult runThread(ScriptThread &thread, Sprite &sprite, Value *outValue);
+    static BlockResult runThread(ScriptThread &thread, Sprite &sprite);
     static std::vector<ScriptThread *> threads;
 
     // If true, all sprites will be sorted at the end of the frame.

@@ -434,7 +434,38 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
 
         if (block->recalculateInputs) targetBlock->recalculateInputs = true;
 
-        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input->second->value));
+        BlockResult res;
+        switch (targetBlock->blockFunction.type) {
+        case ParsedInput::Type::Value: {
+            res = targetBlock->blockFunction.func.value(targetBlock, thread, sprite, &(input->second->value));
+            break;
+        }
+        case ParsedInput::Type::Number: {
+            double blockOutDouble;
+            res = targetBlock->blockFunction.func.number(targetBlock, thread, sprite, &blockOutDouble);
+            input->second->value = Value(blockOutDouble);
+            break;
+        }
+        case ParsedInput::Type::String: {
+            std::string blockOutString;
+            res = targetBlock->blockFunction.func.string(targetBlock, thread, sprite, &blockOutString);
+            input->second->value = Value(blockOutString);
+            break;
+        }
+        case ParsedInput::Type::Boolean: {
+            bool blockOutBool;
+            res = targetBlock->blockFunction.func.boolean(targetBlock, thread, sprite, &blockOutBool);
+            input->second->value = Value(blockOutBool);
+            break;
+        }
+        case ParsedInput::Type::Color: {
+            Color blockOutColor;
+            res = targetBlock->blockFunction.func.color(targetBlock, thread, sprite, &blockOutColor);
+            input->second->value = Value(blockOutColor);
+            break;
+        }
+        }
+
         targetBlock->recalculateInputs = false;
         if (res != BlockResult::REPEAT) {
             input->second->calculated = true;
