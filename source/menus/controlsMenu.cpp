@@ -1,6 +1,6 @@
 #include "controlsMenu.hpp"
-#include "sprite.hpp"
 #include "translation.hpp"
+#include "types.hpp"
 #include <log.hpp>
 #include <settings.hpp>
 

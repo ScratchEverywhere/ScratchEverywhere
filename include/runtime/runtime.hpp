@@ -1,6 +1,6 @@
 #pragma once
 #include "blockExecutor.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include <image.hpp>
 #include <nlohmann/json.hpp>
 #include <se_export.hpp>

@@ -3,7 +3,7 @@
 #include "interface.hpp"
 #include "meta.hpp"
 #include "runtime_extension.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include <runtime.hpp>
 #include <sol/forward.hpp>
 #include <sol/sol.hpp>

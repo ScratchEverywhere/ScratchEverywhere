@@ -1,5 +1,5 @@
 #pragma once
-#include "sprite.hpp"
+#include "types.hpp"
 #include <functional>
 #include <os.hpp>
 #include <se_export.hpp>

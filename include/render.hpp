@@ -6,8 +6,8 @@
 #include <math.hpp>
 #include <runtime.hpp>
 #include <se_export.hpp>
-#include <sprite.hpp>
 #include <text.hpp>
+#include <types.hpp>
 #include <vector>
 
 class SpeechManager;

@@ -7,8 +7,8 @@
 #endif
 #include <cstddef>
 #include <memory.h>
-#include <sprite.hpp>
 #include <string>
+#include <types.hpp>
 #include <vector>
 #include <zip_archive.hpp>
 

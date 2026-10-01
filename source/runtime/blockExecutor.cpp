@@ -1,7 +1,7 @@
 #include "blockExecutor.hpp"
 #include "collision.hpp"
 #include "math.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <input.hpp>

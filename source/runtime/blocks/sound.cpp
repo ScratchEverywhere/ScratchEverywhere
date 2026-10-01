@@ -4,7 +4,7 @@
 #include <audiostack.hpp>
 #include <log.hpp>
 #include <math.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 #include <unzip.hpp>
 #include <value.hpp>
 

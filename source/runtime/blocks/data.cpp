@@ -1,7 +1,7 @@
 #include "blockUtils.hpp"
 #include <cmath>
 #include <render.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 #include <value.hpp>
 
 constexpr unsigned int MAX_LIST_ITEMS = 200000;

@@ -1,6 +1,6 @@
 #include "blockUtils.hpp"
 #include <input.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 
 SCRATCH_BLOCK(makeymakey, whenMakeyKeyPressed) {
     Value keyValue;

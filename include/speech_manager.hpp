@@ -2,7 +2,7 @@
 #include <se_export.hpp>
 
 #include "image.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include "text.hpp"
 #include "timer.hpp"
 #include <memory>

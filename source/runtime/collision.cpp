@@ -2,7 +2,7 @@
 #include "image.hpp"
 #include "math.hpp"
 #include "runtime.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include <cmath>
 #include <log.hpp>
 
