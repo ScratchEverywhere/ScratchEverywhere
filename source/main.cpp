@@ -129,11 +129,11 @@ int main(int argc, char **argv) {
 
         if (!str.empty()) {
             std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-            bool is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || 
-            str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos || 
-            str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos || 
-            str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos || 
-            str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
+            is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || 
+            	str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos || 
+            	str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos || 
+            	str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos || 
+            	str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
         }
 
         if (is_qt) {
