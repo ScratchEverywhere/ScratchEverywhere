@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <se_export.hpp>
 #include <text.hpp>
 #include <unordered_map>
 

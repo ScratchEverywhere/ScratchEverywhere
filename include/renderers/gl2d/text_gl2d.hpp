@@ -1,8 +1,8 @@
 #pragma once
-#include <se_export.hpp>
 #include <gl2d.h>
 #include <map>
 #include <nds.h>
+#include <se_export.hpp>
 #include <stb_truetype.h>
 #include <text.hpp>
 

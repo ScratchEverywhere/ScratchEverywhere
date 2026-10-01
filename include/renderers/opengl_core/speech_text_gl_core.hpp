@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include "text_gl_core.hpp"
+#include <se_export.hpp>
 #include <speech_text.hpp>
 #include <string>
 

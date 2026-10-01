@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include <3ds.h>
 #include <citro2d.h>
+#include <se_export.hpp>
 #include <text.hpp>
 #include <unordered_map>
 

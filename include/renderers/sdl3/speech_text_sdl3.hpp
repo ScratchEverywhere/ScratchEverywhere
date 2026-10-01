@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include "text_sdl3.hpp"
+#include <se_export.hpp>
 #include <speech_text.hpp>
 #include <string>
 

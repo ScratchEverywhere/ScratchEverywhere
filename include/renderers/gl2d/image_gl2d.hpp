@@ -1,9 +1,9 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <gl2d.h>
 #include <image.hpp>
 #include <nds.h>
+#include <se_export.hpp>
 #include <unordered_map>
 
 class SE_EXPORT Image_GL2D : public Image {
