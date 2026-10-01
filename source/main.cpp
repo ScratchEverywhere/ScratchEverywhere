@@ -120,21 +120,21 @@ int main(int argc, char **argv) {
 #endif
 #if defined(USE_LIBDLGMOD) && ((defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4)))
     in_path = false;
-	bool is_qt = false;
+    bool is_qt = false;
     const char *path = std::getenv("PATH");
     if (path && path[0] != '\0') {
 
         const char *ptr = std::getenv("XDG_CURRENT_DESKTOP");
-        std::string str = ((ptr) ? ptr : "");
+        std::string str = ((ptr && ptr[0] != '\0') ? ptr : "");
 
-		if (!str.empty()) {
+        if (!str.empty()) {
             std::transform(str.begin(), str.end(), str.begin(), ::toupper);
             bool is_qt = (str.find("KDE") != std::string::npos || str.find("TDE") != std::string::npos || 
             str.find("LXQT") != std::string::npos || str.find("RAZOR") != std::string::npos || 
             str.find("CUTEFISH") != std::string::npos || str.find("DEEPIN") != std::string::npos || 
             str.find("DDE") != std::string::npos || str.find("UKUI") != std::string::npos || 
             str.find("LUMINA") != std::string::npos || str.find("QT") != std::string::npos);
-		}
+        }
 
         if (is_qt) {
             struct stat st;
