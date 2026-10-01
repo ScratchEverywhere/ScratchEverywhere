@@ -278,8 +278,8 @@ SCRATCH_BLOCK(control, repeat_until) {
     return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
-SCRATCH_BLOCK(control, get_counter) {
-    *outValue = Value(Scratch::counter);
+SCRATCH_BLOCK_DOUBLE(control, get_counter) {
+    *outValue = Scratch::counter;
     return BlockResult::CONTINUE;
 }
 

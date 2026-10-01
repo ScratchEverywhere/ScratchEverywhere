@@ -64,8 +64,8 @@ SCRATCH_BLOCK(music, playDrumForBeats) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(music, getTempo) {
-    *outValue = Value(Scratch::tempo);
+SCRATCH_BLOCK_DOUBLE(music, getTempo) {
+    *outValue = Scratch::tempo;
 
     return BlockResult::CONTINUE;
 }
