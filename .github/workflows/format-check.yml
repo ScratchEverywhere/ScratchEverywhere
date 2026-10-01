@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 jobs:
-  fmt-check:
+  markdown-fmt-check:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -14,5 +14,13 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: latest
-      - name: Check Formating
+      - name: Check Formatting
         run: deno fmt --check *.md
+
+  clang-fmt-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Check Formatting
+        run: clang-format --dry-run --Werror src/* include/*
