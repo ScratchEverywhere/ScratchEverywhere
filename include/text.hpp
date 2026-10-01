@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include <memory>
+#include <se_export.hpp>
 #include <string>
 #include <vector>
 

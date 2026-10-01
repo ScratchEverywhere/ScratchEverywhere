@@ -3,7 +3,7 @@
 #include "math.hpp"
 #include "os.hpp"
 #include "runtime.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
 #include <algorithm>

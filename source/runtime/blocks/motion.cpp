@@ -7,7 +7,7 @@
 #include <math.hpp>
 #include <os.hpp>
 #include <ostream>
-#include <sprite.hpp>
+#include <types.hpp>
 #include <value.hpp>
 
 SCRATCH_BLOCK(motion, movesteps) {

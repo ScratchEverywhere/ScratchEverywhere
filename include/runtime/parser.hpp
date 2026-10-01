@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include <nlohmann/json.hpp>
-#include <sprite.hpp>
+#include <se_export.hpp>
+#include <types.hpp>
 #include <unordered_map>
 
 struct SE_EXPORT Parser {

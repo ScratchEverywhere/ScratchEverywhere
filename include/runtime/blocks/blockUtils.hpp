@@ -3,7 +3,7 @@
 #include <blockExecutor.hpp>
 #include <parser.hpp>
 #include <runtime.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 
 /**
  * @brief Defines and registers a block

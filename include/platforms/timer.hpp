@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include <cstdint>
+#include <se_export.hpp>
 
 class SE_EXPORT Timer {
   private:

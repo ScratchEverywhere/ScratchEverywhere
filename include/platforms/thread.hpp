@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <se_export.hpp>
 #include <string>
 
 class SE_EXPORT SE_Thread {

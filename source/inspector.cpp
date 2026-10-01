@@ -7,10 +7,10 @@
 #include <render.hpp>
 #include <runtime.hpp>
 #include <speech_manager.hpp>
-#include <sprite.hpp>
 #include <sstream>
 #include <string>
 #include <thread.hpp>
+#include <types.hpp>
 #include <vector>
 
 namespace Inspector {

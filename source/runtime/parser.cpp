@@ -1,5 +1,5 @@
 #include "parser.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include <algorithm>
 #include <filesystem.hpp>
 #include <input.hpp>

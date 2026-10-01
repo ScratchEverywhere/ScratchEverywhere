@@ -16,7 +16,7 @@ jobs:
         with:
           deno-version: latest
       - name: Check Formatting
-        run: deno fmt --check *.md
+        run: deno fmt --check **/*.md
 
   clang-fmt-check:
     name: "`clang-format` (Source) Check"
@@ -25,4 +25,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Check Formatting
-        run: clang-format --dry-run --Werror src/* include/*
+        run: find src include -type f \(-name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h'\) | xargs clang-format --dry-run --Werror

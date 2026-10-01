@@ -1,8 +1,8 @@
 #pragma once
-#include <se_export.hpp>
-#include "sprite.hpp"
+#include "types.hpp"
 #include <functional>
 #include <os.hpp>
+#include <se_export.hpp>
 #include <unordered_map>
 
 namespace MonitorDisplayNames {

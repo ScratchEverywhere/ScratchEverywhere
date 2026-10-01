@@ -1,8 +1,8 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <SDL.h>
 #include <image.hpp>
+#include <se_export.hpp>
 #include <string>
 
 class SE_EXPORT Image_SDL2 : public Image {
