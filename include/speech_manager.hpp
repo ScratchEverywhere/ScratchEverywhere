@@ -50,7 +50,7 @@ struct SE_EXPORT SpeechRenderConfig {
     int bubblePadding = 8;
     int cornerSize = 8;
     int indicatorSize = 16;
-    int indicatorYInsetDivisor = 2; // indicator sits indicatorSize/this above the bubble's bottom edge
+    int indicatorYInsetDivisor = 2;     // indicator sits indicatorSize/this above the bubble's bottom edge
     bool clampTextYToTextHeight = true; // false clamps the bubble's top to 0 instead
 };
 
