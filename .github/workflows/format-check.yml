@@ -1,4 +1,4 @@
-name: Markdown Format Check
+name: Format Check
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
 
 jobs:
   markdown-fmt-check:
+    name: "`deno fmt` (Markdown) Check"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,6 +19,7 @@ jobs:
         run: deno fmt --check *.md
 
   clang-fmt-check:
+    name: "`clang-format` (Source) Check"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
