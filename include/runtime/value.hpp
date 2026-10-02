@@ -75,9 +75,13 @@ class SE_EXPORT Value {
         }
     }
 
+    static const std::shared_ptr<const std::string> &emptyString() {
+        static const std::shared_ptr<const std::string> empty = std::make_shared<const std::string>();
+        return empty;
+    }
+
   public:
-    // constructors
-    Value() : tag(Tag::String) { new (&storage.s) std::shared_ptr<const std::string>(std::make_shared<const std::string>()); }
+    Value() : tag(Tag::String) { new (&storage.s) std::shared_ptr<const std::string>(emptyString()); }
 
     explicit Value(int val);
     explicit Value(double val);

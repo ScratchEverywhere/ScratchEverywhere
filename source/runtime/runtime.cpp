@@ -378,6 +378,24 @@ void Scratch::cleanupScratchProject() {
     Log::log("Cleaned up Scratch project.");
 }
 
+static inline void materializeInputCache(ParsedInput &input) {
+    switch (input.cacheKind) {
+    case ParsedInput::CacheKind::Double:
+        input.value = Value(input.cachedDouble);
+        break;
+    case ParsedInput::CacheKind::Bool:
+        input.value = Value(input.cachedBool);
+        break;
+    case ParsedInput::CacheKind::Value:
+        break;
+    }
+    input.cacheKind = ParsedInput::CacheKind::Value;
+}
+
+static inline double sanitizeNumber(double d) {
+    return std::isnan(d) ? 0.0 : d;
+}
+
 bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
     const auto &input = block->inputMap.find(inputName);
 
@@ -424,6 +442,7 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
         return true;
     case ParsedInput::InputType::BLOCK: {
         if (input->second->calculated) {
+            materializeInputCache(*input->second);
             outValue = input->second->value;
             return true;
         }
@@ -436,6 +455,7 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
         if (block->recalculateInputs) targetBlock->recalculateInputs = true;
 
         BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input->second->value));
+        input->second->cacheKind = ParsedInput::CacheKind::Value;
 
         targetBlock->recalculateInputs = false;
         if (res != BlockResult::REPEAT) {
@@ -473,145 +493,142 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
         return true;
     }
 
+    ParsedInput &in = *input->second;
+
     if (block->recalculateInputs) {
-        input->second->calculated = false;
+        in.calculated = false;
     }
 
-    const auto &outputValue = [&outValue, &input]() {
-        if constexpr (std::is_same_v<T, double>) {
-            outValue = input->second->value.asDouble();
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            outValue = input->second->value.asString();
-        } else if constexpr (std::is_same_v<T, bool>) {
-            outValue = input->second->value.asBoolean();
-        } else if constexpr (std::is_same_v<T, Color>) {
-            outValue = input->second->value.asColor();
+    const auto readValue = [&outValue, &in]() {
+        if constexpr (std::is_same_v<T, Value>) {
+            outValue = in.value;
         } else {
-            outValue = input->second->value;
+            outValue = in.value.get<T>();
         }
     };
 
-    const auto &outputValueLikely = [&outValue, &input]() {
-        if constexpr (std::is_same_v<T, double>) {
-            outValue = input->second->value.get<double>();
-        } else if constexpr (std::is_same_v<T, std::string>) {
-            outValue = input->second->value.get<std::string>();
-        } else if constexpr (std::is_same_v<T, bool>) {
-            outValue = input->second->value.get<bool>();
-        } else if constexpr (std::is_same_v<T, Color>) {
-            outValue = input->second->value.get<Color>();
-        } else {
-            outValue = input->second->value;
-        }
-    };
-
-    switch (input->second->inputType) {
+    switch (in.inputType) {
     case ParsedInput::InputType::VALUE:
-        outputValueLikely();
+        readValue();
         return true;
     case ParsedInput::InputType::VARIABLE:
-        if (input->second->calculated) {
-            outputValueLikely();
-            return true;
-        }
-
-        input->second->calculated = true;
+        if (!in.calculated) {
+            in.calculated = true;
 #ifdef ENABLE_CACHING
-        if (input->second->variable != nullptr) {
-            input->second->value = input->second->variable->value;
-        } else if (input->second->list) {
-            input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
-        } else {
-            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
-        }
+            if (in.variable != nullptr) {
+                in.value = in.variable->value;
+            } else if (in.list) {
+                in.value = BlockExecutor::getListValue(in.variableId, sprite);
+            } else {
+                in.value = BlockExecutor::getVariableValue(in.variableId, sprite);
+            }
 #else
-        if (input->second->list) {
-            input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
-        } else {
-            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
-        }
+            if (in.list) {
+                in.value = BlockExecutor::getListValue(in.variableId, sprite);
+            } else {
+                in.value = BlockExecutor::getVariableValue(in.variableId, sprite);
+            }
 #endif
-        outputValueLikely();
+        }
+        readValue();
         return true;
     case ParsedInput::InputType::BLOCK: {
-        if (input->second->calculated) {
-            outputValue();
+        if (in.calculated) {
+            if (in.cacheKind == ParsedInput::CacheKind::Double) {
+                if constexpr (std::is_same_v<T, double>) {
+                    outValue = sanitizeNumber(in.cachedDouble);
+                    return true;
+                }
+            } else if (in.cacheKind == ParsedInput::CacheKind::Bool) {
+                if constexpr (std::is_same_v<T, bool>) {
+                    outValue = in.cachedBool;
+                    return true;
+                }
+            }
+            materializeInputCache(in);
+            readValue();
             return true;
         }
-        if (input->second->block == nullptr) {
+        if (in.block == nullptr) {
             return true;
         }
 
-        Block *targetBlock = input->second->block;
+        Block *targetBlock = in.block;
 
         if (block->recalculateInputs) targetBlock->recalculateInputs = true;
 
         BlockResult res;
-        bool outputed = false;
+        bool done = false;
         switch (targetBlock->blockFunction.type) {
         case BlockFunc::Type::Value: {
-            res = targetBlock->blockFunction.func.value(targetBlock, thread, sprite, &(input->second->value));
+            res = targetBlock->blockFunction.func.value(targetBlock, thread, sprite, &in.value);
+            in.cacheKind = ParsedInput::CacheKind::Value;
             break;
         }
         case BlockFunc::Type::Number: {
-            double blockOutDouble;
-            res = targetBlock->blockFunction.func.number(targetBlock, thread, sprite, &blockOutDouble);
+            double d = 0.0;
+            res = targetBlock->blockFunction.func.number(targetBlock, thread, sprite, &d);
             if (res != BlockResult::REPEAT) {
+                in.cachedDouble = d;
+                in.cacheKind = ParsedInput::CacheKind::Double;
                 if constexpr (std::is_same_v<T, double>) {
-                    outputed = true;
-                    outValue = blockOutDouble;
+                    outValue = sanitizeNumber(d);
+                    done = true;
+                } else {
+                    materializeInputCache(in);
                 }
             }
-            input->second->value = Value(blockOutDouble);
-            break;
-        }
-        case BlockFunc::Type::String: {
-            std::string blockOutString;
-            res = targetBlock->blockFunction.func.string(targetBlock, thread, sprite, &blockOutString);
-            if (res != BlockResult::REPEAT) {
-                if constexpr (std::is_same_v<T, std::string>) {
-                    outputed = true;
-                    outValue = blockOutString;
-                }
-            }
-            input->second->value = Value(blockOutString);
             break;
         }
         case BlockFunc::Type::Boolean: {
-            bool blockOutBool;
-            res = targetBlock->blockFunction.func.boolean(targetBlock, thread, sprite, &blockOutBool);
+            bool b = false;
+            res = targetBlock->blockFunction.func.boolean(targetBlock, thread, sprite, &b);
             if (res != BlockResult::REPEAT) {
+                in.cachedBool = b;
+                in.cacheKind = ParsedInput::CacheKind::Bool;
                 if constexpr (std::is_same_v<T, bool>) {
-                    outputed = true;
-                    outValue = blockOutBool;
+                    outValue = b;
+                    done = true;
+                } else {
+                    materializeInputCache(in);
                 }
             }
-            input->second->value = Value(blockOutBool);
+            break;
+        }
+        case BlockFunc::Type::String: {
+            std::string str;
+            res = targetBlock->blockFunction.func.string(targetBlock, thread, sprite, &str);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, std::string>) {
+                    outValue = str;
+                    done = true;
+                }
+                in.value = Value(std::move(str));
+                in.cacheKind = ParsedInput::CacheKind::Value;
+            }
             break;
         }
         case BlockFunc::Type::Color: {
-            Color blockOutColor;
-            res = targetBlock->blockFunction.func.color(targetBlock, thread, sprite, &blockOutColor);
+            Color color{};
+            res = targetBlock->blockFunction.func.color(targetBlock, thread, sprite, &color);
             if (res != BlockResult::REPEAT) {
                 if constexpr (std::is_same_v<T, Color>) {
-                    outputed = true;
-                    outValue = blockOutColor;
+                    outValue = color;
+                    done = true;
                 }
+                in.value = Value(color);
+                in.cacheKind = ParsedInput::CacheKind::Value;
             }
-            input->second->value = Value(blockOutColor);
             break;
         }
         }
 
         targetBlock->recalculateInputs = false;
-        if (res != BlockResult::REPEAT) {
-            input->second->calculated = true;
-            if (!outputed) {
-                outputValue();
-            }
-            return true;
-        }
-        return false;
+        if (res == BlockResult::REPEAT) return false;
+
+        in.calculated = true;
+        if (!done) readValue();
+        return true;
     }
     }
 

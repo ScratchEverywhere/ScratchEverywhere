@@ -163,8 +163,7 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite) {
 
         switch (currentBlock->blockFunction.type) {
         case BlockFunc::Type::Value: {
-            Value blockOutValue;
-            var = currentBlock->blockFunction.func.value(currentBlock, &thread, &sprite, &blockOutValue);
+            var = currentBlock->blockFunction.func.value(currentBlock, &thread, &sprite, nullptr);
             break;
         }
         case BlockFunc::Type::Number: {

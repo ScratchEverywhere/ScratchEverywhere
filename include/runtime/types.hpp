@@ -178,6 +178,14 @@ struct SE_EXPORT ParsedInput {
     } inputType = InputType::VALUE;
     bool calculated = false;
 
+    enum class CacheKind : uint8_t {
+        Value,
+        Double,
+        Bool
+    } cacheKind = CacheKind::Value;
+    bool cachedBool = false;
+    double cachedDouble = 0.0;
+
     Value value;
     Block *block = nullptr;
     std::string variableId = "";
