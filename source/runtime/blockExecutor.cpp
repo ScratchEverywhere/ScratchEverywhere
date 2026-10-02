@@ -331,10 +331,13 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
             } else {
                 Block newBlock;
                 newBlock.opcode = var.opcode;
+                newBlock.fields.reserve(var.parameters.size());
+                newBlock.fieldMap.reserve(var.parameters.size());
                 for (const auto &[paramName, paramValue] : var.parameters) {
                     ParsedField parsedField;
                     parsedField.value = Math::removeQuotations(paramValue);
                     newBlock.fields.push_back({paramName, parsedField});
+                    newBlock.fieldMap[paramName] = &newBlock.fields.back().second;
                 }
                 if (var.opcode == "looks_costumenumbername")
                     var.displayName = var.spriteName + ": costume " + Scratch::getFieldValue(newBlock, "NUMBER_NAME");
