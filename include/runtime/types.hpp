@@ -171,13 +171,6 @@ struct SE_EXPORT List {
 };
 
 struct SE_EXPORT ParsedInput {
-    enum class Type : uint8_t {
-        Value,
-        Number,
-        String,
-        Boolean,
-        Color
-    } type = Type::Value;
     enum InputType : uint8_t {
         VALUE,
         VARIABLE,
@@ -189,10 +182,11 @@ struct SE_EXPORT ParsedInput {
     Block *block = nullptr;
     std::string variableId = "";
     bool list = false;
-    ParsedInput();
-    explicit ParsedInput(Value value);
-    explicit ParsedInput(Block *block);
-    explicit ParsedInput(std::string variableId);
+
+    ParsedInput() : inputType(InputType::VALUE) {}
+    explicit ParsedInput(Value value) : value(value), inputType(InputType::VALUE) {}
+    explicit ParsedInput(Block *block) : block(block), inputType(InputType::BLOCK) {}
+    explicit ParsedInput(std::string variableId) : variableId(variableId), inputType(InputType::VARIABLE) {}
 
 #ifdef ENABLE_CACHING
     Variable *variable = nullptr;
@@ -214,7 +208,13 @@ using RawBlockFuncColor = RawBlockFuncBase<Color>;
 using BlockFuncValue = std::function<BlockResult(Block *, ScriptThread *, Sprite *, Value *)>;
 
 struct BlockFunc {
-    ParsedInput::Type type = ParsedInput::Type::Value;
+    enum class Type : uint8_t {
+        Value,
+        Number,
+        String,
+        Boolean,
+        Color
+    } type = Type::Value;
 
     union FuncUnion {
         BlockFuncValue value;
@@ -227,27 +227,27 @@ struct BlockFunc {
         ~FuncUnion() {}
     } func;
 
-    BlockFunc() : type(ParsedInput::Type::Value) {
+    BlockFunc() : type(Type::Value) {
         new (&func.value) BlockFuncValue();
     }
 
-    BlockFunc(BlockFuncValue fn) : type(ParsedInput::Type::Value) {
+    BlockFunc(BlockFuncValue fn) : type(Type::Value) {
         new (&func.value) BlockFuncValue(std::move(fn));
     }
 
-    BlockFunc(RawBlockFuncDouble fn) : type(ParsedInput::Type::Number) {
+    BlockFunc(RawBlockFuncDouble fn) : type(Type::Number) {
         func.number = fn;
     }
 
-    BlockFunc(RawBlockFuncString fn) : type(ParsedInput::Type::String) {
+    BlockFunc(RawBlockFuncString fn) : type(Type::String) {
         func.string = fn;
     }
 
-    BlockFunc(RawBlockFuncBool fn) : type(ParsedInput::Type::Boolean) {
+    BlockFunc(RawBlockFuncBool fn) : type(Type::Boolean) {
         func.boolean = fn;
     }
 
-    BlockFunc(RawBlockFuncColor fn) : type(ParsedInput::Type::Color) {
+    BlockFunc(RawBlockFuncColor fn) : type(Type::Color) {
         func.color = fn;
     }
 
@@ -283,31 +283,31 @@ struct BlockFunc {
 
     BlockResult operator()(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) const {
         switch (type) {
-        case ParsedInput::Type::Value: {
+        case Type::Value: {
             if (func.value) {
                 return func.value(block, thread, sprite, outValue);
             }
             return BlockResult::CONTINUE;
         }
-        case ParsedInput::Type::Number: {
+        case Type::Number: {
             double temp = 0.0;
             BlockResult res = func.number(block, thread, sprite, &temp);
             if (outValue) *outValue = Value(temp);
             return res;
         }
-        case ParsedInput::Type::String: {
+        case Type::String: {
             std::string temp;
             BlockResult res = func.string(block, thread, sprite, &temp);
             if (outValue) *outValue = Value(std::move(temp));
             return res;
         }
-        case ParsedInput::Type::Boolean: {
+        case Type::Boolean: {
             bool temp = false;
             BlockResult res = func.boolean(block, thread, sprite, &temp);
             if (outValue) *outValue = Value(temp);
             return res;
         }
-        case ParsedInput::Type::Color: {
+        case Type::Color: {
             Color temp{};
             BlockResult res = func.color(block, thread, sprite, &temp);
             if (outValue) *outValue = Value(temp);
@@ -319,26 +319,26 @@ struct BlockFunc {
 
   private:
     void destroy() {
-        if (type == ParsedInput::Type::Value) {
+        if (type == Type::Value) {
             func.value.~BlockFuncValue();
         }
     }
 
     void copyFrom(const BlockFunc &other) {
-        if (type == ParsedInput::Type::Value) {
+        if (type == Type::Value) {
             new (&func.value) BlockFuncValue(other.func.value);
         } else {
             switch (type) {
-            case ParsedInput::Type::Number:
+            case Type::Number:
                 func.number = other.func.number;
                 break;
-            case ParsedInput::Type::String:
+            case Type::String:
                 func.string = other.func.string;
                 break;
-            case ParsedInput::Type::Boolean:
+            case Type::Boolean:
                 func.boolean = other.func.boolean;
                 break;
-            case ParsedInput::Type::Color:
+            case Type::Color:
                 func.color = other.func.color;
                 break;
             default:
@@ -348,20 +348,20 @@ struct BlockFunc {
     }
 
     void moveFrom(BlockFunc &&other) {
-        if (type == ParsedInput::Type::Value) {
+        if (type == Type::Value) {
             new (&func.value) BlockFuncValue(std::move(other.func.value));
         } else {
             switch (type) {
-            case ParsedInput::Type::Number:
+            case Type::Number:
                 func.number = other.func.number;
                 break;
-            case ParsedInput::Type::String:
+            case Type::String:
                 func.string = other.func.string;
                 break;
-            case ParsedInput::Type::Boolean:
+            case Type::Boolean:
                 func.boolean = other.func.boolean;
                 break;
-            case ParsedInput::Type::Color:
+            case Type::Color:
                 func.color = other.func.color;
                 break;
             default:
@@ -392,22 +392,6 @@ struct SE_EXPORT Block {
 
     bool recalculateInputs = false;
 };
-
-// These rely on Block being properly defined
-inline ParsedInput::ParsedInput() : inputType(InputType::VALUE) {}
-inline ParsedInput::ParsedInput(Value value) : value(value), inputType(InputType::VALUE) {
-    if (value.isDouble()) type = Type::Number;
-    else if (value.isString()) type = Type::String;
-    else if (value.isBoolean()) type = Type::Boolean;
-    else if (value.isColor()) type = Type::Color;
-}
-inline ParsedInput::ParsedInput(Block *block) : block(block) {
-    inputType = InputType::BLOCK;
-    if (block) {
-        type = block->blockFunction.type;
-    }
-}
-inline ParsedInput::ParsedInput(std::string variableId) : variableId(variableId), inputType(InputType::VARIABLE) {}
 
 struct SE_EXPORT Sound {
     std::string id;

@@ -23,6 +23,7 @@
 #include <set>
 #include <speech_manager.hpp>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -62,7 +63,7 @@ BlockExecutor executor;
 
 bool Scratch::hasNativeExtensions = false;
 
-float Scratch::tempo = 60;
+double Scratch::tempo = 60;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -434,37 +435,7 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
 
         if (block->recalculateInputs) targetBlock->recalculateInputs = true;
 
-        BlockResult res;
-        switch (targetBlock->blockFunction.type) {
-        case ParsedInput::Type::Value: {
-            res = targetBlock->blockFunction.func.value(targetBlock, thread, sprite, &(input->second->value));
-            break;
-        }
-        case ParsedInput::Type::Number: {
-            double blockOutDouble;
-            res = targetBlock->blockFunction.func.number(targetBlock, thread, sprite, &blockOutDouble);
-            input->second->value = Value(blockOutDouble);
-            break;
-        }
-        case ParsedInput::Type::String: {
-            std::string blockOutString;
-            res = targetBlock->blockFunction.func.string(targetBlock, thread, sprite, &blockOutString);
-            input->second->value = Value(blockOutString);
-            break;
-        }
-        case ParsedInput::Type::Boolean: {
-            bool blockOutBool;
-            res = targetBlock->blockFunction.func.boolean(targetBlock, thread, sprite, &blockOutBool);
-            input->second->value = Value(blockOutBool);
-            break;
-        }
-        case ParsedInput::Type::Color: {
-            Color blockOutColor;
-            res = targetBlock->blockFunction.func.color(targetBlock, thread, sprite, &blockOutColor);
-            input->second->value = Value(blockOutColor);
-            break;
-        }
-        }
+        BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input->second->value));
 
         targetBlock->recalculateInputs = false;
         if (res != BlockResult::REPEAT) {
@@ -478,6 +449,180 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
 
     return true;
 }
+
+template <typename T>
+bool Scratch::getInputValueAs(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, T &outValue) {
+    const auto &input = block->inputMap.find(inputName);
+
+    if (input == block->inputMap.end()) {
+        const auto &field = block->fieldMap.find(inputName);
+
+        if (field != block->fieldMap.end()) {
+            if constexpr (std::is_same_v<T, std::string>) {
+                outValue = field->second->value;
+            } else if constexpr (std::is_same_v<T, double>) {
+                outValue = Value(field->second->value).asDouble();
+            } else if constexpr (std::is_same_v<T, bool>) {
+                outValue = Value(field->second->value).asBoolean();
+            } else if constexpr (std::is_same_v<T, Color>) {
+                outValue = Value(field->second->value).asColor();
+            } else {
+                outValue = Value(field->second->value);
+            }
+        }
+        return true;
+    }
+
+    if (block->recalculateInputs) {
+        input->second->calculated = false;
+    }
+
+    const auto &outputValue = [&outValue, &input]() {
+        if constexpr (std::is_same_v<T, double>) {
+            outValue = input->second->value.asDouble();
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            outValue = input->second->value.asString();
+        } else if constexpr (std::is_same_v<T, bool>) {
+            outValue = input->second->value.asBoolean();
+        } else if constexpr (std::is_same_v<T, Color>) {
+            outValue = input->second->value.asColor();
+        } else {
+            outValue = input->second->value;
+        }
+    };
+
+    const auto &outputValueLikely = [&outValue, &input]() {
+        if constexpr (std::is_same_v<T, double>) {
+            outValue = input->second->value.get<double>();
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            outValue = input->second->value.get<std::string>();
+        } else if constexpr (std::is_same_v<T, bool>) {
+            outValue = input->second->value.get<bool>();
+        } else if constexpr (std::is_same_v<T, Color>) {
+            outValue = input->second->value.get<Color>();
+        } else {
+            outValue = input->second->value;
+        }
+    };
+
+    switch (input->second->inputType) {
+    case ParsedInput::InputType::VALUE:
+        outputValueLikely();
+        return true;
+    case ParsedInput::InputType::VARIABLE:
+        if (input->second->calculated) {
+            outputValueLikely();
+            return true;
+        }
+
+        input->second->calculated = true;
+#ifdef ENABLE_CACHING
+        if (input->second->variable != nullptr) {
+            input->second->value = input->second->variable->value;
+        } else if (input->second->list) {
+            input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
+        } else {
+            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
+        }
+#else
+        if (input->second->list) {
+            input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
+        } else {
+            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
+        }
+#endif
+        outputValueLikely();
+        return true;
+    case ParsedInput::InputType::BLOCK: {
+        if (input->second->calculated) {
+            outputValue();
+            return true;
+        }
+        if (input->second->block == nullptr) {
+            return true;
+        }
+
+        Block *targetBlock = input->second->block;
+
+        if (block->recalculateInputs) targetBlock->recalculateInputs = true;
+
+        BlockResult res;
+        bool outputed = false;
+        switch (targetBlock->blockFunction.type) {
+        case BlockFunc::Type::Value: {
+            res = targetBlock->blockFunction.func.value(targetBlock, thread, sprite, &(input->second->value));
+            break;
+        }
+        case BlockFunc::Type::Number: {
+            double blockOutDouble;
+            res = targetBlock->blockFunction.func.number(targetBlock, thread, sprite, &blockOutDouble);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, double>) {
+                    outputed = true;
+                    outValue = blockOutDouble;
+                }
+            }
+            input->second->value = Value(blockOutDouble);
+            break;
+        }
+        case BlockFunc::Type::String: {
+            std::string blockOutString;
+            res = targetBlock->blockFunction.func.string(targetBlock, thread, sprite, &blockOutString);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, std::string>) {
+                    outputed = true;
+                    outValue = blockOutString;
+                }
+            }
+            input->second->value = Value(blockOutString);
+            break;
+        }
+        case BlockFunc::Type::Boolean: {
+            bool blockOutBool;
+            res = targetBlock->blockFunction.func.boolean(targetBlock, thread, sprite, &blockOutBool);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, bool>) {
+                    outputed = true;
+                    outValue = blockOutBool;
+                }
+            }
+            input->second->value = Value(blockOutBool);
+            break;
+        }
+        case BlockFunc::Type::Color: {
+            Color blockOutColor;
+            res = targetBlock->blockFunction.func.color(targetBlock, thread, sprite, &blockOutColor);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, Color>) {
+                    outputed = true;
+                    outValue = blockOutColor;
+                }
+            }
+            input->second->value = Value(blockOutColor);
+            break;
+        }
+        }
+
+        targetBlock->recalculateInputs = false;
+        if (res != BlockResult::REPEAT) {
+            input->second->calculated = true;
+            if (!outputed) {
+                outputValue();
+            }
+            return true;
+        }
+        return false;
+    }
+    }
+
+    return true;
+}
+#define GET_INPUT_VALUE_AS_TEMPLATE(T) template bool Scratch::getInputValueAs<T>(Block *, const std::string &, ScriptThread *, Sprite *, T &outValue)
+GET_INPUT_VALUE_AS_TEMPLATE(Value);
+GET_INPUT_VALUE_AS_TEMPLATE(double);
+GET_INPUT_VALUE_AS_TEMPLATE(std::string);
+GET_INPUT_VALUE_AS_TEMPLATE(bool);
+GET_INPUT_VALUE_AS_TEMPLATE(Color);
 
 ParsedInput *Scratch::getInput(Block *block, const std::string &inputName) {
     const auto &input = block->inputMap.find(inputName);

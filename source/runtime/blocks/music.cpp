@@ -7,7 +7,9 @@ SCRATCH_SHADOW_BLOCK(music_menu_INSTRUMENT, INSTRUMENT)
 SCRATCH_SHADOW_BLOCK(note, NOTE);
 
 SCRATCH_BLOCK(music, setInstrument) {
-    if (!Scratch::getInputValueAs(block, "INSTRUMENT", thread, sprite, sprite->instrument)) return BlockResult::REPEAT;
+    double instrument;
+    if (!Scratch::getInputValueAs(block, "INSTRUMENT", thread, sprite, instrument)) return BlockResult::REPEAT;
+    sprite->instrument = instrument;
 
     return BlockResult::CONTINUE;
 }

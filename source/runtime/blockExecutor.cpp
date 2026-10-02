@@ -162,27 +162,27 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite) {
         thread.nextBlock = currentBlock->nextBlock;
 
         switch (currentBlock->blockFunction.type) {
-        case ParsedInput::Type::Value: {
+        case BlockFunc::Type::Value: {
             Value blockOutValue;
             var = currentBlock->blockFunction.func.value(currentBlock, &thread, &sprite, &blockOutValue);
             break;
         }
-        case ParsedInput::Type::Number: {
+        case BlockFunc::Type::Number: {
             double blockOutDouble;
             var = currentBlock->blockFunction.func.number(currentBlock, &thread, &sprite, &blockOutDouble);
             break;
         }
-        case ParsedInput::Type::String: {
+        case BlockFunc::Type::String: {
             std::string blockOutString;
             var = currentBlock->blockFunction.func.string(currentBlock, &thread, &sprite, &blockOutString);
             break;
         }
-        case ParsedInput::Type::Boolean: {
+        case BlockFunc::Type::Boolean: {
             bool blockOutBool;
             var = currentBlock->blockFunction.func.boolean(currentBlock, &thread, &sprite, &blockOutBool);
             break;
         }
-        case ParsedInput::Type::Color: {
+        case BlockFunc::Type::Color: {
             Color blockOutColor;
             var = currentBlock->blockFunction.func.color(currentBlock, &thread, &sprite, &blockOutColor);
             break;
