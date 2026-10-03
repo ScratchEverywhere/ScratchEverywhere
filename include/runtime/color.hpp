@@ -4,6 +4,13 @@
 #include <algorithm>
 #include <cmath>
 
+#if defined(__MSDOS__)
+
+#define MAX(a, b) ( (a) > (b) ) ? (a) : (b)
+#define MIN(a, b) ( (a) < (b) ) ? (a) : (b)
+
+#endif
+
 // I don't see any reason for these to be double so i just made them float to save memory
 struct SE_EXPORT Color {
     float hue;
@@ -44,10 +51,17 @@ inline Color RGBA2CSBO(const ColorRGBA &color) {
         a = (1.0f - (color.a / 255.0f)) * 100.0f;
     }
 
+#if defined(__MSDOS__)
+    const float cmax = MAX(r, MAX(g, b));
+    const float diff = cmax - MIN(r, MIN(g, b));
+
+    const float s = (cmax == 0) ? 0 : (diff / cmax) * 100;
+#else
     const float cmax = fmax(r, fmax(g, b));
     const float diff = cmax - fmin(r, fmin(g, b));
 
     const float s = (cmax == 0) ? 0 : (diff / cmax) * 100;
+#endif
 
     if (diff == 0) goto end;
     if (cmax == r) return {static_cast<float>(fmod(60 * ((g - b) / diff), 360)) * 100.0f / 360, s, cmax * 100, a};

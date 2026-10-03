@@ -129,7 +129,7 @@ SCRATCH_BLOCK(operator, round) {
     double num;
     if (!Scratch::getInputValueAs(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
 
-    *outValue = Value(std::round(num));
+    *outValue = Value(round(num));
     return BlockResult::CONTINUE;
 }
 
@@ -143,8 +143,8 @@ SCRATCH_BLOCK(operator, mathop) {
     else if (operation == "floor") *outValue = Value(floor(value));
     else if (operation == "ceiling") *outValue = Value(ceil(value));
     else if (operation == "sqrt") *outValue = Value(sqrt(value));
-    else if (operation == "sin") *outValue = Value(std::round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10);
-    else if (operation == "cos") *outValue = Value(std::round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10);
+    else if (operation == "sin") *outValue = Value(round(std::sin(Math::degreesToRadians(value)) * 1e10) / 1e10);
+    else if (operation == "cos") *outValue = Value(round(std::cos(Math::degreesToRadians(value)) * 1e10) / 1e10);
     else if (operation == "tan") {
         double modAngle = std::fmod(value, 360.0);
 
@@ -153,7 +153,7 @@ SCRATCH_BLOCK(operator, mathop) {
 
         if (modAngle == 90.0 || modAngle == -270.0) *outValue = Value(std::numeric_limits<double>::infinity());
         else if (modAngle == -90.0 || modAngle == 270.0) *outValue = Value(-std::numeric_limits<double>::infinity());
-        else *outValue = Value(std::round(std::tan(Math::degreesToRadians(value)) * 1e10) / 1e10);
+        else *outValue = Value(round(std::tan(Math::degreesToRadians(value)) * 1e10) / 1e10);
     } else if (operation == "asin") *outValue = Value(Math::radiansToDegrees(asin(value)));
     else if (operation == "acos") *outValue = Value(Math::radiansToDegrees(acos(value)));
     else if (operation == "atan") *outValue = Value(Math::radiansToDegrees(atan(value)));

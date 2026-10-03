@@ -29,3 +29,15 @@ SE_EXPORT std::string removeQuotations(std::string value);
 
 SE_EXPORT const uint32_t next_pow2(uint32_t n);
 }; // namespace Math
+
+/*
+#if defined(__MSDOS__)
+double SE_Round(double value) {
+    uint64_t integer_part = static_cast<uint64_t>(value);
+    double decimal = value - integer_part;
+
+    double rounded_val = (decimal >= 0.5f) ? integer_part+1 : integer_part;
+    return static_cast<double>(rounded_val);
+}
+#endif
+*/

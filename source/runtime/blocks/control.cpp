@@ -210,7 +210,7 @@ SCRATCH_BLOCK(control, repeat) {
     if (state->completedSteps == 0) { // start
         double repeatTimes;
         if (!Scratch::getInputValueAs(block, "TIMES", thread, sprite, repeatTimes)) return BlockResult::REPEAT;
-        state->repeatTimes = std::round(repeatTimes);
+        state->repeatTimes = round(repeatTimes);
 
         state->completedSteps = 1;
     }
