@@ -229,7 +229,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 if (value.isDouble()) {
                     newVariable.value = value.get<double>();
                 } else if (value.isString()) {
-                    newVariable.value = value.get<std::string>();
+                    newVariable.value = value.getStringPtr();
                 } else if (value.isBoolean()) {
                     newVariable.value = value.get<bool>();
                 } else {
@@ -817,7 +817,7 @@ void Parser::resolveVariableTypes(Sprite *sprite) {
             switch (input->inputType) {
             case ParsedInput::VALUE:
                 if (std::holds_alternative<double>(var->value) && !input->value.isDouble()) shouldDemote = true;
-                else if (std::holds_alternative<std::string>(var->value) && !input->value.isString()) shouldDemote = true;
+                else if (std::holds_alternative<std::shared_ptr<const std::string>>(var->value) && !input->value.isString()) shouldDemote = true;
                 else if (std::holds_alternative<bool>(var->value) && !input->value.isBoolean()) shouldDemote = true;
                 break;
 
@@ -839,7 +839,7 @@ void Parser::resolveVariableTypes(Sprite *sprite) {
                     if (!std::holds_alternative<double>(var->value)) shouldDemote = true;
                     break;
                 case Type::String:
-                    if (!std::holds_alternative<std::string>(var->value)) shouldDemote = true;
+                    if (!std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) shouldDemote = true;
                     break;
                 case Type::Boolean:
                     if (!std::holds_alternative<bool>(var->value)) shouldDemote = true;

@@ -305,8 +305,9 @@ void BlockExecutor::setVariableValue(const std::string &variableId, const Value 
             using T = std::decay_t<decltype(current)>;
             if constexpr (std::is_same_v<T, double>) {
                 var.value = newValue.asDouble();
-            } else if constexpr (std::is_same_v<T, std::string>) {
-                var.value = newValue.asString();
+            } else if constexpr (std::is_same_v<T, std::shared_ptr<const std::string>>) {
+                if (newValue.isString()) var.value = newValue.getStringPtr();
+                else var.value = std::make_shared<const std::string>(newValue.asString());
             } else if constexpr (std::is_same_v<T, bool>) {
                 var.value = newValue.asBoolean();
             } else if constexpr (std::is_same_v<T, Value>) {
@@ -445,6 +446,8 @@ T BlockExecutor::getVariableValueAs(Variable *var) {
         if constexpr (std::is_same_v<T, Value>) {
             if constexpr (std::is_same_v<VarT, Value>) return arg;
             else return Value(arg);
+        } else if constexpr (std::is_same_v<T, std::string> && std::is_same_v<VarT, std::shared_ptr<const std::string>>) {
+            return *arg;
         } else if constexpr (std::is_same_v<VarT, T>) {
             return arg;
         } else if constexpr (std::is_same_v<VarT, Value>) {

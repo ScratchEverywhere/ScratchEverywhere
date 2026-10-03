@@ -75,9 +75,17 @@ SCRATCH_BLOCK_STRING(operator, join) {
 
 SCRATCH_BLOCK_STRING(operator, letter_of) {
     double letter;
-    std::string str;
+    Value strValue;
     if (!Scratch::getInputValueAs(block, "LETTER", thread, sprite, letter) ||
-        !Scratch::getInputValueAs(block, "STRING", thread, sprite, str)) return BlockResult::REPEAT;
+        !Scratch::getInputValue(block, "STRING", thread, sprite, strValue)) return BlockResult::REPEAT;
+
+    std::string ownedStr;
+    const std::string *strPtr = strValue.tryGetStringRef();
+    if (!strPtr) {
+        ownedStr = strValue.asString();
+        strPtr = &ownedStr;
+    }
+    const std::string &str = *strPtr;
 
     if (str.empty()) {
         return BlockResult::CONTINUE;
@@ -90,9 +98,13 @@ SCRATCH_BLOCK_STRING(operator, letter_of) {
 }
 
 SCRATCH_BLOCK_DOUBLE(operator, length) {
-    std::string str;
-    if (!Scratch::getInputValueAs(block, "STRING", thread, sprite, str)) return BlockResult::REPEAT;
-    *outValue = str.size();
+    Value strValue;
+    if (!Scratch::getInputValue(block, "STRING", thread, sprite, strValue)) return BlockResult::REPEAT;
+
+    const std::string *strPtr = strValue.tryGetStringRef();
+    const size_t size = strPtr ? strPtr->size() : strValue.asString().size();
+
+    *outValue = static_cast<double>(size);
     return BlockResult::CONTINUE;
 }
 

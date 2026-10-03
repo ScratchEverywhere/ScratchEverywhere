@@ -171,7 +171,7 @@ struct SE_EXPORT Variable {
     bool cloud;
 #endif
 
-    std::variant<Value, double, std::string, bool> value;
+    std::variant<Value, double, std::shared_ptr<const std::string>, bool> value;
 };
 
 struct SE_EXPORT List {

@@ -204,11 +204,10 @@ void processCommands() {
                               << "TTS: [Gender: " << target->textToSpeechData.gender << ", Lang: " << target->textToSpeechData.language << "]\n";
                 }
 
-                // TODO: reimplement
-                /* std::cout << "- Variables:\n";
+                std::cout << "- Variables:\n";
                 for (auto &[id, v] : target->variables) {
-                    std::cout << "  " << v.name << " = " << v.value.asString() << "\n";
-                } */
+                    std::cout << "  " << v.name << " = " << BlockExecutor::getVariableValueAs<Value>(&v).asString() << "\n";
+                }
                 std::cout << "- Lists:\n";
                 for (auto &[id, l] : target->lists) {
                     std::cout << "  " << l.name << " (length " << l.items.size() << ")\n";
