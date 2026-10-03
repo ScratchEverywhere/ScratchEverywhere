@@ -47,6 +47,7 @@ body:
         - PC
         - Web
         - PS4
+        - PS2
         - Libretro
   - type: textarea
     id: additional-context
