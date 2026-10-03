@@ -61,7 +61,7 @@ class SE_EXPORT Scratch {
 
     static ParsedField *getField(Block &block, const std::string &fieldName);
     static std::string getFieldValue(Block &block, const std::string &fieldName);
-    static std::string getFieldId(Block &block, const std::string &fieldName);
+    static const std::string &getFieldId(Block &block, const std::string &fieldName);
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
 
