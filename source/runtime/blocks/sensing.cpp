@@ -53,13 +53,29 @@ SCRATCH_BLOCK(sensing, of) {
 
     if (!spriteObject) return BlockResult::CONTINUE;
 
+    const auto setOutFromVar = [outValue](const Variable &variable) {
+        std::visit([outValue](auto &&v) {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, Value>) {
+                *outValue = v;
+            } else {
+                *outValue = Value(v);
+            }
+        },
+                   variable.value);
+    };
+
     if (spriteObject->isStage) {
-        if (value == "background #") *outValue = Value(spriteObject->currentCostume + 1);
-        else if (value == "backdrop #") *outValue = Value(spriteObject->currentCostume + 1);
-        else if (value == "backdrop name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
-        else {
+        if (value == "background #" || value == "backdrop #") {
+            *outValue = Value(spriteObject->currentCostume + 1);
+        } else if (value == "backdrop name") {
+            *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        } else {
             for (const auto &[id, variable] : spriteObject->variables) {
-                if (value == variable.name) *outValue = variable.value;
+                if (value == variable.name) {
+                    setOutFromVar(variable);
+                    break;
+                }
             }
         }
     } else {
@@ -67,12 +83,14 @@ SCRATCH_BLOCK(sensing, of) {
         else if (value == "y position") *outValue = Value(spriteObject->yPosition);
         else if (value == "direction") *outValue = Value(spriteObject->rotation);
         else if (value == "costume #") *outValue = Value(spriteObject->currentCostume + 1);
-        else if (value == "costume name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
-        else if (value == "backdrop name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        else if (value == "costume name" || value == "backdrop name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
         else if (value == "size") *outValue = Value(spriteObject->size);
         else {
             for (const auto &[id, variable] : spriteObject->variables) {
-                if (value == variable.name) *outValue = variable.value;
+                if (value == variable.name) {
+                    setOutFromVar(variable);
+                    break;
+                }
             }
         }
     }

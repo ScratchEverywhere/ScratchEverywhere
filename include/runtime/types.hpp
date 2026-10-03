@@ -9,8 +9,17 @@
 #include <timer.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 
 class Sprite;
+
+enum class Type : uint8_t {
+    Value,
+    Number,
+    String,
+    Boolean,
+    Color
+};
 
 struct SE_EXPORT RenderInfo {
     float renderX;
@@ -161,7 +170,8 @@ struct SE_EXPORT Variable {
 #ifdef ENABLE_CLOUDVARS
     bool cloud;
 #endif
-    Value value;
+
+    std::variant<Value, double, std::string, bool> value;
 };
 
 struct SE_EXPORT List {
@@ -216,13 +226,7 @@ using RawBlockFuncColor = RawBlockFuncBase<Color>;
 using BlockFuncValue = std::function<BlockResult(Block *, ScriptThread *, Sprite *, Value *)>;
 
 struct BlockFunc {
-    enum class Type : uint8_t {
-        Value,
-        Number,
-        String,
-        Boolean,
-        Color
-    } type = Type::Value;
+    Type type = Type::Value;
 
     union FuncUnion {
         BlockFuncValue value;

@@ -204,10 +204,11 @@ void processCommands() {
                               << "TTS: [Gender: " << target->textToSpeechData.gender << ", Lang: " << target->textToSpeechData.language << "]\n";
                 }
 
-                std::cout << "- Variables:\n";
+                // TODO: reimplement
+                /* std::cout << "- Variables:\n";
                 for (auto &[id, v] : target->variables) {
                     std::cout << "  " << v.name << " = " << v.value.asString() << "\n";
-                }
+                } */
                 std::cout << "- Lists:\n";
                 for (auto &[id, l] : target->lists) {
                     std::cout << "  " << l.name << " (length " << l.items.size() << ")\n";
@@ -307,7 +308,8 @@ void processCommands() {
         queueMutex.unlock();
     }
 
-    for (auto &w : watchedVars) {
+    // TODO: reimplement
+    /* for (auto &w : watchedVars) {
         size_t colon = w.targetStr.find(':');
         Value current;
         if (colon == std::string::npos) {
@@ -335,7 +337,7 @@ void processCommands() {
             std::cout << "[WATCH] " << w.targetStr << " : " << w.lastValue.asString() << " -> " << current.asString() << "\n";
             w.lastValue = current;
         }
-    }
+    } */
 }
 
 } // namespace Inspector

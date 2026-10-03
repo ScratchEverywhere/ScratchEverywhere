@@ -425,17 +425,17 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
         input->second->calculated = true;
 #ifdef ENABLE_CACHING
         if (input->second->variable != nullptr) {
-            input->second->value = input->second->variable->value;
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variable);
         } else if (input->second->list) {
             input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
         } else {
-            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variableId, sprite);
         }
 #else
         if (input->second->list) {
             input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
         } else {
-            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variableId, sprite);
         }
 #endif
         outValue = input->second->value;
@@ -512,23 +512,20 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
         readValue();
         return true;
     case ParsedInput::InputType::VARIABLE:
+#ifdef ENABLE_CACHING
+        if (in.variable != nullptr) {
+            outValue = BlockExecutor::getVariableValueAs<T>(in.variable);
+            return true;
+        }
+#endif
         if (!in.calculated) {
             in.calculated = true;
-#ifdef ENABLE_CACHING
-            if (in.variable != nullptr) {
-                in.value = in.variable->value;
-            } else if (in.list) {
-                in.value = BlockExecutor::getListValue(in.variableId, sprite);
-            } else {
-                in.value = BlockExecutor::getVariableValue(in.variableId, sprite);
-            }
-#else
             if (in.list) {
                 in.value = BlockExecutor::getListValue(in.variableId, sprite);
             } else {
-                in.value = BlockExecutor::getVariableValue(in.variableId, sprite);
+                outValue = BlockExecutor::getVariableValueAs<T>(in.variableId, sprite);
+                return true;
             }
-#endif
         }
         readValue();
         return true;
@@ -560,12 +557,12 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
         BlockResult res;
         bool done = false;
         switch (targetBlock->blockFunction.type) {
-        case BlockFunc::Type::Value: {
+        case Type::Value: {
             res = targetBlock->blockFunction.func.value(targetBlock, thread, sprite, &in.value);
             in.cacheKind = ParsedInput::CacheKind::Value;
             break;
         }
-        case BlockFunc::Type::Number: {
+        case Type::Number: {
             double d = 0.0;
             res = targetBlock->blockFunction.func.number(targetBlock, thread, sprite, &d);
             if (res != BlockResult::REPEAT) {
@@ -580,7 +577,7 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
             }
             break;
         }
-        case BlockFunc::Type::Boolean: {
+        case Type::Boolean: {
             bool b = false;
             res = targetBlock->blockFunction.func.boolean(targetBlock, thread, sprite, &b);
             if (res != BlockResult::REPEAT) {
@@ -595,7 +592,7 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
             }
             break;
         }
-        case BlockFunc::Type::String: {
+        case Type::String: {
             std::string str;
             res = targetBlock->blockFunction.func.string(targetBlock, thread, sprite, &str);
             if (res != BlockResult::REPEAT) {
@@ -608,7 +605,7 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
             }
             break;
         }
-        case BlockFunc::Type::Color: {
+        case Type::Color: {
             Color color{};
             res = targetBlock->blockFunction.func.color(targetBlock, thread, sprite, &color);
             if (res != BlockResult::REPEAT) {
@@ -634,7 +631,10 @@ bool Scratch::getInputValueAs(Block *block, const std::string &inputName, Script
 
     return true;
 }
-#define GET_INPUT_VALUE_AS_TEMPLATE(T) template bool Scratch::getInputValueAs<T>(Block *, const std::string &, ScriptThread *, Sprite *, T &outValue)
+
+#define GET_INPUT_VALUE_AS_TEMPLATE(T) \
+    template bool Scratch::getInputValueAs<T>(Block *, const std::string &, ScriptThread *, Sprite *, T &outValue)
+
 GET_INPUT_VALUE_AS_TEMPLATE(Value);
 GET_INPUT_VALUE_AS_TEMPLATE(double);
 GET_INPUT_VALUE_AS_TEMPLATE(std::string);
