@@ -1,8 +1,24 @@
 #include "value.hpp"
 #include "math.hpp"
 #include <array>
+#include <cctype>
 #include <os.hpp>
 #include <regex>
+#include <string_view>
+
+namespace {
+bool caseInsensitiveEqual(std::string_view a, std::string_view b) {
+    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](unsigned char x, unsigned char y) {
+               return std::tolower(x) == std::tolower(y);
+           });
+}
+
+bool caseInsensitiveLess(std::string_view a, std::string_view b) {
+    return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](unsigned char x, unsigned char y) {
+        return std::tolower(x) < std::tolower(y);
+    });
+}
+} // namespace
 
 Value::Value(int val) : tag(Tag::Double) { storage.d = static_cast<double>(val); }
 
@@ -101,19 +117,26 @@ Color Value::asColor() const {
 }
 
 bool Value::operator==(const Value &other) const {
-    std::string string1 = asString();
-    std::string string2 = other.asString();
+    std::string ownedA, ownedB;
+    const std::string *strA = tryGetStringRef();
+    if (!strA) {
+        ownedA = asString();
+        strA = &ownedA;
+    }
+    const std::string *strB = other.tryGetStringRef();
+    if (!strB) {
+        ownedB = other.asString();
+        strB = &ownedB;
+    }
 
-    if (!std::all_of(string1.begin(), string1.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); }) &&
-        !std::all_of(string2.begin(), string2.end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) {
+    if (!std::all_of(strA->begin(), strA->end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); }) &&
+        !std::all_of(strB->begin(), strB->end(), [](unsigned char c) { return (std::isspace(c) && c != '\t'); })) {
         if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
             return asDouble() == other.asDouble();
         }
     }
 
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-    return string1 == string2;
+    return caseInsensitiveEqual(*strA, *strB);
 }
 
 bool Value::operator<(const Value &other) const {
@@ -121,11 +144,18 @@ bool Value::operator<(const Value &other) const {
         return asDouble() < other.asDouble();
     }
 
-    std::string string1 = asString();
-    std::string string2 = other.asString();
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-    return string1 < string2;
+    std::string ownedA, ownedB;
+    const std::string *strA = tryGetStringRef();
+    if (!strA) {
+        ownedA = asString();
+        strA = &ownedA;
+    }
+    const std::string *strB = other.tryGetStringRef();
+    if (!strB) {
+        ownedB = other.asString();
+        strB = &ownedB;
+    }
+    return caseInsensitiveLess(*strA, *strB);
 }
 
 bool Value::operator>(const Value &other) const {
@@ -133,11 +163,18 @@ bool Value::operator>(const Value &other) const {
         return asDouble() > other.asDouble();
     }
 
-    std::string string1 = asString();
-    std::string string2 = other.asString();
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
-    return string1 > string2;
+    std::string ownedA, ownedB;
+    const std::string *strA = tryGetStringRef();
+    if (!strA) {
+        ownedA = asString();
+        strA = &ownedA;
+    }
+    const std::string *strB = other.tryGetStringRef();
+    if (!strB) {
+        ownedB = other.asString();
+        strB = &ownedB;
+    }
+    return caseInsensitiveLess(*strB, *strA);
 }
 
 bool Value::isScratchInt() {
