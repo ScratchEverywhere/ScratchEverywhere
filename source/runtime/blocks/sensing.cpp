@@ -31,8 +31,8 @@ SCRATCH_BLOCK(sensing, setdragmode) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, timer) {
-    *outValue = Value(BlockExecutor::timer.getTimeMs() / 1000.0);
+SCRATCH_BLOCK_DOUBLE(sensing, timer) {
+    *outValue = BlockExecutor::timer.getTimeMs() / 1000.0;
     return BlockResult::CONTINUE;
 }
 
@@ -53,13 +53,29 @@ SCRATCH_BLOCK(sensing, of) {
 
     if (!spriteObject) return BlockResult::CONTINUE;
 
+    const auto setOutFromVar = [outValue](const Variable &variable) {
+        std::visit([outValue](auto &&v) {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, Value>) {
+                *outValue = v;
+            } else {
+                *outValue = Value(v);
+            }
+        },
+                   variable.value);
+    };
+
     if (spriteObject->isStage) {
-        if (value == "background #") *outValue = Value(spriteObject->currentCostume + 1);
-        else if (value == "backdrop #") *outValue = Value(spriteObject->currentCostume + 1);
-        else if (value == "backdrop name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
-        else {
+        if (value == "background #" || value == "backdrop #") {
+            *outValue = Value(spriteObject->currentCostume + 1);
+        } else if (value == "backdrop name") {
+            *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        } else {
             for (const auto &[id, variable] : spriteObject->variables) {
-                if (value == variable.name) *outValue = variable.value;
+                if (value == variable.name) {
+                    setOutFromVar(variable);
+                    break;
+                }
             }
         }
     } else {
@@ -67,36 +83,38 @@ SCRATCH_BLOCK(sensing, of) {
         else if (value == "y position") *outValue = Value(spriteObject->yPosition);
         else if (value == "direction") *outValue = Value(spriteObject->rotation);
         else if (value == "costume #") *outValue = Value(spriteObject->currentCostume + 1);
-        else if (value == "costume name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
-        else if (value == "backdrop name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
+        else if (value == "costume name" || value == "backdrop name") *outValue = Value(spriteObject->costumes[spriteObject->currentCostume].name);
         else if (value == "size") *outValue = Value(spriteObject->size);
         else {
             for (const auto &[id, variable] : spriteObject->variables) {
-                if (value == variable.name) *outValue = variable.value;
+                if (value == variable.name) {
+                    setOutFromVar(variable);
+                    break;
+                }
             }
         }
     }
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, mousex) {
-    *outValue = Value(Input::mousePointer.x);
+SCRATCH_BLOCK_DOUBLE(sensing, mousex) {
+    *outValue = Input::mousePointer.x;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, mousey) {
-    *outValue = Value(Input::mousePointer.y);
+SCRATCH_BLOCK_DOUBLE(sensing, mousey) {
+    *outValue = Input::mousePointer.y;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, distanceto) {
+SCRATCH_BLOCK_DOUBLE(sensing, distanceto) {
     std::string distanceTo;
     if (!Scratch::getInputValueAs(block, "DISTANCETOMENU", thread, sprite, distanceTo)) return BlockResult::REPEAT;
 
     if (distanceTo == "_mouse_") {
         const double dx = Input::mousePointer.x - sprite->xPosition;
         const double dy = Input::mousePointer.y - sprite->yPosition;
-        *outValue = Value(std::sqrt(dx * dx + dy * dy));
+        *outValue = std::sqrt(dx * dx + dy * dy);
         return BlockResult::CONTINUE;
     }
 
@@ -104,45 +122,45 @@ SCRATCH_BLOCK(sensing, distanceto) {
         if (currentSprite->isClone || currentSprite->name != distanceTo) continue;
         const double dx = currentSprite->xPosition - sprite->xPosition;
         const double dy = currentSprite->yPosition - sprite->yPosition;
-        *outValue = Value(std::sqrt(dx * dx + dy * dy));
+        *outValue = std::sqrt(dx * dx + dy * dy);
         return BlockResult::CONTINUE;
     }
-    *outValue = Value(10000);
+    *outValue = 10000;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, dayssince2000) {
-    *outValue = Value(TimeSE::getDaysSince2000());
+SCRATCH_BLOCK_DOUBLE(sensing, dayssince2000) {
+    *outValue = TimeSE::getDaysSince2000();
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, current) {
+SCRATCH_BLOCK_DOUBLE(sensing, current) {
     std::string inputValue = Scratch::getFieldValue(*block, "CURRENTMENU");
 
-    if (inputValue == "YEAR") *outValue = Value(TimeSE::getYear());
-    else if (inputValue == "MONTH") *outValue = Value(TimeSE::getMonth());
-    else if (inputValue == "DATE") *outValue = Value(TimeSE::getDay());
-    else if (inputValue == "DAYOFWEEK") *outValue = Value(TimeSE::getDayOfWeek());
-    else if (inputValue == "HOUR") *outValue = Value(TimeSE::getHours());
-    else if (inputValue == "MINUTE") *outValue = Value(TimeSE::getMinutes());
-    else if (inputValue == "SECOND") *outValue = Value(TimeSE::getSeconds());
-    else *outValue = Value();
+    if (inputValue == "YEAR") *outValue = TimeSE::getYear();
+    else if (inputValue == "MONTH") *outValue = TimeSE::getMonth();
+    else if (inputValue == "DATE") *outValue = TimeSE::getDay();
+    else if (inputValue == "DAYOFWEEK") *outValue = TimeSE::getDayOfWeek();
+    else if (inputValue == "HOUR") *outValue = TimeSE::getHours();
+    else if (inputValue == "MINUTE") *outValue = TimeSE::getMinutes();
+    else if (inputValue == "SECOND") *outValue = TimeSE::getSeconds();
+    else *outValue = 0;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, answer) {
-    *outValue = Value(Scratch::answer);
+SCRATCH_BLOCK_STRING(sensing, answer) {
+    *outValue = Scratch::answer;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, keypressed) {
+SCRATCH_BLOCK_BOOLEAN(sensing, keypressed) {
     Value keyOption;
     if (!Scratch::getInputValue(block, "KEY_OPTION", thread, sprite, keyOption)) return BlockResult::REPEAT;
-    *outValue = Value(false);
+    *outValue = false;
 
     for (std::string button : Input::inputKeys) {
         if (Input::convertToKey(keyOption) == button) {
-            *outValue = Value(true);
+            *outValue = true;
             break;
         }
     }
@@ -150,22 +168,22 @@ SCRATCH_BLOCK(sensing, keypressed) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, touchingobject) {
+SCRATCH_BLOCK_BOOLEAN(sensing, touchingobject) {
     std::string touchingObject;
     if (!Scratch::getInputValueAs(block, "TOUCHINGOBJECTMENU", thread, sprite, touchingObject)) return BlockResult::REPEAT;
 
     if (touchingObject == "_mouse_")
-        *outValue = Value(Scratch::isColliding("mouse", sprite));
+        *outValue = Scratch::isColliding("mouse", sprite);
     else if (touchingObject == "_edge_")
-        *outValue = Value(Scratch::isColliding("edge", sprite));
+        *outValue = Scratch::isColliding("edge", sprite);
     else {
-        *outValue = Value(false);
+        *outValue = false;
         for (size_t i = 0; i < Scratch::sprites.size(); i++) {
             Sprite *currentSprite = Scratch::sprites[i];
             if (currentSprite == sprite) continue;
             if (currentSprite->name == touchingObject &&
                 Scratch::isColliding("sprite", sprite, currentSprite, touchingObject)) {
-                *outValue = Value(true);
+                *outValue = true;
                 return BlockResult::CONTINUE;
             }
         }
@@ -173,24 +191,24 @@ SCRATCH_BLOCK(sensing, touchingobject) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, mousedown) {
-    *outValue = Value(Input::mousePointer.isPressed);
+SCRATCH_BLOCK_BOOLEAN(sensing, mousedown) {
+    *outValue = Input::mousePointer.isPressed;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, username) {
+SCRATCH_BLOCK_STRING(sensing, username) {
 #ifdef ENABLE_CLOUDVARS
-    if (Scratch::cloudProject) *outValue = Value(Scratch::cloudUsername);
+    if (Scratch::cloudProject) *outValue = Scratch::cloudUsername;
     else
 #endif
         if (Scratch::useCustomUsername)
-        *outValue = Value(Scratch::customUsername);
-    else *outValue = Value(OS::getUsername());
+        *outValue = Scratch::customUsername;
+    else *outValue = OS::getUsername();
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(sensing, online) {
-    *outValue = Value(OS::isOnline());
+SCRATCH_BLOCK_BOOLEAN(sensing, online) {
+    *outValue = OS::isOnline();
     return BlockResult::CONTINUE;
 }
 

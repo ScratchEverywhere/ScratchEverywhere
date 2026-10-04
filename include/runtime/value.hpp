@@ -75,13 +75,18 @@ class SE_EXPORT Value {
         }
     }
 
+    static const std::shared_ptr<const std::string> &emptyString() {
+        static const std::shared_ptr<const std::string> empty = std::make_shared<const std::string>();
+        return empty;
+    }
+
   public:
-    // constructors
-    Value() : tag(Tag::String) { new (&storage.s) std::shared_ptr<const std::string>(std::make_shared<const std::string>()); }
+    Value() : tag(Tag::String) { new (&storage.s) std::shared_ptr<const std::string>(emptyString()); }
 
     explicit Value(int val);
     explicit Value(double val);
     explicit Value(std::string val);
+    explicit Value(std::shared_ptr<const std::string> val);
     explicit Value(bool val);
     explicit Value(Color val);
     explicit Value(Undefined val);
@@ -202,6 +207,10 @@ class SE_EXPORT Value {
     SE_FORCEINLINE const std::string *tryGetStringRef() const {
         if (isString()) return storage.s.get();
         return nullptr;
+    }
+
+    SE_FORCEINLINE std::shared_ptr<const std::string> getStringPtr() const {
+        return storage.s;
     }
 
     SE_FORCEINLINE Value operator+(const Value &other) const {

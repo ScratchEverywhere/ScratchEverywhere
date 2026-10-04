@@ -312,22 +312,22 @@ SCRATCH_BLOCK(motion, ifonedgebounce) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(motion, xposition) {
+SCRATCH_BLOCK_DOUBLE(motion, xposition) {
     double rounded = std::round(sprite->xPosition);
     double delta = std::fabs(sprite->xPosition - rounded);
-    *outValue = Value((delta < 1e-9) ? rounded : sprite->xPosition);
+    *outValue = (delta < 1e-9) ? rounded : sprite->xPosition;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(motion, yposition) {
+SCRATCH_BLOCK_DOUBLE(motion, yposition) {
     double rounded = std::round(sprite->yPosition);
     double delta = std::fabs(sprite->yPosition - rounded);
-    *outValue = Value((delta < 1e-9) ? rounded : sprite->yPosition);
+    *outValue = (delta < 1e-9) ? rounded : sprite->yPosition;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(motion, direction) {
-    *outValue = Value(sprite->rotation);
+SCRATCH_BLOCK_DOUBLE(motion, direction) {
+    *outValue = sprite->rotation;
     return BlockResult::CONTINUE;
 }
 

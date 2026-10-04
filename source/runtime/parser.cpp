@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include "blockExecutor.hpp"
 #include "types.hpp"
 #include <algorithm>
 #include <filesystem.hpp>
@@ -13,6 +14,7 @@
 #include <settings.hpp>
 #include <unordered_map>
 #include <unzip.hpp>
+#include <variant>
 #if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
 #include <whb/sdcard.h>
 #endif
@@ -222,13 +224,24 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 Variable newVariable;
                 newVariable.id = id;
                 newVariable.name = data[0];
-                newVariable.value = Value::fromJson(data[1]);
+                Value value = Value::fromJson(data[1]);
+
+                if (value.isDouble()) {
+                    newVariable.value = value.get<double>();
+                } else if (value.isString()) {
+                    newVariable.value = value.getStringPtr();
+                } else if (value.isBoolean()) {
+                    newVariable.value = value.get<bool>();
+                } else {
+                    newVariable.value = std::move(value);
+                }
+
 #ifdef ENABLE_CLOUDVARS
                 newVariable.cloud = data.size() == 3;
                 Scratch::cloudProject = Scratch::cloudProject || newVariable.cloud;
 #endif
                 newSprite->variables[newVariable.id] = newVariable;
-                Parser::log("\t\t" + newVariable.name + " = " + newVariable.value.asString());
+                // Parser::log("\t\t" + newVariable.name + " = " + newVariable.value.asString()); // TODO: reimplement
             }
         }
 
@@ -309,6 +322,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
         std::vector<std::string> procedureCallBlocks;
 
+        // Blocks
         if (target.contains("blocks") && !target["blocks"].empty()) {
             Parser::log("\tBlocks:");
 
@@ -428,6 +442,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
                         block->MyBlockDefinitionID->MyBlockWithoutScreenRefresh;
                 }
             }
+
+            resolveVariableTypes(newSprite);
         }
 
         Scratch::sprites.push_back(newSprite);
@@ -752,6 +768,95 @@ void Parser::loadFields(Block &block, const std::string &blockKey, const nlohman
         }
         block.fields.push_back({name, parsedField});
         block.fieldMap[name] = &block.fields.back().second;
+    }
+}
+
+void Parser::resolveVariableTypes(Sprite *sprite) {
+    std::vector<Block *> setVarBlocks;
+    for (Block *block : Scratch::blocks) {
+        if (block->opcode == "data_setvariableto" || block->opcode == "data_changevariableby") {
+            setVarBlocks.push_back(block);
+        }
+    }
+
+    const auto toValue = [](const Variable &v) -> Value {
+        return std::visit([](auto &&arg) -> Value {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, Value>) return arg;
+            else return Value(arg);
+        },
+                          v.value);
+    };
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+
+        for (Block *block : setVarBlocks) {
+            if (block->opcode == "data_changevariableby") {
+                const auto &varId = Scratch::getFieldId(*block, "VARIABLE");
+                Variable *var = BlockExecutor::getVariable(varId, sprite);
+                if (var != nullptr && !std::holds_alternative<Value>(var->value)) {
+                    if (!std::holds_alternative<double>(var->value)) {
+                        var->value = toValue(*var);
+                        changed = true;
+                    }
+                }
+                continue;
+            }
+
+            const auto &varId = Scratch::getFieldId(*block, "VARIABLE");
+            Variable *var = BlockExecutor::getVariable(varId, sprite);
+            if (!var || std::holds_alternative<Value>(var->value)) continue;
+
+            const auto it = block->inputMap.find("VALUE");
+            if (it == block->inputMap.end()) continue;
+
+            const auto &input = it->second;
+            bool shouldDemote = false;
+
+            switch (input->inputType) {
+            case ParsedInput::VALUE:
+                if (std::holds_alternative<double>(var->value) && !input->value.isDouble()) shouldDemote = true;
+                else if (std::holds_alternative<std::shared_ptr<const std::string>>(var->value) && !input->value.isString()) shouldDemote = true;
+                else if (std::holds_alternative<bool>(var->value) && !input->value.isBoolean()) shouldDemote = true;
+                break;
+
+            case ParsedInput::VARIABLE: {
+                Variable *srcVar = BlockExecutor::getVariable(input->variableId, sprite);
+                if (!srcVar) {
+                    shouldDemote = true;
+                } else if (std::holds_alternative<Value>(srcVar->value)) {
+                    shouldDemote = true;
+                } else if (var->value.index() != srcVar->value.index()) {
+                    shouldDemote = true;
+                }
+                break;
+            }
+
+            case ParsedInput::BLOCK:
+                switch (input->block->blockFunction.type) {
+                case Type::Number:
+                    if (!std::holds_alternative<double>(var->value)) shouldDemote = true;
+                    break;
+                case Type::String:
+                    if (!std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) shouldDemote = true;
+                    break;
+                case Type::Boolean:
+                    if (!std::holds_alternative<bool>(var->value)) shouldDemote = true;
+                    break;
+                default:
+                    shouldDemote = true;
+                    break;
+                }
+                break;
+            }
+
+            if (shouldDemote) {
+                var->value = toValue(*var);
+                changed = true;
+            }
+        }
     }
 }
 

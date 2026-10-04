@@ -218,7 +218,7 @@ void extensions::registerHandlers(Extension *extension) {
         if (extension->core) blockId = extensionBlock.first;
         else blockId = extension->id + "_" + extensionBlock.first;
 
-        BlockExecutor::getHandlers()[blockId] = [extension, extensionBlock](Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) -> BlockResult {
+        BlockExecutor::getHandlers()[blockId] = BlockFunc([extension, extensionBlock](Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) -> BlockResult {
             runtime::setThread(thread);
             runtime::setSprite(sprite);
             runtime::setBlock(block);
@@ -251,7 +251,7 @@ void extensions::registerHandlers(Extension *extension) {
             }
             runtime::clearData();
             return BlockResult::CONTINUE;
-        };
+        });
     }
 }
 

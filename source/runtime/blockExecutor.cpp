@@ -113,7 +113,7 @@ void BlockExecutor::runThreads() {
             continue;
         }
 
-        var = runThread(*thread, *thread->sprite, nullptr);
+        var = runThread(*thread, *thread->sprite);
 
         if (Scratch::shouldStop) return;
         i++;
@@ -149,7 +149,7 @@ void BlockExecutor::runThreads() {
     }
 }
 
-BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value *outValue) {
+BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite) {
     if (thread.nextBlock == nullptr) return BlockResult::RETURN;
     BlockResult var = BlockResult::CONTINUE;
     Timer executionTimer(false);
@@ -161,7 +161,33 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite, Value
         currentBlock = thread.nextBlock;
         thread.nextBlock = currentBlock->nextBlock;
 
-        var = currentBlock->blockFunction(currentBlock, &thread, &sprite, outValue);
+        switch (currentBlock->blockFunction.type) {
+        case Type::Value: {
+            var = currentBlock->blockFunction.func.value(currentBlock, &thread, &sprite, nullptr);
+            break;
+        }
+        case Type::Number: {
+            double blockOutDouble;
+            var = currentBlock->blockFunction.func.number(currentBlock, &thread, &sprite, &blockOutDouble);
+            break;
+        }
+        case Type::String: {
+            std::string blockOutString;
+            var = currentBlock->blockFunction.func.string(currentBlock, &thread, &sprite, &blockOutString);
+            break;
+        }
+        case Type::Boolean: {
+            bool blockOutBool;
+            var = currentBlock->blockFunction.func.boolean(currentBlock, &thread, &sprite, &blockOutBool);
+            break;
+        }
+        case Type::Color: {
+            Color blockOutColor;
+            var = currentBlock->blockFunction.func.color(currentBlock, &thread, &sprite, &blockOutColor);
+            break;
+        }
+        }
+
         if (var == BlockResult::REPEAT) thread.nextBlock = currentBlock;
         else {
             Scratch::resetInput(currentBlock);
@@ -274,23 +300,47 @@ void BlockExecutor::doSpriteClicking() {
 }
 
 void BlockExecutor::setVariableValue(const std::string &variableId, const Value &newValue, Sprite *sprite) {
+    const auto assignToVar = [&newValue](Variable &var) {
+        std::visit([&newValue, &var](auto &&current) {
+            using T = std::decay_t<decltype(current)>;
+            if constexpr (std::is_same_v<T, double>) {
+                var.value = newValue.asDouble();
+            } else if constexpr (std::is_same_v<T, std::shared_ptr<const std::string>>) {
+                if (newValue.isString()) var.value = newValue.getStringPtr();
+                else var.value = std::make_shared<const std::string>(newValue.asString());
+            } else if constexpr (std::is_same_v<T, bool>) {
+                var.value = newValue.asBoolean();
+            } else if constexpr (std::is_same_v<T, Value>) {
+                var.value = newValue;
+            }
+        },
+                   var.value);
+    };
+
     // Set sprite variable
-    const auto it = sprite->variables.find(variableId);
-    if (it != sprite->variables.end()) {
-        it->second.value = newValue;
-        return;
+    if (sprite != nullptr) {
+        const auto it = sprite->variables.find(variableId);
+        if (it != sprite->variables.end()) {
+            assignToVar(it->second);
+            return;
+        }
     }
 
+    // Set global variable
     auto globalIt = Scratch::stageSprite->variables.find(variableId);
     if (globalIt != Scratch::stageSprite->variables.end()) {
-        globalIt->second.value = newValue;
+        assignToVar(globalIt->second);
 #ifdef ENABLE_CLOUDVARS
-        if (globalIt->second.cloud) cloudConnection->set(globalIt->second.name, globalIt->second.value.asString());
+        if (globalIt->second.cloud) {
+            cloudConnection->set(globalIt->second.name, getVariableValueAs<std::string>(&globalIt->second));
+        }
 #endif
         return;
     }
 
-    sprite->variables[variableId].value = newValue;
+    if (sprite != nullptr) {
+        sprite->variables[variableId].value = newValue;
+    }
 }
 
 void BlockExecutor::updateMonitors(ScriptThread *thread) {
@@ -355,7 +405,7 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
                     }
                 }
                 auto handlerIt = getHandlers().find(var.opcode);
-                if (handlerIt != getHandlers().end() && handlerIt->second != nullptr) {
+                if (handlerIt != getHandlers().end()) {
                     handlerIt->second(&newBlock, thread, sprite, &var.value);
                 } else {
                     Log::logWarning("[BlockExecutor] No handler found for monitor opcode: " + var.opcode);
@@ -365,22 +415,87 @@ void BlockExecutor::updateMonitors(ScriptThread *thread) {
     }
 }
 
-Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *sprite) {
+Variable *BlockExecutor::getVariable(const std::string &variableId, Sprite *sprite) {
     // Check sprite variables
     if (sprite != nullptr) {
         const auto it = sprite->variables.find(variableId);
-        if (it != sprite->variables.end()) return it->second.value;
+        if (it != sprite->variables.end()) return &it->second;
     }
 
     // Check global variables
     const auto globalIt = Scratch::stageSprite->variables.find(variableId);
     if (globalIt != Scratch::stageSprite->variables.end()) {
-        return globalIt->second.value;
+        return &globalIt->second;
     }
 
-    if (sprite != nullptr) sprite->variables[variableId].value = Value(0);
-    return Value(0);
+    return nullptr;
 }
+
+template <typename T>
+T BlockExecutor::getVariableValueAs(Variable *var) {
+    if (!var) {
+        if constexpr (std::is_same_v<T, Value>) return Value(0);
+        else if constexpr (std::is_same_v<T, double>) return 0.0;
+        else if constexpr (std::is_same_v<T, bool>) return false;
+        else if constexpr (std::is_same_v<T, std::string>) return "0";
+        else return Value(0).template get<T>();
+    }
+
+    return std::visit([](auto &&arg) -> T {
+        using VarT = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, Value>) {
+            if constexpr (std::is_same_v<VarT, Value>) return arg;
+            else return Value(arg);
+        } else if constexpr (std::is_same_v<T, std::string> && std::is_same_v<VarT, std::shared_ptr<const std::string>>) {
+            return *arg;
+        } else if constexpr (std::is_same_v<VarT, T>) {
+            return arg;
+        } else if constexpr (std::is_same_v<VarT, Value>) {
+            return arg.template get<T>();
+        } else {
+            return Value(arg).template get<T>();
+        }
+    },
+                      var->value);
+}
+
+template <typename T>
+T BlockExecutor::getVariableValueAs(const std::string &variableId, Sprite *sprite) {
+    // Check sprite variables
+    if (sprite != nullptr) {
+        const auto it = sprite->variables.find(variableId);
+        if (it != sprite->variables.end()) {
+            return getVariableValueAs<T>(&it->second);
+        }
+    }
+
+    // Check global variables
+    const auto globalIt = Scratch::stageSprite->variables.find(variableId);
+    if (globalIt != Scratch::stageSprite->variables.end()) {
+        return getVariableValueAs<T>(&globalIt->second);
+    }
+
+    if (sprite != nullptr) {
+        sprite->variables[variableId].value = Value(0);
+        return getVariableValueAs<T>(&sprite->variables[variableId]);
+    }
+
+    return getVariableValueAs<T>(nullptr);
+}
+
+Value BlockExecutor::getVariableValue(const std::string &variableId, Sprite *sprite) {
+    return getVariableValueAs<Value>(variableId, sprite);
+}
+
+#define GET_VARIABLE_VALUE_AS_TEMPLATE(T)                        \
+    template T BlockExecutor::getVariableValueAs<T>(Variable *); \
+    template T BlockExecutor::getVariableValueAs<T>(const std::string &, Sprite *)
+
+GET_VARIABLE_VALUE_AS_TEMPLATE(Value);
+GET_VARIABLE_VALUE_AS_TEMPLATE(double);
+GET_VARIABLE_VALUE_AS_TEMPLATE(std::string);
+GET_VARIABLE_VALUE_AS_TEMPLATE(bool);
+GET_VARIABLE_VALUE_AS_TEMPLATE(Color);
 
 Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
     // Check sprite lists

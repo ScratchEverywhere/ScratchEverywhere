@@ -210,7 +210,7 @@ SCRATCH_BLOCK(data, itemoflist) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(data, itemnumoflist) {
+SCRATCH_BLOCK_DOUBLE(data, itemnumoflist) {
     Value itemToFind;
     if (!Scratch::getInputValue(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
 
@@ -220,25 +220,25 @@ SCRATCH_BLOCK(data, itemnumoflist) {
         int index = 1;
         for (auto &item : *items) {
             if (item == itemToFind) {
-                *outValue = Value(index);
+                *outValue = index;
                 return BlockResult::CONTINUE;
             }
             index++;
         }
     }
 
-    *outValue = Value(0);
+    *outValue = 0;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(data, lengthoflist) {
+SCRATCH_BLOCK_DOUBLE(data, lengthoflist) {
     const auto &items = Scratch::getListItems(*block, sprite);
-    if (items) *outValue = Value(static_cast<double>(items->size()));
-    else *outValue = Value();
+    if (items) *outValue = items->size();
+    else *outValue = 0;
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(data, listcontainsitem) {
+SCRATCH_BLOCK_BOOLEAN(data, listcontainsitem) {
     Value itemToFind;
     if (!Scratch::getInputValue(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
 
@@ -247,13 +247,13 @@ SCRATCH_BLOCK(data, listcontainsitem) {
     if (items) {
         for (const auto &item : *items) {
             if (item == itemToFind) {
-                *outValue = Value(true);
+                *outValue = true;
                 return BlockResult::CONTINUE;
             }
         }
     }
 
-    *outValue = Value(false);
+    *outValue = false;
     return BlockResult::CONTINUE;
 }
 
@@ -262,7 +262,7 @@ SCRATCH_BLOCK(data, variable) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(data, listcontents) {
+SCRATCH_BLOCK_STRING(data, listcontents) {
     const auto &items = Scratch::getListItems(*block, sprite);
     std::string ret = "";
     bool allSingle = true;
@@ -288,6 +288,6 @@ SCRATCH_BLOCK(data, listcontents) {
         }
     }
 
-    *outValue = Value(ret);
+    *outValue = ret;
     return BlockResult::CONTINUE;
 }
