@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <charconv>
+#include <cstdint>
 #include <cstdlib>
 #include <ctime>
 #include <limits>
@@ -11,6 +12,8 @@
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <utility>
 #ifdef RENDERER_CITRO2D
 #include <citro2d.h>
 #endif
@@ -37,18 +40,84 @@ int Math::color(int r, int g, int b, int a) {
 #elif defined(RENDERER_CITRO2D)
     return C2D_Color32(r, g, b, a);
 #elif !defined(RENDERER_HEADLESS)
-#error You forgot to add your new renderer here didn't you...
+#error "You forgot to add your new renderer here didn't you..."
 #endif
     return 0;
 }
 
+namespace {
+std::pair<uint32_t, size_t> decodeUtf8At(std::string_view str, size_t pos) {
+    unsigned char c0 = static_cast<unsigned char>(str[pos]);
+    if (c0 < 0x80) return {c0, 1};
+    size_t len;
+    uint32_t cp;
+    if ((c0 & 0xE0) == 0xC0) {
+        len = 2;
+        cp = c0 & 0x1F;
+    } else if ((c0 & 0xF0) == 0xE0) {
+        len = 3;
+        cp = c0 & 0x0F;
+    } else if ((c0 & 0xF8) == 0xF0) {
+        len = 4;
+        cp = c0 & 0x07;
+    } else return {c0, 1};
+    if (pos + len > str.size()) return {c0, 1};
+    for (size_t i = 1; i < len; i++) {
+        unsigned char c = static_cast<unsigned char>(str[pos + i]);
+        if ((c & 0xC0) != 0x80) return {c0, 1};
+        cp = (cp << 6) | (c & 0x3F);
+    }
+    return {cp, len};
+}
+
+bool isJsWhitespaceCodepoint(uint32_t cp) {
+    switch (cp) {
+    case 0x09:
+    case 0x0A:
+    case 0x0B:
+    case 0x0C:
+    case 0x0D:
+    case 0x20:
+    case 0xA0:
+    case 0x1680:
+    case 0x2000:
+    case 0x2001:
+    case 0x2002:
+    case 0x2003:
+    case 0x2004:
+    case 0x2005:
+    case 0x2006:
+    case 0x2007:
+    case 0x2008:
+    case 0x2009:
+    case 0x200A:
+    case 0x2028:
+    case 0x2029:
+    case 0x202F:
+    case 0x205F:
+    case 0x3000:
+    case 0xFEFF:
+        return true;
+    default:
+        return false;
+    }
+}
+} // namespace
+
 nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
     // Trim whitespace
-    while (!str.empty() && std::isspace(static_cast<unsigned char>(str.front()))) {
-        str.remove_prefix(1);
+    while (!str.empty()) {
+        auto [cp, len] = decodeUtf8At(str, 0);
+        if (!isJsWhitespaceCodepoint(cp)) break;
+        str.remove_prefix(len);
     }
-    while (!str.empty() && std::isspace(static_cast<unsigned char>(str.back()))) {
-        str.remove_suffix(1);
+    while (!str.empty()) {
+        size_t start = str.size() - 1;
+        while (start > 0 && (static_cast<unsigned char>(str[start]) & 0xC0) == 0x80)
+            start--;
+        auto [cp, len] = decodeUtf8At(str, start);
+        if (start + len != str.size() || !isJsWhitespaceCodepoint(cp)) break;
+        str.remove_suffix(len);
     }
 
     if (str.empty()) return nonstd::make_unexpected("Invalid Argument");
@@ -104,8 +173,13 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
     }
 
     if (ec == std::errc::result_out_of_range) {
-        if (!str.empty() && str.front() == '-') return -std::numeric_limits<double>::infinity();
-        return std::numeric_limits<double>::infinity();
+        if (str.size() >= 128) return nonstd::make_unexpected("Invalid Argument");
+        char stack_buf[128];
+        std::memcpy(stack_buf, str.data(), str.size());
+        stack_buf[str.size()] = '\0';
+        conversion = std::strtod(stack_buf, nullptr);
+    } else if (std::isinf(conversion)) {
+        return nonstd::make_unexpected("Invalid Argument");
     }
 #else
     char stack_buf[128];
@@ -123,10 +197,8 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
     if (endptr != stack_buf + str.size()) {
         return nonstd::make_unexpected("Invalid Argument");
     }
-
-    if (errno == ERANGE) {
-        if (!str.empty() && str.front() == '-') return -std::numeric_limits<double>::infinity();
-        return std::numeric_limits<double>::infinity();
+    if (std::isinf(conversion) && errno != ERANGE) {
+        return nonstd::make_unexpected("Invalid Argument");
     }
 #endif
 

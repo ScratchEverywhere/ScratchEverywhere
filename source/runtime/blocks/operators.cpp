@@ -119,7 +119,7 @@ SCRATCH_BLOCK_DOUBLE(operator, mod) {
     }
 
     double res = std::fmod(a, b);
-    if ((res < 0 && b > 0) || (res > 0 && b < 0))
+    if (res / b < 0)
         res += b;
     *outValue = res;
     return BlockResult::CONTINUE;
@@ -128,7 +128,15 @@ SCRATCH_BLOCK_DOUBLE(operator, mod) {
 SCRATCH_BLOCK_DOUBLE(operator, round) {
     double num;
     if (!Scratch::getInputValueAs(block, "NUM", thread, sprite, num)) return BlockResult::REPEAT;
-    *outValue = std::round(num);
+
+    if (std::isnan(num) || std::isinf(num)) {
+        *outValue = num;
+    } else if (num < 0 && num >= -0.5) {
+        *outValue = -0.0;
+    } else {
+        double flo = std::floor(num);
+        *outValue = (num - flo >= 0.5) ? flo + 1 : flo;
+    }
     return BlockResult::CONTINUE;
 }
 
@@ -136,7 +144,8 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
     double value;
     if (!Scratch::getInputValueAs(block, "NUM", thread, sprite, value)) return BlockResult::REPEAT;
 
-    const std::string operation = Scratch::getFieldValue(*block, "OPERATOR");
+    std::string operation = Scratch::getFieldValue(*block, "OPERATOR");
+    std::transform(operation.begin(), operation.end(), operation.begin(), ::tolower);
 
     if (operation == "abs") *outValue = abs(value);
     else if (operation == "floor") *outValue = floor(value);
@@ -152,7 +161,7 @@ SCRATCH_BLOCK_DOUBLE(operator, mathop) {
 
         if (modAngle == 90.0 || modAngle == -270.0) *outValue = std::numeric_limits<double>::infinity();
         else if (modAngle == -90.0 || modAngle == 270.0) *outValue = -std::numeric_limits<double>::infinity();
-        else *outValue = std::round(std::tan(Math::degreesToRadians(value)) * 1e10) / 1e10;
+        else *outValue = std::round(std::tan(Math::degreesToRadians(modAngle)) * 1e10) / 1e10;
     } else if (operation == "asin") *outValue = Math::radiansToDegrees(asin(value));
     else if (operation == "acos") *outValue = Math::radiansToDegrees(acos(value));
     else if (operation == "atan") *outValue = Math::radiansToDegrees(atan(value));
