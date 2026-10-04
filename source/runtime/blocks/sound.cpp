@@ -224,8 +224,8 @@ SCRATCH_BLOCK(sound, setvolumeto) {
     return BlockResult::REPEAT;
 }
 
-SCRATCH_BLOCK(sound, volume) {
-    *outValue = Value(sprite->volume);
+SCRATCH_BLOCK_DOUBLE(sound, volume) {
+    *outValue = sprite->volume;
     return BlockResult::CONTINUE;
 }
 

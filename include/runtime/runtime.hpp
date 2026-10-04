@@ -36,12 +36,7 @@ class SE_EXPORT Scratch {
     static bool getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue);
 
     template <typename T>
-    static bool getInputValueAs(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, T &outValue) {
-        Value tmp;
-        if (!getInputValue(block, inputName, thread, sprite, tmp)) return false;
-        outValue = tmp.get<T>();
-        return true;
-    }
+    static bool getInputValueAs(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, T &outValue);
 
     static ParsedInput *getInput(Block *block, const std::string &inputName);
     static void resetInput(Block *block, const std::string &inputName = "");
@@ -88,7 +83,7 @@ class SE_EXPORT Scratch {
 
     static bool hasNativeExtensions;
 
-    static float tempo;
+    static double tempo;
 
     static int projectWidth;
     static int projectHeight;
@@ -140,3 +135,10 @@ class SE_EXPORT Scratch {
     static std::string cloudUsername;
 #endif
 };
+
+#define GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(T) extern template bool Scratch::getInputValueAs<T>(Block *, const std::string &, ScriptThread *, Sprite *, T &outValue)
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(Value);
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(double);
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(std::string);
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(bool);
+GET_INPUT_VALUE_AS_TEMPLATE_EXTERN(Color);

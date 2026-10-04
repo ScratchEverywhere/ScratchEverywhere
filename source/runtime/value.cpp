@@ -26,6 +26,8 @@ Value::Value(double val) : tag(Tag::Double) { storage.d = val; }
 
 Value::Value(std::string val) : tag(Tag::String) { new (&storage.s) std::shared_ptr<const std::string>(std::make_shared<const std::string>(std::move(val))); }
 
+Value::Value(std::shared_ptr<const std::string> val) : tag(Tag::String) { new (&storage.s) std::shared_ptr<const std::string>(std::move(val)); }
+
 Value::Value(bool val) : tag(Tag::Bool) { storage.b = val; }
 
 Value::Value(Color val) : tag(Tag::Color) { storage.c = val; }

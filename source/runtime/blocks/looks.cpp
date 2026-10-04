@@ -469,8 +469,8 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(looks, size) {
-    *outValue = Value(std::round(sprite->size));
+SCRATCH_BLOCK_DOUBLE(looks, size) {
+    *outValue = std::round(sprite->size);
     return BlockResult::CONTINUE;
 }
 

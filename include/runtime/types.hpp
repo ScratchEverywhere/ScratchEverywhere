@@ -9,8 +9,17 @@
 #include <timer.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 
 class Sprite;
+
+enum class Type : uint8_t {
+    Value,
+    Number,
+    String,
+    Boolean,
+    Color
+};
 
 struct SE_EXPORT RenderInfo {
     float renderX;
@@ -161,7 +170,8 @@ struct SE_EXPORT Variable {
 #ifdef ENABLE_CLOUDVARS
     bool cloud;
 #endif
-    Value value;
+
+    std::variant<Value, double, std::shared_ptr<const std::string>, bool> value;
 };
 
 struct SE_EXPORT List {
@@ -171,21 +181,30 @@ struct SE_EXPORT List {
 };
 
 struct SE_EXPORT ParsedInput {
-    enum InputType {
+    enum InputType : uint8_t {
         VALUE,
         VARIABLE,
         BLOCK
     } inputType = InputType::VALUE;
     bool calculated = false;
 
+    enum class CacheKind : uint8_t {
+        Value,
+        Double,
+        Bool
+    } cacheKind = CacheKind::Value;
+    bool cachedBool = false;
+    double cachedDouble = 0.0;
+
     Value value;
     Block *block = nullptr;
     std::string variableId = "";
     bool list = false;
-    ParsedInput() { inputType = InputType::VALUE; }
-    explicit ParsedInput(Value value) : value(value) { inputType = InputType::VALUE; }
-    explicit ParsedInput(Block *block) : block(block) { inputType = InputType::BLOCK; }
-    explicit ParsedInput(std::string variableID) : variableId(variableID) { inputType = InputType::VARIABLE; }
+
+    ParsedInput() : inputType(InputType::VALUE) {}
+    explicit ParsedInput(Value value) : value(value), inputType(InputType::VALUE) {}
+    explicit ParsedInput(Block *block) : block(block), inputType(InputType::BLOCK) {}
+    explicit ParsedInput(std::string variableId) : variableId(variableId), inputType(InputType::VARIABLE) {}
 
 #ifdef ENABLE_CACHING
     Variable *variable = nullptr;
@@ -197,12 +216,177 @@ struct SE_EXPORT ParsedField {
     std::string id;
 };
 
-using BlockFunc = std::function<BlockResult(Block *, ScriptThread *, Sprite *, Value *)>;
+template <typename T>
+using RawBlockFuncBase = BlockResult (*)(Block *, ScriptThread *, Sprite *, T *);
+using RawBlockFuncDouble = RawBlockFuncBase<double>;
+using RawBlockFuncString = RawBlockFuncBase<std::string>;
+using RawBlockFuncBool = RawBlockFuncBase<bool>;
+using RawBlockFuncColor = RawBlockFuncBase<Color>;
+
+using BlockFuncValue = std::function<BlockResult(Block *, ScriptThread *, Sprite *, Value *)>;
+
+struct BlockFunc {
+    Type type = Type::Value;
+
+    union FuncUnion {
+        BlockFuncValue value;
+        RawBlockFuncDouble number;
+        RawBlockFuncString string;
+        RawBlockFuncBool boolean;
+        RawBlockFuncColor color;
+
+        FuncUnion() {}
+        ~FuncUnion() {}
+    } func;
+
+    BlockFunc() : type(Type::Value) {
+        new (&func.value) BlockFuncValue();
+    }
+
+    BlockFunc(BlockFuncValue fn) : type(Type::Value) {
+        new (&func.value) BlockFuncValue(std::move(fn));
+    }
+
+    BlockFunc(RawBlockFuncDouble fn) : type(Type::Number) {
+        func.number = fn;
+    }
+
+    BlockFunc(RawBlockFuncString fn) : type(Type::String) {
+        func.string = fn;
+    }
+
+    BlockFunc(RawBlockFuncBool fn) : type(Type::Boolean) {
+        func.boolean = fn;
+    }
+
+    BlockFunc(RawBlockFuncColor fn) : type(Type::Color) {
+        func.color = fn;
+    }
+
+    ~BlockFunc() {
+        destroy();
+    }
+
+    BlockFunc(const BlockFunc &other) : type(other.type) {
+        copyFrom(other);
+    }
+
+    BlockFunc(BlockFunc &&other) noexcept : type(other.type) {
+        moveFrom(std::move(other));
+    }
+
+    BlockFunc &operator=(const BlockFunc &other) {
+        if (this != &other) {
+            destroy();
+            type = other.type;
+            copyFrom(other);
+        }
+        return *this;
+    }
+
+    BlockFunc &operator=(BlockFunc &&other) noexcept {
+        if (this != &other) {
+            destroy();
+            type = other.type;
+            moveFrom(std::move(other));
+        }
+        return *this;
+    }
+
+    BlockResult operator()(Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) const {
+        switch (type) {
+        case Type::Value: {
+            if (func.value) {
+                return func.value(block, thread, sprite, outValue);
+            }
+            return BlockResult::CONTINUE;
+        }
+        case Type::Number: {
+            double temp = 0.0;
+            BlockResult res = func.number(block, thread, sprite, &temp);
+            if (outValue) *outValue = Value(temp);
+            return res;
+        }
+        case Type::String: {
+            std::string temp;
+            BlockResult res = func.string(block, thread, sprite, &temp);
+            if (outValue) *outValue = Value(std::move(temp));
+            return res;
+        }
+        case Type::Boolean: {
+            bool temp = false;
+            BlockResult res = func.boolean(block, thread, sprite, &temp);
+            if (outValue) *outValue = Value(temp);
+            return res;
+        }
+        case Type::Color: {
+            Color temp{};
+            BlockResult res = func.color(block, thread, sprite, &temp);
+            if (outValue) *outValue = Value(temp);
+            return res;
+        }
+        }
+        return BlockResult::CONTINUE;
+    }
+
+  private:
+    void destroy() {
+        if (type == Type::Value) {
+            func.value.~BlockFuncValue();
+        }
+    }
+
+    void copyFrom(const BlockFunc &other) {
+        if (type == Type::Value) {
+            new (&func.value) BlockFuncValue(other.func.value);
+        } else {
+            switch (type) {
+            case Type::Number:
+                func.number = other.func.number;
+                break;
+            case Type::String:
+                func.string = other.func.string;
+                break;
+            case Type::Boolean:
+                func.boolean = other.func.boolean;
+                break;
+            case Type::Color:
+                func.color = other.func.color;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+
+    void moveFrom(BlockFunc &&other) {
+        if (type == Type::Value) {
+            new (&func.value) BlockFuncValue(std::move(other.func.value));
+        } else {
+            switch (type) {
+            case Type::Number:
+                func.number = other.func.number;
+                break;
+            case Type::String:
+                func.string = other.func.string;
+                break;
+            case Type::Boolean:
+                func.boolean = other.func.boolean;
+                break;
+            case Type::Color:
+                func.color = other.func.color;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+};
 
 struct SE_EXPORT Block {
     Block *nextBlock = nullptr;
     std::string opcode = "";
-    BlockFunc blockFunction = nullptr;
+    BlockFunc blockFunction;
     Block *MyBlockDefinitionID = nullptr;
     std::vector<std::string> argumentIDs;
     std::vector<std::string> argumentNames;
