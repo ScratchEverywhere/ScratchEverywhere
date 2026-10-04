@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <filesystem.hpp>
+#include <fstream>
 #include <log.hpp>
 #include <memory>
 #include <os.hpp>
@@ -28,7 +29,6 @@ CMRC_DECLARE(romfs);
 #endif
 
 #ifdef ENABLE_CLOUDVARS
-#include <fstream>
 #include <mist/mist.hpp>
 #include <random>
 #include <sstream>
