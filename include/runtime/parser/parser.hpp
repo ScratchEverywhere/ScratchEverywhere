@@ -36,4 +36,5 @@ struct SE_EXPORT Parser {
     static void resolveVariableTypes(Sprite *sprite);
 
     static void loadSpritesSb2(const nlohmann::json &json);
+    static void parseSb2Scripts(Sprite *sprite, const nlohmann::json &object);
 };
