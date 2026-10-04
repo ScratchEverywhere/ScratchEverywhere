@@ -96,6 +96,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     spriteToClone->lists = original->lists;
     spriteToClone->sounds = original->sounds;
     spriteToClone->costumes = original->costumes;
+    spriteToClone->costumeNameIndex = original->costumeNameIndex;
     spriteToClone->broadcasts = original->broadcasts;
     spriteToClone->renderInfo.forceUpdate = true;
     spriteToClone->hats = original->hats;

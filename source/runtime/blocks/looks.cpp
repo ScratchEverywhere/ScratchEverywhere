@@ -109,9 +109,10 @@ SCRATCH_BLOCK(looks, switchcostumeto) {
     }
 
     const std::string &costumeString = costume.get<std::string>();
-    for (size_t i = 0; i < sprite->costumes.size(); i++) {
-        if (sprite->costumes[i].name == costumeString) {
-            Scratch::switchCostume(sprite, i);
+    {
+        const auto it = sprite->costumeNameIndex.find(costumeString);
+        if (it != sprite->costumeNameIndex.end()) {
+            Scratch::switchCostume(sprite, it->second);
             return BlockResult::CONTINUE;
         }
     }
@@ -148,9 +149,10 @@ SCRATCH_BLOCK(looks, switchbackdropto) {
         goto end;
     }
 
-    for (size_t i = 0; i < Scratch::stageSprite->costumes.size(); i++) {
-        if (Scratch::stageSprite->costumes[i].name == backdropString) {
-            Scratch::switchCostume(Scratch::stageSprite, i);
+    {
+        const auto it = Scratch::stageSprite->costumeNameIndex.find(backdropString);
+        if (it != Scratch::stageSprite->costumeNameIndex.end()) {
+            Scratch::switchCostume(Scratch::stageSprite, it->second);
             goto end;
         }
     }
@@ -202,11 +204,11 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
             const std::string &backdropString = backdrop.asString();
 
             bool found = false;
-            for (size_t i = 0; i < Scratch::stageSprite->costumes.size(); i++) {
-                if (Scratch::stageSprite->costumes[i].name == backdropString) {
-                    Scratch::switchCostume(Scratch::stageSprite, i);
+            {
+                const auto it = Scratch::stageSprite->costumeNameIndex.find(backdropString);
+                if (it != Scratch::stageSprite->costumeNameIndex.end()) {
+                    Scratch::switchCostume(Scratch::stageSprite, it->second);
                     found = true;
-                    break;
                 }
             }
 

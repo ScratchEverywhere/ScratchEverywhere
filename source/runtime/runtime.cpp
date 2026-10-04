@@ -824,11 +824,12 @@ std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
     return "";
 }
 
-std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
+const std::string &Scratch::getFieldId(Block &block, const std::string &fieldName) {
+    static const std::string empty;
     const auto &field = block.fieldMap.find(fieldName);
     if (field != block.fieldMap.end()) return field->second->id;
 
-    return "";
+    return empty;
 }
 
 std::string Scratch::getListName(Block &block) {
@@ -839,7 +840,7 @@ std::string Scratch::getListName(Block &block) {
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
-    std::string listId = Scratch::getFieldId(block, "LIST");
+    const std::string &listId = Scratch::getFieldId(block, "LIST");
 
     List *targetList = nullptr;
     if (sprite != nullptr) {
