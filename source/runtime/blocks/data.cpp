@@ -1,5 +1,6 @@
 #include "blockUtils.hpp"
 #include <cmath>
+#include <math.hpp>
 #include <render.hpp>
 #include <types.hpp>
 #include <value.hpp>
@@ -271,7 +272,7 @@ SCRATCH_BLOCK_STRING(data, listcontents) {
         int i = 0;
 
         for (const auto &item : *items) {
-            if (!(item.isString() && item.get<std::string>().length() == 1)) {
+            if (!(item.isString() && Math::utf16Length(item.get<std::string>()) == 1)) {
                 allSingle = false;
             }
         }

@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <math.h>
+#include <math.hpp>
 #include <types.hpp>
 #include <value.hpp>
 
@@ -79,20 +80,20 @@ SCRATCH_BLOCK_STRING(operator, letter_of) {
     if (!Scratch::getInputValueAs(block, "LETTER", thread, sprite, letter) ||
         !Scratch::getInputValue(block, "STRING", thread, sprite, strValue)) return BlockResult::REPEAT;
 
-    std::string ownedStr;
-    const std::string *strPtr = strValue.tryGetStringRef();
-    if (!strPtr) {
-        ownedStr = strValue.asString();
-        strPtr = &ownedStr;
-    }
-    const std::string &str = *strPtr;
+    const double indexD = std::floor(letter) - 1;
+    if (indexD < 0) return BlockResult::CONTINUE;
+    const size_t index = static_cast<size_t>(indexD);
 
-    if (str.empty()) {
-        return BlockResult::CONTINUE;
-    }
-    const int index = std::floor(letter) - 1;
-    if (index >= 0 && index < static_cast<int>(str.size())) {
-        *outValue = std::string(1, str[index]);
+    if (strValue.isString()) {
+        auto strPtr = strValue.getStringPtr();
+        if (indexD < static_cast<double>(Math::utf16Length(strPtr))) {
+            *outValue = Math::utf16CharAt(strPtr, index);
+        }
+    } else {
+        const std::string str = strValue.asString();
+        if (indexD < static_cast<double>(Math::utf16Length(str))) {
+            *outValue = Math::utf16CharAt(str, index);
+        }
     }
     return BlockResult::CONTINUE;
 }
@@ -101,10 +102,11 @@ SCRATCH_BLOCK_DOUBLE(operator, length) {
     Value strValue;
     if (!Scratch::getInputValue(block, "STRING", thread, sprite, strValue)) return BlockResult::REPEAT;
 
-    const std::string *strPtr = strValue.tryGetStringRef();
-    const size_t size = strPtr ? strPtr->size() : strValue.asString().size();
+    const size_t units = strValue.isString()
+                             ? Math::utf16Length(strValue.getStringPtr())
+                             : Math::utf16Length(strValue.asString());
 
-    *outValue = static_cast<double>(size);
+    *outValue = static_cast<double>(units);
     return BlockResult::CONTINUE;
 }
 

@@ -8,12 +8,15 @@
 #include <ctime>
 #include <limits>
 #include <math.h>
+#include <memory>
 #include <os.hpp>
 #include <random>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 #ifdef RENDERER_CITRO2D
 #include <citro2d.h>
 #endif
@@ -207,6 +210,75 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
 
 bool Math::isNumber(const std::string &str) {
     return parseNumber(str).has_value();
+}
+
+namespace {
+size_t utf16UnitByteLen(std::string_view str, size_t pos) {
+    unsigned char c0 = static_cast<unsigned char>(str[pos]);
+    auto isContinuation = [&](size_t i) {
+        return i < str.size() && (static_cast<unsigned char>(str[i]) & 0xC0) == 0x80;
+    };
+    if (c0 < 0x80) return 1;
+    if ((c0 & 0xE0) == 0xC0 && isContinuation(pos + 1)) return 2;
+    if ((c0 & 0xF0) == 0xE0 && isContinuation(pos + 1) && isContinuation(pos + 2)) return 3;
+    return (pos + 1 < str.size()) ? 2 : 1;
+}
+} // namespace
+
+size_t Math::utf16Length(std::string_view str) {
+    size_t units = 0;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        pos += utf16UnitByteLen(str, pos);
+        units++;
+    }
+    return units;
+}
+
+std::string Math::utf16CharAt(std::string_view str, size_t index) {
+    size_t unit = 0;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        size_t len = utf16UnitByteLen(str, pos);
+        if (unit == index) return std::string(str.substr(pos, len));
+        unit++;
+        pos += len;
+    }
+    return "";
+}
+
+namespace {
+constexpr size_t utf16IndexCacheLimit = 256;
+std::unordered_map<std::shared_ptr<const std::string>, std::vector<uint32_t>> utf16IndexCache;
+
+const std::vector<uint32_t> &getOrBuildUtf16Index(const std::shared_ptr<const std::string> &str) {
+    auto it = utf16IndexCache.find(str);
+    if (it != utf16IndexCache.end()) return it->second;
+
+    std::vector<uint32_t> offsets;
+    size_t pos = 0;
+    while (pos < str->size()) {
+        offsets.push_back(static_cast<uint32_t>(pos));
+        pos += utf16UnitByteLen(*str, pos);
+    }
+    offsets.push_back(static_cast<uint32_t>(pos));
+
+    if (utf16IndexCache.size() >= utf16IndexCacheLimit) utf16IndexCache.clear();
+    return utf16IndexCache.emplace(str, std::move(offsets)).first->second;
+}
+} // namespace
+
+size_t Math::utf16Length(const std::shared_ptr<const std::string> &str) {
+    if (!str) return 0;
+    const std::vector<uint32_t> &offsets = getOrBuildUtf16Index(str);
+    return offsets.empty() ? 0 : offsets.size() - 1;
+}
+
+std::string Math::utf16CharAt(const std::shared_ptr<const std::string> &str, size_t utf16Index) {
+    if (!str) return "";
+    const std::vector<uint32_t> &offsets = getOrBuildUtf16Index(str);
+    if (offsets.empty() || utf16Index + 1 >= offsets.size()) return "";
+    return str->substr(offsets[utf16Index], offsets[utf16Index + 1] - offsets[utf16Index]);
 }
 
 std::string Math::toString(double number) {
