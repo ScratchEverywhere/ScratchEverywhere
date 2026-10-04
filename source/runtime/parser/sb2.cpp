@@ -201,7 +201,11 @@ Block *parseSb2Block(const nlohmann::json &sb2block, Sprite *sprite) {
         newBlock->shadow = true;
         std::string procCode = (sb2block.size() > 1 && sb2block[1].is_string()) ? sb2block[1].get<std::string>() : "";
 
-        if (sprite->customHatBlock.count(procCode) == 0) sprite->customHatBlock[procCode] = new Block();
+        if (sprite->customHatBlock.count(procCode) == 0) {
+            Block *placeholder = new Block();
+            placeholder->blockFunction = BlockExecutor::getHandlers()["coreExample_exampleOpcode"];
+            sprite->customHatBlock[procCode] = placeholder;
+        }
         newBlock->MyBlockDefinitionID = sprite->customHatBlock[procCode];
 
         if (BlockExecutor::getHandlers().count("procedures_call") > 0)

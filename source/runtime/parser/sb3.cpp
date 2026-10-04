@@ -1,5 +1,5 @@
-#include "parser.hpp"
 #include "blockExecutor.hpp"
+#include "parser.hpp"
 #include "types.hpp"
 #include "zip_project_loader.hpp"
 #include <algorithm>
@@ -787,7 +787,11 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
                 else if (procode == "​​open​​ %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
 
                 else {
-                    if (newSprite->customHatBlock.count(procode) == 0) newSprite->customHatBlock[procode] = new Block();
+                    if (newSprite->customHatBlock.count(procode) == 0) {
+                        Block *placeholder = new Block();
+                        placeholder->blockFunction = BlockExecutor::getHandlers()["coreExample_exampleOpcode"];
+                        newSprite->customHatBlock[procode] = placeholder;
+                    }
                     newBlock->MyBlockDefinitionID = newSprite->customHatBlock[procode];
                 }
             }
