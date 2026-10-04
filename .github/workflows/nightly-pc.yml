@@ -35,6 +35,7 @@ on:
       - source/*
       - source/menus/**
       - gfx/menu/**
+      - gfx/linux/**
       - include/**
       - .github/workflows/nightly-pc.yml
       - docker/Dockerfile.linux
