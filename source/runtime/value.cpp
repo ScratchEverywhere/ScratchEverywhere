@@ -119,6 +119,10 @@ Color Value::asColor() const {
 }
 
 bool Value::operator==(const Value &other) const {
+    if (isDouble() && other.isDouble() && !isNaN() && !other.isNaN()) return storage.d == other.storage.d;
+    if (isBoolean() && other.isBoolean()) return storage.b == other.storage.b;
+    if (isColor() && other.isColor()) return storage.c == other.storage.c;
+
     std::string ownedA, ownedB;
     const std::string *strA = tryGetStringRef();
     if (!strA) {
@@ -143,7 +147,7 @@ bool Value::operator==(const Value &other) const {
 
 bool Value::operator<(const Value &other) const {
     if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
-        return asDouble() < other.asDouble();
+        return get<double>() < other.get<double>();
     }
 
     std::string ownedA, ownedB;
@@ -162,7 +166,7 @@ bool Value::operator<(const Value &other) const {
 
 bool Value::operator>(const Value &other) const {
     if (isNumeric() && other.isNumeric() && !isNaN() && !other.isNaN()) {
-        return asDouble() > other.asDouble();
+        return get<double>() > other.get<double>();
     }
 
     std::string ownedA, ownedB;
