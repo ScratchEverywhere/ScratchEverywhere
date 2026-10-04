@@ -186,7 +186,7 @@ nonstd::expected<void, std::string> Image_SDL2::refreshTexture() {
     return setInitialTexture();
 }
 
-Image_SDL2::Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image_SDL2::Image_SDL2(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     SDL_RendererInfo info;
     if (SDL_GetRendererInfo(renderer, &info) == 0) {
         maxTextureSize = {info.max_texture_width, info.max_texture_height};

@@ -22,11 +22,11 @@
 #endif
 #endif
 #include "nonstd/expected.hpp"
-#include <miniz.h>
 #include <optional>
 #include <string>
 #include <thread.hpp>
 #include <unordered_map>
+#include <zip_archive.hpp>
 
 enum SoundStreamTypes {
     SoundStreamUnknown = 0,
@@ -88,11 +88,11 @@ class SE_EXPORT SoundStream {
     std::optional<std::string> error;
 
     SoundStream(std::string path, bool cached = false, bool on_disk = false);
-    SoundStream(mz_zip_archive *zip, std::string path);
+    SoundStream(ZipArchive *zip, std::string path);
     SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate);
 
     nonstd::expected<void, std::string> init(std::string path, bool cached = false, bool on_disk = false);
-    nonstd::expected<void, std::string> init(mz_zip_archive *zip, std::string path);
+    nonstd::expected<void, std::string> init(ZipArchive *zip, std::string path);
 
     ~SoundStream();
 

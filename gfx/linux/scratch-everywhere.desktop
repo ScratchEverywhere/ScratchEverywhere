@@ -22,4 +22,4 @@ Type=Application
 Terminal=false
 PrefersNonDefaultGPU=true
 Categories=Game
-MimeType=application/x.scratch.sb3;
+MimeType=application/x-scratch-project;application/x-scratch2;application/x.scratch.sb;application/x.scratch.sb2;application/x.scratch.sb3;

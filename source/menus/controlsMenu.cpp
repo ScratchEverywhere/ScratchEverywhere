@@ -1,6 +1,7 @@
 #include "controlsMenu.hpp"
 #include "translation.hpp"
 #include "types.hpp"
+#include "unpackMenu.hpp"
 #include <log.hpp>
 #include <settings.hpp>
 
@@ -14,8 +15,14 @@ ControlsMenu::~ControlsMenu() {
 }
 
 void ControlsMenu::init() {
-
-    Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
+    ProjectFormat format;
+    std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + projectPath, format);
+    if (!resolved.empty()) {
+        Unzip::filePath = resolved;
+    } else {
+        Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
+        Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+    }
     if (!Unzip::load()) {
         Log::logCritical("Failed to load project for ControlsMenu.", false);
         OS::toExit = true;

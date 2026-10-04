@@ -1,7 +1,7 @@
 function(_recipe_libcurl_toolchain)
 	if(DEFINED NINTENDO_WIIU AND DEFINED DEVKITPRO)
 		add_library(libcurl INTERFACE)
-		target_link_libraries(libcurl INTERFACE curl mbedtls mbedx509 mbedcrypto z wut m)
+		target_link_libraries(libcurl INTERFACE curl mbedtls mbedx509 mbedcrypto brotlidec brotlicommon z wut m)
 		target_include_directories(libcurl INTERFACE "${DEVKITPRO}/portlibs/wiiu/include")
 	endif()
 endfunction()

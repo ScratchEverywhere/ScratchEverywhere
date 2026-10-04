@@ -4,7 +4,7 @@ endif()
 add_library(renderer_interface INTERFACE)
 
 cl_add_dep(renderer_interface SDL3)
-cl_add_dep(renderer_interface SDL3_ttf)
+cl_add_dep(renderer_interface stb_truetype)
 
 set(SE_WINDOWING_VALID_OPTIONS "sdl3")
 
