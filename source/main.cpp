@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
         if (Unzip::projectOpened == -3) {
 #ifdef __EMSCRIPTEN__
             bool uploadComplete = false;
-            emscripten_browser_file::upload(".sb3", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
+            emscripten_browser_file::upload(".sb3,.sb2,.sb", [](std::string const &filename, std::string const &mime_type, std::string_view buffer, void *userdata) {
                 *(bool *)userdata = true;
                 if (!FileSystem::fileExists(OS::getScratchFolderLocation())) FileSystem::createDirectory(OS::getScratchFolderLocation());
                 std::ofstream f(OS::getScratchFolderLocation() + filename);

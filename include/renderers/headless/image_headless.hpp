@@ -7,7 +7,7 @@ class SE_EXPORT Image_Headless : public Image {
   public:
     Image_Headless(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
-    Image_Headless(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image_Headless(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_Headless() override;
 

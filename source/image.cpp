@@ -120,7 +120,7 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
     return img;
 }
 
-nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -406,7 +406,7 @@ Image::Image(std::string filePath, bool fromScratchProject, bool bitmapHalfQuali
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
-Image::Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image::Image(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     auto potentialError = init(filePath, zip, bitmapHalfQuality, scale);
     if (!potentialError.has_value()) error = potentialError.error();
 }
@@ -437,19 +437,25 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
     return {};
 }
 
-nonstd::expected<void, std::string> Image::init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
-    std::unique_ptr<void, decltype(&mz_free)> file_data(nullptr, mz_free);
-    size_t file_size;
+nonstd::expected<void, std::string> Image::init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
+    void *raw_data = nullptr;
+    size_t file_size = 0;
     if (zip != nullptr) {
-        int file_index = mz_zip_reader_locate_file(zip, filePath.c_str(), nullptr, 0);
-        if (file_index < 0) return nonstd::make_unexpected("Image not found in SB3: " + filePath);
-
-        file_data.reset(mz_zip_reader_extract_to_heap(zip, file_index, &file_size, 0));
+        raw_data = zip->extractToHeap(filePath, &file_size);
     } else {
-        file_data.reset(Unzip::getFileInSB3(filePath, &file_size));
+        raw_data = Unzip::getFileInSB3(filePath, &file_size);
     }
 
-    if (!file_data || file_data == nullptr) return nonstd::make_unexpected("Failed to extract: " + filePath);
+    if (!raw_data) return nonstd::make_unexpected("Failed to extract: " + filePath);
+
+    struct ZipHeapGuard {
+        ZipArchive *zip;
+        void *ptr;
+        ~ZipHeapGuard() {
+            if (zip) zip->freeHeap(ptr);
+            else free(ptr);
+        }
+    } file_data{zip, raw_data};
 
     bool isSVG = filePath.size() >= 4 &&
                  (filePath.substr(filePath.size() - 4) == ".svg" ||
@@ -457,14 +463,14 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, mz_zip_arc
 
     if (isSVG) {
         std::vector<unsigned char> buffer(file_size + 1);
-        memcpy(buffer.data(), file_data.get(), file_size);
+        memcpy(buffer.data(), raw_data, file_size);
         buffer[file_size] = '\0';
 
         auto pixels = loadSVGFromMemory(reinterpret_cast<const char *>(buffer.data()), file_size, imgData.width, imgData.height, scale);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     } else {
-        auto pixels = loadRasterFromMemory((unsigned char *)file_data.get(), file_size, imgData.width, imgData.height, bitmapHalfQuality);
+        auto pixels = loadRasterFromMemory((unsigned char *)raw_data, file_size, imgData.width, imgData.height, bitmapHalfQuality);
         if (!pixels.has_value()) return nonstd::make_unexpected(pixels.error());
         imgData.pixels = pixels.value();
     }

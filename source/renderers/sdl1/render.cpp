@@ -44,8 +44,6 @@ int windowHeight = 360;
 #endif
 
 bool Render::Init() {
-    TTF_Init();
-
     globalWindow = new WindowSDL1();
     if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
         delete globalWindow;
@@ -85,7 +83,7 @@ void *Render::getRenderer() {
 }
 
 bool Render::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL1(static_cast<SDL_Surface *>(globalWindow->getHandle()));
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL1();
     return speechManager != nullptr;
 }
 

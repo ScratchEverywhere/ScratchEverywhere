@@ -1,28 +1,18 @@
 #pragma once
 #include <se_export.hpp>
 
-#include "speech_text_sdl1.hpp"
-#include <SDL.h>
-#include <memory>
-#include <speech_manager.hpp>
-
-class Image;
+#include "speech_manager.hpp"
 
 class SE_EXPORT SpeechManagerSDL1 : public SpeechManager {
-  private:
-    SDL_Surface *window;
-    std::shared_ptr<Image> speechIndicatorImage = nullptr;
-
   protected:
-    double getCurrentTime() override;
-    void createSpeechObject(Sprite *sprite, const std::string &message) override;
-
-  private:
-    void renderSpeechIndicator(Sprite *sprite, int spriteCenterX, int spriteCenterY, int spriteTop, int spriteLeft, int spriteRight, int bubbleX, int bubbleY, int bubbleWidth, int bubbleHeight, double scale);
+    SpeechRenderConfig getSpeechRenderConfig() override {
+        SpeechRenderConfig config;
+        config.style = SpeechBubbleStyle::Fast;
+        config.bubblePadding = 4;
+        return config;
+    }
 
   public:
-    SpeechManagerSDL1(SDL_Surface *window);
-    ~SpeechManagerSDL1();
-
-    void render(int offsetX = 0, int offsetY = 0) override;
+    SpeechManagerSDL1();
+    ~SpeechManagerSDL1() override;
 };

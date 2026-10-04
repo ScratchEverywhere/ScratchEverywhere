@@ -1,156 +1,19 @@
 #include "parser.hpp"
 #include "blockExecutor.hpp"
 #include "types.hpp"
+#include "zip_project_loader.hpp"
 #include <algorithm>
-#include <filesystem.hpp>
 #include <input.hpp>
 #include <limits>
 #include <log.hpp>
 #include <math.hpp>
 #include <memory>
-#include <os.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <settings.hpp>
-#include <unordered_map>
 #include <unzip.hpp>
 #include <variant>
-#if defined(__WIIU__) && defined(ENABLE_CLOUDVARS)
-#include <whb/sdcard.h>
-#endif
 
-#ifdef ENABLE_CUSTOM_EXTENSIONS
-#include <extensions/interface.hpp>
-#include <extensions/meta.hpp>
-#endif
-#ifdef ENABLE_NATIVE_EXTENSIONS
-#include <dlfcn.h>
-#endif
-
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
-#endif
-
-#ifdef ENABLE_CLOUDVARS
-#include <fstream>
-#include <mist/mist.hpp>
-#include <random>
-#include <sstream>
-
-const uint64_t FNV_PRIME_64 = 1099511628211ULL;
-const uint64_t FNV_OFFSET_BASIS_64 = 14695981039346656037ULL;
-
-std::string Scratch::cloudUsername;
-bool Scratch::cloudProject = false;
-
-std::unique_ptr<MistConnection> cloudConnection = nullptr;
-#endif
-
-#ifdef ENABLE_CLOUDVARS
-void Parser::initMist() {
-    OS::initWifi();
-
-    const std::string usernameFilename = OS::getScratchFolderLocation() + "cloud-username.txt";
-
-    std::ifstream fileStream(usernameFilename.c_str());
-    if (!fileStream.good()) {
-        std::random_device rd;
-        std::ostringstream usernameStream;
-        usernameStream << "player" << std::setw(7) << std::setfill('0') << rd() % 10000000;
-        Scratch::cloudUsername = usernameStream.str();
-        std::ofstream usernameFile;
-        usernameFile.open(usernameFilename);
-        usernameFile << Scratch::cloudUsername;
-        usernameFile.close();
-    } else {
-        fileStream >> Scratch::cloudUsername;
-    }
-    fileStream.close();
-
-    std::vector<std::string> assetIds;
-    for (const auto &sprite : Scratch::sprites) {
-        for (const auto &costume : sprite->costumes) {
-            assetIds.push_back(costume.id);
-        }
-        for (const auto &sound : sprite->sounds) {
-            assetIds.push_back(sound.id);
-        }
-    }
-
-    uint64_t assetHash = 0;
-    for (const auto &assetId : assetIds) {
-        uint64_t hash = FNV_OFFSET_BASIS_64;
-        for (char c : assetId) {
-            hash ^= static_cast<uint64_t>(static_cast<unsigned char>(c));
-            hash *= FNV_PRIME_64;
-        }
-
-        assetHash += hash;
-    }
-
-    std::ostringstream projectID;
-    projectID << "ScratchEverywhere/hash-" << std::hex << std::setw(16) << std::setfill('0') << assetHash;
-    cloudConnection = std::make_unique<MistConnection>(projectID.str(), Scratch::cloudUsername, "contact@grady.link");
-
-    cloudConnection->onConnectionStatus([](bool connected, const std::string &message) {
-        if (connected) {
-            Log::log("Mist++ Connected: " + message);
-            return;
-        }
-        Log::log("Mist++ Disconnected: " + message);
-    });
-
-    cloudConnection->onVariableUpdate(BlockExecutor::handleCloudVariableChange);
-
-    Log::log("Connecting to cloud variables with id: " + projectID.str());
-#if defined(__PC__) && !(defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__) || defined(__MINGW32__))
-    cloudConnection->connect();
-#else
-    cloudConnection->connect(false);
-#endif
-}
-#endif
-
-std::unordered_map<std::string, std::string> &Parser::getShadowBlocks() {
-    static std::unordered_map<std::string, std::string> shadowBlocks;
-    return shadowBlocks;
-}
-
-void Parser::loadUsernameFromSettings() {
-    Scratch::customUsername = "Player";
-    Scratch::useCustomUsername = false;
-
-    nlohmann::json j = SettingsManager::getConfigSettings();
-
-    if (j.contains("EnableUsername") && j["EnableUsername"].is_boolean()) {
-        Scratch::useCustomUsername = j["EnableUsername"].get<bool>();
-    }
-
-    if (j.contains("Username") && j["Username"].is_string()) {
-        bool hasNonSpace = false;
-        for (char c : j["Username"].get<std::string>()) {
-            if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-                hasNonSpace = true;
-            } else if (!std::isspace(static_cast<unsigned char>(c))) {
-                break;
-            }
-        }
-        if (hasNonSpace) Scratch::customUsername = j["Username"].get<std::string>();
-        else Scratch::customUsername = "Player";
-    }
-}
-
-bool Parser::logParsing = false;
-
-void Parser::log(const std::string &message) {
-    if (Parser::logParsing) {
-        Log::log(message);
-    }
-}
-
-void Parser::loadSprites(const nlohmann::json &json) {
+void Parser::loadSpritesSb3(const nlohmann::json &json) {
     Parser::logParsing = false; // ToDo: Activate it via Settings (Only if Logs in general are enabled)
     Parser::log("Loading sprites:");
     const nlohmann::json &spritesData = json["targets"];
@@ -166,7 +29,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
         }
         if (target.contains("isStage")) {
             newSprite->isStage = target["isStage"].get<bool>();
-            if (newSprite->isStage) loadAdvancedProjectSettings(target);
+            if (newSprite->isStage) loadAdvancedProjectSettingsSb3(target);
         }
 
         Parser::log(newSprite->name + " (" + std::string(newSprite->isStage ? "Stage" : "Sprite") + ")");
@@ -351,8 +214,8 @@ void Parser::loadSprites(const nlohmann::json &json) {
                 }
 
                 Parser::log("\t\t" + opcode);
-                loadInputs(*newBlock, newSprite, id, target["blocks"], 2);
-                loadFields(*newBlock, id, target["blocks"], 2);
+                loadInputsSb3(*newBlock, newSprite, id, target["blocks"], 2);
+                loadFieldsSb3(*newBlock, id, target["blocks"], 2);
 
                 Scratch::blocks.push_back(newBlock);
                 newSprite->hats[opcode].insert(newBlock);
@@ -361,9 +224,9 @@ void Parser::loadSprites(const nlohmann::json &json) {
                     Parser::log("\t\t\t! No next block");
                 } else {
                     std::string nextBlockKey = data["next"].get<std::string>();
-                    newBlock->nextBlock = loadBlock(newSprite, nextBlockKey, target["blocks"], nullptr, 2);
+                    newBlock->nextBlock = loadBlockSb3(newSprite, nextBlockKey, target["blocks"], nullptr, 2);
                 }
-                setSubstack(newBlock);
+                setSubstackSb3(newBlock);
             }
 
             for (const std::string &id : procedureCallBlocks) {
@@ -431,10 +294,10 @@ void Parser::loadSprites(const nlohmann::json &json) {
 
                 if (data.contains("next") && !data["next"].is_null()) {
                     std::string nextKey = data["next"].get<std::string>();
-                    definitionBlock->nextBlock = loadBlock(newSprite, nextKey, target["blocks"], nullptr, 2);
+                    definitionBlock->nextBlock = loadBlockSb3(newSprite, nextKey, target["blocks"], nullptr, 2);
                     Parser::log("\t\t! Procedure body loaded from: " + nextKey);
                 }
-                setSubstack(definitionBlock);
+                setSubstackSb3(definitionBlock);
             }
             for (Block *block : Scratch::blocks) {
                 if (block->opcode == "procedures_call" && block->MyBlockDefinitionID != nullptr) {
@@ -520,7 +383,7 @@ void Parser::loadSprites(const nlohmann::json &json) {
     }
 }
 
-void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
+void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
     if (!json.contains("comments")) return;
 
     nlohmann::json config;
@@ -650,7 +513,7 @@ void Parser::loadAdvancedProjectSettings(const nlohmann::json &json) {
     else Scratch::maxClones = 300;
 }
 
-void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &blockKey, const nlohmann::json &blockDatas, int indent) {
+void Parser::loadInputsSb3(Block &block, Sprite *newSprite, const std::string &blockKey, const nlohmann::json &blockDatas, int indent) {
     auto &blockData = blockDatas[blockKey];
     if (!blockData.contains("inputs") || blockData["inputs"].empty()) return;
 
@@ -686,7 +549,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
             } else {
                 if (!inputValue.is_null()) {
                     Parser::log(indentStr + "\t" + inputName + ":");
-                    Block *newBlock = loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
+                    Block *newBlock = loadBlockSb3(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
 
                     // Check shadow block
                     const auto &it = getShadowBlocks().find(newBlock->opcode);
@@ -710,7 +573,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
             } else {
                 if (!inputValue.is_null()) {
                     Parser::log(indentStr + "\t" + inputName + ":");
-                    Block *newBlock = loadBlock(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
+                    Block *newBlock = loadBlockSb3(newSprite, inputValue.get<std::string>(), blockDatas, &block, indent + 2);
 
                     // Check shadow block
                     const auto &it = getShadowBlocks().find(newBlock->opcode);
@@ -746,7 +609,7 @@ void Parser::loadInputs(Block &block, Sprite *newSprite, const std::string &bloc
     }
 }
 
-void Parser::loadFields(Block &block, const std::string &blockKey, const nlohmann::json &blockDatas, int indent) {
+void Parser::loadFieldsSb3(Block &block, const std::string &blockKey, const nlohmann::json &blockDatas, int indent) {
     auto &blockData = blockDatas[blockKey];
     if (!blockData.contains("fields") || blockData["fields"].empty()) return;
 
@@ -860,134 +723,7 @@ void Parser::resolveVariableTypes(Sprite *sprite) {
     }
 }
 
-static constexpr std::array<std::string_view, 13> builtInExtensions = {"music", "pen", "videoSensing", "text2speech", "translate", "makeymakey", "microbit", "ev3", "boost", "wedo2", "goDirect", "coreExtensions", "nishiowoDectalk"};
-
-bool Parser::loadExtensions(const nlohmann::json &json) {
-    bool hasNativeExts = false;
-#if defined(ENABLE_NATIVE_EXTENSIONS) || defined(ENABLE_CUSTOM_EXTENSIONS)
-    const std::string folder = OS::getScratchFolderLocation() + "extensions/";
-
-#ifdef __APPLE__
-    constexpr const char *libraryExtension = ".dylib";
-#else
-    constexpr const char *libraryExtension = ".so";
-#endif
-    if (!json.contains("extensions")) return false;
-    for (const std::string &targetID : json["extensions"]) {
-        if (std::find(builtInExtensions.begin(), builtInExtensions.end(), targetID) != builtInExtensions.end()) continue;
-
-#ifdef ENABLE_NATIVE_EXTENSIONS
-        const std::string &nativePath = folder + targetID + libraryExtension;
-        if (FileSystem::fileExists(nativePath)) {
-            void *extensionHandle = dlopen(nativePath.c_str(), RTLD_NOW | RTLD_GLOBAL);
-            if (!extensionHandle) {
-                Log::logCritical("Failed to load native extension, '" + targetID + "', dlerror: " + dlerror(), false);
-            } else {
-                Log::log("Loaded native extension: " + targetID);
-                hasNativeExts = true;
-            }
-            continue;
-        }
-#endif
-#ifdef ENABLE_CUSTOM_EXTENSIONS
-        std::unique_ptr<extensions::Extension> loadedExt = nullptr;
-        std::ifstream in;
-
-        const auto &tryPath = [&](std::string path) {
-            in.open(path, std::ios::binary | std::ios::in);
-            auto result = extensions::parseMetadata(in);
-            if (result.has_value() && result.value()->id == targetID) {
-                loadedExt = std::move(result.value());
-            } else {
-                if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
-                in.close();
-                in.clear();
-            }
-        };
-
-        const std::string romFSPath = OS::getRomFSLocation() + "extensions/" + targetID + ".see";
-#ifdef USE_CMAKERC
-        bool fromCmrc = false;
-
-        const auto &fs = cmrc::romfs::get_filesystem();
-
-        std::unique_ptr<std::istringstream> romfsStream = nullptr;
-        if (fs.exists(romFSPath)) {
-            const auto &romfsIn = fs.open(romFSPath);
-            romfsStream = std::make_unique<std::istringstream>(std::string(romfsIn.begin(), romfsIn.end()));
-
-            auto result = extensions::parseMetadata(*romfsStream);
-            if (result.has_value() && result.value()->id == targetID) {
-                loadedExt = std::move(result.value());
-                fromCmrc = true;
-            } else if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
-        }
-#else
-        if (FileSystem::fileExists(romFSPath)) {
-            tryPath(romFSPath);
-        }
-#endif
-
-        const std::string luaPath = folder + targetID + ".see";
-        if (FileSystem::fileExists(luaPath) && !loadedExt) {
-            tryPath(luaPath);
-        }
-
-        if (!loadedExt) {
-            const auto &scanDirectory = [&](std::string path) {
-                auto files = FileSystem::listDirectory(path);
-                if (files.has_value()) {
-                    for (const auto &file : files.value()) {
-                        if (file.size() < 4) continue;
-                        if (file.compare(file.size() - 4, 4, ".see") != 0) continue;
-
-                        in.open(folder + file, std::ios::binary | std::ios::in);
-                        auto result = extensions::parseMetadata(in);
-
-                        if (result.has_value() && result.value()->id == targetID) {
-                            loadedExt = std::move(result.value());
-                            break;
-                        }
-                        if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
-                        in.close();
-                        in.clear();
-                    }
-                }
-            };
-
-#if !defined(USE_CMAKERC) // I'm lazy, someone else can add this in the future.
-            scanDirectory(OS::getRomFSLocation() + "extensions");
-#endif
-            if (!loadedExt) {
-                scanDirectory(folder);
-            }
-        }
-
-        if (loadedExt) {
-#ifdef USE_CMAKERC
-            if (fromCmrc) {
-                extensions::loadLua(loadedExt.get(), *romfsStream);
-            } else
-#endif
-                extensions::loadLua(loadedExt.get(), in);
-            Scratch::extensions.push_back(std::move(loadedExt));
-            in.close();
-            Log::log("Successfully loaded Lua extension: " + targetID);
-            continue;
-        }
-
-        Log::logError("Failed to find extension: " + targetID);
-#endif
-    }
-
-#ifdef ENABLE_CUSTOM_EXTENSIONS
-    extensions::registerHandlers();
-#endif
-#endif
-    return hasNativeExts;
-}
-
-Block *Parser::loadBlock(Sprite *newSprite, const std::string &id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {
+Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nlohmann::json &blockDatas, Block *parentBlock, int indent) {
     if (!blockDatas.contains(id)) return parentBlock;
     if (!blockDatas[id].contains("opcode")) return parentBlock;
 
@@ -1016,8 +752,8 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string &id, const nlohman
             newSprite->shouldDoSpriteClick = true;
         }
 
-        loadInputs(*newBlock, newSprite, currentId, blockDatas, indent);
-        loadFields(*newBlock, currentId, blockDatas, indent);
+        loadInputsSb3(*newBlock, newSprite, currentId, blockDatas, indent);
+        loadFieldsSb3(*newBlock, currentId, blockDatas, indent);
 
         if (BlockExecutor::getHandlers().count(newBlock->opcode) > 0) {
             newBlock->blockFunction = BlockExecutor::getHandlers()[newBlock->opcode];
@@ -1044,11 +780,11 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string &id, const nlohman
                 }
                 std::string procode = blockData["mutation"]["proccode"];
 
-                if (procode == "\u200B\u200Blog\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
-                else if (procode == "\u200B\u200Bwarn\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
-                else if (procode == "\u200B\u200Berror\u200B\u200B %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
-                else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
-                else if (procode == "\u200B\u200Bopen\u200B\u200B %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
+                if (procode == "​​log​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_log"];
+                else if (procode == "​​warn​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_warn"];
+                else if (procode == "​​error​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
+                else if (procode == "​​open​​ %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
+                else if (procode == "​​open​​ %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
 
                 else {
                     if (newSprite->customHatBlock.count(procode) == 0) newSprite->customHatBlock[procode] = new Block();
@@ -1067,7 +803,7 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string &id, const nlohman
             if (name == "Scratch Everywhere! platform") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_platform"];
             if (name == "Scratch Everywhere! controller") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_controller"];
 
-            if (name == "\u200B\u200Breceived data\u200B\u200B") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_receivedData"];
+            if (name == "​​received data​​") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_receivedData"];
         }
 
         Scratch::blocks.push_back(newBlock);
@@ -1099,7 +835,7 @@ Block *Parser::loadBlock(Sprite *newSprite, const std::string &id, const nlohman
     return firstBlock;
 }
 
-void Parser::setSubstack(Block *startBlock, Block *stopBlock) {
+void Parser::setSubstackSb3(Block *startBlock, Block *stopBlock) {
     Block *current = startBlock;
 
     while (current != nullptr && current != stopBlock) {
@@ -1131,9 +867,9 @@ void Parser::setSubstack(Block *startBlock, Block *stopBlock) {
                     sub->nextBlock = current->nextBlock;
                     sub->isEndBlock = current->isEndBlock;
                 }
-                setSubstack(firstSubBlock, current->nextBlock);
+                setSubstackSb3(firstSubBlock, current->nextBlock);
             } else {
-                setSubstack(firstSubBlock, current);
+                setSubstackSb3(firstSubBlock, current);
             }
         }
 
@@ -1141,4 +877,15 @@ void Parser::setSubstack(Block *startBlock, Block *stopBlock) {
         if (current->isEndBlock) break;
         current = current->nextBlock;
     }
+}
+
+namespace {
+class Sb3Loader : public ZipProjectLoader {
+  public:
+    Sb3Loader() : ZipProjectLoader(ProjectFormat::SB3) {}
+};
+} // namespace
+
+std::unique_ptr<ProjectLoader> createSb3Loader() {
+    return std::make_unique<Sb3Loader>();
 }

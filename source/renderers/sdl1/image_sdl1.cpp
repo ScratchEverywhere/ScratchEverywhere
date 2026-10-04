@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <image.hpp>
 #include <log.hpp>
-#include <miniz.h>
 #include <os.hpp>
 #include <render.hpp>
 #include <string>
@@ -184,7 +183,7 @@ Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject, bool bitma
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
-Image_SDL1::Image_SDL1(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
+Image_SDL1::Image_SDL1(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
 }
