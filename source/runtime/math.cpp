@@ -181,7 +181,7 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
         std::memcpy(stack_buf, str.data(), str.size());
         stack_buf[str.size()] = '\0';
         conversion = std::strtod(stack_buf, nullptr);
-    } else if (std::isinf(conversion)) {
+    } else if (std::isinf(conversion) || std::isnan(conversion)) {
         return nonstd::make_unexpected("Invalid Argument");
     }
 #else
@@ -200,7 +200,7 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
     if (endptr != stack_buf + str.size()) {
         return nonstd::make_unexpected("Invalid Argument");
     }
-    if (std::isinf(conversion) && errno != ERANGE) {
+    if ((std::isinf(conversion) || std::isnan(conversion)) && errno != ERANGE) {
         return nonstd::make_unexpected("Invalid Argument");
     }
 #endif
@@ -210,6 +210,165 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
 
 bool Math::isNumber(const std::string &str) {
     return parseNumber(str).has_value();
+}
+
+namespace {
+void encodeUtf8(uint32_t cp, std::string &out) {
+    if (cp < 0x80) {
+        out += static_cast<char>(cp);
+    } else if (cp < 0x800) {
+        out += static_cast<char>(0xC0 | (cp >> 6));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+        out += static_cast<char>(0xE0 | (cp >> 12));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    } else {
+        out += static_cast<char>(0xF0 | (cp >> 18));
+        out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+        out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+        out += static_cast<char>(0x80 | (cp & 0x3F));
+    }
+}
+
+bool isGreekCasedLetter(uint32_t cp) {
+    return (cp >= 0x0391 && cp <= 0x03A9) || (cp >= 0x03B1 && cp <= 0x03C9) || cp == 0x03C2;
+}
+
+int lowerCaseCodepoint(uint32_t cp, uint32_t prevCp, uint32_t nextCp, uint32_t out[2]) {
+    if (cp >= 'A' && cp <= 'Z') {
+        out[0] = cp + 0x20;
+        return 1;
+    }
+    if (cp == 0x0130) { // LATIN CAPITAL LETTER I WITH DOT ABOVE -> "i" + COMBINING DOT ABOVE
+        out[0] = 'i';
+        out[1] = 0x0307;
+        return 2;
+    }
+    if (cp == 0x212A) { // KELVIN SIGN -> LATIN SMALL LETTER K
+        out[0] = 0x006B;
+        return 1;
+    }
+    if (cp == 0x1E9E) { // LATIN CAPITAL LETTER SHARP S -> LATIN SMALL LETTER SHARP S (ß)
+        out[0] = 0x00DF;
+        return 1;
+    }
+    if (cp == 0x01C4 || cp == 0x01C5) { // LATIN CAPITAL/TITLECASE LETTER DZ WITH CARON -> dž's lowercase
+        out[0] = 0x01C6;
+        return 1;
+    }
+    if (cp >= 0x00C0 && cp <= 0x00DE && cp != 0x00D7) { // Latin-1 Supplement (skip U+00D7 '*')
+        out[0] = cp + 0x20;
+        return 1;
+    }
+    if (cp == 0x03A3) { // GREEK CAPITAL LETTER SIGMA
+        bool finalPosition = isGreekCasedLetter(prevCp) && !isGreekCasedLetter(nextCp);
+        out[0] = finalPosition ? 0x03C2 : 0x03C3;
+        return 1;
+    }
+    if (cp >= 0x0391 && cp <= 0x03A9) { // other Greek capitals
+        out[0] = cp + 0x20;
+        return 1;
+    }
+    if (cp >= 0xFF21 && cp <= 0xFF3A) { // fullwidth Latin capitals
+        out[0] = cp + 0x20;
+        return 1;
+    }
+    out[0] = cp;
+    return 1;
+}
+} // namespace
+
+std::string Math::toLowerCaseJs(std::string_view str) {
+    struct Unit {
+        uint32_t cp;
+        size_t pos;
+        size_t len;
+    };
+    std::vector<Unit> units;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        auto [cp, len] = decodeUtf8At(str, pos);
+        units.push_back({cp, pos, len});
+        pos += len;
+    }
+
+    std::string result;
+    result.reserve(str.size());
+    for (size_t i = 0; i < units.size(); i++) {
+        const Unit &u = units[i];
+        if (u.len == 1 && u.cp >= 0x80) {
+            result += str[u.pos];
+            continue;
+        }
+        uint32_t prev = i > 0 ? units[i - 1].cp : 0;
+        uint32_t next = i + 1 < units.size() ? units[i + 1].cp : 0;
+        uint32_t out[2];
+        int n = lowerCaseCodepoint(u.cp, prev, next, out);
+        for (int j = 0; j < n; j++)
+            encodeUtf8(out[j], result);
+    }
+    return result;
+}
+
+namespace {
+class LowerCaseCursor {
+  public:
+    explicit LowerCaseCursor(std::string_view s) : str(s) {}
+
+    bool next(uint32_t &cp) {
+        if (pendingIndex < pendingCount) {
+            cp = pending[pendingIndex++];
+            return true;
+        }
+        if (pos >= str.size()) return false;
+
+        auto [curCp, len] = decodeUtf8At(str, pos);
+        if (len == 1 && curCp >= 0x80) {
+            pending[0] = curCp;
+            pendingCount = 1;
+        } else {
+            uint32_t nextRawCp = (pos + len < str.size()) ? decodeUtf8At(str, pos + len).first : 0;
+            pendingCount = lowerCaseCodepoint(curCp, lastRawCp, nextRawCp, pending);
+        }
+        pendingIndex = 1;
+        lastRawCp = curCp;
+        pos += len;
+        cp = pending[0];
+        return true;
+    }
+
+  private:
+    std::string_view str;
+    size_t pos = 0;
+    uint32_t lastRawCp = 0;
+    uint32_t pending[2] = {0, 0};
+    int pendingCount = 0;
+    int pendingIndex = 0;
+};
+} // namespace
+
+bool Math::caseInsensitiveEqual(std::string_view a, std::string_view b) {
+    LowerCaseCursor ca(a), cb(b);
+    uint32_t cpA, cpB;
+    for (;;) {
+        bool hasA = ca.next(cpA);
+        bool hasB = cb.next(cpB);
+        if (hasA != hasB) return false;
+        if (!hasA) return true;
+        if (cpA != cpB) return false;
+    }
+}
+
+bool Math::caseInsensitiveLess(std::string_view a, std::string_view b) {
+    LowerCaseCursor ca(a), cb(b);
+    uint32_t cpA, cpB;
+    for (;;) {
+        bool hasA = ca.next(cpA);
+        bool hasB = cb.next(cpB);
+        if (!hasA || !hasB) return !hasA && hasB;
+        if (cpA != cpB) return cpA < cpB;
+    }
 }
 
 namespace {

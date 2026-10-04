@@ -233,10 +233,10 @@ SCRATCH_BLOCK_BOOLEAN(operator, contains) {
         return BlockResult::CONTINUE;
     }
 
-    std::transform(string1.begin(), string1.end(), string1.begin(), ::tolower);
-    std::transform(string2.begin(), string2.end(), string2.begin(), ::tolower);
+    const std::string lowered1 = Math::toLowerCaseJs(string1);
+    const std::string lowered2 = Math::toLowerCaseJs(string2);
 
     thread->eraseState(block);
-    *outValue = string1.find(string2) != std::string::npos;
+    *outValue = lowered1.find(lowered2) != std::string::npos;
     return BlockResult::CONTINUE;
 }

@@ -6,19 +6,8 @@
 #include <regex>
 #include <string_view>
 
-namespace {
-bool caseInsensitiveEqual(std::string_view a, std::string_view b) {
-    return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](unsigned char x, unsigned char y) {
-               return std::tolower(x) == std::tolower(y);
-           });
-}
-
-bool caseInsensitiveLess(std::string_view a, std::string_view b) {
-    return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](unsigned char x, unsigned char y) {
-        return std::tolower(x) < std::tolower(y);
-    });
-}
-} // namespace
+using Math::caseInsensitiveEqual;
+using Math::caseInsensitiveLess;
 
 Value::Value(int val) : tag(Tag::Double) { storage.d = static_cast<double>(val); }
 
