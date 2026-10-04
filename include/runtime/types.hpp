@@ -337,6 +337,7 @@ class SE_EXPORT Sprite {
     std::unordered_map<std::string, List> lists;
     std::vector<Sound> sounds;
     std::vector<Costume> costumes;
+    std::unordered_map<std::string, size_t> costumeNameIndex;
     std::unordered_map<std::string, Broadcast> broadcasts;
 
     std::unordered_map<std::string, std::unordered_set<Block *>> hats;
