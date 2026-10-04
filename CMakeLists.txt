@@ -246,7 +246,7 @@ endif()
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 
-set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/runtime/parser" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_CUSTOM_EXTENSIONS)
 	list(APPEND SOURCES "source/runtime/extensions")

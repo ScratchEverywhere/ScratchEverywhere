@@ -43,9 +43,44 @@ volatile bool Unzip::threadFinished = false;
 std::string Unzip::filePath = "";
 std::unique_ptr<ZipArchive> Unzip::zipArchive;
 std::vector<char> Unzip::zipBuffer;
+std::unique_ptr<ProjectLoader> Unzip::loader;
+std::optional<ProjectFormat> Unzip::unpackedFormatHint;
 bool Unzip::UnpackedInSD = false;
 
-int Unzip::openFile(std::istream *&file) {
+ProjectFormat Unzip::detectFormat(const std::string &path) {
+    if (Unzip::unpackedFormatHint.has_value()) {
+        ProjectFormat format = *Unzip::unpackedFormatHint;
+        Unzip::unpackedFormatHint.reset();
+        return format;
+    }
+
+    const auto hasExtension = [&](const std::string &ext) {
+        return path.size() >= ext.size() && path.compare(path.size() - ext.size(), ext.size(), ext) == 0;
+    };
+
+    if (hasExtension(".sb2")) return ProjectFormat::SB2;
+    if (hasExtension(".sb")) return ProjectFormat::SB1;
+    return ProjectFormat::SB3;
+}
+
+std::string Unzip::resolveZipProjectPath(const std::string &baseNoExt, ProjectFormat &format) {
+    if (FileSystem::fileExists(baseNoExt + ".sb3")) {
+        format = ProjectFormat::SB3;
+        return baseNoExt + ".sb3";
+    }
+    if (FileSystem::fileExists(baseNoExt + ".sb2")) {
+        format = ProjectFormat::SB2;
+        return baseNoExt + ".sb2";
+    }
+    if (FileSystem::fileExists(baseNoExt + ".sb")) {
+        format = ProjectFormat::SB1;
+        return baseNoExt + ".sb";
+    }
+    format = ProjectFormat::SB3;
+    return "";
+}
+
+int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     Log::log("Unzipping Scratch project...");
 
     // load Scratch project into memory
@@ -109,9 +144,19 @@ int Unzip::openFile(std::istream *&file) {
     }
     // SD card Project
     Log::logWarning("Main Menu already done, loading SD card project.");
-    // check if normal Project
-    if (filePath.size() >= 4 && filePath.substr(filePath.size() - 4, filePath.size()) == ".sb3") {
-        Log::log("Normal .sb3 project in SD card ");
+
+    if (format == ProjectFormat::SB1) {
+        Log::log(".sb project in SD card");
+        file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
+        if (file == nullptr || !(*file)) {
+            Log::logCritical("Couldnt find Scratch project file: " + filePath + " jinkies.", true);
+            return 0;
+        }
+        return 1;
+    }
+
+    if (filePath.size() >= 4 && (filePath.compare(filePath.size() - 4, 4, ".sb3") == 0 || filePath.compare(filePath.size() - 4, 4, ".sb2") == 0)) {
+        Log::log("Normal packed project in SD card");
         file = new std::ifstream(filePath, std::ios::binary | std::ios::ate);
         if (file == nullptr || !(*file)) {
             Log::logCritical("Couldnt find Scratch project file: " + filePath + " jinkies.", true);
@@ -121,7 +166,7 @@ int Unzip::openFile(std::istream *&file) {
         return 1;
     }
     Scratch::projectType = ProjectType::UNZIPPED;
-    Log::log("Unpacked .sb3 project in SD card");
+    Log::log("Unpacked project in SD card");
     // check if Unpacked Project
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
     if (file == nullptr || !(*file)) {
@@ -190,7 +235,9 @@ void Unzip::openScratchProject(void *arg) {
     Unzip::UnpackedInSD = false;
     std::istream *file = nullptr;
 
-    int isFileOpen = openFile(file);
+    ProjectFormat format = Unzip::detectFormat(Unzip::filePath);
+
+    int isFileOpen = openFile(file, format);
     if (isFileOpen == 0) {
         Log::logCritical("Failed to open Scratch project.", true);
         Unzip::projectOpened = -1;
@@ -203,20 +250,15 @@ void Unzip::openScratchProject(void *arg) {
         return;
     }
     loadingState = TranslationManager::getTranslation("ui.loading.unzipping");
-    nlohmann::json project_json = unzipProject(file);
+    Unzip::loader = createProjectLoader(format);
+    bool loaded = Unzip::loader->load(file);
     delete file;
-    if (project_json.empty()) {
-        Log::logCritical("Project.json is empty.", false);
+    if (!loaded) {
+        Log::logCritical("Failed to load Scratch project.", false);
         Unzip::projectOpened = -2;
         Unzip::threadFinished = true;
         return;
     }
-
-    loadingState = TranslationManager::getTranslation("ui.loading.extensions");
-    Scratch::hasNativeExtensions = Parser::loadExtensions(project_json);
-
-    loadingState = TranslationManager::getTranslation("ui.loading.sprites");
-    Parser::loadSprites(project_json);
 
     Unzip::projectOpened = 1;
     Unzip::threadFinished = true;
@@ -244,9 +286,11 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
         return {};
     }
 
-    projectFiles.value().erase(std::remove_if(projectFiles.value().begin(), projectFiles.value().end(), [](std::string file) {
-                                   if (file.size() < 4) return true;
-                                   return file.compare(file.size() - 4, 4, ".sb3") != 0;
+    projectFiles.value().erase(std::remove_if(projectFiles.value().begin(), projectFiles.value().end(), [](const std::string &file) {
+                                   const auto hasExtension = [&](const std::string &ext) {
+                                       return file.size() >= ext.size() && file.compare(file.size() - ext.size(), ext.size(), ext) == 0;
+                                   };
+                                   return !hasExtension(".sb3") && !hasExtension(".sb2") && !hasExtension(".sb");
                                }),
                                projectFiles.value().end());
 
@@ -261,129 +305,8 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
 }
 
 void *Unzip::getFileInSB3(const std::string &fileName, size_t *outSize) {
-    auto archive = createZipArchive();
-    bool initSuccess = false;
-
-#ifdef USE_CMAKERC
-    if (Scratch::projectType == ProjectType::EMBEDDED) {
-        const auto &fs = cmrc::romfs::get_filesystem();
-        const auto &romfsFile = fs.open(Unzip::filePath);
-        initSuccess = archive->openMemory(romfsFile.begin(), romfsFile.size());
-    } else {
-#endif
-        initSuccess = archive->openFile(Unzip::filePath);
-#ifdef USE_CMAKERC
-    }
-#endif
-    if (!initSuccess) {
-        Log::logWarning("Failed to open SB3 archive: " + Unzip::filePath);
-        return nullptr;
-    }
-
-    size_t size = 0;
-    void *data = archive->extractToHeap(fileName, &size);
-    if (!data) {
-        Log::logWarning("File not found in SB3: " + fileName);
-        return nullptr;
-    }
-
-    if (outSize != nullptr) {
-        *outSize = size;
-    }
-
-    return data;
-}
-
-nlohmann::json Unzip::unzipProject(std::istream *file) {
-    nlohmann::json project_json;
-
-    if (Scratch::projectType != ProjectType::UNZIPPED) {
-        auto setting = Unzip::getSetting("sb3InRam");
-        bool keepInRam;
-        if (setting.is_null()) {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
-            keepInRam = false;
-#else
-            keepInRam = true;
-#endif
-        } else {
-            keepInRam = setting.get<bool>();
-        }
-
-        if (keepInRam) {
-            Scratch::sb3InRam = true;
-
-            // read the file
-            std::streamsize size = file->tellg();
-            file->seekg(0, std::ios::beg);
-            zipBuffer.resize(size);
-            if (!file->read(zipBuffer.data(), size)) {
-                return project_json;
-            }
-
-            // open ZIP file
-            zipArchive = createZipArchive();
-            if (!zipArchive->openMemory(zipBuffer.data(), zipBuffer.size())) {
-                zipArchive.reset();
-                return project_json;
-            }
-
-            // extract project.json
-            size_t json_size;
-            void *json_data = zipArchive->extractToHeap("project.json", &json_size);
-            if (!json_data) {
-                return project_json;
-            }
-
-            // Parse JSON file
-            project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
-            zipArchive->freeHeap(json_data);
-        } else {
-            Scratch::sb3InRam = false;
-
-            file->seekg(0, std::ios::end);
-            uint64_t file_size = file->tellg();
-            file->seekg(0, std::ios::beg);
-
-            zipArchive = createZipArchive();
-            if (!zipArchive->openStream(file, file_size)) {
-                Log::logCritical("Failed to initialize SB3 zip reader from stream.", false);
-                zipArchive.reset();
-                return project_json;
-            }
-
-            size_t json_size;
-            void *json_data = zipArchive->extractToHeap("project.json", &json_size);
-            if (!json_data) {
-                Log::logCritical("Failed to extract project.json", false);
-            } else {
-                project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
-                zipArchive->freeHeap(json_data);
-            }
-
-            zipArchive.reset();
-            zipBuffer.clear();
-            zipBuffer.shrink_to_fit();
-        }
-
-    } else {
-        file->clear();
-        file->seekg(0, std::ios::beg);
-
-        // get file size
-        file->seekg(0, std::ios::end);
-        std::streamsize size = file->tellg();
-        file->seekg(0, std::ios::beg);
-
-        // put file into string
-        std::string json_content;
-        json_content.reserve(size);
-        json_content.assign(std::istreambuf_iterator<char>(*file),
-                            std::istreambuf_iterator<char>());
-
-        project_json = nlohmann::json::parse(json_content);
-    }
-    return project_json;
+    if (!Unzip::loader) return nullptr;
+    return Unzip::loader->getAsset(fileName, outSize);
 }
 
 bool Unzip::extractProject(const std::string &zipPath, const std::string &destFolder) {

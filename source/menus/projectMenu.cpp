@@ -29,7 +29,9 @@ void ProjectMenu::init() {
     // initialize text and set positions
     int yPosition = 30;
     for (std::string &file : projectFiles) {
-        ButtonObject *project = new ButtonObject(file.substr(0, file.length() - 4), "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
+        std::size_t dot = file.find_last_of('.');
+        std::string displayName = dot == std::string::npos ? file : file.substr(0, dot);
+        ButtonObject *project = new ButtonObject(displayName, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
@@ -158,13 +160,16 @@ void ProjectMenu::render() {
         if (projectControl->selectedObject->isPressed()) {
 
             if (projectControl->selectedObject->imageId.find("projectBoxFast") != std::string::npos) {
-                // Unpacked sb3
-                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText();
+                std::string name = projectControl->selectedObject->text->getText();
+                Unzip::filePath = OS::getScratchFolderLocation() + name;
+                Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", name);
                 MenuManager::loadProject();
                 return;
             } else if (projectControl->selectedObject->imageId.find("projectBox") != std::string::npos) {
-                // normal sb3
-                Unzip::filePath = OS::getScratchFolderLocation() + projectControl->selectedObject->text->getText() + ".sb3";
+                std::string name = projectControl->selectedObject->text->getText();
+                ProjectFormat format;
+                std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + name, format);
+                Unzip::filePath = !resolved.empty() ? resolved : (OS::getScratchFolderLocation() + name + ".sb3");
                 MenuManager::loadProject();
                 return;
             } else {
