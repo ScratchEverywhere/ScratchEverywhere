@@ -6,6 +6,12 @@
 
 class SE_EXPORT TextObjectGDI : public TextObjectBase {
   private:
+    HDC hDC;
+    HBITMAP hBitmap;
+    RGBQUAD *quad;
+    int atlasWidth;
+    int atlasHeight;
+
   protected:
     void uploadAtlas(FontGeneration &gen) override;
 

@@ -41,7 +41,7 @@ void Input::getInput() {
 
     GetKeyboardState(keys);
 
-    for (int sc = 0; sc < 0; ++sc) {
+    for (int sc = 0; sc < 256; ++sc) {
         if (!(keys[sc] & 0x80)) continue;
 
         char c[2];

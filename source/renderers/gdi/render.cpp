@@ -143,6 +143,16 @@ void Render::endFrame(bool shouldFlush) {
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    HBRUSH brush = CreateSolidBrush(RGB(colorR, colorG, colorB));
+    RECT rc;
+
+    rc.left = x - w / 2;
+    rc.top = y - h / 2;
+    rc.right = x + w / 2;
+    rc.bottom = y + h / 2;
+
+    FillRect(renderer, &rc, brush);
+    DeleteObject(brush);
 }
 
 void Render::renderSprites() {

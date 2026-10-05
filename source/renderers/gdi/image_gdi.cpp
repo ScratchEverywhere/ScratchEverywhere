@@ -80,23 +80,10 @@ void *Image_GDI::getNativeTexture() {
 }
 
 void Image_GDI::setInitialTexture() {
-    BITMAPINFOHEADER bmih;
     int i;
 
-    bmih.biSize = sizeof(bmih);
-    bmih.biWidth = this->imgData.width;
-    bmih.biHeight = -(LONG)this->imgData.height;
-    bmih.biPlanes = 1;
-    bmih.biBitCount = 32;
-    bmih.biCompression = BI_RGB;
-    bmih.biSizeImage = 0;
-    bmih.biXPelsPerMeter = 0;
-    bmih.biYPelsPerMeter = 0;
-    bmih.biClrUsed = 0;
-    bmih.biClrImportant = 0;
-
     this->hDC = CreateCompatibleDC(renderer);
-    this->hBitmap = CreateDIBSection(renderer, (BITMAPINFO *)&bmih, DIB_RGB_COLORS, (void **)&this->quad, NULL, (DWORD)0);
+    this->hBitmap = Image_GDI::NewBitmap(renderer, this->imgData.width, this->imgData.height, &this->quad);
     for (i = 0; i < this->imgData.width * this->imgData.height; i++) {
         DWORD d = ((DWORD *)this->imgData.pixels)[i];
         int a = ((d >> 24) & 0xff);
@@ -147,6 +134,24 @@ Image_GDI::~Image_GDI() {
     DeleteDC(this->hDC);
 }
 
+HBITMAP Image_GDI::NewBitmap(HDC src, int width, int height, RGBQUAD **quad) {
+    BITMAPINFOHEADER bmih;
+
+    bmih.biSize = sizeof(bmih);
+    bmih.biWidth = width;
+    bmih.biHeight = -(LONG)height;
+    bmih.biPlanes = 1;
+    bmih.biBitCount = 32;
+    bmih.biCompression = BI_RGB;
+    bmih.biSizeImage = 0;
+    bmih.biXPelsPerMeter = 0;
+    bmih.biYPelsPerMeter = 0;
+    bmih.biClrUsed = 0;
+    bmih.biClrImportant = 0;
+
+    return CreateDIBSection(src, (BITMAPINFO *)&bmih, DIB_RGB_COLORS, (void **)quad, NULL, (DWORD)0);
+}
+
 void Image_GDI::PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, int cy, int opacity) {
     POINT p3 = {p[1].x + p[2].x - p[0].x, p[1].y + p[2].y - p[0].y};
     int xDest = std::min(std::min(std::min(p[0].x, p[1].x), p[2].x), p3.x);
@@ -168,20 +173,8 @@ void Image_GDI::PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, i
     if (bm.bmBitsPixel * bm.bmPlanes != 32) {
         RGBQUAD *quad;
 
-        bmih.biSize = sizeof(bmih);
-        bmih.biWidth = cxDest;
-        bmih.biHeight = -(LONG)cyDest;
-        bmih.biPlanes = 1;
-        bmih.biBitCount = 32;
-        bmih.biCompression = BI_RGB;
-        bmih.biSizeImage = 0;
-        bmih.biXPelsPerMeter = 0;
-        bmih.biYPelsPerMeter = 0;
-        bmih.biClrUsed = 0;
-        bmih.biClrImportant = 0;
-
         DeleteObject(hBitmap);
-        hBitmap = CreateDIBSection(hDC, (BITMAPINFO *)&bmih, DIB_RGB_COLORS, (void **)&quad, NULL, (DWORD)0);
+        hBitmap = Image_GDI::NewBitmap(renderer, cxDest, cyDest, &quad);
     }
 
     SelectObject(hDC, hBitmap);

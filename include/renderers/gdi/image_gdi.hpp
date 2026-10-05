@@ -28,5 +28,6 @@ class SE_EXPORT Image_GDI : public Image {
 
     nonstd::expected<void, std::string> refreshTexture() override;
 
+    static HBITMAP NewBitmap(HDC src, int width, int height, RGBQUAD **quad);
     static void PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, int cy, int opacity);
 };
