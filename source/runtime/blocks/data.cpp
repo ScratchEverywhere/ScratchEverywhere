@@ -122,10 +122,11 @@ SCRATCH_BLOCK(data, insertatlist) {
 
     auto items = Scratch::getListItems(*block, sprite);
 
-    if (!items || items->size() >= MAX_LIST_ITEMS) return BlockResult::CONTINUE;
+    if (!items) return BlockResult::CONTINUE;
 
     std::string indexStr = index.asString();
     if (indexStr == "last") {
+        if (items->size() >= MAX_LIST_ITEMS) return BlockResult::CONTINUE;
         items->push_back(item);
         return BlockResult::CONTINUE;
     }
@@ -133,6 +134,7 @@ SCRATCH_BLOCK(data, insertatlist) {
     if (indexStr == "random" || indexStr == "any") {
         int idx = rand() % (items->size() + 1);
         items->insert(items->begin() + idx, item);
+        if (items->size() > MAX_LIST_ITEMS) items->pop_back();
         return BlockResult::CONTINUE;
     }
 
@@ -140,9 +142,9 @@ SCRATCH_BLOCK(data, insertatlist) {
     if (std::isfinite(d)) {
         const double idx = std::floor(d) - 1; // Convert to 0-based index
 
-        // Check if the index is within bounds
         if (idx >= 0 && idx <= static_cast<double>(items->size())) {
             items->insert(items->begin() + idx, item); // Insert the item at the index
+            if (items->size() > MAX_LIST_ITEMS) items->pop_back();
         }
     }
 

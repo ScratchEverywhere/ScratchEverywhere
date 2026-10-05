@@ -192,7 +192,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         extensions::runUpdateFunctions(extensions::PRE_UPDATE);
 #endif
 
-        if (checkFPS) Input::getInput();
+        if (checkFPS) {
+            Input::getInput();
+            BlockExecutor::executeWhenGreaterThanHats();
+        }
         BlockExecutor::runThreads();
 
 #ifdef ENABLE_CUSTOM_EXTENSIONS
@@ -668,6 +671,7 @@ void Scratch::greenFlagClicked() {
     BlockExecutor::stopClicked = false;
     answer.clear();
     BlockExecutor::timer.start();
+    BlockExecutor::resetWhenGreaterThanHats();
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
 }
 

@@ -141,6 +141,7 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
     }
 
     if (base != 0) {
+        if (str.empty()) return nonstd::make_unexpected("Invalid Argument");
         double conversion = 0;
         for (char c : str) {
             int digit;
@@ -164,6 +165,9 @@ nonstd::expected<double, std::string> Math::parseNumber(std::string_view str) {
 
     if (!str.empty() && str.front() == '+') {
         str.remove_prefix(1);
+        if (!str.empty() && (str.front() == '+' || str.front() == '-')) {
+            return nonstd::make_unexpected("Invalid Argument");
+        }
     }
 
     double conversion = 0;
@@ -330,6 +334,12 @@ class LowerCaseCursor {
         } else {
             uint32_t nextRawCp = (pos + len < str.size()) ? decodeUtf8At(str, pos + len).first : 0;
             pendingCount = lowerCaseCodepoint(curCp, lastRawCp, nextRawCp, pending);
+            if (pendingCount == 1 && pending[0] >= 0x10000) {
+                uint32_t astral = pending[0] - 0x10000;
+                pending[0] = 0xD800 + (astral >> 10);
+                pending[1] = 0xDC00 + (astral & 0x3FF);
+                pendingCount = 2;
+            }
         }
         pendingIndex = 1;
         lastRawCp = curCp;

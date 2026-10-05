@@ -60,6 +60,8 @@ class SE_EXPORT BlockExecutor {
     static void linkPointers(Sprite *sprite);
 
     static void executeKeyHats();
+    static void executeWhenGreaterThanHats();
+    static void resetWhenGreaterThanHats();
     static void doSpriteClicking();
 
     /**

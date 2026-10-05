@@ -256,6 +256,42 @@ void BlockExecutor::executeKeyHats() {
     BlockExecutor::runAllBlocksByOpcode("makeymakey_whenCodePressed");
 }
 
+namespace {
+std::unordered_map<Block *, bool> whenGreaterThanPrevState;
+}
+
+void BlockExecutor::resetWhenGreaterThanHats() {
+    whenGreaterThanPrevState.clear();
+}
+
+void BlockExecutor::executeWhenGreaterThanHats() {
+    static ScriptThread conditionThread;
+
+    for (Sprite *currentSprite : Scratch::sprites) {
+        auto hatIt = currentSprite->hats.find("event_whengreaterthan");
+        if (hatIt == currentSprite->hats.end()) continue;
+
+        for (Block *block : hatIt->second) {
+            std::string menu = Scratch::getFieldValue(*block, "WHENGREATERTHANMENU");
+            std::transform(menu.begin(), menu.end(), menu.begin(), ::tolower);
+
+            double current = 0;
+            if (menu == "timer") current = BlockExecutor::timer.getTimeMs() / 1000.0;
+
+            double threshold = 0;
+            Scratch::getInputValueAs(block, "VALUE", &conditionThread, currentSprite, threshold);
+            Scratch::resetInput(block, "VALUE");
+
+            bool &wasTrue = whenGreaterThanPrevState[block];
+            const bool nowTrue = current > threshold;
+            if (nowTrue && !wasTrue) {
+                BlockExecutor::startThread(currentSprite, block, true);
+            }
+            wasTrue = nowTrue;
+        }
+    }
+}
+
 void BlockExecutor::doSpriteClicking() {
     if (Input::mousePointer.isPressed) {
         Input::mousePointer.heldFrames++;
@@ -505,7 +541,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
             std::string result;
             std::string seperator = "";
             for (const auto &item : listIt->second.items) {
-                if (!item.isString() || item.get<std::string>().size() > 1) {
+                if (!item.isString() || Math::utf16Length(item.get<std::string>()) > 1) {
                     seperator = " ";
                     break;
                 }
@@ -524,7 +560,7 @@ Value BlockExecutor::getListValue(const std::string &listId, Sprite *sprite) {
         std::string result;
         std::string seperator = "";
         for (const auto &item : globalListIt->second.items) {
-            if (!item.isString() || item.get<std::string>().size() > 1) {
+            if (!item.isString() || Math::utf16Length(item.get<std::string>()) > 1) {
                 seperator = " ";
                 break;
             }

@@ -112,7 +112,7 @@ SCRATCH_BLOCK(argument, reporter_string_number) {
     std::string name = Scratch::getFieldValue(*block, "VALUE");
     auto it = thread->MyBlocksVariablen.find(name);
     if (outValue)
-        *outValue = (it != thread->MyBlocksVariablen.end()) ? it->second : Value();
+        *outValue = (it != thread->MyBlocksVariablen.end()) ? it->second : Value(0);
     return BlockResult::CONTINUE;
 }
 
@@ -120,6 +120,6 @@ SCRATCH_BLOCK(argument, reporter_boolean) {
     std::string name = Scratch::getFieldValue(*block, "VALUE");
     auto it = thread->MyBlocksVariablen.find(name);
     if (outValue)
-        *outValue = (it != thread->MyBlocksVariablen.end()) ? it->second : Value(false);
+        *outValue = (it != thread->MyBlocksVariablen.end()) ? it->second : Value(0);
     return BlockResult::CONTINUE;
 }

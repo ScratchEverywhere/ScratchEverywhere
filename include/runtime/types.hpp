@@ -469,8 +469,8 @@ class SE_EXPORT Sprite {
     bool toDelete;
     bool shouldDoSpriteClick = false;
     int currentCostume;
-    float xPosition;
-    float yPosition;
+    double xPosition;
+    double yPosition;
     float size;
     float rotation;
     int layer;
