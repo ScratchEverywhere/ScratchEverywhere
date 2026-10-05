@@ -262,6 +262,9 @@ void processCommands() {
                 else if (prop == "rotation") target->rotation = std::stof(valStr);
                 else if (prop == "visible") target->visible = (valStr == "true" || valStr == "1");
             }
+        } else if (cmd == "resizesvgs") {
+            Render::resizeSVGs();
+            std::cout << "Resized SVGs.\n";
         } else if (cmd == "broadcast") {
             std::string name = parseArg(ss, true);
             std::transform(name.begin(), name.end(), name.begin(), ::tolower);

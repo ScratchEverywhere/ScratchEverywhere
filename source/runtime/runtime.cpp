@@ -907,11 +907,18 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     if (it != costumeImages.end()) {
         float cachedScale = (sprite->size / 100);
         cachedScale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
+
+        const float oldScale = it->second->getScale();
+
         auto potentialError = it->second->resizeSVG(cachedScale);
         if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
 
         sprite->spriteWidth = it->second->getWidth();
         sprite->spriteHeight = it->second->getHeight();
+
+        if (it->second->getScale() != oldScale) {
+            costume.collisionMask = nullptr;
+        }
         return;
     }
 

@@ -107,6 +107,24 @@ Color Value::asColor() const {
     return RGBA2CSBO({static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)});
 }
 
+ColorRGBA Value::asRGB() const {
+    if (isString()) {
+        std::string stringValue = asString();
+        if (stringValue[0] == '#') {
+            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{3}$"))) {
+                stringValue = "#" + std::string(2, stringValue[1]) + std::string(2, stringValue[2]) + std::string(2, stringValue[3]);
+            }
+            if (std::regex_match(stringValue, std::regex("^#[\\dA-Fa-f]{6}$"))) {
+                return {static_cast<float>(std::stoi(stringValue.substr(1, 2), 0, 16)),
+                        static_cast<float>(std::stoi(stringValue.substr(3, 2), 0, 16)),
+                        static_cast<float>(std::stoi(stringValue.substr(5, 2), 0, 16)), 255};
+            } else return {0, 0, 0, 255};
+        }
+    }
+    const double RGBA = asDouble();
+    return {static_cast<float>(static_cast<unsigned int>(RGBA / 0x10000) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x100) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA) % 0x100), static_cast<float>(static_cast<unsigned int>(RGBA / 0x1000000) % 0x100)};
+}
+
 bool Value::operator==(const Value &other) const {
     if (isDouble() && other.isDouble() && !isNaN() && !other.isNaN()) return storage.d == other.storage.d;
     if (isBoolean() && other.isBoolean()) return storage.b == other.storage.b;

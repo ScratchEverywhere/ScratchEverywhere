@@ -157,6 +157,7 @@ class SE_EXPORT Value {
     bool asBoolean() const;
 
     Color asColor() const;
+    ColorRGBA asRGB() const;
 
     template <typename T>
     SE_FORCEINLINE T get() const {

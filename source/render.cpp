@@ -136,8 +136,14 @@ void Render::resizeSVGs(Sprite *sprite) {
         float scale = sprite->size / 100;
         scale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
 
+        const float oldScale = imgFind->second->getScale();
+
         auto potentialError = imgFind->second->resizeSVG(scale);
         if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
+
+        if (imgFind->second->getScale() != oldScale) {
+            costume.collisionMask = nullptr;
+        }
     }
 }
 

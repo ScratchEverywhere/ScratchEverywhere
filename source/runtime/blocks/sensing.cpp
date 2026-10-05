@@ -1,5 +1,7 @@
 #include "blockUtils.hpp"
+#include <algorithm>
 #include <cmath>
+#include <collision.hpp>
 #include <input.hpp>
 #include <types.hpp>
 #include <utility>
@@ -188,6 +190,34 @@ SCRATCH_BLOCK_BOOLEAN(sensing, touchingobject) {
             }
         }
     }
+    return BlockResult::CONTINUE;
+}
+
+static uint8_t toColorByte(float channel) {
+    return static_cast<uint8_t>(std::clamp(std::round(channel), 0.0f, 255.0f));
+}
+
+SCRATCH_BLOCK_BOOLEAN(sensing, touchingcolor) {
+    Value targetColor;
+    if (!Scratch::getInputValue(block, "COLOR", thread, sprite, targetColor)) return BlockResult::REPEAT;
+    const ColorRGBA rgb = targetColor.asRGB();
+
+    *outValue = collision::isTouchingColor(sprite, toColorByte(rgb.r), toColorByte(rgb.g), toColorByte(rgb.b));
+    return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK_BOOLEAN(sensing, coloristouchingcolor) {
+    Value maskColor;
+    if (!Scratch::getInputValue(block, "COLOR", thread, sprite, maskColor)) return BlockResult::REPEAT;
+    Value targetColor;
+    if (!Scratch::getInputValue(block, "COLOR2", thread, sprite, targetColor)) return BlockResult::REPEAT;
+
+    const ColorRGBA maskRgb = maskColor.asRGB();
+    const ColorRGBA targetRgb = targetColor.asRGB();
+
+    *outValue = collision::colorIsTouchingColor(sprite,
+                                                 toColorByte(maskRgb.r), toColorByte(maskRgb.g), toColorByte(maskRgb.b),
+                                                 toColorByte(targetRgb.r), toColorByte(targetRgb.g), toColorByte(targetRgb.b));
     return BlockResult::CONTINUE;
 }
 

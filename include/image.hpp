@@ -107,8 +107,23 @@ class SE_EXPORT Image {
         return px[3];
     }
 
+    // Only valid for IMAGE_FORMAT_RGBA32
+    inline void getColorAt(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const {
+        if (!imgData.pixels || x < 0 || x >= imgData.width || y < 0 || y >= imgData.height) {
+            r = g = b = 0;
+            return;
+        }
+        const uint8_t *px =
+            static_cast<const uint8_t *>(imgData.pixels) + y * imgData.pitch + x * 4;
+        r = px[0];
+        g = px[1];
+        b = px[2];
+    }
+
     int getWidth();
     int getHeight();
+
+    inline float getScale() const { return imgData.scale; }
 
     nonstd::expected<void, std::string> resizeSVG(float scale);
 

@@ -27,6 +27,8 @@ struct SE_EXPORT CollisionMask {
         if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) return false;
         return alphaPixels[y * width + x] != 0;
     }
+
+    bool getColor(int, int, uint8_t &, uint8_t &, uint8_t &) const { return false; }
 #else
     std::shared_ptr<Image> image;
     unsigned int imgScaleFactor = 1;
@@ -34,6 +36,15 @@ struct SE_EXPORT CollisionMask {
     bool getPixel(int x, int y) const {
         if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) return false;
         return image && image->getAlphaAt(x * imgScaleFactor, y * imgScaleFactor) > 0;
+    }
+
+    bool getColor(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const {
+        if (x < 0 || x >= (int)width || y < 0 || y >= (int)height || !image) return false;
+        const int ix = x * imgScaleFactor;
+        const int iy = y * imgScaleFactor;
+        if (image->getAlphaAt(ix, iy) == 0) return false;
+        image->getColorAt(ix, iy, r, g, b);
+        return true;
     }
 #endif
 };
@@ -53,4 +64,8 @@ SE_EXPORT AABB getSpriteBounds(Sprite *sprite);
 SE_EXPORT bool pointInSpriteFast(Sprite *sprite, float x, float y);
 SE_EXPORT bool spriteInSpriteFast(Sprite *a, Sprite *b);
 SE_EXPORT bool spriteOnEdgeFast(Sprite *sprite);
+
+SE_EXPORT bool isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b);
+SE_EXPORT bool colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t maskG, uint8_t maskB,
+                                    uint8_t targetR, uint8_t targetG, uint8_t targetB);
 } // namespace collision
