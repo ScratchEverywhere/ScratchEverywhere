@@ -223,12 +223,12 @@ SCRATCH_BLOCK(control, repeat) {
     state->repeatTimes--;
 
     const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
-    if (input == nullptr) return BlockResult::REPEAT;
+    if (input == nullptr) return thread->withoutScreenRefresh ? BlockResult::CONTINUE_IMMEDIATELY : BlockResult::REPEAT;
 
     Block *substack = input->block;
     if (substack != nullptr)
         thread->nextBlock = substack;
-    else return BlockResult::REPEAT;
+    else return thread->withoutScreenRefresh ? BlockResult::CONTINUE_IMMEDIATELY : BlockResult::REPEAT;
 
     return BlockResult::CONTINUE_IMMEDIATELY;
 }

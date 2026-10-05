@@ -15,6 +15,9 @@
 
 namespace Inspector {
 
+bool paused = false;
+int stepsRemaining = 0;
+
 struct WatchEntry {
     std::string targetStr;
     Value lastValue;
@@ -87,6 +90,7 @@ static void loop(void *arg) {
     std::cout << "Inspector active. Type 'help' for commands.\n";
     while (true) {
         if (!std::getline(std::cin, line)) {
+            std::cin.clear();
             SE_Thread::sleep(100);
             continue;
         }
@@ -265,6 +269,24 @@ void processCommands() {
         } else if (cmd == "resizesvgs") {
             Render::resizeSVGs();
             std::cout << "Resized SVGs.\n";
+        } else if (cmd == "pause") {
+            paused = true;
+            stepsRemaining = 0;
+            std::cout << "Paused.\n";
+        } else if (cmd == "resume") {
+            paused = false;
+            stepsRemaining = 0;
+            std::cout << "Resumed.\n";
+        } else if (cmd == "step") {
+            std::string countStr = parseArg(ss, false);
+            int count = 1;
+            try {
+                if (!countStr.empty()) count = std::stoi(countStr);
+            } catch (...) {
+            }
+            paused = true;
+            stepsRemaining += count;
+            std::cout << "Stepping " << count << ".\n";
         } else if (cmd == "broadcast") {
             std::string name = parseArg(ss, true);
             std::transform(name.begin(), name.end(), name.begin(), ::tolower);
@@ -340,6 +362,7 @@ void processCommands() {
             w.lastValue = current;
         }
     } */
+    std::cout.flush();
 }
 
 } // namespace Inspector

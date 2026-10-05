@@ -53,7 +53,7 @@ SCRATCH_BLOCK(procedures, call) {
         state->completedSteps = 1;
         Scratch::resetInput(block);
 
-        if (isRecursive && !thread->withoutScreenRefresh) {
+        if (isRecursive && !thread->withoutScreenRefresh && !block->MyBlockWithoutScreenRefresh) {
             return BlockResult::REPEAT;
         }
     }

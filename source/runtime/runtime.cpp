@@ -15,6 +15,7 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
+#include <iostream>
 #include <log.hpp>
 #include <math.h>
 #include <memory>
@@ -172,7 +173,19 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
     }
 #endif
 
-    const bool checkFPS = Render::checkFramerate();
+    bool forcedStep = false;
+#ifdef ENABLE_INSPECTOR
+    if (Inspector::paused) {
+        Inspector::processCommands();
+        if (Inspector::stepsRemaining <= 0) {
+            return std::make_pair(true, false);
+        }
+        Inspector::stepsRemaining--;
+        forcedStep = true;
+    }
+#endif
+
+    const bool checkFPS = forcedStep || Render::checkFramerate();
     if (Scratch::turbo) forceRedraw = false;
 
     if (!forceRedraw || checkFPS) {
@@ -197,6 +210,10 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             BlockExecutor::executeWhenGreaterThanHats();
         }
         BlockExecutor::runThreads();
+
+#ifdef ENABLE_INSPECTOR
+        if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";
+#endif
 
 #ifdef ENABLE_CUSTOM_EXTENSIONS
         extensions::runUpdateFunctions(extensions::POST_UPDATE);
