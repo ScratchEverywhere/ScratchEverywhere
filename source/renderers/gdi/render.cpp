@@ -149,9 +149,9 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
     int rH = Render::getHeight();
 
     x1 += rW * scale / 2;
-    y1 = y1 + rH * scale / 2;
+    y1 = -y1 + rH * scale / 2;
     x2 += rW * scale / 2;
-    y2 = y2 + rH * scale / 2;
+    y2 = -y2 + rH * scale / 2;
 
     x1 /= scale;
     y1 /= scale;
@@ -186,9 +186,7 @@ void Render::penStamp(Sprite *sprite) {
     int rH = Render::getHeight();
     Image_GDI *image;
     bool isSVG;
-    float penX, penY;
-    double scale;
-    float renderScale;
+    double scale = (float)penHeight / Render::getHeight();
     ImageRenderParams params;
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
@@ -200,23 +198,10 @@ void Render::penStamp(Sprite *sprite) {
     isSVG = sprite->costumes[sprite->currentCostume].isSVG;
     Render::calculateRenderPosition(sprite, isSVG);
 
-    auto cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
-
-    penX = cords.first + Scratch::projectWidth / 2.0f;
-    penY = cords.second + Scratch::projectHeight / 2.0f;
-
-    scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-    if (Scratch::hqpen) {
-        penX *= scale;
-        penY *= scale;
-    }
-
-    renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / 100.0f;
-
     params.centered = true;
-    params.x = penX;
-    params.y = penY;
-    params.scale = renderScale;
+    params.x = sprite->renderInfo.renderX / scale;
+    params.y = sprite->renderInfo.renderY / scale;
+    params.scale = sprite->renderInfo.renderScaleY;
     params.rotation = sprite->renderInfo.renderRotation;
     params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
     params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);

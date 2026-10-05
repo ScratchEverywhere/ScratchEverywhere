@@ -12,17 +12,17 @@ void Image_GDI::render(ImageRenderParams &params) {
 void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
     POINT p[3];
     int i;
-    const int renderWidth = params.subrect ? params.subrect->w : this->getWidth();
-    const int renderHeight = params.subrect ? params.subrect->h : this->getHeight();
+    const int renderWidth = this->imgData.width / this->imgData.scale * params.scale;
+    const int renderHeight = this->imgData.height / this->imgData.scale * params.scale;
     float c = cos(params.rotation);
     float s = sin(params.rotation);
 
     p[0].x = params.x;
     p[0].y = params.y;
-    p[1].x = params.x + renderWidth * params.scale;
+    p[1].x = params.x + renderWidth;
     p[1].y = params.y;
     p[2].x = params.x;
-    p[2].y = params.y + renderHeight * params.scale;
+    p[2].y = params.y + renderHeight;
 
     for (i = 0; i < 3; i++) {
         int sx = params.x;
@@ -31,11 +31,11 @@ void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
         int y;
 
         if (params.centered) {
-            p[i].x -= renderWidth / 2 * params.scale;
-            p[i].y -= renderHeight / 2 * params.scale;
+            p[i].x -= renderWidth / 2;
+            p[i].y -= renderHeight / 2;
 
             if (params.flip) {
-                p[i].x = params.x + renderWidth * params.scale - (p[i].x - params.x);
+                p[i].x = sx + renderWidth - (p[i].x - sx);
             }
         }
 
@@ -45,7 +45,7 @@ void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
         p[i].y = x * s + y * c + sy;
     }
 
-    Image_GDI::PlgAlphaBlt(hDC, p, this->hDC, params.subrect ? params.subrect->x : 0, params.subrect ? params.subrect->y : 0, renderWidth, renderHeight, params.opacity * 255);
+    Image_GDI::PlgAlphaBlt(hDC, p, this->hDC, params.subrect ? params.subrect->x : 0, params.subrect ? params.subrect->y : 0, params.subrect ? params.subrect->w : this->imgData.width, params.subrect ? params.subrect->h : this->imgData.height, params.opacity * 255);
 
     this->freeTimer = this->maxFreeTimer;
 }
