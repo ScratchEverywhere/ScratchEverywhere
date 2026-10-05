@@ -1,3 +1,4 @@
+#include "image_gdi.hpp"
 #include "render_gdi.hpp"
 #include "speech_manager.hpp"
 #include "speech_manager_gdi.hpp"
@@ -145,11 +146,38 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
 }
 
 void Render::renderSprites() {
+    for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
+        Sprite *currentSprite = *it;
+
+        auto imgFind = Scratch::costumeImages.find(currentSprite->costumes[currentSprite->currentCostume].fullName);
+        if (imgFind != Scratch::costumeImages.end()) {
+            Image_GDI *image = reinterpret_cast<Image_GDI *>(imgFind->second.get());
+
+            const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
+            Render::calculateRenderPosition(currentSprite, isSVG);
+            if (!currentSprite->visible) continue;
+
+            ImageRenderParams params;
+            params.centered = true;
+            params.x = currentSprite->renderInfo.renderX;
+            params.y = currentSprite->renderInfo.renderY;
+            params.rotation = currentSprite->renderInfo.renderRotation;
+            params.scale = currentSprite->renderInfo.renderScaleY;
+            params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
+            params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+            params.brightness = currentSprite->brightnessEffect;
+
+            image->render(params);
+        }
+
+        if (currentSprite->isStage) Render::renderPenLayer();
+    }
+
     if (speechManager) {
         speechManager->render();
     }
 
-    renderMonitors();
+    Render::renderMonitors();
 }
 
 void Render::renderPenLayer() {

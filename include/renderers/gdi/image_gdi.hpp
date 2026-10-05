@@ -27,4 +27,6 @@ class SE_EXPORT Image_GDI : public Image {
     void *getNativeTexture() override;
 
     nonstd::expected<void, std::string> refreshTexture() override;
+
+    static void PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, int cy, int opacity);
 };
