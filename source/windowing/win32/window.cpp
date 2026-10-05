@@ -8,6 +8,38 @@
 
 /* this beautiful code is not unicode safe but i am not going to care i am so sorry */
 
+typedef HRESULT(WINAPI *PFNDWMSETWINDOWATTRIBUTE)(HWND hWnd, DWORD dwAttribute, LPCVOID pvAttribute, DWORD cbAttribute);
+
+static PFNDWMSETWINDOWATTRIBUTE _DwmSetWindowAttribute = nullptr;
+static HMODULE dwmapi = nullptr;
+
+static bool isDarkTheme() {
+    DWORD dw;
+    DWORD sz = sizeof(dw);
+    int err;
+    HKEY hkey;
+    DWORD type;
+
+    err = RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_QUERY_VALUE, &hkey);
+    if (err != ERROR_SUCCESS) {
+        return false;
+    }
+
+    err = RegQueryValueEx(hkey, "AppsUseLightTheme", NULL, &type, (PBYTE)&dw, &sz);
+    RegCloseKey(hkey);
+    if (err != ERROR_SUCCESS || type != REG_DWORD) {
+        return false;
+    }
+
+    return !dw;
+}
+
+static void setDarkTheme(HWND hWnd, bool dark) {
+    BOOL v = dark ? TRUE : FALSE;
+
+    if (_DwmSetWindowAttribute) _DwmSetWindowAttribute(hWnd, 20, &v, sizeof(v));
+}
+
 static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
     WindowWin32 *self = (WindowWin32 *)GetWindowLongPtr(hWnd, GWLP_USERDATA);
     if (self == nullptr) return DefWindowProc(hWnd, msg, wp, lp);
@@ -35,6 +67,11 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
         self->shouldCloseFlag = 1;
         break;
     }
+    case WM_WININICHANGE: {
+        char *s = (char *)lp;
+        if (s != NULL && strcmp(s, "ImmersiveColorSet") == 0) setDarkTheme(hWnd, isDarkTheme());
+        break;
+    }
     default: {
         return DefWindowProc(hWnd, msg, wp, lp);
     }
@@ -47,6 +84,12 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
     HDC hDC;
 
     this->shouldCloseFlag = 0;
+
+    if (dwmapi == nullptr && _DwmSetWindowAttribute == nullptr) {
+        dwmapi = LoadLibraryA("dwmapi.dll");
+
+        _DwmSetWindowAttribute = (PFNDWMSETWINDOWATTRIBUTE)GetProcAddress(dwmapi, "DwmSetWindowAttribute");
+    }
 
     memset(&wc, 0, sizeof(wc));
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -71,6 +114,8 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
         return false;
     }
 
+    setDarkTheme(this->hWnd, isDarkTheme());
+
     hDC = GetDC(this->hWnd);
     this->hDC = CreateCompatibleDC(hDC);
     this->hBitmap = CreateCompatibleBitmap(hDC, width, height);
@@ -92,6 +137,7 @@ void WindowWin32::cleanup() {
     DeleteDC(this->hDC);
     DestroyWindow(this->hWnd);
     /* we dont unregister class here because it would destroy eveyrthing if there are multiple windows */
+    /* we also dont free library for same reason */
 }
 
 bool WindowWin32::shouldClose() {

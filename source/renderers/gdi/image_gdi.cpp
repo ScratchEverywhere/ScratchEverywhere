@@ -46,6 +46,8 @@ void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
     }
 
     Image_GDI::PlgAlphaBlt(hDC, p, this->hDC, params.subrect ? params.subrect->x : 0, params.subrect ? params.subrect->y : 0, renderWidth, renderHeight, params.opacity * 255);
+
+    this->freeTimer = this->maxFreeTimer;
 }
 
 void Image_GDI::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
@@ -93,6 +95,8 @@ void Image_GDI::renderNineslice(double xPos, double yPos, double width, double h
         yIncr += hP[y];
         ySrc += h;
     }
+
+    this->freeTimer = this->maxFreeTimer;
 }
 
 void *Image_GDI::getNativeTexture() {
@@ -190,7 +194,7 @@ void Image_GDI::PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, i
 
     GetObject(hBitmap, sizeof(bm), &bm);
 
-    if (bm.bmBitsPixel * bm.bmPlanes != 32 || 1) {
+    if (bm.bmBitsPixel * bm.bmPlanes != 32) {
         RGBQUAD *quad;
 
         DeleteObject(hBitmap);
