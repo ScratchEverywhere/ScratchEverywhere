@@ -25,7 +25,11 @@ class SE_EXPORT WindowWin32 : public WindowSE {
 
   private:
     HWND hWnd;
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
+    HGLRC hGLRC;
+#else
     HBITMAP hBitmap;
+#endif
 
     int width;
     int height;

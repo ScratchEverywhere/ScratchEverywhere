@@ -4,6 +4,16 @@
 #include <math.hpp>
 #include <render.hpp>
 
+#ifdef RENDERER_OPENGL
+#include <renderers/opengl/render_opengl.hpp>
+
+#define SWAPBUFFERS
+#elif defined(RENDERER_OPENGL_CORE)
+#include <renderers/opengl_core/render_opengl_core.hpp>
+
+#define SWAPBUFFERS
+#endif
+
 #include "../../../gfx/windows/resource.h"
 
 /* this beautiful code is not unicode safe but i am not going to care i am so sorry */
@@ -52,7 +62,9 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 
         GetClientRect(hWnd, &r);
 
+#ifndef SWAPBUFFERS
         StretchBlt(hDC, 0, 0, r.right - r.left, r.bottom - r.top, self->hDC, 0, 0, r.right - r.left, r.bottom - r.top, SRCCOPY);
+#endif
         EndPaint(hWnd, &ps);
         break;
     }
@@ -79,9 +91,18 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
     return 0;
 }
 
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
+typedef BOOL(APIENTRY *PFNWGLSWAPINTERVALEXT)(int);
+#endif
+
 bool WindowWin32::init(int width, int height, const std::string &title) {
     WNDCLASSEX wc;
     HDC hDC;
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
+    PIXELFORMATDESCRIPTOR pfd;
+    int pf;
+    PFNWGLSWAPINTERVALEXT swap_interval_ext = NULL;
+#endif
 
     this->shouldCloseFlag = 0;
 
@@ -116,11 +137,42 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 
     setDarkTheme(this->hWnd, isDarkTheme());
 
+#ifdef SWAPBUFFERS
+    this->hDC = GetDC(this->hWnd);
+#else
     hDC = GetDC(this->hWnd);
     this->hDC = CreateCompatibleDC(hDC);
     this->hBitmap = CreateCompatibleBitmap(hDC, width, height);
     SelectObject(this->hDC, this->hBitmap);
     ReleaseDC(this->hWnd, hDC);
+#endif
+
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
+    memset(&pfd, 0, sizeof(pfd));
+    pfd.nSize = sizeof(pfd);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.cDepthBits = 32;
+    pfd.cColorBits = 32;
+
+    pf = ChoosePixelFormat(this->hDC, &pfd);
+    SetPixelFormat(this->hDC, pf, &pfd);
+
+    this->hGLRC = wglCreateContext(this->hDC);
+    wglMakeCurrent(this->hDC, this->hGLRC);
+
+    if ((swap_interval_ext =
+             (PFNWGLSWAPINTERVALEXT)wglGetProcAddress("wglSwapIntervalEXT")) != NULL) {
+        swap_interval_ext(1);
+    }
+
+#ifdef RENDERER_OPENGL_CORE
+    if (!gladLoaderLoadGL()) {
+        Log::logCritical("Failed to initialize GLAD", true);
+        return false;
+    }
+#endif
+#endif
 
     SetWindowLongPtr(this->hWnd, GWLP_USERDATA, (LPARAM)this);
 
@@ -133,8 +185,21 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 }
 
 void WindowWin32::cleanup() {
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
+    wglMakeCurrent(NULL, NULL);
+#endif
+
+#ifdef SWAPBUFFERS
+    ReleaseDC(this->hWnd, this->hDC);
+#else
     DeleteObject(this->hBitmap);
     DeleteDC(this->hDC);
+#endif
+
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
+    wglDeleteContext(this->hGLRC);
+#endif
+
     DestroyWindow(this->hWnd);
     /* we dont unregister class here because it would destroy eveyrthing if there are multiple windows */
     /* we also dont free library for same reason */
@@ -153,8 +218,12 @@ void WindowWin32::pollEvents() {
 }
 
 void WindowWin32::swapBuffers() {
+#ifdef SWAPBUFFERS
+    SwapBuffers(this->hDC);
+#else
     InvalidateRect(this->hWnd, nullptr, FALSE);
     this->pollEvents(); /* this is to pump WM_PAINT */
+#endif
 }
 
 void WindowWin32::resize(int width, int height) {

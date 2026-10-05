@@ -3,8 +3,8 @@ ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 
 ARG RENDERER=opengl_core
-ARG WINDOWING=sdl3
-ARG AUDIO_ENGINE=sdl3
+ARG WINDOWING=win32
+ARG AUDIO_ENGINE=winmm
 
 RUN apt-get update && apt-get install -y mingw-w64 wget unzip git pkg-config zip cmake python3 python3-jinja2 nsis
 
