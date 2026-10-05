@@ -3,6 +3,7 @@
 #include "math.hpp"
 #include "runtime.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <image.hpp>
 #include <log.hpp>
@@ -268,8 +269,14 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
 
     const std::string forwardBackward = Scratch::getFieldValue(*block, "FORWARD_BACKWARD");
 
-    int shift = floor(num);
-    if (forwardBackward == "backward") shift = -shift;
+    const double signedNum = (forwardBackward == "forward") ? num : -num;
+
+    const int spriteCount = static_cast<int>(Scratch::sprites.size());
+    int shift;
+    if (std::isnan(signedNum)) shift = 0;
+    else if (signedNum >= spriteCount) shift = spriteCount;
+    else if (signedNum <= -spriteCount) shift = -spriteCount;
+    else shift = static_cast<int>(std::floor(signedNum));
 
     const int currentIndex = (Scratch::sprites.size() - 1) - sprite->layer;
     const int targetIndex = std::clamp<int>(currentIndex - shift, 0, Scratch::sprites.size() - 2);
