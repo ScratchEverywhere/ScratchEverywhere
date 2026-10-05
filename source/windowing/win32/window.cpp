@@ -20,7 +20,7 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 
         GetClientRect(hWnd, &r);
 
-        StretchBlt(hDC, 0, 0, r.right - r.left, r.bottom - r.top, self->hDC, 0, 0, 480, 360, SRCCOPY);
+        StretchBlt(hDC, 0, 0, r.right - r.left, r.bottom - r.top, self->hDC, 0, 0, r.right - r.left, r.bottom - r.top, SRCCOPY);
         EndPaint(hWnd, &ps);
         break;
     }
@@ -73,7 +73,7 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 
     hDC = GetDC(this->hWnd);
     this->hDC = CreateCompatibleDC(hDC);
-    this->hBitmap = CreateCompatibleBitmap(hDC, 480, 360);
+    this->hBitmap = CreateCompatibleBitmap(hDC, width, height);
     SelectObject(this->hDC, this->hBitmap);
     ReleaseDC(this->hWnd, hDC);
 
@@ -129,15 +129,15 @@ void WindowWin32::resize(int width, int height) {
 }
 
 int WindowWin32::getWidth() const {
-    return width;
+    return this->width;
 }
 
 int WindowWin32::getHeight() const {
-    return height;
+    return this->height;
 }
 
 float WindowWin32::getPixelDensity() const {
-    return 1;
+    return 1.0;
 }
 
 void *WindowWin32::getHandle() {

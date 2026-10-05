@@ -6,6 +6,10 @@
 #include <string>
 
 void Image_GDI::render(ImageRenderParams &params) {
+    this->render(params, renderer);
+}
+
+void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
     POINT p[3];
     int i;
     const int renderWidth = params.subrect ? params.subrect->w : this->getWidth();
@@ -29,6 +33,10 @@ void Image_GDI::render(ImageRenderParams &params) {
         if (params.centered) {
             p[i].x -= renderWidth / 2 * params.scale;
             p[i].y -= renderHeight / 2 * params.scale;
+
+            if (params.flip) {
+                p[i].x = params.x + renderWidth * params.scale - (p[i].x - params.x);
+            }
         }
 
         x = p[i].x - sx;
@@ -37,21 +45,31 @@ void Image_GDI::render(ImageRenderParams &params) {
         p[i].y = x * s + y * c + sy;
     }
 
-    Image_GDI::PlgAlphaBlt(renderer, p, this->hDC, params.subrect ? params.subrect->x : 0, params.subrect ? params.subrect->y : 0, renderWidth, renderHeight, params.opacity * 255);
+    Image_GDI::PlgAlphaBlt(hDC, p, this->hDC, params.subrect ? params.subrect->x : 0, params.subrect ? params.subrect->y : 0, renderWidth, renderHeight, params.opacity * 255);
 }
 
-// FIXME: destination width/height are used as source here...
 void Image_GDI::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
     POINT p[3];
     int i;
     double wP[] = {padding, width - padding * 2, padding};
     double hP[] = {padding, height - padding * 2, padding};
     int x, y;
+    int ySrc = 0, xSrc;
     int yIncr = yPos, xIncr;
 
     for (y = 0; y < 3; y++) {
+        int h = padding;
+
         xIncr = xPos;
+        xSrc = 0;
+
+        if (y == 1) h = this->imgData.height - padding * 2;
+
         for (x = 0; x < 3; x++) {
+            int w = padding;
+
+            if (x == 1) w = this->imgData.width - padding * 2;
+
             p[0].x = xIncr;
             p[0].y = yIncr;
             p[1].x = xIncr + wP[x];
@@ -66,12 +84,14 @@ void Image_GDI::renderNineslice(double xPos, double yPos, double width, double h
                 }
             }
 
-            Image_GDI::PlgAlphaBlt(renderer, p, this->hDC, xIncr - xPos, yIncr - yPos, wP[x], hP[y], 255);
+            Image_GDI::PlgAlphaBlt(renderer, p, this->hDC, xSrc, ySrc, w, h, 255);
 
             xIncr += wP[x];
+            xSrc += w;
         }
 
         yIncr += hP[y];
+        ySrc += h;
     }
 }
 
@@ -170,7 +190,7 @@ void Image_GDI::PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, i
 
     GetObject(hBitmap, sizeof(bm), &bm);
 
-    if (bm.bmBitsPixel * bm.bmPlanes != 32) {
+    if (bm.bmBitsPixel * bm.bmPlanes != 32 || 1) {
         RGBQUAD *quad;
 
         DeleteObject(hBitmap);
@@ -191,7 +211,11 @@ void Image_GDI::PlgAlphaBlt(HDC dest, POINT *p, HDC src, int x, int y, int cx, i
 
     PatBlt(hDC, 0, 0, cxDest, cyDest, BLACKNESS);
 
-    PlgBlt(hDC, ps, src, x, y, cx, cy, nullptr, 0, 0);
+    if (p3.x == p[1].x && p3.y == p[2].y) {
+        StretchBlt(hDC, 0, 0, cxDest, cyDest, src, x, y, cx, cy, SRCCOPY);
+    } else {
+        PlgBlt(hDC, ps, src, x, y, cx, cy, nullptr, 0, 0);
+    }
     GdiAlphaBlend(dest, xDest, yDest, cxDest, cyDest, hDC, 0, 0, cxDest, cyDest, bf);
     // StretchBlt(dest, xDest, yDest, cxDest, cyDest, hDC, 0, 0, cxDest, cyDest, SRCCOPY);
 

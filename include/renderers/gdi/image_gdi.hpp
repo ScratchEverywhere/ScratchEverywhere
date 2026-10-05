@@ -22,6 +22,7 @@ class SE_EXPORT Image_GDI : public Image {
     ~Image_GDI() override;
 
     void render(ImageRenderParams &params) override;
+    void render(ImageRenderParams &params, HDC hDC);
     void renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered = false) override;
 
     void *getNativeTexture() override;

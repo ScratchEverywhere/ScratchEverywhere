@@ -72,11 +72,11 @@ void TextObjectGDI::render(int xPos, int yPos) {
 
             for (y = 0; y < qth; y++) {
                 for (x = 0; x < qtw; x++) {
-                    RGBQUAD *quad = &this->quad[(y + qty) * qtw + (x + qtx)];
+                    RGBQUAD *quad = &this->quad[(y + qty) * this->atlasWidth + (x + qtx)];
 
-                    quad->rgbRed = ((this->color >> 24) & 0xff) * this->quad[i].rgbReserved / 255;
-                    quad->rgbGreen = ((this->color >> 16) & 0xff) * this->quad[i].rgbReserved / 255;
-                    quad->rgbBlue = ((this->color >> 8) & 0xff) * this->quad[i].rgbReserved / 255;
+                    quad->rgbRed = ((this->color >> 24) & 0xff) * quad->rgbReserved / 255;
+                    quad->rgbGreen = ((this->color >> 16) & 0xff) * quad->rgbReserved / 255;
+                    quad->rgbBlue = ((this->color >> 8) & 0xff) * quad->rgbReserved / 255;
                 }
             }
 
