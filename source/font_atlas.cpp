@@ -81,6 +81,7 @@ void FontAtlas::growAndRepackAll(FontGeneration &gen) {
 
     int ok = stbtt_PackFontRanges(&gen.packCtx, fontBuffer.data(), 0, &range, 1);
     gen.dirty = true;
+    gen.packVersion++;
     if (!ok) growAndRepackAll(gen);
 }
 

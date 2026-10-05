@@ -103,6 +103,8 @@ class SE_EXPORT TextObjectBase : public TextObject {
 
     float glyphScale = 1.0f;
 
+    unsigned int layoutPackVersion = 0;
+
     TextObjectBase(std::string txt, double posX, double posY, std::string fontPath, float nominalPixelSize);
     ~TextObjectBase() override;
 

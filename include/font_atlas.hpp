@@ -29,6 +29,8 @@ struct FontGeneration {
 
     unsigned int idleFrames = 0;
 
+    unsigned int packVersion = 0;
+
     bool hasGlyph(uint32_t codepoint) const { return codepointIndex.find(codepoint) != codepointIndex.end(); }
 
     stbtt_pack_context packCtx{};

@@ -242,11 +242,17 @@ void TextObjectBase::relayout() {
 
     layoutWidth = maxWidth * glyphScale;
     layoutHeight = lineHeightPx * (float)codepointLines.size() * glyphScale;
+    layoutPackVersion = gen.packVersion;
 }
 
 FontGeneration &TextObjectBase::touchGeneration() {
     static const std::vector<uint32_t> empty;
-    return fontAtlas->ensureGeneration(fontBucket, empty);
+    FontGeneration &gen = fontAtlas->ensureGeneration(fontBucket, empty);
+    if (gen.packVersion != layoutPackVersion) {
+        relayout();
+        return fontAtlas->ensureGeneration(fontBucket, empty);
+    }
+    return gen;
 }
 
 void TextObjectBase::setText(std::string txt) {
