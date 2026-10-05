@@ -8,7 +8,11 @@
 
 class SE_EXPORT Image_GDI : public Image {
   private:
-    nonstd::expected<void, std::string> setInitialTexture();
+    void setInitialTexture();
+
+    RGBQUAD *quad;
+    HBITMAP hBitmap;
+    HDC hDC;
 
   public:
     Image_GDI(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);

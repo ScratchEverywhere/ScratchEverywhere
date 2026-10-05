@@ -1,4 +1,5 @@
 #include "text_gdi.hpp"
+#include "render_gdi.hpp"
 #include <vector>
 
 TextObjectGDI::TextObjectGDI(std::string txt, double posX, double posY, std::string fontPath)
@@ -6,9 +7,6 @@ TextObjectGDI::TextObjectGDI(std::string txt, double posX, double posY, std::str
 }
 
 TextObjectGDI::~TextObjectGDI() = default;
-
-void TextObjectGDI::setRenderer(void *r) {
-}
 
 void TextObjectGDI::uploadAtlas(FontGeneration &gen) {
 }

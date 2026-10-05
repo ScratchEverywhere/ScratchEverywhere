@@ -21,6 +21,8 @@ WindowSE *globalWindow = nullptr;
 
 SpeechManagerGDI *speechManager = nullptr;
 
+HDC renderer = nullptr;
+
 bool Render::Init() {
     int windowWidth = 480;
     int windowHeight = 360;
@@ -31,6 +33,8 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
+
+    renderer = ((WindowWin32 *)globalWindow)->hDC;
 
     debugMode = true;
 
@@ -117,12 +121,23 @@ void Render::penClear() {
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
+        HBRUSH brush = CreateSolidBrush(RGB(colorR, colorG, colorB));
+        RECT rc;
+
+        rc.left = 0;
+        rc.top = 0;
+        rc.right = 480;
+        rc.bottom = 360;
+
+        FillRect(renderer, &rc, brush);
+        DeleteObject(brush);
         hasFrameBegan = true;
     }
 }
 
 void Render::endFrame(bool shouldFlush) {
     Sleep(16);
+    if (globalWindow) globalWindow->swapBuffers();
     hasFrameBegan = false;
 }
 

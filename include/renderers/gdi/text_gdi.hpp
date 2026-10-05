@@ -6,8 +6,6 @@
 
 class SE_EXPORT TextObjectGDI : public TextObjectBase {
   private:
-    HDC renderer = nullptr;
-
   protected:
     void uploadAtlas(FontGeneration &gen) override;
 
@@ -16,5 +14,4 @@ class SE_EXPORT TextObjectGDI : public TextObjectBase {
     ~TextObjectGDI() override;
 
     void render(int xPos, int yPos) override;
-    void setRenderer(void *r) override;
 };

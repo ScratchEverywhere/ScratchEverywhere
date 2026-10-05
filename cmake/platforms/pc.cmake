@@ -75,4 +75,6 @@ if(WIN32)
 
 		include(CPack)
 	endmacro()
+
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "winmm")
 endif()
