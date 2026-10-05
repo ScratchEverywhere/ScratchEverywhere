@@ -1,8 +1,10 @@
 #include "text_sdl2.hpp"
+#include <render.hpp>
 #include <vector>
 
 TextObjectSDL2::TextObjectSDL2(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {
+    setRenderer(Render::getRenderer());
 }
 
 TextObjectSDL2::~TextObjectSDL2() = default;
