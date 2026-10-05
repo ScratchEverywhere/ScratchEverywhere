@@ -91,15 +91,13 @@ jobs:
             build-args: |
               RENDERER=opengl
               WINDOWING=glfw
-              AUDIO_ENGINE=sdl3
-              EXT_ARGS=-DSDL_WAYLAND=OFF
+              AUDIO_ENGINE=libpulse
           - name: OpenGL Core
             artifact: Scratch Everywhere! Linux OpenGL Core Nightly
             build-args: |
               RENDERER=opengl_core
               WINDOWING=glfw
-              AUDIO_ENGINE=sdl3
-              EXT_ARGS=-DSDL_WAYLAND=OFF
+              AUDIO_ENGINE=libpulse
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -123,8 +121,24 @@ jobs:
           name: ${{ matrix.artifact }}
           path: scratch-pc
   windows:
-    name: Windows x86_64
+    name: Windows x86_64 ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: OpenGL Core
+            artifact: Scratch Everywhere! Windows OpenGL Core Nightly
+            build-args: |
+              RENDERER=opengl_core
+              WINDOWING=sdl3
+              AUDIO_ENGINE=sdl3
+          - name: GDI
+            artifact: Scratch Everywhere! Windows GDI Nightly
+            build-args: |
+              RENDERER=gdi
+              WINDOWING=win32
+              AUDIO_ENGINE=winmm
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -139,12 +153,13 @@ jobs:
           file: docker/Dockerfile.windows
           target: exporter
           outputs: type=local,dest=.
+          build-args: ${{ matrix.build-args }}
 
       - name: Upload Artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: Scratch Everywhere! Windows Nightly
+          name: ${{ matrix.artifact }}
           path: |
             scratch-pc.exe
             scratch-pc-installer.exe
