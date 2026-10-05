@@ -60,10 +60,17 @@ SCRATCH_BLOCK(procedures, call) {
 
     while ((size_t)(state->completedSteps - 1) < block->argumentIDs.size()) {
         int argIdx = state->completedSteps - 1;
+        const std::string &argId = block->argumentIDs[argIdx];
+
         Value argVal;
-        if (!Scratch::getInputValue(block, block->argumentIDs[argIdx], thread, sprite, argVal))
+        if (block->inputMap.find(argId) == block->inputMap.end() &&
+            block->MyBlockDefinitionID != nullptr &&
+            (size_t)argIdx < block->MyBlockDefinitionID->argumentDefaults.size()) {
+            argVal = block->MyBlockDefinitionID->argumentDefaults[argIdx];
+        } else if (!Scratch::getInputValue(block, argId, thread, sprite, argVal)) {
             return BlockResult::REPEAT;
-        state->myBlockThread->MyBlocksVariablen[block->argumentIDs[argIdx]] = argVal;
+        }
+        state->myBlockThread->MyBlocksVariablen[argId] = argVal;
         state->completedSteps++;
     }
 
