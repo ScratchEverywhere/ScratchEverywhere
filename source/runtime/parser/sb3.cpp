@@ -844,7 +844,8 @@ void Parser::setSubstackSb3(Block *startBlock, Block *stopBlock) {
 
     while (current != nullptr && current != stopBlock) {
 
-        bool isIf = (current->opcode == "control_if" || current->opcode == "control_if_else");
+        bool isIf = (current->opcode == "control_if" || current->opcode == "control_if_else" ||
+                     current->opcode == "control_all_at_once"); // shhh this block is 100% an if, trust me bro
 
         std::vector<std::string> substacks = {"SUBSTACK", "SUBSTACK2"};
         for (const std::string &stackName : substacks) {

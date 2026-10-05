@@ -30,6 +30,18 @@ SCRATCH_BLOCK(control, if) {
     return BlockResult::CONTINUE;
 }
 
+SCRATCH_BLOCK(control, all_at_once) {
+    const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
+    if (input == nullptr) return BlockResult::CONTINUE;
+
+    Block *substack = input->block;
+    if (substack != nullptr) {
+        thread->nextBlock = substack;
+        return BlockResult::CONTINUE_IMMEDIATELY;
+    }
+    return BlockResult::CONTINUE;
+}
+
 SCRATCH_BLOCK(control, if_else) {
     bool condition;
     if (!Scratch::getInputValueAs(block, "CONDITION", thread, sprite, condition)) return BlockResult::REPEAT;

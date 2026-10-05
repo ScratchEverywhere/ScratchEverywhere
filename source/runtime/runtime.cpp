@@ -26,6 +26,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #ifdef ENABLE_MENU
@@ -1009,8 +1010,17 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 }
 
 void Scratch::flushCostumeImages() {
+    std::unordered_set<std::string> activeCostumes;
+    activeCostumes.reserve(sprites.size());
+    for (Sprite *sprite : sprites) {
+        if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
+            activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);
+        }
+    }
+
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
+        if (activeCostumes.count(id)) continue;
         img->freeTimer--;
         if (img->freeTimer <= 0) toDelete.push_back(id);
     }
