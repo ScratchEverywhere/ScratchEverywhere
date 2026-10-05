@@ -13,6 +13,7 @@ on:
       - cmake/audio/sdl1.cmake
       - cmake/renderers/opengl.cmake
       - cmake/windowing/glfw.cmake
+      - cmake/audio/libpulse.cmake
       - cmake/deps/*
       - source/runtime/**
       - source/platforms/

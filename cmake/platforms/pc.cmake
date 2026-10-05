@@ -5,6 +5,11 @@ set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "source" "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51" "luajit")
 
+if(CMAKE_SYSTEM_NAME MATCHES "^(Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$")
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "libpulse")
+	set(SE_AUDIO_ENGINE_DEFAULT "libpulse")
+endif()
+
 set(SE_CACHING_DEFAULT ON)
 set(SE_CMAKERC_DEFAULT ON)
 
