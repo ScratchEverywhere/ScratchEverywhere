@@ -9,7 +9,11 @@ target_link_libraries(renderer_interface INTERFACE OpenGL::GL)
 cl_add_dep(renderer_interface stb_truetype)
 
 if(NOT LIBRETRO)
-	set(SE_WINDOWING_VALID_OPTIONS "sdl2" "sdl1" "sdl3" "glfw" "win32")
+	set(SE_WINDOWING_VALID_OPTIONS "sdl2" "sdl1" "sdl3" "glfw")
+
+	if(WIN32)
+		list(APPEND SE_WINDOWING_VALID_OPTIONS "win32")
+	endif()
 
 	if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
 		if(WIN32)
