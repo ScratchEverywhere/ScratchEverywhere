@@ -2,9 +2,9 @@
 #include <se_export.hpp>
 
 #include "image.hpp"
-#include "types.hpp"
 #include "text.hpp"
 #include "timer.hpp"
+#include "types.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>

@@ -94,7 +94,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         std::string json_content;
         json_content.reserve(size);
         json_content.assign(std::istreambuf_iterator<char>(*file),
-                             std::istreambuf_iterator<char>());
+                            std::istreambuf_iterator<char>());
 
         project_json = nlohmann::json::parse(json_content);
     }

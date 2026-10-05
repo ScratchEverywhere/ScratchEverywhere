@@ -216,8 +216,8 @@ SCRATCH_BLOCK_BOOLEAN(sensing, coloristouchingcolor) {
     const ColorRGBA targetRgb = targetColor.asRGB();
 
     *outValue = collision::colorIsTouchingColor(sprite,
-                                                 toColorByte(maskRgb.r), toColorByte(maskRgb.g), toColorByte(maskRgb.b),
-                                                 toColorByte(targetRgb.r), toColorByte(targetRgb.g), toColorByte(targetRgb.b));
+                                                toColorByte(maskRgb.r), toColorByte(maskRgb.g), toColorByte(maskRgb.b),
+                                                toColorByte(targetRgb.r), toColorByte(targetRgb.g), toColorByte(targetRgb.b));
     return BlockResult::CONTINUE;
 }
 
