@@ -1,6 +1,6 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-pc")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl1" "sdl2" "sdl3" "opengl" "opengl_core")
+set(SE_RENDERER_VALID_OPTIONS "gdi" "sdl1" "sdl2" "sdl3" "opengl" "opengl_core")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl1" "sdl2" "sdl3")
 set(SE_DEPS_VALID_OPTIONS "source" "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51" "luajit")
@@ -75,4 +75,6 @@ if(WIN32)
 
 		include(CPack)
 	endmacro()
+
+	list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "winmm")
 endif()
