@@ -84,6 +84,10 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (s != NULL && strcmp(s, "ImmersiveColorSet") == 0) setDarkTheme(hWnd, isDarkTheme());
         break;
     }
+    case WM_SIZE: {
+        self->resize(LOWORD(lp), HIWORD(lp));
+        break;
+    }
     default: {
         return DefWindowProc(hWnd, msg, wp, lp);
     }
@@ -128,7 +132,7 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 
     RegisterClassExA(&wc); /* FIXME: technically you should check the value but, what if you wanted multiple windows? */
 
-    this->hWnd = CreateWindowA("scratch", title.c_str(), WS_OVERLAPPEDWINDOW & ~(WS_THICKFRAME), CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, 0, wc.hInstance, nullptr);
+    this->hWnd = CreateWindowA("scratch", title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, nullptr, 0, wc.hInstance, nullptr);
 
     if (this->hWnd == nullptr) {
         Log::logCritical("Failed to initialize Win32: Code " + std::to_string(GetLastError()), true);
@@ -228,6 +232,7 @@ void WindowWin32::swapBuffers() {
 
 void WindowWin32::resize(int width, int height) {
     RECT rc;
+    RECT wrc;
 
     this->width = width;
     this->height = height;
@@ -237,6 +242,10 @@ void WindowWin32::resize(int width, int height) {
     rc.right = width;
     rc.bottom = height;
     AdjustWindowRect(&rc, GetWindowLongPtr(this->hWnd, GWL_STYLE), FALSE);
+
+    GetWindowRect(this->hWnd, &wrc);
+    if ((wrc.right - wrc.left) == (rc.right - rc.left) && (wrc.bottom - wrc.top) == (rc.bottom - rc.top)) return;
+
     SetWindowPos(this->hWnd, nullptr, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER);
 
     Render::setRenderScale();
