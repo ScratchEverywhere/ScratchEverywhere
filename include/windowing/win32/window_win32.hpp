@@ -19,9 +19,12 @@ class SE_EXPORT WindowWin32 : public WindowSE {
     float getPixelDensity() const override;
     void *getHandle() override;
 
+    void resized(int width, int height);
+
     /* these are here because, well, win32 api. */
     int shouldCloseFlag;
     HDC hDC;
+    HDC winDC;
 
   private:
     HWND hWnd;

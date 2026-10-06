@@ -3,3 +3,4 @@
 #include <windows.h>
 
 extern HDC renderer;
+extern HDC rendererWin;

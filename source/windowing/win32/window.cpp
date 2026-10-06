@@ -63,7 +63,7 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
         GetClientRect(hWnd, &r);
 
 #ifndef SWAPBUFFERS
-        StretchBlt(hDC, 0, 0, r.right - r.left, r.bottom - r.top, self->hDC, 0, 0, r.right - r.left, r.bottom - r.top, SRCCOPY);
+        BitBlt(hDC, 0, 0, self->getWidth(), self->getHeight(), self->hDC, 0, 0, SRCCOPY);
 #endif
         EndPaint(hWnd, &ps);
         break;
@@ -101,7 +101,6 @@ typedef BOOL(APIENTRY *PFNWGLSWAPINTERVALEXT)(int);
 
 bool WindowWin32::init(int width, int height, const std::string &title) {
     WNDCLASSEX wc;
-    HDC hDC;
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     PIXELFORMATDESCRIPTOR pfd;
     int pf;
@@ -142,13 +141,13 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
     setDarkTheme(this->hWnd, isDarkTheme());
 
 #ifdef SWAPBUFFERS
-    this->hDC = GetDC(this->hWnd);
+    this->winDC = GetDC(this->hWnd);
+    this->hDC = this->winDC;
 #else
-    hDC = GetDC(this->hWnd);
-    this->hDC = CreateCompatibleDC(hDC);
-    this->hBitmap = CreateCompatibleBitmap(hDC, width, height);
+    this->winDC = GetDC(this->hWnd);
+    this->hDC = CreateCompatibleDC(this->winDC);
+    this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
     SelectObject(this->hDC, this->hBitmap);
-    ReleaseDC(this->hWnd, hDC);
 #endif
 
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
@@ -193,12 +192,11 @@ void WindowWin32::cleanup() {
     wglMakeCurrent(NULL, NULL);
 #endif
 
-#ifdef SWAPBUFFERS
-    ReleaseDC(this->hWnd, this->hDC);
-#else
+#ifndef SWAPBUFFERS
     DeleteObject(this->hBitmap);
     DeleteDC(this->hDC);
 #endif
+    ReleaseDC(this->hWnd, this->winDC);
 
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     wglDeleteContext(this->hGLRC);
@@ -242,6 +240,14 @@ void WindowWin32::resize(int width, int height) {
     rc.right = width;
     rc.bottom = height;
     AdjustWindowRect(&rc, GetWindowLongPtr(this->hWnd, GWL_STYLE), FALSE);
+
+#ifndef SWAPBUFFERS
+    DeleteObject(this->hBitmap);
+    this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
+    SelectObject(this->hDC, this->hBitmap);
+
+    this->resized(width, height);
+#endif
 
     GetWindowRect(this->hWnd, &wrc);
     if ((wrc.right - wrc.left) == (rc.right - rc.left) && (wrc.bottom - wrc.top) == (rc.bottom - rc.top)) return;
