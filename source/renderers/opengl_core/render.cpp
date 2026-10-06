@@ -818,7 +818,8 @@ void Render::penStamp(Sprite *sprite) {
         penY *= (float)scale;
     }
 
-    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / 100.0f;
+    const Costume &costume = sprite->costumes[sprite->currentCostume];
+    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : (sprite->size / 100.0f) / costume.bitmapResolution;
 
     const float halfDiag = 0.5f * std::sqrt(static_cast<float>(image->getWidth() * image->getWidth() + image->getHeight() * image->getHeight())) * std::abs(renderScale);
     if (!rectOverlapsPenCanvas(penX - halfDiag, penY - halfDiag, penX + halfDiag, penY + halfDiag)) return;
