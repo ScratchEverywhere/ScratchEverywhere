@@ -1,4 +1,5 @@
 #include "raylib.h"
+
 #include <audio.hpp>
 #include <cmath>
 #include <image.hpp>
@@ -6,6 +7,7 @@
 #include <log.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
+#include <windowing/glfw/window_glfw.hpp>
 
 // todo: actually finish this
 
@@ -13,15 +15,35 @@ bool Render::Init() {
     int windowWidth = 480;
     int windowHeight = 360;
 
-    InitWindow(windowWidth, windowHeight, "Scratch Everywhere!");
+    globalWindow = new WindowGLFW();
+    if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
+        delete globalWindow;
+        globalWindow = nullptr;
+        return false;
+    }
+    
+    return true;
+}
 
 }
 
 void *Render::getRenderer() {
 return static_cast<void *>(renderer);
+}
 
 void Render::deInit() {
-    UnloadTexture(); //placeholder
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+    TextObject::cleanupText();
+
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
+    SoundPlayer::deinit();
     CloseWindow(); 
 }
 
@@ -30,13 +52,15 @@ void *Render::getRenderer() {
 }
 
 void Render::setRenderTarget(void *renderTarget) {
+    // umm idk what is this for?
 }
 
 void Render::clearRenderTarget() {
 }
 
 bool Render::createSpeechManager() {
-
+    if (speechManager == nullptr) speechManager = new SpeechManagerRaylib();
+    return speechManager != nullptr;
 }
 
 void Render::destroySpeechManager() {
@@ -108,5 +132,10 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
 }
 
 bool Render::appShouldRun() {
-    return true;
+    if (OS::toExit) return false;
+    if (globalWindow) {
+        globalWindow->pollEvents();
+        return !globalWindow->shouldClose();
+    }
+    return false;
 }
