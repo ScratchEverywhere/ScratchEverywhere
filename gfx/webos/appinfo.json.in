@@ -5,7 +5,7 @@
   "icon": "icon.png",
   "splashBackground": "splash.png",
   "title": "@SE_APP_NAME@",
-  "version": "0.0.1",
+  "version": "1.2.0",
   "appDescription": "@SE_APP_DESCRIPTION@",
   "iconColor": "#754675",
   "cloudgame_active": true,

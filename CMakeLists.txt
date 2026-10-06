@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 1.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.2 LANGUAGES CXX C)
 
 if(APPLE)
 	enable_language(OBJC)
@@ -37,7 +37,7 @@ endif()
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
 set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
-set(SE_APP_VERSION "1.1" CACHE STRING "Version of the outputed app.")
+set(SE_APP_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of the outputed app.")
 
 if(VITA)
 	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
@@ -139,7 +139,7 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
 
 	if(NOT selected_value IN_LIST valid_options_list)
         message(
-			FATAL_ERROR 
+			FATAL_ERROR
             "Invalid value for ${var_name}: '${selected_value}'. Must be one of: ${valid_options_list}"
         )
     endif()
