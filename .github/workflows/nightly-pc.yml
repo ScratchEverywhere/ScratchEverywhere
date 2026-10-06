@@ -131,8 +131,8 @@ jobs:
             artifact: Scratch Everywhere! Windows OpenGL Core Nightly
             build-args: |
               RENDERER=opengl_core
-              WINDOWING=sdl3
-              AUDIO_ENGINE=sdl3
+              WINDOWING=win32
+              AUDIO_ENGINE=winmm
           - name: GDI
             artifact: Scratch Everywhere! Windows GDI Nightly
             build-args: |

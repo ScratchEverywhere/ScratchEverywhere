@@ -13,6 +13,8 @@
 #include <windowing/sdl3/window_sdl3.hpp>
 #elif defined(WINDOWING_LIBRETRO)
 #include <windowing/libretro/window_libretro.hpp>
+#elif defined(WINDOWING_WIN32)
+#include <windowing/win32/window_win32.hpp>
 #else
 #error "No windowing backend defined"
 #endif
@@ -56,6 +58,8 @@ bool Render::Init() {
     globalWindow = new WindowSDL3();
 #elif defined(WINDOWING_LIBRETRO)
     globalWindow = new WindowLibretro();
+#elif defined(WINDOWING_WIN32)
+    globalWindow = new WindowWin32();
 #else
 #error "No windowing backend defined"
 #endif
