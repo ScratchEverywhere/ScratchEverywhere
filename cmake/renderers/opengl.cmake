@@ -16,6 +16,6 @@ if(NOT LIBRETRO)
 	endif()
 
 	if(NOT DEFINED SE_AUDIO_ENGINE_DEFAULT)
-		set(SE_AUDIO_ENGINE_DEFAULT "winmm")
+		set(SE_AUDIO_ENGINE_DEFAULT "sdl2")
 	endif()
 endif()
