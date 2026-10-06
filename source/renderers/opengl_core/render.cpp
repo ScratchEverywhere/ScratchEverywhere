@@ -833,6 +833,7 @@ void Render::penStamp(Sprite *sprite) {
     params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
     params.opacity = 1.0f - std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f;
     params.brightness = sprite->brightnessEffect;
+    params.blend = false;
 
     penBegin();
     flushPenBatch();

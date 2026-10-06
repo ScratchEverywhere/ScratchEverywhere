@@ -28,6 +28,7 @@ struct SE_EXPORT ImageRenderParams {
     int brightness = 0;
     float rotation = 0;
     bool flip = false;
+    bool blend = true;
     ImageSubrect *subrect = nullptr;
 
     float colorEffect = 0.0f;
