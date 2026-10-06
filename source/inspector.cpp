@@ -2,6 +2,8 @@
 #ifdef ENABLE_INSPECTOR
 
 #include <blockExecutor.hpp>
+#include <collision.hpp>
+#include <input.hpp>
 #include <iostream>
 #include <queue>
 #include <render.hpp>
@@ -309,6 +311,54 @@ void processCommands() {
             std::string s1Name = parseArg(ss, false), s2Name = parseArg(ss, false);
             Sprite *s1 = findSprite(s1Name), *s2 = findSprite(s2Name);
             if (s1 && s2) std::cout << (Scratch::isColliding("sprite", s1, s2) ? "YES\n" : "NO\n");
+        } else if (cmd == "touchmouse") {
+            std::string sName = parseArg(ss, false);
+            Sprite *s = findSprite(sName);
+            if (s) {
+                std::cout << "mousePointer: (" << Input::mousePointer.x << ", " << Input::mousePointer.y << ")\n"
+                          << "sprite pos: (" << s->xPosition << ", " << s->yPosition << ")\n"
+                          << "isColliding(mouse): " << (Scratch::isColliding("mouse", s) ? "YES" : "NO") << "\n"
+                          << "pointInSpriteFast: " << (collision::pointInSpriteFast(s, Input::mousePointer.x, Input::mousePointer.y) ? "YES" : "NO") << "\n"
+                          << "pointInSprite: " << (collision::pointInSprite(s, Input::mousePointer.x, Input::mousePointer.y) ? "YES" : "NO") << "\n";
+                collision::AABB box = collision::getSpriteBounds(s);
+                std::cout << "AABB: left=" << box.left << " right=" << box.right << " top=" << box.top << " bottom=" << box.bottom << "\n";
+
+                auto &costume = s->costumes[s->currentCostume];
+                auto imgFind = Scratch::costumeImages.find(costume.fullName);
+                if (imgFind != Scratch::costumeImages.end()) {
+                    std::cout << "image: w=" << imgFind->second->getWidth() << " h=" << imgFind->second->getHeight() << "\n";
+                }
+                auto freshMask = collision::generateCollisionMask(s, 1);
+                auto mask = freshMask;
+                if (mask) {
+                    std::cout << "mask: w=" << mask->width << " h=" << mask->height
+                              << " scaleFactor=" << mask->scaleFactor << " maxRadius=" << mask->maxRadius << "\n"
+                              << "rotationCenter: (" << costume.rotationCenterX << ", " << costume.rotationCenterY << ")\n"
+                              << "costume.isSVG=" << costume.isSVG << " bitmapResolution=" << costume.bitmapResolution << "\n"
+                              << "sprite.size=" << s->size << "\n";
+                    int opaqueCount = 0;
+                    for (unsigned int yy = 0; yy < mask->height; yy++) {
+                        for (unsigned int xx = 0; xx < mask->width; xx++) {
+                            if (mask->getPixel(xx, yy)) opaqueCount++;
+                        }
+                    }
+                    std::cout << "opaquePixels=" << opaqueCount << " / " << (mask->width * mask->height) << "\n";
+                } else std::cout << "mask: null\n";
+            } else std::cout << "not found\n";
+        } else if (cmd == "accurate") {
+            std::string valStr = parseArg(ss, false);
+            if (!valStr.empty()) Scratch::accurateCollision = (valStr == "1" || valStr == "true");
+            std::cout << "accurateCollision=" << (Scratch::accurateCollision ? "true" : "false") << "\n";
+        } else if (cmd == "mouse") {
+            std::string xStr = parseArg(ss, false), yStr = parseArg(ss, false), downStr = parseArg(ss, false);
+            try {
+                if (!xStr.empty()) Input::mousePointer.x = std::stoi(xStr);
+                if (!yStr.empty()) Input::mousePointer.y = std::stoi(yStr);
+                if (!downStr.empty()) Input::mousePointer.isPressed = (downStr == "true" || downStr == "1" || downStr == "down");
+            } catch (...) {
+            }
+            std::cout << "mouse: x=" << Input::mousePointer.x << " y=" << Input::mousePointer.y
+                      << " down=" << (Input::mousePointer.isPressed ? "true" : "false") << "\n";
         } else if (cmd == "watch") {
             std::string target = parseArg(ss, true);
             watchedVars.push_back({target, Value()});

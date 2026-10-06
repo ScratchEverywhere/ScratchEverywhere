@@ -19,6 +19,7 @@ struct SE_EXPORT CollisionMask {
     unsigned int width = 0;
     unsigned int height = 0;
     float scaleFactor = 0;
+    float sourceScale = -1.0f;
 
 #if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
     std::vector<uint8_t> alphaPixels;

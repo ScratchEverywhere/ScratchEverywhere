@@ -22,6 +22,7 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
     mask->width = imgData.width / scaleFactor;
     mask->height = imgData.height / scaleFactor;
     mask->scaleFactor = (float)scaleFactor / imgData.scale;
+    mask->sourceScale = imgData.scale;
 
     const float centerX = costume.rotationCenterX / mask->scaleFactor;
     const float centerY = costume.rotationCenterY / mask->scaleFactor;
@@ -78,6 +79,26 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
     return mask;
 }
 
+static std::shared_ptr<CollisionMask> getValidCollisionMask(Sprite *sprite) {
+    auto &costume = sprite->costumes[sprite->currentCostume];
+    std::shared_ptr<CollisionMask> mask = costume.collisionMask;
+
+    bool stale = false;
+    if (mask != nullptr) {
+        auto imgFind = Scratch::costumeImages.find(costume.fullName);
+        if (imgFind != Scratch::costumeImages.end() && imgFind->second->getScale() != mask->sourceScale) {
+            stale = true;
+        }
+    }
+
+    if (mask == nullptr || stale) {
+        mask = collision::generateCollisionMask(sprite);
+        if (mask == nullptr) return nullptr;
+        costume.collisionMask = mask;
+    }
+    return mask;
+}
+
 static Sprite *getSpriteAbove(Sprite *sprite) {
     if (Scratch::sprites.size() <= 1) {
         return nullptr;
@@ -104,12 +125,8 @@ bool collision::pointInSprite(Sprite *sprite, float x, float y, bool clickMode) 
     if (clickMode && pointInSprite(getSpriteAbove(sprite), x, y)) return false;
 
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = costume.collisionMask;
-    if (mask == nullptr) {
-        mask = generateCollisionMask(sprite);
-        if (mask == nullptr) return false;
-        costume.collisionMask = mask;
-    }
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    if (mask == nullptr) return false;
 
     const float dx = x - sprite->xPosition;
     const float dy = y - sprite->yPosition;
@@ -142,20 +159,12 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
     if (a == b) return false;
 
     auto &costumeA = a->costumes[a->currentCostume];
-    std::shared_ptr<CollisionMask> maskA = costumeA.collisionMask;
-    if (maskA == nullptr) {
-        maskA = generateCollisionMask(a);
-        if (maskA == nullptr) return false;
-        costumeA.collisionMask = maskA;
-    }
+    std::shared_ptr<CollisionMask> maskA = getValidCollisionMask(a);
+    if (maskA == nullptr) return false;
 
     auto &costumeB = b->costumes[b->currentCostume];
-    std::shared_ptr<CollisionMask> maskB = costumeB.collisionMask;
-    if (maskB == nullptr) {
-        maskB = generateCollisionMask(b);
-        if (maskB == nullptr) return false;
-        costumeB.collisionMask = maskB;
-    }
+    std::shared_ptr<CollisionMask> maskB = getValidCollisionMask(b);
+    if (maskB == nullptr) return false;
 
     const float dx = a->xPosition - b->xPosition;
     const float dy = a->yPosition - b->yPosition;
@@ -230,12 +239,8 @@ bool collision::spriteInSprite(Sprite *a, Sprite *b) {
 
 static bool colorAt(Sprite *sprite, float x, float y, uint8_t &outR, uint8_t &outG, uint8_t &outB) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = costume.collisionMask;
-    if (mask == nullptr) {
-        mask = collision::generateCollisionMask(sprite);
-        if (mask == nullptr) return false;
-        costume.collisionMask = mask;
-    }
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    if (mask == nullptr) return false;
 
     const float dx = x - sprite->xPosition;
     const float dy = y - sprite->yPosition;
@@ -299,12 +304,8 @@ static bool scratchMaskMatches(uint8_t ar, uint8_t ag, uint8_t ab, uint8_t br, u
 
 bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = costume.collisionMask;
-    if (mask == nullptr) {
-        mask = generateCollisionMask(sprite);
-        if (mask == nullptr) return false;
-        costume.collisionMask = mask;
-    }
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    if (mask == nullptr) return false;
 
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
@@ -329,12 +330,8 @@ bool collision::isTouchingColor(Sprite *sprite, uint8_t r, uint8_t g, uint8_t b)
 bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t maskG, uint8_t maskB,
                                      uint8_t targetR, uint8_t targetG, uint8_t targetB) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = costume.collisionMask;
-    if (mask == nullptr) {
-        mask = generateCollisionMask(sprite);
-        if (mask == nullptr) return false;
-        costume.collisionMask = mask;
-    }
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    if (mask == nullptr) return false;
 
     const float spriteSize = !costume.isSVG && !Scratch::bitmapHalfQuality ? sprite->size * 0.5f : sprite->size;
     const float scaledRadius = mask->maxRadius * (spriteSize / 100.0f);
@@ -359,12 +356,8 @@ bool collision::colorIsTouchingColor(Sprite *sprite, uint8_t maskR, uint8_t mask
 
 bool collision::spriteOnEdge(Sprite *sprite) {
     auto &costume = sprite->costumes[sprite->currentCostume];
-    std::shared_ptr<CollisionMask> mask = costume.collisionMask;
-    if (mask == nullptr) {
-        mask = generateCollisionMask(sprite);
-        if (mask == nullptr) return false;
-        costume.collisionMask = mask;
-    }
+    std::shared_ptr<CollisionMask> mask = getValidCollisionMask(sprite);
+    if (mask == nullptr) return false;
 
     const float halfWidth = Scratch::projectWidth / 2.0f;
     const float halfHeight = Scratch::projectHeight / 2.0f;
