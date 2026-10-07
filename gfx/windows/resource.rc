@@ -39,8 +39,8 @@ IDI_ICON1               ICON                    "icon.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,0,0
- PRODUCTVERSION 1,2,0,0
+ FILEVERSION 1,2,1,0
+ PRODUCTVERSION 1,2,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -57,12 +57,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "scratcheverywhere.github.io"
             VALUE "FileDescription", "Custom Scratch Runtime made in C++!"
-            VALUE "FileVersion", "1.2"
+            VALUE "FileVersion", "1.2.1"
             VALUE "InternalName", "Scratch Everywhere!"
             VALUE "LegalCopyright", "Copyright (C) 2026 Scratch Everywhere! contributors"
             VALUE "OriginalFilename", "scratch-everywhere.exe"
             VALUE "ProductName", "Scratch Everywhere!"
-            VALUE "ProductVersion", "1.2"
+            VALUE "ProductVersion", "1.2.1"
         END
     END
     BLOCK "VarFileInfo"
