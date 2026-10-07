@@ -19,6 +19,7 @@ uint64_t Timer::getTimeMs() {
     uint64_t diffNs = currentTime - startTime;
     return diffNs / 1000000;
     */
+    return 1;
 }
 
 double Timer::getTimeMsDouble() {
@@ -29,4 +30,5 @@ double Timer::getTimeMsDouble() {
     uint64_t diffNs = currentTime - startTime;
     return static_cast<double>(diffNs) / 1000000.0;sudo docker buildx build -f docker/Dockerfile.3ds --target exporter -o . .
     */
+   return 1.0f;
 }

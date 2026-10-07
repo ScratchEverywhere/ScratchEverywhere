@@ -102,8 +102,10 @@ bool Scratch::initializeRuntime() {
     if (!OS::init()) {
         return false;
     }
-    Log::deleteLogFile();
-    TranslationManager::loadLanguage();
+
+Log::deleteLogFile();
+TranslationManager::loadLanguage();
+
 #ifndef LIBRETRO
     if (!Render::Init()) {
         return false;
@@ -118,6 +120,7 @@ bool Scratch::initializeRuntime() {
         return false;
     }
 #endif
+
     return true;
 }
 

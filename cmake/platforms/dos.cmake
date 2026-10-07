@@ -1,6 +1,6 @@
-set(SE_DEFAULT_OUTPUT_NAME "scratch-dos")
+set(SE_DEFAULT_OUTPUT_NAME "se-dos")
 
-set(SE_RENDERER_VALID_OPTIONS "")
+set(SE_RENDERER_VALID_OPTIONS "sdl3")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 

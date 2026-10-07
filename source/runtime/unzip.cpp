@@ -51,7 +51,12 @@ int Unzip::openFile(std::istream *&file) {
     // load Scratch project into memory
     Log::log("Loading SB3 into memory...");
     std::string embeddedFilename = "project.sb3";
+
+#if defined(__MSDOS__)
+    std::string unzippedPath = "project/project.jso";
+#else
     std::string unzippedPath = "project/project.json";
+#endif
 
     embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
     unzippedPath = OS::getRomFSLocation() + unzippedPath;
@@ -123,7 +128,11 @@ int Unzip::openFile(std::istream *&file) {
     Scratch::projectType = ProjectType::UNZIPPED;
     Log::log("Unpacked .sb3 project in SD card");
     // check if Unpacked Project
+#if defined(__MSDOS__)
+    file = new std::ifstream(filePath + "/project.jso", std::ios::binary | std::ios::ate);
+#else
     file = new std::ifstream(filePath + "/project.json", std::ios::binary | std::ios::ate);
+#endif
     if (file == nullptr || !(*file)) {
         Log::logCritical("Couldnt open unpacked Scratch project: " + filePath, true);
         return 0;
@@ -342,7 +351,11 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
             }
 
             // extract project.json
+            #if defined(__MSDOS__)
+            int file_index = mz_zip_reader_locate_file(&zipArchive, "project.jso", NULL, 0);
+            #else
             int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
+            #endif
             if (file_index < 0) {
                 return project_json;
             }
@@ -369,7 +382,11 @@ nlohmann::json Unzip::unzipProject(std::istream *file) {
                 return project_json;
             }
 
+            #if defined(__MSDOS__)
+            int file_index = mz_zip_reader_locate_file(&zipArchive, "project.jso", NULL, 0);
+            #else
             int file_index = mz_zip_reader_locate_file(&zipArchive, "project.json", NULL, 0);
+            #endif
             if (file_index < 0) {
                 Log::logCritical("Failed to extract project.json", false);
                 mz_zip_reader_end(&zipArchive);
@@ -474,7 +491,11 @@ bool Unzip::deleteProjectFolder(const std::string &directory) {
 }
 
 nlohmann::json Unzip::getSetting(const std::string &settingName) {
+#if defined(__MSDOS__)
+    std::string folderPath = filePath + ".jso";
+#else
     std::string folderPath = filePath + ".json";
+#endif
     std::string content;
 
     if (Scratch::projectType != ProjectType::UNEMBEDDED) {
@@ -489,7 +510,12 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
         const auto &file = fs.open(folderPath);
         content.assign(file.begin(), file.end());
 #else
-        std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
+
+#if defined(__MSDOS__)
+    std::ifstream file(OS::getRomFSLocation() + "project.sb3.jso");
+#else
+    std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
+#endif
         if (!file.is_open()) {
             Log::logWarning("Project settings file not found in RomFS.");
             return nlohmann::json();

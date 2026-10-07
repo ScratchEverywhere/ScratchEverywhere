@@ -24,13 +24,20 @@ const TranslationManager::LanguageInfo &TranslationManager::getLoadedLanguage() 
 const std::vector<TranslationManager::LanguageInfo> TranslationManager::getLanguages() {
     std::vector<LanguageInfo> ret;
 
+#if defined(__MSDOS__)
+    const std::string path = OS::getRomFSLocation() + "gfx\\tongues\\tongues.jso";
+#else
     const std::string path = OS::getRomFSLocation() + "gfx/translations/languages.json";
+#endif
+
+    // const std::string path = OS::getRomFSLocation() + "gfx/translations/languages.json";
 #ifdef USE_CMAKERC
     const auto &file = cmrc::romfs::get_filesystem().open(path);
     nlohmann::json json = nlohmann::json::parse(file.begin(), file.begin() + file.size());
 #else
     nlohmann::json json;
-    std::ifstream file(path);
+    std::ifstream file;
+    file.open(path);
     file >> json;
 #endif
 
@@ -47,8 +54,13 @@ void TranslationManager::loadLanguage(std::string language) {
     const auto &languages = getLanguages();
     loadedLanguage = *std::find_if(languages.begin(), languages.end(), [&language](LanguageInfo info) { return info.key == language; });
 
+#if defined(__MSDOS__)
+    const std::string path = OS::getRomFSLocation() + "gfx\\tongues\\" + language + ".jso";
+    const std::string splashPath = OS::getRomFSLocation() + "gfx\\tongues\\" + language + "_spl.txt";
+#else
     const std::string path = OS::getRomFSLocation() + "gfx/translations/" + language + ".json";
     const std::string splashPath = OS::getRomFSLocation() + "gfx/translations/" + language + ".splashes.txt";
+#endif
 
     splashTexts.clear();
 

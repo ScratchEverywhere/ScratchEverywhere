@@ -99,10 +99,14 @@ extern "C" int main(int argc, char **argv) {
 #else
 int main(int argc, char **argv) {
 #endif
+    // OS::getRomFSLocation();
+
     if (!initApp()) {
         exitApp();
         return 1;
     }
+
+    // Log::log("Test");
 
     srand(time(NULL));
 
