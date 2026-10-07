@@ -82,6 +82,9 @@ scratch-wii.zip
 scratch-everywhere
 scratch-pc
 
+# Dumps
+*.dmp
+
 # Stored Files
 cloud-username.txt
 

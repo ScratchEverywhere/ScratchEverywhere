@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 1.2 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.2.1 LANGUAGES CXX C)
 
 if(APPLE)
 	enable_language(OBJC)

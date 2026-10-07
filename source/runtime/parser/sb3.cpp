@@ -785,6 +785,7 @@ Block *Parser::loadBlockSb3(Sprite *newSprite, const std::string &id, const nloh
                 else if (procode == "​​error​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["logs_error"];
                 else if (procode == "​​open​​ %s .sb3") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3"];
                 else if (procode == "​​open​​ %s .sb3 with data %s") newBlock->blockFunction = BlockExecutor::getHandlers()["sceneManager_openSB3withData"];
+                else if (procode == "​​exit project​​ %s") newBlock->blockFunction = BlockExecutor::getHandlers()["SE_exitProject"];
 
                 else {
                     if (newSprite->customHatBlock.count(procode) == 0) {
