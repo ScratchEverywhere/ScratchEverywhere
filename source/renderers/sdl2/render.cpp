@@ -1,7 +1,7 @@
-#include "render.hpp"
+#include "render_sdl2.hpp"
 #include "speech_manager.hpp"
 #include "speech_manager_sdl2.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include <SDL.h>
 #include <algorithm>
 #include <audio.hpp>
@@ -14,7 +14,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <windowing/sdl2/window.hpp>
+#include <windowing/sdl2/window_sdl2.hpp>
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>
@@ -43,11 +43,6 @@ char nickname[0x21];
 #include <ogc/system.h>
 #endif
 
-#ifdef __PS4__
-#include <orbis/Sysmodule.h>
-#include <orbis/libkernel.h>
-#endif
-
 #ifdef GAMECUBE
 #include <ogc/consol.h>
 #include <ogc/exi.h>
@@ -55,6 +50,7 @@ char nickname[0x21];
 
 WindowSE *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
+static SDL_Texture *mainRenderTarget = nullptr;
 SDL_Texture *penTexture = nullptr;
 
 SpeechManagerSDL2 *speechManager = nullptr;
@@ -86,12 +82,6 @@ bool Render::Init() {
     int windowWidth = 1280;
     int windowHeight = 720;
 
-    // Freetype has to be initialized before SDL2_ttf
-    int rc = sceSysmoduleLoadModule(ORBIS_SYSMODULE_FREETYPE_OL);
-    if (rc != ORBIS_OK) {
-        Log::logCritical("Failed to init freetype.", true);
-        return false;
-    }
 #elif defined(WEBOS)
     // SDL has to be initialized before window creation on webOS
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
@@ -112,8 +102,6 @@ bool Render::Init() {
     int windowWidth = 480;
     int windowHeight = 360;
 #endif
-
-    TTF_Init();
 
     globalWindow = new WindowSDL2();
     if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
@@ -161,8 +149,18 @@ void *Render::getRenderer() {
     return static_cast<void *>(renderer);
 }
 
+void Render::setRenderTarget(void *renderTarget) {
+    mainRenderTarget = static_cast<SDL_Texture *>(renderTarget);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
+}
+
+void Render::clearRenderTarget() {
+    mainRenderTarget = nullptr;
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
+}
+
 bool Render::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL2(renderer);
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL2();
     return speechManager != nullptr;
 }
 
@@ -205,7 +203,7 @@ bool Render::initPen() {
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
     return true;
 }
 
@@ -471,7 +469,7 @@ void Render::penStamp(Sprite *sprite) {
 
     image->render(params);
 
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
 }
 
 void Render::penClear() {
@@ -479,7 +477,7 @@ void Render::penClear() {
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
     if (!penVerts.empty()) penVerts.clear();
 }
 #else
@@ -620,7 +618,7 @@ void Render::renderPenLayer() {
         SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         penVerts.clear();
 
-        SDL_SetRenderTarget(renderer, nullptr);
+        SDL_SetRenderTarget(renderer, mainRenderTarget);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 
@@ -664,7 +662,7 @@ bool Render::appShouldRun() {
                 SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_NONE);
                 SDL_SetRenderTarget(renderer, newTexture);
                 SDL_RenderCopy(renderer, penTexture, nullptr, nullptr);
-                SDL_SetRenderTarget(renderer, nullptr);
+                SDL_SetRenderTarget(renderer, mainRenderTarget);
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_BLEND);
                 SDL_DestroyTexture(penTexture);
                 penTexture = newTexture;

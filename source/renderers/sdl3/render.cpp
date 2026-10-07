@@ -1,4 +1,4 @@
-#include "render.hpp"
+#include "render_sdl3.hpp"
 #include "speech_manager_sdl3.hpp"
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -13,13 +13,13 @@
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <sprite.hpp>
 #include <string>
 #include <text.hpp>
+#include <types.hpp>
 #include <unordered_map>
 #include <vector>
 #include <window.hpp>
-#include <windowing/sdl3/window.hpp>
+#include <windowing/sdl3/window_sdl3.hpp>
 
 #ifdef __SWITCH__
 #include <switch.h>
@@ -38,6 +38,7 @@ char nickname[0x21];
 
 WindowSE *globalWindow = nullptr;
 SDL_Renderer *renderer = nullptr;
+static SDL_Texture *mainRenderTarget = nullptr;
 SDL_Texture *penTexture = nullptr;
 SpeechManagerSDL3 *speechManager = nullptr;
 
@@ -54,8 +55,6 @@ bool Render::Init() {
     int windowWidth = 480;
     int windowHeight = 360;
 #endif
-
-    TTF_Init();
 
     globalWindow = new WindowSDL3();
     if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
@@ -98,8 +97,18 @@ void *Render::getRenderer() {
     return static_cast<void *>(renderer);
 }
 
+void Render::setRenderTarget(void *renderTarget) {
+    mainRenderTarget = static_cast<SDL_Texture *>(renderTarget);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
+}
+
+void Render::clearRenderTarget() {
+    mainRenderTarget = nullptr;
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
+}
+
 bool Render::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3();
     return speechManager != nullptr;
 }
 
@@ -109,7 +118,7 @@ void Render::destroySpeechManager() {
 }
 
 SpeechManager *Render::getSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3();
     return speechManager;
 }
 
@@ -143,7 +152,7 @@ bool Render::initPen() {
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
 
     return true;
 }
@@ -409,7 +418,7 @@ void Render::penStamp(Sprite *sprite) {
 
     image->render(params);
 
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
 }
 
 void Render::penClear() {
@@ -417,7 +426,7 @@ void Render::penClear() {
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
     SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, nullptr);
+    SDL_SetRenderTarget(renderer, mainRenderTarget);
     penVerts.clear();
 }
 
@@ -550,7 +559,7 @@ void Render::renderPenLayer() {
         SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         penVerts.clear();
 
-        SDL_SetRenderTarget(renderer, nullptr);
+        SDL_SetRenderTarget(renderer, mainRenderTarget);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
     }
 

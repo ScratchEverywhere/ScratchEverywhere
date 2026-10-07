@@ -6,12 +6,13 @@
 #include <math.hpp>
 #include <nlohmann/json.hpp>
 #include <render.hpp>
+#include <se_export.hpp>
 #include <unzip.hpp>
 #ifdef __WIIU__
 #include <whb/sdcard.h>
 #endif
 
-class Menu {
+class SE_EXPORT Menu {
   public:
     bool isInitialized = false;
     virtual void init() = 0;
@@ -20,7 +21,7 @@ class Menu {
     virtual ~Menu();
 };
 
-class MenuManager {
+class SE_EXPORT MenuManager {
   private:
     static Menu *currentMenu;
 
@@ -33,7 +34,7 @@ class MenuManager {
     static void cleanup();
 };
 
-class MainMenu : public Menu {
+class SE_EXPORT MainMenu : public Menu {
   private:
   public:
     bool shouldExit = false;

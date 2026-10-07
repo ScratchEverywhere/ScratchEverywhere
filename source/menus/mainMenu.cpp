@@ -2,6 +2,7 @@
 #include "projectMenu.hpp"
 #include "settings.hpp"
 #include "settingsMenu.hpp"
+#include "unpackMenu.hpp"
 #include <audio.hpp>
 #include <audiostack.hpp>
 #include <cctype>
@@ -81,13 +82,22 @@ void MainMenu::init() {
     // let the user type what project they want to open
     std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
 
-    const std::string ext = ".sb3";
-    if (answer.size() >= ext.size() &&
-        answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
-        answer = answer.substr(0, answer.size() - ext.size());
+    for (const std::string &ext : {".sb3", ".sb2", ".sb"}) {
+        if (answer.size() >= ext.size() &&
+            answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
+            answer = answer.substr(0, answer.size() - ext.size());
+            break;
+        }
     }
 
-    Unzip::filePath = OS::getScratchFolderLocation() + answer + ".sb3";
+    ProjectFormat format;
+    std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + answer, format);
+    if (!resolved.empty()) {
+        Unzip::filePath = resolved;
+    } else {
+        Unzip::filePath = OS::getScratchFolderLocation() + answer;
+        Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", answer);
+    }
 
     MenuManager::loadProject();
     return;
@@ -100,7 +110,7 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.release") + " 1.0", 0, 0, "gfx/menu/Ubuntu-Bold");
+    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.release") + " 1.2", 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 

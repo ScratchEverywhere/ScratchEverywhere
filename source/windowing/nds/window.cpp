@@ -1,5 +1,5 @@
-#include "window.hpp"
 #include "os.hpp"
+#include "window_nds.hpp"
 #include <fat.h>
 #include <filesystem.h>
 #include <input.hpp>

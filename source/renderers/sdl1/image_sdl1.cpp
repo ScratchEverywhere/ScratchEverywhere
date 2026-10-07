@@ -1,6 +1,6 @@
 #include "image_sdl1.hpp"
 #include "nonstd/expected.hpp"
-#include "render.hpp"
+#include "render_sdl1.hpp"
 #include <SDL_gfxBlitFunc.h>
 #include <SDL_rotozoom.h>
 #include <algorithm>
@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <image.hpp>
 #include <log.hpp>
-#include <miniz.h>
 #include <os.hpp>
 #include <render.hpp>
 #include <string>
@@ -86,7 +85,7 @@ void Image_SDL1::render(ImageRenderParams &params) {
         dest.y -= finalSurface->h / 2;
     }
 
-    SDL_BlitSurface(finalSurface, NULL, reinterpret_cast<SDL_Surface *>(Render::getRenderer()), &dest);
+    SDL_BlitSurface(finalSurface, NULL, mainSurface, &dest);
     SDL_FreeSurface(finalSurface);
 
     freeTimer = maxFreeTimer;
@@ -145,17 +144,15 @@ void Image_SDL1::renderNineslice(double xPos, double yPos, double width, double 
 
     image->freeTimer = image->maxFreeTime;
 
-    SDL_Surface *renderer = static_cast<SDL_Surface *>(Render::getRenderer());
-
-    SDL_BlitSurface(image->spriteTexture, &srcTopLeft, renderer, &dstTopLeft);
-    SDL_BlitSurface(image->spriteTexture, &srcTop, renderer, &dstTop);
-    SDL_BlitSurface(image->spriteTexture, &srcTopRight, renderer, &dstTopRight);
-    SDL_BlitSurface(image->spriteTexture, &srcLeft, renderer, &dstLeft);
-    SDL_BlitSurface(image->spriteTexture, &srcCenter, renderer, &dstCenter);
-    SDL_BlitSurface(image->spriteTexture, &srcRight, renderer, &dstRight);
-    SDL_BlitSurface(image->spriteTexture, &srcBottomLeft, renderer, &dstBottomLeft);
-    SDL_BlitSurface(image->spriteTexture, &srcBottom, renderer, &dstBottom);
-    SDL_BlitSurface(image->spriteTexture, &srcBottomRight, renderer, &dstBottomRight);
+    SDL_BlitSurface(image->spriteTexture, &srcTopLeft, mainSurface, &dstTopLeft);
+    SDL_BlitSurface(image->spriteTexture, &srcTop, mainSurface, &dstTop);
+    SDL_BlitSurface(image->spriteTexture, &srcTopRight, mainSurface, &dstTopRight);
+    SDL_BlitSurface(image->spriteTexture, &srcLeft, mainSurface, &dstLeft);
+    SDL_BlitSurface(image->spriteTexture, &srcCenter, mainSurface, &dstCenter);
+    SDL_BlitSurface(image->spriteTexture, &srcRight, mainSurface, &dstRight);
+    SDL_BlitSurface(image->spriteTexture, &srcBottomLeft, mainSurface, &dstBottomLeft);
+    SDL_BlitSurface(image->spriteTexture, &srcBottom, mainSurface, &dstBottom);
+    SDL_BlitSurface(image->spriteTexture, &srcBottomRight, mainSurface, &dstBottomRight);
 #endif
 }
 
@@ -186,7 +183,7 @@ Image_SDL1::Image_SDL1(std::string filePath, bool fromScratchProject, bool bitma
     if (!potentialError.has_value()) error = potentialError.error();
 }
 
-Image_SDL1::Image_SDL1(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
+Image_SDL1::Image_SDL1(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) : Image(filePath, zip, bitmapHalfQuality, scale) {
     const auto potentialError = setInitialTexture();
     if (!potentialError.has_value()) error = potentialError.error();
 }

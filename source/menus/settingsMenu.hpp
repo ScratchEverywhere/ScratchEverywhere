@@ -1,8 +1,9 @@
 #pragma once
 #include "mainMenu.hpp"
 #include "menuObjects.hpp"
+#include <se_export.hpp>
 
-class SettingsMenu : public Menu {
+class SE_EXPORT SettingsMenu : public Menu {
   private:
     void updateButtonStates();
     std::string getDectalkString();

@@ -10,6 +10,7 @@ RUN apt update && apt install -y --no-install-recommends build-essential git ca-
 RUN git clone https://github.com/carstene1ns/3ds-bannertool.git . && git checkout 3767e03b0492654bdff7be7beacf32b5b6a60415 && cmake -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build
 
 FROM devkitpro/devkitarm:latest AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
 WORKDIR /app
 # Bring in makerom + bannertool
 COPY --from=makerom_installer /makerom_out/ /makerom/

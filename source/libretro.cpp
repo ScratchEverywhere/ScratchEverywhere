@@ -1,5 +1,6 @@
 #ifdef LIBRETRO
 #include <libretro.h>
+#include <runtime.hpp>
 #include <window.hpp>
 
 extern WindowSE *globalWindow;
@@ -13,7 +14,7 @@ static retro_environment_t environ_cb;
 
 #include <audiostack.hpp>
 #include <render.hpp>
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
 
@@ -243,6 +244,7 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code) {
 }
 
 void retro_reset(void) {
+    Scratch::greenFlagClicked();
 }
 }
 #endif

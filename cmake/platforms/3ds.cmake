@@ -31,16 +31,6 @@ set(SE_MAKEROM makerom CACHE PATH "Path to makerom executable")
 set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
 
 macro(package_platform)
-	file(GLOB_RECURSE TTF_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/menu/*.ttf")
-	foreach(TTF_FILE IN LISTS TTF_FILES)
-		string(REGEX REPLACE "\\.ttf$" ".bcfnt" BCFNT_OUTPUT "${TTF_FILE}")
-        add_custom_command(TARGET scratch-everywhere POST_BUILD
-			COMMAND ${DEVKITPRO}/tools/bin/mkbcfnt -o "${BCFNT_OUTPUT}" "${TTF_FILE}"
-            DEPENDS "${TTF_FILE}"
-            VERBATIM
-        )
-    endforeach()
-
 	ctr_generate_smdh(OUTPUT "${SE_OUTPUT_NAME}.smdh" NAME "${SE_APP_NAME}" AUTHOR "${SE_APP_AUTHOR}" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "${SE_APP_DESCRIPTION}")
 	ctr_create_3dsx(scratch-everywhere ROMFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs" SMDH "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.smdh")
 

@@ -1,6 +1,7 @@
 #include "controlsMenu.hpp"
-#include "sprite.hpp"
 #include "translation.hpp"
+#include "types.hpp"
+#include "unpackMenu.hpp"
 #include <log.hpp>
 #include <settings.hpp>
 
@@ -14,8 +15,14 @@ ControlsMenu::~ControlsMenu() {
 }
 
 void ControlsMenu::init() {
-
-    Unzip::filePath = OS::getScratchFolderLocation() + projectPath + ".sb3";
+    ProjectFormat format;
+    std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + projectPath, format);
+    if (!resolved.empty()) {
+        Unzip::filePath = resolved;
+    } else {
+        Unzip::filePath = OS::getScratchFolderLocation() + projectPath;
+        Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+    }
     if (!Unzip::load()) {
         Log::logCritical("Failed to load project for ControlsMenu.", false);
         OS::toExit = true;
@@ -31,20 +38,20 @@ void ControlsMenu::init() {
         if (block->opcode == "sensing_keypressed") {
             const ParsedInput *input = Scratch::getInput(block, "KEY_OPTION");
             if (input != nullptr && input->inputType == ParsedInput::VALUE) {
-                buttonCheck = input->value.asString();
+                buttonCheck = input->value.get<std::string>();
             }
         } else if (block->opcode == "event_whenkeypressed") {
             buttonCheck = Scratch::getFieldValue(*block, "KEY_OPTION");
         } else if (block->opcode == "makeymakey_whenMakeyKeyPressed") {
             const ParsedInput *input = Scratch::getInput(block, "KEY");
             if (input != nullptr && input->inputType == ParsedInput::VALUE) {
-                buttonCheck = input->value.asString();
+                buttonCheck = input->value.get<std::string>();
             }
         } else if (block->opcode == "makeymakey_whenCodePressed") {
             const ParsedInput *input = Scratch::getInput(block, "SEQUENCE");
             if (input == nullptr || input->inputType != ParsedInput::VALUE) continue;
 
-            std::string inputSequence = input->value.asString();
+            std::string inputSequence = input->value.get<std::string>();
             size_t start = 0;
             size_t end;
             while ((end = inputSequence.find(' ', start)) != std::string::npos) {

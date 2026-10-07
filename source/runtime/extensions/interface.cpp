@@ -2,13 +2,13 @@
 #include "blockExecutor.hpp"
 #include "color.hpp"
 #include "files.hpp"
-#include "input.hpp"
+#include "input_extension.hpp"
 #include "json.hpp"
 #include "log.hpp"
 #include "meta.hpp"
-#include "runtime.hpp"
-#include "sprite.hpp"
+#include "runtime_extension.hpp"
 #include "timer.hpp"
+#include "types.hpp"
 #include "value.hpp"
 #include <os.hpp>
 #include <runtime.hpp>
@@ -186,10 +186,10 @@ Value extensions::objectToValue(sol::object object) {
 
 sol::object extensions::valueToObject(sol::state_view luaState, Value val) {
     if (val.isUndefined()) return sol::lua_nil;
-    if (val.isString()) return sol::make_object(luaState, val.asString());
-    if (val.isDouble()) return sol::make_object(luaState, val.asDouble());
-    if (val.isBoolean()) return sol::make_object(luaState, val.asBoolean());
-    if (val.isColor()) return sol::make_object(luaState, val.asColor());
+    if (val.isString()) return sol::make_object(luaState, val.get<std::string>());
+    if (val.isDouble()) return sol::make_object(luaState, val.get<double>());
+    if (val.isBoolean()) return sol::make_object(luaState, val.get<bool>());
+    if (val.isColor()) return sol::make_object(luaState, val.get<Color>());
     return sol::lua_nil;
 }
 
@@ -218,7 +218,7 @@ void extensions::registerHandlers(Extension *extension) {
         if (extension->core) blockId = extensionBlock.first;
         else blockId = extension->id + "_" + extensionBlock.first;
 
-        BlockExecutor::getHandlers()[blockId] = [extension, extensionBlock](Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) -> BlockResult {
+        BlockExecutor::getHandlers()[blockId] = BlockFunc([extension, extensionBlock](Block *block, ScriptThread *thread, Sprite *sprite, Value *outValue) -> BlockResult {
             runtime::setThread(thread);
             runtime::setSprite(sprite);
             runtime::setBlock(block);
@@ -251,7 +251,7 @@ void extensions::registerHandlers(Extension *extension) {
             }
             runtime::clearData();
             return BlockResult::CONTINUE;
-        };
+        });
     }
 }
 

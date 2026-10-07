@@ -1,7 +1,8 @@
 #pragma once
 #include "mainMenu.hpp"
+#include <se_export.hpp>
 
-class PauseMenu : public Menu {
+class SE_EXPORT PauseMenu : public Menu {
   private:
   public:
     ControlObject *pauseControl = nullptr;

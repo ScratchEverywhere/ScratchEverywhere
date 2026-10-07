@@ -6,7 +6,7 @@
 #include "os.hpp"
 #include "runtime.hpp"
 #include "settings.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
 #include <filesystem.hpp>
@@ -96,16 +96,16 @@ SCRATCH_BLOCK(nishiowoDectalk, speakAndWait) {
     std::size_t h = std::hash<std::string>{}(state->name);
     std::string name = std::to_string(h);
     if (state->completedSteps == 0) {
-        Value words;
+        std::string words;
         tts_value *v;
 
-        if (!Scratch::getInputValue(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
+        if (!Scratch::getInputValueAs(block, "WORDS", thread, sprite, words)) return BlockResult::REPEAT;
 
         v = new tts_value();
         v->finished = false;
         v->tts = TextToSpeechAllocate();
         v->name = name;
-        v->text = (block->opcode == "text2speech_speakAndWait" ? (sprite->textToSpeechData.gender == "male" ? "[:np]" : "[:nb]") : "") + words.asString();
+        v->text = (block->opcode == "text2speech_speakAndWait" ? (sprite->textToSpeechData.gender == "male" ? "[:np]" : "[:nb]") : "") + words;
 
         tts[name] = v;
 

@@ -1,9 +1,9 @@
-#include "runtime.hpp"
 #include "blockExecutor.hpp"
 #include "collision.hpp"
 #include "interface.hpp"
 #include "meta.hpp"
-#include "sprite.hpp"
+#include "runtime_extension.hpp"
+#include "types.hpp"
 #include <runtime.hpp>
 #include <sol/forward.hpp>
 #include <sol/sol.hpp>

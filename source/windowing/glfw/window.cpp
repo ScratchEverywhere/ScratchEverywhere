@@ -3,7 +3,7 @@
 #elif defined(__APPLE__) && !defined(GLFW_EXPOSE_NATIVE_COCOA)
 #define GLFW_EXPOSE_NATIVE_COCOA
 #endif
-#include "window.hpp"
+#include "window_glfw.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <GLFW/glfw3native.h>
 #include <libdlgmod/libdlgmod.h>
@@ -14,7 +14,7 @@
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
 #include <text.hpp>
 
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {

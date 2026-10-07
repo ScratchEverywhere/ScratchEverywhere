@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "window_sdl2.hpp"
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
 #include <SDL_syswm.h>
 #include <libdlgmod/libdlgmod.h>
@@ -8,11 +8,11 @@
 #include <math.hpp>
 #include <render.hpp>
 #ifdef RENDERER_OPENGL
-#include <renderers/opengl/render.hpp>
+#include <renderers/opengl/render_opengl.hpp>
 #elif defined(RENDERER_OPENGL_CORE)
-#include <renderers/opengl_core/render.hpp>
+#include <renderers/opengl_core/render_opengl_core.hpp>
 #else
-#include <renderers/sdl2/render.hpp>
+#include <renderers/sdl2/render_sdl2.hpp>
 #endif
 
 #ifdef __PS4__
@@ -74,7 +74,7 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 #endif
 
-#ifdef RENDERER_OPENGL
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     flags |= SDL_WINDOW_OPENGL;
 #endif
 
@@ -92,6 +92,13 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     }
 
     SDL_GL_SetSwapInterval(1); // VSync
+
+#ifdef RENDERER_OPENGL_CORE
+    if (!gladLoaderLoadGL()) {
+        Log::logCritical("Failed to initialize GLAD", true);
+        return false;
+    }
+#endif
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
