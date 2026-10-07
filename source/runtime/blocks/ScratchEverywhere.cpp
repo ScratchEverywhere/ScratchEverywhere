@@ -1,5 +1,6 @@
 #include "blockUtils.hpp"
 #include "os.hpp"
+#include "types.hpp"
 
 #if defined(RENDERER_SDL1) && defined(PLATFORM_HAS_CONTROLLER)
 #include <SDL.h>
@@ -48,4 +49,9 @@ SCRATCH_BLOCK(SE, controller) {
     if (controller != nullptr) *outValue = Value(std::string(SDL_GetGamepadName(controller)));
 #endif
     return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK(SE, exitProject) {
+    Scratch::shouldStop = true;
+    return BlockResult::RETURN;
 }
