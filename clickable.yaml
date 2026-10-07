@@ -14,9 +14,8 @@ build_args:
     - -DCMAKE_CXX_FLAGS="--target=${ARCH_TRIPLET} -stdlib=libc++"
     - -DCMAKE_BUILD_TYPE=Debug
     - -DSE_CLOUDVARS=OFF
+    - -DSE_DOWNLOAD=OFF
     - -DUBUNTU_TOUCH=ON
-    - -DSE_FORCE_SOURCE_SDL2=ON
-    - -DSE_FORCE_SOURCE_SDL2_ttf=ON
     - -DSE_CUSTOM_EXTENSIONS=OFF
     - -DSE_CMAKERC=OFF
     - -DSE_DECTALK=OFF
@@ -25,6 +24,16 @@ make_args:
     - -Wno-deprecated-declarations
     #- VERBOSE=1
 #make_jobs: 1
+image_setup:
+    run:
+        - apt remove cmake -y
+        - wget https://cmake.org/files/v3.31/cmake-3.31.12-linux-x86_64.sh
+        - chmod +x cmake-3.31.12-linux-x86_64.sh
+        - mkdir -p /opt/cmake
+        - ./cmake-3.31.12-linux-x86_64.sh --skip-license --prefix=/opt/cmake
+        - ln -sf /opt/cmake/bin/cmake /usr/local/bin/cmake
+        - ln -sf /opt/cmake/bin/ctest /usr/local/bin/ctest
+        - ln -sf /opt/cmake/bin/cpack /usr/local/bin/cpack
 prebuild:
     - find /usr/lib /usr/lib/x86_64-linux-gnu -name 'libc++fs*' 2>/dev/null
 #    - /usr/bin/clang++-6.0 -v --gcc-toolchain=/usr/lib/gcc/x86_64-linux-gnu/7.5.0 -std=c++17 -x c++ -E /dev/null

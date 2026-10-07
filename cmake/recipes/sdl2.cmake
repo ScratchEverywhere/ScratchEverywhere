@@ -79,8 +79,7 @@ function(_recipe_SDL2_source)
   set(SDL_URL "${SDL_URL_BASE}/${SDL_TAG}.tar.gz")
 
   set(SDL_PLATFORM_OPTIONS "")
-  if(UBUNTU_TOUCH)
-    # custom 2.0.18 with re-added mir backend
+  if(UBUNTU_TOUCH) # custom 2.0.18 with re-added mir backend
     set(SDL_URL "https://github.com/Dogo6647/SDL2/archive/refs/heads/main.tar.gz")
     set(SDL_PLATFORM_OPTIONS
       "SDL_INSTALL" "OFF"
