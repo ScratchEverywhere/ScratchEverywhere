@@ -227,9 +227,9 @@ if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP)
 endif()
 
 foreach(file IN LISTS GFXFILES)
-	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+	file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/gfx" "${file}")
 
-    set(DEST_PATH "${CMAKE_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
+    set(DEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
 
     get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
     file(MAKE_DIRECTORY "${DEST_DIR}")
