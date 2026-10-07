@@ -96,7 +96,19 @@ std::string OS::getScratchFolderLocation() {
     const char *basepath = __getbasepath();
     std::string cpp_basepath = basepath ? basepath : "";
 #if defined(_WIN32) || defined(_WIN64)
-    return cpp_basepath + "scratch-everywhere\\";
+    const std::string portablePath = cpp_basepath + "scratch-everywhere\\";
+    std::error_code ec;
+    if (std::filesystem::is_directory(portablePath, ec)) return portablePath;
+
+    PWSTR documentsPath = NULL;
+    if (SHGetKnownFolderPath(FOLDERID_Documents, 0, NULL, &documentsPath) == S_OK) {
+        const std::filesystem::path folder = std::filesystem::path(documentsPath) / "scratch-everywhere";
+        CoTaskMemFree(documentsPath);
+        std::filesystem::create_directories(folder, ec);
+        return (folder / "").string();
+    }
+    CoTaskMemFree(documentsPath);
+    return portablePath;
 #elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
     const char *path = std::getenv("PATH");
     if (path && path[0] != '\0') {
