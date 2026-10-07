@@ -1,7 +1,18 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-ps2")
 
 set(SE_RENDERER_VALID_OPTIONS "sdl2" "sdl3")
+
+if(NOT DEFINED SE_RENDERER)
+    set(SE_RENDERER "sdl3") # analogs and color are broken on sdl2 ps2
+endif()
+
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2" "sdl3")
+set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
+
+if(NOT DEFINED SE_AUDIO_ENGINE)
+    set(SE_AUDIO_ENGINE "sdl3")
+endif()
+
 set(SE_DEPS_VALID_OPTIONS "fallback")
 
 set(SE_CACHING_DEFAULT OFF)
