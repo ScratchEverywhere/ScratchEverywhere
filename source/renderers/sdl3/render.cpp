@@ -51,7 +51,7 @@ bool Render::Init() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
-#elif defined(__PS2__)
+#elif defined (__PS2__)
     int windowWidth = 640;
     int windowHeight = 448;
 #else
@@ -142,11 +142,11 @@ float Render::getPixelDensity() {
 }
 
 bool Render::initPen() {
-    #ifdef (__PS2__)
+    #ifdef __PS2__
         Log::logWarning("Pen is not currently supported on PS2");
         return false;
     #endif
-    #ifndef (__PS2__)
+    #ifndef __PS2__
     if (penTexture != nullptr) return true;
 
     if (Scratch::hqpen) {
@@ -169,7 +169,7 @@ bool Render::initPen() {
 }
 
 void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    #ifndef (__PS2__)
+    #ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -251,7 +251,7 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
 }
 
 void Render::penDotAccurate(Sprite *sprite) {
-    #ifndef (__PS2__)
+    #ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const float alpha = (100.0f - sprite->penData.color.transparency) / 100.0f;
 
@@ -296,7 +296,7 @@ void Render::penDotAccurate(Sprite *sprite) {
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    #ifndef (__PS2__)
+    #ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
@@ -345,7 +345,7 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
 }
 
 void Render::penDotFast(Sprite *sprite) {
-    #ifndef (__PS2__)
+    #ifndef __PS2__
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0 - sprite->penData.color.transparency) / 100.0;
 
@@ -383,7 +383,7 @@ void Render::penDotFast(Sprite *sprite) {
 }
 
 void Render::penStamp(Sprite *sprite) {
-    #ifndef (__PS2__)
+    #ifndef __PS2__
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
@@ -443,7 +443,7 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::penClear() {
-    #ifndef (__PS2__)
+    #ifndef __PS2__
     if (!penTexture || penTexture == nullptr) return;
     SDL_SetRenderTarget(renderer, penTexture);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
@@ -574,7 +574,7 @@ void Render::renderSprites() {
 }
 
 void Render::renderPenLayer() {
-    #ifndef (__PS2__)
+    #ifndef __PS2__
     if (!penVerts.empty()) {
         SDL_SetRenderTarget(renderer, penTexture);
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
