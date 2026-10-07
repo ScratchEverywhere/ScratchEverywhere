@@ -1,8 +1,30 @@
 // Stolen from scratch-vm's src/serialization/sb2_specmap.js
 #include "sb2_specmap.hpp"
 
+#include <iterator>
+#include <utility>
+
 namespace {
-const std::unordered_map<std::string, Sb2BlockSpec> sb2SpecMap = {
+constexpr size_t maxArgs = 3;
+
+struct RawArg {
+    Sb2ArgSpec::Kind kind;
+    const char *name;
+    const char *inputOp;
+    const char *variableType;
+};
+
+struct RawSpec {
+    const char *opcode;
+    RawArg args[maxArgs];
+};
+
+struct RawEntry {
+    const char *key;
+    RawSpec spec;
+};
+
+constexpr RawEntry sb2RawSpecs[] = {
     {"forward:", {"motion_movesteps", {{Sb2ArgSpec::Kind::Input, "STEPS", "math_number", ""}}}},
     {"turnRight:", {"motion_turnright", {{Sb2ArgSpec::Kind::Input, "DEGREES", "math_number", ""}}}},
     {"turnLeft:", {"motion_turnleft", {{Sb2ArgSpec::Kind::Input, "DEGREES", "math_number", ""}}}},
@@ -184,10 +206,29 @@ const std::unordered_map<std::string, Sb2BlockSpec> sb2SpecMap = {
     {"LEGO WeDo 2.0getTilt", {"wedo2_getTiltAngle", {{Sb2ArgSpec::Kind::Input, "TILT_DIRECTION", "wedo2_menu_TILT_DIRECTION", ""}}}},
     {"LEGO WeDo 2.0.getTilt", {"wedo2_getTiltAngle", {{Sb2ArgSpec::Kind::Input, "TILT_DIRECTION", "wedo2_menu_TILT_DIRECTION", ""}}}},
 };
+
+const std::unordered_map<std::string, Sb2BlockSpec> &getSb2SpecMap() {
+    static const std::unordered_map<std::string, Sb2BlockSpec> map = [] {
+        std::unordered_map<std::string, Sb2BlockSpec> m;
+        m.reserve(std::size(sb2RawSpecs));
+        for (const RawEntry &entry : sb2RawSpecs) {
+            Sb2BlockSpec spec;
+            spec.opcode = entry.spec.opcode;
+            for (const RawArg &arg : entry.spec.args) {
+                if (arg.name == nullptr) break;
+                spec.argMap.push_back({arg.kind, arg.name, arg.inputOp, arg.variableType});
+            }
+            m.emplace(entry.key, std::move(spec));
+        }
+        return m;
+    }();
+    return map;
+}
 } // namespace
 
 const Sb2BlockSpec *lookupSb2Spec(const std::string &oldOpcode) {
-    const auto it = sb2SpecMap.find(oldOpcode);
-    if (it == sb2SpecMap.end()) return nullptr;
+    const auto &specMap = getSb2SpecMap();
+    const auto it = specMap.find(oldOpcode);
+    if (it == specMap.end()) return nullptr;
     return &it->second;
 }
