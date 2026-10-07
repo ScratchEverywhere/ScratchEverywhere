@@ -1,6 +1,6 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
+#include "@SE_WINDOWS_GFX_DIR@/resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -30,7 +30,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "icon.ico"
+IDI_ICON1               ICON                    "@SE_WINDOWS_GFX_DIR@/icon.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -39,8 +39,8 @@ IDI_ICON1               ICON                    "icon.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,1,0
- PRODUCTVERSION 1,2,1,0
+ FILEVERSION @SE_VERSION_MAJOR@,@SE_VERSION_MINOR@,@SE_VERSION_PATCH@,0
+ PRODUCTVERSION @SE_VERSION_MAJOR@,@SE_VERSION_MINOR@,@SE_VERSION_PATCH@,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -57,12 +57,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "scratcheverywhere.github.io"
             VALUE "FileDescription", "Custom Scratch Runtime made in C++!"
-            VALUE "FileVersion", "1.2.1"
+            VALUE "FileVersion", "@SE_APP_VERSION@"
             VALUE "InternalName", "Scratch Everywhere!"
             VALUE "LegalCopyright", "Copyright (C) 2026 Scratch Everywhere! contributors"
             VALUE "OriginalFilename", "scratch-everywhere.exe"
             VALUE "ProductName", "Scratch Everywhere!"
-            VALUE "ProductVersion", "1.2.1"
+            VALUE "ProductVersion", "@SE_APP_VERSION@"
         END
     END
     BLOCK "VarFileInfo"
