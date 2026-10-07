@@ -5,8 +5,8 @@
 #include "math.hpp"
 #include "nlohmann/json.hpp"
 #include "settings.hpp"
-#include "sprite.hpp"
 #include "translation.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include <audio.hpp>
 #include <cmath>
@@ -15,6 +15,7 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <input.hpp>
+#include <iostream>
 #include <log.hpp>
 #include <math.h>
 #include <memory>
@@ -23,7 +24,9 @@
 #include <set>
 #include <speech_manager.hpp>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #ifdef ENABLE_MENU
@@ -62,7 +65,7 @@ BlockExecutor executor;
 
 bool Scratch::hasNativeExtensions = false;
 
-float Scratch::tempo = 60;
+double Scratch::tempo = 60;
 
 int Scratch::projectWidth = 480;
 int Scratch::projectHeight = 360;
@@ -171,7 +174,19 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
     }
 #endif
 
-    const bool checkFPS = Render::checkFramerate();
+    bool forcedStep = false;
+#ifdef ENABLE_INSPECTOR
+    if (Inspector::paused) {
+        Inspector::processCommands();
+        if (Inspector::stepsRemaining <= 0) {
+            return std::make_pair(true, false);
+        }
+        Inspector::stepsRemaining--;
+        forcedStep = true;
+    }
+#endif
+
+    const bool checkFPS = forcedStep || Render::checkFramerate();
     if (Scratch::turbo) forceRedraw = false;
 
     if (!forceRedraw || checkFPS) {
@@ -191,8 +206,15 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
         extensions::runUpdateFunctions(extensions::PRE_UPDATE);
 #endif
 
-        if (checkFPS) Input::getInput();
+        if (checkFPS) {
+            Input::getInput();
+            BlockExecutor::executeWhenGreaterThanHats();
+        }
         BlockExecutor::runThreads();
+
+#ifdef ENABLE_INSPECTOR
+        if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";
+#endif
 
 #ifdef ENABLE_CUSTOM_EXTENSIONS
         extensions::runUpdateFunctions(extensions::POST_UPDATE);
@@ -307,10 +329,9 @@ void Scratch::cleanupScratchProject() {
 
     // Clean up ZIP archive if it was initialized
     if (projectType != ProjectType::UNZIPPED) {
-        mz_zip_reader_end(&Unzip::zipArchive);
+        Unzip::zipArchive.reset();
         Unzip::zipBuffer.clear();
         Unzip::zipBuffer.shrink_to_fit();
-        memset(&Unzip::zipArchive, 0, sizeof(Unzip::zipArchive));
     }
 
     DownloadManager::deinit();
@@ -377,6 +398,24 @@ void Scratch::cleanupScratchProject() {
     Log::log("Cleaned up Scratch project.");
 }
 
+static inline void materializeInputCache(ParsedInput &input) {
+    switch (input.cacheKind) {
+    case ParsedInput::CacheKind::Double:
+        input.value = Value(input.cachedDouble);
+        break;
+    case ParsedInput::CacheKind::Bool:
+        input.value = Value(input.cachedBool);
+        break;
+    case ParsedInput::CacheKind::Value:
+        break;
+    }
+    input.cacheKind = ParsedInput::CacheKind::Value;
+}
+
+static inline double sanitizeNumber(double d) {
+    return std::isnan(d) ? 0.0 : d;
+}
+
 bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, Value &outValue) {
     const auto &input = block->inputMap.find(inputName);
 
@@ -406,23 +445,24 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
         input->second->calculated = true;
 #ifdef ENABLE_CACHING
         if (input->second->variable != nullptr) {
-            input->second->value = input->second->variable->value;
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variable);
         } else if (input->second->list) {
             input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
         } else {
-            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variableId, sprite);
         }
 #else
         if (input->second->list) {
             input->second->value = BlockExecutor::getListValue(input->second->variableId, sprite);
         } else {
-            input->second->value = BlockExecutor::getVariableValue(input->second->variableId, sprite);
+            input->second->value = BlockExecutor::getVariableValueAs<Value>(input->second->variableId, sprite);
         }
 #endif
         outValue = input->second->value;
         return true;
     case ParsedInput::InputType::BLOCK: {
         if (input->second->calculated) {
+            materializeInputCache(*input->second);
             outValue = input->second->value;
             return true;
         }
@@ -431,11 +471,12 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
         }
 
         Block *targetBlock = input->second->block;
-        input->second->value = Value();
 
         if (block->recalculateInputs) targetBlock->recalculateInputs = true;
 
         BlockResult res = targetBlock->blockFunction(targetBlock, thread, sprite, &(input->second->value));
+        input->second->cacheKind = ParsedInput::CacheKind::Value;
+
         targetBlock->recalculateInputs = false;
         if (res != BlockResult::REPEAT) {
             input->second->calculated = true;
@@ -448,6 +489,177 @@ bool Scratch::getInputValue(Block *block, const std::string &inputName, ScriptTh
 
     return true;
 }
+
+template <typename T>
+bool Scratch::getInputValueAs(Block *block, const std::string &inputName, ScriptThread *thread, Sprite *sprite, T &outValue) {
+    const auto &input = block->inputMap.find(inputName);
+
+    if (input == block->inputMap.end()) {
+        const auto &field = block->fieldMap.find(inputName);
+
+        if (field != block->fieldMap.end()) {
+            if constexpr (std::is_same_v<T, std::string>) {
+                outValue = field->second->value;
+            } else if constexpr (std::is_same_v<T, double>) {
+                outValue = Value(field->second->value).asDouble();
+            } else if constexpr (std::is_same_v<T, bool>) {
+                outValue = Value(field->second->value).asBoolean();
+            } else if constexpr (std::is_same_v<T, Color>) {
+                outValue = Value(field->second->value).asColor();
+            } else {
+                outValue = Value(field->second->value);
+            }
+        }
+        return true;
+    }
+
+    ParsedInput &in = *input->second;
+
+    if (block->recalculateInputs) {
+        in.calculated = false;
+    }
+
+    const auto readValue = [&outValue, &in]() {
+        if constexpr (std::is_same_v<T, Value>) {
+            outValue = in.value;
+        } else {
+            outValue = in.value.get<T>();
+        }
+    };
+
+    switch (in.inputType) {
+    case ParsedInput::InputType::VALUE:
+        readValue();
+        return true;
+    case ParsedInput::InputType::VARIABLE:
+#ifdef ENABLE_CACHING
+        if (in.variable != nullptr) {
+            outValue = BlockExecutor::getVariableValueAs<T>(in.variable);
+            return true;
+        }
+#endif
+        if (!in.calculated) {
+            in.calculated = true;
+            if (in.list) {
+                in.value = BlockExecutor::getListValue(in.variableId, sprite);
+            } else {
+                outValue = BlockExecutor::getVariableValueAs<T>(in.variableId, sprite);
+                return true;
+            }
+        }
+        readValue();
+        return true;
+    case ParsedInput::InputType::BLOCK: {
+        if (in.calculated) {
+            if (in.cacheKind == ParsedInput::CacheKind::Double) {
+                if constexpr (std::is_same_v<T, double>) {
+                    outValue = sanitizeNumber(in.cachedDouble);
+                    return true;
+                }
+            } else if (in.cacheKind == ParsedInput::CacheKind::Bool) {
+                if constexpr (std::is_same_v<T, bool>) {
+                    outValue = in.cachedBool;
+                    return true;
+                }
+            }
+            materializeInputCache(in);
+            readValue();
+            return true;
+        }
+        if (in.block == nullptr) {
+            return true;
+        }
+
+        Block *targetBlock = in.block;
+
+        if (block->recalculateInputs) targetBlock->recalculateInputs = true;
+
+        BlockResult res;
+        bool done = false;
+        switch (targetBlock->blockFunction.type) {
+        case Type::Value: {
+            res = targetBlock->blockFunction.func.value(targetBlock, thread, sprite, &in.value);
+            in.cacheKind = ParsedInput::CacheKind::Value;
+            break;
+        }
+        case Type::Number: {
+            double d = 0.0;
+            res = targetBlock->blockFunction.func.number(targetBlock, thread, sprite, &d);
+            if (res != BlockResult::REPEAT) {
+                in.cachedDouble = d;
+                in.cacheKind = ParsedInput::CacheKind::Double;
+                if constexpr (std::is_same_v<T, double>) {
+                    outValue = sanitizeNumber(d);
+                    done = true;
+                } else {
+                    materializeInputCache(in);
+                }
+            }
+            break;
+        }
+        case Type::Boolean: {
+            bool b = false;
+            res = targetBlock->blockFunction.func.boolean(targetBlock, thread, sprite, &b);
+            if (res != BlockResult::REPEAT) {
+                in.cachedBool = b;
+                in.cacheKind = ParsedInput::CacheKind::Bool;
+                if constexpr (std::is_same_v<T, bool>) {
+                    outValue = b;
+                    done = true;
+                } else {
+                    materializeInputCache(in);
+                }
+            }
+            break;
+        }
+        case Type::String: {
+            std::string str;
+            res = targetBlock->blockFunction.func.string(targetBlock, thread, sprite, &str);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, std::string>) {
+                    outValue = str;
+                    done = true;
+                }
+                in.value = Value(std::move(str));
+                in.cacheKind = ParsedInput::CacheKind::Value;
+            }
+            break;
+        }
+        case Type::Color: {
+            Color color{};
+            res = targetBlock->blockFunction.func.color(targetBlock, thread, sprite, &color);
+            if (res != BlockResult::REPEAT) {
+                if constexpr (std::is_same_v<T, Color>) {
+                    outValue = color;
+                    done = true;
+                }
+                in.value = Value(color);
+                in.cacheKind = ParsedInput::CacheKind::Value;
+            }
+            break;
+        }
+        }
+
+        targetBlock->recalculateInputs = false;
+        if (res == BlockResult::REPEAT) return false;
+
+        in.calculated = true;
+        if (!done) readValue();
+        return true;
+    }
+    }
+
+    return true;
+}
+
+#define GET_INPUT_VALUE_AS_TEMPLATE(T) \
+    template bool Scratch::getInputValueAs<T>(Block *, const std::string &, ScriptThread *, Sprite *, T &outValue)
+
+GET_INPUT_VALUE_AS_TEMPLATE(Value);
+GET_INPUT_VALUE_AS_TEMPLATE(double);
+GET_INPUT_VALUE_AS_TEMPLATE(std::string);
+GET_INPUT_VALUE_AS_TEMPLATE(bool);
+GET_INPUT_VALUE_AS_TEMPLATE(Color);
 
 ParsedInput *Scratch::getInput(Block *block, const std::string &inputName) {
     const auto &input = block->inputMap.find(inputName);
@@ -477,6 +689,7 @@ void Scratch::greenFlagClicked() {
     BlockExecutor::stopClicked = false;
     answer.clear();
     BlockExecutor::timer.start();
+    BlockExecutor::resetWhenGreaterThanHats();
     BlockExecutor::runAllBlocksByOpcode("event_whenflagclicked");
 }
 
@@ -712,11 +925,18 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
     if (it != costumeImages.end()) {
         float cachedScale = (sprite->size / 100);
         cachedScale *= std::min(static_cast<float>(screenWidth) / Scratch::projectWidth, static_cast<float>(screenHeight) / Scratch::projectHeight);
+
+        const float oldScale = it->second->getScale();
+
         auto potentialError = it->second->resizeSVG(cachedScale);
         if (!potentialError.has_value()) Log::logWarning("Error resizing SVG: " + costume.id);
 
         sprite->spriteWidth = it->second->getWidth();
         sprite->spriteHeight = it->second->getHeight();
+
+        if (it->second->getScale() != oldScale) {
+            costume.collisionMask = nullptr;
+        }
         return;
     }
 
@@ -767,7 +987,7 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
         } else
             image = imageOrErr.value();
     } else {
-        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, shouldDownscale, scale);
+        auto imageOrErr = createImageFromZip(costumeName, Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, shouldDownscale, scale);
         if (!imageOrErr.has_value()) {
             if (!onErr(imageOrErr.error()))
                 return;
@@ -790,8 +1010,17 @@ void Scratch::loadCurrentCostumeImage(Sprite *sprite) {
 }
 
 void Scratch::flushCostumeImages() {
+    std::unordered_set<std::string> activeCostumes;
+    activeCostumes.reserve(sprites.size());
+    for (Sprite *sprite : sprites) {
+        if (sprite->currentCostume >= 0 && (size_t)sprite->currentCostume < sprite->costumes.size()) {
+            activeCostumes.insert(sprite->costumes[sprite->currentCostume].fullName);
+        }
+    }
+
     std::vector<std::string> toDelete;
     for (auto &[id, img] : costumeImages) {
+        if (activeCostumes.count(id)) continue;
         img->freeTimer--;
         if (img->freeTimer <= 0) toDelete.push_back(id);
     }
@@ -826,11 +1055,12 @@ std::string Scratch::getFieldValue(Block &block, const std::string &fieldName) {
     return "";
 }
 
-std::string Scratch::getFieldId(Block &block, const std::string &fieldName) {
+const std::string &Scratch::getFieldId(Block &block, const std::string &fieldName) {
+    static const std::string empty;
     const auto &field = block.fieldMap.find(fieldName);
     if (field != block.fieldMap.end()) return field->second->id;
 
-    return "";
+    return empty;
 }
 
 std::string Scratch::getListName(Block &block) {
@@ -841,37 +1071,40 @@ std::string Scratch::getListName(Block &block) {
 }
 
 std::vector<Value> *Scratch::getListItems(Block &block, Sprite *sprite) {
-    std::string listId = Scratch::getFieldId(block, "LIST");
-    Sprite *targetSprite = nullptr;
-    if (sprite != nullptr && sprite->lists.find(listId) != sprite->lists.end()) targetSprite = sprite;
-    if (stageSprite->lists.find(listId) != stageSprite->lists.end()) targetSprite = stageSprite;
-    if (!targetSprite) {
-        for (const auto &[id, list] : stageSprite->lists) {
+    const std::string &listId = Scratch::getFieldId(block, "LIST");
+
+    List *targetList = nullptr;
+    if (sprite != nullptr) {
+        auto it = sprite->lists.find(listId);
+        if (it != sprite->lists.end()) targetList = &it->second;
+    }
+    {
+        auto it = stageSprite->lists.find(listId);
+        if (it != stageSprite->lists.end()) targetList = &it->second;
+    }
+    if (!targetList) {
+        for (auto &[id, list] : stageSprite->lists) {
             if (list.name == getListName(block)) {
-                listId = list.id;
-                targetSprite = stageSprite;
+                targetList = &list;
                 break;
             }
         }
-        if (sprite != nullptr) {
-            for (const auto &[id, list] : sprite->lists) {
+        if (!targetList && sprite != nullptr) {
+            for (auto &[id, list] : sprite->lists) {
                 if (list.name == getListName(block)) {
-                    listId = list.id;
-                    targetSprite = sprite;
+                    targetList = &list;
                     break;
                 }
             }
         }
     }
-    if (!targetSprite && sprite) {
-        List newList;
+    if (!targetList && sprite) {
+        List &newList = sprite->lists[listId];
         newList.id = listId;
         newList.name = getListName(block);
-        newList.items = {};
-        sprite->lists[listId] = newList;
-        targetSprite = sprite;
+        targetList = &newList;
     }
-    return &targetSprite->lists[listId].items;
+    return targetList ? &targetList->items : nullptr;
 }
 
 void Scratch::createDebugMonitor(const std::string &name, int x, int y) {

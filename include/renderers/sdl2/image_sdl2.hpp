@@ -1,8 +1,8 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <SDL.h>
 #include <image.hpp>
+#include <se_export.hpp>
 #include <string>
 
 class SE_EXPORT Image_SDL2 : public Image {
@@ -14,7 +14,7 @@ class SE_EXPORT Image_SDL2 : public Image {
 
     Image_SDL2(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
-    Image_SDL2(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image_SDL2(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_SDL2() override;
 

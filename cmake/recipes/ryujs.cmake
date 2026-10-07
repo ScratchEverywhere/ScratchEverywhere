@@ -1,5 +1,5 @@
 function(_recipe_ryuJS_source)
-	set(RYUJS_TAG "v3.0")
+	set(RYUJS_TAG "v3.1")
 	if(CL_REQ_VERSION)
 		set(RYUJS_TAG "v${CL_REQ_VERSION}")
 	endif()

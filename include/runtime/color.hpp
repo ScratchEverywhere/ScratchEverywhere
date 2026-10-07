@@ -10,6 +10,13 @@ struct SE_EXPORT Color {
     float saturation;
     float brightness;
     float transparency;
+
+    bool operator==(const Color &other) const {
+        return hue == other.hue &&
+               saturation == other.saturation &&
+               brightness == other.brightness &&
+               transparency == other.transparency;
+    }
 };
 
 struct SE_EXPORT ColorRGBA {
@@ -17,6 +24,13 @@ struct SE_EXPORT ColorRGBA {
     float g;
     float b;
     float a;
+
+    bool operator==(const ColorRGBA &other) const {
+        return r == other.r &&
+               g == other.g &&
+               b == other.b &&
+               a == other.a;
+    }
 };
 
 inline ColorRGBA CSBT2RGBA(const Color &color) {

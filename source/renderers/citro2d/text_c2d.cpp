@@ -1,109 +1,107 @@
 #include "text_c2d.hpp"
-#include <3ds.h>
+#include <cstring>
 #include <log.hpp>
-#include <os.hpp>
 
-std::unordered_map<std::string, C2D_Font> TextObjectC2D::fonts;
-std::unordered_map<std::string, size_t> TextObjectC2D::fontUsageCount;
+static constexpr float nominalFontSize = 30.0f;
 
 TextObjectC2D::TextObjectC2D(std::string txt, double posX, double posY, std::string fontPath)
-    : TextObject(txt, posX, posY, fontPath) {
-    x = posX;
-    y = posY;
-    textClass.textBuffer = C2D_TextBufNew(200);
+    : TextObjectBase(txt, posX, posY, fontPath, nominalFontSize) {
+}
 
-    if (fontPath == "") {
-        fontName = "SYSTEM";
+void TextObjectC2D::uploadAtlas(FontGeneration &gen) {
+    if (gen.atlasWidth > 1024 || gen.atlasHeight > 1024) {
+        Log::logError("[C2D Text] Font atlas exceeds the 3DS's max texture size; some glyphs won't render.");
+        gen.dirty = false;
+        return;
+    }
+
+    C3D_Tex *tex = (C3D_Tex *)gen.backendHandle;
+    if (tex) {
+        C3D_TexDelete(tex);
     } else {
-        fontName = "romfs:/" + fontPath + ".bcfnt";
+        tex = new C3D_Tex();
+        gen.backendHandle = tex;
+        gen.destroyBackendHandle = [](void *handle) {
+            C3D_Tex *t = (C3D_Tex *)handle;
+            C3D_TexDelete(t);
+            delete t;
+        };
     }
 
-    // load font if not already loaded
-    if (fonts.find(fontName) == fonts.end()) {
-        C2D_Font font;
-        if (fontName == "SYSTEM") {
-            font = C2D_FontLoadSystem(CFG_REGION_USA);
-        } else {
-            font = C2D_FontLoad(fontName.c_str());
-        }
-        fonts[fontName] = font;
+    if (!C3D_TexInit(tex, gen.atlasWidth, gen.atlasHeight, GPU_A8)) {
+        Log::logError("[C2D Text] Failed to init font atlas texture");
+        return;
     }
+    C3D_TexSetFilter(tex, GPU_LINEAR, GPU_LINEAR);
 
-    // set font pointer and increment usage count
-    textClass.font = &fonts[fontName];
-    fontUsageCount[fontName] += 1;
-    setText(txt);
-}
+    memset(tex->data, 0, (size_t)gen.atlasWidth * (size_t)gen.atlasHeight);
+    unsigned char *dst = (unsigned char *)tex->data;
+    const uint32_t w = (uint32_t)gen.atlasWidth;
+    const uint32_t h = (uint32_t)gen.atlasHeight;
 
-TextObjectC2D::~TextObjectC2D() {
-    if (textClass.textBuffer) {
-        C2D_TextBufDelete(textClass.textBuffer);
-        textClass.textBuffer = nullptr;
-    }
+    for (uint32_t j = 0; j < h; j++) {
+        for (uint32_t i = 0; i < w; i++) {
+            uint32_t srcIdx = j * w + i;
 
-    if (!fontName.empty() && fontUsageCount.find(fontName) != fontUsageCount.end()) {
-        fontUsageCount[fontName] -= 1;
-        if (fontUsageCount[fontName] == 0) {
-            if (fontName != "SYSTEM") {
-                C2D_FontFree(fonts[fontName]);
-            }
-            fonts.erase(fontName);
-            fontUsageCount.erase(fontName);
+            // swizzle to t3x tile order
+            uint32_t dstIdx = ((((j >> 3) * (w >> 3) + (i >> 3)) << 6) +
+                               ((i & 1) | ((j & 1) << 1) | ((i & 2) << 1) |
+                                ((j & 2) << 2) | ((i & 4) << 2) | ((j & 4) << 3)));
+
+            dst[dstIdx] = gen.pixels[srcIdx];
         }
     }
 
-    textClass.font = nullptr;
-}
-
-void TextObjectC2D::setText(std::string txt) {
-
-    C2D_TextBufClear(textClass.textBuffer);
-
-    // set and optimize the text
-    C2D_TextFontParse(&textClass.c2dText, *textClass.font, textClass.textBuffer, txt.c_str());
-    C2D_TextOptimize(&textClass.c2dText);
-
-    scale = scale;
-    text = txt;
-}
-
-std::vector<float> TextObjectC2D::getSize() {
-    float width, height;
-    C2D_TextGetDimensions(&textClass.c2dText, scale, scale, &width, &height);
-    return {width, height};
-}
-
-std::vector<float> TextObjectC2D::getStringSize(const std::string &txt) {
-    C2D_Text tempText;
-    C2D_TextBuf tempBuffer = C2D_TextBufNew(200);
-    C2D_TextFontParse(&tempText, *textClass.font, tempBuffer, text.c_str());
-    C2D_TextOptimize(&tempText);
-
-    float w, h;
-    C2D_TextGetDimensions(&tempText, scale, scale, &w, &h);
-
-    C2D_TextBufDelete(tempBuffer);
-    return {w * scale, h * scale};
+    gen.dirty = false;
 }
 
 void TextObjectC2D::render(int xPos, int yPos) {
-    u32 flags = C2D_WithColor;
+    if (!fontAtlas || !fontAtlas->isValid() || layoutLines.empty()) return;
+
+    FontGeneration &gen = touchGeneration();
+    if (gen.dirty) uploadAtlas(gen);
+
+    C3D_Tex *tex = (C3D_Tex *)gen.backendHandle;
+    if (!tex) return;
+
+    float drawX = (float)xPos;
+    float drawY = (float)yPos;
     if (centerAligned) {
-        flags |= C2D_AlignCenter;
-        yPos -= getSize()[1] / 2;
+        drawX -= layoutWidth / 2.0f;
+        drawY -= layoutHeight / 2.0f;
     }
 
-    C2D_DrawText(&textClass.c2dText, flags, xPos, yPos, 0, scale, scale, color);
-}
+    const float lineHeight = (gen.ascent - gen.descent + gen.lineGap) * glyphScale;
 
-void TextObjectC2D::cleanupText() {
-    for (auto &[fontName, font] : fonts) {
-        if (fontName != "SYSTEM") {
-            C2D_FontFree(font);
+    C2D_ImageTint tint;
+    C2D_PlainImageTint(&tint, (u32)color, 1.0f);
+
+    for (size_t li = 0; li < layoutLines.size(); ++li) {
+        const auto &glyphs = layoutLines[li];
+        if (glyphs.empty()) continue;
+
+        float lineX = drawX;
+        float lineY = drawY + (float)li * lineHeight + gen.ascent * glyphScale;
+
+        for (const GlyphQuad &q : glyphs) {
+            Tex3DS_SubTexture subtex;
+            subtex.width = (uint16_t)((q.s1 - q.s0) * gen.atlasWidth);
+            subtex.height = (uint16_t)((q.t1 - q.t0) * gen.atlasHeight);
+            subtex.left = q.s0;
+            subtex.right = q.s1;
+            // C2D/3DS texture V axis is flipped relative to stb_truetype's.
+            subtex.top = 1.0f - q.t0;
+            subtex.bottom = 1.0f - q.t1;
+
+            float destX = lineX + q.x0 * glyphScale;
+            float destY = lineY + q.y0 * glyphScale;
+            float destW = (q.x1 - q.x0) * glyphScale;
+            float destH = (q.y1 - q.y0) * glyphScale;
+
+            if (subtex.width == 0 || subtex.height == 0) continue;
+
+            C2D_DrawImageAt({tex, &subtex}, destX, destY, 1, &tint,
+                            destW / subtex.width, destH / subtex.height);
         }
     }
-    fonts.clear();
-    fontUsageCount.clear();
-
-    Log::log("Cleaned up all text.");
 }

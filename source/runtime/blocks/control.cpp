@@ -8,7 +8,7 @@
 #include <math.hpp>
 #include <os.hpp>
 #include <ostream>
-#include <sprite.hpp>
+#include <types.hpp>
 #include <value.hpp>
 
 SCRATCH_BLOCK(control, if) {
@@ -27,6 +27,18 @@ SCRATCH_BLOCK(control, if) {
         return BlockResult::CONTINUE;
     }
 
+    return BlockResult::CONTINUE;
+}
+
+SCRATCH_BLOCK(control, all_at_once) {
+    const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
+    if (input == nullptr) return BlockResult::CONTINUE;
+
+    Block *substack = input->block;
+    if (substack != nullptr) {
+        thread->nextBlock = substack;
+        return BlockResult::CONTINUE_IMMEDIATELY;
+    }
     return BlockResult::CONTINUE;
 }
 
@@ -96,6 +108,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     spriteToClone->lists = original->lists;
     spriteToClone->sounds = original->sounds;
     spriteToClone->costumes = original->costumes;
+    spriteToClone->costumeNameIndex = original->costumeNameIndex;
     spriteToClone->broadcasts = original->broadcasts;
     spriteToClone->renderInfo.forceUpdate = true;
     spriteToClone->hats = original->hats;
@@ -222,12 +235,12 @@ SCRATCH_BLOCK(control, repeat) {
     state->repeatTimes--;
 
     const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
-    if (input == nullptr) return BlockResult::REPEAT;
+    if (input == nullptr) return thread->withoutScreenRefresh ? BlockResult::CONTINUE_IMMEDIATELY : BlockResult::REPEAT;
 
     Block *substack = input->block;
     if (substack != nullptr)
         thread->nextBlock = substack;
-    else return BlockResult::REPEAT;
+    else return thread->withoutScreenRefresh ? BlockResult::CONTINUE_IMMEDIATELY : BlockResult::REPEAT;
 
     return BlockResult::CONTINUE_IMMEDIATELY;
 }
@@ -278,8 +291,8 @@ SCRATCH_BLOCK(control, repeat_until) {
     return BlockResult::CONTINUE_IMMEDIATELY;
 }
 
-SCRATCH_BLOCK(control, get_counter) {
-    *outValue = Value(Scratch::counter);
+SCRATCH_BLOCK_DOUBLE(control, get_counter) {
+    *outValue = Scratch::counter;
     return BlockResult::CONTINUE;
 }
 

@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <image.hpp>
+#include <se_export.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -14,7 +14,7 @@ class SE_EXPORT Image_GL : public Image {
     unsigned int textureID;
     Image_GL(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
-    Image_GL(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image_GL(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_GL() override;
 

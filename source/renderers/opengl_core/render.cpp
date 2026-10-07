@@ -13,6 +13,8 @@
 #include <windowing/sdl3/window_sdl3.hpp>
 #elif defined(WINDOWING_LIBRETRO)
 #include <windowing/libretro/window_libretro.hpp>
+#elif defined(WINDOWING_WIN32)
+#include <windowing/win32/window_win32.hpp>
 #else
 #error "No windowing backend defined"
 #endif
@@ -27,8 +29,8 @@
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <sprite.hpp>
 #include <string>
+#include <types.hpp>
 #include <unordered_map>
 #include <unzip.hpp>
 #include <vector>
@@ -50,6 +52,14 @@ static GLuint penFBO = 0;
 static GLuint penTexture = 0;
 static int penWidth = 0;
 static int penHeight = 0;
+
+static GLuint penMSFBO = 0;
+static GLuint penMSColorRB = 0;
+static bool penNeedsResolve = false;
+static constexpr GLsizei kPenSamples = 4;
+
+static void flushPenBatch();
+static void discardPenBatch();
 
 GLuint spriteProgram = 0;
 
@@ -230,22 +240,26 @@ static const char *kSolidVert = R"glsl(
 #version 410 core
 
 layout(location = 0) in vec2 a_pos;
+layout(location = 1) in vec4 a_color;
+
+out vec4 v_color;
 
 uniform mat4 u_projection;
 
 void main() {
     gl_Position = u_projection * vec4(a_pos, 0.0, 1.0);
+    v_color = a_color;
 }
 )glsl";
 
 static const char *kSolidFrag = R"glsl(
 #version 410 core
 
+in vec4 v_color;
 out vec4 frag_color;
-uniform vec4 u_color;
 
 void main() {
-    frag_color = u_color;
+    frag_color = v_color;
 }
 )glsl";
 
@@ -332,8 +346,8 @@ static bool createPenFBO() {
 
     glGenTextures(1, &penTexture);
     glBindTexture(GL_TEXTURE_2D, penTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -359,10 +373,44 @@ static bool createPenFBO() {
     glClear(GL_COLOR_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
 
+    glGenRenderbuffers(1, &penMSColorRB);
+    glBindRenderbuffer(GL_RENDERBUFFER, penMSColorRB);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, kPenSamples, GL_RGBA8, penWidth, penHeight);
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+    glGenFramebuffers(1, &penMSFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, penMSFBO);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, penMSColorRB);
+
+    GLenum msStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (msStatus != GL_FRAMEBUFFER_COMPLETE) {
+        Log::logError("[GL Core] Pen multisample FBO incomplete");
+        glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+        glDeleteFramebuffers(1, &penMSFBO);
+        glDeleteRenderbuffers(1, &penMSColorRB);
+        glDeleteFramebuffers(1, &penFBO);
+        glDeleteTextures(1, &penTexture);
+        penMSFBO = penMSColorRB = penFBO = penTexture = 0;
+        return false;
+    }
+
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+    penNeedsResolve = false;
+
     return true;
 }
 
 static void destroyPenFBO() {
+    if (penMSFBO) {
+        glDeleteFramebuffers(1, &penMSFBO);
+        penMSFBO = 0;
+    }
+    if (penMSColorRB) {
+        glDeleteRenderbuffers(1, &penMSColorRB);
+        penMSColorRB = 0;
+    }
     if (penFBO) {
         glDeleteFramebuffers(1, &penFBO);
         penFBO = 0;
@@ -372,6 +420,17 @@ static void destroyPenFBO() {
         penTexture = 0;
     }
     penWidth = penHeight = 0;
+    penNeedsResolve = false;
+}
+
+static void resolvePenFBOIfNeeded() {
+    if (!penNeedsResolve) return;
+    flushPenBatch();
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, penMSFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, penFBO);
+    glBlitFramebuffer(0, 0, penWidth, penHeight, 0, 0, penWidth, penHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+    penNeedsResolve = false;
 }
 
 static GLuint dynamicVAO = 0, dynamicVBO = 0;
@@ -383,7 +442,9 @@ static void ensureDynamicBuffers() {
         glBindVertexArray(dynamicVAO);
         glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), nullptr);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(2 * sizeof(float)));
         glBindVertexArray(0);
     }
 }
@@ -395,13 +456,12 @@ static void drawSolidRect(float x, float y, float w, float h,
 
     glUseProgram(solidProgram);
     glUniformMatrix4fv(glGetUniformLocation(solidProgram, "u_projection"), 1, GL_FALSE, proj);
-    glUniform4f(glGetUniformLocation(solidProgram, "u_color"), r, g, b, a);
 
     float verts[] = {
-        x, y,
-        x + w, y,
-        x + w, y + h,
-        x, y + h};
+        x, y, r, g, b, a,
+        x + w, y, r, g, b, a,
+        x + w, y + h, r, g, b, a,
+        x, y + h, r, g, b, a};
 
     glBindVertexArray(dynamicVAO);
     glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
@@ -411,80 +471,100 @@ static void drawSolidRect(float x, float y, float w, float h,
     glBindVertexArray(0);
 }
 
-static void drawSolidCircle(float cx, float cy, float radius,
-                            float r, float g, float b, float a,
-                            const float proj[16], int segments = 24) {
-    ensureDynamicBuffers();
-
-    glUseProgram(solidProgram);
-    glUniformMatrix4fv(glGetUniformLocation(solidProgram, "u_projection"), 1, GL_FALSE, proj);
-    glUniform4f(glGetUniformLocation(solidProgram, "u_color"), r, g, b, a);
-
-    std::vector<float> verts;
-    verts.reserve((segments + 2) * 2);
-    verts.push_back(cx);
-    verts.push_back(cy);
-    for (int i = 0; i <= segments; ++i) {
-        float angle = i * 2.0f * (float)M_PI / segments;
-        verts.push_back(cx + std::cos(angle) * radius);
-        verts.push_back(cy + std::sin(angle) * radius);
-    }
-
-    glBindVertexArray(dynamicVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STREAM_DRAW);
-
-    glDrawArrays(GL_TRIANGLE_FAN, 0, (GLsizei)(verts.size() / 2));
-    glBindVertexArray(0);
+static int segmentsForRadius(float radius, int maxSegments) {
+    constexpr int kMinSegments = 6;
+    int segments = static_cast<int>(std::ceil(radius * 1.5f));
+    return std::clamp(segments, kMinSegments, maxSegments);
 }
 
-static void drawSolidCapsule(float x1, float y1, float x2, float y2, float radius,
-                             float r, float g, float b, float a,
-                             const float proj[16], int capSegments = 12) {
+static void appendSolidCircleTris(std::vector<float> &out, float cx, float cy, float radius,
+                                  float r, float g, float b, float a, int segments = -1) {
+    if (segments <= 0) segments = segmentsForRadius(radius, 24);
+    const float twoPi = 2.0f * (float)M_PI;
+    float prevX = cx + radius, prevY = cy;
+    out.reserve(out.size() + segments * 3 * 6);
+    for (int i = 1; i <= segments; ++i) {
+        float angle = i * twoPi / segments;
+        float curX = cx + std::cos(angle) * radius;
+        float curY = cy + std::sin(angle) * radius;
+        out.insert(out.end(), {cx, cy, r, g, b, a,
+                               prevX, prevY, r, g, b, a,
+                               curX, curY, r, g, b, a});
+        prevX = curX;
+        prevY = curY;
+    }
+}
+
+static void appendSolidCapsuleTris(std::vector<float> &out, float x1, float y1, float x2, float y2,
+                                   float radius, float r, float g, float b, float a, int capSegments = -1) {
+    if (capSegments <= 0) capSegments = segmentsForRadius(radius, 12);
+
     float dx = x2 - x1, dy = y2 - y1;
     float length = std::sqrt(dx * dx + dy * dy);
 
     if (length <= 0.001f) {
-        drawSolidCircle(x1, y1, radius, r, g, b, a, proj, capSegments * 2);
+        appendSolidCircleTris(out, x1, y1, radius, r, g, b, a, capSegments * 2);
         return;
     }
 
-    ensureDynamicBuffers();
-
-    glUseProgram(solidProgram);
-    glUniformMatrix4fv(glGetUniformLocation(solidProgram, "u_projection"), 1, GL_FALSE, proj);
-    glUniform4f(glGetUniformLocation(solidProgram, "u_color"), r, g, b, a);
-
     float phi = std::atan2(dy, dx);
-    std::vector<float> verts;
-    verts.reserve(((capSegments + 1) * 2 + 2) * 2);
-
-    verts.push_back((x1 + x2) * 0.5f);
-    verts.push_back((y1 + y2) * 0.5f);
+    std::vector<float> ring;
+    ring.reserve(((capSegments + 1) * 2 + 1) * 2);
 
     float startAngle2 = phi - (float)M_PI_2;
     for (int i = 0; i <= capSegments; ++i) {
         float angle = startAngle2 + (i * (float)M_PI / capSegments);
-        verts.push_back(x2 + std::cos(angle) * radius);
-        verts.push_back(y2 + std::sin(angle) * radius);
+        ring.push_back(x2 + std::cos(angle) * radius);
+        ring.push_back(y2 + std::sin(angle) * radius);
     }
 
     float startAngle1 = phi + (float)M_PI_2;
     for (int i = 0; i <= capSegments; ++i) {
         float angle = startAngle1 + (i * (float)M_PI / capSegments);
-        verts.push_back(x1 + std::cos(angle) * radius);
-        verts.push_back(y1 + std::sin(angle) * radius);
+        ring.push_back(x1 + std::cos(angle) * radius);
+        ring.push_back(y1 + std::sin(angle) * radius);
     }
 
-    verts.push_back(verts[2]);
-    verts.push_back(verts[3]);
+    const float centerX = (x1 + x2) * 0.5f, centerY = (y1 + y2) * 0.5f;
+    const size_t ringCount = ring.size() / 2;
+    out.reserve(out.size() + ringCount * 3 * 6);
+    for (size_t i = 0; i < ringCount; ++i) {
+        size_t next = (i + 1) % ringCount;
+        out.insert(out.end(), {centerX, centerY, r, g, b, a,
+                               ring[i * 2], ring[i * 2 + 1], r, g, b, a,
+                               ring[next * 2], ring[next * 2 + 1], r, g, b, a});
+    }
+}
+
+static std::vector<float> penBatchVerts;
+static constexpr size_t kPenBatchFlushThreshold = 60000 * 6; // ~60k vertices
+
+static void flushPenBatch() {
+    if (penBatchVerts.empty()) return;
+
+    ensureDynamicBuffers();
+
+    float proj[16];
+    buildOrtho(proj, 0.0f, (float)penWidth, (float)penHeight, 0.0f);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glUseProgram(solidProgram);
+    glUniformMatrix4fv(glGetUniformLocation(solidProgram, "u_projection"), 1, GL_FALSE, proj);
 
     glBindVertexArray(dynamicVAO);
     glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, penBatchVerts.size() * sizeof(float), penBatchVerts.data(), GL_STREAM_DRAW);
 
-    glDrawArrays(GL_TRIANGLE_FAN, 0, (GLsizei)(verts.size() / 2));
+    glDrawArrays(GL_TRIANGLES, 0, (GLsizei)(penBatchVerts.size() / 6));
     glBindVertexArray(0);
+
+    penBatchVerts.clear();
+}
+
+static void discardPenBatch() {
+    penBatchVerts.clear();
 }
 
 bool Render::Init() {
@@ -498,6 +578,8 @@ bool Render::Init() {
     globalWindow = new WindowSDL3();
 #elif defined(WINDOWING_LIBRETRO)
     globalWindow = new WindowLibretro();
+#elif defined(WINDOWING_WIN32)
+    globalWindow = new WindowWin32();
 #else
 #error "No windowing backend defined"
 #endif
@@ -626,25 +708,36 @@ bool Render::initPen() {
     return createPenFBO();
 }
 
+static bool penFBOBound = false;
+
+static void flushPenFBO() {
+    if (!penFBOBound) return;
+    flushPenBatch();
+    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+    glViewport(0, 0, Render::getWidth(), Render::getHeight());
+    penFBOBound = false;
+}
+
 void Render::penClear() {
     if (penFBO == getMainFBO()) return;
-    glBindFramebuffer(GL_FRAMEBUFFER, penFBO);
+    discardPenBatch();
+    glBindFramebuffer(GL_FRAMEBUFFER, penMSFBO);
     glViewport(0, 0, penWidth, penHeight);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
+    penFBOBound = false;
+    penNeedsResolve = true;
 }
 
 static void penBegin() {
-    glBindFramebuffer(GL_FRAMEBUFFER, penFBO);
+    penNeedsResolve = true;
+    if (penFBOBound) return;
+    glBindFramebuffer(GL_FRAMEBUFFER, penMSFBO);
     glViewport(0, 0, penWidth, penHeight);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-}
-
-static void penEnd() {
-    glBindFramebuffer(GL_FRAMEBUFFER, getMainFBO());
-    glViewport(0, 0, Render::getWidth(), Render::getHeight());
+    penFBOBound = true;
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
@@ -655,12 +748,12 @@ void Render::penDotFast(Sprite *sprite) {
     penDotAccurate(sprite);
 }
 
+static bool rectOverlapsPenCanvas(float minX, float minY, float maxX, float maxY) {
+    return maxX >= 0.0f && maxY >= 0.0f && minX <= (float)penWidth && minY <= (float)penHeight;
+}
+
 void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     if (penFBO == 0) return;
-
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    float alpha = (100.0f - (float)sprite->penData.color.transparency) / 100.0f;
-    float r = rgbColor.r / 255.0f, g = rgbColor.g / 255.0f, b = rgbColor.b / 255.0f;
 
     const double scale = penHeight / static_cast<double>(Scratch::projectHeight);
     float px1 = (float)(x1 * scale + penWidth / 2.0);
@@ -669,32 +762,36 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
     float py2 = (float)(-y2 * scale + penHeight / 2.0);
     float radius = (float)((sprite->penData.size / 2.0) * scale);
 
-    float proj[16];
-    buildOrtho(proj, 0.0f, (float)penWidth, (float)penHeight, 0.0f);
-
-    penBegin();
-    drawSolidCapsule(px1, py1, px2, py2, radius, r, g, b, alpha, proj);
-    penEnd();
-}
-
-void Render::penDotAccurate(Sprite *sprite) {
-    if (penFBO == 0) return;
+    if (!rectOverlapsPenCanvas(std::min(px1, px2) - radius, std::min(py1, py2) - radius,
+                               std::max(px1, px2) + radius, std::max(py1, py2) + radius))
+        return;
 
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     float alpha = (100.0f - (float)sprite->penData.color.transparency) / 100.0f;
     float r = rgbColor.r / 255.0f, g = rgbColor.g / 255.0f, b = rgbColor.b / 255.0f;
+
+    penBegin();
+    appendSolidCapsuleTris(penBatchVerts, px1, py1, px2, py2, radius, r, g, b, alpha);
+    if (penBatchVerts.size() >= kPenBatchFlushThreshold) flushPenBatch();
+}
+
+void Render::penDotAccurate(Sprite *sprite) {
+    if (penFBO == 0) return;
 
     const double scale = penHeight / static_cast<double>(Scratch::projectHeight);
     float px = (float)(sprite->xPosition * scale + penWidth / 2.0);
     float py = (float)(-sprite->yPosition * scale + penHeight / 2.0);
     float radius = (float)((sprite->penData.size / 2.0) * scale);
 
-    float proj[16];
-    buildOrtho(proj, 0.0f, (float)penWidth, (float)penHeight, 0.0f);
+    if (!rectOverlapsPenCanvas(px - radius, py - radius, px + radius, py + radius)) return;
+
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    float alpha = (100.0f - (float)sprite->penData.color.transparency) / 100.0f;
+    float r = rgbColor.r / 255.0f, g = rgbColor.g / 255.0f, b = rgbColor.b / 255.0f;
 
     penBegin();
-    drawSolidCircle(px, py, radius, r, g, b, alpha, proj);
-    penEnd();
+    appendSolidCircleTris(penBatchVerts, px, py, radius, r, g, b, alpha);
+    if (penBatchVerts.size() >= kPenBatchFlushThreshold) flushPenBatch();
 }
 
 void Render::penStamp(Sprite *sprite) {
@@ -721,7 +818,11 @@ void Render::penStamp(Sprite *sprite) {
         penY *= (float)scale;
     }
 
-    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / 100.0f;
+    const Costume &costume = sprite->costumes[sprite->currentCostume];
+    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : (sprite->size / 100.0f) / costume.bitmapResolution;
+
+    const float halfDiag = 0.5f * std::sqrt(static_cast<float>(image->getWidth() * image->getWidth() + image->getHeight() * image->getHeight())) * std::abs(renderScale);
+    if (!rectOverlapsPenCanvas(penX - halfDiag, penY - halfDiag, penX + halfDiag, penY + halfDiag)) return;
 
     ImageRenderParams params;
     params.centered = true;
@@ -732,14 +833,16 @@ void Render::penStamp(Sprite *sprite) {
     params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
     params.opacity = 1.0f - std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f;
     params.brightness = sprite->brightnessEffect;
+    params.blend = false;
 
     penBegin();
+    flushPenBatch();
     image->render(params);
-    penEnd();
 }
 
 void Render::beginFrame(int /*screen*/, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
+        flushPenFBO();
         glViewport(0, 0, getWidth(), getHeight());
         glClearColor(colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -764,6 +867,8 @@ void Render::drawBox(int w, int h, int x, int y,
 
 void Render::renderPenLayer() {
     if (penTexture == 0) return;
+
+    resolvePenFBOIfNeeded();
 
     float projectAspect = (float)Scratch::projectWidth / Scratch::projectHeight;
     float windowAspect = (float)getWidth() / getHeight();
@@ -808,7 +913,7 @@ void Render::renderPenLayer() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, penTexture);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     glBindVertexArray(quadVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
@@ -837,6 +942,7 @@ static void drawBlackBars(int screenWidth, int screenHeight, const float proj[16
 }
 
 void Render::renderSprites() {
+    flushPenFBO();
     glViewport(0, 0, getWidth(), getHeight());
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);

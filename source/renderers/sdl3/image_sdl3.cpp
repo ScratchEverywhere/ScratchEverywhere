@@ -5,7 +5,6 @@
 #include <cctype>
 #include <cstddef>
 #include <image.hpp>
-#include <miniz.h>
 #include <os.hpp>
 #include <string>
 #include <unordered_map>
@@ -168,7 +167,7 @@ nonstd::expected<void, std::string> Image_SDL3::refreshTexture() {
     return setInitialTexture();
 }
 
-Image_SDL3::Image_SDL3(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image_SDL3::Image_SDL3(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
 

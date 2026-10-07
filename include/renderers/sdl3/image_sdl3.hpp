@@ -15,7 +15,7 @@ class SE_EXPORT Image_SDL3 : public Image {
 
     Image_SDL3(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
 
-    Image_SDL3(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image_SDL3(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
 
     ~Image_SDL3() override;
 

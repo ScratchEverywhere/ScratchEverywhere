@@ -217,8 +217,14 @@ void ProjectSettings::render() {
         unpackMenu.render();
 
         if (canUnpacked) {
-            if (Unzip::extractProject(OS::getScratchFolderLocation() + projectPath + ".sb3", OS::getScratchFolderLocation() + projectPath)) {
-                unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath);
+            ProjectFormat format;
+            std::string sourcePath = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + projectPath, format);
+            if (sourcePath.empty()) {
+                Log::logWarning("No zip-based project file found to unpack: " + projectPath);
+            } else if (format == ProjectFormat::SB1) {
+                Log::logWarning("Unpacking is not supported for .sb (Scratch 1.4) projects: " + projectPath);
+            } else if (Unzip::extractProject(sourcePath, OS::getScratchFolderLocation() + projectPath)) {
+                unpackMenu.addToJsonArray(OS::getScratchFolderLocation() + "UnpackedGames.json", projectPath, format);
             }
         } else {
             if (Unzip::deleteProjectFolder(OS::getScratchFolderLocation() + projectPath)) {

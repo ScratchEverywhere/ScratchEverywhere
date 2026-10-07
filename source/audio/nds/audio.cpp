@@ -31,7 +31,7 @@ bool SoundPlayer::init() {
             .format = MM_STREAM_16BIT_STEREO,
             .timer = MM_TIMER2,
             .manual = false,
-        };
+    };
     mmStreamOpen(&stream);
     return true;
 #endif

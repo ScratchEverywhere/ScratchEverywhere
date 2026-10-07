@@ -93,12 +93,9 @@ void Image_GLCore::render(ImageRenderParams &params) {
     float pivotX = centered ? 0.5f : 0.0f;
     float pivotY = centered ? 0.5f : 0.0f;
 
-    float drawX = x;
-    if (flip) drawX += renderWidth * std::abs(scaleX);
-
     float model[16];
     buildModelMatrix(model,
-                     drawX, y,
+                     x, y,
                      (float)renderWidth * scaleX,
                      (float)renderHeight * scaleY,
                      rotation,
@@ -163,8 +160,12 @@ void Image_GLCore::render(ImageRenderParams &params) {
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureID);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        if (params.blend) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        } else {
+            glDisable(GL_BLEND);
+        }
 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
@@ -175,8 +176,12 @@ void Image_GLCore::render(ImageRenderParams &params) {
     } else {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureID);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        if (params.blend) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        } else {
+            glDisable(GL_BLEND);
+        }
 
         glBindVertexArray(quadVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
@@ -295,8 +300,8 @@ void *Image_GLCore::getNativeTexture() {
 void Image_GLCore::setInitialTexture() {
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_2D, textureID);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
@@ -323,7 +328,7 @@ Image_GLCore::Image_GLCore(std::string filePath, bool fromScratchProject, bool b
     setInitialTexture();
 }
 
-Image_GLCore::Image_GLCore(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality, float scale) {
+Image_GLCore::Image_GLCore(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     GLint glMaxTextureSize = 0;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &glMaxTextureSize);
     maxTextureSize = {(unsigned)glMaxTextureSize, (unsigned)glMaxTextureSize};

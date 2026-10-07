@@ -13,9 +13,9 @@
 #include <math.hpp>
 #include <render.hpp>
 #include <runtime.hpp>
-#include <sprite.hpp>
 #include <string>
 #include <text.hpp>
+#include <types.hpp>
 #include <unordered_map>
 #include <vector>
 #include <window.hpp>
@@ -58,8 +58,6 @@ bool Render::Init() {
     int windowWidth = 480;
     int windowHeight = 360;
 #endif
-
-    TTF_Init();
 
     globalWindow = new WindowSDL3();
     if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
@@ -113,7 +111,7 @@ void Render::clearRenderTarget() {
 }
 
 bool Render::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3();
     return speechManager != nullptr;
 }
 
@@ -123,7 +121,7 @@ void Render::destroySpeechManager() {
 }
 
 SpeechManager *Render::getSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3(renderer);
+    if (speechManager == nullptr) speechManager = new SpeechManagerSDL3();
     return speechManager;
 }
 

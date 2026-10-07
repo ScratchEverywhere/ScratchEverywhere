@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include <SDL3/SDL.h>
+#include <se_export.hpp>
 #include <window.hpp>
 
 class SE_EXPORT WindowSDL3 : public WindowSE {

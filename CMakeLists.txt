@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(ScratchEverywhere VERSION 1.1 LANGUAGES CXX C)
+project(ScratchEverywhere VERSION 1.2 LANGUAGES CXX C)
 
 if(APPLE)
 	enable_language(OBJC)
@@ -21,8 +21,6 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 
 include(CMakeDependentOption)
 
-set(CATALOG_CACHE_DIR "${CMAKE_BINARY_DIR}/.cache/catalog")
-
 if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS)
 	set(CATALOG_REQ_TYPE PREFER_STATIC)
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -32,10 +30,14 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/cl-bootstrap.cmake")
 cl_repo()
 cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 
+if(APPLE AND NOT IOS)
+	set(CL_SDL2_PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/sdl2-macos-gpu.patch")
+endif()
+
 set(SE_APP_NAME "Scratch Everywhere!" CACHE STRING "Name of the outputed app.")
 set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Description of the outputed app.")
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
-set(SE_APP_VERSION "1.1" CACHE STRING "Version of the outputed app.")
+set(SE_APP_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of the outputed app.")
 
 if(VITA)
 	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
@@ -139,7 +141,7 @@ function(set_preferred_cache_var var_name priority_list valid_options_list doc_s
 
 	if(NOT selected_value IN_LIST valid_options_list)
         message(
-			FATAL_ERROR 
+			FATAL_ERROR
             "Invalid value for ${var_name}: '${selected_value}'. Must be one of: ${valid_options_list}"
         )
     endif()
@@ -152,14 +154,17 @@ cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLAT
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NOT DEFINED SE_RENDERER_PRIORITY)
-	set(SE_RENDERER_PRIORITY "opengl_core" "sdl2" "sdl3" "opengl" "sdl1" "citro2d" "gl2d" "headless")
+	set(SE_RENDERER_PRIORITY "opengl_core" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
 
-set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "3ds" "nds" "headless" "libretro")
+set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "headless" "libretro")
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${SE_WINDOWING}.cmake")
+
+set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz" "minizip")
+set_preferred_cache_var(SE_ZIP_BACKEND "miniz" "${SE_ZIP_BACKEND_VALID_OPTIONS}" "Select the zip library used to read .sb3 archives.")
 
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "libretro")
@@ -224,9 +229,9 @@ if(NINTENDO_DS OR NINTENDO_3DS OR NINTENDO_GAMECUBE OR PSP OR PS2)
 endif()
 
 foreach(file IN LISTS GFXFILES)
-	file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+	file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/gfx" "${file}")
 
-    set(DEST_PATH "${CMAKE_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
+    set(DEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/romfs/gfx/${REL_PATH}")
 
     get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
     file(MAKE_DIRECTORY "${DEST_DIR}")
@@ -241,7 +246,7 @@ endif()
 set(PLATFORM_DIRS ${SE_PLATFORM})
 list(TRANSFORM PLATFORM_DIRS PREPEND "source/platforms/")
 
-set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
+set(SOURCES "source" "source/runtime" "source/runtime/blocks" "source/runtime/parser" "source/runtime/zip/${SE_ZIP_BACKEND}" "source/platforms" ${PLATFORM_DIRS} "source/renderers/${SE_RENDERER}" "source/windowing/${SE_WINDOWING}" "source/audio/${SE_AUDIO_ENGINE}")
 
 if(SE_CUSTOM_EXTENSIONS)
 	list(APPEND SOURCES "source/runtime/extensions")
@@ -431,7 +436,13 @@ endif()
 cl_add_dep(se-interface ryuJS)
 
 cl_add_dep(se-interface nlohmann_json)
-cl_add_dep(se-interface miniz)
+if(SE_ZIP_BACKEND STREQUAL "minizip")
+	set(CL_DISABLE_system_minizip TRUE)
+	set(CL_DISABLE_package_minizip TRUE)
+	cl_add_dep(se-interface minizip)
+else()
+	cl_add_dep(se-interface miniz)
+endif()
 cl_add_dep(se-interface expected-lite)
 cl_add_dep(se-interface __getexecname)
 if(DEFINED SE_WINDOWING AND (CMAKE_SYSTEM_NAME MATCHES "^(Windows|Darwin|Linux|FreeBSD|DragonFly|NetBSD|OpenBSD|SunOS)$") AND NOT IOS AND NOT ANDROID AND NOT WEBOS AND NOT LIBRETRO)

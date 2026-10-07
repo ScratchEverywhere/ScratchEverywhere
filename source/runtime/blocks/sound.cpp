@@ -4,7 +4,7 @@
 #include <audiostack.hpp>
 #include <log.hpp>
 #include <math.hpp>
-#include <sprite.hpp>
+#include <types.hpp>
 #include <unzip.hpp>
 #include <value.hpp>
 
@@ -30,7 +30,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
 
         // If not found by name and input is a number, try index-based lookup
         if (!soundFound) {
-            if (soundValue.isNaN() || !soundValue.isNumeric()) return BlockResult::CONTINUE;
+            if (soundValue.isNaN() || !soundValue.isNumeric() || sprite->sounds.empty()) return BlockResult::CONTINUE;
             double index = std::trunc(soundValue.get<double>());
             double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
             state->name = sprite->sounds[soundIndex].fullName;
@@ -42,7 +42,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
             if (Scratch::projectType == ProjectType::UNZIPPED)
                 strm = new SoundStream(state->name);
             else
-                strm = new SoundStream(Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, state->name);
+                strm = new SoundStream(Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, state->name);
             if (strm->error.has_value()) {
                 Log::logError("[Sound] " + strm->error.value());
                 delete strm;
@@ -90,7 +90,7 @@ SCRATCH_BLOCK(sound, play) {
 
     // If not found by name and input is a number, try index-based lookup
     if (!soundFound) {
-        if (soundValue.isNaN() || !soundValue.isNumeric()) return BlockResult::CONTINUE;
+        if (soundValue.isNaN() || !soundValue.isNumeric() || sprite->sounds.empty()) return BlockResult::CONTINUE;
         double index = std::trunc(soundValue.get<double>());
         double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
         soundFullName = sprite->sounds[soundIndex].fullName;
@@ -102,7 +102,7 @@ SCRATCH_BLOCK(sound, play) {
         if (Scratch::projectType == ProjectType::UNZIPPED)
             strm = new SoundStream(soundFullName, false);
         else
-            strm = new SoundStream(Scratch::sb3InRam ? &Unzip::zipArchive : nullptr, soundFullName);
+            strm = new SoundStream(Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, soundFullName);
         if (strm->error.has_value()) {
             Log::logError("[Sound] " + strm->error.value());
             delete strm;
@@ -224,8 +224,8 @@ SCRATCH_BLOCK(sound, setvolumeto) {
     return BlockResult::REPEAT;
 }
 
-SCRATCH_BLOCK(sound, volume) {
-    *outValue = Value(sprite->volume);
+SCRATCH_BLOCK_DOUBLE(sound, volume) {
+    *outValue = sprite->volume;
     return BlockResult::CONTINUE;
 }
 

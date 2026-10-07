@@ -5,11 +5,11 @@ WORKDIR /app
 
 ARG RENDERER=opengl_core
 ARG WINDOWING=glfw
-ARG AUDIO_ENGINE=sdl3
+ARG AUDIO_ENGINE=libpulse
 ARG LIBRARY_MODE=FALSE
 ARG EXT_ARGS=
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev libdbus-1-dev
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential cmake libmbedtls-dev libdbus-1-dev libpulse-dev
 
 RUN if [ "$RENDERER" = "opengl" ] || [ $RENDERER = "opengl_core" ]; then \
         apt-get install -y --no-install-recommends libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl1-mesa-dev; \

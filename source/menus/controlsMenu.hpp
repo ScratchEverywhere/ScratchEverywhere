@@ -1,6 +1,6 @@
 #pragma once
-#include <se_export.hpp>
 #include "mainMenu.hpp"
+#include <se_export.hpp>
 
 class SE_EXPORT ControlsMenu : public Menu {
   public:

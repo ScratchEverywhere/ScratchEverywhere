@@ -43,11 +43,19 @@ static constexpr uint32_t GLFW_GAMEPAD_KEYS[] = {
     NULL  // Right Analog Trigger
 };
 
+static GLFWwindow *inputWindow() {
+    return Input::inputWindowHandleOverride
+               ? (GLFWwindow *)Input::inputWindowHandleOverride
+               : (GLFWwindow *)globalWindow->getHandle();
+}
+
 std::array<int, 2> Input::getTouchPosition() {
     double x, y;
-    glfwGetCursorPos((GLFWwindow *)globalWindow->getHandle(), &x, &y);
+    glfwGetCursorPos(inputWindow(), &x, &y);
 
     std::array<int, 2> pos = {(int)x, (int)y};
+    Input::applyInputViewportOffset(pos[0], pos[1]);
+    Input::scaleViewportToRenderSpace(pos[0], pos[1], Render::getWidth(), Render::getHeight());
 
     return pos;
 }
@@ -55,7 +63,7 @@ std::array<int, 2> Input::getTouchPosition() {
 void Input::getInput() {
     inputButtons.clear();
     inputKeys.clear();
-    mousePointer.isPressed = (glfwGetMouseButton((GLFWwindow *)globalWindow->getHandle(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+    mousePointer.isPressed = (glfwGetMouseButton(inputWindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
     mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
 
     std::array<int, 2> touchPos = getTouchPosition();
@@ -65,7 +73,7 @@ void Input::getInput() {
 
     // Handle keyboard keys
     auto checkKey = [&](int glfwKey, std::string scratchName) {
-        if (glfwGetKey((GLFWwindow *)globalWindow->getHandle(), glfwKey) == GLFW_PRESS) {
+        if (glfwGetKey(inputWindow(), glfwKey) == GLFW_PRESS) {
             inputKeys.push_back(scratchName);
         }
     };
@@ -210,7 +218,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     g_inputText = "";
     g_inputActive = true;
 
-    GLFWwindow *ctx = (GLFWwindow *)globalWindow->getHandle();
+    GLFWwindow *ctx = inputWindow();
     GLFWcharfun oldCharCallback = glfwSetCharCallback(ctx, character_callback);
 
     bool backspacePressed = false;

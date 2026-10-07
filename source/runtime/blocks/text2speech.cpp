@@ -6,7 +6,7 @@
 #include "os.hpp"
 #include "runtime.hpp"
 #include "settings.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
 #include <filesystem.hpp>

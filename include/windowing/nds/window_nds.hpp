@@ -1,7 +1,7 @@
 #pragma once
-#include <se_export.hpp>
 #include <gl2d.h>
 #include <nds.h>
+#include <se_export.hpp>
 #include <window.hpp>
 
 class SE_EXPORT WindowNDS : public WindowSE {

@@ -13,6 +13,49 @@ std::unordered_set<Block *> Input::codePressedBlockOpcodes;
 Input::Mouse Input::mousePointer;
 Sprite *Input::draggingSprite = nullptr;
 
+int Input::inputViewportX = 0;
+int Input::inputViewportY = 0;
+int Input::inputViewportW = 0;
+int Input::inputViewportH = 0;
+
+void Input::setInputViewport(int x, int y, int w, int h) {
+    inputViewportX = x;
+    inputViewportY = y;
+    inputViewportW = w;
+    inputViewportH = h;
+}
+
+void Input::clearInputViewport() {
+    inputViewportW = 0;
+    inputViewportH = 0;
+}
+
+bool Input::hasInputViewport() {
+    return inputViewportW > 0 && inputViewportH > 0;
+}
+
+void Input::applyInputViewportOffset(int &x, int &y) {
+    if (!hasInputViewport()) return;
+    x -= inputViewportX;
+    y -= inputViewportY;
+}
+
+void Input::scaleViewportToRenderSpace(int &x, int &y, int renderWidth, int renderHeight) {
+    if (!hasInputViewport()) return;
+    x = static_cast<int>(x * (static_cast<float>(renderWidth) / inputViewportW));
+    y = static_cast<int>(y * (static_cast<float>(renderHeight) / inputViewportH));
+}
+
+void *Input::inputWindowHandleOverride = nullptr;
+
+void Input::setInputWindowHandle(void *handle) {
+    inputWindowHandleOverride = handle;
+}
+
+void Input::clearInputWindowHandle() {
+    inputWindowHandleOverride = nullptr;
+}
+
 void Input::applyControls(std::string controlsFilePath) {
     Input::inputControls.clear();
 
@@ -79,7 +122,7 @@ std::string Input::convertToKey(const Value keyName, const bool uppercaseKeys) {
         case 39:
             return "right arrow";
             break;
-        case 50:
+        case 40:
             return "down arrow";
             break;
         };

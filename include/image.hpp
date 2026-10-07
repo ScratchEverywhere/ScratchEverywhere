@@ -1,16 +1,16 @@
 #pragma once
-#include <se_export.hpp>
 #include "nonstd/expected.hpp"
 #include <optional>
+#include <se_export.hpp>
 #ifdef ENABLE_SVG
 #include "lunasvg.h"
 #endif
 #include <cstddef>
 #include <memory.h>
-#include <miniz.h>
-#include <sprite.hpp>
 #include <string>
+#include <types.hpp>
 #include <vector>
+#include <zip_archive.hpp>
 
 struct SE_EXPORT ImageSubrect {
     int x = 0;
@@ -28,6 +28,7 @@ struct SE_EXPORT ImageRenderParams {
     int brightness = 0;
     float rotation = 0;
     bool flip = false;
+    bool blend = true;
     ImageSubrect *subrect = nullptr;
 
     float colorEffect = 0.0f;
@@ -89,9 +90,9 @@ class SE_EXPORT Image {
     std::optional<std::string> error;
     Image() {}
     Image(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-    Image(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    Image(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
     nonstd::expected<void, std::string> init(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-    nonstd::expected<void, std::string> init(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+    nonstd::expected<void, std::string> init(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);
     virtual ~Image();
 
     virtual ImageData getPixels(ImageSubrect rect);
@@ -107,8 +108,23 @@ class SE_EXPORT Image {
         return px[3];
     }
 
+    // Only valid for IMAGE_FORMAT_RGBA32
+    inline void getColorAt(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const {
+        if (!imgData.pixels || x < 0 || x >= imgData.width || y < 0 || y >= imgData.height) {
+            r = g = b = 0;
+            return;
+        }
+        const uint8_t *px =
+            static_cast<const uint8_t *>(imgData.pixels) + y * imgData.pitch + x * 4;
+        r = px[0];
+        g = px[1];
+        b = px[2];
+    }
+
     int getWidth();
     int getHeight();
+
+    inline float getScale() const { return imgData.scale; }
 
     nonstd::expected<void, std::string> resizeSVG(float scale);
 
@@ -119,4 +135,4 @@ class SE_EXPORT Image {
 };
 
 SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject = true, bool bitmapHalfQuality = false, float scale = 1);
-SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, mz_zip_archive *zip, bool bitmapHalfQuality = false, float scale = 1);
+SE_EXPORT nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality = false, float scale = 1);

@@ -3,7 +3,7 @@
 #include "math.hpp"
 #include "os.hpp"
 #include "runtime.hpp"
-#include "sprite.hpp"
+#include "types.hpp"
 #include "unzip.hpp"
 #include "value.hpp"
 #include <algorithm>
@@ -39,18 +39,17 @@ std::string getNameFromCode(const std::string &code) {
 
 SCRATCH_SHADOW_BLOCK(translate_menu_languages, languages)
 
-SCRATCH_BLOCK(translate, getTranslate) {
+SCRATCH_BLOCK_STRING(translate, getTranslate) {
 #if defined(ENABLE_DOWNLOAD)
     BlockState *state = thread->getState(block);
     if (state->completedSteps == 0) {
-        Value wordsInput;
+        std::string words;
         std::string lang;
-        if (!Scratch::getInputValue(block, "WORDS", thread, sprite, wordsInput) ||
+        if (!Scratch::getInputValueAs(block, "WORDS", thread, sprite, words) ||
             !Scratch::getInputValueAs(block, "LANGUAGE", thread, sprite, lang)) return BlockResult::REPEAT;
 
-        std::string words = wordsInput.get<std::string>();
         if (std::all_of(words.begin(), words.end(), ::isdigit)) {
-            *outValue = wordsInput;
+            *outValue = words;
             thread->eraseState(block);
             return BlockResult::CONTINUE;
         }
@@ -76,7 +75,7 @@ SCRATCH_BLOCK(translate, getTranslate) {
             if (start != std::string::npos) {
                 start += 10;
                 size_t end = content.find("\"", start);
-                *outValue = Value(content.substr(start, end - start));
+                *outValue = content.substr(start, end - start);
                 thread->eraseState(block);
                 return BlockResult::CONTINUE;
             }
@@ -100,22 +99,22 @@ SCRATCH_BLOCK(translate, getTranslate) {
     if (start != std::string::npos) {
         start += 10;
         size_t end = content.find("\"", start);
-        *outValue = Value(content.substr(start, end - start));
+        *outValue = content.substr(start, end - start);
     } else {
-        *outValue = Value("");
+        *outValue = "";
     }
 
     thread->eraseState(block);
 #else
-    *outValue = Value("");
+    *outValue = "";
 #endif
     return BlockResult::CONTINUE;
 }
 
-SCRATCH_BLOCK(translate, getViewerLanguage) {
+SCRATCH_BLOCK_STRING(translate, getViewerLanguage) {
     // Uses English by default,
     // ToDo: but ready for i18n
     std::string currentLocale = "en";
-    *outValue = Value(getNameFromCode(currentLocale));
+    *outValue = getNameFromCode(currentLocale);
     return BlockResult::CONTINUE;
 }
