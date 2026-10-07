@@ -319,6 +319,10 @@ if(SE_EXECUTABLE)
 		target_link_options(scratch-everywhere PRIVATE "-static-libstdc++")
 	endif()
 
+	if(UBUNTU_TOUCH)
+		target_link_libraries(scratch-everywhere PRIVATE c++fs)
+	endif()
+
 	if(NOT BUILD_SHARED_LIBS AND MINGW)
 		target_link_options(scratch-everywhere PRIVATE "-static" "-static-libgcc" "-static-libstdc++")
 	endif()

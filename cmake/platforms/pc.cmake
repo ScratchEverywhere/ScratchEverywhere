@@ -27,7 +27,6 @@ set(SE_DECTALK_DEFAULT ON)
 
 if(UBUNTU_TOUCH)
 	set(SE_PLATFORM_DEFINITIONS "__UBUNTUTOUCH__" "__PC__")
-	# target_link_libraries(scratch-everywhere PRIVATE c++fs)
 else()
 	set(SE_PLATFORM_DEFINITIONS "__PC__")
 endif()

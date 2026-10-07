@@ -1,5 +1,6 @@
 {
-    "name": "scratch-ut",
+    "name": "scratcheverywhere",
+    "title": "Scratch Everywhere!",
     "description": "Custom Scratch Runtime made in C++!",
     "architecture": "armhf",
     "title": "Scratch Everywhere!",
@@ -11,5 +12,5 @@
     },
     "version": "1.0.0",
     "maintainer": "Dogo6647 <htldogo@proton.me>",
-    "framework" : "$ENV{CLICK_FRAMEWORK}"
+    "framework" : "ubuntu-sdk-16.04.5"
 }
