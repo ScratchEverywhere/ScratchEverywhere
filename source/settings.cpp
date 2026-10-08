@@ -23,7 +23,8 @@ nlohmann::json SettingsManager::getConfigSettings() {
 
     std::ifstream file(OS::getConfigFolderLocation() + "Settings.json");
     if (!file.good()) {
-        Log::logWarning("Failed to open Config file: " + OS::getConfigFolderLocation() + "Settings.json");
+        Log::logWarning("Failed to open Config file: " + OS::getConfigFolderLocation() + "Settings.json, creating default.");
+        saveConfigSettings(json);
         return json;
     }
 
