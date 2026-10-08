@@ -14,6 +14,10 @@
 #include <orbis/libkernel.h>
 #endif
 
+#if defined(__XBOX__)
+#include <hal/debug.h>
+#endif
+
 /**
  * See these lines, in libdlgmod's source code, for reference, where the 'BUTTON_TYPES' enum, below, is copied from:
  * https://github.com/samuelvenable/libdlgmod/blob/25d4dce0d65984a1c7dfea1ce633a4121b393f15/libdlgmod/win32/libdlgmod.cpp#L112-L120
@@ -66,6 +70,37 @@ void Log::writeToFile(std::string message) {
 
 void Log::deleteLogFile() {
 }
+#elif defined(__XBOX__)
+void Log::log(std::string message) {
+    debugPrint("%s\n", message.c_str());
+}
+
+void Log::logWarning(std::string message) {
+    debugPrint("Warning: %s\n", message.c_str());
+}
+
+void Log::logError(std::string message) {
+    debugPrint("Error: %s\n", message.c_str());
+}
+
+void Log::logCritical(std::string message, bool fatal) {
+    if (fatal) {
+        debugPrint("Fatal: %s\n", message.c_str());
+    } else {
+        debugPrint("Critical: %s\n", message.c_str());
+    }
+    if (fatal) {
+        // Maybe we can do something else?
+        // exit(1);
+    }
+}
+
+void Log::writeToFile(std::string message) {
+}
+
+void Log::deleteLogFile() {
+}
+
 #else
 static std::string lastLog;
 void Log::log(std::string message) {
