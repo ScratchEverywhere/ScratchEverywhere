@@ -38,7 +38,9 @@
   "ui.loading.finish": "¡Terminado!",
   "ui.popup.extensions": "¡Cuidado! Este proyecto tiene extensiones nativas, estas tienen acesso completo a tu dispositivo",
   "version.prefix.beta": "Build Beta",
+  "version.prefix.alpha": "Build Alpha",
   "version.prefix.release": "Lanzamiento",
   "version.prefix.releaseCanidate": "Candidato de Lanzamiento",
-  "version.prefix.nightly": "Nightly"
+  "version.prefix.nightly": "Nightly",
+  "version.prefix.dev": "Build de desarrollo"
 }
