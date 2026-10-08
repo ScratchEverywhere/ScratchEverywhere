@@ -42,6 +42,6 @@
   "version.prefix.release": "Lanzamiento",
   "version.prefix.releaseCanidate": "Lanzamiento candidato",
   "version.prefix.nightly": "Nightly",
-  "version.prefix.dev": "Build de desarrollo"
+  "version.prefix.dev": "Compilación de desarrollo"
 }
 
