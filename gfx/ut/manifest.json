@@ -1,6 +1,5 @@
 {
     "name": "scratcheverywhere",
-    "title": "Scratch Everywhere!",
     "description": "Custom Scratch Runtime made in C++!",
     "architecture": "armhf",
     "title": "Scratch Everywhere!",

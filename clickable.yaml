@@ -45,6 +45,7 @@ postbuild:
     - cp -r ${ROOT}/gfx/menu/ ${ROOT}/build/ut/${ARCH_TRIPLET}/install/gfx/menu/
     - cp -r ${ROOT}/gfx/translations/ ${ROOT}/build/ut/${ARCH_TRIPLET}/install/gfx/translations/
     - cp -r ${ROOT}/gfx/ut/. ${ROOT}/build/ut/${ARCH_TRIPLET}/install/
+    - find ${ROOT}/build/ut/${ARCH_TRIPLET}/install -type f -printf '/./%P\n' > ${ROOT}/build/ut/${ARCH_TRIPLET}/install_manifest.txt
 dependencies_ppa:
     - ppa:ubuntu-toolchain-r/test
 dependencies_host:
