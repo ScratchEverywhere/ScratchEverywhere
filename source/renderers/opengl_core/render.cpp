@@ -584,7 +584,15 @@ bool Render::Init() {
 #error "No windowing backend defined"
 #endif
 
-    if (!globalWindow->init(540, 405, "Scratch Everywhere!")) {
+#ifdef __SWITCH__
+    constexpr int initialWidth = 1280;
+    constexpr int initialHeight = 720;
+#else
+    constexpr int initialWidth = 540;
+    constexpr int initialHeight = 405;
+#endif
+
+    if (!globalWindow->init(initialWidth, initialHeight, "Scratch Everywhere!")) {
         delete globalWindow;
         globalWindow = nullptr;
         return false;

@@ -14,6 +14,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <version_config.h>
+
 Menu::~Menu() = default;
 
 Menu *MenuManager::currentMenu = nullptr;
@@ -110,7 +112,28 @@ void MainMenu::init() {
     logo->x = 200;
     logoStartTime.start();
 
-    versionNumber = createTextObject(TranslationManager::getTranslation("version.prefix.release") + " 1.2", 0, 0, "gfx/menu/Ubuntu-Bold");
+    std::string versionStr;
+    switch (SE_VERSION_TYPE) {
+        case SE_VERSION_TYPE_RELEASE:
+            versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
+            break;
+        case SE_VERSION_TYPE_BETA:
+            versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
+            break;
+        case SE_VERSION_TYPE_ALPHA:
+            versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
+            break;
+        case SE_VERSION_TYPE_RELEASE_CANDIDATE:
+            versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
+            break;
+        case SE_VERSION_TYPE_NIGHTLY:
+            versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
+            break;
+        default:
+            versionStr = TranslationManager::getTranslation("version.prefix.dev");
+            break;
+    }
+    versionNumber = createTextObject(versionStr, 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 

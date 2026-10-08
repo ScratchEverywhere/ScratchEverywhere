@@ -1,6 +1,6 @@
 set(SE_DEFAULT_OUTPUT_NAME "scratch-nx")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl2")
+set(SE_RENDERER_VALID_OPTIONS "sdl2" "opengl_core")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl2")
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
