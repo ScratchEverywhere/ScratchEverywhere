@@ -37,11 +37,11 @@
   "ui.loading.extensions": "Cargando extensiones",
   "ui.loading.finish": "Terminando",
   "ui.popup.extensions": "¡Cuidado! Este proyecto contiene extensiones nativas. Las extensiones nativas tienen acceso completo a tu dispositivo.",
-  "version.prefix.beta": "Compilación Beta",
-  "version.prefix.alpha": "Compilación Alpha",
+  "version.prefix.beta": "Versión Beta",
+  "version.prefix.alpha": "Versión Alpha",
   "version.prefix.release": "Lanzamiento",
   "version.prefix.releaseCanidate": "Lanzamiento candidato",
   "version.prefix.nightly": "Nightly",
-  "version.prefix.dev": "Compilación de desarrollo"
+  "version.prefix.dev": "Versión de desarrollo"
 }
 
