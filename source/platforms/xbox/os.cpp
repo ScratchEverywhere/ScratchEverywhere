@@ -1,9 +1,11 @@
-// STUB - WORK IN PROGRESS
+#include <hal/debug.h>
 #include <hal/video.h>
 #include <log.hpp>
 #include <nxdk/mount.h>
 #include <os.hpp>
 #include <windows.h>
+#include <errno.h>
+#include <stdio.h>
 
 namespace OS {
 bool toExit = false;
@@ -30,11 +32,17 @@ bool OS::init() {
 
     // Initialize Video for OGXbox - Required before SDL_Init!
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
+    Sleep(1000);
+
+    debugPrint("OS init!");
+    Sleep(1000);
 
     return true;
 }
 
 void OS::deinit() {
+    // For some reason we completely skip this?
+    Sleep(10000);
 }
 
 std::string OS::getPlatform() {
@@ -78,7 +86,40 @@ std::string OS::getUsername() {
     return "EggsBox";
 }
 
-#include <sys/stat.h>
 int _mkdir(const char *dirname) {
-    return mkdir(dirname, 0777);
+    if (!dirname) return -1;
+    
+    char fixed_dirname[260];
+    strncpy(fixed_dirname, dirname, sizeof(fixed_dirname) - 1);
+    fixed_dirname[sizeof(fixed_dirname) - 1] = '\0';
+    for (int i = 0; fixed_dirname[i]; i++) {
+        if (fixed_dirname[i] == '/') fixed_dirname[i] = '\\';
+    }
+
+    // If it's a drive letter like "E:" or "E:\", just return 0
+    size_t len = strlen(fixed_dirname);
+    if (len >= 2 && fixed_dirname[1] == ':') {
+        if (len == 2 || (len == 3 && fixed_dirname[2] == '\\')) {
+            return 0;
+        }
+    }
+    if (CreateDirectoryA(fixed_dirname, NULL)) {
+        return 0;
+    }
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        errno = EEXIST;
+    }
+    return -1;
+}
+
+#undef fopen
+extern "C" FILE *xbox_fopen(const char *filename, const char *mode) {
+    if (!filename) return NULL;
+    char fixed_filename[260];
+    strncpy(fixed_filename, filename, sizeof(fixed_filename) - 1);
+    fixed_filename[sizeof(fixed_filename) - 1] = '\0';
+    for (int i = 0; fixed_filename[i]; i++) {
+        if (fixed_filename[i] == '/') fixed_filename[i] = '\\';
+    }
+    return fopen(fixed_filename, mode);
 }

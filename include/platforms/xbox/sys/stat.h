@@ -3,6 +3,8 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <windows.h>
+#include <string.h>
 
 static inline int close(int fd) {
     return -1;
@@ -124,11 +126,26 @@ struct stat {
 };
 
 static inline int stat(const char *pathname, struct stat *statbuf) {
-    return -1;
+    if (!pathname || !statbuf) return -1;
+    char fixed_pathname[260];
+    strncpy(fixed_pathname, pathname, sizeof(fixed_pathname) - 1);
+    fixed_pathname[sizeof(fixed_pathname) - 1] = '\0';
+    for (int i = 0; fixed_pathname[i]; i++) {
+        if (fixed_pathname[i] == '/') fixed_pathname[i] = '\\';
+    }
+    DWORD attr = GetFileAttributesA(fixed_pathname);
+    if (attr == INVALID_FILE_ATTRIBUTES) return -1;
+    statbuf->st_mode = 0;
+    if (attr & FILE_ATTRIBUTE_DIRECTORY) {
+        statbuf->st_mode |= S_IFDIR;
+    } else {
+        statbuf->st_mode |= S_IFREG;
+    }
+    return 0;
 }
 
 static inline int lstat(const char *pathname, struct stat *statbuf) {
-    return -1;
+    return stat(pathname, statbuf);
 }
 
 static inline int mkdir(const char *pathname, mode_t mode) {
