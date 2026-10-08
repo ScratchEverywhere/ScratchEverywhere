@@ -58,7 +58,7 @@ TEXTO SPLASH DIVERTIDO Y/O INGENIOSO
 ¡SDL!
 ¡Funciona! (cuando quiere...)
 Guau.
-¡Beta!
+¡Lanzado!
 ¡Déjà vu!
 ¡A jugar, {UserName}!
 ¡Woo, TurboWarp!

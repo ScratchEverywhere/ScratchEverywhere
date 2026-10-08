@@ -59,7 +59,7 @@ Tengo picazón en todos lados, que debería- ah, sí...
 ¡SDL!
 ¡Funciona! (casi siempre...)
 Wow.
-¡Beta!
+¡Lanzado!
 ¡Déjà vu!
 ¡Juguemos, {UserName}!
 ¡Woo, TurboWarp!
