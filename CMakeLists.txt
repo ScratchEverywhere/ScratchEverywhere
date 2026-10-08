@@ -39,6 +39,8 @@ set(SE_APP_DESCRIPTION "Play Scratch games on anything!" CACHE STRING "Descripti
 set(SE_APP_AUTHOR "Scratch Everywhere! Contributors" CACHE STRING "Author of the outputed app.")
 set(SE_APP_VERSION "${PROJECT_VERSION}" CACHE STRING "Version of the outputed app.")
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
+
 if(VITA)
 	set(SE_APP_TITLEID "NTXS00053" CACHE STRING "Title ID of the outputed app.")
 else()
@@ -279,7 +281,7 @@ foreach(DIR IN LISTS ABSOLUTE_SOURCES)
 endforeach()
 
 if(WIN32)
-	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/gfx/windows/resource.rc")
+	list(APPEND SOURCE_FILES "${CMAKE_CURRENT_BINARY_DIR}/resource.rc")
 endif()
 
 if(SE_LIBRARY)
@@ -462,7 +464,7 @@ if(SE_BITMAP)
 	cl_add_dep(se-interface stb_image)
 endif()
 
-target_include_directories(se-interface INTERFACE ${ABSOLUTE_INCLUDES})
+target_include_directories(se-interface INTERFACE ${ABSOLUTE_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
 
 if(COMMAND package_platform)
 	package_platform()

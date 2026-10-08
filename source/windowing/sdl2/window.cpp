@@ -57,7 +57,9 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
 #elif defined(RENDERER_OPENGL_CORE)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+#ifndef __SWITCH__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+#endif
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -92,7 +94,11 @@ bool WindowSDL2::init(int width, int height, const std::string &title) {
     SDL_GL_SetSwapInterval(1); // VSync
 
 #ifdef RENDERER_OPENGL_CORE
+#ifdef __SWITCH__
+    if (!gladLoadGL()) {
+#else
     if (!gladLoaderLoadGL()) {
+#endif
         Log::logCritical("Failed to initialize GLAD", true);
         return false;
     }

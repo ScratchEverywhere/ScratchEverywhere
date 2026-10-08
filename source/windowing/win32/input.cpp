@@ -63,6 +63,7 @@ void Input::getInput() {
         else if (sc == VK_LSHIFT || sc == VK_RSHIFT) keyName = "shift";
         else if (sc == VK_LCONTROL || sc == VK_RCONTROL) keyName = "control";
         else if (sc == VK_SPACE) keyName = "space";
+        else if (sc == VK_RETURN) keyName = "enter";
 
         inputKeys.push_back(keyName);
     }

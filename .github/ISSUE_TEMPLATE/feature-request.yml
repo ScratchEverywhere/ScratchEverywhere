@@ -3,53 +3,54 @@ description: Suggest an idea for this project
 title: "[REQUEST] "
 labels: [Suggestion]
 body:
-  - type: textarea
-    id: feature-description
-    attributes:
-      label: "Describe the feature you'd like to propose."
-      description: Be as clear and concise as possible.
-    validations:
-      required: true
-  - type: dropdown
-    id: devices
-    attributes:
-      label: "Device(s)"
-      description: What device(s) are you requesting this feature for?. Please select at least one.
-      multiple: true
-      options:
-        - New 3DS
-        - Old 3DS
-        - DS / DS Lite
-        - DSi
-        - Wii U
-        - Wii
-        - GameCube
-        - Switch
-        - Vita
-        - webOS
-        - PSP
-        - PC
-        - Web
-        - PS4
-        - PS2
-        - Libretro
-    validations:
-      required: false
-  - type: textarea
-    id: additional-context
-    attributes:
-      label: "Additional context"
-      description: Add any other context or screenshots about the feature request here.
-      placeholder: Screenshots, code examples, or further explanations.
-    validations:
-      required: false
-  - type: checkboxes
-    id: pre-checks
-    attributes:
-      label: "Pre-submission Checks"
-      description: Please confirm the following before submitting.
-      options:
-        - label: I have checked that the roadmap doesn't already contain this feature.
+    - type: textarea
+      id: feature-description
+      attributes:
+          label: "Describe the feature you'd like to propose."
+          description: Be as clear and concise as possible.
+      validations:
           required: true
-        - label: I have searched existing issues and confirmed this feature has not been requested before.
-          required: true
+    - type: dropdown
+      id: devices
+      attributes:
+          label: "Device(s)"
+          description: What device(s) are you requesting this feature for?. Leave blank for features that apply to all platforms.
+          multiple: true
+          options:
+              - New 3DS
+              - Old 3DS
+              - DS / DS Lite
+              - DSi
+              - Wii U
+              - Wii
+              - GameCube
+              - Switch
+              - Vita
+              - webOS
+              - PSP
+              - Windows
+              - macOS
+              - Linux
+              - Web
+              - PS4
+              - Libretro
+      validations:
+          required: false
+    - type: textarea
+      id: additional-context
+      attributes:
+          label: "Additional context"
+          description: Add any other context or screenshots about the feature request here.
+          placeholder: Screenshots, code examples, or further explanations.
+      validations:
+          required: false
+    - type: checkboxes
+      id: pre-checks
+      attributes:
+          label: "Pre-submission Checks"
+          description: Please confirm the following before submitting.
+          options:
+              - label: I have checked that the roadmap doesn't already contain this feature.
+                required: true
+              - label: I have searched existing issues and confirmed this feature has not been requested before.
+                required: true

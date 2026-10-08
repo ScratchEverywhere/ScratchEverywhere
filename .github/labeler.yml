@@ -1,38 +1,47 @@
 3DS:
-  - '### Device\(s\)\s*.*3DS'
+    - '### Device\(s\)\s*.*3DS'
 
 DS:
-  - '### Device\(s\)\s*[^3]*DS'
+    - '### Device\(s\)\s*[^3]*DS'
 
 Wii U:
-  - '### Device\(s\)\s*.*Wii U'
+    - '### Device\(s\)\s*.*Wii U'
 
 Wii:
-  - '### Device\(s\)\s*.*Wii(\s{2,}|, )'
+    - '### Device\(s\)\s*.*Wii(\s{2,}|, )'
 
 GameCube:
-  - '### Device\(s\)\s*.*GameCube'
+    - '### Device\(s\)\s*.*GameCube'
 
 Switch:
-  - '### Device\(s\)\s*.*Switch'
+    - '### Device\(s\)\s*.*Switch'
 
 Vita:
-  - '### Device\(s\)\s*.*Vita'
+    - '### Device\(s\)\s*.*Vita'
 
 webOS:
-  - '### Device\(s\)\s*.*webOS'
+    - '### Device\(s\)\s*.*webOS'
 
 PSP:
-  - '### Device\(s\)\s*.*PSP'
+    - '### Device\(s\)\s*.*PSP'
 
 Web:
-  - '### Device\(s\)\s*.*Web'
+    - '### Device\(s\)\s*.*Web'
 
 PS4:
-  - '### Device\(s\)\s*.*PS4'
+    - '### Device\(s\)\s*.*PS4'
 
 PS2:
   - '### Device\(s\)\s*.*PS2'
 
 Libretro:
-  - '### Device\(s\)\s*.*Libretro'
+    - '### Device\(s\)\s*.*Libretro'
+
+Windows:
+    - '### Device\(s\)\s*.*Windows'
+
+macOS:
+    - '### Device\(s\)\s*.*macOS'
+
+Linux:
+    - '### Device\(s\)\s*.*Linux'
