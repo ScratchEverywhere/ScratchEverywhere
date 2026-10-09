@@ -136,6 +136,9 @@ add_compile_options(-w)
 
 # DO NOT MODIFY
 macro(package_platform)
+    target_link_libraries(scratch-everywhere PUBLIC ${NXDK_DIR}/lib/libnxdk_automount_d.lib)
+    target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
+
     add_custom_command(TARGET scratch-everywhere POST_BUILD
         COMMAND ${NXDK_DIR}/bin/cxbe
             -OUT:${CMAKE_CURRENT_BINARY_DIR}/default.xbe
