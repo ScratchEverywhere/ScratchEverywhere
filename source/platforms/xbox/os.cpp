@@ -12,12 +12,10 @@ std::string *customProjectsPath = nullptr;
 
 bool OS::init() {
 
-    /*
-        D: is automatically mounted by the kernel
-        and points to the launch path on the filesystem
-        regardless of wherever we launch it from
-        (i.e. from the hard disk, flash drive, or optical drive)
-    */
+    // Verify D: is mounted
+    if (!nxIsDriveMounted('D')) {
+        return 1;
+    }
 
     // Mount C:
     if (!nxIsDriveMounted('C')) {
