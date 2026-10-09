@@ -19,7 +19,7 @@ ProjectMenu::~ProjectMenu() {
 void ProjectMenu::init() {
 
     projectControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->needsToBeSelected = false;
     backButton->scale = 1.0;
 
@@ -31,7 +31,7 @@ void ProjectMenu::init() {
     for (std::string &file : projectFiles) {
         std::size_t dot = file.find_last_of('.');
         std::string displayName = dot == std::string::npos ? file : file.substr(0, dot);
-        ButtonObject *project = new ButtonObject(displayName, "gfx/menu/projectBox.png", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
+        ButtonObject *project = new ButtonObject(displayName, "gfx/menu/projectBox.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         project->text->setColor(Math::color(0, 0, 0, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
@@ -41,7 +41,7 @@ void ProjectMenu::init() {
         projects.push_back(project);
         projectControl->buttonObjects.push_back(project);
 
-        ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.png", 140, project->y, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.svg", 140, project->y, "gfx/menu/Ubuntu-Bold");
         projects.push_back(settingsButton);
         projectControl->buttonObjects.push_back(settingsButton);
 
@@ -51,7 +51,7 @@ void ProjectMenu::init() {
         yPosition += 50;
     }
     for (std::string &file : UnzippedFiles) {
-        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.png", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
+        ButtonObject *project = new ButtonObject(file, "gfx/menu/projectBoxFast.svg", 0, yPosition, "gfx/menu/Ubuntu-Bold", true);
         project->text->setColor(Math::color(126, 101, 1, 255));
         project->y -= project->text->getSize()[1] / 2;
         if (project->text->getSize()[0] > project->buttonTexture->image->getWidth() * 0.85) {
@@ -61,7 +61,7 @@ void ProjectMenu::init() {
         projects.push_back(project);
         projectControl->buttonObjects.push_back(project);
 
-        ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.png", 140, project->y, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *settingsButton = new ButtonObject("", "gfx/menu/projectSettings.svg", 140, project->y, "gfx/menu/Ubuntu-Bold");
         projects.push_back(settingsButton);
         projectControl->buttonObjects.push_back(settingsButton);
 
@@ -86,7 +86,7 @@ void ProjectMenu::init() {
     // check if user has any projects
     if (projectFiles.size() == 0 && UnzippedFiles.size() == 0) {
         hasProjects = false;
-        noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.png", 200, 120, "gfx/menu/Ubuntu-Bold");
+        noProjectsButton = new ButtonObject("", "gfx/menu/noProjects.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
         projectControl->selectedObject = noProjectsButton;
         projectControl->selectedObject->isSelected = true;
         noProjectsText = createTextObject(TranslationManager::getTranslation("ui.projects.noProjects"), 0, 0);
