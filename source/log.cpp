@@ -1,6 +1,10 @@
 #include <iostream>
+#include <fstream>
+#include <cstring>
+#include <cerrno>
 #include <log.hpp>
 #include <render.hpp>
+#include <os.hpp>
 #if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
@@ -16,6 +20,8 @@
 
 #if defined(__XBOX__)
 #include <hal/debug.h>
+#include <direct.h>
+#include <stdio.h>
 #endif
 
 /**
@@ -66,60 +72,68 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
+    snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
+    sceKernelDebugOutText(0, logBuffer);
 }
 
 void Log::deleteLogFile() {
 }
 #elif defined(__XBOX__)
+static void xbox_append_log(const char *prefix, const std::string &msg) {
+    if (prefix && strlen(prefix) > 0) {
+        debugPrint("%s %s\n", prefix, msg.c_str());
+    } else {
+        debugPrint("%s\n", msg.c_str());
+    }
+    _mkdir("E:\\ScratchEverywhere");
+    FILE *f = fopen("E:\\ScratchEverywhere\\debug.txt", "a");
+    if (f) {
+        if (prefix && strlen(prefix) > 0) {
+            fprintf(f, "%s %s\n", prefix, msg.c_str());
+        } else {
+            fprintf(f, "%s\n", msg.c_str());
+        }
+        fflush(f);
+        fclose(f);
+    }
+}
+
 void Log::log(std::string message) {
-    debugPrint("%s\n", message.c_str());
+    xbox_append_log("<LOG>", message);
 }
 
 void Log::logWarning(std::string message) {
-    debugPrint("Warning: %s\n", message.c_str());
+    xbox_append_log("<WARN>", message);
 }
 
 void Log::logError(std::string message) {
-    debugPrint("Error: %s\n", message.c_str());
+    xbox_append_log("<ERR>", message);
 }
 
 void Log::logCritical(std::string message, bool fatal) {
-    if (fatal) {
-        debugPrint("Fatal: %s\n", message.c_str());
-    } else {
-        debugPrint("Critical: %s\n", message.c_str());
-    }
-    if (fatal) {
-        // Maybe we can do something else?
-        // exit(1);
-    }
+    xbox_append_log(fatal ? "<FATAL>" : "<CRIT>", message);
 }
 
 void Log::writeToFile(std::string message) {
+    xbox_append_log("", message);
 }
 
 void Log::deleteLogFile() {
+    remove("E:\\ScratchEverywhere\\debug.txt");
 }
 
 #else
-static std::string lastLog;
 void Log::log(std::string message) {
-    if (lastLog == message) return;
-    lastLog = message;
     std::cout << message << std::endl;
     writeToFile(message);
 }
 
 void Log::logWarning(std::string message) {
-    if (lastLog == message) return;
-    lastLog = message;
     std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
     writeToFile("<Warning> " + message);
 }
 
 void Log::logError(std::string message) {
-    if (lastLog == message) return;
-    lastLog = message;
     std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
     writeToFile("<Error> " + message);
 }
@@ -130,8 +144,6 @@ void Log::logError(std::string message) {
  * Adds Ignore button when not Fatal Error:
  */
 void Log::logCritical(std::string message, bool fatal) {
-    if (lastLog == message) return;
-    lastLog = message;
     if (fatal) {
         std::cerr << "\x1b[1;31m" << "Fatal: " << message << "\x1b[0m" << std::endl;
         writeToFile("<Fatal> " + message);
@@ -174,23 +186,25 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
-    if (Render::debugMode) {
-        std::string filePath = OS::getScratchFolderLocation() + "log.txt";
-        std::ofstream logFile;
-        logFile.open(filePath, std::ios::app);
-        if (logFile.is_open()) {
-            logFile << message << std::endl;
-            logFile.close();
-        } else {
-            std::cerr << "Could not open log file: " << filePath << std::endl;
-        }
+    std::string folder = OS::getScratchFolderLocation();
+    std::string filePath = folder + (folder.empty() || folder.back() == '/' || folder.back() == '\\' ? "" : "/") + "log.txt";
+    std::ofstream logFile;
+    logFile.open(filePath, std::ios::app);
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.flush();
+        logFile.close();
+    } else {
+        std::cerr << "Could not open log file: " << filePath << std::endl;
     }
 }
 
 void Log::deleteLogFile() {
-    std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
+    std::string folder = OS::getScratchFolderLocation();
+    std::string filePath = folder + (folder.empty() || folder.back() == '/' || folder.back() == '\\' ? "" : "/") + "log.txt";
     if (std::remove(filePath.c_str()) != 0) {
         Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
     }
 }
 #endif
+

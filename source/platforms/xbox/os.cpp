@@ -44,6 +44,9 @@ bool OS::init() {
         }
     }
 
+    _mkdir("E:\\ScratchEverywhere");
+    remove("E:\\ScratchEverywhere\\debug.txt");
+
     debugPrint("OS init!\n");
     Sleep(1000);
     return true;
