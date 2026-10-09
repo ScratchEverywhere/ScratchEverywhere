@@ -98,26 +98,26 @@ add_compile_options(
     #-DDR_WAV_NO_SIMD
     #-DDR_MP3_NO_WCHAR
     #-DDR_WAV_NO_WCHAR
-    -fno-fast-math
+    #-fno-fast-math
 
     # These need review
     -DHAVE_UNISTD_H
     -DHAVE_DIRENT_H
     -DHAVE_UTIME_H
-    -DDR_MP3_NO_STDIO_SECURE
-    -DDR_WAV_NO_STDIO_SECURE
-    -DDR_FS_NO_CRT_SECURE
+    #-DDR_MP3_NO_STDIO_SECURE
+    #-DDR_WAV_NO_STDIO_SECURE
+    #-DDR_FS_NO_CRT_SECURE
     -DMINIZ_NO_TIME=1
-    -DMZ_FOPEN=fopen
-    -DMZ_FCLOSE=fclose
-    -DMZ_FREAD=fread
-    -DMZ_FWRITE=fwrite
-    -DMZ_FTELL64=ftell
-    -DMZ_FSEEK64=fseek
-    -DMZ_FILE_STAT_STRUCT=stat
-    -DMZ_FILE_STAT=stat
-    -DMZ_FREOPEN=freopen
-    -DMZ_DELETE_FILE=remove
+    #-DMZ_FOPEN=fopen
+    #-DMZ_FCLOSE=fclose
+    #-DMZ_FREAD=fread
+    #-DMZ_FWRITE=fwrite
+    #-DMZ_FTELL64=ftell
+    #-DMZ_FSEEK64=fseek
+    #-DMZ_FILE_STAT_STRUCT=stat
+    #-DMZ_FILE_STAT=stat
+    #-DMZ_FREOPEN=freopen
+    #-DMZ_DELETE_FILE=remove
     -Drestrict=__restrict
     -DXBOXRT_RESTRICT=__restrict
     -Dalloca=__builtin_alloca
