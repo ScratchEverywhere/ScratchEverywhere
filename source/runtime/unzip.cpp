@@ -19,7 +19,7 @@
 #include <sys/types.h>
 #include <vector>
 
-#if defined(_WIN32) || defined(__XBOX__)
+#ifdef _WIN32
 #define NOMINMAX
 #include <windows.h>
 #else
@@ -266,7 +266,6 @@ void Unzip::openScratchProject(void *arg) {
 }
 
 std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
-#ifndef __XBOX__
     struct stat dirStat;
 
     if (stat(directory.c_str(), &dirStat) != 0) {
@@ -280,27 +279,16 @@ std::vector<std::string> Unzip::getProjectFiles(const std::string &directory) {
         Log::logWarning("Path is not a directory! " + directory);
         return {};
     }
-#endif
 
     auto projectFiles = FileSystem::listDirectory(directory);
     if (!projectFiles.has_value()) {
-#ifdef __XBOX__
-        Log::logWarning("Directory does not exist or failed to open! " + directory);
-        auto potentialError = FileSystem::createDirectory(directory);
-        if (!potentialError.has_value()) Log::logWarning("Failed to create directory, " + directory + ", " + potentialError.error());
-#else
         Log::logCritical("Error while reading project files: " + projectFiles.error(), true);
-#endif
         return {};
     }
 
     projectFiles.value().erase(std::remove_if(projectFiles.value().begin(), projectFiles.value().end(), [](const std::string &file) {
                                    const auto hasExtension = [&](const std::string &ext) {
-                                       if (file.size() < ext.size()) return false;
-                                       for (size_t i = 0; i < ext.size(); ++i) {
-                                           if (std::tolower(file[file.size() - ext.size() + i]) != std::tolower(ext[i])) return false;
-                                       }
-                                       return true;
+                                       return file.size() >= ext.size() && file.compare(file.size() - ext.size(), ext.size(), ext) == 0;
                                    };
                                    return !hasExtension(".sb3") && !hasExtension(".sb2") && !hasExtension(".sb");
                                }),

@@ -3,10 +3,6 @@
 #include <settings.hpp>
 #include <string>
 
-#ifdef __XBOX__
-#include "xbox/xbox_iostream_injector.hpp"
-#endif
-
 namespace OS {
 
 extern bool toExit;
