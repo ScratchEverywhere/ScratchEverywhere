@@ -14,6 +14,12 @@
 #elif defined(__HAIKU__)
 #include <FindDirectory.h>
 #include <Path.h>
+#elif defined(__XBOX__)
+#include <windows.h>
+#include <hal/debug.h>
+#include <dirent.h>
+#include <pwd.h>
+#include <unistd.h>
 #else
 #include <dirent.h>
 #include <pwd.h>
@@ -30,6 +36,23 @@ nonstd::expected<void, std::string> FileSystem::createDirectory(const std::strin
         if (dir.empty()) continue;
         if (dir == OS::getFilesystemRootPrefix()) continue; // Fixes DS but hopefully doesn't negatively affect other platforms????
 
+#ifdef __XBOX__
+        std::string xbox_dir = dir;
+        std::replace(xbox_dir.begin(), xbox_dir.end(), '/', '\\');
+        
+        // Skip drive letter root (e.g., E: or E:\)
+        if (xbox_dir.size() <= 2 && xbox_dir.back() == ':') continue;
+        if (xbox_dir.size() == 3 && xbox_dir[1] == ':' && xbox_dir[2] == '\\') continue;
+
+        if (xbox_dir.back() == '\\') xbox_dir.pop_back();
+        
+        DWORD dwAttrib = GetFileAttributesA(xbox_dir.c_str());
+        if (dwAttrib == INVALID_FILE_ATTRIBUTES) {
+            if (!CreateDirectoryA(xbox_dir.c_str(), NULL)) {
+                return nonstd::make_unexpected("Failed to create directory, " + xbox_dir + ", " + std::to_string(GetLastError()));
+            }
+        }
+#else
         struct stat st;
         if (stat(dir.c_str(), &st) != 0) {
 #ifdef _WIN32
@@ -40,6 +63,7 @@ nonstd::expected<void, std::string> FileSystem::createDirectory(const std::strin
                 return nonstd::make_unexpected("Failed to create directory, " + dir + ", " + std::to_string(errno));
             }
         }
+#endif
     }
 
     return {};
@@ -109,8 +133,15 @@ nonstd::expected<void, std::string> FileSystem::removeDirectory(const std::strin
 }
 
 bool FileSystem::fileExists(const std::string &path) {
+#ifdef __XBOX__
+    std::string xbox_path = path;
+    std::replace(xbox_path.begin(), xbox_path.end(), '/', '\\');
+    DWORD dwAttrib = GetFileAttributesA(xbox_path.c_str());
+    return (dwAttrib != INVALID_FILE_ATTRIBUTES);
+#else
     struct stat buffer;
     return (stat(path.c_str(), &buffer) == 0);
+#endif
 }
 
 std::string FileSystem::parentPath(const std::string &path) {
@@ -153,6 +184,43 @@ nonstd::expected<std::vector<std::string>, std::string> FileSystem::listDirector
             files.push_back(fileName);
         }
     } while (FindNextFileW(hFind, &findData) != 0);
+
+    FindClose(hFind);
+
+#elif defined(__XBOX__)
+    std::string searchPath = path;
+    if (searchPath.empty()) {
+        searchPath = ".";
+    }
+    if (searchPath.back() != '/' && searchPath.back() != '\\') {
+        searchPath += "\\*.*";
+    } else {
+        searchPath += "*.*";
+    }
+    std::replace(searchPath.begin(), searchPath.end(), '/', '\\');
+
+    WIN32_FIND_DATAA findData;
+    HANDLE hFind = FindFirstFileA(searchPath.c_str(), &findData);
+
+    if (hFind == INVALID_HANDLE_VALUE) {
+        DWORD err = GetLastError();
+        if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND || err == ERROR_NO_MORE_FILES) {
+            return files;
+        }
+        return nonstd::make_unexpected("Failed to open directory, " + path + ", " + std::to_string(err));
+    }
+
+    do {
+        std::string fileName = findData.cFileName;
+
+#ifdef __XBOX__
+        debugPrint("Found file: %s\n", findData.cFileName);
+#endif
+
+        if (fileName != "." && fileName != "..") {
+            files.push_back(fileName);
+        }
+    } while (FindNextFileA(hFind, &findData) != 0);
 
     FindClose(hFind);
 

@@ -22,7 +22,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         auto setting = Unzip::getSetting("sb3InRam");
         bool keepInRam;
         if (setting.is_null()) {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
             keepInRam = false;
 #else
             keepInRam = true;
@@ -35,10 +35,15 @@ bool ZipProjectLoader::load(std::istream *file) {
             Scratch::sb3InRam = true;
 
             // read the file
+            file->seekg(0, std::ios::end);
             std::streamsize size = file->tellg();
+            if (size <= 0) {
+                Log::logCritical("Failed to get file size or file is empty.", false);
+                return false;
+            }
             file->seekg(0, std::ios::beg);
             Unzip::zipBuffer.resize(size);
-            if (!file->read(Unzip::zipBuffer.data(), size)) {
+            if (!file->read(reinterpret_cast<char*>(Unzip::zipBuffer.data()), size)) {
                 return false;
             }
 

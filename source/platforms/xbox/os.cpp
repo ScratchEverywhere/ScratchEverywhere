@@ -17,7 +17,12 @@ bool OS::init() {
         and points to the launch path on the filesystem
         regardless of wherever we launch it from
         (i.e. from the hard disk, flash drive, or optical drive)
+        if that fails, we can't continue
     */
+
+    if (!nxIsDriveMounted('D')) {
+        return 1;
+    }
 
     // Mount C:
     if (!nxIsDriveMounted('C')) {
@@ -64,7 +69,11 @@ std::string OS::getScratchFolderLocation() {
 }
 
 std::string OS::getRomFSLocation() {
-    return "D:/romfs/";
+#ifdef USE_CMAKERC
+    return "";
+#else
+    return "D:\\romfs\\";
+#endif
 }
 
 // TODO: add support for the nxdk networking stack
