@@ -17,8 +17,10 @@ class SE_EXPORT WindowSDL3 : public WindowSE {
     int getHeight() const override;
     float getPixelDensity() const override;
     void *getHandle() override;
+    void *getRenderer();
 
   private:
+    SDL_Renderer *sdlRenderer = nullptr;
     SDL_Window *window = nullptr;
     SDL_GLContext context = nullptr;
     int width = 0;

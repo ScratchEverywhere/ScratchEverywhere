@@ -11,6 +11,9 @@
 #include <log.hpp>
 #include <parser.hpp>
 #include <translation.hpp>
+#ifdef __XBOX__
+#include <windows.h>
+#endif
 
 #include <nlohmann/json.hpp>
 
@@ -114,24 +117,24 @@ void MainMenu::init() {
 
     std::string versionStr;
     switch (SE_VERSION_TYPE) {
-        case SE_VERSION_TYPE_RELEASE:
-            versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_BETA:
-            versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_ALPHA:
-            versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_RELEASE_CANDIDATE:
-            versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_NIGHTLY:
-            versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
-            break;
-        default:
-            versionStr = TranslationManager::getTranslation("version.prefix.dev");
-            break;
+    case SE_VERSION_TYPE_RELEASE:
+        versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_BETA:
+        versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_ALPHA:
+        versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_RELEASE_CANDIDATE:
+        versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_NIGHTLY:
+        versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
+        break;
+    default:
+        versionStr = TranslationManager::getTranslation("version.prefix.dev");
+        break;
     }
     versionNumber = createTextObject(versionStr, 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
@@ -146,10 +149,9 @@ void MainMenu::init() {
     } else {
         splashTextOriginalScale = splashText->scale;
     }
-
-    loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
+    loadButton = new ButtonObject("", "gfx/menu/play.png", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
-    settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
+    settingsButton = new ButtonObject("", "gfx/menu/settings.png", 300, 180, "gfx/menu/Ubuntu-Bold");
 
     mainMenuControl = new ControlObject();
     mainMenuControl->selectedObject = loadButton;
@@ -166,7 +168,11 @@ void MainMenu::render() {
     Input::getInput();
     mainMenuControl->input();
 
+#if defined(__XBOX__)
+    if (false) { // TODO(Xbox): SoundStream for mm_splash.ogg hangs; menu music disabled for now
+#else
     if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+#endif
 #ifdef __NDS__
         if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");

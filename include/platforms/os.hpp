@@ -92,3 +92,7 @@ SE_EXPORT void deInitWifi();
  */
 SE_EXPORT std::string getUsername();
 } // namespace OS
+
+#ifdef __XBOX__
+#include "xbox/xbox_iostream_injector.hpp"
+#endif

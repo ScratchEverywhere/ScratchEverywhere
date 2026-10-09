@@ -7,7 +7,7 @@
 
 void Loading::init() {
     auto loadBlock = [&](const uint8_t number) -> std::shared_ptr<Image> {
-        auto image = createImageFromFile("gfx/menu/block" + std::to_string(number) + ".svg", false);
+        auto image = createImageFromFile("gfx/menu/block" + std::to_string(number) + ".png", false);
         if (!image.has_value()) {
             renderBlocks = false;
             return nullptr;

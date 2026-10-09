@@ -1,11 +1,8 @@
-#include <hal/debug.h>
-#include <hal/video.h>
-#include <log.hpp>
+#include <errno.h>
 #include <nxdk/mount.h>
 #include <os.hpp>
-#include <windows.h>
-#include <errno.h>
 #include <stdio.h>
+#include <windows.h>
 
 namespace OS {
 bool toExit = false;
@@ -15,6 +12,13 @@ std::string *customProjectsPath = nullptr;
 
 bool OS::init() {
 
+    /*
+        D: is automatically mounted by the kernel
+        and points to the launch path on the filesystem
+        regardless of wherever we launch it from
+        (i.e. from the hard disk, flash drive, or optical drive)
+    */
+
     // Mount C:
     if (!nxIsDriveMounted('C')) {
         bool ret = nxMountDrive('C', "\\Device\\Harddisk0\\Partition2\\");
@@ -23,6 +27,7 @@ bool OS::init() {
         }
     }
 
+    // Mount E:
     if (!nxIsDriveMounted('E')) {
         bool ret = nxMountDrive('E', "\\Device\\Harddisk0\\Partition1\\");
         if (!ret) {
@@ -30,19 +35,10 @@ bool OS::init() {
         }
     }
 
-    // Initialize Video for OGXbox - Required before SDL_Init!
-    XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
-    Sleep(1000);
-
-    debugPrint("OS init!");
-    Sleep(1000);
-
     return true;
 }
 
 void OS::deinit() {
-    // For some reason we completely skip this?
-    Sleep(10000);
 }
 
 std::string OS::getPlatform() {
@@ -71,6 +67,8 @@ std::string OS::getRomFSLocation() {
     return "D:/romfs/";
 }
 
+// TODO: add support for the nxdk networking stack
+
 bool OS::isOnline() {
     return false;
 }
@@ -86,9 +84,13 @@ std::string OS::getUsername() {
     return "EggsBox";
 }
 
+// Patches to fopen and mkdir to support xbox paths
+// without these, many functions would fail for silly reasons
+
+#undef mkdir
 int _mkdir(const char *dirname) {
     if (!dirname) return -1;
-    
+
     char fixed_dirname[260];
     strncpy(fixed_dirname, dirname, sizeof(fixed_dirname) - 1);
     fixed_dirname[sizeof(fixed_dirname) - 1] = '\0';

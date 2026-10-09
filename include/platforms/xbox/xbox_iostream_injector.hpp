@@ -1,7 +1,21 @@
 #ifndef XBOX_IOSTREAM_INJECTOR_HPP
 #define XBOX_IOSTREAM_INJECTOR_HPP
 
+#include <stdio.h>
+
 #ifdef __cplusplus
+extern "C" {
+#endif
+
+FILE *xbox_fopen(const char *filename, const char *mode);
+int _mkdir(const char *dirname);
+
+#define fopen xbox_fopen
+#define mkdir _mkdir
+
+#ifdef __cplusplus
+}
+
 #include <string>
 namespace std {
     class XboxDummyStream {

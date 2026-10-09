@@ -15,7 +15,7 @@ LanguageMenu::~LanguageMenu() {
 }
 
 void LanguageMenu::init() {
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
 
@@ -24,7 +24,7 @@ void LanguageMenu::init() {
 
     int y = 0;
     for (auto &lang : languages) {
-        ButtonObject *button = new ButtonObject(lang.name, "gfx/menu/projectBox.svg", 200, y, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *button = new ButtonObject(lang.name, "gfx/menu/projectBox.png", 200, y, "gfx/menu/Ubuntu-Bold");
         button->shouldNineslice = true;
         button->text->setColor(Math::color(0, 0, 0, 255));
         control->buttonObjects.push_back(button);

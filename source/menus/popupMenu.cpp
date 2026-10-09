@@ -18,8 +18,8 @@ void PopupMenu::init() {
     textObj->scale = 0.75f;
 
     if (type == PopupType::ACCEPT_OR_CANCEL) {
-        ButtonObject *acceptButton = new ButtonObject("Accept", "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
-        ButtonObject *cancelButton = new ButtonObject("Cancel", "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *acceptButton = new ButtonObject("Accept", "gfx/menu/projectBox.png", 200, 120, "gfx/menu/Ubuntu-Bold");
+        ButtonObject *cancelButton = new ButtonObject("Cancel", "gfx/menu/projectBox.png", 200, 160, "gfx/menu/Ubuntu-Bold");
 
         buttons.push_back(acceptButton);
         buttons.push_back(cancelButton);

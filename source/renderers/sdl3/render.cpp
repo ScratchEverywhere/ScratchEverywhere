@@ -51,6 +51,9 @@ bool Render::Init() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
+#elif defined(__XBOX__)
+    int windowWidth = 640;
+    int windowHeight = 480;
 #else
     int windowWidth = 480;
     int windowHeight = 360;
@@ -62,8 +65,11 @@ bool Render::Init() {
         globalWindow = nullptr;
         return false;
     }
-
+#ifdef __XBOX__
+    renderer = static_cast<SDL_Renderer *>(static_cast<WindowSDL3 *>(globalWindow)->getRenderer());
+#else
     renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), "");
+#endif
     if (renderer == nullptr) {
         Log::logCritical("Could not create renderer: " + std::string(SDL_GetError()), true);
         return false;

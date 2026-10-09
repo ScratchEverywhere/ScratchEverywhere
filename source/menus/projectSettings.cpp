@@ -28,46 +28,46 @@ static const std::string createSettingsText(std::string translationKey, bool con
 void ProjectSettings::init() {
     // initialize
 
-    changeControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.controls"), "gfx/menu/projectBox.svg", 200, 40, "gfx/menu/Ubuntu-Bold");
+    changeControlsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.controls"), "gfx/menu/projectBox.png", 200, 40, "gfx/menu/Ubuntu-Bold");
     changeControlsButton->text->setColor(Math::color(0, 0, 0, 255));
     if (canUnpacked) {
-        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.unpack"), "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.unpack"), "gfx/menu/projectBox.png", 200, 80, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(0, 0, 0, 255));
     } else {
-        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.deleteUnpacked"), "gfx/menu/projectBox.svg", 200, 80, "gfx/menu/Ubuntu-Bold");
+        UnpackProjectButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.deleteUnpacked"), "gfx/menu/projectBox.png", 200, 80, "gfx/menu/Ubuntu-Bold");
         UnpackProjectButton->text->setColor(Math::color(255, 0, 0, 255));
         UnpackProjectButton->text->setScale(0.75);
     }
 #if defined(__3DS__) || defined(__NDS__)
-    bottomScreenButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.bottom"), "gfx/menu/projectBox.svg", 200, 120, "gfx/menu/Ubuntu-Bold");
+    bottomScreenButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.bottom"), "gfx/menu/projectBox.png", 200, 120, "gfx/menu/Ubuntu-Bold");
     bottomScreenButton->text->setColor(Math::color(0, 0, 0, 255));
     bottomScreenButton->text->setScale(0.5);
 #endif
-    penModeButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.penMode"), "gfx/menu/projectBox.svg", 200, 160, "gfx/menu/Ubuntu-Bold");
+    penModeButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.penMode"), "gfx/menu/projectBox.png", 200, 160, "gfx/menu/Ubuntu-Bold");
     penModeButton->text->setColor(Math::color(0, 0, 0, 255));
     penModeButton->text->setScale(0.5);
 
-    collisionButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.collisionMode"), "gfx/menu/projectBox.svg", 200, 200, "gfx/menu/Ubuntu-Bold");
+    collisionButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.collisionMode"), "gfx/menu/projectBox.png", 200, 200, "gfx/menu/Ubuntu-Bold");
     collisionButton->text->setColor(Math::color(0, 0, 0, 255));
     collisionButton->text->setScale(0.5);
     collisionButton->shouldNineslice = true;
 
-    debugVarsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.fps"), "gfx/menu/projectBox.svg", 200, 240, "gfx/menu/Ubuntu-Bold");
+    debugVarsButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.fps"), "gfx/menu/projectBox.png", 200, 240, "gfx/menu/Ubuntu-Bold");
     debugVarsButton->text->setColor(Math::color(0, 0, 0, 255));
     debugVarsButton->text->setScale(0.5);
 
-    ramButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.keepProjectInRam"), "gfx/menu/projectBox.svg", 200, 280, "gfx/menu/Ubuntu-Bold");
+    ramButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.keepProjectInRam"), "gfx/menu/projectBox.png", 200, 280, "gfx/menu/Ubuntu-Bold");
     ramButton->text->setColor(Math::color(0, 0, 0, 255));
     ramButton->text->setScale(0.5);
     ramButton->shouldNineslice = true;
 
-    refreshLimitButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.warp"), "gfx/menu/projectBox.svg", 200, 320, "gfx/menu/Ubuntu-Bold");
+    refreshLimitButton = new ButtonObject(TranslationManager::getTranslation("ui.settings.warp"), "gfx/menu/projectBox.png", 200, 320, "gfx/menu/Ubuntu-Bold");
     refreshLimitButton->text->setColor(Math::color(0, 0, 0, 255));
     refreshLimitButton->text->setScale(0.5);
     refreshLimitButton->shouldNineslice = true;
 
     settingsControl = new ControlObject();
-    backButton = new ButtonObject("", "gfx/menu/buttonBack.svg", 375, 20, "gfx/menu/Ubuntu-Bold");
+    backButton = new ButtonObject("", "gfx/menu/buttonBack.png", 375, 20, "gfx/menu/Ubuntu-Bold");
     backButton->scale = 1.0;
     backButton->needsToBeSelected = false;
 

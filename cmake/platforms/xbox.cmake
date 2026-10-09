@@ -2,14 +2,13 @@ set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
 # NXDK should be present with $NXDK_DIR
 # NXDK-SDL3 should be present with $NXDK_SDL3_DIR
-#set(SE_RENDERER_VALID_OPTIONS "sdl3") 
-#set(SE_WINDOWING_VALID_OPTIONS "sdl3")
-#set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3")
+if(NOT "$ENV{NXDK_SDL3_DIR}" STREQUAL "")
+    add_subdirectory($ENV{NXDK_SDL3_DIR} nxdk-sdl3)
+endif()
 
-# For the moment, we want to see if it will run headlessly
-set(SE_RENDERER_VALID_OPTIONS "headless")
-set(SE_WINDOWING_VALID_OPTIONS "headless")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
+set(SE_RENDERER_VALID_OPTIONS "sdl3") 
+set(SE_WINDOWING_VALID_OPTIONS "sdl3")
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3") # FIXME: Audio is completely broken right now; check source/menus/*.cpp for audio disable calls
 
 set(SE_DEPS_VALID_OPTIONS "fallback" "system") # DO NOT MODIFY
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
@@ -22,20 +21,21 @@ set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)
 
 # These may need to be adjusted
-#set(SE_SVG ON)
-#set(SE_BITMAP ON)
-#set(SE_MENU ON)
-#set(SE_LOADSCREEN ON)
+set(SE_SVG ON) # FIXME: SVG loading is completely broken right now; check all source/menus/*.cpp for *.svg to *.png conversion
+set(SE_BITMAP ON)
+set(SE_MENU ON)
+set(SE_LOADSCREEN ON)
 
 set(SE_HAS_TOUCH FALSE)
 set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
-set(SE_HAS_THREADS OFF)
+set(SE_HAS_THREADS ON) # I'm just curious what this would do
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
 
+# TODO: add custom extension support, no lua.h on this build
 set(SE_ALLOW_CUSTOM_EXTENSIONS FALSE)
 set(SE_CUSTOM_EXTENSIONS OFF)
 
@@ -54,10 +54,12 @@ add_compile_options(
 
     # Required due to PIII Coppermine limitations
     -DSTBI_NO_SIMD
-    -DDR_MP3_NO_SIMD
-    -DDR_WAV_NO_SIMD
-    -DDR_MP3_NO_WCHAR
-    -DDR_WAV_NO_WCHAR
+    #-DDR_MP3_NO_SIMD
+    #-DDR_WAV_NO_SIMD
+    #-DDR_MP3_NO_WCHAR
+    #-DDR_WAV_NO_WCHAR
+    -fno-fast-math
+
 
     # These need review
     -DHAVE_UNISTD_H

@@ -144,6 +144,8 @@ void ButtonObject::render(double xPos, double yPos) {
     params.scale = scale * getScaleFactor();
     params.centered = true;
 
+    if (!buttonTexture || !buttonTexture->image) return;
+
     if (enableNineslice && this->shouldNineslice) {
         buttonTexture->image->renderNineslice(scaledPos[0], scaledPos[1],
                                               std::max(text->getSize()[0], (float)buttonTexture->image->getWidth() * renderScale),
@@ -300,7 +302,10 @@ void ControlObject::setScrollLimits() {
     maxY = -std::numeric_limits<int>::max();
 
     for (ButtonObject *object : buttonObjects) {
-        int height = object->buttonTexture->image->getHeight();
+        int height = 0;
+        if (object->buttonTexture && object->buttonTexture->image) {
+            height = object->buttonTexture->image->getHeight();
+        }
 
         if (object->y + height - REFERENCE_HEIGHT > maxY) {
             maxY = object->y + height - REFERENCE_HEIGHT;
