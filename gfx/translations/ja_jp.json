@@ -37,8 +37,10 @@
   "ui.loading.extensions": "拡張機能を読み込んでいます",
   "ui.loading.finish": "最後の一歩!",
   "ui.popup.extensions": "警告! このプロジェクトはネイティブ拡張機能を含んでいます。ネイティブ拡張機能はあなたのデバイスにフルアクセスを持ちます.",
+  "version.prefix.alpha": "アルファビルド",
   "version.prefix.beta": "ベータビルド",
   "version.prefix.release": "リリース",
   "version.prefix.releaseCanidate": "リリース候補",
-  "version.prefix.nightly": "ナイトリー"
+  "version.prefix.nightly": "ナイトリー",
+  "version.prefix.dev": "開発者向けビルド"
 }
