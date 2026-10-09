@@ -1,4 +1,6 @@
 #include <errno.h>
+#include <hal/debug.h>
+#include <hal/video.h>
 #include <nxdk/mount.h>
 #include <os.hpp>
 #include <stdio.h>
@@ -11,9 +13,14 @@ std::string *customProjectsPath = nullptr;
 } // namespace OS
 
 bool OS::init() {
+    XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
+    debugPrint("Hello nxdk!\n");
+    Sleep(1000);
 
     // Verify D: is mounted
     if (!nxIsDriveMounted('D')) {
+        debugPrint("D: mount failure!\n");
+        Sleep(5000);
         return 1;
     }
 
@@ -21,6 +28,8 @@ bool OS::init() {
     if (!nxIsDriveMounted('C')) {
         bool ret = nxMountDrive('C', "\\Device\\Harddisk0\\Partition2\\");
         if (!ret) {
+            debugPrint("C: mount failure!\n");
+            Sleep(5000);
             return 1;
         }
     }
@@ -29,14 +38,20 @@ bool OS::init() {
     if (!nxIsDriveMounted('E')) {
         bool ret = nxMountDrive('E', "\\Device\\Harddisk0\\Partition1\\");
         if (!ret) {
+            debugPrint("E: mount failure!\n");
+            Sleep(5000);
             return 1;
         }
     }
 
+    debugPrint("OS init!\n");
+    Sleep(1000);
     return true;
 }
 
 void OS::deinit() {
+    debugPrint("OS deinit!");
+    Sleep(5000);
 }
 
 std::string OS::getPlatform() {
@@ -62,7 +77,7 @@ std::string OS::getScratchFolderLocation() {
 }
 
 std::string OS::getRomFSLocation() {
-    return "D:/romfs/";
+    return "D:\\romfs\\";
 }
 
 // TODO: add support for the nxdk networking stack
