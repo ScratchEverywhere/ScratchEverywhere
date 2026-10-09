@@ -135,11 +135,12 @@ void TextObject::cleanupText() {
 static std::vector<unsigned char> readFontFile(const std::string &fullPath) {
 #ifdef USE_CMAKERC
     auto fs = cmrc::romfs::get_filesystem();
-    if (!fs.exists(fullPath)) {
+    std::string cmrcPath = OS::normalizeCMRCPath(fullPath);
+    if (!fs.exists(cmrcPath)) {
         Log::logError("Failed to open font file: " + fullPath);
         return {};
     }
-    auto file = fs.open(fullPath);
+    auto file = fs.open(cmrcPath);
     return std::vector<unsigned char>(file.begin(), file.end());
 #else
     FILE *f = fopen(fullPath.c_str(), "rb");

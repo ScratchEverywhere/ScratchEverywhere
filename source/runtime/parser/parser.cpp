@@ -212,8 +212,9 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         const auto &fs = cmrc::romfs::get_filesystem();
 
         std::unique_ptr<std::istringstream> romfsStream = nullptr;
-        if (fs.exists(romFSPath)) {
-            const auto &romfsIn = fs.open(romFSPath);
+        std::string cmrcExtPath = OS::normalizeCMRCPath(romFSPath);
+        if (fs.exists(cmrcExtPath)) {
+            const auto &romfsIn = fs.open(cmrcExtPath);
             romfsStream = std::make_unique<std::istringstream>(std::string(romfsIn.begin(), romfsIn.end()));
 
             auto result = extensions::parseMetadata(*romfsStream);

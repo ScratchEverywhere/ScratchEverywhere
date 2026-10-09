@@ -1,9 +1,11 @@
 #include "zip_archive.hpp"
+#include <log.hpp>
 
 #include <cstdint>
 #include <cstdlib>
 #include <istream>
 #include <memory>
+#include <string>
 #include <mz.h>
 #include <mz_strm.h>
 #include <mz_zip.h>
@@ -87,13 +89,21 @@ class MinizipZipArchive : public ZipArchive {
     }
 
     bool openFile(const std::string &path) override {
-        opened = handle && mz_zip_reader_open_file(handle, path.c_str()) == MZ_OK;
+        int32_t err = handle ? mz_zip_reader_open_file(handle, path.c_str()) : MZ_PARAM_ERROR;
+        if (err != MZ_OK) {
+            Log::logError("mz_zip_reader_open_file failed for " + path + " err=" + std::to_string(err));
+        }
+        opened = (err == MZ_OK);
         return opened;
     }
 
     bool openMemory(const void *data, size_t size) override {
-        opened = handle && mz_zip_reader_open_buffer(handle, static_cast<const uint8_t *>(data),
-                                                     static_cast<int32_t>(size), 0) == MZ_OK;
+        int32_t err = handle ? mz_zip_reader_open_buffer(handle, static_cast<uint8_t *>(const_cast<void *>(data)),
+                                                         static_cast<int32_t>(size), 0) : MZ_PARAM_ERROR;
+        if (err != MZ_OK) {
+            Log::logError("mz_zip_reader_open_buffer failed err=" + std::to_string(err) + " size=" + std::to_string(size));
+        }
+        opened = (err == MZ_OK);
         return opened;
     }
 
@@ -103,25 +113,81 @@ class MinizipZipArchive : public ZipArchive {
         streamWrapper->base.vtbl = &kIStreamVtbl;
         streamWrapper->stream = stream;
         streamWrapper->size = static_cast<int64_t>(size);
-        opened = mz_zip_reader_open(handle, streamWrapper.get()) == MZ_OK;
+        int32_t err = mz_zip_reader_open(handle, streamWrapper.get());
+        if (err != MZ_OK) {
+            Log::logError("mz_zip_reader_open stream failed err=" + std::to_string(err));
+        }
+        opened = (err == MZ_OK);
         return opened;
     }
 
     void *extractToHeap(const std::string &name, size_t *outSize) override {
-        if (!opened) return nullptr;
-        if (mz_zip_reader_locate_entry(handle, name.c_str(), 0) != MZ_OK) return nullptr;
+        if (!opened) {
+            Log::logError("MinizipZipArchive::extractToHeap: archive not open!");
+            return nullptr;
+        }
+
+        int32_t err = mz_zip_reader_locate_entry(handle, name.c_str(), 1);
+        if (err != MZ_OK) {
+            err = mz_zip_reader_locate_entry(handle, ("./" + name).c_str(), 1);
+        }
+        if (err != MZ_OK) {
+            err = mz_zip_reader_goto_first_entry(handle);
+            while (err == MZ_OK) {
+                mz_zip_file *file_info = nullptr;
+                if (mz_zip_reader_entry_get_info(handle, &file_info) == MZ_OK && file_info && file_info->filename) {
+                    std::string filename = file_info->filename;
+                    if (filename == name ||
+                        (filename.size() >= name.size() &&
+                         filename.compare(filename.size() - name.size(), name.size(), name) == 0)) {
+                        break;
+                    }
+                }
+                err = mz_zip_reader_goto_next_entry(handle);
+            }
+        }
+
+        if (err != MZ_OK) {
+            Log::logError("MinizipZipArchive::extractToHeap: locate entry failed for " + name + " err=" + std::to_string(err));
+            return nullptr;
+        }
 
         mz_zip_file *info = nullptr;
-        if (mz_zip_reader_entry_get_info(handle, &info) != MZ_OK || !info) return nullptr;
-        if (info->uncompressed_size < 0 || info->uncompressed_size > INT32_MAX) return nullptr;
+        if (mz_zip_reader_entry_get_info(handle, &info) != MZ_OK || !info) {
+            Log::logError("MinizipZipArchive::extractToHeap: entry_get_info failed for " + name);
+            return nullptr;
+        }
+        if (info->uncompressed_size < 0 || info->uncompressed_size > INT32_MAX) {
+            Log::logError("MinizipZipArchive::extractToHeap: uncompressed_size invalid for " + name);
+            return nullptr;
+        }
 
         int32_t size = static_cast<int32_t>(info->uncompressed_size);
         void *buf = malloc(size > 0 ? static_cast<size_t>(size) : 1);
-        if (!buf) return nullptr;
-
-        if (size > 0 && mz_zip_reader_entry_save_buffer(handle, buf, size) != MZ_OK) {
-            free(buf);
+        if (!buf) {
+            Log::logError("MinizipZipArchive::extractToHeap: malloc failed size=" + std::to_string(size));
             return nullptr;
+        }
+
+        if (size > 0) {
+            int32_t save_err = mz_zip_reader_entry_save_buffer(handle, buf, size);
+            if (save_err != MZ_OK) {
+                Log::logError("mz_zip_reader_entry_save_buffer failed err=" + std::to_string(save_err) + " trying entry_open+read");
+                int32_t open_err = mz_zip_reader_entry_open(handle);
+                if (open_err == MZ_OK) {
+                    int32_t read_bytes = mz_zip_reader_entry_read(handle, buf, size);
+                    mz_zip_reader_entry_close(handle);
+                    if (read_bytes < 0) {
+                        Log::logError("mz_zip_reader_entry_read failed ret=" + std::to_string(read_bytes));
+                        free(buf);
+                        return nullptr;
+                    }
+                } else {
+                    Log::logError("mz_zip_reader_entry_open failed err=" + std::to_string(open_err));
+                    free(buf);
+                    return nullptr;
+                }
+            }
         }
 
         if (outSize) *outSize = static_cast<size_t>(size);

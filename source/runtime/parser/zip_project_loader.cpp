@@ -35,16 +35,27 @@ bool ZipProjectLoader::load(std::istream *file) {
             Scratch::sb3InRam = true;
 
             // read the file
+            file->clear();
             std::streamsize size = file->tellg();
+            if (size <= 0) {
+                file->seekg(0, std::ios::end);
+                size = file->tellg();
+            }
+            file->clear();
             file->seekg(0, std::ios::beg);
+
             Unzip::zipBuffer.resize(size);
-            if (!file->read(Unzip::zipBuffer.data(), size)) {
+            file->read(Unzip::zipBuffer.data(), size);
+            if (static_cast<size_t>(file->gcount()) != static_cast<size_t>(size)) {
+                Log::logCritical("Failed to read project zip buffer into memory.", false);
                 return false;
             }
+            file->clear();
 
             // open ZIP file
             Unzip::zipArchive = createZipArchive();
             if (!Unzip::zipArchive->openMemory(Unzip::zipBuffer.data(), Unzip::zipBuffer.size())) {
+                Log::logCritical("Failed to open project zip buffer memory archive.", false);
                 Unzip::zipArchive.reset();
                 return false;
             }
@@ -53,6 +64,7 @@ bool ZipProjectLoader::load(std::istream *file) {
             size_t json_size;
             void *json_data = Unzip::zipArchive->extractToHeap("project.json", &json_size);
             if (!json_data) {
+                Log::logCritical("Failed to extract project.json from zip memory archive.", false);
                 return false;
             }
 
@@ -61,8 +73,10 @@ bool ZipProjectLoader::load(std::istream *file) {
         } else {
             Scratch::sb3InRam = false;
 
+            file->clear();
             file->seekg(0, std::ios::end);
             uint64_t file_size = file->tellg();
+            file->clear();
             file->seekg(0, std::ios::beg);
 
             auto archive = createZipArchive();
@@ -88,6 +102,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         // get file size
         file->seekg(0, std::ios::end);
         std::streamsize size = file->tellg();
+        file->clear();
         file->seekg(0, std::ios::beg);
 
         // put file into string
@@ -110,13 +125,23 @@ bool ZipProjectLoader::load(std::istream *file) {
 }
 
 void *ZipProjectLoader::getAsset(const std::string &name, size_t *outSize) {
+    if (Unzip::zipArchive) {
+        size_t size = 0;
+        void *data = Unzip::zipArchive->extractToHeap(name, &size);
+        if (data) {
+            if (outSize != nullptr) *outSize = size;
+            return data;
+        }
+    }
+
     auto archive = createZipArchive();
     bool initSuccess = false;
 
 #ifdef USE_CMAKERC
     if (Scratch::projectType == ProjectType::EMBEDDED) {
         const auto &fs = cmrc::romfs::get_filesystem();
-        const auto &romfsFile = fs.open(Unzip::filePath);
+        std::string cmrcPath = OS::normalizeCMRCPath(Unzip::filePath);
+        const auto &romfsFile = fs.open(cmrcPath);
         initSuccess = archive->openMemory(romfsFile.begin(), romfsFile.size());
     } else {
 #endif

@@ -67,6 +67,36 @@ SE_EXPORT std::string getScratchFolderLocation();
 SE_EXPORT std::string getRomFSLocation();
 
 /**
+ * Normalizes paths for use with CMakeRC embedded filesystem (CMRC).
+ * Strips OS::getRomFSLocation() and leading drive/romfs prefixes, converting backslashes to slashes.
+ */
+inline std::string normalizeCMRCPath(const std::string &path) {
+    std::string p = path;
+    for (char &c : p) {
+        if (c == '\\') c = '/';
+    }
+
+    std::string prefix = getRomFSLocation();
+    for (char &c : prefix) {
+        if (c == '\\') c = '/';
+    }
+
+    if (!prefix.empty() && p.compare(0, prefix.length(), prefix) == 0) {
+        p = p.substr(prefix.length());
+    }
+
+    if (p.compare(0, 9, "D:/romfs/") == 0) p = p.substr(9);
+    else if (p.compare(0, 8, "D:/romfs") == 0) p = p.substr(8);
+    else if (p.compare(0, 6, "romfs/") == 0) p = p.substr(6);
+    else if (p.compare(0, 5, "romfs") == 0) p = p.substr(5);
+
+    while (!p.empty() && (p[0] == '/' || p[0] == '\\')) {
+        p = p.substr(1);
+    }
+    return p;
+}
+
+/**
  * Get the current platform that's running the app.
  * @return The string of the current platform. `3DS`, `Wii`, etc.
  */

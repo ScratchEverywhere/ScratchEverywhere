@@ -26,7 +26,8 @@ const std::vector<TranslationManager::LanguageInfo> TranslationManager::getLangu
 
     const std::string path = OS::getRomFSLocation() + "gfx/translations/languages.json";
 #ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(path);
+    std::string cmrcPath = OS::normalizeCMRCPath(path);
+    const auto &file = cmrc::romfs::get_filesystem().open(cmrcPath);
     nlohmann::json json = nlohmann::json::parse(file.begin(), file.begin() + file.size());
 #else
     nlohmann::json json;
@@ -54,11 +55,13 @@ void TranslationManager::loadLanguage(std::string language) {
 
 #ifdef USE_CMAKERC
     const auto &fs = cmrc::romfs::get_filesystem();
+    std::string cmrcLangPath = OS::normalizeCMRCPath(path);
+    std::string cmrcSplashPath = OS::normalizeCMRCPath(splashPath);
 
-    const auto &file = fs.open(path);
+    const auto &file = fs.open(cmrcLangPath);
     translationKeys = nlohmann::json::parse(file.begin(), file.begin() + file.size());
 
-    const auto &splashFile = fs.open(splashPath);
+    const auto &splashFile = fs.open(cmrcSplashPath);
     std::string_view sv(splashFile.begin(), splashFile.size());
     std::istringstream stream{std::string(sv)};
 

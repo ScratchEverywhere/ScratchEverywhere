@@ -1,8 +1,40 @@
+# NXDK patch application
+if(NOT "$ENV{NXDK_DIR}" STREQUAL "")
+    set(NXDK_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk.patch")
+    if(EXISTS "${NXDK_PATCH_FILE}")
+        execute_process(
+            COMMAND git apply --check "${NXDK_PATCH_FILE}"
+            WORKING_DIRECTORY "$ENV{NXDK_DIR}"
+            RESULT_VARIABLE GIT_APPLY_CHECK
+            OUTPUT_QUIET ERROR_QUIET
+        )
+        if(GIT_APPLY_CHECK EQUAL 0)
+            message(STATUS "Applying nxdk.patch to nxdk...")
+            execute_process(
+                COMMAND git apply "${NXDK_PATCH_FILE}"
+                WORKING_DIRECTORY "$ENV{NXDK_DIR}"
+                RESULT_VARIABLE GIT_APPLY_RESULT
+            )
+            if(GIT_APPLY_RESULT EQUAL 0)
+                message(STATUS "Successfully applied nxdk.patch. Rebuilding libxboxrt.lib...")
+                execute_process(
+                    COMMAND bash -c "$ENV{NXDK_DIR}/bin/nxdk-cc -c $ENV{NXDK_DIR}/lib/xboxrt/libc_extensions/stdlib_ext_.c -o $ENV{NXDK_DIR}/lib/xboxrt/libc_extensions/stdlib_ext_.obj && llvm-ar rcs $ENV{NXDK_DIR}/lib/libxboxrt.lib $ENV{NXDK_DIR}/lib/xboxrt/libc_extensions/*.obj $ENV{NXDK_DIR}/lib/xboxrt/c_runtime/*.obj $ENV{NXDK_DIR}/lib/xboxrt/vcruntime/*.obj"
+                    WORKING_DIRECTORY "$ENV{NXDK_DIR}"
+                )
+            else()
+                message(FATAL_ERROR "Failed to apply nxdk.patch!")
+            endif()
+        else()
+            message(STATUS "nxdk.patch is already applied.")
+        endif()
+    endif()
+endif()
+
 # NXDK should be present with $NXDK_DIR
 if(NOT "$ENV{NXDK_DIR}" STREQUAL "" AND NOT EXISTS "$ENV{NXDK_DIR}/lib/libnxdk.lib")
     message(STATUS "NXDK libraries not found. Building nxdk...")
     execute_process(
-        COMMAND make -j
+        COMMAND make -j NXDK_ONLY=y
         WORKING_DIRECTORY "$ENV{NXDK_DIR}"
         RESULT_VARIABLE NXDK_MAKE_RESULT
     )
@@ -46,13 +78,13 @@ endif()
 
 set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl3") 
-set(SE_WINDOWING_VALID_OPTIONS "sdl3")
+set(SE_RENDERER_VALID_OPTIONS "sdl3") # "headless") 
+set(SE_WINDOWING_VALID_OPTIONS "sdl3") # "headless")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "headless") # "sdl3") # FIXME: Audio is completely broken right now; check source/menus/*.cpp for audio disable calls
 
 set(SE_DEPS_VALID_OPTIONS "fallback" "system") # DO NOT MODIFY
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
-set(SE_ZIP_BACKEND "minizip") # DO NOT MODIFY
+set(SE_ZIP_BACKEND "miniz")
 
 set(SE_CACHING_DEFAULT OFF) # Stream from romfs or hard drive since we only have 64 MiB of RAM
 set(SE_DECTALK_DEFAULT OFF) # CPU expensive and nxdk implementation has type conflicts; keep off for now
@@ -136,6 +168,10 @@ add_compile_options(-w)
 
 # DO NOT MODIFY
 macro(package_platform)
+    if(TARGET SDL3-static)
+        add_dependencies(scratch-everywhere SDL3-static)
+    endif()
+
     target_link_libraries(scratch-everywhere PUBLIC ${NXDK_DIR}/lib/libnxdk_automount_d.lib)
     target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
 

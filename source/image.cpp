@@ -65,7 +65,8 @@ bool Image::loadFont(const std::string &family) {
     const std::string &path = it->second.path;
 
 #ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
+    std::string cmrcFontPath = OS::normalizeCMRCPath(OS::getRomFSLocation() + path + ".ttf");
+    const auto &file = cmrc::romfs::get_filesystem().open(cmrcFontPath);
     if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
 #else
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
@@ -175,8 +176,9 @@ nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffe
 #ifdef USE_CMAKERC
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
         auto fs = cmrc::romfs::get_filesystem();
-        if (!fs.exists(filePath)) return nonstd::make_unexpected("File not found: " + filePath);
-        auto file = fs.open(filePath);
+        std::string cmrcPath = OS::normalizeCMRCPath(filePath);
+        if (!fs.exists(cmrcPath)) return nonstd::make_unexpected("File not found: " + filePath);
+        auto file = fs.open(cmrcPath);
         std::vector<unsigned char> buffer(file.size() + 1);
         std::copy(file.begin(), file.end(), buffer.begin());
         buffer[file.size()] = '\0';
@@ -380,7 +382,10 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
 #ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
-    if (!pixels) return nonstd::make_unexpected("Failed to decode raster image");
+    if (!pixels) {
+        const char *reason = stbi_failure_reason();
+        return nonstd::make_unexpected(std::string("Failed to decode raster image: ") + (reason ? reason : "unknown"));
+    }
     imgData.pitch = width * 4;
 
 #ifdef __OGC__ // may break getPixels()
