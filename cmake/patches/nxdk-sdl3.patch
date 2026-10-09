@@ -1,0 +1,95 @@
+diff --git a/nxdk_glue/render/SDL_render_xgu.c b/nxdk_glue/render/SDL_render_xgu.c
+index df82129..fb937ca 100644
+--- a/nxdk_glue/render/SDL_render_xgu.c
++++ b/nxdk_glue/render/SDL_render_xgu.c
+@@ -319,6 +319,50 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+         format = XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, surface_format);
+     }
+ 
++    if (xgu_texture == NULL) {
++        pb_target_back_buffer();
++        render_data->active_render_target = NULL;
++        render_data->viewport.x = 0;
++        render_data->viewport.y = 0;
++        render_data->viewport.w = pb_back_buffer_width();
++        render_data->viewport.h = pb_back_buffer_height();
++        render_data->clip_rect.x = 0;
++        render_data->clip_rect.y = 0;
++        render_data->clip_rect.w = pb_back_buffer_width();
++        render_data->clip_rect.h = pb_back_buffer_height();
++
++        uint32_t *p = pb_begin();
++        p = pb_push1(p, NV097_WAIT_FOR_IDLE, 0);
++        p = pb_push1(p, NV097_SET_SURFACE_PITCH,
++                     XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pb_back_buffer_pitch()) |
++                         XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, pb_back_buffer_width() * 4));
++
++        p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, 0); // pb_target_back_buffer sets DMA addr directly
++
++        p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
++                     XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, pb_back_buffer_width()) |
++                         XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
++        p = pb_push1(p, NV097_SET_SURFACE_CLIP_VERTICAL,
++                     XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT, pb_back_buffer_height()) |
++                         XGU_MASK(NV097_SET_SURFACE_CLIP_VERTICAL_Y, 0));
++        p = pb_push1(p, NV097_SET_SURFACE_FORMAT,
++                     XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8) |
++                         XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
++                         XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH));
++        pb_end(p);
++
++        return true;
++    }
++
++    render_data->viewport.x = 0;
++    render_data->viewport.y = 0;
++    render_data->viewport.w = xgu_texture->tex_width;
++    render_data->viewport.h = xgu_texture->tex_height;
++    render_data->clip_rect.x = 0;
++    render_data->clip_rect.y = 0;
++    render_data->clip_rect.w = xgu_texture->tex_width;
++    render_data->clip_rect.h = xgu_texture->tex_height;
++
+     format |= XGU_MASK(NV097_SET_SURFACE_FORMAT_ZETA, NV097_SET_SURFACE_FORMAT_ZETA_Z24S8) |
+               XGU_MASK(NV097_SET_SURFACE_FORMAT_TYPE, NV097_SET_SURFACE_FORMAT_TYPE_PITCH);
+ 
+@@ -334,7 +378,9 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
+     p = pb_push1(p, NV097_SET_SURFACE_PITCH,
+                  XGU_MASK(NV097_SET_SURFACE_PITCH_COLOR, pitch) |
+                      XGU_MASK(NV097_SET_SURFACE_PITCH_ZETA, zpitch));
++
+     p = pb_push1(p, NV097_SET_SURFACE_COLOR_OFFSET, 0); // This is offset from the DMA address
++
+     p = pb_push1(p, NV097_SET_SURFACE_CLIP_HORIZONTAL,
+                  XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH, clip_width) |
+                      XGU_MASK(NV097_SET_SURFACE_CLIP_HORIZONTAL_X, 0));
+@@ -923,6 +969,15 @@ static bool XBOX_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_
+     p = xgu_set_scissor_rect(p, false, 0, 0, pb_back_buffer_width(), pb_back_buffer_height());
+     pb_end(p);
+ 
++    render_data->viewport.x = 0;
++    render_data->viewport.y = 0;
++    render_data->viewport.w = pb_back_buffer_width();
++    render_data->viewport.h = pb_back_buffer_height();
++    render_data->clip_rect.x = 0;
++    render_data->clip_rect.y = 0;
++    render_data->clip_rect.w = pb_back_buffer_width();
++    render_data->clip_rect.h = pb_back_buffer_height();
++
+     const int SDL_XGU_RENDER_TARGET_DMA_CHANNEL = 3;
+     pb_create_dma_ctx(SDL_XGU_RENDER_TARGET_DMA_CHANNEL, DMA_CLASS_3D, 0, MAXRAM, &render_data->render_target_dma_ctx);
+     pb_bind_channel(&render_data->render_target_dma_ctx);
+diff --git a/nxdk_glue/video/SDL_xboxvideo.c b/nxdk_glue/video/SDL_xboxvideo.c
+index 62ba919..0dd63c8 100644
+--- a/nxdk_glue/video/SDL_xboxvideo.c
++++ b/nxdk_glue/video/SDL_xboxvideo.c
+@@ -23,6 +23,9 @@ static bool XBOX_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_Pr
+ 
+     SDL_PixelFormat format = SDL_GetWindowPixelFormat(window);
+     int bpp = SDL_BYTESPERPIXEL(format) * 8;
++    if (bpp == 0) {
++        bpp = 32;
++    }
+ 
+     // Unless it looks like we are request HD modes, fall back to 640x480
+     if (window->w * window->h < 1280 * 720) {

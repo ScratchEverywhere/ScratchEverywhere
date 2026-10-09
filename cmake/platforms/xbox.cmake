@@ -1,14 +1,54 @@
-set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
-
 # NXDK should be present with $NXDK_DIR
-# NXDK-SDL3 should be present with $NXDK_SDL3_DIR
+if(NOT "$ENV{NXDK_DIR}" STREQUAL "" AND NOT EXISTS "$ENV{NXDK_DIR}/lib/libnxdk.lib")
+    message(STATUS "NXDK libraries not found. Building nxdk...")
+    execute_process(
+        COMMAND make -j
+        WORKING_DIRECTORY "$ENV{NXDK_DIR}"
+        RESULT_VARIABLE NXDK_MAKE_RESULT
+    )
+    if(NOT NXDK_MAKE_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to build nxdk automatically.")
+    endif()
+endif()
+
+# NXDK-SDL3 single patch application and subdirectory inclusion
 if(NOT "$ENV{NXDK_SDL3_DIR}" STREQUAL "")
+    set(PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk-sdl3.patch")
+    
+    if(EXISTS "${PATCH_FILE}")
+        # Check if patch can be applied cleanly (prevents errors on re-configuration)
+        execute_process(
+            COMMAND git apply --check "${PATCH_FILE}"
+            WORKING_DIRECTORY "$ENV{NXDK_SDL3_DIR}"
+            RESULT_VARIABLE GIT_APPLY_CHECK
+            OUTPUT_QUIET ERROR_QUIET
+        )
+        
+        if(GIT_APPLY_CHECK EQUAL 0)
+            message(STATUS "Applying nxdk-sdl3.patch to nxdk-sdl3...")
+            execute_process(
+                COMMAND git apply "${PATCH_FILE}"
+                WORKING_DIRECTORY "$ENV{NXDK_SDL3_DIR}"
+                RESULT_VARIABLE GIT_APPLY_RESULT
+            )
+            if(GIT_APPLY_RESULT EQUAL 0)
+                message(STATUS "Successfully applied nxdk-sdl3.patch.")
+            else()
+                message(FATAL_ERROR "Failed to apply nxdk-sdl3.patch!")
+            endif()
+        else()
+            message(STATUS "nxdk-sdl3.patch is already applied.")
+        endif()
+    endif()
+
     add_subdirectory($ENV{NXDK_SDL3_DIR} nxdk-sdl3)
 endif()
 
+set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
+
 set(SE_RENDERER_VALID_OPTIONS "sdl3") 
 set(SE_WINDOWING_VALID_OPTIONS "sdl3")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3") # FIXME: Audio is completely broken right now; check source/menus/*.cpp for audio disable calls
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "headless") # "sdl3") # FIXME: Audio is completely broken right now; check source/menus/*.cpp for audio disable calls
 
 set(SE_DEPS_VALID_OPTIONS "fallback" "system") # DO NOT MODIFY
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
@@ -30,7 +70,7 @@ set(SE_HAS_TOUCH FALSE)
 set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
-set(SE_HAS_THREADS ON) # I'm just curious what this would do
+set(SE_HAS_THREADS ON)
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
@@ -59,7 +99,6 @@ add_compile_options(
     #-DDR_MP3_NO_WCHAR
     #-DDR_WAV_NO_WCHAR
     -fno-fast-math
-
 
     # These need review
     -DHAVE_UNISTD_H
