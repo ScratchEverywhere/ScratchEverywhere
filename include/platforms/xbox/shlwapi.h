@@ -4,12 +4,6 @@
 #include <windows.h>
 #include <stddef.h>
 
-#ifdef __cplusplus
-namespace std {
-    static inline size_t mbstowcs(wchar_t *dest, const char *src, size_t n) { return 0; }
-}
-#endif
-
 typedef struct _SHFILEOPSTRUCTW {
     HWND         hwnd;
     UINT         wFunc;
@@ -29,23 +23,5 @@ typedef struct _SHFILEOPSTRUCTW {
 
 static inline int SHFileOperationW(LPSHFILEOPSTRUCTW lpFileOp) { return 0; }
 
-typedef struct _WIN32_FIND_DATAW {
-    DWORD dwFileAttributes;
-    FILETIME ftCreationTime;
-    FILETIME ftLastAccessTime;
-    FILETIME ftLastWriteTime;
-    DWORD nFileSizeHigh;
-    DWORD nFileSizeLow;
-    DWORD dwReserved0;
-    DWORD dwReserved1;
-    wchar_t cFileName[260];
-    wchar_t cAlternateFileName[14];
-} WIN32_FIND_DATAW, *PWIN32_FIND_DATAW, *LPWIN32_FIND_DATAW;
-
-static inline HANDLE FindFirstFileW(const wchar_t* lpFileName, LPWIN32_FIND_DATAW lpFindFileData) { return (HANDLE)-1; }
-static inline BOOL FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData) { return 0; }
-
-#define CP_UTF8 65001
-static inline int WideCharToMultiByte(UINT CodePage, DWORD dwFlags, const wchar_t* lpWideCharStr, int cchWideChar, LPSTR lpMultiByteStr, int cbMultiByte, const char* lpDefaultChar, PBOOL lpUsedDefaultChar) { return 0; }
-
 #endif
+

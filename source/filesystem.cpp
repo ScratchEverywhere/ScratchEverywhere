@@ -59,7 +59,28 @@ nonstd::expected<void, std::string> FileSystem::removeDirectory(const std::strin
         return nonstd::make_unexpected("Not a directory, " + path + ", " + std::to_string(errno));
     }
 
-#ifdef _WIN32
+#if defined(__XBOX__)
+    auto dirFiles = listDirectory(path);
+    if (dirFiles.has_value()) {
+        for (const auto &file : dirFiles.value()) {
+            std::string fullPath = path + "/" + file;
+            struct stat entrySt;
+            if (stat(fullPath.c_str(), &entrySt) == 0) {
+                if (S_ISDIR(entrySt.st_mode)) {
+                    auto res = removeDirectory(fullPath);
+                    if (!res.has_value()) return res;
+                } else {
+                    if (remove(fullPath.c_str()) != 0) {
+                        return nonstd::make_unexpected("File removal failed, " + fullPath + ", " + std::to_string(errno));
+                    }
+                }
+            }
+        }
+    }
+    if (rmdir(path.c_str()) != 0) {
+        return nonstd::make_unexpected("Directory removal failed, " + path + ", " + std::to_string(errno));
+    }
+#elif defined(_WIN32)
     std::wstring wpath(path.size(), L' ');
     wpath.resize(std::mbstowcs(&wpath[0], path.c_str(), path.size()) + 1);
 
@@ -123,7 +144,52 @@ std::string FileSystem::parentPath(const std::string &path) {
 nonstd::expected<std::vector<std::string>, std::string> FileSystem::listDirectory(const std::string &path) {
     std::vector<std::string> files;
 
-#if defined(_WIN32)
+#if defined(__XBOX__)
+    std::string searchPath = path;
+    if (searchPath.empty()) {
+        searchPath = "D:\\";
+    }
+    for (char &c : searchPath) {
+        if (c == '/') c = '\\';
+    }
+    if (searchPath.back() != '\\') {
+        searchPath += "\\*.*";
+    } else {
+        searchPath += "*.*";
+    }
+
+    WIN32_FIND_DATAA findData;
+    HANDLE hFind = FindFirstFileA(searchPath.c_str(), &findData);
+
+    if (hFind == INVALID_HANDLE_VALUE) {
+        DWORD err = GetLastError();
+        if (err == ERROR_FILE_NOT_FOUND || err == ERROR_NO_MORE_FILES) {
+            return files;
+        }
+        std::string fallback = searchPath;
+        if (fallback.size() >= 2 && fallback.substr(fallback.size() - 2) == ".*") {
+            fallback.erase(fallback.size() - 2);
+            hFind = FindFirstFileA(fallback.c_str(), &findData);
+        }
+        if (hFind == INVALID_HANDLE_VALUE) {
+            err = GetLastError();
+            if (err == ERROR_FILE_NOT_FOUND || err == ERROR_NO_MORE_FILES) {
+                return files;
+            }
+            return nonstd::make_unexpected("Failed to open directory, " + path + ", " + std::to_string(err));
+        }
+    }
+
+    do {
+        std::string fileName = findData.cFileName;
+        if (fileName != "." && fileName != "..") {
+            files.push_back(fileName);
+        }
+    } while (FindNextFileA(hFind, &findData) != 0);
+
+    FindClose(hFind);
+
+#elif defined(_WIN32)
     std::string searchPath = path;
     if (searchPath.empty()) {
         searchPath = ".";
@@ -141,7 +207,11 @@ nonstd::expected<std::vector<std::string>, std::string> FileSystem::listDirector
     HANDLE hFind = FindFirstFileW(wsearchPath.c_str(), &findData);
 
     if (hFind == INVALID_HANDLE_VALUE) {
-        return nonstd::make_unexpected("Failed to open directory, " + path + ", " + std::to_string(GetLastError()));
+        DWORD err = GetLastError();
+        if (err == ERROR_FILE_NOT_FOUND || err == ERROR_NO_MORE_FILES) {
+            return files;
+        }
+        return nonstd::make_unexpected("Failed to open directory, " + path + ", " + std::to_string(err));
     }
 
     do {

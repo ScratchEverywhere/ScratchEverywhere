@@ -58,7 +58,7 @@ void OS::deinit() {
 }
 
 std::string OS::getPlatform() {
-    return "Original Xbox";
+    return "Xbox";
 }
 
 bool OS::isEnhancedPlatform() {
