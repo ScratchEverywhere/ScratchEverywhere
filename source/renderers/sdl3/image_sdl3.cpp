@@ -197,17 +197,34 @@ Image_SDL3::Image_SDL3(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
 }
 
 Image_SDL3::Image_SDL3(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+#if defined(__XBOX__)
+    Log::log("Image_SDL3 constructor: filePath=" + filePath);
+#endif
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
 
+#if defined(__XBOX__)
+    Log::log("Image_SDL3 constructor: calling init()...");
+#endif
     const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
     if (!initResult.has_value()) {
+#if defined(__XBOX__)
+        Log::logError("Image_SDL3 constructor: init() failed: " + initResult.error());
+#endif
         error = initResult.error();
         return;
     }
 
+#if defined(__XBOX__)
+    Log::log("Image_SDL3 constructor: calling setInitialTexture()...");
+#endif
     const auto potentialError = setInitialTexture();
-    if (!potentialError.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) {
+#if defined(__XBOX__)
+        Log::logError("Image_SDL3 constructor: setInitialTexture() failed: " + potentialError.error());
+#endif
+        error = potentialError.error();
+    }
 }
 
 Image_SDL3::~Image_SDL3() {

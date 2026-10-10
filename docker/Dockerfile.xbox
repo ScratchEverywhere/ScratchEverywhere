@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bison \
     flex \
     git \
+    cargo \
+    rustc \
     ca-certificates
 
 # Point to both the nxdk and nxdk-sdl3 as environment variables for the container itself
@@ -25,7 +27,7 @@ RUN git clone --recursive --depth 1 https://github.com/xboxDev/nxdk.git /nxdk &&
     cp /nxdk/tools/extract-xiso/build/extract-xiso /nxdk/bin/extract-xiso
 
 # Clone the github.com/Ryzee119/nxdk-sdl3 repository
-RUN git clone --recursive --depth 1 https://github.com/Ryzee119/nxdk-sdl3.git /nxdk-sdl3
+RUN git clone --recursive --depth 1 -b nxaudio https://github.com/Ryzee119/nxdk-sdl3.git /nxdk-sdl3
 
 COPY . .
 

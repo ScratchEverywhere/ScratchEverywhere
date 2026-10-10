@@ -8,7 +8,7 @@
 #include <string_view>
 #include <unzip.hpp>
 #ifdef ENABLE_BITMAP
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__XBOX__)
 #define STBI_NO_THREAD_LOCALS
 #endif
 #define STB_IMAGE_IMPLEMENTATION
@@ -113,6 +113,9 @@ bool Image::loadFont(const std::string &family) {
 }
 
 nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
+#if defined(__XBOX__)
+    Log::log("createImageFromFile: filePath=" + filePath);
+#endif
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -207,13 +210,18 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 }
 
 nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
+#if defined(__XBOX__)
+    Log::log("readFileToBuffer: filePath=" + filePath + " fromScratchProject=" + std::to_string(fromScratchProject));
+#endif
 #ifdef USE_CMAKERC
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
         auto fs = cmrc::romfs::get_filesystem();
 #if defined(__XBOX__)
         std::string cmrcPath = OS::normalizeCMRCPath(filePath);
+        Log::log("readFileToBuffer (CMRC): cmrcPath=" + cmrcPath + " exists=" + std::to_string(fs.exists(cmrcPath)));
         if (!fs.exists(cmrcPath)) return nonstd::make_unexpected("File not found: " + filePath);
         auto file = fs.open(cmrcPath);
+        Log::log("readFileToBuffer (CMRC): opened size=" + std::to_string(file.size()));
 #else
         if (!fs.exists(filePath)) return nonstd::make_unexpected("File not found: " + filePath);
         auto file = fs.open(filePath);
@@ -476,9 +484,13 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
 
 nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality) {
 #ifdef ENABLE_BITMAP
+#if defined(__XBOX__)
+    Log::log("loadRasterFromMemory: size=" + std::to_string(size) + " calling stbi_load_from_memory...");
+#endif
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
 #if defined(__XBOX__)
+    Log::log("loadRasterFromMemory: stbi_load_from_memory returned pixels=" + std::to_string((uintptr_t)pixels) + " w=" + std::to_string(width) + " h=" + std::to_string(height));
     if (!pixels) {
         const char *reason = stbi_failure_reason();
         return nonstd::make_unexpected(std::string("Failed to decode raster image: ") + (reason ? reason : "unknown"));
@@ -529,6 +541,10 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
     } else filePath = OS::getRomFSLocation() + filePath;
 
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
+
+#if defined(__XBOX__)
+    Log::log("Image::init: filePath=" + filePath + " isSVG=" + std::to_string(isSVG));
+#endif
 
     auto buffer = readFileToBuffer(filePath, fromScratchProject);
     if (!buffer.has_value()) return nonstd::make_unexpected(buffer.error());

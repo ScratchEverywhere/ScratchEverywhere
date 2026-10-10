@@ -113,6 +113,9 @@ bool Scratch::initializeRuntime() {
     }
 #endif
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    Log::log("Scratch::initializeRuntime: initializing audio (SoundPlayer::init)...");
+#endif
 #ifdef ENABLE_DECTALK
     TextToSpeechSafeInit();
 #endif
@@ -120,6 +123,9 @@ bool Scratch::initializeRuntime() {
         Log::logCritical("Failed to initialize audio.", false);
         return false;
     }
+#if defined(__XBOX__)
+    Log::log("Scratch::initializeRuntime: SoundPlayer::init succeeded!");
+#endif
 #endif
     return true;
 }

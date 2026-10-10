@@ -96,6 +96,21 @@ inline std::string normalizeCMRCPath(const std::string &path) {
     }
     return p;
 }
+
+/**
+ * Normalizes disk paths for Xbox filesystem by converting forward slashes to backslashes.
+ */
+inline std::string normalizePath(const std::string &path) {
+    std::string p = path;
+    for (char &c : p) {
+        if (c == '/') c = '\\';
+    }
+    return p;
+}
+#else
+inline std::string normalizePath(const std::string &path) {
+    return path;
+}
 #endif
 
 /**

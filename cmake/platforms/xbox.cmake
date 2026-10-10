@@ -87,7 +87,7 @@ set(SE_DEPS_VALID_OPTIONS "fallback" "system") # DO NOT MODIFY
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
 set(SE_ZIP_BACKEND "miniz")
 
-set(SE_CACHING_DEFAULT OFF) # Stream from romfs or hard drive since we only have 64 MiB of RAM
+set(SE_CACHING_DEFAULT ON) # Stream from romfs or hard drive since we only have 64 MiB of RAM
 set(SE_DECTALK_DEFAULT OFF) # CPU expensive and nxdk implementation has type conflicts; keep off for now
 set(SE_ALLOW_CMAKERC ON)
 set(SE_ALLOW_CLOUDVARS OFF)

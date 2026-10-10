@@ -30,6 +30,9 @@ SoundConfig::SoundConfig() {
 
 bool SoundStream::loadAsWAV() {
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    Log::log("SoundStream::loadAsWAV: loading WAV buffer_size=" + std::to_string(this->buffer_size));
+#endif
     if (!drwav_init_memory(&this->wav, this->buffer, this->buffer_size, nullptr)) {
         Log::logError("Failed to load WAV file.");
         return false;
@@ -39,6 +42,9 @@ bool SoundStream::loadAsWAV() {
 
     this->rate = this->wav.sampleRate;
     this->channels = this->wav.channels;
+#if defined(__XBOX__)
+    Log::log("SoundStream::loadAsWAV: success sampleRate=" + std::to_string(this->rate) + " channels=" + std::to_string(this->channels));
+#endif
     return true;
 #endif
     return false;
@@ -47,6 +53,9 @@ bool SoundStream::loadAsWAV() {
 #if !defined(NO_MP3)
 bool SoundStream::loadAsMP3() {
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    Log::log("SoundStream::loadAsMP3: loading MP3 buffer_size=" + std::to_string(this->buffer_size));
+#endif
     if (!drmp3_init_memory(&this->mp3, this->buffer, this->buffer_size, nullptr)) {
         Log::logError("Failed to load MP3 file.");
         return false;
@@ -56,6 +65,9 @@ bool SoundStream::loadAsMP3() {
 
     this->rate = this->mp3.sampleRate;
     this->channels = this->mp3.channels;
+#if defined(__XBOX__)
+    Log::log("SoundStream::loadAsMP3: success sampleRate=" + std::to_string(this->rate) + " channels=" + std::to_string(this->channels));
+#endif
     return true;
 #endif
     return false;
@@ -65,10 +77,16 @@ bool SoundStream::loadAsMP3() {
 #if !defined(NO_VORBIS)
 bool SoundStream::loadAsVorbis() {
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    Log::log("SoundStream::loadAsVorbis: calling stb_vorbis_open_memory buffer_size=" + std::to_string(this->buffer_size));
+#endif
     int err;
     stb_vorbis_info info;
 
     if ((this->vorbis = stb_vorbis_open_memory(this->buffer, this->buffer_size, &err, nullptr)) == nullptr) {
+#if defined(__XBOX__)
+        Log::logError("SoundStream::loadAsVorbis: stb_vorbis_open_memory failed err=" + std::to_string(err));
+#endif
         Log::logError("Failed to load OGG file.");
         return false;
     }
@@ -79,6 +97,9 @@ bool SoundStream::loadAsVorbis() {
 
     this->rate = info.sample_rate;
     this->channels = info.channels;
+#if defined(__XBOX__)
+    Log::log("SoundStream::loadAsVorbis: success sample_rate=" + std::to_string(this->rate) + " channels=" + std::to_string(this->channels));
+#endif
     return true;
 #endif
     return false;
@@ -87,6 +108,9 @@ bool SoundStream::loadAsVorbis() {
 
 void SoundStream::commonInit() {
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    Log::log("SoundStream::commonInit: name=" + this->name);
+#endif
     this->paused = false;
     this->auto_clean = false;
     this->no_lock = false;
@@ -113,18 +137,35 @@ bool SoundStream::loadFromBuffer() {
     }
     bool success = false;
     if (this->buffer_size >= 4 && memcmp(this->buffer, "RIFF", 4) == 0) {
+#if defined(__XBOX__)
+        Log::log("SoundStream::loadFromBuffer: detected RIFF/WAV header");
+#endif
         success = loadAsWAV();
 #if !defined(NO_MP3)
     } else if (this->buffer_size >= 3 && memcmp(this->buffer, "ID3", 3) == 0) {
+#if defined(__XBOX__)
+        Log::log("SoundStream::loadFromBuffer: detected MP3 ID3 header");
+#endif
         success = loadAsMP3();
     } else if (this->buffer_size >= 2 && this->buffer[0] == 0xff && (this->buffer[1] == 0xfb || this->buffer[1] == 0xf3 || this->buffer[1] == 0xf2)) {
+#if defined(__XBOX__)
+        Log::log("SoundStream::loadFromBuffer: detected MP3 sync header");
+#endif
         success = loadAsMP3();
 #endif
 #if !defined(NO_VORBIS)
     } else if (this->buffer_size >= 4 && memcmp(this->buffer, "OggS", 4) == 0) {
+#if defined(__XBOX__)
+        Log::log("SoundStream::loadFromBuffer: detected OggS header");
+#endif
         success = loadAsVorbis();
 #endif
     } else {
+#if defined(__XBOX__)
+        char head[5] = {0};
+        if (this->buffer_size >= 4) memcpy(head, this->buffer, 4);
+        Log::logError("SoundStream::loadFromBuffer: Unknown audio format magic='" + std::string(head) + "'");
+#endif
         Log::logError("Unkown audio format.");
         return false;
     }
@@ -135,22 +176,32 @@ bool SoundStream::loadFromBuffer() {
 
 nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cached, bool on_disk) {
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    Log::log("SoundStream::init: path=" + path + " cached=" + std::to_string(cached) + " on_disk=" + std::to_string(on_disk));
+#endif
     std::string prefix = "";
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
     if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) prefix += "project/";
 
+#if defined(__XBOX__)
+    std::string fullAudioPath = OS::normalizePath(prefix + path);
+    Log::log("SoundStream::init: prefix=" + prefix + " normalized=" + fullAudioPath);
+#else
+    std::string fullAudioPath = prefix + path;
+#endif
+
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
 #endif
-        std::ifstream ifs(prefix + path, std::ios::binary);
+        std::ifstream ifs(fullAudioPath, std::ios::binary);
 
         ifs.seekg(0, std::ios::end);
         this->buffer_size = ifs.tellg();
         ifs.seekg(0);
 
-        if (!ifs) return nonstd::make_unexpected("Could not open audio file: " + prefix + path);
+        if (!ifs) return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         ifs.read((char *)this->buffer, this->buffer_size);
@@ -161,7 +212,11 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
         auto fs = cmrc::romfs::get_filesystem();
 #if defined(__XBOX__)
         std::string cmrcAudioPath = OS::normalizeCMRCPath(prefix + path);
-        if (!fs.exists(cmrcAudioPath)) return nonstd::make_unexpected("Audio file not found.");
+        Log::log("SoundStream::init (CMRC): normalized path=" + cmrcAudioPath);
+        if (!fs.exists(cmrcAudioPath)) {
+            Log::logError("SoundStream::init (CMRC): path does not exist: " + cmrcAudioPath);
+            return nonstd::make_unexpected("Audio file not found.");
+        }
         const auto &file = fs.open(cmrcAudioPath);
 #else
         if (!fs.exists(prefix + path)) return nonstd::make_unexpected("Audio file not found.");
@@ -169,6 +224,9 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 #endif
 
         this->buffer_size = file.size();
+#if defined(__XBOX__)
+        Log::log("SoundStream::init (CMRC): opened file size=" + std::to_string(this->buffer_size));
+#endif
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         memcpy(this->buffer, file.begin(), this->buffer_size);
@@ -178,21 +236,43 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     this->name = path;
     commonInit();
 
+#if defined(__XBOX__)
+    Log::log("SoundStream::init: calling loadFromBuffer()...");
+#endif
     if (!loadFromBuffer()) {
+#if defined(__XBOX__)
+        Log::logError("SoundStream::init: loadFromBuffer() failed for " + path);
+#endif
         return nonstd::make_unexpected("Failed to load sound.");
     }
+#if defined(__XBOX__)
+    Log::log("SoundStream::init: loadFromBuffer() succeeded");
+#endif
 
     Mixer::mutex.lock();
     Mixer::streams[path] = this;
     Mixer::mutex.unlock();
+#if defined(__XBOX__)
+    Log::log("SoundStream::init: stream registered in Mixer::streams");
+#endif
     return {};
 #endif
     return nonstd::make_unexpected("Audio not enabled.");
 }
 
 SoundStream::SoundStream(std::string path, bool cached, bool on_disk) {
+#if defined(__XBOX__)
+    Log::log("SoundStream::SoundStream constructor: path=" + path);
+#endif
     auto potentialError = init(path, cached, on_disk);
     if (!potentialError.has_value()) error = potentialError.error();
+#if defined(__XBOX__)
+    if (error.has_value()) {
+        Log::logError("SoundStream::SoundStream constructor error: " + error.value());
+    } else {
+        Log::log("SoundStream::SoundStream constructor completed successfully for " + path);
+    }
+#endif
 }
 
 SoundStream::SoundStream(std::string name, int (*callback)(SoundStream *strm, float *iwave, int length), int channels, int rate) {
@@ -328,7 +408,12 @@ void Mixer::initMusic() {
         memcpy(Mixer::sf2_buffer, file.begin(), size);
     }
 #else
+#if defined(__XBOX__)
+    std::string fullSF2Path = OS::normalizePath(path);
+    std::ifstream ifs(fullSF2Path, std::ios::binary);
+#else
     std::ifstream ifs(path, std::ios::binary);
+#endif
 
     ifs.seekg(0, std::ios::end);
     size = ifs.tellg();
@@ -357,6 +442,13 @@ void Mixer::initMusic() {
 
 void Mixer::requestSound(short *output, int frames) {
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    static int reqCount = 0;
+    if (reqCount < 5) {
+        Log::log("Mixer::requestSound: count=" + std::to_string(reqCount) + " frames=" + std::to_string(frames) + " streams=" + std::to_string(streams.size()));
+    }
+    reqCount++;
+#endif
     const int channels_out = 2;
     std::vector<float> mixBuffer(frames * channels_out, 0.0f);
 
@@ -530,6 +622,13 @@ bool Mixer::isSoundPlaying(std::string name) {
 
     END;
 
+#if defined(__XBOX__)
+    static int ispCount = 0;
+    if (ispCount < 5) {
+        Log::log("Mixer::isSoundPlaying(" + name + "): returning " + (b ? "true" : "false"));
+    }
+    ispCount++;
+#endif
     return b;
 #endif
     return false;
@@ -584,6 +683,9 @@ float Mixer::getSoundVolume(std::string name) {
 
 void Mixer::setAutoClean(std::string name, bool toggle) {
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    Log::log("Mixer::setAutoClean: name=" + name + " toggle=" + (toggle ? "true" : "false"));
+#endif
     FIND({});
 
     e->second->auto_clean = toggle;

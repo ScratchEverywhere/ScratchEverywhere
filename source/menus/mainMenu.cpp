@@ -192,14 +192,21 @@ void MainMenu::init() {
 }
 
 void MainMenu::render() {
+#if defined(__XBOX__)
+    static int mmFrameCount = 0;
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: frame=" + std::to_string(mmFrameCount) + " entering...");
+    }
+#endif
     Input::getInput();
     mainMenuControl->input();
 
 #if defined(__XBOX__)
-    if (false) { // TODO(Xbox): SoundStream for mm_splash.ogg hangs; menu music disabled for now
-#else
-    if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: checking MenuMusic setting...");
+    }
 #endif
+    if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
         if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
@@ -214,20 +221,37 @@ void MainMenu::render() {
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
+#if defined(__XBOX__)
+        if (mmFrameCount < 5) {
+            Log::log("MainMenu::render: checking if mm_splash.ogg is playing...");
+        }
+#endif
         if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+#if defined(__XBOX__)
+            Log::log("MainMenu::render: mm_splash.ogg not playing; allocating new SoundStream(\"gfx/menu/mm_splash.ogg\")...");
+#endif
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
 #if defined(__XBOX__)
-                Log::logError(strm->error.value());
+                Log::logError("MainMenu::render: SoundStream error: " + strm->error.value());
 #else
                 Log::log(strm->error.value());
 #endif
                 delete strm;
-            } else
+            } else {
+#if defined(__XBOX__)
+                Log::log("MainMenu::render: SoundStream created successfully; setting auto clean...");
+#endif
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
+            }
         }
 #endif
     }
+#if defined(__XBOX__)
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: audio check completed");
+    }
+#endif
 
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();
@@ -235,8 +259,18 @@ void MainMenu::render() {
         return;
     }
 
+#if defined(__XBOX__)
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: calling Render::beginFrame(0)...");
+    }
+#endif
     Render::beginFrame(0, 117, 77, 117);
 
+#if defined(__XBOX__)
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: Render::beginFrame(0) done, rendering logo...");
+    }
+#endif
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
     // fmod to prevent precision issues with large elapsed times
@@ -245,9 +279,15 @@ void MainMenu::render() {
     splashText->scale = splashTextOriginalScale + splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
+
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
     splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 
+#if defined(__XBOX__)
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: calling Render::beginFrame(1)...");
+    }
+#endif
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);
 
@@ -257,9 +297,25 @@ void MainMenu::render() {
         return;
     }
 
+#if defined(__XBOX__)
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: rendering mainMenuControl...");
+    }
+#endif
     mainMenuControl->render();
 
+#if defined(__XBOX__)
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: calling Render::endFrame()...");
+    }
+#endif
     Render::endFrame();
+#if defined(__XBOX__)
+    if (mmFrameCount < 5) {
+        Log::log("MainMenu::render: frame=" + std::to_string(mmFrameCount) + " completed successfully");
+    }
+    mmFrameCount++;
+#endif
 }
 void MainMenu::cleanup() {
     if (!settings.empty()) {

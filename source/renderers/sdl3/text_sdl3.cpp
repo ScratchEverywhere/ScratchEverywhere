@@ -1,6 +1,9 @@
 #include "text_sdl3.hpp"
 #include <render.hpp>
 #include <vector>
+#if defined(__XBOX__)
+#include <log.hpp>
+#endif
 
 TextObjectSDL3::TextObjectSDL3(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {

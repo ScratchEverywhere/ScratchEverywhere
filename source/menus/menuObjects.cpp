@@ -177,9 +177,17 @@ MenuImage::MenuImage(std::string filePath, int xPos, int yPos, bool nineslice) {
     y = yPos;
     shouldNineslice = nineslice;
     scale = 1.0;
+#if defined(__XBOX__)
+    Log::log("MenuImage constructor: filePath=" + filePath);
+#endif
     auto potentialImage = createImageFromFile(filePath, false);
     if (!potentialImage.has_value()) Log::logError("Failed to load Menu Image: " + potentialImage.error());
-    else image = potentialImage.value();
+    else {
+        image = potentialImage.value();
+#if defined(__XBOX__)
+        Log::log("MenuImage constructor: successfully loaded image=" + filePath);
+#endif
+    }
 }
 
 void MenuImage::render(double xPos, double yPos) {

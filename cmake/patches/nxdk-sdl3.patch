@@ -79,6 +79,28 @@ index df82129..fb937ca 100644
      const int SDL_XGU_RENDER_TARGET_DMA_CHANNEL = 3;
      pb_create_dma_ctx(SDL_XGU_RENDER_TARGET_DMA_CHANNEL, DMA_CLASS_3D, 0, MAXRAM, &render_data->render_target_dma_ctx);
      pb_bind_channel(&render_data->render_target_dma_ctx);
+diff --git a/nxdk_glue/thread/SDL_systhread.c b/nxdk_glue/thread/SDL_systhread.c
+index ee7eee7..a38e69d 100644
+--- a/nxdk_glue/thread/SDL_systhread.c
++++ b/nxdk_glue/thread/SDL_systhread.c
+@@ -34,7 +34,7 @@ bool SDL_SYS_CreateThread(SDL_Thread *thread,
+     (void)vpfnBeginThread;
+     (void)vpfnEndThread;
+ 
+-    const SIZE_T stack_size = (thread->stacksize > PAGE_SIZE) ? ROUND_TO_PAGES(thread->stacksize) : PAGE_SIZE;
++    const SIZE_T stack_size = (thread->stacksize > 0) ? ROUND_TO_PAGES(thread->stacksize) : 0;
+ 
+     thread->handle = CreateThread(NULL, stack_size, sdl_thread, thread, 0, NULL);
+     if (thread->handle == NULL) {
+@@ -55,7 +55,7 @@ bool SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
+         value = THREAD_PRIORITY_HIGHEST;
+         break;
+     case SDL_THREAD_PRIORITY_TIME_CRITICAL:
+-        value = THREAD_PRIORITY_TIME_CRITICAL;
++        value = THREAD_PRIORITY_HIGHEST;
+         break;
+     default:
+         value = THREAD_PRIORITY_NORMAL;
 diff --git a/nxdk_glue/video/SDL_xboxvideo.c b/nxdk_glue/video/SDL_xboxvideo.c
 index 62ba919..0dd63c8 100644
 --- a/nxdk_glue/video/SDL_xboxvideo.c

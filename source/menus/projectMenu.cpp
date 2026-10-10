@@ -135,10 +135,9 @@ void ProjectMenu::render() {
     projectControl->input();
 
 #if defined(__XBOX__)
-    if (false) { // TODO(Xbox): SoundStream for mm_splash.ogg hangs; menu music disabled for now
-#else
-    if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
+    static int pmFrameCount = 0;
 #endif
+    if (!(settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
         if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
@@ -149,16 +148,35 @@ void ProjectMenu::render() {
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
+#if defined(__XBOX__)
+        if (pmFrameCount < 5) {
+            Log::log("ProjectMenu::render: checking if mm_splash.ogg is playing...");
+        }
+#endif
         if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+#if defined(__XBOX__)
+            Log::log("ProjectMenu::render: mm_splash.ogg not playing; allocating new SoundStream(\"gfx/menu/mm_splash.ogg\")...");
+#endif
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
+#if defined(__XBOX__)
+                Log::logError("ProjectMenu::render: SoundStream error: " + strm->error.value());
+#else
                 Log::log(strm->error.value());
+#endif
                 delete strm;
-            } else
+            } else {
+#if defined(__XBOX__)
+                Log::log("ProjectMenu::render: SoundStream created successfully; setting auto clean...");
+#endif
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
+            }
         }
 #endif
     }
+#if defined(__XBOX__)
+    pmFrameCount++;
+#endif
 
     if (hasProjects) {
         if (projectControl->selectedObject->isPressed()) {
