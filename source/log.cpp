@@ -1,11 +1,11 @@
-#include <iostream>
-#include <fstream>
-#include <cstring>
 #include <cerrno>
+#include <cstring>
+#include <fstream>
+#include <iostream>
 #include <log.hpp>
-#include <render.hpp>
 #include <os.hpp>
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#include <render.hpp>
+#if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
@@ -19,8 +19,8 @@
 #endif
 
 #if defined(__XBOX__)
-#include <hal/debug.h>
 #include <direct.h>
+#include <hal/debug.h>
 #include <stdio.h>
 #endif
 
@@ -98,7 +98,7 @@ static void xbox_append_log(const char *prefix, const std::string &msg) {
     }
 }
 
-extern "C" void _xbox_assert(char const * const expression, char const * const file_name, char const * const function_name, unsigned long line) {
+extern "C" void _xbox_assert(char const *const expression, char const *const file_name, char const *const function_name, unsigned long line) {
     char buf[512];
     snprintf(buf, sizeof(buf), "ASSERTION FAILED: '%s' in %s (%s:%lu)",
              expression ? expression : "",
@@ -106,9 +106,8 @@ extern "C" void _xbox_assert(char const * const expression, char const * const f
              file_name ? file_name : "",
              line);
     xbox_append_log("<ASSERT>", buf);
-    __asm__ ("cli\n1:\nhlt\njmp 1b\n");
+    __asm__("cli\n1:\nhlt\njmp 1b\n");
 }
-
 
 void Log::log(std::string message) {
     xbox_append_log("<LOG>", message);
@@ -227,4 +226,3 @@ void Log::deleteLogFile() {
     }
 }
 #endif
-

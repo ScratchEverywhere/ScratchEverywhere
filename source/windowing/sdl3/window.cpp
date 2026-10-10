@@ -1,6 +1,6 @@
 #include "window_sdl3.hpp"
 #include <SDL3/SDL_video.h>
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
 #endif
 #include <cstdlib>
