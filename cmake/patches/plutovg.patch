@@ -1,8 +1,8 @@
 diff --git a/source/plutovg-path.c b/source/plutovg-path.c
-index d697897..4b5f23e 100644
+index 2efaa63..22af2b5 100644
 --- a/source/plutovg-path.c
 +++ b/source/plutovg-path.c
-@@ -440,6 +440,7 @@ typedef struct {
+@@ -438,6 +438,7 @@ typedef struct {
      float x2; float y2;
      float x3; float y3;
      float x4; float y4;
@@ -10,7 +10,7 @@ index d697897..4b5f23e 100644
  } bezier_t;
  
  static inline void split_bezier(const bezier_t* b, bezier_t* first, bezier_t* second)
-@@ -496,6 +497,7 @@ void plutovg_path_traverse_flatten(const plutovg_path_t* path, plutovg_path_trav
+@@ -494,6 +495,7 @@ void plutovg_path_traverse_flatten(const plutovg_path_t* path, plutovg_path_trav
              beziers[0].y3 = points[1].y;
              beziers[0].x4 = points[2].x;
              beziers[0].y4 = points[2].y;
@@ -18,7 +18,7 @@ index d697897..4b5f23e 100644
              bezier_t* b = beziers;
              while(b >= beziers) {
                  float y4y1 = b->y4 - b->y1;
-@@ -509,12 +511,15 @@ void plutovg_path_traverse_flatten(const plutovg_path_t* path, plutovg_path_trav
+@@ -507,12 +509,15 @@ void plutovg_path_traverse_flatten(const plutovg_path_t* path, plutovg_path_trav
                      l = 1.f;
                  }
  
@@ -35,7 +35,7 @@ index d697897..4b5f23e 100644
                      ++b;
                  }
              }
-@@ -673,13 +678,12 @@ static void extents_traverse_func(void* closure, plutovg_path_command_t command,
+@@ -671,13 +676,12 @@ static void extents_traverse_func(void* closure, plutovg_path_command_t command,
  {
      extents_calculator_t* calculator = (extents_calculator_t*)(closure);
      if(calculator->is_first_point) {
@@ -54,24 +54,3 @@ index d697897..4b5f23e 100644
          calculator->length = 0;
          return;
      }
-@@ -695,14 +699,20 @@ static void extents_traverse_func(void* closure, plutovg_path_command_t command,
-     }
- }
- 
-+extern void lunasvg_log(const char* msg);
-+
- float plutovg_path_extents(const plutovg_path_t* path, plutovg_rect_t* extents, bool tight)
- {
-+    lunasvg_log("plutovg: plutovg_path_extents enter");
-     extents_calculator_t calculator = {{0, 0}, true, 0, 0, 0, 0, 0};
-     if(tight) {
-+        lunasvg_log("plutovg: calling traverse_flatten");
-         plutovg_path_traverse_flatten(path, extents_traverse_func, &calculator);
-     } else {
-+        lunasvg_log("plutovg: calling traverse");
-         plutovg_path_traverse(path, extents_traverse_func, &calculator);
-     }
-+    lunasvg_log("plutovg: traverse finished");
- 
-     if(extents) {
-         extents->x = calculator.x1;

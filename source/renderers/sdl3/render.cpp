@@ -443,13 +443,6 @@ void Render::penClear() {
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
-#if defined(__XBOX__)
-    static int bfCount = 0;
-    if (bfCount < 5) {
-        Log::log("Render::beginFrame: screen=" + std::to_string(screen) + " hasFrameBegan=" + std::to_string(hasFrameBegan));
-    }
-    bfCount++;
-#endif
     if (!hasFrameBegan) {
         SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, 255);
         SDL_RenderClear(renderer);
@@ -458,19 +451,7 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 }
 
 void Render::endFrame(bool shouldFlush) {
-#if defined(__XBOX__)
-    static int efCount = 0;
-    if (efCount < 5) {
-        Log::log("Render::endFrame: calling SDL_RenderPresent...");
-    }
-#endif
     SDL_RenderPresent(renderer);
-#if defined(__XBOX__)
-    if (efCount < 5) {
-        Log::log("Render::endFrame: SDL_RenderPresent returned");
-    }
-    efCount++;
-#endif
     SDL_Delay(16);
     hasFrameBegan = false;
 }

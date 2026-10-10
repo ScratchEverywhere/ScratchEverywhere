@@ -1,9 +1,6 @@
 #include "image.hpp"
 #include "nonstd/expected.hpp"
 #include "os.hpp"
-#if defined(__XBOX__)
-#include <log.hpp>
-#endif
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
@@ -63,29 +60,21 @@ bool Image::loadFont(const std::string &family) {
 #ifdef ENABLE_SVG
     auto it = loadedFonts.find(family);
     if (it == loadedFonts.end()) {
-#if defined(__XBOX__)
-        Log::logError("loadFont: family '" + family + "' not found in loadedFonts");
-#endif
         return false;
     }
     if (it->second.isLoaded) return true;
 
     const std::string &path = it->second.path;
-#if defined(__XBOX__)
-    Log::log("loadFont: loading font family='" + family + "' path=" + path);
-#endif
 
 #ifdef USE_CMAKERC
 #if defined(__XBOX__)
     std::string cmrcFontPath = OS::normalizeCMRCPath(OS::getRomFSLocation() + path + ".ttf");
     auto fs = cmrc::romfs::get_filesystem();
     if (!fs.exists(cmrcFontPath)) {
-        Log::logError("loadFont: CMRC font file not found: " + cmrcFontPath);
         return false;
     }
     const auto &file = fs.open(cmrcFontPath);
     if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) {
-        Log::logError("lunasvg_add_font_face_from_data failed for " + family);
         return false;
     }
 #else
@@ -95,7 +84,6 @@ bool Image::loadFont(const std::string &family) {
 #else
 #if defined(__XBOX__)
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) {
-        Log::logError("lunasvg_add_font_face_from_file failed for " + family);
         return false;
     }
 #else
@@ -104,18 +92,12 @@ bool Image::loadFont(const std::string &family) {
 #endif
 
     it->second.isLoaded = true;
-#if defined(__XBOX__)
-    Log::log("loadFont: successfully loaded font family='" + family + "'");
-#endif
     return true;
 #endif
     return false;
 }
 
 nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
-#if defined(__XBOX__)
-    Log::log("createImageFromFile: filePath=" + filePath);
-#endif
     auto it = images.find(filePath);
     if (it != images.end()) {
         if (auto img = it->second.lock()) {
@@ -210,18 +192,13 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 }
 
 nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
-#if defined(__XBOX__)
-    Log::log("readFileToBuffer: filePath=" + filePath + " fromScratchProject=" + std::to_string(fromScratchProject));
-#endif
 #ifdef USE_CMAKERC
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
         auto fs = cmrc::romfs::get_filesystem();
 #if defined(__XBOX__)
         std::string cmrcPath = OS::normalizeCMRCPath(filePath);
-        Log::log("readFileToBuffer (CMRC): cmrcPath=" + cmrcPath + " exists=" + std::to_string(fs.exists(cmrcPath)));
         if (!fs.exists(cmrcPath)) return nonstd::make_unexpected("File not found: " + filePath);
         auto file = fs.open(cmrcPath);
-        Log::log("readFileToBuffer (CMRC): opened size=" + std::to_string(file.size()));
 #else
         if (!fs.exists(filePath)) return nonstd::make_unexpected("File not found: " + filePath);
         auto file = fs.open(filePath);
@@ -285,19 +262,8 @@ inline void reorderPixels(unsigned char *src, unsigned char *dst, const size_t p
 }
 #endif
 
-#if defined(__XBOX__)
-static std::string safe_float_to_string(float val) {
-    int i = (int)val;
-    int f = (int)std::abs((val - i) * 100.0f);
-    return std::to_string(i) + "." + (f < 10 ? "0" : "") + std::to_string(f);
-}
-#endif
-
 nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
 #ifdef ENABLE_SVG
-#if defined(__XBOX__)
-    Log::log("loadSVGFromMemory: data size=" + std::to_string(size) + " scale=" + safe_float_to_string(scale));
-#endif
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
 
@@ -305,9 +271,6 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
 
     // always load default font if there is text present
     if (svgView.find("<text") != std::string_view::npos || svgView.find("<tspan") != std::string_view::npos) {
-#if defined(__XBOX__)
-        Log::log("SVG contains text, loading font...");
-#endif
         loadFont("");
     }
 
@@ -329,18 +292,13 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         svgData.resize(endPos + 6);
     }
 
-    Log::log("Parsing SVG data of length " + std::to_string(svgData.size()));
-    Log::log("Calling lunasvg::Document::loadFromData...");
     svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
-    Log::log("lunasvg::Document::loadFromData returned ptr=" + std::to_string(reinterpret_cast<uintptr_t>(svgDocument.get())));
     if (!svgDocument) {
-        Log::logError("LunaSVG failed to parse SVG data of size " + std::to_string(size));
         return nonstd::make_unexpected("LunaSVG failed to parse SVG");
     }
 
     float docW = svgDocument->width();
     float docH = svgDocument->height();
-    Log::log("SVG dimensions: w=" + safe_float_to_string(docW) + " h=" + safe_float_to_string(docH));
 
     const float targetWidth = docW * scale;
     const float targetHeight = docH * scale;
@@ -367,10 +325,8 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     height = std::max(1, (int)(docH * finalScale));
     imgData.scale = finalScale;
 
-    Log::log("Rendering SVG to bitmap: w=" + std::to_string(width) + " h=" + std::to_string(height));
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) {
-        Log::logError("LunaSVG failed to render SVG to bitmap");
         return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
     }
 #else
@@ -390,9 +346,6 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     reorderPixels(src, dst, pixelsSize);
 
     imgData.pitch = width * 4;
-#if defined(__XBOX__)
-    Log::log("SVG decoded successfully: w=" + std::to_string(width) + " h=" + std::to_string(height));
-#endif
 
     return dst;
 #endif
@@ -484,13 +437,9 @@ unsigned char *Image::resizeRaster(const unsigned char *srcPixels, int srcW, int
 
 nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const unsigned char *data, size_t size, int &width, int &height, bool bitmapHalfQuality) {
 #ifdef ENABLE_BITMAP
-#if defined(__XBOX__)
-    Log::log("loadRasterFromMemory: size=" + std::to_string(size) + " calling stbi_load_from_memory...");
-#endif
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
 #if defined(__XBOX__)
-    Log::log("loadRasterFromMemory: stbi_load_from_memory returned pixels=" + std::to_string((uintptr_t)pixels) + " w=" + std::to_string(width) + " h=" + std::to_string(height));
     if (!pixels) {
         const char *reason = stbi_failure_reason();
         return nonstd::make_unexpected(std::string("Failed to decode raster image: ") + (reason ? reason : "unknown"));
@@ -541,10 +490,6 @@ nonstd::expected<void, std::string> Image::init(std::string filePath, bool fromS
     } else filePath = OS::getRomFSLocation() + filePath;
 
     bool isSVG = filePath.size() >= 4 && (filePath.substr(filePath.size() - 4) == ".svg" || filePath.substr(filePath.size() - 4) == ".SVG");
-
-#if defined(__XBOX__)
-    Log::log("Image::init: filePath=" + filePath + " isSVG=" + std::to_string(isSVG));
-#endif
 
     auto buffer = readFileToBuffer(filePath, fromScratchProject);
     if (!buffer.has_value()) return nonstd::make_unexpected(buffer.error());

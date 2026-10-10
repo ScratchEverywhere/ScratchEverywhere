@@ -11,9 +11,6 @@
 #include <log.hpp>
 #include <parser.hpp>
 #include <translation.hpp>
-#ifdef __XBOX__
-#include <windows.h>
-#endif
 
 #include <nlohmann/json.hpp>
 
@@ -111,9 +108,6 @@ void MainMenu::init() {
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
-#if defined(__XBOX__)
-    Log::log("MainMenu::init: loading logo.png...");
-#endif
     logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
     logoStartTime.start();
@@ -139,16 +133,10 @@ void MainMenu::init() {
         versionStr = TranslationManager::getTranslation("version.prefix.dev");
         break;
     }
-#if defined(__XBOX__)
-    Log::log("MainMenu::init: creating version text...");
-#endif
     versionNumber = createTextObject(versionStr, 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
-#if defined(__XBOX__)
-    Log::log("MainMenu::init: creating splash text...");
-#endif
     splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(255, 255, 255, 128));
@@ -158,14 +146,8 @@ void MainMenu::init() {
     } else {
         splashTextOriginalScale = splashText->scale;
     }
-#if defined(__XBOX__)
-    Log::log("MainMenu::init: loading loadButton play.svg...");
-#endif
     loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
-#if defined(__XBOX__)
-    Log::log("MainMenu::init: loading settingsButton settings.svg...");
-#endif
     settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
 
     mainMenuControl = new ControlObject();
@@ -175,74 +157,36 @@ void MainMenu::init() {
     mainMenuControl->buttonObjects.push_back(loadButton);
     mainMenuControl->buttonObjects.push_back(settingsButton);
     isInitialized = true;
-#if defined(__XBOX__)
-    Log::log("MainMenu::init: finished successfully!");
-#endif
 
     settings = SettingsManager::getConfigSettings();
 }
 
 void MainMenu::render() {
-#if defined(__XBOX__)
-    static int mmFrameCount = 0;
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: frame=" + std::to_string(mmFrameCount) + " entering...");
-    }
-#endif
     Input::getInput();
     mainMenuControl->input();
 
-#if defined(__XBOX__)
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: checking MenuMusic setting...");
-    }
-#endif
     if (!(settings != nullptr && settings.contains("MenuMusic") && settings["MenuMusic"].is_boolean() && !settings["MenuMusic"].get<bool>())) {
 #ifdef __NDS__
         if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
             if (strm->error.has_value()) {
-#if defined(__XBOX__)
-                Log::logError(strm->error.value());
-#else
                 Log::log(strm->error.value());
-#endif
                 delete strm;
             } else
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-#if defined(__XBOX__)
-        if (mmFrameCount < 5) {
-            Log::log("MainMenu::render: checking if mm_splash.ogg is playing...");
-        }
-#endif
         if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
-#if defined(__XBOX__)
-            Log::log("MainMenu::render: mm_splash.ogg not playing; allocating new SoundStream(\"gfx/menu/mm_splash.ogg\")...");
-#endif
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
-#if defined(__XBOX__)
-                Log::logError("MainMenu::render: SoundStream error: " + strm->error.value());
-#else
                 Log::log(strm->error.value());
-#endif
                 delete strm;
             } else {
-#if defined(__XBOX__)
-                Log::log("MainMenu::render: SoundStream created successfully; setting auto clean...");
-#endif
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
             }
         }
 #endif
     }
-#if defined(__XBOX__)
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: audio check completed");
-    }
-#endif
 
     if (loadButton->isPressed()) {
         ProjectMenu *projectMenu = new ProjectMenu();
@@ -250,18 +194,8 @@ void MainMenu::render() {
         return;
     }
 
-#if defined(__XBOX__)
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: calling Render::beginFrame(0)...");
-    }
-#endif
     Render::beginFrame(0, 117, 77, 117);
 
-#if defined(__XBOX__)
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: Render::beginFrame(0) done, rendering logo...");
-    }
-#endif
     // move and render logo
     const float elapsed = logoStartTime.getTimeMs();
     // fmod to prevent precision issues with large elapsed times
@@ -274,11 +208,6 @@ void MainMenu::render() {
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
     splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 
-#if defined(__XBOX__)
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: calling Render::beginFrame(1)...");
-    }
-#endif
     // begin 3DS bottom screen frame
     Render::beginFrame(1, 117, 77, 117);
 
@@ -288,25 +217,9 @@ void MainMenu::render() {
         return;
     }
 
-#if defined(__XBOX__)
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: rendering mainMenuControl...");
-    }
-#endif
     mainMenuControl->render();
 
-#if defined(__XBOX__)
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: calling Render::endFrame()...");
-    }
-#endif
     Render::endFrame();
-#if defined(__XBOX__)
-    if (mmFrameCount < 5) {
-        Log::log("MainMenu::render: frame=" + std::to_string(mmFrameCount) + " completed successfully");
-    }
-    mmFrameCount++;
-#endif
 }
 void MainMenu::cleanup() {
     if (!settings.empty()) {

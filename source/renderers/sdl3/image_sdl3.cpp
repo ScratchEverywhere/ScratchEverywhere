@@ -5,9 +5,6 @@
 #include <cctype>
 #include <cstddef>
 #include <image.hpp>
-#if defined(__XBOX__)
-#include <log.hpp>
-#endif
 #include <os.hpp>
 #include <string>
 #include <unordered_map>
@@ -141,15 +138,9 @@ void *Image_SDL3::getNativeTexture() {
 }
 
 nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
-#if defined(__XBOX__)
-    Log::log("Image_SDL3::setInitialTexture: w=" + std::to_string(imgData.width) + " h=" + std::to_string(imgData.height) + " pixels=" + std::to_string((uintptr_t)imgData.pixels));
-#endif
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STATIC, imgData.width, imgData.height);
 
     if (!texture) {
-#if defined(__XBOX__)
-        Log::logError("Failed to create texture: " + std::string(SDL_GetError()));
-#endif
         return nonstd::make_unexpected("Failed to create texture: " + std::string(SDL_GetError()));
     }
 
@@ -157,14 +148,8 @@ nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
     SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
 
     if (!SDL_UpdateTexture(texture, nullptr, imgData.pixels, imgData.pitch)) {
-#if defined(__XBOX__)
-        Log::logError("Failed to update texture: " + std::string(SDL_GetError()));
-#endif
         return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
     }
-#if defined(__XBOX__)
-    Log::log("Image_SDL3::setInitialTexture succeeded");
-#endif
 
     /** some platforms may need this to be freed due to RAM limits,
      *  but they then wont be able to support Image::getPixels()
@@ -197,34 +182,17 @@ Image_SDL3::Image_SDL3(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
 }
 
 Image_SDL3::Image_SDL3(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
-#if defined(__XBOX__)
-    Log::log("Image_SDL3 constructor: filePath=" + filePath);
-#endif
     const unsigned int maxTextureSizeSquare = SDL_GetNumberProperty(SDL_GetRendererProperties(renderer), SDL_PROP_RENDERER_MAX_TEXTURE_SIZE_NUMBER, 0);
     maxTextureSize = {maxTextureSizeSquare, maxTextureSizeSquare};
 
-#if defined(__XBOX__)
-    Log::log("Image_SDL3 constructor: calling init()...");
-#endif
     const auto initResult = init(filePath, fromScratchProject, bitmapHalfQuality, scale);
     if (!initResult.has_value()) {
-#if defined(__XBOX__)
-        Log::logError("Image_SDL3 constructor: init() failed: " + initResult.error());
-#endif
         error = initResult.error();
         return;
     }
 
-#if defined(__XBOX__)
-    Log::log("Image_SDL3 constructor: calling setInitialTexture()...");
-#endif
     const auto potentialError = setInitialTexture();
-    if (!potentialError.has_value()) {
-#if defined(__XBOX__)
-        Log::logError("Image_SDL3 constructor: setInitialTexture() failed: " + potentialError.error());
-#endif
-        error = potentialError.error();
-    }
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 Image_SDL3::~Image_SDL3() {

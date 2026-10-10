@@ -109,11 +109,6 @@ extern "C" void _xbox_assert(char const * const expression, char const * const f
     __asm__ ("cli\n1:\nhlt\njmp 1b\n");
 }
 
-extern "C" void lunasvg_log(const char *msg) {
-    if (msg) {
-        Log::log(msg);
-    }
-}
 
 void Log::log(std::string message) {
     xbox_append_log("<LOG>", message);
