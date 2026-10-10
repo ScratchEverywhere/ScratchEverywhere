@@ -1,6 +1,6 @@
 #include "window_sdl3.hpp"
 #include <SDL3/SDL_video.h>
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)
+#if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__)) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
 #endif
 #include <cstdlib>
@@ -51,16 +51,28 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
+#if defined(__XBOX__)
+    SDL_WindowFlags flags = SDL_WINDOW_FULLSCREEN;
+#else
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#endif
+
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     flags |= SDL_WINDOW_OPENGL;
 #endif
 
+#if defined(__XBOX__)
+    if (!SDL_CreateWindowAndRenderer(title.c_str(), width, height, flags, &window, &sdlRenderer)) {
+        Log::logCritical("Failed to create SDL3 window/renderer: " + std::string(SDL_GetError()), true);
+        return false;
+    }
+#else
     window = SDL_CreateWindow(title.c_str(), width, height, flags);
     if (!window) {
         Log::logCritical("Failed to create SDL3 window: " + std::string(SDL_GetError()), true);
         return false;
     }
+#endif
 
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     context = SDL_GL_CreateContext(window);
@@ -96,7 +108,7 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     SDL_GetWindowSizeInPixels(window, &dw, &dh);
     resize(dw, dh);
 
-#if defined(_WIN32) || defined(_WIN64)
+#if (defined(_WIN32) || defined(_WIN64)) && !defined(__XBOX__)
     widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)).c_str());
 #elif defined(__APPLE__)
     widget_set_owner(std::to_string((unsigned long long)(void *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, nullptr)).c_str());
@@ -195,3 +207,9 @@ float WindowSDL3::getPixelDensity() const {
 void *WindowSDL3::getHandle() {
     return window;
 }
+
+#if defined(__XBOX__)
+void *WindowSDL3::getRenderer() {
+    return sdlRenderer;
+}
+#endif

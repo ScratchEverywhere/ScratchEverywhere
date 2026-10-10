@@ -35,6 +35,40 @@ bool ZipProjectLoader::load(std::istream *file) {
             Scratch::sb3InRam = true;
 
             // read the file
+#if defined(__XBOX__)
+            file->clear();
+            std::streamsize size = file->tellg();
+            if (size <= 0) {
+                file->seekg(0, std::ios::end);
+                size = file->tellg();
+            }
+            file->clear();
+            file->seekg(0, std::ios::beg);
+
+            Unzip::zipBuffer.resize(size);
+            file->read(Unzip::zipBuffer.data(), size);
+            if (static_cast<size_t>(file->gcount()) != static_cast<size_t>(size)) {
+                Log::logCritical("Failed to read project zip buffer into memory.", false);
+                return false;
+            }
+            file->clear();
+
+            // open ZIP file
+            Unzip::zipArchive = createZipArchive();
+            if (!Unzip::zipArchive->openMemory(Unzip::zipBuffer.data(), Unzip::zipBuffer.size())) {
+                Log::logCritical("Failed to open project zip buffer memory archive.", false);
+                Unzip::zipArchive.reset();
+                return false;
+            }
+
+            // extract project.json
+            size_t json_size;
+            void *json_data = Unzip::zipArchive->extractToHeap("project.json", &json_size);
+            if (!json_data) {
+                Log::logCritical("Failed to extract project.json from zip memory archive.", false);
+                return false;
+            }
+#else
             std::streamsize size = file->tellg();
             file->seekg(0, std::ios::beg);
             Unzip::zipBuffer.resize(size);
@@ -55,15 +89,24 @@ bool ZipProjectLoader::load(std::istream *file) {
             if (!json_data) {
                 return false;
             }
+#endif
 
             project_json = nlohmann::json::parse(std::string(static_cast<const char *>(json_data), json_size));
             Unzip::zipArchive->freeHeap(json_data);
         } else {
             Scratch::sb3InRam = false;
 
+#if defined(__XBOX__)
+            file->clear();
+            file->seekg(0, std::ios::end);
+            uint64_t file_size = file->tellg();
+            file->clear();
+            file->seekg(0, std::ios::beg);
+#else
             file->seekg(0, std::ios::end);
             uint64_t file_size = file->tellg();
             file->seekg(0, std::ios::beg);
+#endif
 
             auto archive = createZipArchive();
             if (!archive->openStream(file, file_size)) {
@@ -82,12 +125,17 @@ bool ZipProjectLoader::load(std::istream *file) {
             archive->freeHeap(json_data);
         }
     } else {
+#if defined(__XBOX__)
         file->clear();
+#endif
         file->seekg(0, std::ios::beg);
 
         // get file size
         file->seekg(0, std::ios::end);
         std::streamsize size = file->tellg();
+#if defined(__XBOX__)
+        file->clear();
+#endif
         file->seekg(0, std::ios::beg);
 
         // put file into string
@@ -110,13 +158,29 @@ bool ZipProjectLoader::load(std::istream *file) {
 }
 
 void *ZipProjectLoader::getAsset(const std::string &name, size_t *outSize) {
+#if defined(__XBOX__)
+    if (Unzip::zipArchive) {
+        size_t size = 0;
+        void *data = Unzip::zipArchive->extractToHeap(name, &size);
+        if (data) {
+            if (outSize != nullptr) *outSize = size;
+            return data;
+        }
+    }
+#endif
+
     auto archive = createZipArchive();
     bool initSuccess = false;
 
 #ifdef USE_CMAKERC
     if (Scratch::projectType == ProjectType::EMBEDDED) {
         const auto &fs = cmrc::romfs::get_filesystem();
+#if defined(__XBOX__)
+        std::string cmrcPath = OS::normalizeCMRCPath(Unzip::filePath);
+        const auto &romfsFile = fs.open(cmrcPath);
+#else
         const auto &romfsFile = fs.open(Unzip::filePath);
+#endif
         initSuccess = archive->openMemory(romfsFile.begin(), romfsFile.size());
     } else {
 #endif

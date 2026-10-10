@@ -1,7 +1,11 @@
+#include <cerrno>
+#include <cstring>
+#include <fstream>
 #include <iostream>
 #include <log.hpp>
+#include <os.hpp>
 #include <render.hpp>
-#if defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))
+#if (defined(_WIN32) || defined(_WIN64) || defined(__APPLE__) || (defined(__linux__) && !defined(__ANDROID__) && !defined(WEBOS) && !defined(LIBRETRO)) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || (defined(__sun) && defined(__SVR4))) && !defined(__XBOX__)
 #include <libdlgmod/libdlgmod.h>
 #if !defined(USE_LIBDLGMOD)
 #define USE_LIBDLGMOD
@@ -12,6 +16,12 @@
 #include <orbis/SystemService.h>
 #include <orbis/UserService.h>
 #include <orbis/libkernel.h>
+#endif
+
+#if defined(__XBOX__)
+#include <direct.h>
+#include <hal/debug.h>
+#include <stdio.h>
 #endif
 
 /**
@@ -62,10 +72,67 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
+    snprintf(logBuffer, 1023, "<SE!> %s\n", message.c_str());
+    sceKernelDebugOutText(0, logBuffer);
 }
 
 void Log::deleteLogFile() {
 }
+#elif defined(__XBOX__)
+static void xbox_append_log(const char *prefix, const std::string &msg) {
+    if (prefix && strlen(prefix) > 0) {
+        debugPrint("%s %s\n", prefix, msg.c_str());
+    } else {
+        debugPrint("%s\n", msg.c_str());
+    }
+    _mkdir("E:\\ScratchEverywhere");
+    FILE *f = fopen("E:\\ScratchEverywhere\\debug.txt", "a");
+    if (f) {
+        if (prefix && strlen(prefix) > 0) {
+            fprintf(f, "%s %s\n", prefix, msg.c_str());
+        } else {
+            fprintf(f, "%s\n", msg.c_str());
+        }
+        fflush(f);
+        fclose(f);
+    }
+}
+
+extern "C" void _xbox_assert(char const *const expression, char const *const file_name, char const *const function_name, unsigned long line) {
+    char buf[512];
+    snprintf(buf, sizeof(buf), "ASSERTION FAILED: '%s' in %s (%s:%lu)",
+             expression ? expression : "",
+             function_name ? function_name : "",
+             file_name ? file_name : "",
+             line);
+    xbox_append_log("<ASSERT>", buf);
+    __asm__("cli\n1:\nhlt\njmp 1b\n");
+}
+
+void Log::log(std::string message) {
+    xbox_append_log("<LOG>", message);
+}
+
+void Log::logWarning(std::string message) {
+    xbox_append_log("<WARN>", message);
+}
+
+void Log::logError(std::string message) {
+    xbox_append_log("<ERR>", message);
+}
+
+void Log::logCritical(std::string message, bool fatal) {
+    xbox_append_log(fatal ? "<FATAL>" : "<CRIT>", message);
+}
+
+void Log::writeToFile(std::string message) {
+    xbox_append_log("", message);
+}
+
+void Log::deleteLogFile() {
+    remove("E:\\ScratchEverywhere\\debug.txt");
+}
+
 #else
 static std::string lastLog;
 void Log::log(std::string message) {

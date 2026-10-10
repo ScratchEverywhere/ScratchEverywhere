@@ -97,11 +97,20 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
 
     // Unzipped Project in romfs:/
 #ifdef USE_CMAKERC
+#if defined(__XBOX__)
+    std::string cmrcUnzipped = OS::normalizeCMRCPath(unzippedPath);
+    if (fs.exists(cmrcUnzipped)) {
+        const auto &romfsFile = fs.open(cmrcUnzipped);
+        const std::string_view content(romfsFile.begin(), romfsFile.size());
+        file = new std::istringstream(std::string(content));
+    }
+#else
     if (fs.exists(unzippedPath)) {
         const auto &romfsFile = fs.open(unzippedPath);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
         file = new std::istringstream(std::string(content));
     }
+#endif
 #else
     file = new std::ifstream(unzippedPath, std::ios::binary | std::ios::ate);
 #endif
@@ -117,12 +126,23 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     Log::logWarning("No unzipped project, trying embedded.");
     Scratch::projectType = ProjectType::EMBEDDED;
 #ifdef USE_CMAKERC
+#if defined(__XBOX__)
+    std::string cmrcEmbedded = OS::normalizeCMRCPath(embeddedFilename);
+    if (fs.exists(cmrcEmbedded)) {
+        const auto &romfsFile = fs.open(cmrcEmbedded);
+        const std::string_view content(romfsFile.begin(), romfsFile.size());
+        file = new std::istringstream(std::string(content));
+        file->clear();
+        file->seekg(0, std::ios::beg);
+    }
+#else
     if (fs.exists(embeddedFilename)) {
         const auto &romfsFile = fs.open(embeddedFilename);
         const std::string_view content(romfsFile.begin(), romfsFile.size());
         file = new std::istringstream(std::string(content));
         file->seekg(0, std::ios::end);
     }
+#endif
 #else
     file = new std::ifstream(embeddedFilename, std::ios::binary | std::ios::ate);
 #endif
@@ -375,13 +395,23 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     if (Scratch::projectType != ProjectType::UNEMBEDDED) {
 #ifdef USE_CMAKERC
         const auto &fs = cmrc::romfs::get_filesystem();
+#if defined(__XBOX__)
+        std::string cmrcPath = OS::normalizeCMRCPath(folderPath);
 
+        if (!fs.exists(cmrcPath)) {
+            Log::logWarning("Project settings file not found: romfs:/" + folderPath);
+            return nlohmann::json();
+        }
+
+        const auto &file = fs.open(cmrcPath);
+#else
         if (!fs.exists(folderPath)) {
             Log::logWarning("Project settings file not found: romfs:/" + folderPath);
             return nlohmann::json();
         }
 
         const auto &file = fs.open(folderPath);
+#endif
         content.assign(file.begin(), file.end());
 #else
         std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");

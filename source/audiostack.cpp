@@ -141,16 +141,22 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 
     if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) prefix += "project/";
 
+#if defined(__XBOX__)
+    std::string fullAudioPath = OS::normalizePath(prefix + path);
+#else
+    std::string fullAudioPath = prefix + path;
+#endif
+
 #ifdef USE_CMAKERC
     if (cached || Unzip::UnpackedInSD || on_disk) {
 #endif
-        std::ifstream ifs(prefix + path, std::ios::binary);
+        std::ifstream ifs(fullAudioPath, std::ios::binary);
 
         ifs.seekg(0, std::ios::end);
         this->buffer_size = ifs.tellg();
         ifs.seekg(0);
 
-        if (!ifs) return nonstd::make_unexpected("Could not open audio file: " + prefix + path);
+        if (!ifs) return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         ifs.read((char *)this->buffer, this->buffer_size);
@@ -159,8 +165,14 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 #ifdef USE_CMAKERC
     } else {
         auto fs = cmrc::romfs::get_filesystem();
+#if defined(__XBOX__)
+        std::string cmrcAudioPath = OS::normalizeCMRCPath(prefix + path);
+        if (!fs.exists(cmrcAudioPath)) return nonstd::make_unexpected("Audio file not found.");
+        const auto &file = fs.open(cmrcAudioPath);
+#else
         if (!fs.exists(prefix + path)) return nonstd::make_unexpected("Audio file not found.");
         const auto &file = fs.open(prefix + path);
+#endif
 
         this->buffer_size = file.size();
 
@@ -307,8 +319,14 @@ void Mixer::initMusic() {
 
 #ifdef USE_CMAKERC
     auto fs = cmrc::romfs::get_filesystem();
+#if defined(__XBOX__)
+    std::string cmrcSF2Path = OS::normalizeCMRCPath(path);
+    if (fs.exists(cmrcSF2Path)) {
+        const auto &file = fs.open(cmrcSF2Path);
+#else
     if (fs.exists(path)) {
         const auto &file = fs.open(path);
+#endif
 
         size = file.size();
 
@@ -316,7 +334,12 @@ void Mixer::initMusic() {
         memcpy(Mixer::sf2_buffer, file.begin(), size);
     }
 #else
+#if defined(__XBOX__)
+    std::string fullSF2Path = OS::normalizePath(path);
+    std::ifstream ifs(fullSF2Path, std::ios::binary);
+#else
     std::ifstream ifs(path, std::ios::binary);
+#endif
 
     ifs.seekg(0, std::ios::end);
     size = ifs.tellg();

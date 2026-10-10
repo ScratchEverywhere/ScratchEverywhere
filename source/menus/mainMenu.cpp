@@ -114,24 +114,24 @@ void MainMenu::init() {
 
     std::string versionStr;
     switch (SE_VERSION_TYPE) {
-        case SE_VERSION_TYPE_RELEASE:
-            versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_BETA:
-            versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_ALPHA:
-            versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_RELEASE_CANDIDATE:
-            versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_NIGHTLY:
-            versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
-            break;
-        default:
-            versionStr = TranslationManager::getTranslation("version.prefix.dev");
-            break;
+    case SE_VERSION_TYPE_RELEASE:
+        versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_BETA:
+        versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_ALPHA:
+        versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_RELEASE_CANDIDATE:
+        versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_NIGHTLY:
+        versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
+        break;
+    default:
+        versionStr = TranslationManager::getTranslation("version.prefix.dev");
+        break;
     }
     versionNumber = createTextObject(versionStr, 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
@@ -140,13 +140,12 @@ void MainMenu::init() {
     splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(255, 255, 255, 128));
-    if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
+    if (logo && logo->image && splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
         splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
         splashText->scale = splashTextOriginalScale;
     } else {
         splashTextOriginalScale = splashText->scale;
     }
-
     loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
     settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
@@ -182,8 +181,9 @@ void MainMenu::render() {
             if (strm->error.has_value()) {
                 Log::log(strm->error.value());
                 delete strm;
-            } else
+            } else {
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
+            }
         }
 #endif
     }
@@ -204,6 +204,7 @@ void MainMenu::render() {
     splashText->scale = splashTextOriginalScale + splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
+
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
     splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 
