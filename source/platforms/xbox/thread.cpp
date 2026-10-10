@@ -1,3 +1,5 @@
+#pragma once
+
 #include <thread.hpp>
 
 // stubbed for now :duckgrin:

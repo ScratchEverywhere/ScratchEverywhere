@@ -120,24 +120,24 @@ void MainMenu::init() {
 
     std::string versionStr;
     switch (SE_VERSION_TYPE) {
-        case SE_VERSION_TYPE_RELEASE:
-            versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_BETA:
-            versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_ALPHA:
-            versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_RELEASE_CANDIDATE:
-            versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_NIGHTLY:
-            versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
-            break;
-        default:
-            versionStr = TranslationManager::getTranslation("version.prefix.dev");
-            break;
+    case SE_VERSION_TYPE_RELEASE:
+        versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_BETA:
+        versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_ALPHA:
+        versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_RELEASE_CANDIDATE:
+        versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_NIGHTLY:
+        versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
+        break;
+    default:
+        versionStr = TranslationManager::getTranslation("version.prefix.dev");
+        break;
     }
 #if defined(__XBOX__)
     Log::log("MainMenu::init: creating version text...");
@@ -152,21 +152,12 @@ void MainMenu::init() {
     splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(255, 255, 255, 128));
-#if defined(__XBOX__)
     if (logo && logo->image && splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
         splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
         splashText->scale = splashTextOriginalScale;
     } else {
         splashTextOriginalScale = splashText->scale;
     }
-#else
-    if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
-        splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
-        splashText->scale = splashTextOriginalScale;
-    } else {
-        splashTextOriginalScale = splashText->scale;
-    }
-#endif
 #if defined(__XBOX__)
     Log::log("MainMenu::init: loading loadButton play.svg...");
 #endif

@@ -1,4 +1,7 @@
 # NXDK patch application
+
+# TODO: maybe have the code changes applied upstream to nxdk?
+# FIXME: make this a recipe
 if(NOT "$ENV{NXDK_DIR}" STREQUAL "")
     set(NXDK_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk.patch")
     if(EXISTS "${NXDK_PATCH_FILE}")
@@ -31,6 +34,8 @@ if(NOT "$ENV{NXDK_DIR}" STREQUAL "")
 endif()
 
 # NXDK should be present with $NXDK_DIR
+
+# FIXME: "This should show a 'FATAL_ERROR' not build NXDK"
 if(NOT "$ENV{NXDK_DIR}" STREQUAL "" AND NOT EXISTS "$ENV{NXDK_DIR}/lib/libnxdk.lib")
     message(STATUS "NXDK libraries not found. Building nxdk...")
     execute_process(
@@ -44,6 +49,8 @@ if(NOT "$ENV{NXDK_DIR}" STREQUAL "" AND NOT EXISTS "$ENV{NXDK_DIR}/lib/libnxdk.l
 endif()
 
 # NXDK-SDL3 single patch application and subdirectory inclusion
+
+# FIXME: should be using a catalog recipe for this
 if(NOT "$ENV{NXDK_SDL3_DIR}" STREQUAL "")
     set(PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk-sdl3.patch")
 
@@ -83,27 +90,27 @@ set(SE_WINDOWING_VALID_OPTIONS "sdl3")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3")
 set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
 
-set(SE_DEPS_VALID_OPTIONS "fallback" "system") # DO NOT MODIFY
+set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
+
+# FIXME: see comment in PR review
 set(SE_ZIP_BACKEND "miniz")
 
-set(SE_CACHING_DEFAULT ON) # Stream from romfs or hard drive since we only have 64 MiB of RAM
-set(SE_DECTALK_DEFAULT OFF) # CPU expensive and nxdk implementation has type conflicts; keep off for now
+# CPU expensive and nxdk implementation has type conflicts; keep off for now
+set(SE_DECTALK_DEFAULT OFF)
+
+set(SE_CACHING_DEFAULT ON)
 set(SE_ALLOW_CMAKERC ON)
 set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)
-
-# These may need to be adjusted
-set(SE_SVG ON)
-set(SE_BITMAP ON)
-set(SE_MENU ON)
-set(SE_LOADSCREEN ON)
 
 set(SE_HAS_TOUCH FALSE)
 set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
-set(SE_HAS_THREADS ON)
+
+# TODO: try to implement using WinAPIs
+set(SE_HAS_THREADS OFF)
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
@@ -117,43 +124,16 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox)
 add_compile_options(
     $<$<COMPILE_LANGUAGE:CXX>:-include>
     $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox/xbox_iostream_injector.hpp>
-
-    # Needed for PIII Coppermine tuning
+    $<$<COMPILE_LANGUAGE:C>:-std=gnu99>
+    $<$<COMPILE_LANGUAGE:C>:-U_MSC_VER>
     -march=pentium3
     -mtune=pentium3
-
-    # Platform macro
-    -D__XBOX__
-
-    # Required due to NV2A architecture limitations
     -DSE_NO_OPENGL
-
-    # Required due to PIII Coppermine limitations
     -DSTBI_NO_SIMD
-    #-DDR_MP3_NO_SIMD
-    #-DDR_WAV_NO_SIMD
-    #-DDR_MP3_NO_WCHAR
-    #-DDR_WAV_NO_WCHAR
-    #-fno-fast-math
-
-    # These need review
     -DHAVE_UNISTD_H
     -DHAVE_DIRENT_H
     -DHAVE_UTIME_H
-    #-DDR_MP3_NO_STDIO_SECURE
-    #-DDR_WAV_NO_STDIO_SECURE
-    #-DDR_FS_NO_CRT_SECURE
     -DMINIZ_NO_TIME=1
-    #-DMZ_FOPEN=fopen
-    #-DMZ_FCLOSE=fclose
-    #-DMZ_FREAD=fread
-    #-DMZ_FWRITE=fwrite
-    #-DMZ_FTELL64=ftell
-    #-DMZ_FSEEK64=fseek
-    #-DMZ_FILE_STAT_STRUCT=stat
-    #-DMZ_FILE_STAT=stat
-    #-DMZ_FREOPEN=freopen
-    #-DMZ_DELETE_FILE=remove
     -Drestrict=__restrict
     -DXBOXRT_RESTRICT=__restrict
     -Dalloca=__builtin_alloca
@@ -161,26 +141,11 @@ add_compile_options(
     -Dfseeko=fseek
     -DUNLEN=256
     -fms-extensions
-
-    # Required due to NXDK toolchain limitations
-    $<$<COMPILE_LANGUAGE:C>:-std=gnu99>
-    $<$<COMPILE_LANGUAGE:C>:-U_MSC_VER>
 )
 
-# Disable warnings, we only want to see the real errors
-add_compile_options(-w)
-
-# DO NOT MODIFY
 macro(package_platform)
-    if(TARGET SDL3-static)
-        add_dependencies(scratch-everywhere SDL3-static)
-    endif()
-
     target_link_libraries(scratch-everywhere PUBLIC ${NXDK_DIR}/lib/libnxdk_automount_d.lib)
     target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
-
-    # Set stack size to 2 MB reserve, 64 KB commit
-    target_link_options(scratch-everywhere PRIVATE "/STACK:0x200000,0x10000")
 
     add_custom_command(TARGET scratch-everywhere POST_BUILD
         COMMAND ${NXDK_DIR}/bin/cxbe

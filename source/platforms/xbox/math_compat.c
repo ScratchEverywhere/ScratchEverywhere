@@ -1,3 +1,4 @@
+#pragma once
 #if defined(__XBOX__)
 #include <math.h>
 

@@ -15,7 +15,6 @@ std::string *customProjectsPath = nullptr;
 bool OS::init() {
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
     debugPrint("Hello nxdk!\n");
-    Sleep(1000);
 
     // Verify D: is mounted
     if (!nxIsDriveMounted('D')) {
@@ -48,7 +47,6 @@ bool OS::init() {
     remove("E:\\ScratchEverywhere\\debug.txt");
 
     debugPrint("OS init!\n");
-    Sleep(1000);
     return true;
 }
 
