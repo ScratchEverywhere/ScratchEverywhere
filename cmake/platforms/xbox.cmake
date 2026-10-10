@@ -107,8 +107,13 @@ set(SE_HAS_MOUSE FALSE)
 set(SE_HAS_KEYBOARD FALSE)
 set(SE_HAS_CONTROLLER TRUE)
 
-# TODO: try to implement using WinAPIs
-set(SE_HAS_THREADS OFF)
+# Force using WinAPI threads
+set(Threads_FOUND TRUE CACHE BOOL "Forced WinAPI threads" FORCE)
+set(CMAKE_THREAD_LIBS_INIT "" CACHE STRING "Forced WinAPI threads" FORCE)
+set(CMAKE_HAVE_THREADS_LIBRARY 1 CACHE BOOL "Forced WinAPI threads" FORCE)
+set(CMAKE_USE_WIN32_THREADS_INIT 1 CACHE BOOL "Forced WinAPI threads" FORCE)
+set(CMAKE_USE_PTHREADS_INIT 0 CACHE BOOL "Forced WinAPI threads" FORCE)
+set(SE_HAS_THREADS ON)
 
 set(SE_PLATFORM_DEFINITIONS "__XBOX__")
 set(SE_PLATFORM "xbox")
@@ -144,6 +149,9 @@ add_compile_options(
 macro(package_platform)
     target_link_libraries(scratch-everywhere PUBLIC ${NXDK_DIR}/lib/libnxdk_automount_d.lib)
     target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
+
+    # Sets maximum stack size to 4MB with 128KB reserved
+    target_link_options(scratch-everywhere PRIVATE "/STACK:0x400000,0x20000")
 
     add_custom_command(TARGET scratch-everywhere POST_BUILD
         COMMAND ${NXDK_DIR}/bin/cxbe

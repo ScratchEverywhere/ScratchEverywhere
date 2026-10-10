@@ -1,33 +1,116 @@
+#include <chrono>
+#include <mutex>
+#include <process.h>
 #include <thread.hpp>
+#include <thread>
+#include <unistd.h>
+#include <windows.h>
 
-// TODO: get this to work with WinAPI threads?
+struct SE_Thread::Impl {
+    HANDLE thread;
+    bool active = false;
+};
 
-struct SE_Thread::Impl {};
+struct ThreadData {
+    void (*entryPoint)(void *);
+    void *args;
+};
+
+static unsigned CALLBACK win32_Wrapper(void *data) {
+    ThreadData *ctx = static_cast<ThreadData *>(data);
+    ctx->entryPoint(ctx->args);
+    delete ctx;
+    _endthreadex(0);
+    return 0;
+}
 
 SE_Thread::SE_Thread() : impl(nullptr) {}
 
-bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize, int prio, int coreID, const std::string &name) { return false; }
+bool SE_Thread::create(void (*entryPoint)(void *), void *args, size_t stackSize, int prio, int coreID, const std::string &name) {
+    if (impl != nullptr) return false;
 
-SE_Thread::~SE_Thread() {}
+    impl = new Impl;
 
-void SE_Thread::join() {}
+    ThreadData *data = new ThreadData;
+    data->entryPoint = entryPoint;
+    data->args = args;
 
-void SE_Thread::detach() {}
+    unsigned id;
+    impl->thread = (HANDLE)_beginthreadex(nullptr, 0, win32_Wrapper, data, 0, &id);
 
-void SE_Thread::sleep(uint16_t milliseconds) {}
+    if (impl->thread == (HANDLE)-1) {
+        delete data;
+        delete impl;
+        impl = nullptr;
+        return false;
+    }
 
-unsigned int SE_Thread::getCurrentThreadId() { return 0; }
+    impl->active = true;
+    return true;
+}
 
-struct SE_Mutex::Impl {};
+SE_Thread::~SE_Thread() {
+    join();
+}
 
-SE_Mutex::SE_Mutex() {}
+void SE_Thread::join() {
+    if (impl != nullptr) {
+        if (impl->active) {
+            WaitForSingleObject(impl->thread, INFINITE);
+            CloseHandle(impl->thread);
+            impl->active = false;
+        }
+        delete impl;
+        impl = nullptr;
+    }
+}
 
-void SE_Mutex::init() {}
+void SE_Thread::detach() {
+    if (impl != nullptr && impl->active) {
+        CloseHandle(impl->thread);
+        impl->active = false;
+    }
+}
 
-SE_Mutex::~SE_Mutex() {}
+void SE_Thread::sleep(uint16_t milliseconds) {
+    Sleep(milliseconds);
+}
 
-void SE_Mutex::lock() {}
+unsigned int SE_Thread::getCurrentThreadId() {
+    return static_cast<unsigned int>((uintptr_t)GetCurrentThread());
+}
 
-void SE_Mutex::unlock() {}
+struct SE_Mutex::Impl {
+    CRITICAL_SECTION mtx;
+};
 
-bool SE_Mutex::tryLock() {}
+SE_Mutex::SE_Mutex() {
+    init();
+}
+
+void SE_Mutex::init() {
+    if (!impl) {
+        impl = new Impl;
+        InitializeCriticalSection(&impl->mtx);
+    }
+}
+
+SE_Mutex::~SE_Mutex() {
+    if (impl) {
+        DeleteCriticalSection(&impl->mtx);
+        delete impl;
+        impl = nullptr;
+    }
+}
+
+void SE_Mutex::lock() {
+    EnterCriticalSection(&impl->mtx);
+}
+
+void SE_Mutex::unlock() {
+    LeaveCriticalSection(&impl->mtx);
+}
+
+bool SE_Mutex::tryLock() {
+    return TryEnterCriticalSection(&impl->mtx) != 0;
+}
