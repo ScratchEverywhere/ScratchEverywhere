@@ -1,0 +1,40 @@
+FROM debian:trixie AS main_builder
+ENV CATALOG_NON_INTERACTIVE=1
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    clang \
+    lld \
+    llvm \
+    bison \
+    flex \
+    git \
+    ca-certificates
+
+# Point to both the nxdk and nxdk-sdl3 as environment variables for the container itself
+ENV NXDK_DIR=/nxdk
+ENV NXDK_SDL3_DIR=/nxdk-sdl3
+ENV PATH="/nxdk/bin:$PATH"
+
+# Clone the github.com/xboxDev/nxdk repository
+RUN git clone --recursive --depth 1 https://github.com/xboxDev/nxdk.git /nxdk && \
+    cd /nxdk && make tools -j$(nproc) && make NXDK_ONLY=y -j$(nproc) && \
+    cp /nxdk/tools/cxbe/cxbe /nxdk/bin/cxbe && \
+    cp /nxdk/tools/extract-xiso/build/extract-xiso /nxdk/bin/extract-xiso
+
+# Clone the github.com/Ryzee119/nxdk-sdl3 repository
+RUN git clone --recursive --depth 1 https://github.com/Ryzee119/nxdk-sdl3.git /nxdk-sdl3
+
+COPY . .
+
+# Create a build-xbox directory and run the necessary cmake commands
+RUN mkdir build-xbox && cd build-xbox && \
+    cmake .. -DCMAKE_TOOLCHAIN_FILE="$NXDK_DIR/share/toolchain-nxdk.cmake" -DXBOX=ON -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build . -j$(nproc)
+
+# Export the iso_root folder's contents as well as SE.iso
+FROM scratch AS exporter
+COPY --from=main_builder /app/build-xbox/SE.iso /
+COPY --from=main_builder /app/build-xbox/iso_root /iso_root

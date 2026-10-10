@@ -80,7 +80,8 @@ set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
 set(SE_RENDERER_VALID_OPTIONS "sdl3")
 set(SE_WINDOWING_VALID_OPTIONS "sdl3")
-set(SE_AUDIO_ENGINE_VALID_OPTIONS "headless") # "sdl3") # FIXME: Audio is completely broken right now; check source/menus/*.cpp for audio disable calls
+set(SE_AUDIO_ENGINE_VALID_OPTIONS "sdl3")
+set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
 
 set(SE_DEPS_VALID_OPTIONS "fallback" "system") # DO NOT MODIFY
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
