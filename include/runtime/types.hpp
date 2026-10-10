@@ -453,6 +453,8 @@ struct SE_EXPORT Monitor {
     int width;
     int height;
     int listPage = 0;
+    float listScroll = 0.0f;
+    float hitboxX = 0, hitboxY = 0, hitboxW = 0, hitboxH = 0;
     bool visible;
     double sliderMin;
     double sliderMax;

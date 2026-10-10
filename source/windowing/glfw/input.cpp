@@ -270,3 +270,7 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     glfwSetCharCallback(ctx, oldCharCallback);
     return g_inputText;
 }
+
+void Input::setClipboardText(const std::string &text) {
+    glfwSetClipboardString(inputWindow(), text.c_str());
+}

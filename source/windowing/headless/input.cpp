@@ -16,3 +16,6 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
     std::getline(std::cin, input);
     return input;
 }
+
+void Input::setClipboardText(const std::string &text) {
+}

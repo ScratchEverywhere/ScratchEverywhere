@@ -388,3 +388,9 @@ std::string Input::openSoftwareKeyboard(const char *hintText) {
 
     return "";
 }
+
+void Input::setClipboardText(const std::string &text) {
+#if defined(__PC__)
+    SDL_SetClipboardText(text.c_str());
+#endif
+}

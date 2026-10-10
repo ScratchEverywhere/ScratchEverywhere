@@ -22,6 +22,16 @@ static void framebuffer_size_callback(GLFWwindow *window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
+static void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+    static double accumulated = 0.0;
+    accumulated += yoffset;
+    const int ticks = static_cast<int>(accumulated);
+    if (ticks != 0) {
+        Input::mouseScrollDelta += ticks;
+        accumulated -= ticks;
+    }
+}
+
 bool WindowGLFW::init(int w, int h, const std::string &title) {
     if (!glfwInit()) {
         Log::logCritical("Failed to initialize GLFW", true);
@@ -52,6 +62,7 @@ bool WindowGLFW::init(int w, int h, const std::string &title) {
 
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     glfwGetFramebufferSize(window, &width, &height);
 

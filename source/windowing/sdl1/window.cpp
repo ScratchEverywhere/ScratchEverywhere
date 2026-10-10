@@ -101,6 +101,12 @@ void WindowSDL1::pollEvents() {
         case SDL_VIDEORESIZE:
             resize(event.resize.w, event.resize.h);
             break;
+#if defined(__PC__)
+        case SDL_MOUSEBUTTONDOWN:
+            if (event.button.button == SDL_BUTTON_WHEELUP) Input::mouseScrollDelta += 1;
+            else if (event.button.button == SDL_BUTTON_WHEELDOWN) Input::mouseScrollDelta -= 1;
+            break;
+#endif
         }
     }
 }

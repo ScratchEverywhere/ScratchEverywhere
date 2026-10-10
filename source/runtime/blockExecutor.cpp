@@ -295,30 +295,41 @@ void BlockExecutor::executeWhenGreaterThanHats() {
 void BlockExecutor::doSpriteClicking() {
     if (Input::mousePointer.isPressed) {
         Input::mousePointer.heldFrames++;
-        bool hasClicked = false;
-        for (auto &sprite : Scratch::sprites) {
-            if (!sprite->visible || sprite->ghostEffect == 100.0) continue;
 
-            // click a sprite
-            if (sprite->shouldDoSpriteClick) {
-                bool colliding;
-                if (Scratch::accurateCollision) colliding = collision::pointInSprite(sprite, Input::mousePointer.x, Input::mousePointer.y, true);
-                else colliding = collision::pointInSpriteFast(sprite, Input::mousePointer.x, Input::mousePointer.y);
-                if (Input::mousePointer.heldFrames < 2 && colliding) {
+        bool blockedByMonitor = false;
+#if defined(__PC__) // basically the only platform with mouse input and i don't want to waste perf on other platforms.
+        if (Input::draggingSprite == nullptr) {
+            std::array<int, 2> touchPos = Input::getTouchPosition();
+            blockedByMonitor = Render::isPointOverMonitor(touchPos[0], touchPos[1]);
+        }
+#endif
 
-                    // run all "when this sprite clicked" blocks in the sprite
-                    hasClicked = true;
-                    BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenthisspriteclicked", sprite);
-                    if (sprite->isStage) BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenstageclicked", sprite);
+        if (!blockedByMonitor) {
+            bool hasClicked = false;
+            for (auto &sprite : Scratch::sprites) {
+                if (!sprite->visible || sprite->ghostEffect == 100.0) continue;
+
+                // click a sprite
+                if (sprite->shouldDoSpriteClick) {
+                    bool colliding;
+                    if (Scratch::accurateCollision) colliding = collision::pointInSprite(sprite, Input::mousePointer.x, Input::mousePointer.y, true);
+                    else colliding = collision::pointInSpriteFast(sprite, Input::mousePointer.x, Input::mousePointer.y);
+                    if (Input::mousePointer.heldFrames < 2 && colliding) {
+
+                        // run all "when this sprite clicked" blocks in the sprite
+                        hasClicked = true;
+                        BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenthisspriteclicked", sprite);
+                        if (sprite->isStage) BlockExecutor::runAllBlocksByOpcodeInSprite("event_whenstageclicked", sprite);
+                    }
                 }
+                // start dragging a sprite
+                if (Input::draggingSprite == nullptr && Input::mousePointer.heldFrames < 2 && sprite->draggable && Scratch::isColliding("mouse", sprite)) {
+                    Input::draggingSprite = sprite;
+                    dragPositionOffsetX = Input::mousePointer.x - sprite->xPosition;
+                    dragPositionOffsetY = Input::mousePointer.y - sprite->yPosition;
+                }
+                if (hasClicked) break;
             }
-            // start dragging a sprite
-            if (Input::draggingSprite == nullptr && Input::mousePointer.heldFrames < 2 && sprite->draggable && Scratch::isColliding("mouse", sprite)) {
-                Input::draggingSprite = sprite;
-                dragPositionOffsetX = Input::mousePointer.x - sprite->xPosition;
-                dragPositionOffsetY = Input::mousePointer.y - sprite->yPosition;
-            }
-            if (hasClicked) break;
         }
     } else {
         Input::mousePointer.heldFrames = 0;

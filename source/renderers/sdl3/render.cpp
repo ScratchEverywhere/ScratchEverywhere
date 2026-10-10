@@ -450,6 +450,45 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     SDL_RenderFillRect(renderer, &rect);
 }
 
+void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    radius = std::clamp(radius, 0, std::min(w, h) / 2);
+    if (radius <= 0) {
+        drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+        return;
+    }
+
+    const SDL_FColor col = {colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, colorA / 255.0f};
+    const float left = x - w / 2.0f, right = x + w / 2.0f;
+    const float top = y - h / 2.0f, bottom = y + h / 2.0f;
+    const float r = static_cast<float>(radius);
+
+    constexpr int cornerSegments = 4;
+    std::vector<SDL_FPoint> outline;
+    outline.reserve((cornerSegments + 1) * 4);
+
+    auto addArc = [&](float cx, float cy, float startAngle) {
+        for (int i = 0; i <= cornerSegments; ++i) {
+            const float a = startAngle + (static_cast<float>(M_PI) / 2.0f) * (i / static_cast<float>(cornerSegments));
+            outline.push_back({cx + std::cos(a) * r, cy + std::sin(a) * r});
+        }
+    };
+
+    addArc(right - r, top + r, -static_cast<float>(M_PI) / 2.0f);
+    addArc(right - r, bottom - r, 0.0f);
+    addArc(left + r, bottom - r, static_cast<float>(M_PI) / 2.0f);
+    addArc(left + r, top + r, static_cast<float>(M_PI));
+
+    std::vector<SDL_Vertex> verts;
+    verts.reserve((outline.size() - 2) * 3);
+    for (size_t i = 1; i + 1 < outline.size(); ++i) {
+        verts.push_back({outline[0], col, {0.0f, 0.0f}});
+        verts.push_back({outline[i], col, {0.0f, 0.0f}});
+        verts.push_back({outline[i + 1], col, {0.0f, 0.0f}});
+    }
+
+    SDL_RenderGeometry(renderer, nullptr, verts.data(), static_cast<int>(verts.size()), nullptr, 0);
+}
+
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;

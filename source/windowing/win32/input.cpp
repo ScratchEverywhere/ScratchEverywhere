@@ -102,3 +102,18 @@ void Input::getInput() {
 std::string Input::openSoftwareKeyboard(const char *hintText) {
     return "";
 }
+
+void Input::setClipboardText(const std::string &text) {
+    if (!OpenClipboard((HWND)globalWindow->getHandle())) return;
+
+    EmptyClipboard();
+
+    HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, text.size() + 1);
+    if (mem) {
+        memcpy(GlobalLock(mem), text.c_str(), text.size() + 1);
+        GlobalUnlock(mem);
+        SetClipboardData(CF_TEXT, mem);
+    }
+
+    CloseClipboard();
+}

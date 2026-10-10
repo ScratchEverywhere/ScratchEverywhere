@@ -283,6 +283,10 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     SDL_FillRect(mainSurface, &rect, SDL_MapRGBA(mainSurface->format, colorR, colorG, colorB, colorA));
 }
 
+void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+}
+
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;

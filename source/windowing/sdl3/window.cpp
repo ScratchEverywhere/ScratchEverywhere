@@ -159,6 +159,11 @@ void WindowSDL3::pollEvents() {
             touchActive = false;
             break;
 #endif
+#if defined(__PC__)
+        case SDL_EVENT_MOUSE_WHEEL:
+            Input::mouseScrollDelta += static_cast<int>(event.wheel.y);
+            break;
+#endif
         }
     }
 }

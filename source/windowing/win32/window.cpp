@@ -88,6 +88,11 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
         self->resize(LOWORD(lp), HIWORD(lp));
         break;
     }
+    case WM_MOUSEWHEEL: {
+        const short delta = static_cast<short>(HIWORD(wp));
+        Input::mouseScrollDelta += delta / WHEEL_DELTA;
+        break;
+    }
     default: {
         return DefWindowProc(hWnd, msg, wp, lp);
     }

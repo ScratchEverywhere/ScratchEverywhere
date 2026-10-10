@@ -33,6 +33,7 @@ class SE_EXPORT Render {
         std::unique_ptr<TextObject> length;
         std::vector<std::unique_ptr<TextObject>> items;
         std::vector<std::unique_ptr<TextObject>> indices;
+        std::unique_ptr<TextObject> copyLabel;
     };
     static std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
 
@@ -93,6 +94,7 @@ class SE_EXPORT Render {
      * Renders all visible variable and list monitors
      */
     static void renderMonitors(const int &offsetX = 0, const int &offsetY = 0);
+    static bool isPointOverMonitor(int screenX, int screenY);
 
     // --- renderer specific render functions
 
@@ -168,6 +170,7 @@ class SE_EXPORT Render {
      * Draws a simple box to the screen.
      */
     static void drawBox(int w, int h, int x, int y, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255);
+    static void drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR = 0, uint8_t colorG = 0, uint8_t colorB = 0, uint8_t colorA = 255);
 
     /**
      * Returns whether or not the app should be running.

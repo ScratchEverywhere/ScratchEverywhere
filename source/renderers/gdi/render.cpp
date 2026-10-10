@@ -264,6 +264,26 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     DeleteObject(brush);
 }
 
+void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    radius = std::clamp(radius, 0, std::min(w, h) / 2);
+    if (radius <= 0) {
+        drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+        return;
+    }
+
+    HBRUSH brush = CreateSolidBrush(RGB(colorR, colorG, colorB));
+    HPEN pen = CreatePen(PS_SOLID, 1, RGB(colorR, colorG, colorB));
+    HGDIOBJ oldBrush = SelectObject(renderer, brush);
+    HGDIOBJ oldPen = SelectObject(renderer, pen);
+
+    RoundRect(renderer, x - w / 2, y - h / 2, x + w / 2, y + h / 2, radius * 2, radius * 2);
+
+    SelectObject(renderer, oldBrush);
+    SelectObject(renderer, oldPen);
+    DeleteObject(brush);
+    DeleteObject(pen);
+}
+
 void Render::renderPenLayer() {
     POINT p[3];
     int i;

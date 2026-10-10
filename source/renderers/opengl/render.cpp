@@ -393,6 +393,39 @@ void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG,
     glEnable(GL_TEXTURE_2D);
 }
 
+void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    radius = std::clamp(radius, 0, std::min(w, h) / 2);
+    if (radius <= 0) {
+        drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+        return;
+    }
+
+    const float left = x - w / 2.0f, right = x + w / 2.0f;
+    const float top = y - h / 2.0f, bottom = y + h / 2.0f;
+    const float r = static_cast<float>(radius);
+
+    constexpr int cornerSegments = 4;
+
+    glDisable(GL_TEXTURE_2D);
+    glColor4ub(colorR, colorG, colorB, colorA);
+    glBegin(GL_TRIANGLE_FAN);
+
+    auto addArc = [&](float cx, float cy, float startAngle) {
+        for (int i = 0; i <= cornerSegments; ++i) {
+            const float a = startAngle + (static_cast<float>(M_PI) / 2.0f) * (i / static_cast<float>(cornerSegments));
+            glVertex2f(cx + std::cos(a) * r, cy + std::sin(a) * r);
+        }
+    };
+
+    addArc(right - r, top + r, -static_cast<float>(M_PI) / 2.0f);
+    addArc(right - r, bottom - r, 0.0f);
+    addArc(left + r, bottom - r, static_cast<float>(M_PI) / 2.0f);
+    addArc(left + r, top + r, static_cast<float>(M_PI));
+
+    glEnd();
+    glEnable(GL_TEXTURE_2D);
+}
+
 void drawBlackBars(int screenWidth, int screenHeight) {
     float screenAspect = static_cast<float>(screenWidth) / screenHeight;
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
