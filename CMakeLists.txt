@@ -394,7 +394,7 @@ if(SE_DOWNLOAD)
 endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(se-interface INTERFACE ENABLE_CLOUDVARS)
-	cl_add_dep(se-interface mistpp)
+	cl_add_dep(se-interface gh:ScratchEverywhere/mistpp)
 endif()
 
 if(SE_DECTALK)
