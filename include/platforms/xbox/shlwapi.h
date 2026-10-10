@@ -1,18 +1,19 @@
+#pragma once
 #ifndef _XBOX_SHLWAPI_H
 #define _XBOX_SHLWAPI_H
 
-#include <windows.h>
 #include <stddef.h>
+#include <windows.h>
 
 typedef struct _SHFILEOPSTRUCTW {
-    HWND         hwnd;
-    UINT         wFunc;
-    const wchar_t* pFrom;
-    const wchar_t* pTo;
-    UINT         fFlags;
-    BOOL         fAnyOperationsAborted;
-    LPVOID       hNameMappings;
-    const wchar_t* lpszProgressTitle;
+    HWND hwnd;
+    UINT wFunc;
+    const wchar_t *pFrom;
+    const wchar_t *pTo;
+    UINT fFlags;
+    BOOL fAnyOperationsAborted;
+    LPVOID hNameMappings;
+    const wchar_t *lpszProgressTitle;
 } SHFILEOPSTRUCTW, *LPSHFILEOPSTRUCTW;
 
 #define FO_DELETE 3
@@ -24,4 +25,3 @@ typedef struct _SHFILEOPSTRUCTW {
 static inline int SHFileOperationW(LPSHFILEOPSTRUCTW lpFileOp) { return 0; }
 
 #endif
-

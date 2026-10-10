@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _XBOX_UTIME_H
 #define _XBOX_UTIME_H
 

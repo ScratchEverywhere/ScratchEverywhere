@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _XBOX_MEMORY_H
 #define _XBOX_MEMORY_H
 

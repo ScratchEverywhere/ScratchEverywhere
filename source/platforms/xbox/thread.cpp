@@ -1,8 +1,6 @@
-#pragma once
-
 #include <thread.hpp>
 
-// stubbed for now :duckgrin:
+// TODO: get this to work with WinAPI threads?
 
 struct SE_Thread::Impl {};
 

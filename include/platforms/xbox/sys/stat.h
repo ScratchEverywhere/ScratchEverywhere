@@ -1,10 +1,11 @@
+#pragma once
 #ifndef _XBOX_SYS_STAT_H
 #define _XBOX_SYS_STAT_H
 
-#include <time.h>
 #include <stdio.h>
-#include <windows.h>
 #include <string.h>
+#include <time.h>
+#include <windows.h>
 
 static inline int close(int fd) {
     return -1;
@@ -34,8 +35,6 @@ struct utimbuf {
 static inline int utime(const char *filename, const struct utimbuf *times) {
     return -1;
 }
-
-
 
 #ifdef MZ_OS_H
 static inline DIR *opendir(const char *name) {
@@ -112,17 +111,17 @@ typedef unsigned int gid_t;
 typedef long int off_t;
 
 struct stat {
-    dev_t     st_dev;
-    ino_t     st_ino;
-    mode_t    st_mode;
-    nlink_t   st_nlink;
-    uid_t     st_uid;
-    gid_t     st_gid;
-    dev_t     st_rdev;
-    off_t     st_size;
-    time_t    st_atime;
-    time_t    st_mtime;
-    time_t    st_ctime;
+    dev_t st_dev;
+    ino_t st_ino;
+    mode_t st_mode;
+    nlink_t st_nlink;
+    uid_t st_uid;
+    gid_t st_gid;
+    dev_t st_rdev;
+    off_t st_size;
+    time_t st_atime;
+    time_t st_mtime;
+    time_t st_ctime;
 };
 
 static inline int stat(const char *pathname, struct stat *statbuf) {

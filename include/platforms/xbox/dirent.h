@@ -1,12 +1,13 @@
+#pragma once
 #ifndef _XBOX_DIRENT_H
 #define _XBOX_DIRENT_H
 
 struct dirent {
-    unsigned long  d_ino;
-    long           d_off;
+    unsigned long d_ino;
+    long d_off;
     unsigned short d_reclen;
-    unsigned char  d_type;
-    char           d_name[256];
+    unsigned char d_type;
+    char d_name[256];
 };
 
 typedef struct {

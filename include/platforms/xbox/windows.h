@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _XBOX_WINDOWS_H
 #define _XBOX_WINDOWS_H
 
@@ -7,7 +8,8 @@ static inline size_t mbstowcs(wchar_t *dest, const char *src, size_t n) {
     if (!src) return 0;
     if (!dest) {
         size_t len = 0;
-        while (src[len]) len++;
+        while (src[len])
+            len++;
         return len;
     }
     size_t i = 0;
@@ -20,19 +22,19 @@ static inline size_t mbstowcs(wchar_t *dest, const char *src, size_t n) {
 
 #ifdef __cplusplus
 namespace std {
-    using ::mbstowcs;
+using ::mbstowcs;
 }
 #endif
 
 typedef struct _SHFILEOPSTRUCTW {
-    HWND         hwnd;
-    UINT         wFunc;
-    LPCWSTR      pFrom;
-    LPCWSTR      pTo;
-    UINT         fFlags;
-    BOOL         fAnyOperationsAborted;
-    LPVOID       hNameMappings;
-    LPCWSTR      lpszProgressTitle;
+    HWND hwnd;
+    UINT wFunc;
+    LPCWSTR pFrom;
+    LPCWSTR pTo;
+    UINT fFlags;
+    BOOL fAnyOperationsAborted;
+    LPVOID hNameMappings;
+    LPCWSTR lpszProgressTitle;
 } SHFILEOPSTRUCTW, *LPSHFILEOPSTRUCTW;
 
 #define FO_DELETE 3
@@ -44,7 +46,7 @@ typedef struct _SHFILEOPSTRUCTW {
 static inline int SHFileOperationW(LPSHFILEOPSTRUCTW lpFileOp) { return 0; }
 
 #ifndef INVALID_FILE_ATTRIBUTES
-#define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
+#define INVALID_FILE_ATTRIBUTES ((DWORD) - 1)
 #endif
 
 typedef struct _WIN32_FIND_DATAW {
@@ -113,7 +115,8 @@ static inline int WideCharToMultiByte(UINT CodePage, DWORD dwFlags, LPCWSTR lpWi
     if (!lpWideCharStr) return 0;
     int len = 0;
     if (cchWideChar < 0) {
-        while (lpWideCharStr[len]) len++;
+        while (lpWideCharStr[len])
+            len++;
         len++; // include null terminator
     } else {
         len = cchWideChar;

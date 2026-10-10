@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _XBOX_TIME_H
 #define _XBOX_TIME_H
 

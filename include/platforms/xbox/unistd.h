@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _XBOX_UNISTD_H
 #define _XBOX_UNISTD_H
 

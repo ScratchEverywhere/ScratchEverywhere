@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _XBOX_DIRECT_H
 #define _XBOX_DIRECT_H
 

@@ -1,3 +1,4 @@
+#pragma once
 #ifndef _XBOX_FCNTL_H
 #define _XBOX_FCNTL_H
 
