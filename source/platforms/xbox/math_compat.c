@@ -1,3 +1,4 @@
+#if defined(__XBOX__)
 #include <math.h>
 
 long int lround(double x)
@@ -59,3 +60,4 @@ long long int llrintl(long double x)
 {
     return (long long int)rintl(x);
 }
+#endif

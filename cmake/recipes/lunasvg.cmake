@@ -12,10 +12,15 @@ function(_recipe_lunasvg_source)
 		set(LUNASVG_TAG "v${CL_REQ_VERSION}")
 	endif()
 
+	set(LUNASVG_PATCHES)
+	if(XBOX)
+		set(LUNASVG_PATCHES PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/lunasvg.patch")
+	endif()
+
 	cl_import_source(
 		NAME lunasvg
 		URL https://github.com/sammycage/lunasvg/archive/refs/tags/${LUNASVG_TAG}.tar.gz
 		OPTIONS "LUNASVG_BUILD_EXAMPLES" "OFF"
-		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/lunasvg.patch"
+		${LUNASVG_PATCHES}
 	)
 endfunction()

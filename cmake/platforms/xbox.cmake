@@ -121,6 +121,9 @@ add_compile_options(
     -march=pentium3
     -mtune=pentium3
 
+    # Platform macro
+    -D__XBOX__
+
     # Required due to NV2A architecture limitations
     -DSE_NO_OPENGL
 
