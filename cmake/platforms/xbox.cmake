@@ -92,9 +92,7 @@ set(SE_AUDIO_ENGINE_DEFAULT "sdl3")
 
 set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 set(SE_LUA_BACKEND_VALID_OPTIONS "fallback")
-
-# FIXME: see comment in PR review
-set(SE_ZIP_BACKEND "miniz")
+set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz")
 
 # CPU expensive and nxdk implementation has type conflicts; keep off for now
 set(SE_DECTALK_DEFAULT OFF)

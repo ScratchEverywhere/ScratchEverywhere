@@ -165,7 +165,9 @@ set(SE_WINDOWING_PRIORITY "glfw" "sdl3" "sdl2" "sdl1" "win32" "3ds" "nds" "headl
 set_preferred_cache_var(SE_WINDOWING "${SE_WINDOWING_PRIORITY}" "${SE_WINDOWING_VALID_OPTIONS}" "Select the desired windowing backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowing/${SE_WINDOWING}.cmake")
 
-set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz" "minizip")
+if(NOT DEFINED SE_ZIP_BACKEND_VALID_OPTIONS)
+    set(SE_ZIP_BACKEND_VALID_OPTIONS "miniz" "minizip")
+endif()
 set_preferred_cache_var(SE_ZIP_BACKEND "miniz" "${SE_ZIP_BACKEND_VALID_OPTIONS}" "Select the zip library used to read .sb3 archives.")
 
 list(APPEND SE_AUDIO_ENGINE_VALID_OPTIONS "headless")
