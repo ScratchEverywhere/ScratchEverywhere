@@ -5,6 +5,11 @@ set(CATALOG_RECIPES
 	libdlgmod:libdlgmod.cmake
 	ryuJS:ryujs.cmake
 	plutovg:plutovg.cmake
-	lunasvg:lunasvg.cmake
-	miniz:miniz.cmake
 )
+
+if(XBOX)
+	list(APPEND CATALOG_RECIPES
+		lunasvg:lunasvg.cmake
+		miniz:miniz.cmake
+	)
+endif()

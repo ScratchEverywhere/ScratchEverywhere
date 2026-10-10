@@ -159,9 +159,14 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
 #ifdef USE_CMAKERC
     } else {
         auto fs = cmrc::romfs::get_filesystem();
+#if defined(__XBOX__)
         std::string cmrcAudioPath = OS::normalizeCMRCPath(prefix + path);
         if (!fs.exists(cmrcAudioPath)) return nonstd::make_unexpected("Audio file not found.");
         const auto &file = fs.open(cmrcAudioPath);
+#else
+        if (!fs.exists(prefix + path)) return nonstd::make_unexpected("Audio file not found.");
+        const auto &file = fs.open(prefix + path);
+#endif
 
         this->buffer_size = file.size();
 
@@ -308,9 +313,14 @@ void Mixer::initMusic() {
 
 #ifdef USE_CMAKERC
     auto fs = cmrc::romfs::get_filesystem();
+#if defined(__XBOX__)
     std::string cmrcSF2Path = OS::normalizeCMRCPath(path);
     if (fs.exists(cmrcSF2Path)) {
         const auto &file = fs.open(cmrcSF2Path);
+#else
+    if (fs.exists(path)) {
+        const auto &file = fs.open(path);
+#endif
 
         size = file.size();
 

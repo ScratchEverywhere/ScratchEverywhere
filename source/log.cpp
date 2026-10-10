@@ -140,17 +140,24 @@ void Log::deleteLogFile() {
 }
 
 #else
+static std::string lastLog;
 void Log::log(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
     std::cout << message << std::endl;
     writeToFile(message);
 }
 
 void Log::logWarning(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
     std::cout << "\x1b[1;33m" << "Warning: " << message << "\x1b[0m" << std::endl;
     writeToFile("<Warning> " + message);
 }
 
 void Log::logError(std::string message) {
+    if (lastLog == message) return;
+    lastLog = message;
     std::cerr << "\x1b[1;31m" << "Error: " << message << "\x1b[0m" << std::endl;
     writeToFile("<Error> " + message);
 }
@@ -161,6 +168,8 @@ void Log::logError(std::string message) {
  * Adds Ignore button when not Fatal Error:
  */
 void Log::logCritical(std::string message, bool fatal) {
+    if (lastLog == message) return;
+    lastLog = message;
     if (fatal) {
         std::cerr << "\x1b[1;31m" << "Fatal: " << message << "\x1b[0m" << std::endl;
         writeToFile("<Fatal> " + message);
@@ -203,22 +212,21 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
-    std::string folder = OS::getScratchFolderLocation();
-    std::string filePath = folder + (folder.empty() || folder.back() == '/' || folder.back() == '\\' ? "" : "/") + "log.txt";
-    std::ofstream logFile;
-    logFile.open(filePath, std::ios::app);
-    if (logFile.is_open()) {
-        logFile << message << std::endl;
-        logFile.flush();
-        logFile.close();
-    } else {
-        std::cerr << "Could not open log file: " << filePath << std::endl;
+    if (Render::debugMode) {
+        std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+        std::ofstream logFile;
+        logFile.open(filePath, std::ios::app);
+        if (logFile.is_open()) {
+            logFile << message << std::endl;
+            logFile.close();
+        } else {
+            std::cerr << "Could not open log file: " << filePath << std::endl;
+        }
     }
 }
 
 void Log::deleteLogFile() {
-    std::string folder = OS::getScratchFolderLocation();
-    std::string filePath = folder + (folder.empty() || folder.back() == '/' || folder.back() == '\\' ? "" : "/") + "log.txt";
+    std::string filePath = OS::getScratchFolderLocation() + "/log.txt";
     if (std::remove(filePath.c_str()) != 0) {
         Log::logWarning("Failed to delete log file: " + std::string(std::strerror(errno)));
     }

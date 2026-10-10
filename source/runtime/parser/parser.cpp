@@ -212,9 +212,14 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         const auto &fs = cmrc::romfs::get_filesystem();
 
         std::unique_ptr<std::istringstream> romfsStream = nullptr;
+#if defined(__XBOX__)
         std::string cmrcExtPath = OS::normalizeCMRCPath(romFSPath);
         if (fs.exists(cmrcExtPath)) {
             const auto &romfsIn = fs.open(cmrcExtPath);
+#else
+        if (fs.exists(romFSPath)) {
+            const auto &romfsIn = fs.open(romFSPath);
+#endif
             romfsStream = std::make_unique<std::istringstream>(std::string(romfsIn.begin(), romfsIn.end()));
 
             auto result = extensions::parseMetadata(*romfsStream);

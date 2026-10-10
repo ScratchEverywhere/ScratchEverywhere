@@ -35,6 +35,7 @@ class MinizZipArchive : public ZipArchive {
     void *extractToHeap(const std::string &name, size_t *outSize) override {
         if (!opened) return nullptr;
         int file_index = mz_zip_reader_locate_file(&archive, name.c_str(), nullptr, 0);
+#if defined(__XBOX__)
         if (file_index < 0) {
             file_index = mz_zip_reader_locate_file(&archive, ("./" + name).c_str(), nullptr, 0);
         }
@@ -53,6 +54,7 @@ class MinizZipArchive : public ZipArchive {
                 }
             }
         }
+#endif
         if (file_index < 0) return nullptr;
         return mz_zip_reader_extract_to_heap(&archive, file_index, outSize, 0);
     }

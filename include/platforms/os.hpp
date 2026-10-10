@@ -66,6 +66,7 @@ SE_EXPORT std::string getScratchFolderLocation();
  */
 SE_EXPORT std::string getRomFSLocation();
 
+#if defined(__XBOX__)
 /**
  * Normalizes paths for use with CMakeRC embedded filesystem (CMRC).
  * Strips OS::getRomFSLocation() and leading drive/romfs prefixes, converting backslashes to slashes.
@@ -95,6 +96,7 @@ inline std::string normalizeCMRCPath(const std::string &path) {
     }
     return p;
 }
+#endif
 
 /**
  * Get the current platform that's running the app.

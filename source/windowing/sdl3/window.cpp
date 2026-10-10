@@ -61,15 +61,15 @@ bool WindowSDL3::init(int width, int height, const std::string &title) {
     flags |= SDL_WINDOW_OPENGL;
 #endif
 
-#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
-    window = SDL_CreateWindow(title.c_str(), width, height, flags);
-    if (!window) {
-        Log::logCritical("Failed to create SDL3 window: " + std::string(SDL_GetError()), true);
+#if defined(__XBOX__)
+    if (!SDL_CreateWindowAndRenderer(title.c_str(), width, height, flags, &window, &sdlRenderer)) {
+        Log::logCritical("Failed to create SDL3 window/renderer: " + std::string(SDL_GetError()), true);
         return false;
     }
 #else
-    if (!SDL_CreateWindowAndRenderer(title.c_str(), width, height, flags, &window, &sdlRenderer)) {
-        Log::logCritical("Failed to create SDL3 window/renderer: " + std::string(SDL_GetError()), true);
+    window = SDL_CreateWindow(title.c_str(), width, height, flags);
+    if (!window) {
+        Log::logCritical("Failed to create SDL3 window: " + std::string(SDL_GetError()), true);
         return false;
     }
 #endif
@@ -208,6 +208,8 @@ void *WindowSDL3::getHandle() {
     return window;
 }
 
+#if defined(__XBOX__)
 void *WindowSDL3::getRenderer() {
     return sdlRenderer;
 }
+#endif

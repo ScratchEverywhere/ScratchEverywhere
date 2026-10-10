@@ -46,7 +46,7 @@ endif()
 # NXDK-SDL3 single patch application and subdirectory inclusion
 if(NOT "$ENV{NXDK_SDL3_DIR}" STREQUAL "")
     set(PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk-sdl3.patch")
-    
+
     if(EXISTS "${PATCH_FILE}")
         # Check if patch can be applied cleanly (prevents errors on re-configuration)
         execute_process(
@@ -55,7 +55,7 @@ if(NOT "$ENV{NXDK_SDL3_DIR}" STREQUAL "")
             RESULT_VARIABLE GIT_APPLY_CHECK
             OUTPUT_QUIET ERROR_QUIET
         )
-        
+
         if(GIT_APPLY_CHECK EQUAL 0)
             message(STATUS "Applying nxdk-sdl3.patch to nxdk-sdl3...")
             execute_process(
@@ -78,8 +78,8 @@ endif()
 
 set(SE_DEFAULT_OUTPUT_NAME "scratch-xbox")
 
-set(SE_RENDERER_VALID_OPTIONS "sdl3") # "headless") 
-set(SE_WINDOWING_VALID_OPTIONS "sdl3") # "headless")
+set(SE_RENDERER_VALID_OPTIONS "sdl3")
+set(SE_WINDOWING_VALID_OPTIONS "sdl3")
 set(SE_AUDIO_ENGINE_VALID_OPTIONS "headless") # "sdl3") # FIXME: Audio is completely broken right now; check source/menus/*.cpp for audio disable calls
 
 set(SE_DEPS_VALID_OPTIONS "fallback" "system") # DO NOT MODIFY
@@ -93,7 +93,7 @@ set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)
 
 # These may need to be adjusted
-set(SE_SVG ON) # FIXME: SVG loading is completely broken right now; check all source/menus/*.cpp for *.svg to *.png conversion
+set(SE_SVG ON)
 set(SE_BITMAP ON)
 set(SE_MENU ON)
 set(SE_LOADSCREEN ON)
@@ -116,7 +116,7 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox)
 add_compile_options(
     $<$<COMPILE_LANGUAGE:CXX>:-include>
     $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/include/platforms/xbox/xbox_iostream_injector.hpp>
-    
+
     # Needed for PIII Coppermine tuning
     -march=pentium3
     -mtune=pentium3
@@ -183,9 +183,9 @@ macro(package_platform)
 
     add_custom_command(TARGET scratch-everywhere POST_BUILD
         COMMAND ${NXDK_DIR}/bin/cxbe
-            -OUT:${CMAKE_CURRENT_BINARY_DIR}/default.xbe
-            -TITLE:"${SE_APP_NAME}"
-            $<TARGET_FILE:scratch-everywhere>
+        -OUT:${CMAKE_CURRENT_BINARY_DIR}/default.xbe
+        -TITLE:"${SE_APP_NAME}"
+        $<TARGET_FILE:scratch-everywhere>
         COMMENT "Making default.xbe"
     )
 

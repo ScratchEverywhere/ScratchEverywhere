@@ -1,11 +1,13 @@
 #include "zip_archive.hpp"
+#if defined(__XBOX__)
 #include <log.hpp>
+#include <string>
+#endif
 
 #include <cstdint>
 #include <cstdlib>
 #include <istream>
 #include <memory>
-#include <string>
 #include <mz.h>
 #include <mz_strm.h>
 #include <mz_zip.h>
@@ -89,21 +91,30 @@ class MinizipZipArchive : public ZipArchive {
     }
 
     bool openFile(const std::string &path) override {
+#if defined(__XBOX__)
         int32_t err = handle ? mz_zip_reader_open_file(handle, path.c_str()) : MZ_PARAM_ERROR;
         if (err != MZ_OK) {
             Log::logError("mz_zip_reader_open_file failed for " + path + " err=" + std::to_string(err));
         }
         opened = (err == MZ_OK);
+#else
+        opened = handle && mz_zip_reader_open_file(handle, path.c_str()) == MZ_OK;
+#endif
         return opened;
     }
 
     bool openMemory(const void *data, size_t size) override {
+#if defined(__XBOX__)
         int32_t err = handle ? mz_zip_reader_open_buffer(handle, static_cast<uint8_t *>(const_cast<void *>(data)),
                                                          static_cast<int32_t>(size), 0) : MZ_PARAM_ERROR;
         if (err != MZ_OK) {
             Log::logError("mz_zip_reader_open_buffer failed err=" + std::to_string(err) + " size=" + std::to_string(size));
         }
         opened = (err == MZ_OK);
+#else
+        opened = handle && mz_zip_reader_open_buffer(handle, static_cast<const uint8_t *>(data),
+                                                     static_cast<int32_t>(size), 0) == MZ_OK;
+#endif
         return opened;
     }
 
@@ -113,15 +124,20 @@ class MinizipZipArchive : public ZipArchive {
         streamWrapper->base.vtbl = &kIStreamVtbl;
         streamWrapper->stream = stream;
         streamWrapper->size = static_cast<int64_t>(size);
+#if defined(__XBOX__)
         int32_t err = mz_zip_reader_open(handle, streamWrapper.get());
         if (err != MZ_OK) {
             Log::logError("mz_zip_reader_open stream failed err=" + std::to_string(err));
         }
         opened = (err == MZ_OK);
+#else
+        opened = mz_zip_reader_open(handle, streamWrapper.get()) == MZ_OK;
+#endif
         return opened;
     }
 
     void *extractToHeap(const std::string &name, size_t *outSize) override {
+#if defined(__XBOX__)
         if (!opened) {
             Log::logError("MinizipZipArchive::extractToHeap: archive not open!");
             return nullptr;
@@ -192,6 +208,26 @@ class MinizipZipArchive : public ZipArchive {
 
         if (outSize) *outSize = static_cast<size_t>(size);
         return buf;
+#else
+        if (!opened) return nullptr;
+        if (mz_zip_reader_locate_entry(handle, name.c_str(), 0) != MZ_OK) return nullptr;
+
+        mz_zip_file *info = nullptr;
+        if (mz_zip_reader_entry_get_info(handle, &info) != MZ_OK || !info) return nullptr;
+        if (info->uncompressed_size < 0 || info->uncompressed_size > INT32_MAX) return nullptr;
+
+        int32_t size = static_cast<int32_t>(info->uncompressed_size);
+        void *buf = malloc(size > 0 ? static_cast<size_t>(size) : 1);
+        if (!buf) return nullptr;
+
+        if (size > 0 && mz_zip_reader_entry_save_buffer(handle, buf, size) != MZ_OK) {
+            free(buf);
+            return nullptr;
+        }
+
+        if (outSize) *outSize = static_cast<size_t>(size);
+        return buf;
+#endif
     }
 
     void freeHeap(void *ptr) override {

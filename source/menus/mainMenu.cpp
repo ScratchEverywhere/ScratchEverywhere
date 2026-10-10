@@ -111,51 +111,70 @@ void MainMenu::init() {
     Input::applyControls();
     Render::renderMode = Render::BOTH_SCREENS;
 
+#if defined(__XBOX__)
     Log::log("MainMenu::init: loading logo.png...");
+#endif
     logo = new MenuImage("gfx/menu/logo.png");
     logo->x = 200;
     logoStartTime.start();
 
     std::string versionStr;
     switch (SE_VERSION_TYPE) {
-    case SE_VERSION_TYPE_RELEASE:
-        versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
-        break;
-    case SE_VERSION_TYPE_BETA:
-        versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
-        break;
-    case SE_VERSION_TYPE_ALPHA:
-        versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
-        break;
-    case SE_VERSION_TYPE_RELEASE_CANDIDATE:
-        versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
-        break;
-    case SE_VERSION_TYPE_NIGHTLY:
-        versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
-        break;
-    default:
-        versionStr = TranslationManager::getTranslation("version.prefix.dev");
-        break;
+        case SE_VERSION_TYPE_RELEASE:
+            versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
+            break;
+        case SE_VERSION_TYPE_BETA:
+            versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
+            break;
+        case SE_VERSION_TYPE_ALPHA:
+            versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
+            break;
+        case SE_VERSION_TYPE_RELEASE_CANDIDATE:
+            versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
+            break;
+        case SE_VERSION_TYPE_NIGHTLY:
+            versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
+            break;
+        default:
+            versionStr = TranslationManager::getTranslation("version.prefix.dev");
+            break;
     }
+#if defined(__XBOX__)
     Log::log("MainMenu::init: creating version text...");
+#endif
     versionNumber = createTextObject(versionStr, 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);
     versionNumber->setScale(0.75);
 
+#if defined(__XBOX__)
     Log::log("MainMenu::init: creating splash text...");
+#endif
     splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(255, 255, 255, 128));
+#if defined(__XBOX__)
     if (logo && logo->image && splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
         splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
         splashText->scale = splashTextOriginalScale;
     } else {
         splashTextOriginalScale = splashText->scale;
     }
+#else
+    if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
+        splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
+        splashText->scale = splashTextOriginalScale;
+    } else {
+        splashTextOriginalScale = splashText->scale;
+    }
+#endif
+#if defined(__XBOX__)
     Log::log("MainMenu::init: loading loadButton play.svg...");
+#endif
     loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
+#if defined(__XBOX__)
     Log::log("MainMenu::init: loading settingsButton settings.svg...");
+#endif
     settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
 
     mainMenuControl = new ControlObject();
@@ -165,7 +184,9 @@ void MainMenu::init() {
     mainMenuControl->buttonObjects.push_back(loadButton);
     mainMenuControl->buttonObjects.push_back(settingsButton);
     isInitialized = true;
+#if defined(__XBOX__)
     Log::log("MainMenu::init: finished successfully!");
+#endif
 
     settings = SettingsManager::getConfigSettings();
 }
@@ -183,7 +204,11 @@ void MainMenu::render() {
         if (!Mixer::isSoundPlaying("gfx/nds/mm_ds.wav")) {
             SoundStream *strm = new SoundStream("gfx/nds/mm_ds.wav");
             if (strm->error.has_value()) {
+#if defined(__XBOX__)
                 Log::logError(strm->error.value());
+#else
+                Log::log(strm->error.value());
+#endif
                 delete strm;
             } else
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
@@ -192,7 +217,11 @@ void MainMenu::render() {
         if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
+#if defined(__XBOX__)
                 Log::logError(strm->error.value());
+#else
+                Log::log(strm->error.value());
+#endif
                 delete strm;
             } else
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
