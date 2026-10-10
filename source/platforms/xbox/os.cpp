@@ -52,7 +52,6 @@ bool OS::init() {
 
 void OS::deinit() {
     debugPrint("OS deinit!");
-    Sleep(5000);
 }
 
 std::string OS::getPlatform() {
