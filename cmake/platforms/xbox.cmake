@@ -192,10 +192,15 @@ macro(package_platform)
 
     find_program(EXTRACT_XISO_BIN extract-xiso PATHS "${NXDK_DIR}/bin" "$ENV{NXDK_DIR}/bin")
     if(EXTRACT_XISO_BIN)
+        set(SAMPLE_PROJECT_CMD "")
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/project.sb3")
+            set(SAMPLE_PROJECT_CMD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/project.sb3" "${CMAKE_CURRENT_BINARY_DIR}/iso_root/project.sb3")
+        endif()
         add_custom_command(TARGET scratch-everywhere POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/iso_root
             COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/default.xbe ${CMAKE_CURRENT_BINARY_DIR}/iso_root/default.xbe
             COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/romfs ${CMAKE_CURRENT_BINARY_DIR}/iso_root/romfs
+            ${SAMPLE_PROJECT_CMD}
             COMMAND ${EXTRACT_XISO_BIN} -c ${CMAKE_CURRENT_BINARY_DIR}/iso_root ${CMAKE_CURRENT_BINARY_DIR}/SE.iso
             COMMENT "Building SE.iso"
         )

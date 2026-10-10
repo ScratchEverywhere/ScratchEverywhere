@@ -11,14 +11,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bison \
     flex \
     git \
-    cargo \
-    rustc \
-    ca-certificates
+    curl \
+    ca-certificates && \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal && \
+    rm -rf /var/lib/apt/lists/*
 
 # Point to both the nxdk and nxdk-sdl3 as environment variables for the container itself
 ENV NXDK_DIR=/nxdk
 ENV NXDK_SDL3_DIR=/nxdk-sdl3
-ENV PATH="/nxdk/bin:$PATH"
+ENV PATH="/nxdk/bin:/root/.cargo/bin:$PATH"
 
 # Clone the github.com/xboxDev/nxdk repository
 RUN git clone --recursive --depth 1 https://github.com/xboxDev/nxdk.git /nxdk && \
