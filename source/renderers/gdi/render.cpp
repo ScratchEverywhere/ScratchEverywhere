@@ -302,7 +302,7 @@ static void drawBlackBars() {
         FillRect(renderer, &rc, brush);
 
         rc.left += w / 2 + sw;
-        rc.right += w / 2 + sw;
+        rc.right = Render::getWidth();
         FillRect(renderer, &rc, brush);
     } else {
         /* horizontal */
@@ -318,7 +318,7 @@ static void drawBlackBars() {
         FillRect(renderer, &rc, brush);
 
         rc.top += h / 2 + sh;
-        rc.bottom += h / 2 + sh;
+        rc.bottom = Render::getHeight();
         FillRect(renderer, &rc, brush);
     }
 }
