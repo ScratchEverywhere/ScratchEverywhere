@@ -416,6 +416,7 @@ endif()
 
 if(SE_SVG)
 	target_compile_definitions(se-interface INTERFACE ENABLE_SVG)
+	add_compile_definitions(PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD)
 endif()
 
 if(SE_INSPECTOR)
@@ -461,7 +462,24 @@ if(SE_CUSTOM_EXTENSIONS)
 endif()
 
 if(SE_SVG)
+	set(PLUTOVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+	set(LUNASVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 	cl_add_dep(se-interface lunasvg)
+	if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/_deps/plutovg-src/source/plutovg-path.c")
+		execute_process(
+			COMMAND git apply --check "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/plutovg.patch"
+			WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/_deps/plutovg-src"
+			RESULT_VARIABLE PLUTOVG_CHECK
+			OUTPUT_QUIET ERROR_QUIET
+		)
+		if(PLUTOVG_CHECK EQUAL 0)
+			message(STATUS "Applying plutovg.patch to _deps/plutovg-src...")
+			execute_process(
+				COMMAND git apply "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/plutovg.patch"
+				WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/_deps/plutovg-src"
+			)
+		endif()
+	endif()
 endif()
 
 if(SE_BITMAP)

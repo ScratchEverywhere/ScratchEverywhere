@@ -5,5 +5,6 @@ set(CATALOG_RECIPES
 	libdlgmod:libdlgmod.cmake
 	ryuJS:ryujs.cmake
 	plutovg:plutovg.cmake
+	lunasvg:lunasvg.cmake
 	miniz:miniz.cmake
 )

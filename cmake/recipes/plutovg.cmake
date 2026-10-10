@@ -16,11 +16,12 @@ function(_recipe_plutovg_source)
 		NAME plutovg
 		URL https://github.com/sammycage/plutovg/archive/refs/tags/${PLUTOVG_TAG}.tar.gz
 		OPTIONS "PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD" "ON" "PLUTOVG_BUILD_EXAMPLES" "OFF"
+		PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/plutovg.patch"
 	)
 
 	# Not all platforms need these but there's no harm in adding them since we don't need a multithreaded plutovg
 	if(TARGET plutovg)
-		target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__ __STDC_NO_ATOMICS__)
+		target_compile_definitions(plutovg PRIVATE __STDC_NO_THREADS__ __STDC_NO_ATOMICS__ PLUTOVG_DISABLE_FONT_FACE_CACHE_LOAD=1)
 		target_compile_options(plutovg PRIVATE -Wno-error=incompatible-pointer-types)
 	endif()
 endfunction()

@@ -1,0 +1,195 @@
+diff --git a/source/graphics.cpp b/source/graphics.cpp
+index c5eb3be..aa1e95a 100644
+--- a/source/graphics.cpp
++++ b/source/graphics.cpp
+@@ -281,12 +281,17 @@ void Path::reset()
+     m_data = nullptr;
+ }
+ 
++extern "C" void lunasvg_log(const char* msg);
++
+ Rect Path::boundingRect() const
+ {
++    lunasvg_log("lunasvg: Path::boundingRect enter");
+     if(m_data == nullptr)
+         return Rect::Empty;
+     plutovg_rect_t extents;
++    lunasvg_log("lunasvg: Path::boundingRect calling plutovg_path_extents");
+     plutovg_path_extents(m_data, &extents, false);
++    lunasvg_log("lunasvg: Path::boundingRect plutovg_path_extents done");
+     return extents;
+ }
+ 
+@@ -484,7 +489,7 @@ FontFaceCache::FontFaceCache()
+ 
+ FontFaceCache* fontFaceCache()
+ {
+-    thread_local FontFaceCache cache;
++    static FontFaceCache cache;
+     return &cache;
+ }
+ 
+diff --git a/source/lunasvg.cpp b/source/lunasvg.cpp
+index 2cb72d1..687989f 100644
+--- a/source/lunasvg.cpp
++++ b/source/lunasvg.cpp
+@@ -436,23 +436,38 @@ std::unique_ptr<Document> Document::loadFromData(const char* data)
+     return loadFromData(data, std::strlen(data));
+ }
+ 
++extern "C" void lunasvg_log(const char* msg);
++
+ std::unique_ptr<Document> Document::loadFromData(const char* data, size_t length)
+ {
++    lunasvg_log("lunasvg: Document::loadFromData start");
+     std::unique_ptr<Document> document(new Document);
+-    if(!document->parse(data, length))
++    lunasvg_log("lunasvg: Document::parse start");
++    if(!document->parse(data, length)) {
++        lunasvg_log("lunasvg: Document::parse failed");
+         return nullptr;
++    }
++    lunasvg_log("lunasvg: Document::parse succeeded");
++    lunasvg_log("lunasvg: Document::updateLayout start");
+     document->updateLayout();
++    lunasvg_log("lunasvg: Document::updateLayout end");
+     return document;
+ }
+ 
+ float Document::width() const
+ {
+-    return m_rootElement->intrinsicWidth();
++    lunasvg_log("lunasvg: Document::width start");
++    float w = m_rootElement->intrinsicWidth();
++    lunasvg_log("lunasvg: Document::width end");
++    return w;
+ }
+ 
+ float Document::height() const
+ {
+-    return m_rootElement->intrinsicHeight();
++    lunasvg_log("lunasvg: Document::height start");
++    float h = m_rootElement->intrinsicHeight();
++    lunasvg_log("lunasvg: Document::height end");
++    return h;
+ }
+ 
+ Box Document::boundingBox() const
+@@ -462,8 +477,11 @@ Box Document::boundingBox() const
+ 
+ void Document::updateLayout()
+ {
+-    SVGLayoutState state;
+-    m_rootElement->layout(state);
++    lunasvg_log("lunasvg: updateLayout: creating SVGLayoutState...");
++    auto state = std::make_unique<SVGLayoutState>();
++    lunasvg_log("lunasvg: updateLayout: calling m_rootElement->layout...");
++    m_rootElement->layout(*state);
++    lunasvg_log("lunasvg: updateLayout: m_rootElement->layout finished");
+ }
+ 
+ void Document::render(Bitmap& bitmap, const Matrix& matrix) const
+diff --git a/source/svgelement.cpp b/source/svgelement.cpp
+index dee7ca2..9d08d12 100644
+--- a/source/svgelement.cpp
++++ b/source/svgelement.cpp
+@@ -430,20 +430,30 @@ void SVGElement::layoutElement(const SVGLayoutState& state)
+     m_masker = getMasker(state.mask());
+ }
+ 
++extern "C" void lunasvg_log(const char* msg);
++
+ void SVGElement::layoutChildren(SVGLayoutState& state)
+ {
++    lunasvg_log("lunasvg: layoutChildren enter");
+     for(const auto& child : m_children) {
+         if(auto element = toSVGElement(child)) {
++            lunasvg_log("lunasvg: layoutChildren child enter");
+             element->layout(state);
++            lunasvg_log("lunasvg: layoutChildren child exit");
+         }
+     }
++    lunasvg_log("lunasvg: layoutChildren exit");
+ }
+ 
+ void SVGElement::layout(SVGLayoutState& state)
+ {
+-    SVGLayoutState newState(state, this);
+-    layoutElement(newState);
+-    layoutChildren(newState);
++    lunasvg_log("lunasvg: SVGElement::layout enter");
++    auto newState = std::make_unique<SVGLayoutState>(state, this);
++    lunasvg_log("lunasvg: SVGElement::layout newState created");
++    layoutElement(*newState);
++    lunasvg_log("lunasvg: SVGElement::layout layoutElement done");
++    layoutChildren(*newState);
++    lunasvg_log("lunasvg: SVGElement::layout exit");
+ }
+ 
+ void SVGElement::renderChildren(SVGRenderState& state) const
+@@ -633,7 +643,9 @@ void SVGRootElement::addElementById(const std::string& id, SVGElement* element)
+ 
+ void SVGRootElement::layout(SVGLayoutState& state)
+ {
++    lunasvg_log("lunasvg: SVGRootElement::layout enter");
+     SVGSVGElement::layout(state);
++    lunasvg_log("lunasvg: SVGSVGElement::layout done");
+ 
+     LengthContext lengthContext(this);
+     if(!width().isPercent()) {
+diff --git a/source/svggeometryelement.cpp b/source/svggeometryelement.cpp
+index 14819d5..054fd07 100644
+--- a/source/svggeometryelement.cpp
++++ b/source/svggeometryelement.cpp
+@@ -41,8 +41,11 @@ Rect SVGGeometryElement::strokeBoundingBox() const
+     return strokeBoundingBox;
+ }
+ 
++extern "C" void lunasvg_log(const char* msg);
++
+ void SVGGeometryElement::layoutElement(const SVGLayoutState& state)
+ {
++    lunasvg_log("lunasvg: SVGGeometryElement::layoutElement enter");
+     m_fill_rule = state.fill_rule();
+     m_clip_rule = state.clip_rule();
+     m_fill = getPaintServer(state.fill(), state.fill_opacity());
+@@ -52,8 +55,11 @@ void SVGGeometryElement::layoutElement(const SVGLayoutState& state)
+ 
+     m_path.reset();
+     m_markerPositions.clear();
++    lunasvg_log("lunasvg: SVGGeometryElement updateShape enter");
+     m_fillBoundingBox = updateShape(m_path);
++    lunasvg_log("lunasvg: SVGGeometryElement updateShape done");
+     updateMarkerPositions(m_markerPositions, state);
++    lunasvg_log("lunasvg: SVGGeometryElement::layoutElement exit");
+ }
+ 
+ void SVGGeometryElement::updateMarkerPositions(SVGMarkerPositionList& positions, const SVGLayoutState& state)
+@@ -315,8 +321,12 @@ SVGPathElement::SVGPathElement(Document* document)
+ 
+ Rect SVGPathElement::updateShape(Path& path)
+ {
++    lunasvg_log("lunasvg: SVGPathElement::updateShape enter");
+     path = m_d.value();
+-    return path.boundingRect();
++    lunasvg_log("lunasvg: SVGPathElement calling boundingRect");
++    auto r = path.boundingRect();
++    lunasvg_log("lunasvg: SVGPathElement boundingRect done");
++    return r;
+ }
+ 
+ } // namespace lunasvg
+diff --git a/source/svglayoutstate.cpp b/source/svglayoutstate.cpp
+index e86cfab..91ce122 100644
+--- a/source/svglayoutstate.cpp
++++ b/source/svglayoutstate.cpp
+@@ -13,7 +13,8 @@ static std::optional<Color> parseColorValue(std::string_view& input, const SVGLa
+     }
+ 
+     plutovg_color_t color;
+-    int length = plutovg_color_parse(&color, input.data(), input.length());
++    std::string str(input);
++    int length = plutovg_color_parse(&color, str.c_str(), str.length());
+     if(length == 0)
+         return std::nullopt;
+     input.remove_prefix(length);

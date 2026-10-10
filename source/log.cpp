@@ -98,6 +98,23 @@ static void xbox_append_log(const char *prefix, const std::string &msg) {
     }
 }
 
+extern "C" void _xbox_assert(char const * const expression, char const * const file_name, char const * const function_name, unsigned long line) {
+    char buf[512];
+    snprintf(buf, sizeof(buf), "ASSERTION FAILED: '%s' in %s (%s:%lu)",
+             expression ? expression : "",
+             function_name ? function_name : "",
+             file_name ? file_name : "",
+             line);
+    xbox_append_log("<ASSERT>", buf);
+    __asm__ ("cli\n1:\nhlt\njmp 1b\n");
+}
+
+extern "C" void lunasvg_log(const char *msg) {
+    if (msg) {
+        Log::log(msg);
+    }
+}
+
 void Log::log(std::string message) {
     xbox_append_log("<LOG>", message);
 }

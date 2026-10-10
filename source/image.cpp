@@ -1,6 +1,7 @@
 #include "image.hpp"
 #include "nonstd/expected.hpp"
 #include "os.hpp"
+#include <log.hpp>
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
@@ -59,20 +60,36 @@ constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to 
 bool Image::loadFont(const std::string &family) {
 #ifdef ENABLE_SVG
     auto it = loadedFonts.find(family);
-    if (it == loadedFonts.end()) return false;
+    if (it == loadedFonts.end()) {
+        Log::logError("loadFont: family '" + family + "' not found in loadedFonts");
+        return false;
+    }
     if (it->second.isLoaded) return true;
 
     const std::string &path = it->second.path;
+    Log::log("loadFont: loading font family='" + family + "' path=" + path);
 
 #ifdef USE_CMAKERC
     std::string cmrcFontPath = OS::normalizeCMRCPath(OS::getRomFSLocation() + path + ".ttf");
-    const auto &file = cmrc::romfs::get_filesystem().open(cmrcFontPath);
-    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
+    auto fs = cmrc::romfs::get_filesystem();
+    if (!fs.exists(cmrcFontPath)) {
+        Log::logError("loadFont: CMRC font file not found: " + cmrcFontPath);
+        return false;
+    }
+    const auto &file = fs.open(cmrcFontPath);
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) {
+        Log::logError("lunasvg_add_font_face_from_data failed for " + family);
+        return false;
+    }
 #else
-    if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
+    if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) {
+        Log::logError("lunasvg_add_font_face_from_file failed for " + family);
+        return false;
+    }
 #endif
 
     it->second.isLoaded = true;
+    Log::log("loadFont: successfully loaded font family='" + family + "'");
     return true;
 #endif
     return false;
@@ -238,8 +255,15 @@ inline void reorderPixels(unsigned char *src, unsigned char *dst, const size_t p
 }
 #endif
 
+static std::string safe_float_to_string(float val) {
+    int i = (int)val;
+    int f = (int)std::abs((val - i) * 100.0f);
+    return std::to_string(i) + "." + (f < 10 ? "0" : "") + std::to_string(f);
+}
+
 nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const char *data, size_t size, int &width, int &height, float scale) {
 #ifdef ENABLE_SVG
+    Log::log("loadSVGFromMemory: data size=" + std::to_string(size) + " scale=" + safe_float_to_string(scale));
     if constexpr (maxScale != 0)
         if (scale > maxScale) scale = maxScale;
 
@@ -247,6 +271,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
 
     // always load default font if there is text present
     if (svgView.find("<text") != std::string_view::npos || svgView.find("<tspan") != std::string_view::npos) {
+        Log::log("SVG contains text, loading font...");
         loadFont("");
     }
 
@@ -258,11 +283,30 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         }
     }
 
-    svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
-    if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
+    std::string svgData(data, size);
+    size_t endPos = svgData.rfind("</svg>");
+    if (endPos == std::string::npos) {
+        endPos = svgData.rfind("</SVG>");
+    }
+    if (endPos != std::string::npos) {
+        svgData.resize(endPos + 6);
+    }
 
-    const float targetWidth = svgDocument->width() * scale;
-    const float targetHeight = svgDocument->height() * scale;
+    Log::log("Parsing SVG data of length " + std::to_string(svgData.size()));
+    Log::log("Calling lunasvg::Document::loadFromData...");
+    svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
+    Log::log("lunasvg::Document::loadFromData returned ptr=" + std::to_string(reinterpret_cast<uintptr_t>(svgDocument.get())));
+    if (!svgDocument) {
+        Log::logError("LunaSVG failed to parse SVG data of size " + std::to_string(size));
+        return nonstd::make_unexpected("LunaSVG failed to parse SVG");
+    }
+
+    float docW = svgDocument->width();
+    float docH = svgDocument->height();
+    Log::log("SVG dimensions: w=" + safe_float_to_string(docW) + " h=" + safe_float_to_string(docH));
+
+    const float targetWidth = docW * scale;
+    const float targetHeight = docH * scale;
 
     const auto [maxWidth, maxHeight] = maxTextureSize;
     float finalScale = scale;
@@ -274,12 +318,16 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         }
     }
 
-    width = std::max(1, (int)(svgDocument->width() * finalScale));
-    height = std::max(1, (int)(svgDocument->height() * finalScale));
+    width = std::max(1, (int)(docW * finalScale));
+    height = std::max(1, (int)(docH * finalScale));
     imgData.scale = finalScale;
 
+    Log::log("Rendering SVG to bitmap: w=" + std::to_string(width) + " h=" + std::to_string(height));
     auto bitmap = svgDocument->renderToBitmap(width, height);
-    if (!bitmap.valid()) return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
+    if (!bitmap.valid()) {
+        Log::logError("LunaSVG failed to render SVG to bitmap");
+        return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
+    }
 
     unsigned char *src = bitmap.data();
     const size_t pixelsSize = width * height * 4;
@@ -289,6 +337,7 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
     reorderPixels(src, dst, pixelsSize);
 
     imgData.pitch = width * 4;
+    Log::log("SVG decoded successfully: w=" + std::to_string(width) + " h=" + std::to_string(height));
 
     return dst;
 #endif
