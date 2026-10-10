@@ -1,0 +1,16 @@
+{
+    "name": "scratch-ut",
+    "title": "Scratch Everywhere!",
+    "description": "Custom Scratch Runtime made in C++!",
+    "architecture": "$ENV{ARCH}",
+    "title": "Scratch Everywhere!",
+    "hooks": {
+        "scratcheverywhere": {
+            "apparmor": "scratcheverywhere.apparmor",
+            "desktop":  "scratcheverywhere.desktop"
+        }
+    },
+    "version": "1.0.0",
+    "maintainer": "Dogo6647 <htldogo@proton.me>",
+    "framework" : "$ENV{CLICK_FRAMEWORK}"
+}

@@ -14,6 +14,7 @@ else()
 	set(CMAKE_CXX_STANDARD 17)
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC and a few other things
 
@@ -318,6 +319,10 @@ if(SE_EXECUTABLE)
 	endif()
 	if(SE_STATIC_LIBSTDCPP)
 		target_link_options(scratch-everywhere PRIVATE "-static-libstdc++")
+	endif()
+
+	if(UBUNTU_TOUCH)
+		target_link_libraries(scratch-everywhere PRIVATE c++fs)
 	endif()
 
 	if(NOT BUILD_SHARED_LIBS AND MINGW)

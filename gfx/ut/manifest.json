@@ -1,0 +1,15 @@
+{
+    "name": "scratcheverywhere",
+    "description": "Custom Scratch Runtime made in C++!",
+    "architecture": "armhf",
+    "title": "Scratch Everywhere!",
+    "hooks": {
+        "scratcheverywhere": {
+            "apparmor": "scratcheverywhere.apparmor",
+            "desktop":  "scratcheverywhere.desktop"
+        }
+    },
+    "version": "1.0.0",
+    "maintainer": "Dogo6647 <htldogo@proton.me>",
+    "framework" : "ubuntu-sdk-16.04.5"
+}
