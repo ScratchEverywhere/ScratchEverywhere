@@ -32,13 +32,20 @@ macro(package_platform)
 	)
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/wii/meta.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" @ONLY)
 
+	set(COPY_ASSETS_COMMAND)
+    if(NOT SE_BUNDLE)
+        set(COPY_ASSETS_COMMAND
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/assets"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/assets"
+        )
+    endif()
+
 	add_custom_command(TARGET scratch-everywhere POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}"
 		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.dol" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/boot.dol"
 		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/meta.xml" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/meta.xml"
 		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wii/icon.png" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/icon.png"
-		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/assets"
-    	COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_CURRENT_BINARY_DIR}/apps/${SE_OUTPUT_NAME}/assets"
+		${COPY_ASSETS_COMMAND}
 		COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.zip" --format=zip -- "${CMAKE_CURRENT_BINARY_DIR}/apps"
 		COMMENT "Packaging..."
 	)
