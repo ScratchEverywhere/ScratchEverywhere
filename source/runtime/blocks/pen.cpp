@@ -17,12 +17,14 @@ SCRATCH_BLOCK(pen, penDown) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, penDown);
 
 SCRATCH_BLOCK(pen, penUp) {
     sprite->penData.down = false;
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, penUp);
 
 SCRATCH_BLOCK(pen, setPenColorParamTo) {
     std::string option;
@@ -58,6 +60,7 @@ SCRATCH_BLOCK(pen, setPenColorParamTo) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenColorParamTo, {"COLOR_PARAM", BytecodeStackKind::String}, {"VALUE", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(pen, changePenColorParamBy) {
     std::string option;
@@ -93,6 +96,7 @@ SCRATCH_BLOCK(pen, changePenColorParamBy) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, changePenColorParamBy, {"COLOR_PARAM", BytecodeStackKind::String}, {"VALUE", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(pen, setPenColorToColor) {
     Color color;
@@ -101,6 +105,7 @@ SCRATCH_BLOCK(pen, setPenColorToColor) {
     sprite->penData.shade = sprite->penData.color.brightness / 2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenColorToColor, {"COLOR", BytecodeStackKind::Color});
 
 SCRATCH_BLOCK(pen, setPenSizeTo) {
     double size;
@@ -112,6 +117,7 @@ SCRATCH_BLOCK(pen, setPenSizeTo) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenSizeTo, {"SIZE", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(pen, changePenSizeBy) {
     double size;
@@ -123,6 +129,7 @@ SCRATCH_BLOCK(pen, changePenSizeBy) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, changePenSizeBy, {"SIZE", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(pen, clear) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
@@ -132,6 +139,7 @@ SCRATCH_BLOCK(pen, clear) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, clear);
 
 SCRATCH_BLOCK(pen, stamp) {
     if (!Render::initPen()) return BlockResult::CONTINUE;
@@ -143,6 +151,7 @@ SCRATCH_BLOCK(pen, stamp) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, stamp);
 
 SCRATCH_BLOCK(pen, setPenHueToNumber) {
     double hue;
@@ -153,6 +162,7 @@ SCRATCH_BLOCK(pen, setPenHueToNumber) {
     sprite->penData.color.transparency = 0;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenHueToNumber, {"HUE", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(pen, changePenHueBy) {
     double hue;
@@ -163,6 +173,7 @@ SCRATCH_BLOCK(pen, changePenHueBy) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, changePenHueBy, {"HUE", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(pen, setPenShadeToNumber) {
     double shade;
@@ -174,6 +185,7 @@ SCRATCH_BLOCK(pen, setPenShadeToNumber) {
     sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, setPenShadeToNumber, {"SHADE", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(pen, changePenShadeBy) {
     double shade;
@@ -186,5 +198,6 @@ SCRATCH_BLOCK(pen, changePenShadeBy) {
     sprite->penData.color = legacyUpdatePenColor(sprite->penData.color, sprite->penData.shade);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(pen, changePenShadeBy, {"SHADE", BytecodeStackKind::Number});
 
 SCRATCH_SHADOW_BLOCK(pen_menu_colorParam, colorParam)

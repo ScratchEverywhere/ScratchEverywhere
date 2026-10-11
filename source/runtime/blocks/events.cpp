@@ -10,14 +10,17 @@ SCRATCH_BLOCK_SIGNATURE(event, whenflagclicked);
 SCRATCH_BLOCK(event, whenbackdropswitchesto) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenbackdropswitchesto);
 
 SCRATCH_BLOCK(event, whenthisspriteclicked) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenthisspriteclicked);
 
 SCRATCH_BLOCK(event, whenstageclicked) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenstageclicked);
 
 SCRATCH_BLOCK(event, broadcast) {
     std::string broadcast;
@@ -40,6 +43,7 @@ SCRATCH_BLOCK(event, broadcast) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, broadcast, {"BROADCAST_INPUT", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(event, broadcastandwait) {
     BlockState *state = thread->getState(block);
@@ -79,14 +83,17 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     thread->eraseState(block);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, broadcastandwait, {"BROADCAST_INPUT", BytecodeStackKind::String});
 
 // FIXME: This is currently very poorly optimized. Please fix it, thank you.
 SCRATCH_BLOCK(event, whenkeypressed) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenkeypressed);
 
 SCRATCH_BLOCK(event, whenbroadcastreceived) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenbroadcastreceived);
 
 SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)

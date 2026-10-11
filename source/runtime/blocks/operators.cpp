@@ -80,6 +80,7 @@ SCRATCH_BLOCK_DOUBLE(operator, random) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, random, {"FROM", BytecodeStackKind::Value}, {"TO", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_STRING(operator, join) {
     std::string string1, string2;
@@ -89,6 +90,7 @@ SCRATCH_BLOCK_STRING(operator, join) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, join, {"STRING1", BytecodeStackKind::String}, {"STRING2", BytecodeStackKind::String});
 
 SCRATCH_BLOCK_STRING(operator, letter_of) {
     double letter;
@@ -113,6 +115,7 @@ SCRATCH_BLOCK_STRING(operator, letter_of) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, letter_of, {"LETTER", BytecodeStackKind::Number}, {"STRING", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_DOUBLE(operator, length) {
     Value strValue;
@@ -125,6 +128,7 @@ SCRATCH_BLOCK_DOUBLE(operator, length) {
     *outValue = static_cast<double>(units);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, length, {"STRING", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_DOUBLE(operator, mod) {
     double a, b;
@@ -142,6 +146,7 @@ SCRATCH_BLOCK_DOUBLE(operator, mod) {
     *outValue = res;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, mod, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK_DOUBLE(operator, round) {
     double num;
@@ -157,6 +162,7 @@ SCRATCH_BLOCK_DOUBLE(operator, round) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, round, {"NUM", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK_DOUBLE(operator, mathop) {
     double value;
@@ -198,6 +204,7 @@ SCRATCH_BLOCK_BOOLEAN(operator, equals) {
     *outValue = op1 == op2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, equals, {"OPERAND1", BytecodeStackKind::Value}, {"OPERAND2", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_BOOLEAN(operator, gt) {
     Value op1, op2;
@@ -206,6 +213,7 @@ SCRATCH_BLOCK_BOOLEAN(operator, gt) {
     *outValue = op1 > op2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, gt, {"OPERAND1", BytecodeStackKind::Value}, {"OPERAND2", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_BOOLEAN(operator, lt) {
     Value op1, op2;
@@ -214,6 +222,7 @@ SCRATCH_BLOCK_BOOLEAN(operator, lt) {
     *outValue = op1 < op2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, lt, {"OPERAND1", BytecodeStackKind::Value}, {"OPERAND2", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_BOOLEAN(operator, and) {
     bool op1, op2;
@@ -222,6 +231,7 @@ SCRATCH_BLOCK_BOOLEAN(operator, and) {
     *outValue = op1 && op2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, and, {"OPERAND1", BytecodeStackKind::Boolean}, {"OPERAND2", BytecodeStackKind::Boolean});
 
 SCRATCH_BLOCK_BOOLEAN(operator, or) {
     bool op1, op2;
@@ -230,6 +240,7 @@ SCRATCH_BLOCK_BOOLEAN(operator, or) {
     *outValue = op1 || op2;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, or, {"OPERAND1", BytecodeStackKind::Boolean}, {"OPERAND2", BytecodeStackKind::Boolean});
 
 SCRATCH_BLOCK_BOOLEAN(operator, not) {
     bool op1;
@@ -237,6 +248,7 @@ SCRATCH_BLOCK_BOOLEAN(operator, not) {
     *outValue = !op1;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, not, {"OPERAND", BytecodeStackKind::Boolean});
 
 SCRATCH_BLOCK_BOOLEAN(operator, contains) {
     std::string string1, string2;
@@ -256,3 +268,4 @@ SCRATCH_BLOCK_BOOLEAN(operator, contains) {
     *outValue = lowered1.find(lowered2) != std::string::npos;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, contains, {"STRING1", BytecodeStackKind::String}, {"STRING2", BytecodeStackKind::String});

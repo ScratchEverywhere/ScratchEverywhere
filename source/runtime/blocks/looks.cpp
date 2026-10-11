@@ -25,6 +25,7 @@ SCRATCH_BLOCK(looks, say) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, say, {"MESSAGE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(looks, sayforsecs) {
     BlockState *state = thread->getState(block);
@@ -50,6 +51,7 @@ SCRATCH_BLOCK(looks, sayforsecs) {
     }
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, sayforsecs, {"SECS", BytecodeStackKind::Number}, {"MESSAGE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(looks, think) {
     if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
@@ -62,6 +64,8 @@ SCRATCH_BLOCK(looks, think) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, think, {"MESSAGE", BytecodeStackKind::String});
+
 SCRATCH_BLOCK(looks, thinkforsecs) {
     BlockState *state = thread->getState(block);
     if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
@@ -87,6 +91,7 @@ SCRATCH_BLOCK(looks, thinkforsecs) {
 
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, thinkforsecs, {"SECS", BytecodeStackKind::Number}, {"MESSAGE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(looks, show) {
     if (!sprite->visible) Scratch::loadCurrentCostumeImage(sprite);
@@ -94,11 +99,13 @@ SCRATCH_BLOCK(looks, show) {
     Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, show);
 
 SCRATCH_BLOCK(looks, hide) {
     if (!sprite->isStage) sprite->visible = false;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, hide);
 
 SCRATCH_BLOCK(looks, switchcostumeto) {
     Value costume;
@@ -133,11 +140,13 @@ SCRATCH_BLOCK(looks, switchcostumeto) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, switchcostumeto, {"COSTUME", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(looks, nextcostume) {
     Scratch::switchCostume(sprite, ++sprite->currentCostume);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, nextcostume);
 
 static void triggerBackdropSwitchHats() {
     const std::string &currentBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
@@ -193,6 +202,7 @@ end:
     triggerBackdropSwitchHats();
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, switchbackdropto, {"BACKDROP", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
     BlockState *state = thread->getState(block);
@@ -255,12 +265,14 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, switchbackdroptoandwait, {"BACKDROP", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(looks, nextbackdrop) {
     Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
     triggerBackdropSwitchHats();
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, nextbackdrop);
 
 SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
     if (sprite->isStage) return BlockResult::CONTINUE;
@@ -358,6 +370,7 @@ SCRATCH_BLOCK(looks, setsizeto) {
     if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, setsizeto, {"SIZE", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(looks, changesizeby) {
     Value size;
@@ -394,6 +407,7 @@ SCRATCH_BLOCK(looks, changesizeby) {
     if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, changesizeby, {"CHANGE", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(looks, seteffectto) {
     Value amount;
@@ -461,11 +475,13 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
     if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, cleargraphiceffects);
 
 SCRATCH_BLOCK_DOUBLE(looks, size) {
     *outValue = std::round(sprite->size);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(looks, size);
 
 SCRATCH_BLOCK(looks, costumenumbername) {
     const std::string value = Scratch::getFieldValue(*block, "NUMBER_NAME");

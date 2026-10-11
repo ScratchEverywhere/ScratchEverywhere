@@ -389,16 +389,19 @@ SCRATCH_BLOCK_DOUBLE(control, get_counter) {
     *outValue = Scratch::counter;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(control, get_counter);
 
 SCRATCH_BLOCK(control, incr_counter) {
     Scratch::counter++;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(control, incr_counter);
 
 SCRATCH_BLOCK(control, clear_counter) {
     Scratch::counter = 0;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(control, clear_counter);
 
 SCRATCH_BLOCK(control, for_each) {
     BlockState *state = thread->getState(block);

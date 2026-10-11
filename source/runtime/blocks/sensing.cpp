@@ -12,6 +12,7 @@ SCRATCH_BLOCK(sensing, resettimer) {
     BlockExecutor::timer.start();
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, resettimer);
 
 SCRATCH_BLOCK(sensing, askandwait) {
     std::string input;
@@ -20,6 +21,7 @@ SCRATCH_BLOCK(sensing, askandwait) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, askandwait, {"QUESTION", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(sensing, setdragmode) {
     const std::string mode = Scratch::getFieldValue(*block, "DRAG_MODE");
@@ -37,6 +39,7 @@ SCRATCH_BLOCK_DOUBLE(sensing, timer) {
     *outValue = BlockExecutor::timer.getTimeMs() / 1000.0;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, timer);
 
 SCRATCH_BLOCK(sensing, of) {
     std::string object;
@@ -103,11 +106,13 @@ SCRATCH_BLOCK_DOUBLE(sensing, mousex) {
     *outValue = Input::mousePointer.x;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, mousex);
 
 SCRATCH_BLOCK_DOUBLE(sensing, mousey) {
     *outValue = Input::mousePointer.y;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, mousey);
 
 SCRATCH_BLOCK_DOUBLE(sensing, distanceto) {
     std::string distanceTo;
@@ -130,11 +135,13 @@ SCRATCH_BLOCK_DOUBLE(sensing, distanceto) {
     *outValue = 10000;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, distanceto, {"DISTANCETOMENU", BytecodeStackKind::String});
 
 SCRATCH_BLOCK_DOUBLE(sensing, dayssince2000) {
     *outValue = TimeSE::getDaysSince2000();
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, dayssince2000);
 
 SCRATCH_BLOCK_DOUBLE(sensing, current) {
     std::string inputValue = Scratch::getFieldValue(*block, "CURRENTMENU");
@@ -154,6 +161,7 @@ SCRATCH_BLOCK_STRING(sensing, answer) {
     *outValue = Scratch::answer;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, answer);
 
 SCRATCH_BLOCK_BOOLEAN(sensing, keypressed) {
     Value keyOption;
@@ -169,6 +177,7 @@ SCRATCH_BLOCK_BOOLEAN(sensing, keypressed) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, keypressed, {"KEY_OPTION", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_BOOLEAN(sensing, touchingobject) {
     std::string touchingObject;
@@ -192,6 +201,7 @@ SCRATCH_BLOCK_BOOLEAN(sensing, touchingobject) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, touchingobject, {"TOUCHINGOBJECTMENU", BytecodeStackKind::String});
 
 static uint8_t toColorByte(float channel) {
     return static_cast<uint8_t>(std::clamp(std::round(channel), 0.0f, 255.0f));
@@ -205,6 +215,7 @@ SCRATCH_BLOCK_BOOLEAN(sensing, touchingcolor) {
     *outValue = collision::isTouchingColor(sprite, toColorByte(rgb.r), toColorByte(rgb.g), toColorByte(rgb.b));
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, touchingcolor, {"COLOR", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_BOOLEAN(sensing, coloristouchingcolor) {
     Value maskColor;
@@ -220,11 +231,13 @@ SCRATCH_BLOCK_BOOLEAN(sensing, coloristouchingcolor) {
                                                 toColorByte(targetRgb.r), toColorByte(targetRgb.g), toColorByte(targetRgb.b));
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, coloristouchingcolor, {"COLOR", BytecodeStackKind::Value}, {"COLOR2", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK_BOOLEAN(sensing, mousedown) {
     *outValue = Input::mousePointer.isPressed;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, mousedown);
 
 SCRATCH_BLOCK_STRING(sensing, username) {
 #ifdef ENABLE_CLOUDVARS
@@ -236,16 +249,19 @@ SCRATCH_BLOCK_STRING(sensing, username) {
     else *outValue = OS::getUsername();
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, username);
 
 SCRATCH_BLOCK_BOOLEAN(sensing, online) {
     *outValue = OS::isOnline();
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, online);
 
 SCRATCH_BLOCK(sensing, userid) {
     *outValue = Value(Undefined{});
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sensing, userid);
 
 SCRATCH_SHADOW_BLOCK(sensing_touchingobjectmenu, TOUCHINGOBJECTMENU)
 SCRATCH_SHADOW_BLOCK(sensing_distancetomenu, DISTANCETOMENU)

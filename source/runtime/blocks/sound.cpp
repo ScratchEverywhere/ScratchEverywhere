@@ -68,6 +68,7 @@ SCRATCH_BLOCK(sound, playuntildone) {
 #endif
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, playuntildone, {"SOUND_MENU", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(sound, play) {
 #ifdef ENABLE_AUDIO
@@ -115,6 +116,7 @@ SCRATCH_BLOCK(sound, play) {
 #endif
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, play, {"SOUND_MENU", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(sound, stopallsounds) {
 #ifdef ENABLE_AUDIO
@@ -127,6 +129,7 @@ SCRATCH_BLOCK(sound, stopallsounds) {
 #endif
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, stopallsounds);
 
 SCRATCH_BLOCK(sound, changeeffectby) {
     BlockState *state = thread->getState(block);
@@ -185,6 +188,7 @@ SCRATCH_BLOCK(sound, cleareffects) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, cleareffects);
 
 SCRATCH_BLOCK(sound, changevolumeby) {
     BlockState *state = thread->getState(block);
@@ -204,6 +208,7 @@ SCRATCH_BLOCK(sound, changevolumeby) {
     state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, changevolumeby, {"VOLUME", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(sound, setvolumeto) {
     BlockState *state = thread->getState(block);
@@ -223,10 +228,12 @@ SCRATCH_BLOCK(sound, setvolumeto) {
     state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, setvolumeto, {"VOLUME", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK_DOUBLE(sound, volume) {
     *outValue = sprite->volume;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, volume);
 
 SCRATCH_SHADOW_BLOCK(sound_sounds_menu, SOUND_MENU)
