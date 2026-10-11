@@ -1,6 +1,7 @@
 #include "image.hpp"
 #include "nonstd/expected.hpp"
 #include "os.hpp"
+#include <cstdlib>
 #include <stdexcept>
 #include <string_view>
 #include <unzip.hpp>
@@ -36,10 +37,8 @@
 #include <image_headless.hpp>
 #endif
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #endif
 
 std::unordered_map<std::string, std::weak_ptr<Image>> images;
@@ -64,9 +63,13 @@ bool Image::loadFont(const std::string &family) {
 
     const std::string &path = it->second.path;
 
-#ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open((OS::getRomFSLocation() + path + ".ttf").c_str());
-    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, file.begin(), file.size(), nullptr, nullptr)) return false;
+#ifdef USE_BUNDLE
+    auto entry = Bundle::assets().find(OS::getRomFSLocation() + path + ".ttf");
+    if (!entry) return false;
+    size_t fontSize = 0;
+    void *fontData = bundle_load(&entry->raw(), &fontSize);
+    if (!fontData) return false;
+    if (!lunasvg_add_font_face_from_data(family.c_str(), false, false, fontData, fontSize, [](void *p) { free(p); }, fontData)) return false;
 #else
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
@@ -172,14 +175,14 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
 }
 
 nonstd::expected<std::vector<unsigned char>, std::string> Image::readFileToBuffer(const std::string &filePath, bool fromScratchProject) {
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
     if (!Unzip::UnpackedInSD || !fromScratchProject) {
-        auto fs = cmrc::romfs::get_filesystem();
-        if (!fs.exists(filePath)) return nonstd::make_unexpected("File not found: " + filePath);
-        auto file = fs.open(filePath);
-        std::vector<unsigned char> buffer(file.size() + 1);
-        std::copy(file.begin(), file.end(), buffer.begin());
-        buffer[file.size()] = '\0';
+        auto archive = fromScratchProject ? Bundle::project() : Bundle::assets();
+        auto entry = archive.find(filePath);
+        if (!entry) return nonstd::make_unexpected("File not found: " + filePath);
+        std::vector<unsigned char> buffer(entry->size() + 1);
+        if (bundle_read_all(&entry->raw(), buffer.data(), entry->size()) < 0) return nonstd::make_unexpected("Failed to decompress file: " + filePath);
+        buffer[entry->size()] = '\0';
         return buffer;
     }
 #endif

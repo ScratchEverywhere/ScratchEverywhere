@@ -7,10 +7,9 @@
 #include <unzip.hpp>
 #include <zip_archive.hpp>
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
+#include <vector>
 #endif
 
 ZipProjectLoader::ZipProjectLoader(ProjectFormat format) : format(format) {}
@@ -113,15 +112,19 @@ void *ZipProjectLoader::getAsset(const std::string &name, size_t *outSize) {
     auto archive = createZipArchive();
     bool initSuccess = false;
 
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
+    std::vector<std::byte> projectBuffer;
     if (Scratch::projectType == ProjectType::EMBEDDED) {
-        const auto &fs = cmrc::romfs::get_filesystem();
-        const auto &romfsFile = fs.open(Unzip::filePath);
-        initSuccess = archive->openMemory(romfsFile.begin(), romfsFile.size());
+        auto projectBundle = Bundle::project();
+        auto entry = projectBundle.find(Unzip::filePath);
+        if (entry) {
+            projectBuffer = projectBundle.load(*entry);
+            initSuccess = archive->openMemory(projectBuffer.data(), projectBuffer.size());
+        }
     } else {
 #endif
         initSuccess = archive->openFile(Unzip::filePath);
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
     }
 #endif
     if (!initSuccess) {
