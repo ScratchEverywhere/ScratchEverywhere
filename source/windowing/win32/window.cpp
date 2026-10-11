@@ -7,11 +7,17 @@
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render_opengl.hpp>
 
+#define NO_SOFT_SWAPBUFFERS
 #define SWAPBUFFERS
 #elif defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/render_opengl_core.hpp>
 
+#define NO_SOFT_SWAPBUFFERS
 #define SWAPBUFFERS
+#elif defined(RENDERER_D3D9)
+#include <renderers/d3d9/render_d3d9.hpp>
+
+#define NO_SOFT_SWAPBUFFERS
 #endif
 
 #include "../../../gfx/windows/resource.h"
@@ -62,7 +68,7 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 
         GetClientRect(hWnd, &r);
 
-#ifndef SWAPBUFFERS
+#ifndef NO_SOFT_SWAPBUFFERS
         BitBlt(hDC, 0, 0, self->getWidth(), self->getHeight(), self->hDC, 0, 0, SRCCOPY);
 #endif
         EndPaint(hWnd, &ps);
@@ -111,6 +117,11 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
     int pf;
     PFNWGLSWAPINTERVALEXT swap_interval_ext = NULL;
 #endif
+#if defined(RENDERER_D3D9)
+    D3DPRESENT_PARAMETERS dpp;
+    HRESULT hr;
+    D3DDISPLAYMODE dmode;
+#endif
 
     this->shouldCloseFlag = 0;
 
@@ -145,7 +156,7 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 
     setDarkTheme(this->hWnd, isDarkTheme());
 
-#ifdef SWAPBUFFERS
+#ifdef NO_SOFT_SWAPBUFFERS
     this->winDC = GetDC(this->hWnd);
     this->hDC = this->winDC;
 #else
@@ -182,6 +193,38 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 #endif
 #endif
 
+#if defined(RENDERER_D3D9)
+    if ((this->pD3D = Direct3DCreate9(D3D_SDK_VERSION)) == nullptr) {
+        Log::logCritical("Failed to create Direct3D 9 context", true);
+        return false;
+    }
+
+    if (FAILED(this->pD3D->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &dmode))) {
+        Log::logCritical("Failed to create Direct3D 9 display mode", true);
+        return false;
+    }
+
+    memset(&dpp, 0, sizeof(dpp));
+    dpp.BackBufferFormat = dmode.Format;
+    dpp.BackBufferCount = 1;
+    dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    dpp.Windowed = TRUE;
+    dpp.EnableAutoDepthStencil = TRUE;
+    dpp.AutoDepthStencilFormat = D3DFMT_D16;
+    dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
+
+    if (FAILED((hr = this->pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &dpp, &this->pDev)))) {
+        if (FAILED((hr = this->pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &dpp, &this->pDev)))) {
+            hr = this->pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &dpp, &this->pDev);
+        }
+    }
+
+    if (FAILED(hr)) {
+        Log::logCritical("Failed to create Direct3D 9 device", true);
+        return false;
+    }
+#endif
+
     SetWindowLongPtr(this->hWnd, GWLP_USERDATA, (LPARAM)this);
 
     this->resize(width, height);
@@ -197,7 +240,7 @@ void WindowWin32::cleanup() {
     wglMakeCurrent(NULL, NULL);
 #endif
 
-#ifndef SWAPBUFFERS
+#ifndef NO_SOFT_SWAPBUFFERS
     DeleteObject(this->hBitmap);
     DeleteDC(this->hDC);
 #endif
@@ -225,11 +268,15 @@ void WindowWin32::pollEvents() {
 }
 
 void WindowWin32::swapBuffers() {
-#ifdef SWAPBUFFERS
-    SwapBuffers(this->hDC);
+#if defined(RENDERER_D3D9)
+    this->pDev->Present(nullptr, nullptr, nullptr, nullptr);
 #else
+#if defined(SWAPBUFFERS)
+    SwapBuffers(this->hDC);
+#elif !defined(NO_SOFT_SWAPBUFFERS)
     InvalidateRect(this->hWnd, nullptr, FALSE);
     this->pollEvents(); /* this is to pump WM_PAINT */
+#endif
 #endif
 }
 
@@ -246,7 +293,7 @@ void WindowWin32::resize(int width, int height) {
     rc.bottom = height;
     AdjustWindowRect(&rc, GetWindowLongPtr(this->hWnd, GWL_STYLE), FALSE);
 
-#ifndef SWAPBUFFERS
+#ifndef NO_SOFT_SWAPBUFFERS
     DeleteObject(this->hBitmap);
     this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
     SelectObject(this->hDC, this->hBitmap);
