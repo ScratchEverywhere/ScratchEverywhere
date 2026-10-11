@@ -227,6 +227,48 @@
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].nn_n = block_##category##_##id##_pos_, 0); \
     static double block_##category##_##id##_pos_(double num1, double num2)
 
+/** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (Number) -> Number. @param num The block's numeric input. */
+#define SCRATCH_BLOCK_POSITIONAL_N_N(category, id)                                                                                                         \
+    static double block_##category##_##id##_pos_(double num);                                                                                             \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].n_n = block_##category##_##id##_pos_, 0); \
+    static double block_##category##_##id##_pos_(double num)
+
+/** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (Boolean) -> Boolean. @param op1 The block's boolean input. */
+#define SCRATCH_BLOCK_POSITIONAL_B_B(category, id)                                                                                                         \
+    static bool block_##category##_##id##_pos_(bool op1);                                                                                                 \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].b_b = block_##category##_##id##_pos_, 0); \
+    static bool block_##category##_##id##_pos_(bool op1)
+
+/** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (Boolean, Boolean) -> Boolean. @param op1 First boolean input. @param op2 Second boolean input. */
+#define SCRATCH_BLOCK_POSITIONAL_BB_B(category, id)                                                                                                          \
+    static bool block_##category##_##id##_pos_(bool op1, bool op2);                                                                                          \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].bb_b = block_##category##_##id##_pos_, 0); \
+    static bool block_##category##_##id##_pos_(bool op1, bool op2)
+
+/** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (String, String) -> String. @param str1 First string input. @param str2 Second string input. */
+#define SCRATCH_BLOCK_POSITIONAL_SS_S(category, id)                                                                                                                      \
+    static std::string block_##category##_##id##_pos_(const std::string &str1, const std::string &str2);                                                               \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].ss_s = block_##category##_##id##_pos_, 0);           \
+    static std::string block_##category##_##id##_pos_(const std::string &str1, const std::string &str2)
+
+/** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (String, String) -> Boolean. @param str1 First string input. @param str2 Second string input. */
+#define SCRATCH_BLOCK_POSITIONAL_SS_B(category, id)                                                                                                            \
+    static bool block_##category##_##id##_pos_(const std::string &str1, const std::string &str2);                                                             \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].ss_b = block_##category##_##id##_pos_, 0); \
+    static bool block_##category##_##id##_pos_(const std::string &str1, const std::string &str2)
+
+/** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (String) -> Number. @param str The block's string input. */
+#define SCRATCH_BLOCK_POSITIONAL_S_N(category, id)                                                                                                         \
+    static double block_##category##_##id##_pos_(const std::string &str);                                                                                 \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].s_n = block_##category##_##id##_pos_, 0); \
+    static double block_##category##_##id##_pos_(const std::string &str)
+
+/** @brief Same as SCRATCH_BLOCK_POSITIONAL_NN_N, but (Number, String) -> String. @param num Numeric input. @param str String input. */
+#define SCRATCH_BLOCK_POSITIONAL_NS_S(category, id)                                                                                                            \
+    static std::string block_##category##_##id##_pos_(double num, const std::string &str);                                                                   \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].ns_s = block_##category##_##id##_pos_, 0); \
+    static std::string block_##category##_##id##_pos_(double num, const std::string &str)
+
 /**
  * @brief Defines and registers custom bytecode-compilation logic for a block, taking over from the generic signature-driven path entirely.
  *

@@ -11,6 +11,58 @@ std::unordered_map<std::string, BytecodeCompiler::CustomCompileFn> &BytecodeComp
     return compilers;
 }
 
+bool BytecodeCompiler::isStaticallyKind(const ParsedInput *input, BytecodeStackKind kind) {
+    if (input == nullptr) return false;
+
+    switch (input->inputType) {
+    case ParsedInput::VALUE:
+        switch (kind) {
+        case BytecodeStackKind::Number:
+            return input->value.isDouble();
+        case BytecodeStackKind::String:
+            return input->value.isString();
+        case BytecodeStackKind::Boolean:
+            return input->value.isBoolean();
+        case BytecodeStackKind::Color:
+            return input->value.isColor();
+        default:
+            return false;
+        }
+
+    case ParsedInput::VARIABLE: {
+        if (input->list) return false;
+        Variable *var = BlockExecutor::getVariable(input->variableId, sprite());
+        if (var == nullptr) return false;
+        switch (kind) {
+        case BytecodeStackKind::Number:
+            return std::holds_alternative<double>(var->value);
+        case BytecodeStackKind::String:
+            return std::holds_alternative<std::shared_ptr<const std::string>>(var->value);
+        case BytecodeStackKind::Boolean:
+            return std::holds_alternative<bool>(var->value);
+        default:
+            return false;
+        }
+    }
+
+    case ParsedInput::BLOCK:
+        if (input->block == nullptr) return false;
+        switch (kind) {
+        case BytecodeStackKind::Number:
+            return input->block->blockFunction.type == Type::Number;
+        case BytecodeStackKind::String:
+            return input->block->blockFunction.type == Type::String;
+        case BytecodeStackKind::Boolean:
+            return input->block->blockFunction.type == Type::Boolean;
+        case BytecodeStackKind::Color:
+            return input->block->blockFunction.type == Type::Color;
+        default:
+            return false;
+        }
+    }
+    return false;
+}
+
 BytecodeIndex BytecodeCompiler::emit(BytecodeOp op, BytecodeIndex a, BytecodeIndex b) {
     chunk_.instructions.push_back(BytecodeInstruction{op, a, b});
     return static_cast<BytecodeIndex>(chunk_.instructions.size() - 1);
@@ -270,6 +322,17 @@ void compileReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind
     if (tryCompileArgumentReporter(compiler, block, wanted)) return;
 
     const std::string &opcode = block->opcode;
+
+    auto &customCompilers = BytecodeCompiler::getCustomCompilers();
+    auto customIt = customCompilers.find(opcode);
+    if (customIt != customCompilers.end()) {
+        BytecodeIndex customInstr;
+        if (customIt->second(compiler, block, customInstr)) {
+            convertIfNeeded(compiler, stackKindForType(block->blockFunction.type), wanted);
+            return;
+        }
+    }
+
     const auto &signatures = BlockExecutor::getInputSignatures();
     auto sigIt = signatures.find(opcode);
 

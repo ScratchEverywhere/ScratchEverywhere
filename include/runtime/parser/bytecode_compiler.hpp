@@ -14,6 +14,8 @@ class SE_EXPORT BytecodeCompiler {
 
     explicit BytecodeCompiler(Sprite *sprite) : sprite_(sprite) {}
 
+    bool isStaticallyKind(const ParsedInput *input, BytecodeStackKind kind);
+
     Sprite *sprite() const { return sprite_; }
     const std::vector<std::string> *currentArgumentNames() const { return currentArgumentNames_; }
 

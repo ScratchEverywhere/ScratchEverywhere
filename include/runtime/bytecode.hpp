@@ -82,6 +82,17 @@ enum class BytecodeOp : uint8_t {
     RepeatCheck,
     Wait,
 
+    RandomInt,
+    MathOp,
+
+    NumEquals,
+    NumLess,
+    NumGreater,
+
+    StrEquals,
+    StrLess,
+    StrGreater,
+
     PopNumber,
     PopString,
     PopBoolean,
@@ -145,9 +156,40 @@ struct SE_EXPORT BytecodeChunk {
 };
 
 using BytecodePositionalFnNN_N = double (*)(double, double);
+using BytecodePositionalFnN_N = double (*)(double);
+using BytecodePositionalFnB_B = bool (*)(bool);
+using BytecodePositionalFnBB_B = bool (*)(bool, bool);
+using BytecodePositionalFnSS_S = std::string (*)(const std::string &, const std::string &);
+using BytecodePositionalFnSS_B = bool (*)(const std::string &, const std::string &);
+using BytecodePositionalFnS_N = double (*)(const std::string &);
+using BytecodePositionalFnNS_S = std::string (*)(double, const std::string &);
 
 struct SE_EXPORT BytecodePositionalFn {
     BytecodePositionalFnNN_N nn_n = nullptr;
+    BytecodePositionalFnN_N n_n = nullptr;
+    BytecodePositionalFnB_B b_b = nullptr;
+    BytecodePositionalFnBB_B bb_b = nullptr;
+    BytecodePositionalFnSS_S ss_s = nullptr;
+    BytecodePositionalFnSS_B ss_b = nullptr;
+    BytecodePositionalFnS_N s_n = nullptr;
+    BytecodePositionalFnNS_S ns_s = nullptr;
+};
+
+enum class BytecodeMathOp : uint8_t {
+    Abs,
+    Floor,
+    Ceiling,
+    Sqrt,
+    Sin,
+    Cos,
+    Tan,
+    Asin,
+    Acos,
+    Atan,
+    Ln,
+    Log,
+    Exp,
+    Pow10,
 };
 
 struct BlockFunc;

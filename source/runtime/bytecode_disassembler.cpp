@@ -40,6 +40,26 @@ std::string escapeTargetForSlot(const BytecodeLinkTable *link, BytecodeIndex slo
     return block->opcode + " (escapeBlocks[" + std::to_string(slot) + "])";
 }
 
+const char *mathOpName(BytecodeMathOp op) {
+    switch (op) {
+    case BytecodeMathOp::Abs: return "abs";
+    case BytecodeMathOp::Floor: return "floor";
+    case BytecodeMathOp::Ceiling: return "ceiling";
+    case BytecodeMathOp::Sqrt: return "sqrt";
+    case BytecodeMathOp::Sin: return "sin";
+    case BytecodeMathOp::Cos: return "cos";
+    case BytecodeMathOp::Tan: return "tan";
+    case BytecodeMathOp::Asin: return "asin";
+    case BytecodeMathOp::Acos: return "acos";
+    case BytecodeMathOp::Atan: return "atan";
+    case BytecodeMathOp::Ln: return "ln";
+    case BytecodeMathOp::Log: return "log";
+    case BytecodeMathOp::Exp: return "e ^";
+    case BytecodeMathOp::Pow10: return "10 ^";
+    }
+    return "<unknown mathop>";
+}
+
 const char *mnemonic(BytecodeOp op) {
     switch (op) {
     case BytecodeOp::Nop:
@@ -126,6 +146,22 @@ const char *mnemonic(BytecodeOp op) {
         return "RepeatCheck";
     case BytecodeOp::Wait:
         return "Wait";
+    case BytecodeOp::RandomInt:
+        return "RandomInt";
+    case BytecodeOp::MathOp:
+        return "MathOp";
+    case BytecodeOp::NumEquals:
+        return "NumEquals";
+    case BytecodeOp::NumLess:
+        return "NumLess";
+    case BytecodeOp::NumGreater:
+        return "NumGreater";
+    case BytecodeOp::StrEquals:
+        return "StrEquals";
+    case BytecodeOp::StrLess:
+        return "StrLess";
+    case BytecodeOp::StrGreater:
+        return "StrGreater";
     case BytecodeOp::PopNumber:
         return "PopNumber";
     case BytecodeOp::PopString:
@@ -219,11 +255,16 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
         out << "  ; -> #" << instr.a;
         return;
 
+    case BytecodeOp::MathOp:
+        out << "  ; " << mathOpName(static_cast<BytecodeMathOp>(instr.b));
+        return;
+
     default:
         if (isCallNative(instr.op)) {
             out << "  ; " << opcodeNameForSlot(chunk, instr.a) << ", argCount=" << instr.b;
-            if (link != nullptr && instr.a < link->positional.size() && link->positional[instr.a].nn_n != nullptr) {
-                out << " [positional fast path]";
+            if (link != nullptr && instr.a < link->positional.size()) {
+                const BytecodePositionalFn &fn = link->positional[instr.a];
+                if (fn.nn_n || fn.n_n || fn.b_b || fn.bb_b || fn.ss_s || fn.ss_b || fn.s_n || fn.ns_s) out << " [positional fast path]";
             }
         }
         return;
