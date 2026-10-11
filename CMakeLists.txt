@@ -384,6 +384,9 @@ if(SE_BUNDLE)
 
 	target_link_libraries(se-interface INTERFACE se_assets se_project)
 	target_compile_definitions(se-interface INTERFACE USE_BUNDLE)
+
+	# Undo bundle.cmake's repo override
+	cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 endif()
 
 string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
