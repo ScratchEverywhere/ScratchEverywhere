@@ -60,6 +60,8 @@ class SE_EXPORT BlockExecutor {
 
     static std::unordered_map<std::string, std::vector<BytecodeInputSignature>> &getInputSignatures();
 
+    static std::unordered_map<std::string, BytecodePositionalFn> &getPositionalHandlers();
+
     static void linkPointers(Sprite *sprite);
 
     static void executeKeyHats();

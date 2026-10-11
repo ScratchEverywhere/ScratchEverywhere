@@ -195,8 +195,33 @@
  * @sa SCRATCH_BLOCK
  * @sa BlockExecutor::getInputSignatures
  */
-#define SCRATCH_BLOCK_SIGNATURE(category, id, ...)                           \
-    static uint8_t block_##category##_##id##_sig_reg_ =                     \
-        (BlockExecutor::getInputSignatures()[#category "_" #id] =           \
-             std::vector<BytecodeInputSignature>{__VA_ARGS__},              \
+#define SCRATCH_BLOCK_SIGNATURE(category, id, ...)                \
+    static uint8_t block_##category##_##id##_sig_reg_ =           \
+        (BlockExecutor::getInputSignatures()[#category "_" #id] = \
+             std::vector<BytecodeInputSignature>{__VA_ARGS__},    \
          0)
+
+/**
+ * @brief Defines and registers a positional fast-path (bytecode) entry point for a block, IN ADDITION to its normal handler.
+ *
+ * The block keeps its existing SCRATCH_BLOCK_DOUBLE handler untouched for the
+ * tree-walking interpreter - this macro only is only for the bytecode interpreter.
+ * It still needs SCRATCH_BLOCK_SIGNATURE declared too, so the compiler knows
+ * which two named inputs to evaluate and push before calling.
+ *
+ * @param category Same category passed to this block's SCRATCH_BLOCK* macro.
+ * @param id Same id passed to this block's SCRATCH_BLOCK* macro.
+ *
+ * @section Handler Function Definition
+ * @param num1 The block's first numeric input.
+ * @param num2 The block's second numeric input.
+ * @return double
+ *
+ * @sa SCRATCH_BLOCK_SIGNATURE
+ * @sa SCRATCH_BLOCK_DOUBLE
+ * @sa BlockExecutor::getPositionalHandlers
+ */
+#define SCRATCH_BLOCK_POSITIONAL_NN_N(category, id)                                                                                                           \
+    static double block_##category##_##id##_pos_(double num1, double num2);                                                                                   \
+    static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].nn_n = block_##category##_##id##_pos_, 0); \
+    static double block_##category##_##id##_pos_(double num1, double num2)

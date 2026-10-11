@@ -58,6 +58,10 @@ enum class BytecodeOp : uint8_t {
     CallProcedure,
     Return,
 
+    CallLegacyReporter,
+
+    EscapeToLegacyThread,
+
     ConvertNumberToValue,
     ConvertStringToValue,
     ConvertBooleanToValue,
@@ -93,6 +97,9 @@ struct SE_EXPORT BytecodeProcedure {
     BytecodeIndex entryInstruction = invalidBytecodeIndex;
     BytecodeIndex argCount = 0;
     bool runWithoutScreenRefresh = false;
+
+    BytecodeIndex argumentNamesStart = invalidBytecodeIndex;
+    BytecodeIndex argumentNamesCount = 0;
 };
 
 struct SE_EXPORT BytecodeScript {
@@ -131,14 +138,24 @@ struct SE_EXPORT BytecodeChunk {
     }
 };
 
+using BytecodePositionalFnNN_N = double (*)(double, double);
+
+struct SE_EXPORT BytecodePositionalFn {
+    BytecodePositionalFnNN_N nn_n = nullptr;
+};
+
 struct BlockFunc;
 struct Variable;
 struct List;
+struct Block;
+struct ScriptThread;
 
 struct SE_EXPORT BytecodeLinkTable {
     std::vector<const BlockFunc *> opcodes;
+    std::vector<BytecodePositionalFn> positional;
     std::vector<Variable *> variables;
     std::vector<List *> lists;
+    std::vector<Block *> escapeBlocks;
 };
 
 // runtime stuff:
@@ -198,6 +215,9 @@ struct SE_EXPORT BytecodeThread {
 
     std::unordered_map<BytecodeIndex, BytecodeFrame> frames;
     Value returnValue;
+
+    ScriptThread *legacyThread = nullptr;
+    bool escapedToLegacy = false;
 
     bool isRecursiveProcedureCall(BytecodeIndex procedureIndex) const {
         return procedureIndex < activeProcedureCalls.size() && activeProcedureCalls[procedureIndex] > 0;

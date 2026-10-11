@@ -15,6 +15,10 @@ SCRATCH_BLOCK_DOUBLE(operator, add) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, add, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, add) {
+    return num1 + num2;
+}
 
 SCRATCH_BLOCK_DOUBLE(operator, subtract) {
     double num1, num2;
@@ -23,6 +27,10 @@ SCRATCH_BLOCK_DOUBLE(operator, subtract) {
     *outValue = num1 - num2;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, subtract, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, subtract) {
+    return num1 - num2;
 }
 
 SCRATCH_BLOCK_DOUBLE(operator, multiply) {
@@ -33,6 +41,10 @@ SCRATCH_BLOCK_DOUBLE(operator, multiply) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(operator, multiply, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, multiply) {
+    return num1 * num2;
+}
 
 SCRATCH_BLOCK_DOUBLE(operator, divide) {
     double num1, num2;
@@ -41,6 +53,10 @@ SCRATCH_BLOCK_DOUBLE(operator, divide) {
     *outValue = num1 / num2;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BLOCK_SIGNATURE(operator, divide, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_N(operator, divide) {
+    return num1 / num2;
 }
 
 SCRATCH_BLOCK_DOUBLE(operator, random) {
