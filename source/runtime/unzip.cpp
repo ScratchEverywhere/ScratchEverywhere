@@ -30,11 +30,9 @@
 #include <thread.hpp>
 #endif
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #include <sstream>
-
-CMRC_DECLARE(romfs);
 #endif
 
 volatile int Unzip::projectOpened = 0;
@@ -91,24 +89,20 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     embeddedFilename = OS::getRomFSLocation() + embeddedFilename;
     unzippedPath = OS::getRomFSLocation() + unzippedPath;
 
-#ifdef USE_CMAKERC
-    const auto &fs = cmrc::romfs::get_filesystem();
+#ifdef USE_BUNDLE
+    auto project = Bundle::project();
 #endif
 
     // Unzipped Project in romfs:/
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
 #if defined(__XBOX__)
-    std::string cmrcUnzipped = OS::normalizeCMRCPath(unzippedPath);
-    if (fs.exists(cmrcUnzipped)) {
-        const auto &romfsFile = fs.open(cmrcUnzipped);
-        const std::string_view content(romfsFile.begin(), romfsFile.size());
-        file = new std::istringstream(std::string(content));
+    std::string bundleUnzipped = OS::normalizePath(unzippedPath);
+    if (auto entry = project.find(bundleUnzipped)) {
+        file = new std::istringstream(project.load_text(*entry));
     }
 #else
-    if (fs.exists(unzippedPath)) {
-        const auto &romfsFile = fs.open(unzippedPath);
-        const std::string_view content(romfsFile.begin(), romfsFile.size());
-        file = new std::istringstream(std::string(content));
+    if (auto entry = project.find(unzippedPath)) {
+        file = new std::istringstream(project.load_text(*entry));
     }
 #endif
 #else
@@ -125,21 +119,16 @@ int Unzip::openFile(std::istream *&file, ProjectFormat format) {
     // .sb3 Project in romfs:/
     Log::logWarning("No unzipped project, trying embedded.");
     Scratch::projectType = ProjectType::EMBEDDED;
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
 #if defined(__XBOX__)
-    std::string cmrcEmbedded = OS::normalizeCMRCPath(embeddedFilename);
-    if (fs.exists(cmrcEmbedded)) {
-        const auto &romfsFile = fs.open(cmrcEmbedded);
-        const std::string_view content(romfsFile.begin(), romfsFile.size());
-        file = new std::istringstream(std::string(content));
-        file->clear();
-        file->seekg(0, std::ios::beg);
+    std::string bundleEmbedded = OS::normalizePath(embeddedFilename);
+    if (auto entry = project.find(bundleEmbedded)) {
+        file = new std::istringstream(project.load_text(*entry));
+        file->seekg(0, std::ios::end);
     }
 #else
-    if (fs.exists(embeddedFilename)) {
-        const auto &romfsFile = fs.open(embeddedFilename);
-        const std::string_view content(romfsFile.begin(), romfsFile.size());
-        file = new std::istringstream(std::string(content));
+    if (auto entry = project.find(embeddedFilename)) {
+        file = new std::istringstream(project.load_text(*entry));
         file->seekg(0, std::ios::end);
     }
 #endif
@@ -393,26 +382,20 @@ nlohmann::json Unzip::getSetting(const std::string &settingName) {
     std::string content;
 
     if (Scratch::projectType != ProjectType::UNEMBEDDED) {
-#ifdef USE_CMAKERC
-        const auto &fs = cmrc::romfs::get_filesystem();
+#ifdef USE_BUNDLE
+        auto project = Bundle::project();
 #if defined(__XBOX__)
-        std::string cmrcPath = OS::normalizeCMRCPath(folderPath);
-
-        if (!fs.exists(cmrcPath)) {
-            Log::logWarning("Project settings file not found: romfs:/" + folderPath);
-            return nlohmann::json();
-        }
-
-        const auto &file = fs.open(cmrcPath);
+        std::string bundlePath = OS::normalizePath(folderPath);
+        auto entry = project.find(bundlePath);
 #else
-        if (!fs.exists(folderPath)) {
+        auto entry = project.find(folderPath);
+#endif
+        if (!entry) {
             Log::logWarning("Project settings file not found: romfs:/" + folderPath);
             return nlohmann::json();
         }
 
-        const auto &file = fs.open(folderPath);
-#endif
-        content.assign(file.begin(), file.end());
+        content = project.load_text(*entry);
 #else
         std::ifstream file(OS::getRomFSLocation() + "project.sb3.json");
         if (!file.is_open()) {
