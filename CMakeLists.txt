@@ -337,6 +337,10 @@ if(DEFINED SE_PLATFORM_DEFINITIONS)
 endif()
 
 if(SE_BUNDLE)
+	if(SE_ZIP_BACKEND STREQUAL "minizip")
+		set(BUNDLE_USE_ZLIB ON)
+	endif()
+
 	cl_import_source(
 	  NAME bundle_cmake
 	  DOWNLOAD_ONLY
