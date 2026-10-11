@@ -341,7 +341,7 @@ if(SE_BUNDLE)
 	  NAME bundle_cmake
 	  DOWNLOAD_ONLY
 	  REPO https://github.com/gradylink/bundle.cmake.git
-	  REF 50814e22ed67c0069ed9826f84a6817e0fd56c2b
+	  REF 4434af7315d347ab624baf35dee54a6613dc28e4
 	)
 	include("${CL_SOURCE_DIR}/cmake/bundle.cmake")
 
