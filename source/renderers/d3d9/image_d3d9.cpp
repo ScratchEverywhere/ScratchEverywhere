@@ -5,15 +5,6 @@
 #include <stdexcept>
 #include <string>
 
-#define FVF_IMGVERTEX (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1)
-
-typedef struct imgvertex {
-    float x, y, z;
-    float rhw;
-    D3DCOLOR color;
-    float tu, tv;
-} IMGVERTEX;
-
 void Image_D3D9::render(ImageRenderParams &params) {
     IMGVERTEX v[4];
     int i;
@@ -162,7 +153,7 @@ void Image_D3D9::setInitialTexture() {
     BYTE *b;
     int i;
 
-    IDirect3DDevice9_CreateTexture(pDev, this->imgData.width, this->imgData.height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &this->pTex, nullptr); /* this could fail... */
+    IDirect3DDevice9_CreateTexture(pDev, this->imgData.width, this->imgData.height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &this->pTex, nullptr);
 
     IDirect3DTexture9_LockRect(this->pTex, 0, &locked, nullptr, 0);
     b = (BYTE *)locked.pBits;

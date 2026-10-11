@@ -27,6 +27,8 @@ SpeechManagerD3D9 *speechManager = nullptr;
 IDirect3D9 *pD3D = nullptr;
 IDirect3DDevice9 *pDev = nullptr;
 IDirect3DSurface9 *pBackbuffer = nullptr;
+IDirect3DSurface9 *pPenLayerSurface = nullptr;
+IDirect3DTexture9 *pPenLayer = nullptr;
 
 static int penWidth = 480;
 static int penHeight = 360;
@@ -34,6 +36,8 @@ static int penHeight = 360;
 static void reset(int width, int height) {
     D3DPRESENT_PARAMETERS *dpp = &((WindowWin32 *)globalWindow)->dpp;
 
+    if (pPenLayerSurface != nullptr) IDirect3DSurface9_Release(pPenLayerSurface);
+    if (pPenLayer != nullptr) IDirect3DTexture9_Release(pPenLayer);
     if (pBackbuffer != nullptr) IDirect3DSurface9_Release(pBackbuffer);
 
     dpp->BackBufferWidth = width;
@@ -53,6 +57,8 @@ static void reset(int width, int height) {
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
     IDirect3DDevice9_GetRenderTarget(pDev, 0, &pBackbuffer);
+    IDirect3DDevice9_CreateTexture(pDev, width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &pPenLayer, nullptr);
+    IDirect3DTexture9_GetSurfaceLevel(pPenLayer, 0, &pPenLayerSurface);
 }
 
 static void matrix(int width, int height) {
@@ -106,7 +112,10 @@ void Render::deInit() {
 
     TextObject::cleanupText();
 
+    IDirect3DSurface9_Release(pPenLayerSurface);
+    IDirect3DTexture9_Release(pPenLayer);
     IDirect3DSurface9_Release(pBackbuffer);
+
     if (globalWindow) {
         globalWindow->cleanup();
         delete globalWindow;
@@ -160,7 +169,48 @@ bool Render::initPen() {
     return true;
 }
 
+static void beginPen(){
+	IDirect3DDevice9_SetRenderTarget(pDev, 0, pPenLayerSurface);
+}
+
+static void endPen(){
+	IDirect3DDevice9_SetRenderTarget(pDev, 0, pBackbuffer);
+}
+
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+	PENVERTEX v[2];
+    double scale = (Render::getHeight() < Render::getWidth()) ? ((float)Scratch::projectHeight / Render::getHeight()) : ((float)Scratch::projectWidth / Render::getWidth());
+    double r = sprite->penData.size / scale;
+    int y, x;
+    int rW = Render::getWidth();
+    int rH = Render::getHeight();
+
+    x1 += rW * scale / 2;
+    y1 = -y1 + rH * scale / 2;
+    x2 += rW * scale / 2;
+    y2 = -y2 + rH * scale / 2;
+
+    x1 /= scale;
+    y1 /= scale;
+    x2 /= scale;
+    y2 /= scale;
+
+	v[0].x = x1;
+	v[0].y = y1;
+	v[0].z = 0;
+	v[0].rhw = 1;
+	v[0].color = 0xff000000;
+
+	v[1].x = x2;
+	v[1].y = y2;
+	v[1].z = 0;
+	v[1].rhw = 1;
+	v[1].color = 0xff000000;
+
+	beginPen();
+	IDirect3DDevice9_SetFVF(pDev, FVF_PENVERTEX);
+	IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_LINELIST, 1, v, sizeof(PENVERTEX));
+	endPen();
 }
 
 void Render::penDotFast(Sprite *sprite) {
@@ -201,10 +251,15 @@ void Render::penStamp(Sprite *sprite) {
     params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
     params.brightness = sprite->brightnessEffect;
 
+    beginPen();
     image->render(params);
+    endPen();
 }
 
 void Render::penClear() {
+	beginPen();
+        IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 1.0, 0);
+	endPen();
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -217,7 +272,7 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
             win->resized = false;
         }
 
-        IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_XRGB(colorR, colorG, colorB), 1.0, 0);
+        IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, colorR, colorG, colorB), 1.0, 0);
         IDirect3DDevice9_BeginScene(pDev);
         hasFrameBegan = true;
     }
@@ -239,6 +294,43 @@ void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colo
 }
 
 void Render::renderPenLayer() {
+	IMGVERTEX v[4];
+
+	v[0].x = 0;
+	v[0].y = 0;
+	v[0].z = 0;
+	v[0].rhw = 1;
+	v[0].color = 0xffffffff;
+	v[0].tu = 0;
+	v[0].tv = 0;
+
+	v[1].x = Render::getWidth();
+	v[1].y = 0;
+	v[1].z = 0;
+	v[1].rhw = 1;
+	v[1].color = 0xffffffff;
+	v[1].tu = 1;
+	v[1].tv = 0;
+
+	v[2].x = Render::getWidth();
+	v[2].y = Render::getHeight();
+	v[2].z = 0;
+	v[2].rhw = 1;
+	v[2].color = 0xffffffff;
+	v[2].tu = 1;
+	v[2].tv = 1;
+
+	v[3].x = 0;
+	v[3].y = Render::getHeight();
+	v[3].z = 0;
+	v[3].rhw = 1;
+	v[3].color = 0xffffffff;
+	v[3].tu = 0;
+	v[3].tv = 1;
+
+    IDirect3DDevice9_SetTexture(pDev, 0, pPenLayer);
+    IDirect3DDevice9_SetFVF(pDev, FVF_IMGVERTEX);
+    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(IMGVERTEX));
 }
 
 static void drawBlackBars() {
