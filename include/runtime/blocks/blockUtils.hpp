@@ -1,6 +1,7 @@
 #pragma once
 
 #include <blockExecutor.hpp>
+#include <bytecode_compiler.hpp>
 #include <color.hpp>
 #include <parser.hpp>
 #include <runtime.hpp>
@@ -225,3 +226,28 @@
     static double block_##category##_##id##_pos_(double num1, double num2);                                                                                   \
     static uint8_t block_##category##_##id##_pos_reg_ = (BlockExecutor::getPositionalHandlers()[#category "_" #id].nn_n = block_##category##_##id##_pos_, 0); \
     static double block_##category##_##id##_pos_(double num1, double num2)
+
+/**
+ * @brief Defines and registers custom bytecode-compilation logic for a block, taking over from the generic signature-driven path entirely.
+ *
+ * @param category Same category passed to this block's SCRATCH_BLOCK* macro.
+ * @param id Same id passed to this block's SCRATCH_BLOCK* macro.
+ *
+ * @section Handler Function Definition
+ * @param compiler The BytecodeCompiler driving this sprite's compile. Use it
+ * to emit instructions, compile inputs/substacks, and resolve variable/list/
+ * escape slots.
+ * @param block The Block being compiled.
+ * @param outFirstInstr Set this to the index of the first instruction this
+ * call emitted.
+ *
+ * @return bool true once compiled; false to fall back to the generic
+ * signature-driven path (or EscapeToLegacyThread) for this one block.
+ *
+ * @sa BytecodeCompiler
+ * @sa SCRATCH_BLOCK_SIGNATURE
+ */
+#define SCRATCH_BYTECODE_BLOCK(category, id)                                                                                                           \
+    static bool block_##category##_##id##_bc_(BytecodeCompiler &compiler, Block *block, BytecodeIndex &outFirstInstr);                                 \
+    static uint8_t block_##category##_##id##_bc_reg_ = (BytecodeCompiler::getCustomCompilers()[#category "_" #id] = block_##category##_##id##_bc_, 0); \
+    static bool block_##category##_##id##_bc_(BytecodeCompiler &compiler, Block *block, BytecodeIndex &outFirstInstr)

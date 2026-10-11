@@ -1,9 +1,98 @@
+#include "bytecode_compiler.hpp"
 #include "blockExecutor.hpp"
 #include "parser.hpp"
 #include "runtime.hpp"
 #include "types.hpp"
 #include <algorithm>
 #include <memory>
+
+std::unordered_map<std::string, BytecodeCompiler::CustomCompileFn> &BytecodeCompiler::getCustomCompilers() {
+    static std::unordered_map<std::string, CustomCompileFn> compilers;
+    return compilers;
+}
+
+BytecodeIndex BytecodeCompiler::emit(BytecodeOp op, BytecodeIndex a, BytecodeIndex b) {
+    chunk_.instructions.push_back(BytecodeInstruction{op, a, b});
+    return static_cast<BytecodeIndex>(chunk_.instructions.size() - 1);
+}
+
+void BytecodeCompiler::patchJumpTarget(BytecodeIndex jumpInstr, BytecodeIndex target) {
+    chunk_.instructions[jumpInstr].a = target;
+}
+
+BytecodeIndex BytecodeCompiler::opcodeSlot(const std::string &opcode, const std::vector<BytecodeInputSignature> &signature) {
+    auto it = opcodeSlotMap_.find(opcode);
+    if (it != opcodeSlotMap_.end()) return it->second;
+
+    BytecodeIndex slot = static_cast<BytecodeIndex>(chunk_.opcodeSlots.size());
+    chunk_.opcodeSlots.push_back(chunk_.internString(opcode));
+
+    auto &handlers = BlockExecutor::getHandlers();
+    auto handlerIt = handlers.find(opcode);
+    link_.opcodes.push_back(handlerIt != handlers.end() ? &handlerIt->second : nullptr);
+
+    auto &positional = BlockExecutor::getPositionalHandlers();
+    auto positionalIt = positional.find(opcode);
+    link_.positional.push_back(positionalIt != positional.end() ? positionalIt->second : BytecodePositionalFn{});
+
+    chunk_.paramKindsStart.push_back(static_cast<BytecodeIndex>(chunk_.paramKinds.size()));
+    for (const auto &sig : signature)
+        chunk_.paramKinds.push_back(sig.kind);
+    chunk_.paramKindsCount.push_back(static_cast<BytecodeIndex>(signature.size()));
+
+    opcodeSlotMap_[opcode] = slot;
+    return slot;
+}
+
+BytecodeIndex BytecodeCompiler::variableSlot(const std::string &variableId) {
+    auto it = variableSlotMap_.find(variableId);
+    if (it != variableSlotMap_.end()) return it->second;
+
+    BytecodeIndex slot = static_cast<BytecodeIndex>(chunk_.variableSlots.size());
+    chunk_.variableSlots.push_back(chunk_.internString(variableId));
+    link_.variables.push_back(BlockExecutor::getVariable(variableId, sprite_));
+    variableSlotMap_[variableId] = slot;
+    return slot;
+}
+
+BytecodeIndex BytecodeCompiler::listSlot(const std::string &listId) {
+    auto it = listSlotMap_.find(listId);
+    if (it != listSlotMap_.end()) return it->second;
+
+    BytecodeIndex slot = static_cast<BytecodeIndex>(chunk_.listSlots.size());
+    chunk_.listSlots.push_back(chunk_.internString(listId));
+
+    List *list = nullptr;
+    auto listIt = sprite_->lists.find(listId);
+    if (listIt != sprite_->lists.end()) {
+        list = &listIt->second;
+    } else if (Scratch::stageSprite != nullptr) {
+        auto globalIt = Scratch::stageSprite->lists.find(listId);
+        if (globalIt != Scratch::stageSprite->lists.end()) list = &globalIt->second;
+    }
+    link_.lists.push_back(list);
+    listSlotMap_[listId] = slot;
+    return slot;
+}
+
+BytecodeIndex BytecodeCompiler::escapeSlot(Block *block) {
+    auto it = escapeBlockMap_.find(block);
+    if (it != escapeBlockMap_.end()) return it->second;
+
+    BytecodeIndex slot = static_cast<BytecodeIndex>(link_.escapeBlocks.size());
+    link_.escapeBlocks.push_back(block);
+    escapeBlockMap_[block] = slot;
+    return slot;
+}
+
+Block *BytecodeCompiler::substackBlock(Block *block, const std::string &inputName) {
+    const ParsedInput *input = Scratch::getInput(block, inputName);
+    return (input != nullptr) ? input->block : nullptr;
+}
+
+bool BytecodeCompiler::compileSubstack(Block *block, const std::string &inputName, Block *stopBlock, BytecodeIndex &outFirstInstr) {
+    return compileBlockChain(substackBlock(block, inputName), stopBlock, outFirstInstr);
+}
 
 namespace {
 
@@ -23,105 +112,22 @@ BytecodeStackKind stackKindForType(Type type) {
     }
 }
 
-struct BytecodeCompilerState {
-    Sprite *sprite = nullptr;
-    BytecodeChunk chunk;
-    BytecodeLinkTable link;
-
-    std::unordered_map<std::string, BytecodeIndex> opcodeSlotMap;
-    std::unordered_map<std::string, BytecodeIndex> variableSlotMap;
-    std::unordered_map<std::string, BytecodeIndex> listSlotMap;
-    std::unordered_map<Block *, BytecodeIndex> escapeBlockMap;
-
-    const std::vector<std::string> *currentArgumentNames = nullptr;
-
-    BytecodeIndex emit(BytecodeOp op, BytecodeIndex a = invalidBytecodeIndex, BytecodeIndex b = invalidBytecodeIndex) {
-        chunk.instructions.push_back(BytecodeInstruction{op, a, b});
-        return static_cast<BytecodeIndex>(chunk.instructions.size() - 1);
-    }
-
-    BytecodeIndex opcodeSlot(const std::string &opcode, const std::vector<BytecodeInputSignature> &signature) {
-        auto it = opcodeSlotMap.find(opcode);
-        if (it != opcodeSlotMap.end()) return it->second;
-
-        BytecodeIndex slot = static_cast<BytecodeIndex>(chunk.opcodeSlots.size());
-        chunk.opcodeSlots.push_back(chunk.internString(opcode));
-
-        auto &handlers = BlockExecutor::getHandlers();
-        auto handlerIt = handlers.find(opcode);
-        link.opcodes.push_back(handlerIt != handlers.end() ? &handlerIt->second : nullptr);
-
-        auto &positional = BlockExecutor::getPositionalHandlers();
-        auto positionalIt = positional.find(opcode);
-        link.positional.push_back(positionalIt != positional.end() ? positionalIt->second : BytecodePositionalFn{});
-
-        chunk.paramKindsStart.push_back(static_cast<BytecodeIndex>(chunk.paramKinds.size()));
-        for (const auto &sig : signature)
-            chunk.paramKinds.push_back(sig.kind);
-        chunk.paramKindsCount.push_back(static_cast<BytecodeIndex>(signature.size()));
-
-        opcodeSlotMap[opcode] = slot;
-        return slot;
-    }
-
-    BytecodeIndex variableSlot(const std::string &variableId) {
-        auto it = variableSlotMap.find(variableId);
-        if (it != variableSlotMap.end()) return it->second;
-
-        BytecodeIndex slot = static_cast<BytecodeIndex>(chunk.variableSlots.size());
-        chunk.variableSlots.push_back(chunk.internString(variableId));
-        link.variables.push_back(BlockExecutor::getVariable(variableId, sprite));
-        variableSlotMap[variableId] = slot;
-        return slot;
-    }
-
-    BytecodeIndex listSlot(const std::string &listId) {
-        auto it = listSlotMap.find(listId);
-        if (it != listSlotMap.end()) return it->second;
-
-        BytecodeIndex slot = static_cast<BytecodeIndex>(chunk.listSlots.size());
-        chunk.listSlots.push_back(chunk.internString(listId));
-
-        List *list = nullptr;
-        auto listIt = sprite->lists.find(listId);
-        if (listIt != sprite->lists.end()) {
-            list = &listIt->second;
-        } else if (Scratch::stageSprite != nullptr) {
-            auto globalIt = Scratch::stageSprite->lists.find(listId);
-            if (globalIt != Scratch::stageSprite->lists.end()) list = &globalIt->second;
-        }
-        link.lists.push_back(list);
-        listSlotMap[listId] = slot;
-        return slot;
-    }
-
-    BytecodeIndex escapeSlot(Block *block) {
-        auto it = escapeBlockMap.find(block);
-        if (it != escapeBlockMap.end()) return it->second;
-
-        BytecodeIndex slot = static_cast<BytecodeIndex>(link.escapeBlocks.size());
-        link.escapeBlocks.push_back(block);
-        escapeBlockMap[block] = slot;
-        return slot;
-    }
-};
-
-void convertIfNeeded(BytecodeCompilerState &cs, BytecodeStackKind from, BytecodeStackKind to) {
+void convertIfNeeded(BytecodeCompiler &compiler, BytecodeStackKind from, BytecodeStackKind to) {
     if (from == to) return;
 
     if (from != BytecodeStackKind::Value) {
         switch (from) {
         case BytecodeStackKind::Number:
-            cs.emit(BytecodeOp::ConvertNumberToValue);
+            compiler.emit(BytecodeOp::ConvertNumberToValue);
             break;
         case BytecodeStackKind::String:
-            cs.emit(BytecodeOp::ConvertStringToValue);
+            compiler.emit(BytecodeOp::ConvertStringToValue);
             break;
         case BytecodeStackKind::Boolean:
-            cs.emit(BytecodeOp::ConvertBooleanToValue);
+            compiler.emit(BytecodeOp::ConvertBooleanToValue);
             break;
         case BytecodeStackKind::Color:
-            cs.emit(BytecodeOp::ConvertColorToValue);
+            compiler.emit(BytecodeOp::ConvertColorToValue);
             break;
         default:
             break;
@@ -131,16 +137,16 @@ void convertIfNeeded(BytecodeCompilerState &cs, BytecodeStackKind from, Bytecode
     if (to != BytecodeStackKind::Value) {
         switch (to) {
         case BytecodeStackKind::Number:
-            cs.emit(BytecodeOp::ConvertValueToNumber);
+            compiler.emit(BytecodeOp::ConvertValueToNumber);
             break;
         case BytecodeStackKind::String:
-            cs.emit(BytecodeOp::ConvertValueToString);
+            compiler.emit(BytecodeOp::ConvertValueToString);
             break;
         case BytecodeStackKind::Boolean:
-            cs.emit(BytecodeOp::ConvertValueToBoolean);
+            compiler.emit(BytecodeOp::ConvertValueToBoolean);
             break;
         case BytecodeStackKind::Color:
-            cs.emit(BytecodeOp::ConvertValueToColor);
+            compiler.emit(BytecodeOp::ConvertValueToColor);
             break;
         default:
             break;
@@ -148,275 +154,248 @@ void convertIfNeeded(BytecodeCompilerState &cs, BytecodeStackKind from, Bytecode
     }
 }
 
-void compileConstant(BytecodeCompilerState &cs, const Value &value, BytecodeStackKind wanted) {
+void compileConstant(BytecodeCompiler &compiler, const Value &value, BytecodeStackKind wanted) {
     switch (wanted) {
     case BytecodeStackKind::Number: {
-        BytecodeIndex idx = static_cast<BytecodeIndex>(cs.chunk.numberConstants.size());
-        cs.chunk.numberConstants.push_back(value.get<double>());
-        cs.emit(BytecodeOp::PushConstNumber, idx);
+        BytecodeIndex idx = static_cast<BytecodeIndex>(compiler.chunk().numberConstants.size());
+        compiler.chunk().numberConstants.push_back(value.get<double>());
+        compiler.emit(BytecodeOp::PushConstNumber, idx);
         return;
     }
     case BytecodeStackKind::String: {
-        BytecodeIndex idx = static_cast<BytecodeIndex>(cs.chunk.stringConstants.size());
-        cs.chunk.stringConstants.push_back(value.get<std::string>());
-        cs.emit(BytecodeOp::PushConstString, idx);
+        BytecodeIndex idx = static_cast<BytecodeIndex>(compiler.chunk().stringConstants.size());
+        compiler.chunk().stringConstants.push_back(value.get<std::string>());
+        compiler.emit(BytecodeOp::PushConstString, idx);
         return;
     }
     case BytecodeStackKind::Boolean: {
-        BytecodeIndex idx = static_cast<BytecodeIndex>(cs.chunk.boolConstants.size());
-        cs.chunk.boolConstants.push_back(value.get<bool>());
-        cs.emit(BytecodeOp::PushConstBoolean, idx);
+        BytecodeIndex idx = static_cast<BytecodeIndex>(compiler.chunk().boolConstants.size());
+        compiler.chunk().boolConstants.push_back(value.get<bool>());
+        compiler.emit(BytecodeOp::PushConstBoolean, idx);
         return;
     }
     case BytecodeStackKind::Color: {
-        BytecodeIndex idx = static_cast<BytecodeIndex>(cs.chunk.colorConstants.size());
-        cs.chunk.colorConstants.push_back(value.asColor());
-        cs.emit(BytecodeOp::PushConstColor, idx);
+        BytecodeIndex idx = static_cast<BytecodeIndex>(compiler.chunk().colorConstants.size());
+        compiler.chunk().colorConstants.push_back(value.asColor());
+        compiler.emit(BytecodeOp::PushConstColor, idx);
         return;
     }
     case BytecodeStackKind::Value: {
-        BytecodeIndex idx = static_cast<BytecodeIndex>(cs.chunk.constants.size());
-        cs.chunk.constants.push_back(value);
-        cs.emit(BytecodeOp::PushConstValue, idx);
+        BytecodeIndex idx = static_cast<BytecodeIndex>(compiler.chunk().constants.size());
+        compiler.chunk().constants.push_back(value);
+        compiler.emit(BytecodeOp::PushConstValue, idx);
         return;
     }
     }
 }
 
-void compileDefaultConst(BytecodeCompilerState &cs, BytecodeStackKind wanted) {
+void compileDefaultConst(BytecodeCompiler &compiler, BytecodeStackKind wanted) {
     switch (wanted) {
     case BytecodeStackKind::Number:
-        compileConstant(cs, Value(0.0), wanted);
+        compileConstant(compiler, Value(0.0), wanted);
         return;
     case BytecodeStackKind::String:
-        compileConstant(cs, Value(std::string()), wanted);
+        compileConstant(compiler, Value(std::string()), wanted);
         return;
     case BytecodeStackKind::Boolean:
-        compileConstant(cs, Value(false), wanted);
+        compileConstant(compiler, Value(false), wanted);
         return;
     case BytecodeStackKind::Color:
-        compileConstant(cs, Value(Color{}), wanted);
+        compileConstant(compiler, Value(Color{}), wanted);
         return;
     case BytecodeStackKind::Value:
-        compileConstant(cs, Value(0.0), wanted);
+        compileConstant(compiler, Value(0.0), wanted);
         return;
     }
 }
 
-void emitPushVar(BytecodeCompilerState &cs, BytecodeIndex slot, BytecodeStackKind wanted) {
+void emitPushVar(BytecodeCompiler &compiler, BytecodeIndex slot, BytecodeStackKind wanted) {
     switch (wanted) {
     case BytecodeStackKind::Number:
-        cs.emit(BytecodeOp::PushVarNumber, slot);
+        compiler.emit(BytecodeOp::PushVarNumber, slot);
         return;
     case BytecodeStackKind::String:
-        cs.emit(BytecodeOp::PushVarString, slot);
+        compiler.emit(BytecodeOp::PushVarString, slot);
         return;
     case BytecodeStackKind::Boolean:
-        cs.emit(BytecodeOp::PushVarBoolean, slot);
+        compiler.emit(BytecodeOp::PushVarBoolean, slot);
         return;
     case BytecodeStackKind::Color:
-        cs.emit(BytecodeOp::PushVarColor, slot);
+        compiler.emit(BytecodeOp::PushVarColor, slot);
         return;
     case BytecodeStackKind::Value:
-        cs.emit(BytecodeOp::PushVarValue, slot);
+        compiler.emit(BytecodeOp::PushVarValue, slot);
         return;
     }
 }
 
-void emitCallNative(BytecodeCompilerState &cs, BytecodeIndex opSlot, BytecodeIndex argCount, BytecodeStackKind returnKind) {
+void emitCallNative(BytecodeCompiler &compiler, BytecodeIndex opSlot, BytecodeIndex argCount, BytecodeStackKind returnKind) {
     switch (returnKind) {
     case BytecodeStackKind::Number:
-        cs.emit(BytecodeOp::CallNativeNumber, opSlot, argCount);
+        compiler.emit(BytecodeOp::CallNativeNumber, opSlot, argCount);
         return;
     case BytecodeStackKind::String:
-        cs.emit(BytecodeOp::CallNativeString, opSlot, argCount);
+        compiler.emit(BytecodeOp::CallNativeString, opSlot, argCount);
         return;
     case BytecodeStackKind::Boolean:
-        cs.emit(BytecodeOp::CallNativeBoolean, opSlot, argCount);
+        compiler.emit(BytecodeOp::CallNativeBoolean, opSlot, argCount);
         return;
     case BytecodeStackKind::Color:
-        cs.emit(BytecodeOp::CallNativeColor, opSlot, argCount);
+        compiler.emit(BytecodeOp::CallNativeColor, opSlot, argCount);
         return;
     case BytecodeStackKind::Value:
-        cs.emit(BytecodeOp::CallNativeValue, opSlot, argCount);
+        compiler.emit(BytecodeOp::CallNativeValue, opSlot, argCount);
         return;
     }
 }
 
-void compileReporter(BytecodeCompilerState &cs, Block *block, BytecodeStackKind wanted);
+void compileReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind wanted);
 
-void compileOperand(BytecodeCompilerState &cs, const ParsedInput *input, BytecodeStackKind wanted) {
-    if (input == nullptr) {
-        compileDefaultConst(cs, wanted);
-        return;
-    }
-
-    switch (input->inputType) {
-    case ParsedInput::VALUE:
-        compileConstant(cs, input->value, wanted);
-        return;
-
-    case ParsedInput::VARIABLE:
-        if (input->list) {
-            BytecodeIndex slot = cs.listSlot(input->variableId);
-            cs.emit(BytecodeOp::PushList, slot);
-            convertIfNeeded(cs, BytecodeStackKind::Value, wanted);
-        } else {
-            emitPushVar(cs, cs.variableSlot(input->variableId), wanted);
-        }
-        return;
-
-    case ParsedInput::BLOCK:
-        if (input->block == nullptr) {
-            compileDefaultConst(cs, wanted);
-            return;
-        }
-        compileReporter(cs, input->block, wanted);
-        return;
-    }
-}
-
-bool tryCompileArgumentReporter(BytecodeCompilerState &cs, Block *block, BytecodeStackKind wanted) {
-    if (cs.currentArgumentNames == nullptr) return false;
+bool tryCompileArgumentReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind wanted) {
+    if (compiler.currentArgumentNames() == nullptr) return false;
     if (block->opcode != "argument_reporter_string_number" && block->opcode != "argument_reporter_boolean") return false;
 
     std::string argName = Scratch::getFieldValue(*block, "VALUE");
-    const auto &names = *cs.currentArgumentNames;
+    const auto &names = *compiler.currentArgumentNames();
     auto it = std::find(names.begin(), names.end(), argName);
     if (it == names.end()) return false;
 
     BytecodeIndex argSlot = static_cast<BytecodeIndex>(std::distance(names.begin(), it));
-    cs.emit(BytecodeOp::PushArg, argSlot);
-    convertIfNeeded(cs, BytecodeStackKind::Value, wanted);
+    compiler.emit(BytecodeOp::PushArg, argSlot);
+    convertIfNeeded(compiler, BytecodeStackKind::Value, wanted);
     return true;
 }
 
-void compileReporter(BytecodeCompilerState &cs, Block *block, BytecodeStackKind wanted) {
-    if (tryCompileArgumentReporter(cs, block, wanted)) return;
+void compileReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind wanted) {
+    if (tryCompileArgumentReporter(compiler, block, wanted)) return;
 
     const std::string &opcode = block->opcode;
     const auto &signatures = BlockExecutor::getInputSignatures();
     auto sigIt = signatures.find(opcode);
 
     if (sigIt == signatures.end()) {
-        BytecodeIndex slot = cs.escapeSlot(block);
-        cs.emit(BytecodeOp::CallLegacyReporter, slot);
-        convertIfNeeded(cs, BytecodeStackKind::Value, wanted);
+        BytecodeIndex slot = compiler.escapeSlot(block);
+        compiler.emit(BytecodeOp::CallLegacyReporter, slot);
+        convertIfNeeded(compiler, BytecodeStackKind::Value, wanted);
         return;
     }
 
     for (const auto &sig : sigIt->second) {
-        compileOperand(cs, Scratch::getInput(block, sig.name), sig.kind);
+        compiler.compileOperand(Scratch::getInput(block, sig.name), sig.kind);
     }
 
-    BytecodeIndex opSlot = cs.opcodeSlot(opcode, sigIt->second);
+    BytecodeIndex opSlot = compiler.opcodeSlot(opcode, sigIt->second);
     BytecodeStackKind nativeKind = stackKindForType(block->blockFunction.type);
-    emitCallNative(cs, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()), nativeKind);
+    emitCallNative(compiler, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()), nativeKind);
 
-    convertIfNeeded(cs, nativeKind, wanted);
+    convertIfNeeded(compiler, nativeKind, wanted);
 }
 
-bool tryCompileVariableStatement(BytecodeCompilerState &cs, Block *block, BytecodeIndex &outFirstInstr) {
-    if (block->opcode != "data_setvariableto" && block->opcode != "data_changevariableby") return false;
+} // namespace
 
-    const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
-    Variable *var = BlockExecutor::getVariable(varId, cs.sprite);
-    if (var == nullptr) return false;
-
-    BytecodeStackKind varKind;
-    if (std::holds_alternative<double>(var->value)) varKind = BytecodeStackKind::Number;
-    else if (std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) varKind = BytecodeStackKind::String;
-    else if (std::holds_alternative<bool>(var->value)) varKind = BytecodeStackKind::Boolean;
-    else varKind = BytecodeStackKind::Value;
-
-    BytecodeIndex firstInstr = static_cast<BytecodeIndex>(cs.chunk.instructions.size());
-    BytecodeIndex slot = cs.variableSlot(varId);
-
-    if (block->opcode == "data_changevariableby") {
-        if (varKind != BytecodeStackKind::Number) return false;
-
-        compileOperand(cs, Scratch::getInput(block, "VALUE"), BytecodeStackKind::Number);
-        cs.emit(BytecodeOp::ChangeVarNumber, slot);
-        outFirstInstr = firstInstr;
-        return true;
+void BytecodeCompiler::compileOperand(const ParsedInput *input, BytecodeStackKind wanted) {
+    if (input == nullptr) {
+        compileDefaultConst(*this, wanted);
+        return;
     }
 
-    compileOperand(cs, Scratch::getInput(block, "VALUE"), varKind);
-    switch (varKind) {
-    case BytecodeStackKind::Number:
-        cs.emit(BytecodeOp::StoreVarNumber, slot);
-        break;
-    case BytecodeStackKind::String:
-        cs.emit(BytecodeOp::StoreVarString, slot);
-        break;
-    case BytecodeStackKind::Boolean:
-        cs.emit(BytecodeOp::StoreVarBoolean, slot);
-        break;
-    case BytecodeStackKind::Color:
-        cs.emit(BytecodeOp::StoreVarColor, slot);
-        break;
-    case BytecodeStackKind::Value:
-        cs.emit(BytecodeOp::StoreVarValue, slot);
-        break;
+    switch (input->inputType) {
+    case ParsedInput::VALUE:
+        compileConstant(*this, input->value, wanted);
+        return;
+
+    case ParsedInput::VARIABLE:
+        if (input->list) {
+            BytecodeIndex slot = listSlot(input->variableId);
+            emit(BytecodeOp::PushList, slot);
+            convertIfNeeded(*this, BytecodeStackKind::Value, wanted);
+        } else {
+            emitPushVar(*this, variableSlot(input->variableId), wanted);
+        }
+        return;
+
+    case ParsedInput::BLOCK:
+        if (input->block == nullptr) {
+            compileDefaultConst(*this, wanted);
+            return;
+        }
+        compileReporter(*this, input->block, wanted);
+        return;
     }
-    outFirstInstr = firstInstr;
-    return true;
 }
 
-BytecodeIndex compileStatementChain(BytecodeCompilerState &cs, Block *start) {
-    if (start == nullptr) {
-        return cs.emit(BytecodeOp::Halt);
-    }
+void BytecodeCompiler::compileInput(Block *block, const std::string &inputName, BytecodeStackKind wanted) {
+    compileOperand(Scratch::getInput(block, inputName), wanted);
+}
 
-    const auto &signatures = BlockExecutor::getInputSignatures();
+bool BytecodeCompiler::compileBlockChain(Block *start, Block *stopBlock, BytecodeIndex &outFirstInstr) {
     BytecodeIndex firstInstruction = invalidBytecodeIndex;
     Block *block = start;
 
-    while (block != nullptr) {
-        BytecodeIndex varInstr;
-        if (tryCompileVariableStatement(cs, block, varInstr)) {
-            if (firstInstruction == invalidBytecodeIndex) firstInstruction = varInstr;
-            block = block->nextBlock;
-            continue;
+    while (block != nullptr && block != stopBlock) {
+        auto &customCompilers = getCustomCompilers();
+        auto customIt = customCompilers.find(block->opcode);
+        if (customIt != customCompilers.end()) {
+            BytecodeIndex customInstr;
+            if (customIt->second(*this, block, customInstr)) {
+                if (firstInstruction == invalidBytecodeIndex) firstInstruction = customInstr;
+                block = block->nextBlock;
+                continue;
+            }
         }
 
+        const auto &signatures = BlockExecutor::getInputSignatures();
         auto sigIt = signatures.find(block->opcode);
         if (sigIt == signatures.end()) {
-            BytecodeIndex slot = cs.escapeSlot(block);
-            BytecodeIndex idx = cs.emit(BytecodeOp::EscapeToLegacyThread, slot);
+            BytecodeIndex slot = escapeSlot(block);
+            BytecodeIndex idx = emit(BytecodeOp::EscapeToLegacyThread, slot);
             if (firstInstruction == invalidBytecodeIndex) firstInstruction = idx;
-            return firstInstruction;
+            outFirstInstr = firstInstruction;
+            return false;
         }
 
         for (const auto &sig : sigIt->second) {
-            compileOperand(cs, Scratch::getInput(block, sig.name), sig.kind);
+            compileOperand(Scratch::getInput(block, sig.name), sig.kind);
         }
 
-        BytecodeIndex opSlot = cs.opcodeSlot(block->opcode, sigIt->second);
-        BytecodeIndex instrIdx = cs.emit(BytecodeOp::CallNative, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()));
+        BytecodeIndex opSlot = opcodeSlot(block->opcode, sigIt->second);
+        BytecodeIndex instrIdx = emit(BytecodeOp::CallNative, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()));
 
         if (firstInstruction == invalidBytecodeIndex) firstInstruction = instrIdx;
         block = block->nextBlock;
     }
 
-    cs.emit(BytecodeOp::Halt);
-    return firstInstruction;
+    outFirstInstr = firstInstruction;
+    return true;
+}
+
+namespace {
+
+BytecodeIndex compileStatementChain(BytecodeCompiler &compiler, Block *start) {
+    if (start == nullptr) {
+        return compiler.emit(BytecodeOp::Halt);
+    }
+
+    BytecodeIndex firstInstr;
+    if (compiler.compileBlockChain(start, nullptr, firstInstr)) {
+        compiler.emit(BytecodeOp::Halt);
+    }
+    return firstInstr;
 }
 
 } // namespace
 
 void Parser::compileBytecode(Sprite *sprite) {
-    BytecodeCompilerState cs;
-    cs.sprite = sprite;
+    BytecodeCompiler compiler(sprite);
 
     for (const auto &[opcode, hatBlocks] : sprite->hats) {
         for (Block *hat : hatBlocks) {
             if (hat == nullptr) continue;
 
             BytecodeScript script;
-            script.opcodeIndex = cs.chunk.internString(opcode);
-            script.entryInstruction = compileStatementChain(cs, hat);
-            cs.chunk.scripts.push_back(script);
+            script.opcodeIndex = compiler.chunk().internString(opcode);
+            script.entryInstruction = compileStatementChain(compiler, hat);
+            compiler.chunk().scripts.push_back(script);
         }
     }
 
@@ -424,26 +403,26 @@ void Parser::compileBytecode(Sprite *sprite) {
         if (definitionBlock == nullptr) continue;
 
         BytecodeProcedure proc;
-        proc.procCodeIndex = cs.chunk.internString(proccode);
+        proc.procCodeIndex = compiler.chunk().internString(proccode);
         proc.argCount = static_cast<BytecodeIndex>(definitionBlock->argumentIDs.size());
         proc.runWithoutScreenRefresh = definitionBlock->MyBlockWithoutScreenRefresh;
 
-        proc.argumentNamesStart = static_cast<BytecodeIndex>(cs.chunk.strings.size());
+        proc.argumentNamesStart = static_cast<BytecodeIndex>(compiler.chunk().strings.size());
         for (size_t i = 0; i < definitionBlock->argumentIDs.size(); i++) {
             const std::string &name = (i < definitionBlock->argumentNames.size())
                                           ? definitionBlock->argumentNames[i]
                                           : definitionBlock->argumentIDs[i];
-            cs.chunk.strings.push_back(name);
+            compiler.chunk().strings.push_back(name);
         }
         proc.argumentNamesCount = static_cast<BytecodeIndex>(definitionBlock->argumentIDs.size());
 
-        cs.currentArgumentNames = &definitionBlock->argumentNames;
-        proc.entryInstruction = compileStatementChain(cs, definitionBlock->nextBlock);
-        cs.currentArgumentNames = nullptr;
+        compiler.setCurrentArgumentNames(&definitionBlock->argumentNames);
+        proc.entryInstruction = compileStatementChain(compiler, definitionBlock->nextBlock);
+        compiler.setCurrentArgumentNames(nullptr);
 
-        cs.chunk.procedures.push_back(proc);
+        compiler.chunk().procedures.push_back(proc);
     }
 
-    sprite->bytecode = std::make_unique<BytecodeChunk>(std::move(cs.chunk));
-    sprite->bytecodeLink = std::make_unique<BytecodeLinkTable>(std::move(cs.link));
+    sprite->bytecode = std::make_unique<BytecodeChunk>(std::move(compiler.chunk()));
+    sprite->bytecodeLink = std::make_unique<BytecodeLinkTable>(std::move(compiler.link()));
 }

@@ -122,6 +122,10 @@ const char *mnemonic(BytecodeOp op) {
         return "JumpIfFalse";
     case BytecodeOp::JumpIfTrue:
         return "JumpIfTrue";
+    case BytecodeOp::RepeatCheck:
+        return "RepeatCheck";
+    case BytecodeOp::Wait:
+        return "Wait";
     case BytecodeOp::PopNumber:
         return "PopNumber";
     case BytecodeOp::PopString:
@@ -211,6 +215,7 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
     case BytecodeOp::Jump:
     case BytecodeOp::JumpIfFalse:
     case BytecodeOp::JumpIfTrue:
+    case BytecodeOp::RepeatCheck:
         out << "  ; -> #" << instr.a;
         return;
 

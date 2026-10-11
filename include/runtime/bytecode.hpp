@@ -79,6 +79,9 @@ enum class BytecodeOp : uint8_t {
     JumpIfFalse,
     JumpIfTrue,
 
+    RepeatCheck,
+    Wait,
+
     PopNumber,
     PopString,
     PopBoolean,

@@ -14,6 +14,40 @@ SCRATCH_BLOCK(data, setvariableto) {
     BlockExecutor::setVariableValue(Scratch::getFieldId(*block, "VARIABLE"), value, sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(data, setvariableto) {
+    const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
+    Variable *var = BlockExecutor::getVariable(varId, compiler.sprite());
+    if (var == nullptr) return false;
+
+    BytecodeStackKind varKind;
+    if (std::holds_alternative<double>(var->value)) varKind = BytecodeStackKind::Number;
+    else if (std::holds_alternative<std::shared_ptr<const std::string>>(var->value)) varKind = BytecodeStackKind::String;
+    else if (std::holds_alternative<bool>(var->value)) varKind = BytecodeStackKind::Boolean;
+    else varKind = BytecodeStackKind::Value;
+
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "VALUE", varKind);
+
+    BytecodeIndex slot = compiler.variableSlot(varId);
+    switch (varKind) {
+    case BytecodeStackKind::Number:
+        compiler.emit(BytecodeOp::StoreVarNumber, slot);
+        break;
+    case BytecodeStackKind::String:
+        compiler.emit(BytecodeOp::StoreVarString, slot);
+        break;
+    case BytecodeStackKind::Boolean:
+        compiler.emit(BytecodeOp::StoreVarBoolean, slot);
+        break;
+    case BytecodeStackKind::Color:
+        compiler.emit(BytecodeOp::StoreVarColor, slot);
+        break;
+    case BytecodeStackKind::Value:
+        compiler.emit(BytecodeOp::StoreVarValue, slot);
+        break;
+    }
+    return true;
+}
 
 SCRATCH_BLOCK(data, changevariableby) {
     Value value;
@@ -22,6 +56,16 @@ SCRATCH_BLOCK(data, changevariableby) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
     BlockExecutor::setVariableValue(varId, value + BlockExecutor::getVariableValue(varId, sprite), sprite);
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(data, changevariableby) {
+    const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
+    Variable *var = BlockExecutor::getVariable(varId, compiler.sprite());
+    if (var == nullptr || !std::holds_alternative<double>(var->value)) return false;
+
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
+    compiler.emit(BytecodeOp::ChangeVarNumber, compiler.variableSlot(varId));
+    return true;
 }
 
 SCRATCH_BLOCK(data, showvariable) {

@@ -29,6 +29,17 @@ SCRATCH_BLOCK(control, if) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(control, if) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
+    BytecodeIndex exitJump = compiler.emit(BytecodeOp::JumpIfFalse);
+
+    BytecodeIndex ignored;
+    compiler.compileSubstack(block, "SUBSTACK", block->nextBlock, ignored);
+
+    compiler.patchJumpTarget(exitJump, compiler.here());
+    return true;
+}
 
 SCRATCH_BLOCK(control, all_at_once) {
     const ParsedInput *input = Scratch::getInput(block, "SUBSTACK");
@@ -58,6 +69,21 @@ SCRATCH_BLOCK(control, if_else) {
     }
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(control, if_else) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
+    BytecodeIndex elseJump = compiler.emit(BytecodeOp::JumpIfFalse);
+
+    BytecodeIndex ignored;
+    compiler.compileSubstack(block, "SUBSTACK", block->nextBlock, ignored);
+    BytecodeIndex endJump = compiler.emit(BytecodeOp::Jump);
+
+    compiler.patchJumpTarget(elseJump, compiler.here());
+    compiler.compileSubstack(block, "SUBSTACK2", block->nextBlock, ignored);
+
+    compiler.patchJumpTarget(endJump, compiler.here());
+    return true;
 }
 
 SCRATCH_BLOCK(control, create_clone_of) {
@@ -188,6 +214,15 @@ SCRATCH_BLOCK(control, forever) {
     else return BlockResult::REPEAT;
     return BlockResult::CONTINUE_IMMEDIATELY;
 }
+SCRATCH_BYTECODE_BLOCK(control, forever) {
+    BytecodeIndex loopStart = compiler.here();
+    BytecodeIndex ignored;
+    compiler.compileSubstack(block, "SUBSTACK", block, ignored);
+    compiler.emit(BytecodeOp::Yield);
+    compiler.emit(BytecodeOp::Jump, loopStart);
+    outFirstInstr = loopStart;
+    return true;
+}
 
 SCRATCH_BLOCK(control, wait_until) {
     bool condition;
@@ -196,6 +231,16 @@ SCRATCH_BLOCK(control, wait_until) {
     if (condition) return BlockResult::CONTINUE;
     Scratch::resetInput(block);
     return BlockResult::REPEAT;
+}
+SCRATCH_BYTECODE_BLOCK(control, wait_until) {
+    BytecodeIndex loopStart = compiler.here();
+    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
+    BytecodeIndex exitJump = compiler.emit(BytecodeOp::JumpIfTrue);
+    compiler.emit(BytecodeOp::Yield);
+    compiler.emit(BytecodeOp::Jump, loopStart);
+    compiler.patchJumpTarget(exitJump, compiler.here());
+    outFirstInstr = loopStart;
+    return true;
 }
 
 SCRATCH_BLOCK(control, wait) {
@@ -216,6 +261,12 @@ SCRATCH_BLOCK(control, wait) {
     Scratch::forceRedraw = true;
     state->completedSteps = 1;
     return BlockResult::REPEAT;
+}
+SCRATCH_BYTECODE_BLOCK(control, wait) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "DURATION", BytecodeStackKind::Number);
+    compiler.emit(BytecodeOp::Wait);
+    return true;
 }
 
 SCRATCH_BLOCK(control, repeat) {
@@ -244,6 +295,21 @@ SCRATCH_BLOCK(control, repeat) {
 
     return BlockResult::CONTINUE_IMMEDIATELY;
 }
+SCRATCH_BYTECODE_BLOCK(control, repeat) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "TIMES", BytecodeStackKind::Number);
+
+    BytecodeIndex loopCheck = compiler.here();
+    BytecodeIndex exitJump = compiler.emit(BytecodeOp::RepeatCheck);
+
+    BytecodeIndex ignored;
+    compiler.compileSubstack(block, "SUBSTACK", block, ignored);
+    compiler.emit(BytecodeOp::Yield);
+    compiler.emit(BytecodeOp::Jump, loopCheck);
+
+    compiler.patchJumpTarget(exitJump, compiler.here());
+    return true;
+}
 
 SCRATCH_BLOCK(control, while) {
     bool condition;
@@ -267,6 +333,20 @@ SCRATCH_BLOCK(control, while) {
     Scratch::resetInput(block);
     return BlockResult::CONTINUE_IMMEDIATELY;
 }
+SCRATCH_BYTECODE_BLOCK(control, while) {
+    BytecodeIndex loopStart = compiler.here();
+    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
+    BytecodeIndex exitJump = compiler.emit(BytecodeOp::JumpIfFalse);
+
+    BytecodeIndex ignored;
+    compiler.compileSubstack(block, "SUBSTACK", block, ignored);
+    compiler.emit(BytecodeOp::Yield);
+    compiler.emit(BytecodeOp::Jump, loopStart);
+
+    compiler.patchJumpTarget(exitJump, compiler.here());
+    outFirstInstr = loopStart;
+    return true;
+}
 
 SCRATCH_BLOCK(control, repeat_until) {
     bool condition;
@@ -289,6 +369,20 @@ SCRATCH_BLOCK(control, repeat_until) {
     }
     Scratch::resetInput(block);
     return BlockResult::CONTINUE_IMMEDIATELY;
+}
+SCRATCH_BYTECODE_BLOCK(control, repeat_until) {
+    BytecodeIndex loopStart = compiler.here();
+    compiler.compileInput(block, "CONDITION", BytecodeStackKind::Boolean);
+    BytecodeIndex exitJump = compiler.emit(BytecodeOp::JumpIfTrue);
+
+    BytecodeIndex ignored;
+    compiler.compileSubstack(block, "SUBSTACK", block, ignored);
+    compiler.emit(BytecodeOp::Yield);
+    compiler.emit(BytecodeOp::Jump, loopStart);
+
+    compiler.patchJumpTarget(exitJump, compiler.here());
+    outFirstInstr = loopStart;
+    return true;
 }
 
 SCRATCH_BLOCK_DOUBLE(control, get_counter) {
