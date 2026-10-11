@@ -10,6 +10,7 @@
 #include <memory>
 #include <render.hpp>
 #include <runtime.hpp>
+#include <translation.hpp>
 #include <unzip.hpp>
 #include <variant>
 
@@ -376,7 +377,7 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             Render::monitors.emplace(newMonitor.id, newMonitor);
         }
 
-        Unzip::loadingState = "Finishing up!";
+        Unzip::loadingState = TranslationManager::getTranslation("ui.loading.finish");
 
         Input::applyControls(Unzip::filePath + ".json");
         Parser::log("Loaded " + std::to_string(Scratch::sprites.size()) + " sprites.");

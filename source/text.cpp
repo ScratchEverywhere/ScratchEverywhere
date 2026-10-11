@@ -5,9 +5,8 @@
 #include <string>
 #include <text.hpp>
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-CMRC_DECLARE(romfs);
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #endif
 
 #ifdef RENDERER_CITRO2D
@@ -133,14 +132,15 @@ void TextObject::cleanupText() {
 }
 
 static std::vector<unsigned char> readFontFile(const std::string &fullPath) {
-#ifdef USE_CMAKERC
-    auto fs = cmrc::romfs::get_filesystem();
-    if (!fs.exists(fullPath)) {
+#ifdef USE_BUNDLE
+    auto entry = Bundle::assets().find(fullPath);
+    if (!entry) {
         Log::logError("Failed to open font file: " + fullPath);
         return {};
     }
-    auto file = fs.open(fullPath);
-    return std::vector<unsigned char>(file.begin(), file.end());
+    std::vector<unsigned char> buffer(entry->size());
+    bundle_read_all(&entry->raw(), buffer.data(), buffer.size());
+    return buffer;
 #else
     FILE *f = fopen(fullPath.c_str(), "rb");
     if (!f) {

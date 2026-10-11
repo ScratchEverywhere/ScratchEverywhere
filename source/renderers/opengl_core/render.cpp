@@ -471,6 +471,20 @@ static void drawSolidRect(float x, float y, float w, float h,
     glBindVertexArray(0);
 }
 
+static void drawSolidFan(const std::vector<float> &verts, const float proj[16]) {
+    ensureDynamicBuffers();
+
+    glUseProgram(solidProgram);
+    glUniformMatrix4fv(glGetUniformLocation(solidProgram, "u_projection"), 1, GL_FALSE, proj);
+
+    glBindVertexArray(dynamicVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, dynamicVBO);
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(float), verts.data(), GL_STREAM_DRAW);
+
+    glDrawArrays(GL_TRIANGLE_FAN, 0, static_cast<GLsizei>(verts.size() / 6));
+    glBindVertexArray(0);
+}
+
 static int segmentsForRadius(float radius, int maxSegments) {
     constexpr int kMinSegments = 6;
     int segments = static_cast<int>(std::ceil(radius * 1.5f));
@@ -871,6 +885,40 @@ void Render::drawBox(int w, int h, int x, int y,
     drawSolidRect((float)(x - w / 2), (float)(y - h / 2), (float)w, (float)h,
                   colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, colorA / 255.0f,
                   proj);
+}
+
+void Render::drawRoundedBox(int w, int h, int x, int y, int radius,
+                            uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    radius = std::clamp(radius, 0, std::min(w, h) / 2);
+    if (radius <= 0) {
+        drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+        return;
+    }
+
+    const float left = x - w / 2.0f, right = x + w / 2.0f;
+    const float top = y - h / 2.0f, bottom = y + h / 2.0f;
+    const float r = static_cast<float>(radius);
+    const float cr = colorR / 255.0f, cg = colorG / 255.0f, cb = colorB / 255.0f, ca = colorA / 255.0f;
+
+    constexpr int cornerSegments = 4;
+    std::vector<float> verts;
+    verts.reserve((cornerSegments + 1) * 4 * 6);
+
+    auto addArc = [&](float cx, float cy, float startAngle) {
+        for (int i = 0; i <= cornerSegments; ++i) {
+            const float a = startAngle + (static_cast<float>(M_PI) / 2.0f) * (i / static_cast<float>(cornerSegments));
+            verts.insert(verts.end(), {cx + std::cos(a) * r, cy + std::sin(a) * r, cr, cg, cb, ca});
+        }
+    };
+
+    addArc(right - r, top + r, -static_cast<float>(M_PI) / 2.0f);
+    addArc(right - r, bottom - r, 0.0f);
+    addArc(left + r, bottom - r, static_cast<float>(M_PI) / 2.0f);
+    addArc(left + r, top + r, static_cast<float>(M_PI));
+
+    float proj[16];
+    buildOrtho(proj, 0.0f, (float)getWidth(), (float)getHeight(), 0.0f);
+    drawSolidFan(verts, proj);
 }
 
 void Render::renderPenLayer() {

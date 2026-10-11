@@ -8,7 +8,7 @@ set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "lua51")
 
 set(SE_CACHING_DEFAULT OFF)
 
-set(SE_ALLOW_CMAKERC ON)
+set(SE_ALLOW_BUNDLE ON)
 set(SE_ALLOW_CLOUDVARS ON)
 set(SE_ALLOW_DOWNLOAD ON)
 
@@ -32,10 +32,13 @@ set(SE_RAM 72 CACHE STRING "The amount of RAM to make available to SE! (MB)")
 
 macro(package_platform)
 	ctr_generate_smdh(OUTPUT "${SE_OUTPUT_NAME}.smdh" NAME "${SE_APP_NAME}" AUTHOR "${SE_APP_AUTHOR}" ICON "${CMAKE_CURRENT_SOURCE_DIR}/gfx/icon.png" DESCRIPTION "${SE_APP_DESCRIPTION}")
-	ctr_create_3dsx(scratch-everywhere ROMFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs" SMDH "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.smdh")
+	if(SE_BUNDLE)
+		ctr_create_3dsx(scratch-everywhere SMDH "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.smdh")
+	else()
+		ctr_create_3dsx(scratch-everywhere ROMFS "${CMAKE_CURRENT_SOURCE_DIR}/romfs" SMDH "${CMAKE_CURRENT_BINARY_DIR}/${SE_OUTPUT_NAME}.smdh")
+	endif()
 
 	if(SE_BUILD_CIA)
-		set(3DS_ROMFS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
 		configure_file("${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/makerom.rsf.in" "${CMAKE_CURRENT_BINARY_DIR}/makerom.rsf") # For setting the amount of ram
 		add_custom_command(TARGET scratch-everywhere POST_BUILD
 			COMMAND ${SE_BANNERTOOL} makebanner -i "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.png" -a "${CMAKE_CURRENT_SOURCE_DIR}/gfx/3ds/banner.wav" -o "${CMAKE_CURRENT_BINARY_DIR}/banner.bnr"

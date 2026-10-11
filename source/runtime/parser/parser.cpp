@@ -22,10 +22,8 @@
 #include <dlfcn.h>
 #endif
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #endif
 
 #ifdef ENABLE_CLOUDVARS
@@ -206,20 +204,18 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         };
 
         const std::string romFSPath = OS::getRomFSLocation() + "extensions/" + targetID + ".see";
-#ifdef USE_CMAKERC
-        bool fromCmrc = false;
+#ifdef USE_BUNDLE
+        bool fromBundle = false;
 
-        const auto &fs = cmrc::romfs::get_filesystem();
+        std::unique_ptr<bundle::istream> bundleStream = nullptr;
+        auto assets = Bundle::assets();
+        if (auto entry = assets.find(romFSPath)) {
+            bundleStream = std::make_unique<bundle::istream>(assets.open(*entry));
 
-        std::unique_ptr<std::istringstream> romfsStream = nullptr;
-        if (fs.exists(romFSPath)) {
-            const auto &romfsIn = fs.open(romFSPath);
-            romfsStream = std::make_unique<std::istringstream>(std::string(romfsIn.begin(), romfsIn.end()));
-
-            auto result = extensions::parseMetadata(*romfsStream);
+            auto result = extensions::parseMetadata(*bundleStream);
             if (result.has_value() && result.value()->id == targetID) {
                 loadedExt = std::move(result.value());
-                fromCmrc = true;
+                fromBundle = true;
             } else if (!result.has_value()) Log::logWarning("Error while loading extension metadata: " + result.error());
         }
 #else
@@ -255,7 +251,7 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
                 }
             };
 
-#if !defined(USE_CMAKERC) // I'm lazy, someone else can add this in the future.
+#if !defined(USE_BUNDLE) // I'm lazy, someone else can add this in the future.
             scanDirectory(OS::getRomFSLocation() + "extensions");
 #endif
             if (!loadedExt) {
@@ -264,9 +260,9 @@ bool Parser::loadExtensions(const nlohmann::json &json) {
         }
 
         if (loadedExt) {
-#ifdef USE_CMAKERC
-            if (fromCmrc) {
-                extensions::loadLua(loadedExt.get(), *romfsStream);
+#ifdef USE_BUNDLE
+            if (fromBundle) {
+                extensions::loadLua(loadedExt.get(), *bundleStream);
             } else
 #endif
                 extensions::loadLua(loadedExt.get(), in);

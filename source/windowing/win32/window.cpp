@@ -88,6 +88,11 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
         self->resize(LOWORD(lp), HIWORD(lp));
         break;
     }
+    case WM_MOUSEWHEEL: {
+        const short delta = static_cast<short>(HIWORD(wp));
+        Input::mouseScrollDelta += delta / WHEEL_DELTA;
+        break;
+    }
     default: {
         return DefWindowProc(hWnd, msg, wp, lp);
     }
@@ -250,9 +255,9 @@ void WindowWin32::resize(int width, int height) {
 #endif
 
     GetWindowRect(this->hWnd, &wrc);
-    if ((wrc.right - wrc.left) == (rc.right - rc.left) && (wrc.bottom - wrc.top) == (rc.bottom - rc.top)) return;
-
-    SetWindowPos(this->hWnd, nullptr, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER);
+    if ((wrc.right - wrc.left) != (rc.right - rc.left) || (wrc.bottom - wrc.top) != (rc.bottom - rc.top)) {
+        SetWindowPos(this->hWnd, nullptr, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER);
+    }
 
     Render::setRenderScale();
     Render::resizeSVGs();

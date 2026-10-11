@@ -6,7 +6,7 @@ set(SE_DEPS_VALID_OPTIONS "fallback" "system")
 
 set(SE_CACHING_DEFAULT ON)
 
-set(SE_ALLOW_CMAKERC OFF)
+set(SE_ALLOW_BUNDLE ON)
 set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)
 
@@ -29,9 +29,13 @@ macro(package_platform)
 		COMMAND ${CMAKE_COMMAND} -E copy "${OPENORBIS}/samples/piglet/sce_sys/about/right.sprx" "${CMAKE_CURRENT_BINARY_DIR}/sce_sys/about"
 	)
 
-	# The create-gp4 tool needs relative paths
-	file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/romfs/" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
-	file(GLOB_RECURSE ROMFS_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
+	if(SE_BUNDLE)
+		set(ROMFS_FILES "")
+	else()
+		# The create-gp4 tool needs relative paths
+		file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/romfs/" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+		file(GLOB_RECURSE ROMFS_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
+	endif()
 
 	add_self(scratch-everywhere)
 	add_pkg(scratch-everywhere "${SE_APP_TITLEID}" "${SE_APP_NAME}" "${SE_APP_VERSION}" ${ROMFS_FILES})

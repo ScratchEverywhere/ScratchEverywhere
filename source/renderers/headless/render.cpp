@@ -87,6 +87,9 @@ void Render::renderSprites() {
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
 }
 
+void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+}
+
 bool Render::appShouldRun() {
     return true;
 }

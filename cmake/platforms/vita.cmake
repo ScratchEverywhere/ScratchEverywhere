@@ -8,7 +8,7 @@ set(SE_LUA_BACKEND_VALID_OPTIONS "fallback" "luajit")
 set(SE_CACHING_DEFAULT ON)
 set(SE_DECTALK_DEFAULT ON)
 
-set(SE_ALLOW_CMAKERC OFF)
+set(SE_ALLOW_BUNDLE ON)
 set(SE_ALLOW_CLOUDVARS OFF)
 set(SE_ALLOW_DOWNLOAD OFF)
 
@@ -38,18 +38,20 @@ macro(package_platform)
 
 	target_link_libraries(se-interface INTERFACE SceShaccCgExt SceShaccCg_stub stdc++ taihen_stub_weak)
 
-	if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3)
+	if(EXISTS ${CMAKE_SOURCE_DIR}/romfs/project.sb3 AND NOT SE_BUNDLE)
 		set(PROJ_FILE FILE ${CMAKE_SOURCE_DIR}/romfs/project.sb3 project.sb3)
 	else()
 		set(PROJ_FILE "")
 	endif()
 
 	set(VITA_GFXFILES)
-	foreach(file IN LISTS GFXFILES)
-		file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
-		set(DEST_PATH "gfx/${REL_PATH}")
-		list(APPEND VITA_GFXFILES FILE "${file}" "${DEST_PATH}")
-	endforeach()
+	if(NOT SE_BUNDLE)
+		foreach(file IN LISTS GFXFILES)
+			file(RELATIVE_PATH REL_PATH "${CMAKE_SOURCE_DIR}/gfx" "${file}")
+			set(DEST_PATH "gfx/${REL_PATH}")
+			list(APPEND VITA_GFXFILES FILE "${file}" "${DEST_PATH}")
+		endforeach()
+	endif()
 
 	vita_create_self("${SE_OUTPUT_NAME}.self" scratch-everywhere)
 	vita_create_vpk("${SE_OUTPUT_NAME}.vpk" "${SE_APP_TITLEID}" "${SE_OUTPUT_NAME}.self"

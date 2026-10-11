@@ -39,7 +39,7 @@ std::string OS::getScratchFolderLocation() {
 }
 
 std::string OS::getRomFSLocation() {
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
     return "";
 #else
     return "assets/";

@@ -15,7 +15,7 @@ else()
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes CMakeRC and a few other things
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5) # Fixes a few dependencies using old cmake_minimum_required() versions
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build all libraries as static")
 
@@ -193,10 +193,10 @@ if(SE_AUDIO)
 	include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/audio/${SE_AUDIO_ENGINE}.cmake")
 endif()
 
-if(NOT DEFINED SE_CMAKERC_DEFAULT)
-	set(SE_CMAKERC_DEFAULT OFF)
+if(NOT DEFINED SE_BUNDLE_DEFAULT)
+	set(SE_BUNDLE_DEFAULT OFF)
 endif()
-cmake_dependent_option(SE_CMAKERC "Embed assets to executable with CMakeRC instead of loading from the working directory" ${SE_CMAKERC_DEFAULT} "SE_ALLOW_CMAKERC" OFF)
+cmake_dependent_option(SE_BUNDLE "Embed assets and project into the executable with bundle.cmake instead of loading from the working directory" ${SE_BUNDLE_DEFAULT} "SE_ALLOW_BUNDLE" OFF)
 
 set(CMAKE_FIND_LIBRARY_CUSTOM_LIB_DIRS OFF)
 
@@ -329,7 +329,11 @@ if(SE_EXECUTABLE)
 	# TODO: Move to cmake/platforms/wasm.cmake
 	if(EMSCRIPTEN)
 		set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
-		target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
+		set(PRELOAD_OPTIONS)
+		if(NOT SE_BUNDLE)
+			set(PRELOAD_OPTIONS "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins")
+		endif()
+		target_link_options(scratch-everywhere PRIVATE ${PRELOAD_OPTIONS} "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
 	endif()
 endif()
 
@@ -338,20 +342,61 @@ if(DEFINED SE_PLATFORM_DEFINITIONS)
 	target_compile_definitions(se-interface INTERFACE ${SE_PLATFORM_DEFINITIONS})
 endif()
 
-if(SE_CMAKERC)
-	include(FetchContent)
-	FetchContent_Declare(
-	  cmrc
-	  URL https://github.com/vector-of-bool/cmrc/archive/refs/tags/2.0.1.tar.gz
-	  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-	)
-	FetchContent_MakeAvailable(cmrc)
-	include(${cmrc_SOURCE_DIR}/CMakeRC.cmake)
+if(SE_BUNDLE)
+	if(SE_ZIP_BACKEND STREQUAL "minizip")
+		set(BUNDLE_USE_ZLIB ON)
+	endif()
 
-	file(GLOB_RECURSE ROMFS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/romfs/*")
-	cmrc_add_resource_library(romfs ALIAS romfs::rc WHENCE "${CMAKE_CURRENT_SOURCE_DIR}/romfs" ${ROMFS_FILES})
-	target_link_libraries(se-interface INTERFACE romfs::rc)
-	target_compile_definitions(se-interface INTERFACE USE_CMAKERC)
+	cl_import_source(
+	  NAME bundle_cmake
+	  DOWNLOAD_ONLY
+	  REPO https://github.com/gradylink/bundle.cmake.git
+	  REF 21611e9b619952e64eb6d8f57f1c521eccf49b03
+	)
+	include("${CL_SOURCE_DIR}/cmake/bundle.cmake")
+
+	set(SE_ROMFS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
+
+	set(SE_ASSET_DIRS "${SE_ROMFS_DIR}/gfx")
+	if(IS_DIRECTORY "${SE_ROMFS_DIR}/extensions")
+		list(APPEND SE_ASSET_DIRS "${SE_ROMFS_DIR}/extensions")
+	endif()
+
+	bundle_add(se_assets
+		BASE_DIR "${SE_ROMFS_DIR}"
+		DIRECTORIES ${SE_ASSET_DIRS}
+		COMPRESSION DEFLATE
+	)
+
+	set(SE_PROJECT_FILES "")
+	set(SE_PROJECT_DIRS "")
+	if(IS_DIRECTORY "${SE_ROMFS_DIR}/project")
+		list(APPEND SE_PROJECT_DIRS "${SE_ROMFS_DIR}/project")
+	endif()
+	if(EXISTS "${SE_ROMFS_DIR}/project.sb3")
+		list(APPEND SE_PROJECT_FILES "${SE_ROMFS_DIR}/project.sb3")
+	endif()
+	if(EXISTS "${SE_ROMFS_DIR}/project.sb3.json")
+		list(APPEND SE_PROJECT_FILES "${SE_ROMFS_DIR}/project.sb3.json")
+	endif()
+	if(NOT SE_PROJECT_FILES AND NOT SE_PROJECT_DIRS)
+		set(SE_PROJECT_PLACEHOLDER "${SE_ROMFS_DIR}/.bundle_project_empty") # bundle.cmake requires at least 1 file
+		file(WRITE "${SE_PROJECT_PLACEHOLDER}" "")
+		list(APPEND SE_PROJECT_FILES "${SE_PROJECT_PLACEHOLDER}")
+	endif()
+
+	bundle_add(se_project
+		BASE_DIR "${SE_ROMFS_DIR}"
+		FILES ${SE_PROJECT_FILES}
+		DIRECTORIES ${SE_PROJECT_DIRS}
+		COMPRESSION STORE
+	)
+
+	target_link_libraries(se-interface INTERFACE se_assets se_project)
+	target_compile_definitions(se-interface INTERFACE USE_BUNDLE)
+
+	# Undo bundle.cmake's repo override
+	cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 endif()
 
 string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)
@@ -394,7 +439,7 @@ if(SE_DOWNLOAD)
 endif()
 if(SE_CLOUDVARS)
 	target_compile_definitions(se-interface INTERFACE ENABLE_CLOUDVARS)
-	cl_add_dep(se-interface mistpp)
+	cl_add_dep(se-interface gh:ScratchEverywhere/mistpp)
 endif()
 
 if(SE_DECTALK)

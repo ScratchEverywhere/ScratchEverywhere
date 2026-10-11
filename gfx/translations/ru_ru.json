@@ -37,8 +37,10 @@
   "ui.loading.extensions": "Загрузка расширений...",
   "ui.loading.finish": "Завершение загрузки!",
   "ui.popup.extensions": "Внимание! Проект использует нативные расширения. Нативные расширения имеют полный доступ к устройству.",
+  "version.prefix.alpha": "Альфа сборка",
   "version.prefix.beta": "Бета сборка",
   "version.prefix.release": "Релиз",
   "version.prefix.releaseCanidate": "Кандидат на релиз",
-  "version.prefix.nightly": "Ночная"
+  "version.prefix.nightly": "Ночная",
+  "version.prefix.dev": " Dev. сборка"
 }

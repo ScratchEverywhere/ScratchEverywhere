@@ -133,6 +133,10 @@ void Input::getInput() {
             mousePointer.y = coords.second;
         };
 
+        if (Render::renderMode == Render::RenderModes::TOP_SCREEN_ONLY) {
+            touchPos[0] *= BOTTOM_SCR_CONVERSION;
+        }
+
         auto coords = Scratch::screenToScratchCoords(touchPos[0], touchPos[1],
                                                      Render::getWidth(), Render::getHeight());
 
@@ -141,14 +145,11 @@ void Input::getInput() {
         // map bottom screen to top screen
         default:
         case Render::RenderModes::TOP_SCREEN_ONLY: {
-            // mousePointer.isPressed = true;
             mousePointer.isMoving = true;
-            coords.first *= BOTTOM_SCR_CONVERSION;
             set_mouse_pointer_values(coords);
         } break;
         // normal touch screen if both screens or bottom screen only
         case Render::RenderModes::BOTH_SCREENS: {
-            // mousePointer.isPressed = true;
             mousePointer.x = touchPos[0] - BOTH_SCR_CONVERSION_W;
             mousePointer.y = -touchPos[1];
         } break;

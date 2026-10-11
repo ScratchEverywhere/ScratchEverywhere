@@ -31,6 +31,8 @@ class SE_EXPORT Input {
     static Mouse mousePointer;
     static Sprite *draggingSprite;
 
+    static int mouseScrollDelta;
+
     static std::pair<float, float> leftJoystick;
     static std::pair<float, float> rightJoystick;
 
@@ -63,4 +65,6 @@ class SE_EXPORT Input {
     static bool checkSequenceMatch(const std::vector<std::string> sequence);
 
     static std::string openSoftwareKeyboard(const char *hintText);
+
+    static void setClipboardText(const std::string &text);
 };

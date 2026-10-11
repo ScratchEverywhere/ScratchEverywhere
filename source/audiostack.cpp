@@ -7,10 +7,8 @@
 #include "runtime.hpp"
 #include "unzip.hpp"
 #include <log.hpp>
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #endif
 
 #include <cstdlib>
@@ -136,12 +134,16 @@ bool SoundStream::loadFromBuffer() {
 nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cached, bool on_disk) {
 #ifdef ENABLE_AUDIO
     std::string prefix = "";
+    bool useProjectBundle = false;
     if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
     else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
-    if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) prefix += "project/";
+    if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) {
+        prefix += "project/";
+        useProjectBundle = true;
+    }
 
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
     if (cached || Unzip::UnpackedInSD || on_disk) {
 #endif
         std::ifstream ifs(prefix + path, std::ios::binary);
@@ -156,16 +158,18 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
         ifs.read((char *)this->buffer, this->buffer_size);
 
         ifs.close();
-#ifdef USE_CMAKERC
+#ifdef USE_BUNDLE
     } else {
-        auto fs = cmrc::romfs::get_filesystem();
-        if (!fs.exists(prefix + path)) return nonstd::make_unexpected("Audio file not found.");
-        const auto &file = fs.open(prefix + path);
+        auto archive = useProjectBundle ? Bundle::project() : Bundle::assets();
+        auto entry = archive.find(prefix + path);
+        if (!entry) return nonstd::make_unexpected("Audio file not found.");
 
-        this->buffer_size = file.size();
-
+        this->buffer_size = entry->size();
         this->buffer = (unsigned char *)malloc(this->buffer_size);
-        memcpy(this->buffer, file.begin(), this->buffer_size);
+        if (bundle_read_all(&entry->raw(), this->buffer, this->buffer_size) < 0) {
+            free(this->buffer);
+            return nonstd::make_unexpected("Failed to decompress audio file: " + prefix + path);
+        }
     }
 #endif
 
@@ -305,15 +309,11 @@ void Mixer::initMusic() {
     std::string path = prefix + "gfx/ingame/scratch.sf2";
     size_t size;
 
-#ifdef USE_CMAKERC
-    auto fs = cmrc::romfs::get_filesystem();
-    if (fs.exists(path)) {
-        const auto &file = fs.open(path);
-
-        size = file.size();
-
+#ifdef USE_BUNDLE
+    if (auto entry = Bundle::assets().find(path)) {
+        size = entry->size();
         Mixer::sf2_buffer = malloc(size);
-        memcpy(Mixer::sf2_buffer, file.begin(), size);
+        bundle_read_all(&entry->raw(), Mixer::sf2_buffer, size);
     }
 #else
     std::ifstream ifs(path, std::ios::binary);

@@ -7,10 +7,8 @@
 #include <random>
 #include <sstream>
 
-#ifdef USE_CMAKERC
-#include <cmrc/cmrc.hpp>
-
-CMRC_DECLARE(romfs);
+#ifdef USE_BUNDLE
+#include <bundle_archives.hpp>
 #endif
 
 static nlohmann::json translationKeys = nullptr;
@@ -25,9 +23,9 @@ const std::vector<TranslationManager::LanguageInfo> TranslationManager::getLangu
     std::vector<LanguageInfo> ret;
 
     const std::string path = OS::getRomFSLocation() + "gfx/translations/languages.json";
-#ifdef USE_CMAKERC
-    const auto &file = cmrc::romfs::get_filesystem().open(path);
-    nlohmann::json json = nlohmann::json::parse(file.begin(), file.begin() + file.size());
+#ifdef USE_BUNDLE
+    auto assets = Bundle::assets();
+    nlohmann::json json = nlohmann::json::parse(assets.load_text(assets.find(path).value()));
 #else
     nlohmann::json json;
     std::ifstream file(path);
@@ -52,15 +50,12 @@ void TranslationManager::loadLanguage(std::string language) {
 
     splashTexts.clear();
 
-#ifdef USE_CMAKERC
-    const auto &fs = cmrc::romfs::get_filesystem();
+#ifdef USE_BUNDLE
+    auto assets = Bundle::assets();
 
-    const auto &file = fs.open(path);
-    translationKeys = nlohmann::json::parse(file.begin(), file.begin() + file.size());
+    translationKeys = nlohmann::json::parse(assets.load_text(assets.find(path).value()));
 
-    const auto &splashFile = fs.open(splashPath);
-    std::string_view sv(splashFile.begin(), splashFile.size());
-    std::istringstream stream{std::string(sv)};
+    std::istringstream stream(assets.load_text(assets.find(splashPath).value()));
 
     std::string line;
     while (std::getline(stream, line)) {
