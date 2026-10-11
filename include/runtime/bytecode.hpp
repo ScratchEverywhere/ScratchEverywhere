@@ -49,6 +49,9 @@ enum class BytecodeOp : uint8_t {
     StoreVarColor,
     StoreVarValue,
 
+    ChangeVarNumber,
+
+    CallNative, // no return
     CallNativeNumber,
     CallNativeString,
     CallNativeBoolean,

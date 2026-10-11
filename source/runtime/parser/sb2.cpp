@@ -544,6 +544,8 @@ void Parser::parseSb2Scripts(Sprite *sprite, const nlohmann::json &object) {
     }
 
     Parser::resolveVariableTypes(sprite);
+    Parser::compileBytecode(sprite);
+    Parser::clearSpriteBlockOpcodes(sprite);
 }
 
 void Parser::loadSpritesSb2(const nlohmann::json &json) {

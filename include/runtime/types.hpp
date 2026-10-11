@@ -1,4 +1,5 @@
 #pragma once
+#include "bytecode.hpp"
 #include "small_string_map.hpp"
 #include "value.hpp"
 #include <functional>
@@ -528,6 +529,9 @@ class SE_EXPORT Sprite {
 
     std::unordered_map<std::string, std::unordered_set<Block *>> hats;
     std::unordered_map<std::string, Block *> customHatBlock;
+
+    std::unique_ptr<BytecodeChunk> bytecode;
+    std::unique_ptr<BytecodeLinkTable> bytecodeLink;
 
     ~Sprite() {
         for (auto const &[proccode, blockPtr] : customHatBlock) {

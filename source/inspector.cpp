@@ -2,6 +2,7 @@
 #ifdef ENABLE_INSPECTOR
 
 #include <blockExecutor.hpp>
+#include <bytecode_disassembler.hpp>
 #include <collision.hpp>
 #include <input.hpp>
 #include <iostream>
@@ -137,6 +138,8 @@ void processCommands() {
                           << "  watch, unwatch, clearwatch - Real-time variable tracking\n"
                           << "[Control]\n"
                           << "  flag, stop               - Start or stop project execution\n"
+                          << "[Bytecode]\n"
+                          << "  bytecode                 - Dump a sprite's compiled bytecode chunk\n"
                           << "Syntax: Use 'SpriteName:Var' for locals, '@Layer' for specefic sprite at a certain layer (including stage and clones).\n\n";
             } else if (subCmd == "inspect" || subCmd == "inspectext") {
                 std::cout << "Usage: " << subCmd << " <name or @layer>\n"
@@ -154,6 +157,12 @@ void processCommands() {
             } else if (subCmd == "listset" || subCmd == "listadd" || subCmd == "listremove" || subCmd == "listclear") {
                 std::cout << "List commands use 1-based indexing.\n"
                           << "Example: listset Sprite1:myList 1 newItem\n";
+            } else if (subCmd == "bytecode") {
+                std::cout << "Usage: bytecode <name or @layer>\n"
+                          << "Dumps the sprite's compiled BytecodeChunk: scripts, procedures, and the full\n"
+                          << "instruction listing. Most things still show up as EscapeToLegacyThread /\n"
+                          << "CallLegacyReporter -- that's expected, only a few opcodes are compiled so far.\n"
+                          << "Prints a message instead if the sprite has no compiled bytecode.\n";
             } else {
                 std::cout << "No extra info for '" << subCmd << "'.\n";
             }
@@ -377,6 +386,17 @@ void processCommands() {
             Scratch::greenFlagClicked();
         } else if (cmd == "stop") {
             Scratch::stopClicked();
+        } else if (cmd == "bytecode") {
+            std::string spriteName = parseArg(ss, true);
+            Sprite *target = findSprite(spriteName);
+            if (!target) {
+                std::cout << "Sprite '" << spriteName << "' not found.\n";
+            } else if (!target->bytecode) {
+                std::cout << "Sprite '" << target->name << "' has no compiled bytecode.\n";
+            } else {
+                std::cout << "Sprite: " << target->name << (target->isStage ? " (Stage)" : "") << "\n"
+                          << BytecodeDisassembler::disassemble(*target->bytecode, target->bytecodeLink.get());
+            }
         }
     } else {
         queueMutex.unlock();

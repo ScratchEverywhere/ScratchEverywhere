@@ -5,6 +5,7 @@
 SCRATCH_BLOCK(event, whenflagclicked) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenflagclicked);
 
 SCRATCH_BLOCK(event, whenbackdropswitchesto) {
     return BlockResult::CONTINUE;
