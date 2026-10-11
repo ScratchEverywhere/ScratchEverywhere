@@ -167,3 +167,36 @@
     static BlockResult block_##category##_##id##_(Block *block, ScriptThread *thread, Sprite *sprite, Color *outValue)
 
 #define SCRATCH_SHADOW_BLOCK(opcode, fieldId) static uint8_t shadow_block_##opcode##_reg_ = (Parser::getShadowBlocks()[#opcode] = #fieldId, 0);
+
+/**
+ * @brief Declares a block's bytecode input signature.
+ *
+ * Registers, for `category_id`, the ordered list of named inputs the bytecode
+ * compiler needs to produce before it can emit a CallNative* for this block --
+ * the same names a getInputValueAs<T>(block, "NAME", ...) call in the handler
+ * body would use, each paired with the BytecodeStackKind it should be compiled
+ * onto. The compiler inserts a Convert* wherever the actual producer disagrees,
+ * so this only has to describe what the handler wants, not what every possible
+ * producer happens to yield.
+ *
+ * The block's *result* kind doesn't need declaring here -- it's already
+ * implied by which SCRATCH_BLOCK* variant registered the handler.
+ *
+ * An opcode with no registered signature can't be compiled to bytecode yet;
+ * the compiler leaves it (and anything containing it) on the tree-walking
+ * interpreter. There's no need to call this for a block with no inputs.
+ *
+ * @param category Same category passed to this block's SCRATCH_BLOCK* macro.
+ * @param id Same id passed to this block's SCRATCH_BLOCK* macro.
+ * @param ... Brace-init BytecodeInputSignature entries, in the order the
+ * compiler should produce them, e.g.
+ * `SCRATCH_BLOCK_SIGNATURE(operator, add, {"NUM1", BytecodeStackKind::Number}, {"NUM2", BytecodeStackKind::Number});`
+ *
+ * @sa SCRATCH_BLOCK
+ * @sa BlockExecutor::getInputSignatures
+ */
+#define SCRATCH_BLOCK_SIGNATURE(category, id, ...)                           \
+    static uint8_t block_##category##_##id##_sig_reg_ =                     \
+        (BlockExecutor::getInputSignatures()[#category "_" #id] =           \
+             std::vector<BytecodeInputSignature>{__VA_ARGS__},              \
+         0)

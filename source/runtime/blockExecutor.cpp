@@ -33,6 +33,11 @@ std::unordered_map<std::string, BlockFunc> &BlockExecutor::getHandlers() {
     return handlers;
 }
 
+std::unordered_map<std::string, std::vector<BytecodeInputSignature>> &BlockExecutor::getInputSignatures() {
+    static std::unordered_map<std::string, std::vector<BytecodeInputSignature>> signatures;
+    return signatures;
+}
+
 #ifdef ENABLE_CACHING
 void BlockExecutor::linkPointers(Sprite *sprite) {
     for (auto &[_, blocks] : sprite->hats) {

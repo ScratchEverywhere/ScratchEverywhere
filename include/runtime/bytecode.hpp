@@ -21,6 +21,11 @@ enum class BytecodeStackKind : uint8_t {
     Value,
 };
 
+struct SE_EXPORT BytecodeInputSignature {
+    std::string name;
+    BytecodeStackKind kind;
+};
+
 enum class BytecodeOp : uint8_t {
     Nop,
 

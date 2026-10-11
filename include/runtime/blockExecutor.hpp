@@ -1,4 +1,5 @@
 #pragma once
+#include "bytecode.hpp"
 #include "types.hpp"
 #include <functional>
 #include <os.hpp>
@@ -56,6 +57,8 @@ inline std::string_view getCurrentMenuMonitorName(std::string_view menuValue) {
 class SE_EXPORT BlockExecutor {
   public:
     static std::unordered_map<std::string, BlockFunc> &getHandlers(); // every type of block is stored here (no differentiation between blocks, values, etc.)
+
+    static std::unordered_map<std::string, std::vector<BytecodeInputSignature>> &getInputSignatures();
 
     static void linkPointers(Sprite *sprite);
 
