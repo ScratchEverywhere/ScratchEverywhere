@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
+# keep this here; allows us to automatically build nxdk during the build process
+# instead of failing due to missing libs
+if(XBOX)
+    set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+endif()
+
 project(ScratchEverywhere VERSION 1.2.1 LANGUAGES CXX C)
 
 if(APPLE)
@@ -196,7 +202,7 @@ if(SE_AUDIO)
 endif()
 
 if(NOT DEFINED SE_BUNDLE_DEFAULT)
-	set(SE_BUNDLE_DEFAULT OFF)
+    set(SE_BUNDLE_DEFAULT OFF)
 endif()
 cmake_dependent_option(SE_BUNDLE "Embed assets and project into the executable with bundle.cmake instead of loading from the working directory" ${SE_BUNDLE_DEFAULT} "SE_ALLOW_BUNDLE" OFF)
 
@@ -341,60 +347,60 @@ if(DEFINED SE_PLATFORM_DEFINITIONS)
 endif()
 
 if(SE_BUNDLE)
-	if(SE_ZIP_BACKEND STREQUAL "minizip")
-		set(BUNDLE_USE_ZLIB ON)
-	endif()
+    if(SE_ZIP_BACKEND STREQUAL "minizip")
+        set(BUNDLE_USE_ZLIB ON)
+    endif()
 
-	cl_import_source(
-	  NAME bundle_cmake
-	  DOWNLOAD_ONLY
-	  REPO https://github.com/gradylink/bundle.cmake.git
-	  REF f487bad435e5a839a95bdf77923bb68ea63c9b2c
-	)
-	include("${CL_SOURCE_DIR}/cmake/bundle.cmake")
+    cl_import_source(
+        NAME bundle_cmake
+        DOWNLOAD_ONLY
+        REPO https://github.com/gradylink/bundle.cmake.git
+        REF f487bad435e5a839a95bdf77923bb68ea63c9b2c
+    )
+    include("${CL_SOURCE_DIR}/cmake/bundle.cmake")
 
-	set(SE_ROMFS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
+    set(SE_ROMFS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
 
-	set(SE_ASSET_DIRS "${SE_ROMFS_DIR}/gfx")
-	if(IS_DIRECTORY "${SE_ROMFS_DIR}/extensions")
-		list(APPEND SE_ASSET_DIRS "${SE_ROMFS_DIR}/extensions")
-	endif()
+    set(SE_ASSET_DIRS "${SE_ROMFS_DIR}/gfx")
+    if(IS_DIRECTORY "${SE_ROMFS_DIR}/extensions")
+        list(APPEND SE_ASSET_DIRS "${SE_ROMFS_DIR}/extensions")
+    endif()
 
-	bundle_add(se_assets
-		BASE_DIR "${SE_ROMFS_DIR}"
-		DIRECTORIES ${SE_ASSET_DIRS}
-		COMPRESSION DEFLATE
-	)
+    bundle_add(se_assets
+        BASE_DIR "${SE_ROMFS_DIR}"
+        DIRECTORIES ${SE_ASSET_DIRS}
+        COMPRESSION DEFLATE
+    )
 
-	set(SE_PROJECT_FILES "")
-	set(SE_PROJECT_DIRS "")
-	if(IS_DIRECTORY "${SE_ROMFS_DIR}/project")
-		list(APPEND SE_PROJECT_DIRS "${SE_ROMFS_DIR}/project")
-	endif()
-	if(EXISTS "${SE_ROMFS_DIR}/project.sb3")
-		list(APPEND SE_PROJECT_FILES "${SE_ROMFS_DIR}/project.sb3")
-	endif()
-	if(EXISTS "${SE_ROMFS_DIR}/project.sb3.json")
-		list(APPEND SE_PROJECT_FILES "${SE_ROMFS_DIR}/project.sb3.json")
-	endif()
-	if(NOT SE_PROJECT_FILES AND NOT SE_PROJECT_DIRS)
-		set(SE_PROJECT_PLACEHOLDER "${SE_ROMFS_DIR}/.bundle_project_empty") # bundle.cmake requires at least 1 file
-		file(WRITE "${SE_PROJECT_PLACEHOLDER}" "")
-		list(APPEND SE_PROJECT_FILES "${SE_PROJECT_PLACEHOLDER}")
-	endif()
+    set(SE_PROJECT_FILES "")
+    set(SE_PROJECT_DIRS "")
+    if(IS_DIRECTORY "${SE_ROMFS_DIR}/project")
+        list(APPEND SE_PROJECT_DIRS "${SE_ROMFS_DIR}/project")
+    endif()
+    if(EXISTS "${SE_ROMFS_DIR}/project.sb3")
+        list(APPEND SE_PROJECT_FILES "${SE_ROMFS_DIR}/project.sb3")
+    endif()
+    if(EXISTS "${SE_ROMFS_DIR}/project.sb3.json")
+        list(APPEND SE_PROJECT_FILES "${SE_ROMFS_DIR}/project.sb3.json")
+    endif()
+    if(NOT SE_PROJECT_FILES AND NOT SE_PROJECT_DIRS)
+        set(SE_PROJECT_PLACEHOLDER "${SE_ROMFS_DIR}/.bundle_project_empty") # bundle.cmake requires at least 1 file
+        file(WRITE "${SE_PROJECT_PLACEHOLDER}" "")
+        list(APPEND SE_PROJECT_FILES "${SE_PROJECT_PLACEHOLDER}")
+    endif()
 
-	bundle_add(se_project
-		BASE_DIR "${SE_ROMFS_DIR}"
-		FILES ${SE_PROJECT_FILES}
-		DIRECTORIES ${SE_PROJECT_DIRS}
-		COMPRESSION STORE
-	)
+    bundle_add(se_project
+        BASE_DIR "${SE_ROMFS_DIR}"
+        FILES ${SE_PROJECT_FILES}
+        DIRECTORIES ${SE_PROJECT_DIRS}
+        COMPRESSION STORE
+    )
 
-	target_link_libraries(se-interface INTERFACE se_assets se_project)
-	target_compile_definitions(se-interface INTERFACE USE_BUNDLE)
+    target_link_libraries(se-interface INTERFACE se_assets se_project)
+    target_compile_definitions(se-interface INTERFACE USE_BUNDLE)
 
-	# Undo bundle.cmake's repo override
-	cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
+    # Undo bundle.cmake's repo override
+    cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
 endif()
 
 string(TOUPPER "RENDERER_${SE_RENDERER}" RENDERER_DEFINITION)

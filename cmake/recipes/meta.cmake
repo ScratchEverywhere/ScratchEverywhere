@@ -5,16 +5,8 @@ set(CATALOG_RECIPES
     libdlgmod:libdlgmod.cmake
     ryuJS:ryujs.cmake
     plutovg:plutovg.cmake
+    lunasvg:lunasvg.cmake
+    miniz:miniz.cmake
+    SDL3:sdl3.cmake
+    nxdk:nxdk.cmake
 )
-
-# TODO: "you should make your
-# recipies support all platforms,
-# just only apply Xbox-specific stuff
-# if the variable is set"
-
-if(XBOX)
-    list(APPEND CATALOG_RECIPES
-        lunasvg:lunasvg.cmake
-        miniz:miniz.cmake
-    )
-endif()
