@@ -1,4 +1,5 @@
 #pragma once
+#include "color.hpp"
 #include "value.hpp"
 #include <cstdint>
 #include <limits>
@@ -12,24 +13,65 @@
 using BytecodeIndex = uint32_t;
 inline constexpr BytecodeIndex invalidBytecodeIndex = std::numeric_limits<BytecodeIndex>::max();
 
-enum class BytecodeOp : uint8_t {
-    Nop, // idek if we need this
+enum class BytecodeStackKind : uint8_t {
+    Number,
+    String,
+    Boolean,
+    Color,
+    Value,
+};
 
-    PushConst,
-    PushVar,
+enum class BytecodeOp : uint8_t {
+    Nop,
+
+    PushConstNumber,
+    PushConstString,
+    PushConstBoolean,
+    PushConstColor,
+    PushConstValue,
+
+    PushVarNumber,
+    PushVarString,
+    PushVarBoolean,
+    PushVarColor,
+    PushVarValue,
     PushList,
     PushArg,
 
-    StoreVar,
+    StoreVarNumber,
+    StoreVarString,
+    StoreVarBoolean,
+    StoreVarColor,
+    StoreVarValue,
 
-    CallNative,
+    CallNativeNumber,
+    CallNativeString,
+    CallNativeBoolean,
+    CallNativeColor,
+    CallNativeValue,
+
     CallProcedure,
     Return,
+
+    ConvertNumberToValue,
+    ConvertStringToValue,
+    ConvertBooleanToValue,
+    ConvertColorToValue,
+
+    ConvertValueToNumber,
+    ConvertValueToString,
+    ConvertValueToBoolean,
+    ConvertValueToColor,
 
     Jump,
     JumpIfFalse,
     JumpIfTrue,
-    Pop,
+
+    PopNumber,
+    PopString,
+    PopBoolean,
+    PopColor,
+    PopValue,
 
     Yield,
     Halt,
@@ -55,12 +97,22 @@ struct SE_EXPORT BytecodeScript {
 
 struct SE_EXPORT BytecodeChunk {
     std::vector<BytecodeInstruction> instructions;
+
+    std::vector<double> numberConstants;
+    std::vector<std::string> stringConstants;
+    std::vector<bool> boolConstants;
+    std::vector<Color> colorConstants;
     std::vector<Value> constants;
+
     std::vector<std::string> strings;
 
     std::vector<BytecodeIndex> opcodeSlots;
     std::vector<BytecodeIndex> variableSlots;
     std::vector<BytecodeIndex> listSlots;
+
+    std::vector<BytecodeStackKind> paramKinds;
+    std::vector<BytecodeIndex> paramKindsStart;
+    std::vector<BytecodeIndex> paramKindsCount;
 
     std::vector<BytecodeProcedure> procedures;
     std::vector<BytecodeScript> scripts;
@@ -130,9 +182,13 @@ struct SE_EXPORT BytecodeThread {
     int finished = true;
     bool withoutScreenRefresh = false;
 
+    std::vector<double> numberStack;
+    std::vector<std::string> stringStack;
+    std::vector<bool> boolStack;
+    std::vector<Color> colorStack;
     std::vector<Value> valueStack;
-    std::vector<BytecodeCallFrame> callStack;
 
+    std::vector<BytecodeCallFrame> callStack;
     std::vector<uint32_t> activeProcedureCalls;
 
     std::unordered_map<BytecodeIndex, BytecodeFrame> frames;
