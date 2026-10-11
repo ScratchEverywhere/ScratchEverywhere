@@ -36,7 +36,7 @@ static HBITMAP penLayerMaskBitmap;
 static int penWidth = 480;
 static int penHeight = 360;
 
-void WindowWin32::resized(int width, int height) {
+static void resized(int width, int height) {
     penWidth = width;
     penHeight = height;
 
@@ -233,6 +233,7 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         HBRUSH brush = CreateSolidBrush(RGB(colorR, colorG, colorB));
         RECT rc;
+	WindowWin32* win = (WindowWin32*)globalWindow;
 
         rc.left = 0;
         rc.top = 0;
@@ -241,6 +242,12 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 
         FillRect(renderer, &rc, brush);
         DeleteObject(brush);
+
+	if(win->resized){
+		resized(rc.right, rc.bottom);
+		win->resized = false;
+	}
+
         hasFrameBegan = true;
     }
 }

@@ -22,7 +22,7 @@ class SE_EXPORT WindowWin32 : public WindowSE {
     float getPixelDensity() const override;
     void *getHandle() override;
 
-    void resized(int width, int height);
+    bool resized;
 
     /* these are here because, well, win32 api. */
     int shouldCloseFlag;
@@ -30,8 +30,9 @@ class SE_EXPORT WindowWin32 : public WindowSE {
     HDC winDC;
 
 #if defined(RENDERER_D3D9)
-    LPDIRECT3D9 pD3D;
-    LPDIRECT3DDEVICE9 pDev;
+    D3DPRESENT_PARAMETERS dpp;
+    IDirect3D9 *pD3D;
+    IDirect3DDevice9 *pDev;
 #endif
 
   private:

@@ -118,7 +118,6 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
     PFNWGLSWAPINTERVALEXT swap_interval_ext = NULL;
 #endif
 #if defined(RENDERER_D3D9)
-    D3DPRESENT_PARAMETERS dpp;
     HRESULT hr;
     D3DDISPLAYMODE dmode;
 #endif
@@ -199,23 +198,23 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
         return false;
     }
 
-    if (FAILED(this->pD3D->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &dmode))) {
+    if (FAILED(IDirect3D9_GetAdapterDisplayMode(this->pD3D, D3DADAPTER_DEFAULT, &dmode))) {
         Log::logCritical("Failed to create Direct3D 9 display mode", true);
         return false;
     }
 
-    memset(&dpp, 0, sizeof(dpp));
-    dpp.BackBufferFormat = dmode.Format;
-    dpp.BackBufferCount = 1;
-    dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    dpp.Windowed = TRUE;
-    dpp.EnableAutoDepthStencil = TRUE;
-    dpp.AutoDepthStencilFormat = D3DFMT_D16;
-    dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
+    memset(&this->dpp, 0, sizeof(this->dpp));
+    this->dpp.BackBufferFormat = dmode.Format;
+    this->dpp.BackBufferCount = 1;
+    this->dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    this->dpp.Windowed = TRUE;
+    this->dpp.EnableAutoDepthStencil = TRUE;
+    this->dpp.AutoDepthStencilFormat = D3DFMT_D16;
+    this->dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
 
-    if (FAILED((hr = this->pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &dpp, &this->pDev)))) {
-        if (FAILED((hr = this->pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &dpp, &this->pDev)))) {
-            hr = this->pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &dpp, &this->pDev);
+    if (FAILED((hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &this->dpp, &this->pDev)))) {
+        if (FAILED((hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &this->dpp, &this->pDev)))) {
+            hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &this->dpp, &this->pDev);
         }
     }
 
@@ -238,6 +237,9 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 void WindowWin32::cleanup() {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     wglMakeCurrent(NULL, NULL);
+#elif defined(RENDERER_D3D9)
+    IDirect3DDevice9_Release(this->pDev);
+    IDirect3D9_Release(this->pD3D);
 #endif
 
 #ifndef NO_SOFT_SWAPBUFFERS
@@ -269,7 +271,7 @@ void WindowWin32::pollEvents() {
 
 void WindowWin32::swapBuffers() {
 #if defined(RENDERER_D3D9)
-    this->pDev->Present(nullptr, nullptr, nullptr, nullptr);
+    IDirect3DDevice9_Present(this->pDev, nullptr, nullptr, nullptr, nullptr);
 #else
 #if defined(SWAPBUFFERS)
     SwapBuffers(this->hDC);
@@ -297,9 +299,9 @@ void WindowWin32::resize(int width, int height) {
     DeleteObject(this->hBitmap);
     this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
     SelectObject(this->hDC, this->hBitmap);
-
-    this->resized(width, height);
 #endif
+
+    this->resized = true;
 
     GetWindowRect(this->hWnd, &wrc);
     if ((wrc.right - wrc.left) != (rc.right - rc.left) || (wrc.bottom - wrc.top) != (rc.bottom - rc.top)) {
