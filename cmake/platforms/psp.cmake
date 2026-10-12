@@ -24,9 +24,9 @@ macro(package_platform)
     create_pbp_file(
         TARGET scratch-everywhere
         ICON_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/ICON0.png
-        BACKGROUND_PATH NULL
-        PREVIEW_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
-        TITLE scratch-everywhere
+        BACKGROUND_PATH ${CMAKE_SOURCE_DIR}/gfx/psp/PIC1.png
+        PREVIEW_PATH NULL
+        TITLE ${SE_APP_NAME}
 		VERSION "${SE_APP_VERSION}"
     )
 	# package the EBOOT.pbp
