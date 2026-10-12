@@ -315,6 +315,7 @@ static void endPen() {
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     NOTEXVERTEX v[4];
     double scale = (Render::getHeight() < Render::getWidth()) ? ((float)Scratch::projectHeight / Render::getHeight()) : ((float)Scratch::projectWidth / Render::getWidth());
     double r = sprite->penData.size / scale;
@@ -332,8 +333,28 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     x2 /= scale;
     y2 /= scale;
 
+    v[0].x = x1 - r;
+    v[0].y = y1 - r;
+
+    v[1].x = x2 + r;
+    v[1].y = y1 - r;
+
+    v[2].x = x2 + r;
+    v[2].y = y2 + r;
+
+    v[3].x = x1 - r;
+    v[3].y = y2 + r;
+
+    v[0].z = v[1].z = v[2].z = v[3].z = 0;
+    v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
+    v[0].color = v[1].color = v[2].color = v[3].color = D3DCOLOR_ARGB((int)rgbColor.a, (int)rgbColor.r, (int)rgbColor.g, (int)rgbColor.b);
+
+    IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_NONE);
     beginPen();
+    IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
     endPen();
+    IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_CCW);
 }
 
 void Render::penDotFast(Sprite *sprite) {
