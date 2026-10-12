@@ -20,21 +20,25 @@ SCRATCH_BLOCK(SE, isScratchEverywhere) {
     *outValue = Value(true);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(SE, isScratchEverywhere);
 
 SCRATCH_BLOCK(SE, isNew3DS) {
     *outValue = Value(OS::getPlatform() == "3DS" && OS::isEnhancedPlatform());
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(SE, isNew3DS);
 
 SCRATCH_BLOCK(SE, isDSi) {
     *outValue = Value(OS::getPlatform() == "DS" && OS::isEnhancedPlatform());
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(SE, isDSi);
 
 SCRATCH_BLOCK(SE, platform) {
     *outValue = Value(OS::getPlatform());
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(SE, platform);
 
 SCRATCH_BLOCK(SE, controller) {
 #ifdef RENDERER_CITRO2D
@@ -50,8 +54,10 @@ SCRATCH_BLOCK(SE, controller) {
 #endif
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(SE, controller);
 
 SCRATCH_BLOCK(SE, exitProject) {
     Scratch::shouldStop = true;
     return BlockResult::RETURN;
 }
+SCRATCH_BLOCK_SIGNATURE(SE, exitProject);
