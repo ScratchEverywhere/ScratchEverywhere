@@ -1,6 +1,5 @@
 #include "renderer_gl_core.hpp"
 #include "image_gl_core.hpp"
-#include "nonstd/expected.hpp"
 #include "speech_manager_gl_core.hpp"
 #include <log.hpp>
 #include <runtime.hpp>
@@ -19,6 +18,16 @@
 #include <windowing/win32/window_win32.hpp>
 #else
 #error "No windowing backend defined"
+#endif
+
+#ifdef LIBRETRO
+#include <libretro.h>
+
+extern struct retro_hw_render_callback hw_render;
+#endif
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
 #endif
 
 WindowSE *globalWindow = nullptr;
