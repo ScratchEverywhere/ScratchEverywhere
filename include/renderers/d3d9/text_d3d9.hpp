@@ -1,13 +1,13 @@
 #pragma once
 #define WIN32_MEAN_AND_LEAN
+#include <d3d9.h>
 #include <se_export.hpp>
 #include <text.hpp>
 #include <windows.h>
 
 class SE_EXPORT TextObjectD3D9 : public TextObjectBase {
   private:
-    int atlasWidth;
-    int atlasHeight;
+    IDirect3DTexture9 *pTex;
 
   protected:
     void uploadAtlas(FontGeneration &gen) override;

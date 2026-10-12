@@ -130,7 +130,6 @@ IDirect3DDevice9 *pDev = nullptr;
 static IDirect3DSurface9 *pBackbuffer = nullptr;
 static IDirect3DSurface9 *pPenLayerSurface = nullptr;
 static IDirect3DTexture9 *pPenLayer = nullptr;
-static ID3DXLine *pLine;
 static IDirect3DPixelShader9 *pPixelShader = nullptr;
 ID3DXConstantTable *pPixelShaderConstantTable = nullptr;
 
@@ -156,6 +155,8 @@ static ID3DXBuffer *compileShader(std::string source, ID3DXConstantTable **table
 static void reset(int width, int height) {
     D3DPRESENT_PARAMETERS *dpp = &((WindowWin32 *)globalWindow)->dpp;
 
+    if (width == 0 || height == 0) return;
+
     if (pPenLayerSurface != nullptr) IDirect3DSurface9_Release(pPenLayerSurface);
     if (pPenLayer != nullptr) IDirect3DTexture9_Release(pPenLayer);
     if (pBackbuffer != nullptr) IDirect3DSurface9_Release(pBackbuffer);
@@ -176,7 +177,6 @@ static void reset(int width, int height) {
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
-    ID3DXLine_OnResetDevice(pLine);
     IDirect3DDevice9_GetRenderTarget(pDev, 0, &pBackbuffer);
     IDirect3DDevice9_CreateTexture(pDev, width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &pPenLayer, nullptr);
     IDirect3DTexture9_GetSurfaceLevel(pPenLayer, 0, &pPenLayerSurface);
@@ -212,7 +212,6 @@ static void clean() {
     IDirect3DSurface9_Release(pPenLayerSurface);
     IDirect3DTexture9_Release(pPenLayer);
     IDirect3DSurface9_Release(pBackbuffer);
-    ID3DXLine_Release(pLine);
 
     if (globalWindow) {
         globalWindow->cleanup();
@@ -238,7 +237,6 @@ bool Render::Init() {
 
     debugMode = true;
 
-    D3DXCreateLine(pDev, &pLine);
     resized(windowWidth, windowHeight);
 
     if ((code = compileShader(kSpritePixel, &pPixelShaderConstantTable, false)) == nullptr) return false;
@@ -317,7 +315,7 @@ static void endPen() {
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    D3DXVECTOR2 v[2];
+    NOTEXVERTEX v[4];
     double scale = (Render::getHeight() < Render::getWidth()) ? ((float)Scratch::projectHeight / Render::getHeight()) : ((float)Scratch::projectWidth / Render::getWidth());
     double r = sprite->penData.size / scale;
     int y, x;
@@ -334,16 +332,7 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     x2 /= scale;
     y2 /= scale;
 
-    v[0].x = x1;
-    v[0].y = y1;
-
-    v[1].x = x2;
-    v[1].y = y2;
-
     beginPen();
-    ID3DXLine_Begin(pLine);
-    ID3DXLine_Draw(pLine, v, 2, D3DCOLOR_ARGB(255, 0, 0, 0));
-    ID3DXLine_End(pLine);
     endPen();
 }
 
@@ -384,6 +373,11 @@ void Render::penStamp(Sprite *sprite) {
     params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
     params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
     params.brightness = sprite->brightnessEffect;
+    params.colorEffect = sprite->colorEffect;
+    params.fisheyeEffect = sprite->fisheyeEffect;
+    params.whirlEffect = sprite->whirlEffect;
+    params.pixelateEffect = sprite->pixelateEffect;
+    params.mosaicEffect = sprite->mosaicEffect;
 
     beginPen();
     image->render(params);
@@ -422,13 +416,42 @@ void Render::endFrame(bool shouldFlush) {
 }
 
 void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    NOTEXVERTEX v[4];
+
+    v[0].x = x - w / 2;
+    v[0].y = y - h / 2;
+    v[0].z = 0;
+    v[0].rhw = 1;
+    v[0].color = D3DCOLOR_ARGB(colorA, colorR, colorG, colorB);
+
+    v[1].x = x + w / 2;
+    v[1].y = y - h / 2;
+    v[1].z = 0;
+    v[1].rhw = 1;
+    v[1].color = D3DCOLOR_ARGB(colorA, colorR, colorG, colorB);
+
+    v[2].x = x + w / 2;
+    v[2].y = y + h / 2;
+    v[2].z = 0;
+    v[2].rhw = 1;
+    v[2].color = D3DCOLOR_ARGB(colorA, colorR, colorG, colorB);
+
+    v[3].x = x - w / 2;
+    v[3].y = y + h / 2;
+    v[3].z = 0;
+    v[3].rhw = 1;
+    v[3].color = D3DCOLOR_ARGB(colorA, colorR, colorG, colorB);
+
+    IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
 }
 
 void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    Render::drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
 }
 
 void Render::renderPenLayer() {
-    IMGVERTEX v[4];
+    TEXVERTEX v[4];
 
     v[0].x = 0;
     v[0].y = 0;
@@ -463,8 +486,9 @@ void Render::renderPenLayer() {
     v[3].tv = 1;
 
     IDirect3DDevice9_SetTexture(pDev, 0, pPenLayer);
-    IDirect3DDevice9_SetFVF(pDev, FVF_IMGVERTEX);
-    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(IMGVERTEX));
+    IDirect3DDevice9_SetFVF(pDev, FVF_TEXVERTEX);
+    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(TEXVERTEX));
+    IDirect3DDevice9_SetTexture(pDev, 0, nullptr);
 }
 
 static void drawBlackBars() {
@@ -494,6 +518,11 @@ void Render::renderSprites() {
             params.flip = (currentSprite->rotationStyle == currentSprite->LEFT_RIGHT && currentSprite->rotation < 0);
             params.opacity = 1.0f - (std::clamp(currentSprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
             params.brightness = currentSprite->brightnessEffect;
+            params.colorEffect = currentSprite->colorEffect;
+            params.fisheyeEffect = currentSprite->fisheyeEffect;
+            params.whirlEffect = currentSprite->whirlEffect;
+            params.pixelateEffect = currentSprite->pixelateEffect;
+            params.mosaicEffect = currentSprite->mosaicEffect;
 
             image->render(params);
         }

@@ -6,7 +6,7 @@
 #include <string>
 
 void Image_D3D9::render(ImageRenderParams &params) {
-    IMGVERTEX v[4];
+    TEXVERTEX v[4];
     int i;
     const int renderWidth = this->imgData.width / this->imgData.scale * params.scale;
     const int renderHeight = this->imgData.height / this->imgData.scale * params.scale;
@@ -24,7 +24,6 @@ void Image_D3D9::render(ImageRenderParams &params) {
     size[0] = this->getWidth();
     size[1] = this->getHeight();
 
-    ID3DXConstantTable_SetInt(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_tex"), 0);
     ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_opacity"), opacity);
     ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_brightness"), (float)brightness);
     ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_color"), colorEffect);
@@ -88,8 +87,9 @@ void Image_D3D9::render(ImageRenderParams &params) {
     }
 
     IDirect3DDevice9_SetTexture(pDev, 0, this->pTex);
-    IDirect3DDevice9_SetFVF(pDev, FVF_IMGVERTEX);
-    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(IMGVERTEX));
+    IDirect3DDevice9_SetFVF(pDev, FVF_TEXVERTEX);
+    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(TEXVERTEX));
+    IDirect3DDevice9_SetTexture(pDev, 0, nullptr);
 
     this->freeTimer = this->maxFreeTimer;
 }
@@ -101,7 +101,7 @@ void Image_D3D9::renderNineslice(double xPos, double yPos, double width, double 
     int x, y;
     int ySrc = 0, xSrc;
     int yIncr = yPos, xIncr;
-    IMGVERTEX v[4];
+    TEXVERTEX v[4];
 
     v[0].z = v[1].z = v[2].z = v[3].z = 0;
     v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
@@ -151,8 +151,9 @@ void Image_D3D9::renderNineslice(double xPos, double yPos, double width, double 
             }
 
             IDirect3DDevice9_SetTexture(pDev, 0, this->pTex);
-            IDirect3DDevice9_SetFVF(pDev, FVF_IMGVERTEX);
-            IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(IMGVERTEX));
+            IDirect3DDevice9_SetFVF(pDev, FVF_TEXVERTEX);
+            IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(TEXVERTEX));
+            IDirect3DDevice9_SetTexture(pDev, 0, nullptr);
 
             xIncr += wP[x];
             xSrc += w;
