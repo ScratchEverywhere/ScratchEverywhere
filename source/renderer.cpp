@@ -4,6 +4,9 @@
 #ifdef RENDERER_OPENGL_CORE
 #include "renderer_gl_core.hpp"
 #endif
+#ifdef RENDERER_HEADLESS
+#include "renderer_headless.hpp"
+#endif
 
 Renderer *globalRenderer = nullptr;
 
@@ -101,6 +104,7 @@ bool Render::init() {
         case Renderers::Headless: {
 #ifdef RENDERER_HEADLESS
             Render::currentRenderer = Renderers::Headless;
+            globalRenderer = new Renderer_Headless;
             break;
 #else
             Log::logWarning("Headless Renderer unavailable.");
@@ -112,7 +116,7 @@ bool Render::init() {
         }
         }
 
-        if (!globalRenderer || globalRenderer->error.has_value()) {
+        if (globalRenderer == nullptr || globalRenderer->error.has_value()) {
             Log::logError("Renderer failed to init: " + globalRenderer->error.value());
             delete globalRenderer;
         } else break;
