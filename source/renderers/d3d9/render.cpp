@@ -18,9 +18,6 @@
 #include <windowing/win32/window_win32.hpp>
 #include <windows.h>
 
-#include <d3dx9math.h>
-#include <d3dx9.h>
-
 static const char *kSpriteVert = R"hlsl(
 float4x4 u_model;
 float4x4 u_projection;
@@ -158,16 +155,18 @@ static IDirect3DSurface9 *pPenLayerSurface = nullptr;
 static IDirect3DTexture9 *pPenLayer = nullptr;
 static ID3DXLine *pLine;
 static IDirect3DVertexShader9* pVertexShader = nullptr;
+ID3DXConstantTable* pVertexShaderConstantTable = nullptr;
 static IDirect3DPixelShader9* pPixelShader = nullptr;
+ID3DXConstantTable* pPixelShaderConstantTable = nullptr;
 
 static int penWidth = 480;
 static int penHeight = 360;
 
-static ID3DXBuffer* compileShader(std::string source){
+static ID3DXBuffer* compileShader(std::string source, ID3DXConstantTable** table, bool vert){
 	ID3DXBuffer* code;
 	ID3DXBuffer* errors = NULL;
 
-	if(FAILED(D3DXCompileShader(source.c_str(), source.size(), nullptr, nullptr, "main", "vs_3_0", 0, &code, &errors, nullptr))){
+	if(FAILED(D3DXCompileShader(source.c_str(), source.size(), nullptr, nullptr, "main", vert ? "vs_3_0" : "ps_3_0", 0, &code, &errors, table))){
         	Log::logCritical("Direct3D HLSL Compilation error!!! Error is following:\n" + std::string((const char*)ID3DXBuffer_GetBufferPointer(errors)), true);
 		ID3DXBuffer_Release(errors);
 
@@ -232,7 +231,9 @@ static void resized(int width, int height) {
 }
 
 static void clean(){
+	if(pPixelShaderConstantTable != nullptr) ID3DXConstantTable_Release(pPixelShaderConstantTable);
 	if(pPixelShader != nullptr) IDirect3DPixelShader9_Release(pPixelShader);
+	if(pVertexShaderConstantTable != nullptr) ID3DXConstantTable_Release(pVertexShaderConstantTable);
 	if(pVertexShader != nullptr) IDirect3DVertexShader9_Release(pVertexShader);
 
     IDirect3DSurface9_Release(pPenLayerSurface);
@@ -267,7 +268,7 @@ bool Render::Init() {
     D3DXCreateLine(pDev, &pLine);
     resized(windowWidth, windowHeight);
 
-    if((code = compileShader(kSpriteVert)) == nullptr) return false;
+    if((code = compileShader(kSpriteVert, &pVertexShaderConstantTable, true)) == nullptr) return false;
     if(FAILED(IDirect3DDevice9_CreateVertexShader(pDev, (const DWORD*)ID3DXBuffer_GetBufferPointer(code), &pVertexShader))){
 	    ID3DXBuffer_Release(code);
 	    clean();
@@ -275,7 +276,7 @@ bool Render::Init() {
     }
     ID3DXBuffer_Release(code);
 
-    if((code = compileShader(kSpriteFrag)) == nullptr) return false;
+    if((code = compileShader(kSpriteFrag, &pPixelShaderConstantTable, false)) == nullptr) return false;
     if(FAILED(IDirect3DDevice9_CreatePixelShader(pDev, (const DWORD*)ID3DXBuffer_GetBufferPointer(code), &pPixelShader))){
 	    ID3DXBuffer_Release(code);
 	    clean();
