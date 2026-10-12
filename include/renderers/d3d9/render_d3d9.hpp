@@ -15,5 +15,4 @@ typedef struct imgvertex {
 
 extern IDirect3D9 *pD3D;
 extern IDirect3DDevice9 *pDev;
-extern ID3DXConstantTable* pVertexShaderConstantTable;
 extern ID3DXConstantTable* pPixelShaderConstantTable;

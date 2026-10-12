@@ -18,31 +18,8 @@
 #include <windowing/win32/window_win32.hpp>
 #include <windows.h>
 
-static const char *kSpriteVert = R"hlsl(
-float4x4 u_model;
-float4x4 u_projection;
-
-struct VS_INPUT {
-    float2 a_pos : POSITION0;
-    float2 a_uv  : TEXCOORD0;
-};
-
-struct VS_OUTPUT {
-    float4 position : POSITION0;
-    float2 v_uv     : TEXCOORD0;
-};
-
-VS_OUTPUT main(VS_INPUT input) {
-    VS_OUTPUT output;
-    float4 pos = float4(input.a_pos, 0.0f, 1.0f);
-    output.position = mul(u_projection, mul(u_model, pos));
-    output.v_uv = input.a_uv;
-    return output;
-}
-)hlsl";
-
-static const char *kSpriteFrag = R"hlsl(
-sampler2D u_tex;
+static const char *kSpritePixel = R"hlsl(
+sampler2D u_tex : register(s0);
 float u_opacity;
 float u_brightness;
 float u_color;
@@ -154,8 +131,6 @@ static IDirect3DSurface9 *pBackbuffer = nullptr;
 static IDirect3DSurface9 *pPenLayerSurface = nullptr;
 static IDirect3DTexture9 *pPenLayer = nullptr;
 static ID3DXLine *pLine;
-static IDirect3DVertexShader9* pVertexShader = nullptr;
-ID3DXConstantTable* pVertexShaderConstantTable = nullptr;
 static IDirect3DPixelShader9* pPixelShader = nullptr;
 ID3DXConstantTable* pPixelShaderConstantTable = nullptr;
 
@@ -233,8 +208,6 @@ static void resized(int width, int height) {
 static void clean(){
 	if(pPixelShaderConstantTable != nullptr) ID3DXConstantTable_Release(pPixelShaderConstantTable);
 	if(pPixelShader != nullptr) IDirect3DPixelShader9_Release(pPixelShader);
-	if(pVertexShaderConstantTable != nullptr) ID3DXConstantTable_Release(pVertexShaderConstantTable);
-	if(pVertexShader != nullptr) IDirect3DVertexShader9_Release(pVertexShader);
 
     IDirect3DSurface9_Release(pPenLayerSurface);
     IDirect3DTexture9_Release(pPenLayer);
@@ -268,15 +241,7 @@ bool Render::Init() {
     D3DXCreateLine(pDev, &pLine);
     resized(windowWidth, windowHeight);
 
-    if((code = compileShader(kSpriteVert, &pVertexShaderConstantTable, true)) == nullptr) return false;
-    if(FAILED(IDirect3DDevice9_CreateVertexShader(pDev, (const DWORD*)ID3DXBuffer_GetBufferPointer(code), &pVertexShader))){
-	    ID3DXBuffer_Release(code);
-	    clean();
-	    return false;
-    }
-    ID3DXBuffer_Release(code);
-
-    if((code = compileShader(kSpriteFrag, &pPixelShaderConstantTable, false)) == nullptr) return false;
+    if((code = compileShader(kSpritePixel, &pPixelShaderConstantTable, false)) == nullptr) return false;
     if(FAILED(IDirect3DDevice9_CreatePixelShader(pDev, (const DWORD*)ID3DXBuffer_GetBufferPointer(code), &pPixelShader))){
 	    ID3DXBuffer_Release(code);
 	    clean();
@@ -508,7 +473,6 @@ static void drawBlackBars() {
 void Render::renderSprites() {
     Render::beginFrame(0, 255, 255, 255);
 
-    IDirect3DDevice9_SetVertexShader(pDev, pVertexShader);
     IDirect3DDevice9_SetPixelShader(pDev, pPixelShader);
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
@@ -537,7 +501,6 @@ void Render::renderSprites() {
         if (currentSprite->isStage) Render::renderPenLayer();
     }
     IDirect3DDevice9_SetPixelShader(pDev, nullptr);
-    IDirect3DDevice9_SetVertexShader(pDev, nullptr);
 
     if (speechManager) {
         speechManager->render();
