@@ -9,7 +9,6 @@
 #include <types.hpp>
 
 enum class SE_EXPORT Renderers : uint8_t {
-    None,
     OpenGLCore,
     OpenGL,
     SDL3,
@@ -19,6 +18,7 @@ enum class SE_EXPORT Renderers : uint8_t {
     Citro2D,
     GL2D,
     Headless,
+    _count,
 };
 
 class SE_EXPORT Renderer {

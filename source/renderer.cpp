@@ -10,7 +10,7 @@ Renderer *globalRenderer = nullptr;
 Renderer::Renderer() {}
 
 namespace Render {
-Renderers currentRenderer = Renderers::None;
+Renderers currentRenderer = Renderers::Headless;
 bool debugMode = false;
 float renderScale = 1.0f;
 RenderModes renderMode = Render::TOP_SCREEN_ONLY;
@@ -21,20 +21,104 @@ std::unordered_map<std::string, Monitor> monitors;
 } // namespace Render
 
 bool Render::init() {
-#ifdef RENDERER_OPENGL_CORE
-    Renderer *renderer = new Renderer_GLCore;
-#else
-#error TODO implement other renderers, also TODO make this a runtime check
-#endif
+    for (uint8_t i = 0; i < static_cast<uint8_t>(Renderers::_count); ++i) {
+        auto rendererName = static_cast<Renderers>(i);
 
-    if (renderer->error.has_value()) {
-        Log::logCritical("Renderer failed to init: " + renderer->error.value(), true);
-        delete renderer;
-        return false;
+        switch (rendererName) {
+        case Renderers::OpenGLCore: {
+#ifdef RENDERER_OPENGL_CORE
+            Render::currentRenderer = Renderers::OpenGLCore;
+            globalRenderer = new Renderer_GLCore;
+            break;
+#else
+            Log::logWarning("OpenGL Core Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::OpenGL: {
+#ifdef RENDERER_OPENGL
+            Render::currentRenderer = Renderers::OpenGL;
+            break;
+#else
+            Log::logWarning("OpenGL Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::SDL3: {
+#ifdef RENDERER_SDL3
+            Render::currentRenderer = Renderers::SDL3;
+            break;
+#else
+            Log::logWarning("SDL3 Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::SDL2: {
+#ifdef RENDERER_SDL2
+            Render::currentRenderer = Renderers::SDL2;
+            break;
+#else
+            Log::logWarning("SDL2 Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::SDL1: {
+#ifdef RENDERER_SDL1
+            Render::currentRenderer = Renderers::SDL1;
+            break;
+#else
+            Log::logWarning("SDL1 Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::Citro2D: {
+#ifdef RENDERER_CITRO2D
+            Render::currentRenderer = Renderers::Citro2D;
+            break;
+#else
+            Log::logWarning("Citro2D Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::GL2D: {
+#ifdef RENDERER_GL2D
+            Render::currentRenderer = Renderers::GL2D;
+            break;
+#else
+            Log::logWarning("GL2D Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::GDI: {
+#ifdef RENDERER_GDI
+            Render::currentRenderer = Renderers::GDI;
+            break;
+#else
+            Log::logWarning("GDI Renderer unavailable.");
+            continue;
+#endif
+        }
+        case Renderers::Headless: {
+#ifdef RENDERER_HEADLESS
+            Render::currentRenderer = Renderers::Headless;
+            break;
+#else
+            Log::logWarning("Headless Renderer unavailable.");
+            continue;
+#endif
+        }
+        default: {
+            continue;
+        }
+        }
+
+        if (!globalRenderer || globalRenderer->error.has_value()) {
+            Log::logError("Renderer failed to init: " + globalRenderer->error.value());
+            delete globalRenderer;
+        } else break;
     }
 
-    globalRenderer = renderer;
-    return true;
+    return (globalRenderer != nullptr);
 }
 
 void Render::deInit() {

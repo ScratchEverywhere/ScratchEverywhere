@@ -9,7 +9,7 @@
 
 #define SWAPBUFFERS
 #elif defined(RENDERER_OPENGL_CORE)
-#include <renderers/opengl_core/render_opengl_core.hpp>
+#include <renderers/opengl_core/renderer_gl_core.hpp>
 
 #define SWAPBUFFERS
 #endif

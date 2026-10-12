@@ -11,7 +11,7 @@
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render_opengl.hpp>
 #elif defined(RENDERER_OPENGL_CORE)
-#include <renderers/opengl_core/render_opengl_core.hpp>
+#include <renderers/opengl_core/renderer_gl_core.hpp>
 #else
 #include <renderers/sdl3/render_sdl3.hpp>
 #endif
