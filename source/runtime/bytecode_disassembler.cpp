@@ -100,6 +100,32 @@ const char *mnemonic(BytecodeOp op) {
         return "StoreVarValue";
     case BytecodeOp::ChangeVarNumber:
         return "ChangeVarNumber";
+    case BytecodeOp::AddToList:
+        return "AddToList";
+    case BytecodeOp::DeleteFromList:
+        return "DeleteFromList";
+    case BytecodeOp::DeleteAllOfList:
+        return "DeleteAllOfList";
+    case BytecodeOp::InsertInList:
+        return "InsertInList";
+    case BytecodeOp::ReplaceInList:
+        return "ReplaceInList";
+    case BytecodeOp::ItemOfList:
+        return "ItemOfList";
+    case BytecodeOp::ItemNumOfList:
+        return "ItemNumOfList";
+    case BytecodeOp::LengthOfList:
+        return "LengthOfList";
+    case BytecodeOp::ListContainsItem:
+        return "ListContainsItem";
+    case BytecodeOp::ShowListMonitor:
+        return "ShowListMonitor";
+    case BytecodeOp::HideListMonitor:
+        return "HideListMonitor";
+    case BytecodeOp::ShowVariableMonitor:
+        return "ShowVariableMonitor";
+    case BytecodeOp::HideVariableMonitor:
+        return "HideVariableMonitor";
     case BytecodeOp::CallNative:
         return "CallNative";
     case BytecodeOp::CallNativeNumber:
@@ -230,7 +256,23 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
         return;
 
     case BytecodeOp::PushList:
+    case BytecodeOp::AddToList:
+    case BytecodeOp::DeleteFromList:
+    case BytecodeOp::DeleteAllOfList:
+    case BytecodeOp::InsertInList:
+    case BytecodeOp::ReplaceInList:
+    case BytecodeOp::ItemOfList:
+    case BytecodeOp::ItemNumOfList:
+    case BytecodeOp::LengthOfList:
+    case BytecodeOp::ListContainsItem:
+    case BytecodeOp::ShowListMonitor:
+    case BytecodeOp::HideListMonitor:
         out << "  ; list \"" << listNameForSlot(chunk, instr.a) << "\"";
+        return;
+
+    case BytecodeOp::ShowVariableMonitor:
+    case BytecodeOp::HideVariableMonitor:
+        out << "  ; var \"" << variableNameForSlot(chunk, instr.a) << "\"";
         return;
 
     case BytecodeOp::PushArg:

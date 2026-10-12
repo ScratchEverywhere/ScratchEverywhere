@@ -76,6 +76,11 @@ SCRATCH_BLOCK(data, showvariable) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(data, showvariable) {
+    const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
+    outFirstInstr = compiler.emit(BytecodeOp::ShowVariableMonitor, compiler.variableSlot(varId));
+    return true;
+}
 
 SCRATCH_BLOCK(data, hidevariable) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
@@ -84,6 +89,11 @@ SCRATCH_BLOCK(data, hidevariable) {
     if (it != Render::monitors.end()) it->second.visible = false;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(data, hidevariable) {
+    const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
+    outFirstInstr = compiler.emit(BytecodeOp::HideVariableMonitor, compiler.variableSlot(varId));
+    return true;
 }
 
 SCRATCH_BLOCK(data, showlist) {
@@ -94,6 +104,11 @@ SCRATCH_BLOCK(data, showlist) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(data, showlist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.emit(BytecodeOp::ShowListMonitor, compiler.listSlot(listId));
+    return true;
+}
 
 SCRATCH_BLOCK(data, hidelist) {
     const std::string &varId = Scratch::getFieldId(*block, "LIST");
@@ -102,6 +117,11 @@ SCRATCH_BLOCK(data, hidelist) {
     if (it != Render::monitors.end()) it->second.visible = false;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(data, hidelist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.emit(BytecodeOp::HideListMonitor, compiler.listSlot(listId));
+    return true;
 }
 
 SCRATCH_BLOCK(data, addtolist) {
@@ -113,6 +133,13 @@ SCRATCH_BLOCK(data, addtolist) {
     if (items && items->size() < MAX_LIST_ITEMS) items->push_back(item);
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(data, addtolist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::AddToList, compiler.listSlot(listId));
+    return true;
 }
 
 SCRATCH_BLOCK(data, deleteoflist) {
@@ -152,11 +179,23 @@ SCRATCH_BLOCK(data, deleteoflist) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(data, deleteoflist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "INDEX", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::DeleteFromList, compiler.listSlot(listId));
+    return true;
+}
 
 SCRATCH_BLOCK(data, deletealloflist) {
     auto items = Scratch::getListItems(*block, sprite);
     if (items) items->clear();
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(data, deletealloflist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.emit(BytecodeOp::DeleteAllOfList, compiler.listSlot(listId));
+    return true;
 }
 
 SCRATCH_BLOCK(data, insertatlist) {
@@ -194,6 +233,14 @@ SCRATCH_BLOCK(data, insertatlist) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(data, insertatlist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
+    compiler.compileInput(block, "INDEX", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::InsertInList, compiler.listSlot(listId));
+    return true;
+}
 
 SCRATCH_BLOCK(data, replaceitemoflist) {
     Value item, index;
@@ -226,6 +273,14 @@ SCRATCH_BLOCK(data, replaceitemoflist) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(data, replaceitemoflist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
+    compiler.compileInput(block, "INDEX", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ReplaceInList, compiler.listSlot(listId));
+    return true;
+}
 
 SCRATCH_BLOCK(data, itemoflist) {
     Value indexStrVal;
@@ -257,6 +312,14 @@ SCRATCH_BLOCK(data, itemoflist) {
     return BlockResult::CONTINUE;
 }
 
+SCRATCH_BYTECODE_BLOCK(data, itemoflist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "INDEX", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ItemOfList, compiler.listSlot(listId));
+    return true;
+}
+
 SCRATCH_BLOCK_DOUBLE(data, itemnumoflist) {
     Value itemToFind;
     if (!Scratch::getInputValue(block, "ITEM", thread, sprite, itemToFind)) return BlockResult::REPEAT;
@@ -278,11 +341,25 @@ SCRATCH_BLOCK_DOUBLE(data, itemnumoflist) {
     return BlockResult::CONTINUE;
 }
 
+SCRATCH_BYTECODE_BLOCK(data, itemnumoflist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ItemNumOfList, compiler.listSlot(listId));
+    return true;
+}
+
 SCRATCH_BLOCK_DOUBLE(data, lengthoflist) {
     const auto &items = Scratch::getListItems(*block, sprite);
     if (items) *outValue = items->size();
     else *outValue = 0;
     return BlockResult::CONTINUE;
+}
+
+SCRATCH_BYTECODE_BLOCK(data, lengthoflist) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.emit(BytecodeOp::LengthOfList, compiler.listSlot(listId));
+    return true;
 }
 
 SCRATCH_BLOCK_BOOLEAN(data, listcontainsitem) {
@@ -304,9 +381,23 @@ SCRATCH_BLOCK_BOOLEAN(data, listcontainsitem) {
     return BlockResult::CONTINUE;
 }
 
+SCRATCH_BYTECODE_BLOCK(data, listcontainsitem) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "ITEM", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::ListContainsItem, compiler.listSlot(listId));
+    return true;
+}
+
 SCRATCH_BLOCK(data, variable) {
     *outValue = Value(BlockExecutor::getVariableValue(Scratch::getFieldId(*block, "VARIABLE"), sprite));
     return BlockResult::CONTINUE;
+}
+
+SCRATCH_BYTECODE_BLOCK(data, variable) {
+    const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
+    outFirstInstr = compiler.emit(BytecodeOp::PushVarValue, compiler.variableSlot(varId));
+    return true;
 }
 
 SCRATCH_BLOCK_STRING(data, listcontents) {
@@ -337,4 +428,11 @@ SCRATCH_BLOCK_STRING(data, listcontents) {
 
     *outValue = ret;
     return BlockResult::CONTINUE;
+}
+
+SCRATCH_BYTECODE_BLOCK(data, listcontents) {
+    const std::string &listId = Scratch::getFieldId(*block, "LIST");
+    outFirstInstr = compiler.emit(BytecodeOp::PushList, compiler.listSlot(listId));
+    compiler.emit(BytecodeOp::ConvertValueToString);
+    return true;
 }

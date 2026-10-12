@@ -51,6 +51,21 @@ enum class BytecodeOp : uint8_t {
 
     ChangeVarNumber,
 
+    AddToList,
+    DeleteFromList,
+    DeleteAllOfList,
+    InsertInList,
+    ReplaceInList,
+    ItemOfList,
+    ItemNumOfList,
+    LengthOfList,
+    ListContainsItem,
+
+    ShowListMonitor,
+    HideListMonitor,
+    ShowVariableMonitor,
+    HideVariableMonitor,
+
     CallNative, // no return
     CallNativeNumber,
     CallNativeString,
