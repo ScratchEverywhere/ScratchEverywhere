@@ -110,6 +110,13 @@ enum class BytecodeOp : uint8_t {
     StrLess,
     StrGreater,
 
+    SetEffectTo,
+    ChangeEffectBy,
+    GoToFrontBack,
+    GoForwardBackwardLayers,
+    CostumeNumberName,
+    BackdropNumberName,
+
     PopNumber,
     PopString,
     PopBoolean,
@@ -207,6 +214,16 @@ enum class BytecodeMathOp : uint8_t {
     Log,
     Exp,
     Pow10,
+};
+
+enum class BytecodeEffect : uint8_t {
+    Color,
+    Fisheye,
+    Whirl,
+    Pixelate,
+    Mosaic,
+    Brightness,
+    Ghost,
 };
 
 struct BlockFunc;

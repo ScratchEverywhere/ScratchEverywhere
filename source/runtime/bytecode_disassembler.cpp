@@ -60,6 +60,19 @@ const char *mathOpName(BytecodeMathOp op) {
     return "<unknown mathop>";
 }
 
+const char *effectName(BytecodeEffect effect) {
+    switch (effect) {
+    case BytecodeEffect::Color: return "color";
+    case BytecodeEffect::Fisheye: return "fisheye";
+    case BytecodeEffect::Whirl: return "whirl";
+    case BytecodeEffect::Pixelate: return "pixelate";
+    case BytecodeEffect::Mosaic: return "mosaic";
+    case BytecodeEffect::Brightness: return "brightness";
+    case BytecodeEffect::Ghost: return "ghost";
+    }
+    return "<unknown effect>";
+}
+
 const char *mnemonic(BytecodeOp op) {
     switch (op) {
     case BytecodeOp::Nop:
@@ -192,6 +205,18 @@ const char *mnemonic(BytecodeOp op) {
         return "StrLess";
     case BytecodeOp::StrGreater:
         return "StrGreater";
+    case BytecodeOp::SetEffectTo:
+        return "SetEffectTo";
+    case BytecodeOp::ChangeEffectBy:
+        return "ChangeEffectBy";
+    case BytecodeOp::GoToFrontBack:
+        return "GoToFrontBack";
+    case BytecodeOp::GoForwardBackwardLayers:
+        return "GoForwardBackwardLayers";
+    case BytecodeOp::CostumeNumberName:
+        return "CostumeNumberName";
+    case BytecodeOp::BackdropNumberName:
+        return "BackdropNumberName";
     case BytecodeOp::PopNumber:
         return "PopNumber";
     case BytecodeOp::PopString:
@@ -308,6 +333,24 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
 
     case BytecodeOp::MathOp:
         out << "  ; " << mathOpName(static_cast<BytecodeMathOp>(instr.b));
+        return;
+
+    case BytecodeOp::SetEffectTo:
+    case BytecodeOp::ChangeEffectBy:
+        out << "  ; " << effectName(static_cast<BytecodeEffect>(instr.b));
+        return;
+
+    case BytecodeOp::GoToFrontBack:
+        out << "  ; " << (instr.b == 0 ? "front" : "back");
+        return;
+
+    case BytecodeOp::GoForwardBackwardLayers:
+        out << "  ; " << (instr.b == 0 ? "forward" : "backward");
+        return;
+
+    case BytecodeOp::CostumeNumberName:
+    case BytecodeOp::BackdropNumberName:
+        out << "  ; " << (instr.b == 0 ? "name" : "number");
         return;
 
     default:

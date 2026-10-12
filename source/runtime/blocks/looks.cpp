@@ -309,6 +309,15 @@ SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(looks, goforwardbackwardlayers) {
+    const std::string forwardBackward = Scratch::getFieldValue(*block, "FORWARD_BACKWARD");
+    BytecodeIndex direction = (forwardBackward == "forward") ? 0 : 1;
+
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "NUM", BytecodeStackKind::Number);
+    compiler.emit(BytecodeOp::GoForwardBackwardLayers, invalidBytecodeIndex, direction);
+    return true;
+}
 
 SCRATCH_BLOCK(looks, gotofrontback) {
     if (sprite->isStage) return BlockResult::CONTINUE;
@@ -335,6 +344,13 @@ SCRATCH_BLOCK(looks, gotofrontback) {
     }
     BlockExecutor::sortSprites = true;
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(looks, gotofrontback) {
+    const std::string value = Scratch::getFieldValue(*block, "FRONT_BACK");
+    BytecodeIndex which = (value == "front") ? 0 : 1;
+
+    outFirstInstr = compiler.emit(BytecodeOp::GoToFrontBack, invalidBytecodeIndex, which);
+    return true;
 }
 
 SCRATCH_BLOCK(looks, setsizeto) {
@@ -437,6 +453,25 @@ SCRATCH_BLOCK(looks, seteffectto) {
     if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(looks, seteffectto) {
+    std::string effect = Scratch::getFieldValue(*block, "EFFECT");
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
+
+    BytecodeEffect eff;
+    if (effect == "COLOR") eff = BytecodeEffect::Color;
+    else if (effect == "FISHEYE") eff = BytecodeEffect::Fisheye;
+    else if (effect == "WHIRL") eff = BytecodeEffect::Whirl;
+    else if (effect == "PIXELATE") eff = BytecodeEffect::Pixelate;
+    else if (effect == "MOSAIC") eff = BytecodeEffect::Mosaic;
+    else if (effect == "BRIGHTNESS") eff = BytecodeEffect::Brightness;
+    else if (effect == "GHOST") eff = BytecodeEffect::Ghost;
+    else return false;
+
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "VALUE", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::SetEffectTo, invalidBytecodeIndex, static_cast<BytecodeIndex>(eff));
+    return true;
+}
 
 SCRATCH_BLOCK(looks, changeeffectby) {
     double amount;
@@ -466,6 +501,25 @@ SCRATCH_BLOCK(looks, changeeffectby) {
     if (sprite->visible) Scratch::forceRedraw = true;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(looks, changeeffectby) {
+    std::string effect = Scratch::getFieldValue(*block, "EFFECT");
+    std::transform(effect.begin(), effect.end(), effect.begin(), ::toupper);
+
+    BytecodeEffect eff;
+    if (effect == "COLOR") eff = BytecodeEffect::Color;
+    else if (effect == "FISHEYE") eff = BytecodeEffect::Fisheye;
+    else if (effect == "WHIRL") eff = BytecodeEffect::Whirl;
+    else if (effect == "PIXELATE") eff = BytecodeEffect::Pixelate;
+    else if (effect == "MOSAIC") eff = BytecodeEffect::Mosaic;
+    else if (effect == "BRIGHTNESS") eff = BytecodeEffect::Brightness;
+    else if (effect == "GHOST") eff = BytecodeEffect::Ghost;
+    else return false;
+
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "CHANGE", BytecodeStackKind::Number);
+    compiler.emit(BytecodeOp::ChangeEffectBy, invalidBytecodeIndex, static_cast<BytecodeIndex>(eff));
+    return true;
+}
 
 SCRATCH_BLOCK(looks, cleargraphiceffects) {
     sprite->ghostEffect = 0.0f;
@@ -491,6 +545,13 @@ SCRATCH_BLOCK(looks, costumenumbername) {
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(looks, costumenumbername) {
+    const std::string value = Scratch::getFieldValue(*block, "NUMBER_NAME");
+    BytecodeIndex which = (value == "name") ? 0 : 1;
+
+    outFirstInstr = compiler.emit(BytecodeOp::CostumeNumberName, invalidBytecodeIndex, which);
+    return true;
+}
 
 SCRATCH_BLOCK(looks, backdropnumbername) {
     const std::string value = Scratch::getFieldValue(*block, "NUMBER_NAME");
@@ -499,6 +560,13 @@ SCRATCH_BLOCK(looks, backdropnumbername) {
     if (value == "number") *outValue = Value(Scratch::stageSprite->currentCostume + 1);
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(looks, backdropnumbername) {
+    const std::string value = Scratch::getFieldValue(*block, "NUMBER_NAME");
+    BytecodeIndex which = (value == "name") ? 0 : 1;
+
+    outFirstInstr = compiler.emit(BytecodeOp::BackdropNumberName, invalidBytecodeIndex, which);
+    return true;
 }
 
 SCRATCH_SHADOW_BLOCK(looks_costume, COSTUME)
