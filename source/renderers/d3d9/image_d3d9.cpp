@@ -78,7 +78,7 @@ void Image_D3D9::render(ImageRenderParams &params) {
             v[i].y -= renderHeight / 2;
 
             if (params.flip) {
-                v[i].x = sx + renderWidth - (v[i].x - sx);
+                v[i].x = sx + (renderWidth - (v[i].x - sx)) - renderWidth;
             }
         }
 

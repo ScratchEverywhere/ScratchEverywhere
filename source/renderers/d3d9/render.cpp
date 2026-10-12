@@ -165,7 +165,7 @@ static void reset(int width, int height) {
     dpp->BackBufferHeight = height;
     IDirect3DDevice9_Reset(pDev, dpp);
 
-    IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_CCW);
+    IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_NONE);
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_LIGHTING, FALSE);
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_ZENABLE, D3DZB_FALSE);
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_ALPHABLENDENABLE, TRUE);
@@ -389,7 +389,6 @@ static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, 
     v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
     v[0].color = v[1].color = v[2].color = v[3].color = D3DCOLOR_ARGB(alpha, (int)rgbColor.r, (int)rgbColor.g, (int)rgbColor.b);
 
-    IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_NONE);
     beginPen();
     IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
     IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
@@ -399,7 +398,6 @@ static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, 
         drawCircle(x2, y2, r, v[0].color);
     }
     endPen();
-    IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_CCW);
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
@@ -477,7 +475,6 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
 }
 
 void Render::endFrame(bool shouldFlush) {
-    Sleep(16);
     if (globalWindow) {
         IDirect3DDevice9_EndScene(pDev);
         globalWindow->swapBuffers();

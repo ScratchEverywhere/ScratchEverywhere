@@ -212,6 +212,7 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
     this->dpp.BackBufferFormat = dmode.Format;
     this->dpp.BackBufferCount = 1;
     this->dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    this->dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
     this->dpp.Windowed = TRUE;
     this->dpp.EnableAutoDepthStencil = TRUE;
     this->dpp.AutoDepthStencilFormat = D3DFMT_D16;

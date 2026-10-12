@@ -35,7 +35,7 @@ void Image_GDI::render(ImageRenderParams &params, HDC hDC) {
             p[i].y -= renderHeight / 2;
 
             if (params.flip) {
-                p[i].x = sx + renderWidth - (p[i].x - sx);
+                p[i].x = sx + (renderWidth - (p[i].x - sx)) - renderWidth;
             }
         }
 

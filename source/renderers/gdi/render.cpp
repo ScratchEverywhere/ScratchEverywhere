@@ -233,7 +233,7 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
         HBRUSH brush = CreateSolidBrush(RGB(colorR, colorG, colorB));
         RECT rc;
-	WindowWin32* win = (WindowWin32*)globalWindow;
+        WindowWin32 *win = (WindowWin32 *)globalWindow;
 
         rc.left = 0;
         rc.top = 0;
@@ -243,10 +243,10 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
         FillRect(renderer, &rc, brush);
         DeleteObject(brush);
 
-	if(win->resized){
-		resized(rc.right, rc.bottom);
-		win->resized = false;
-	}
+        if (win->resized) {
+            resized(rc.right, rc.bottom);
+            win->resized = false;
+        }
 
         hasFrameBegan = true;
     }
