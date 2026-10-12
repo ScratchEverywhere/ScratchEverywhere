@@ -19,6 +19,10 @@ SCRATCH_BLOCK(motion, movesteps) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, movesteps, {"STEPS", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(motion, movesteps) {
+    const double angle = Math::degreesToRadians(90 - sprite->rotation);
+    Scratch::gotoXY(sprite, sprite->xPosition + std::cos(angle) * num, sprite->yPosition + std::sin(angle) * num);
+}
 
 SCRATCH_BLOCK(motion, goto) {
     std::string object;
@@ -38,6 +42,19 @@ SCRATCH_BLOCK(motion, goto) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, goto, {"TO", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_S_VOID(motion, goto) {
+    if (str == "_random_") {
+        Scratch::gotoXY(sprite, rand() % Scratch::projectWidth - Scratch::projectWidth / 2, rand() % Scratch::projectHeight - Scratch::projectHeight / 2);
+    } else if (str == "_mouse_") {
+        Scratch::gotoXY(sprite, Input::mousePointer.x, Input::mousePointer.y);
+    } else {
+        for (Sprite *currentSprite : Scratch::sprites) {
+            if (currentSprite->isClone || currentSprite->name != str) continue;
+            Scratch::gotoXY(sprite, currentSprite->xPosition, currentSprite->yPosition);
+            break;
+        }
+    }
+}
 
 SCRATCH_BLOCK(motion, gotoxy) {
     double x, y;
@@ -48,6 +65,9 @@ SCRATCH_BLOCK(motion, gotoxy) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, gotoxy, {"X", BytecodeStackKind::Number}, {"Y", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_NN_VOID(motion, gotoxy) {
+    Scratch::gotoXY(sprite, num1, num2);
+}
 
 SCRATCH_BLOCK(motion, turnleft) {
     double dir;
@@ -57,6 +77,9 @@ SCRATCH_BLOCK(motion, turnleft) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, turnleft, {"DEGREES", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(motion, turnleft) {
+    Scratch::setDirection(sprite, sprite->rotation - num);
+}
 
 SCRATCH_BLOCK(motion, turnright) {
     double dir;
@@ -66,6 +89,9 @@ SCRATCH_BLOCK(motion, turnright) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, turnright, {"DEGREES", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(motion, turnright) {
+    Scratch::setDirection(sprite, sprite->rotation + num);
+}
 
 SCRATCH_BLOCK(motion, pointindirection) {
     double dir;
@@ -75,6 +101,9 @@ SCRATCH_BLOCK(motion, pointindirection) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, pointindirection, {"DIRECTION", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(motion, pointindirection) {
+    Scratch::setDirection(sprite, num);
+}
 
 SCRATCH_BLOCK(motion, changexby) {
     double dx;
@@ -84,6 +113,9 @@ SCRATCH_BLOCK(motion, changexby) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, changexby, {"DX", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(motion, changexby) {
+    Scratch::gotoXY(sprite, sprite->xPosition + num, sprite->yPosition);
+}
 
 SCRATCH_BLOCK(motion, changeyby) {
     double dy;
@@ -93,6 +125,9 @@ SCRATCH_BLOCK(motion, changeyby) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, changeyby, {"DY", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(motion, changeyby) {
+    Scratch::gotoXY(sprite, sprite->xPosition, sprite->yPosition + num);
+}
 
 SCRATCH_BLOCK(motion, setx) {
     double x;
@@ -102,6 +137,9 @@ SCRATCH_BLOCK(motion, setx) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, setx, {"X", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(motion, setx) {
+    Scratch::gotoXY(sprite, num, sprite->yPosition);
+}
 
 SCRATCH_BLOCK(motion, sety) {
     double y;
@@ -111,6 +149,9 @@ SCRATCH_BLOCK(motion, sety) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, sety, {"Y", BytecodeStackKind::Number});
+SCRATCH_BLOCK_POSITIONAL_N_VOID(motion, sety) {
+    Scratch::gotoXY(sprite, sprite->xPosition, num);
+}
 
 SCRATCH_BLOCK(motion, glideto) {
     BlockState *state = thread->getState(block);
@@ -234,6 +275,34 @@ SCRATCH_BLOCK(motion, pointtowards) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, pointtowards, {"TOWARDS", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_S_VOID(motion, pointtowards) {
+    double targetX = 0;
+    double targetY = 0;
+
+    if (str == "_random_") {
+        sprite->rotation = (rand() % 360) - 179.0f;
+        return;
+    }
+
+    if (str == "_mouse_") {
+        targetX = Input::mousePointer.x;
+        targetY = Input::mousePointer.y;
+    } else {
+        for (Sprite *currentSprite : Scratch::sprites) {
+            if (!currentSprite->isClone && currentSprite->name == str) {
+                targetX = currentSprite->xPosition;
+                targetY = currentSprite->yPosition;
+                break;
+            }
+        }
+    }
+
+    const double dx = targetX - sprite->xPosition;
+    const double dy = targetY - sprite->yPosition;
+
+    const double angle = 90 - Math::radiansToDegrees(atan2(dy, dx));
+    Scratch::setDirection(sprite, angle);
+}
 
 SCRATCH_BLOCK(motion, setrotationstyle) {
     const std::string rotationType = Scratch::getFieldValue(*block, "STYLE");
@@ -246,6 +315,17 @@ SCRATCH_BLOCK(motion, setrotationstyle) {
         sprite->rotationStyle = sprite->ALL_AROUND;
 
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(motion, setrotationstyle) {
+    const std::string rotationType = Scratch::getFieldValue(*block, "STYLE");
+
+    BytecodeIndex style;
+    if (rotationType == "left-right") style = 0;
+    else if (rotationType == "don't rotate") style = 1;
+    else style = 2;
+
+    outFirstInstr = compiler.emit(BytecodeOp::SetRotationStyle, invalidBytecodeIndex, style);
+    return true;
 }
 
 SCRATCH_BLOCK(motion, ifonedgebounce) {
@@ -325,6 +405,74 @@ SCRATCH_BLOCK(motion, ifonedgebounce) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(motion, ifonedgebounce);
+SCRATCH_BLOCK_POSITIONAL_VOID(motion, ifonedgebounce) {
+    const double halfWidth = Scratch::projectWidth / 2.0;
+    const double halfHeight = Scratch::projectHeight / 2.0;
+
+    const Costume &costume = sprite->costumes[sprite->currentCostume];
+    const double scale = (sprite->size / 100.0) / costume.bitmapResolution;
+    const double spriteHalfWidth = (sprite->spriteWidth * scale) / 2.0;
+    const double spriteHalfHeight = (sprite->spriteHeight * scale) / 2.0;
+
+    const double left = sprite->xPosition - spriteHalfWidth;
+    const double right = sprite->xPosition + spriteHalfWidth;
+    const double top = sprite->yPosition + spriteHalfHeight;
+    const double bottom = sprite->yPosition - spriteHalfHeight;
+
+    const double distLeft = std::max(0.0, halfWidth + left);
+    const double distRight = std::max(0.0, halfWidth - right);
+    const double distTop = std::max(0.0, halfHeight - top);
+    const double distBottom = std::max(0.0, halfHeight + bottom);
+
+    std::string nearestEdge = "";
+    double minDist = INFINITY;
+
+    if (distLeft < minDist) {
+        minDist = distLeft;
+        nearestEdge = "left";
+    }
+    if (distTop < minDist) {
+        minDist = distTop;
+        nearestEdge = "top";
+    }
+    if (distRight < minDist) {
+        minDist = distRight;
+        nearestEdge = "right";
+    }
+    if (distBottom < minDist) {
+        minDist = distBottom;
+        nearestEdge = "bottom";
+    }
+
+    if (!Scratch::isColliding("edge", sprite))
+        return;
+
+    const double radians = Math::degreesToRadians(90.0 - sprite->rotation);
+    double dx = std::cos(radians);
+    double dy = -std::sin(radians);
+
+    if (nearestEdge == "left") {
+        dx = std::max(0.2, std::fabs(dx));
+    } else if (nearestEdge == "right") {
+        dx = -std::max(0.2, std::fabs(dx));
+    } else if (nearestEdge == "top") {
+        dy = std::max(0.2, std::fabs(dy));
+    } else if (nearestEdge == "bottom") {
+        dy = -std::max(0.2, std::fabs(dy));
+    }
+
+    sprite->rotation = Math::radiansToDegrees(atan2(dy, dx)) + 90.0;
+
+    double dxCorrection = 0;
+    double dyCorrection = 0;
+
+    if (left < -halfWidth) dxCorrection += -halfWidth - left;
+    if (right > halfWidth) dxCorrection += halfWidth - right;
+    if (top > halfHeight) dyCorrection += halfHeight - top;
+    if (bottom < -halfHeight) dyCorrection += -halfHeight - bottom;
+
+    Scratch::gotoXY(sprite, sprite->xPosition + dxCorrection, sprite->yPosition + dyCorrection);
+}
 
 SCRATCH_BLOCK_DOUBLE(motion, xposition) {
     double rounded = std::round(sprite->xPosition);

@@ -217,6 +217,8 @@ const char *mnemonic(BytecodeOp op) {
         return "CostumeNumberName";
     case BytecodeOp::BackdropNumberName:
         return "BackdropNumberName";
+    case BytecodeOp::SetRotationStyle:
+        return "SetRotationStyle";
     case BytecodeOp::PopNumber:
         return "PopNumber";
     case BytecodeOp::PopString:
@@ -353,12 +355,17 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
         out << "  ; " << (instr.b == 0 ? "name" : "number");
         return;
 
+    case BytecodeOp::SetRotationStyle:
+        out << "  ; " << (instr.b == 0 ? "left-right" : (instr.b == 1 ? "don't rotate" : "all around"));
+        return;
+
     default:
         if (isCallNative(instr.op)) {
             out << "  ; " << opcodeNameForSlot(chunk, instr.a) << ", argCount=" << instr.b;
             if (link != nullptr && instr.a < link->positional.size()) {
                 const BytecodePositionalFn &fn = link->positional[instr.a];
-                if (fn.nn_n || fn.n_n || fn.b_b || fn.bb_b || fn.ss_s || fn.ss_b || fn.s_n || fn.ns_s) out << " [positional fast path]";
+                if (fn.nn_n || fn.n_n || fn.b_b || fn.bb_b || fn.ss_s || fn.ss_b || fn.s_n || fn.ns_s ||
+                    fn.voidFn || fn.n_void || fn.nn_void || fn.s_void) out << " [positional fast path]";
             }
         }
         return;

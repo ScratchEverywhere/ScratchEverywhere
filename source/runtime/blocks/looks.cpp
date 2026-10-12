@@ -26,6 +26,11 @@ SCRATCH_BLOCK(looks, say) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, say, {"MESSAGE", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_S_VOID(looks, say) {
+    if (!Render::createSpeechManager()) return;
+    SpeechManager *speechManager = Render::getSpeechManager();
+    speechManager->showSpeech(sprite, str, -1, "say");
+}
 
 SCRATCH_BLOCK(looks, sayforsecs) {
     BlockState *state = thread->getState(block);
@@ -65,6 +70,11 @@ SCRATCH_BLOCK(looks, think) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, think, {"MESSAGE", BytecodeStackKind::String});
+SCRATCH_BLOCK_POSITIONAL_S_VOID(looks, think) {
+    if (!Render::createSpeechManager()) return;
+    SpeechManager *speechManager = Render::getSpeechManager();
+    speechManager->showSpeech(sprite, str, -1, "think");
+}
 
 SCRATCH_BLOCK(looks, thinkforsecs) {
     BlockState *state = thread->getState(block);
@@ -100,12 +110,20 @@ SCRATCH_BLOCK(looks, show) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, show);
+SCRATCH_BLOCK_POSITIONAL_VOID(looks, show) {
+    if (!sprite->visible) Scratch::loadCurrentCostumeImage(sprite);
+    sprite->visible = true;
+    Scratch::forceRedraw = true;
+}
 
 SCRATCH_BLOCK(looks, hide) {
     if (!sprite->isStage) sprite->visible = false;
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, hide);
+SCRATCH_BLOCK_POSITIONAL_VOID(looks, hide) {
+    if (!sprite->isStage) sprite->visible = false;
+}
 
 SCRATCH_BLOCK(looks, switchcostumeto) {
     Value costume;
@@ -147,6 +165,9 @@ SCRATCH_BLOCK(looks, nextcostume) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, nextcostume);
+SCRATCH_BLOCK_POSITIONAL_VOID(looks, nextcostume) {
+    Scratch::switchCostume(sprite, ++sprite->currentCostume);
+}
 
 static void triggerBackdropSwitchHats() {
     const std::string &currentBackdrop = Scratch::stageSprite->costumes[Scratch::stageSprite->currentCostume].name;
@@ -273,6 +294,10 @@ SCRATCH_BLOCK(looks, nextbackdrop) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, nextbackdrop);
+SCRATCH_BLOCK_POSITIONAL_VOID(looks, nextbackdrop) {
+    Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);
+    triggerBackdropSwitchHats();
+}
 
 SCRATCH_BLOCK(looks, goforwardbackwardlayers) {
     if (sprite->isStage) return BlockResult::CONTINUE;
@@ -530,6 +555,13 @@ SCRATCH_BLOCK(looks, cleargraphiceffects) {
     return BlockResult::CONTINUE;
 }
 SCRATCH_BLOCK_SIGNATURE(looks, cleargraphiceffects);
+SCRATCH_BLOCK_POSITIONAL_VOID(looks, cleargraphiceffects) {
+    sprite->ghostEffect = 0.0f;
+    sprite->colorEffect = 0.0f;
+    sprite->brightnessEffect = 0.0f;
+
+    if (sprite->visible) Scratch::forceRedraw = true;
+}
 
 SCRATCH_BLOCK_DOUBLE(looks, size) {
     *outValue = std::round(sprite->size);

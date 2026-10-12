@@ -117,6 +117,8 @@ enum class BytecodeOp : uint8_t {
     CostumeNumberName,
     BackdropNumberName,
 
+    SetRotationStyle,
+
     PopNumber,
     PopString,
     PopBoolean,
@@ -179,6 +181,8 @@ struct SE_EXPORT BytecodeChunk {
     }
 };
 
+class Sprite;
+
 using BytecodePositionalFnNN_N = double (*)(double, double);
 using BytecodePositionalFnN_N = double (*)(double);
 using BytecodePositionalFnB_B = bool (*)(bool);
@@ -187,6 +191,11 @@ using BytecodePositionalFnSS_S = std::string (*)(const std::string &, const std:
 using BytecodePositionalFnSS_B = bool (*)(const std::string &, const std::string &);
 using BytecodePositionalFnS_N = double (*)(const std::string &);
 using BytecodePositionalFnNS_S = std::string (*)(double, const std::string &);
+
+using BytecodePositionalFnVoid = void (*)(Sprite *);
+using BytecodePositionalFnN_Void = void (*)(Sprite *, double);
+using BytecodePositionalFnNN_Void = void (*)(Sprite *, double, double);
+using BytecodePositionalFnS_Void = void (*)(Sprite *, const std::string &);
 
 struct SE_EXPORT BytecodePositionalFn {
     BytecodePositionalFnNN_N nn_n = nullptr;
@@ -197,6 +206,11 @@ struct SE_EXPORT BytecodePositionalFn {
     BytecodePositionalFnSS_B ss_b = nullptr;
     BytecodePositionalFnS_N s_n = nullptr;
     BytecodePositionalFnNS_S ns_s = nullptr;
+
+    BytecodePositionalFnVoid voidFn = nullptr;
+    BytecodePositionalFnN_Void n_void = nullptr;
+    BytecodePositionalFnNN_Void nn_void = nullptr;
+    BytecodePositionalFnS_Void s_void = nullptr;
 };
 
 enum class BytecodeMathOp : uint8_t {
