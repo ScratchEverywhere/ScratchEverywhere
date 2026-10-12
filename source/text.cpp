@@ -25,6 +25,8 @@
 #include <renderers/opengl_core/text_gl_core.hpp>
 #elif defined(RENDERER_GDI)
 #include <renderers/gdi/text_gdi.hpp>
+#elif defined(RENDERER_D3D9)
+#include <renderers/d3d9/text_d3d9.hpp>
 #elif defined(RENDERER_HEADLESS)
 #include <renderers/headless/text_headless.hpp>
 #endif
@@ -52,6 +54,8 @@ std::unique_ptr<TextObject> createTextObject(std::string txt, double posX, doubl
     return std::make_unique<TextObjectGLCore>(txt, posX, posY, fontPath);
 #elif defined(RENDERER_GDI)
     return std::make_unique<TextObjectGDI>(txt, posX, posY, fontPath);
+#elif defined(RENDERER_D3D9)
+    return std::make_unique<TextObjectD3D9>(txt, posX, posY, fontPath);
 #elif defined(RENDERER_HEADLESS)
     return std::make_unique<TextObjectHeadless>(txt, posX, posY, fontPath);
 #else
