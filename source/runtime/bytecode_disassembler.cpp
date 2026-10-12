@@ -170,6 +170,8 @@ const char *mnemonic(BytecodeOp op) {
         return "JumpIfTrue";
     case BytecodeOp::RepeatCheck:
         return "RepeatCheck";
+    case BytecodeOp::ForEachCheck:
+        return "ForEachCheck";
     case BytecodeOp::Wait:
         return "Wait";
     case BytecodeOp::RandomInt:
@@ -295,6 +297,10 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
     case BytecodeOp::JumpIfTrue:
     case BytecodeOp::RepeatCheck:
         out << "  ; -> #" << instr.a;
+        return;
+
+    case BytecodeOp::ForEachCheck:
+        out << "  ; -> #" << instr.a << ", var \"" << variableNameForSlot(chunk, instr.b) << "\"";
         return;
 
     case BytecodeOp::MathOp:

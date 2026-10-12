@@ -52,6 +52,12 @@ SCRATCH_BLOCK(control, all_at_once) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BYTECODE_BLOCK(control, all_at_once) {
+    outFirstInstr = compiler.here();
+    BytecodeIndex ignored;
+    compiler.compileSubstack(block, "SUBSTACK", block->nextBlock, ignored);
+    return true;
+}
 
 SCRATCH_BLOCK(control, if_else) {
     bool condition;
@@ -157,6 +163,7 @@ SCRATCH_BLOCK(control, create_clone_of) {
     Scratch::cloneCount++;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(control, create_clone_of, {"CLONE_OPTION", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(control, delete_this_clone) {
     if (!sprite->isClone) return BlockResult::CONTINUE;
@@ -167,6 +174,7 @@ SCRATCH_BLOCK(control, delete_this_clone) {
     Scratch::cloneCount--;
     return BlockResult::RETURN;
 }
+SCRATCH_BLOCK_SIGNATURE(control, delete_this_clone);
 
 SCRATCH_BLOCK(control, stop) {
     std::string stopType;
@@ -195,12 +203,14 @@ SCRATCH_BLOCK(control, stop) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(control, stop, {"STOP_OPTION", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(control, start_as_clone) {
     if (!sprite->isClone) return BlockResult::CONTINUE;
     thread->finished = false;
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(control, start_as_clone);
 
 SCRATCH_SHADOW_BLOCK(control_create_clone_of_menu, CLONE_OPTION)
 
@@ -432,4 +442,20 @@ SCRATCH_BLOCK(control, for_each) {
     else return BlockResult::REPEAT;
 
     return BlockResult::CONTINUE_IMMEDIATELY;
+}
+SCRATCH_BYTECODE_BLOCK(control, for_each) {
+    const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
+
+    BytecodeIndex loopCheck = compiler.here();
+    BytecodeIndex exitJump = compiler.emit(BytecodeOp::ForEachCheck, invalidBytecodeIndex, compiler.variableSlot(varId));
+
+    BytecodeIndex ignored;
+    compiler.compileSubstack(block, "SUBSTACK", block, ignored);
+    compiler.emit(BytecodeOp::Yield);
+    compiler.emit(BytecodeOp::Jump, loopCheck);
+
+    compiler.patchJumpTarget(exitJump, compiler.here());
+    return true;
 }

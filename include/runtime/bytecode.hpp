@@ -95,6 +95,7 @@ enum class BytecodeOp : uint8_t {
     JumpIfTrue,
 
     RepeatCheck,
+    ForEachCheck,
     Wait,
 
     RandomInt,
