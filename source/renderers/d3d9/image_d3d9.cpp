@@ -12,6 +12,27 @@ void Image_D3D9::render(ImageRenderParams &params) {
     const int renderHeight = this->imgData.height / this->imgData.scale * params.scale;
     float c = cos(params.rotation);
     float s = sin(params.rotation);
+    const float opacity = params.opacity;
+    const int brightness = params.brightness;
+    const float colorEffect = params.colorEffect;
+    const float fisheyeEffect = params.fisheyeEffect;
+    const float whirlEffect = params.whirlEffect;
+    const float pixelateEffect = params.pixelateEffect;
+    const float mosaicEffect = params.mosaicEffect;
+    FLOAT size[2];
+
+    size[0] = this->getWidth();
+    size[1] = this->getHeight();
+
+    ID3DXConstantTable_SetInt(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_tex"), 0);
+    ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_opacity"), opacity);
+    ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_brightness"), (float)brightness);
+    ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_color"), colorEffect);
+    ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_fisheye"), fisheyeEffect);
+    ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_whirl"), whirlEffect);
+    ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_pixelate"), pixelateEffect);
+    ID3DXConstantTable_SetFloat(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_mosaic"), mosaicEffect);
+    ID3DXConstantTable_SetFloatArray(pPixelShaderConstantTable, pDev, ID3DXConstantTable_GetConstantByName(pPixelShaderConstantTable, nullptr, "u_tex_size"), size, 2);
 
     v[0].x = params.x;
     v[0].y = params.y;

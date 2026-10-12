@@ -131,26 +131,26 @@ static IDirect3DSurface9 *pBackbuffer = nullptr;
 static IDirect3DSurface9 *pPenLayerSurface = nullptr;
 static IDirect3DTexture9 *pPenLayer = nullptr;
 static ID3DXLine *pLine;
-static IDirect3DPixelShader9* pPixelShader = nullptr;
-ID3DXConstantTable* pPixelShaderConstantTable = nullptr;
+static IDirect3DPixelShader9 *pPixelShader = nullptr;
+ID3DXConstantTable *pPixelShaderConstantTable = nullptr;
 
 static int penWidth = 480;
 static int penHeight = 360;
 
-static ID3DXBuffer* compileShader(std::string source, ID3DXConstantTable** table, bool vert){
-	ID3DXBuffer* code;
-	ID3DXBuffer* errors = NULL;
+static ID3DXBuffer *compileShader(std::string source, ID3DXConstantTable **table, bool vert) {
+    ID3DXBuffer *code;
+    ID3DXBuffer *errors = NULL;
 
-	if(FAILED(D3DXCompileShader(source.c_str(), source.size(), nullptr, nullptr, "main", vert ? "vs_3_0" : "ps_3_0", 0, &code, &errors, table))){
-        	Log::logCritical("Direct3D HLSL Compilation error!!! Error is following:\n" + std::string((const char*)ID3DXBuffer_GetBufferPointer(errors)), true);
-		ID3DXBuffer_Release(errors);
+    if (FAILED(D3DXCompileShader(source.c_str(), source.size(), nullptr, nullptr, "main", vert ? "vs_3_0" : "ps_3_0", 0, &code, &errors, table))) {
+        Log::logCritical("Direct3D HLSL Compilation error!!! Error is following:\n" + std::string((const char *)ID3DXBuffer_GetBufferPointer(errors)), true);
+        ID3DXBuffer_Release(errors);
 
-		return nullptr;
-	}
+        return nullptr;
+    }
 
-	if(errors != nullptr) ID3DXBuffer_Release(errors);
+    if (errors != nullptr) ID3DXBuffer_Release(errors);
 
-	return code;
+    return code;
 }
 
 static void reset(int width, int height) {
@@ -205,9 +205,9 @@ static void resized(int width, int height) {
     matrix(width, height);
 }
 
-static void clean(){
-	if(pPixelShaderConstantTable != nullptr) ID3DXConstantTable_Release(pPixelShaderConstantTable);
-	if(pPixelShader != nullptr) IDirect3DPixelShader9_Release(pPixelShader);
+static void clean() {
+    if (pPixelShaderConstantTable != nullptr) ID3DXConstantTable_Release(pPixelShaderConstantTable);
+    if (pPixelShader != nullptr) IDirect3DPixelShader9_Release(pPixelShader);
 
     IDirect3DSurface9_Release(pPenLayerSurface);
     IDirect3DTexture9_Release(pPenLayer);
@@ -224,7 +224,7 @@ static void clean(){
 bool Render::Init() {
     int windowWidth = 480;
     int windowHeight = 360;
-    ID3DXBuffer* code;
+    ID3DXBuffer *code;
 
     globalWindow = new WindowWin32();
     if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
@@ -241,11 +241,11 @@ bool Render::Init() {
     D3DXCreateLine(pDev, &pLine);
     resized(windowWidth, windowHeight);
 
-    if((code = compileShader(kSpritePixel, &pPixelShaderConstantTable, false)) == nullptr) return false;
-    if(FAILED(IDirect3DDevice9_CreatePixelShader(pDev, (const DWORD*)ID3DXBuffer_GetBufferPointer(code), &pPixelShader))){
-	    ID3DXBuffer_Release(code);
-	    clean();
-	    return false;
+    if ((code = compileShader(kSpritePixel, &pPixelShaderConstantTable, false)) == nullptr) return false;
+    if (FAILED(IDirect3DDevice9_CreatePixelShader(pDev, (const DWORD *)ID3DXBuffer_GetBufferPointer(code), &pPixelShader))) {
+        ID3DXBuffer_Release(code);
+        clean();
+        return false;
     }
     ID3DXBuffer_Release(code);
 
@@ -308,16 +308,16 @@ bool Render::initPen() {
     return true;
 }
 
-static void beginPen(){
-	IDirect3DDevice9_SetRenderTarget(pDev, 0, pPenLayerSurface);
+static void beginPen() {
+    IDirect3DDevice9_SetRenderTarget(pDev, 0, pPenLayerSurface);
 }
 
-static void endPen(){
-	IDirect3DDevice9_SetRenderTarget(pDev, 0, pBackbuffer);
+static void endPen() {
+    IDirect3DDevice9_SetRenderTarget(pDev, 0, pBackbuffer);
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-	D3DXVECTOR2 v[2];
+    D3DXVECTOR2 v[2];
     double scale = (Render::getHeight() < Render::getWidth()) ? ((float)Scratch::projectHeight / Render::getHeight()) : ((float)Scratch::projectWidth / Render::getWidth());
     double r = sprite->penData.size / scale;
     int y, x;
@@ -334,17 +334,17 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     x2 /= scale;
     y2 /= scale;
 
-	v[0].x = x1;
-	v[0].y = y1;
+    v[0].x = x1;
+    v[0].y = y1;
 
-	v[1].x = x2;
-	v[1].y = y2;
+    v[1].x = x2;
+    v[1].y = y2;
 
-	beginPen();
-	ID3DXLine_Begin(pLine);
-	ID3DXLine_Draw(pLine, v, 2, D3DCOLOR_ARGB(255, 0, 0, 0));
-	ID3DXLine_End(pLine);
-	endPen();
+    beginPen();
+    ID3DXLine_Begin(pLine);
+    ID3DXLine_Draw(pLine, v, 2, D3DCOLOR_ARGB(255, 0, 0, 0));
+    ID3DXLine_End(pLine);
+    endPen();
 }
 
 void Render::penDotFast(Sprite *sprite) {
@@ -391,9 +391,9 @@ void Render::penStamp(Sprite *sprite) {
 }
 
 void Render::penClear() {
-	beginPen();
-        IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 1.0, 0);
-	endPen();
+    beginPen();
+    IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 1.0, 0);
+    endPen();
 }
 
 void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
@@ -428,39 +428,39 @@ void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colo
 }
 
 void Render::renderPenLayer() {
-	IMGVERTEX v[4];
+    IMGVERTEX v[4];
 
-	v[0].x = 0;
-	v[0].y = 0;
-	v[0].z = 0;
-	v[0].rhw = 1;
-	v[0].color = 0xffffffff;
-	v[0].tu = 0;
-	v[0].tv = 0;
+    v[0].x = 0;
+    v[0].y = 0;
+    v[0].z = 0;
+    v[0].rhw = 1;
+    v[0].color = 0xffffffff;
+    v[0].tu = 0;
+    v[0].tv = 0;
 
-	v[1].x = Render::getWidth();
-	v[1].y = 0;
-	v[1].z = 0;
-	v[1].rhw = 1;
-	v[1].color = 0xffffffff;
-	v[1].tu = 1;
-	v[1].tv = 0;
+    v[1].x = Render::getWidth();
+    v[1].y = 0;
+    v[1].z = 0;
+    v[1].rhw = 1;
+    v[1].color = 0xffffffff;
+    v[1].tu = 1;
+    v[1].tv = 0;
 
-	v[2].x = Render::getWidth();
-	v[2].y = Render::getHeight();
-	v[2].z = 0;
-	v[2].rhw = 1;
-	v[2].color = 0xffffffff;
-	v[2].tu = 1;
-	v[2].tv = 1;
+    v[2].x = Render::getWidth();
+    v[2].y = Render::getHeight();
+    v[2].z = 0;
+    v[2].rhw = 1;
+    v[2].color = 0xffffffff;
+    v[2].tu = 1;
+    v[2].tv = 1;
 
-	v[3].x = 0;
-	v[3].y = Render::getHeight();
-	v[3].z = 0;
-	v[3].rhw = 1;
-	v[3].color = 0xffffffff;
-	v[3].tu = 0;
-	v[3].tv = 1;
+    v[3].x = 0;
+    v[3].y = Render::getHeight();
+    v[3].z = 0;
+    v[3].rhw = 1;
+    v[3].color = 0xffffffff;
+    v[3].tu = 0;
+    v[3].tv = 1;
 
     IDirect3DDevice9_SetTexture(pDev, 0, pPenLayer);
     IDirect3DDevice9_SetFVF(pDev, FVF_IMGVERTEX);

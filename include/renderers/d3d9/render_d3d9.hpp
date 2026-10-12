@@ -1,8 +1,8 @@
 #pragma once
 #define WIN32_MEAN_AND_LEAN
 #include <d3d9.h>
-#include <d3dx9math.h>
 #include <d3dx9.h>
+#include <d3dx9math.h>
 #include <windows.h>
 
 #define FVF_IMGVERTEX (D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1)
@@ -15,4 +15,4 @@ typedef struct imgvertex {
 
 extern IDirect3D9 *pD3D;
 extern IDirect3DDevice9 *pDev;
-extern ID3DXConstantTable* pPixelShaderConstantTable;
+extern ID3DXConstantTable *pPixelShaderConstantTable;
