@@ -21,6 +21,8 @@ void Image_D3D9::render(ImageRenderParams &params) {
     const float mosaicEffect = params.mosaicEffect;
     FLOAT size[2];
 
+    if (this->pTex == nullptr) return;
+
     size[0] = this->getWidth();
     size[1] = this->getHeight();
 
@@ -103,6 +105,8 @@ void Image_D3D9::renderNineslice(double xPos, double yPos, double width, double 
     int yIncr = yPos, xIncr;
     TEXVERTEX v[4];
 
+    if (this->pTex == nullptr) return;
+
     v[0].z = v[1].z = v[2].z = v[3].z = 0;
     v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
     v[0].color = v[1].color = v[2].color = v[3].color = 0xffffffff;
@@ -175,6 +179,10 @@ void Image_D3D9::setInitialTexture() {
     BYTE *b;
     int i;
 
+    if (this->imgData.width == 0 || this->imgData.height == 0) {
+        return;
+    }
+
     IDirect3DDevice9_CreateTexture(pDev, this->imgData.width, this->imgData.height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &this->pTex, nullptr);
 
     IDirect3DTexture9_LockRect(this->pTex, 0, &locked, nullptr, 0);
@@ -192,7 +200,7 @@ void Image_D3D9::setInitialTexture() {
 }
 
 nonstd::expected<void, std::string> Image_D3D9::refreshTexture() {
-    IDirect3DDevice9_Release(this->pTex);
+    if (this->pTex != nullptr) IDirect3DDevice9_Release(this->pTex);
     this->setInitialTexture();
 
     return {};
@@ -200,6 +208,8 @@ nonstd::expected<void, std::string> Image_D3D9::refreshTexture() {
 
 Image_D3D9::Image_D3D9(std::string filePath, ZipArchive *zip, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {32767, 32767};
+
+    this->pTex = nullptr;
 
     const auto initResult = this->init(filePath, zip, bitmapHalfQuality, scale);
     if (!initResult.has_value()) {
@@ -213,6 +223,8 @@ Image_D3D9::Image_D3D9(std::string filePath, ZipArchive *zip, bool bitmapHalfQua
 Image_D3D9::Image_D3D9(std::string filePath, bool fromScratchProject, bool bitmapHalfQuality, float scale) {
     maxTextureSize = {32767, 32767};
 
+    this->pTex = nullptr;
+
     const auto initResult = this->init(filePath, fromScratchProject, bitmapHalfQuality, scale);
     if (!initResult.has_value()) {
         error = initResult.error();
@@ -223,5 +235,6 @@ Image_D3D9::Image_D3D9(std::string filePath, bool fromScratchProject, bool bitma
 }
 
 Image_D3D9::~Image_D3D9() {
+    if (this->pTex == nullptr) return;
     IDirect3DDevice9_Release(this->pTex);
 }

@@ -178,7 +178,7 @@ static void reset(int width, int height) {
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
     IDirect3DDevice9_GetRenderTarget(pDev, 0, &pBackbuffer);
-    IDirect3DDevice9_CreateTexture(pDev, width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &pPenLayer, nullptr);
+    IDirect3DDevice9_CreateTexture(pDev, width, height, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pPenLayer, nullptr);
     IDirect3DTexture9_GetSurfaceLevel(pPenLayer, 0, &pPenLayerSurface);
 }
 
@@ -314,14 +314,46 @@ static void endPen() {
     IDirect3DDevice9_SetRenderTarget(pDev, 0, pBackbuffer);
 }
 
-void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+/* ehh is this enough? */
+#define NSEG 45
+static void drawCircle(double x, double y, double r, D3DCOLOR color) {
+    int i;
+    NOTEXVERTEX v[NSEG + 2];
+
+    for (i = 0; i < NSEG + 2; i++) {
+        v[i].z = 0;
+        v[i].rhw = 1;
+        v[i].color = color;
+
+        if (i > 0) {
+            double rad = (i - 1) * (360 / NSEG) / 180.0 * M_PI;
+
+            v[i].x = x + cos(rad) * r;
+            v[i].y = y + sin(rad) * r;
+        } else {
+            v[i].x = x;
+            v[i].y = y;
+        }
+    }
+
+    IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+    IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, NSEG, v, sizeof(NOTEXVERTEX));
+}
+
+static void penMove(double x1, double y1, double x2, double y2, Sprite *sprite, bool circle) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     NOTEXVERTEX v[4];
     double scale = (Render::getHeight() < Render::getWidth()) ? ((float)Scratch::projectHeight / Render::getHeight()) : ((float)Scratch::projectWidth / Render::getWidth());
-    double r = sprite->penData.size / scale;
+    double r = sprite->penData.size / scale / 2;
     int y, x;
     double rW = Render::getWidth();
     double rH = Render::getHeight();
+    float dx;
+    float dy;
+    float nx;
+    float ny;
+    float length;
+    uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
 
     x1 += rW * scale / 2;
     y1 = -y1 + rH * scale / 2;
@@ -333,28 +365,45 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     x2 /= scale;
     y2 /= scale;
 
-    v[0].x = x1 - r;
-    v[0].y = y1 - r;
+    dx = x2 - x1;
+    dy = y2 - y1;
+    length = std::sqrt(dx * dx + dy * dy);
+    if (length <= 0) return;
 
-    v[1].x = x2 + r;
-    v[1].y = y1 - r;
+    nx = -dy / length * r;
+    ny = dx / length * r;
 
-    v[2].x = x2 + r;
-    v[2].y = y2 + r;
+    v[0].x = x1 + nx;
+    v[0].y = y1 + ny;
 
-    v[3].x = x1 - r;
-    v[3].y = y2 + r;
+    v[1].x = x2 + nx;
+    v[1].y = y2 + ny;
+
+    v[2].x = x2 - nx;
+    v[2].y = y2 - ny;
+
+    v[3].x = x1 - nx;
+    v[3].y = y1 - ny;
 
     v[0].z = v[1].z = v[2].z = v[3].z = 0;
     v[0].rhw = v[1].rhw = v[2].rhw = v[3].rhw = 1;
-    v[0].color = v[1].color = v[2].color = v[3].color = D3DCOLOR_ARGB((int)rgbColor.a, (int)rgbColor.r, (int)rgbColor.g, (int)rgbColor.b);
+    v[0].color = v[1].color = v[2].color = v[3].color = D3DCOLOR_ARGB(alpha, (int)rgbColor.r, (int)rgbColor.g, (int)rgbColor.b);
 
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_NONE);
     beginPen();
     IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
     IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+
+    if (circle) {
+        drawCircle(x1, y1, r, v[0].color);
+        drawCircle(x2, y2, r, v[0].color);
+    }
     endPen();
     IDirect3DDevice9_SetRenderState(pDev, D3DRS_CULLMODE, D3DCULL_CCW);
+}
+
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penMove(x1, y1, x2, y2, sprite, false);
 }
 
 void Render::penDotFast(Sprite *sprite) {
@@ -362,7 +411,7 @@ void Render::penDotFast(Sprite *sprite) {
 }
 
 void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    Render::penMoveFast(x1, y1, x2, y2, sprite);
+    penMove(x1, y1, x2, y2, sprite, true);
 }
 
 void Render::penDotAccurate(Sprite *sprite) {
@@ -407,7 +456,7 @@ void Render::penStamp(Sprite *sprite) {
 
 void Render::penClear() {
     beginPen();
-    IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 1.0, 0);
+    IDirect3DDevice9_Clear(pDev, 0, nullptr, D3DCLEAR_TARGET, 0, 1.0, 0);
     endPen();
 }
 
@@ -513,6 +562,80 @@ void Render::renderPenLayer() {
 }
 
 static void drawBlackBars() {
+    float screenAspect = static_cast<float>(Render::getWidth()) / Render::getHeight();
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+    NOTEXVERTEX v[4];
+    int i;
+
+    v[0].z = 0;
+    v[0].rhw = 1;
+    v[0].color = D3DCOLOR_ARGB(0xff, 0, 0, 0);
+
+    v[1].z = 0;
+    v[1].rhw = 1;
+    v[1].color = D3DCOLOR_ARGB(0xff, 0, 0, 0);
+
+    v[2].z = 0;
+    v[2].rhw = 1;
+    v[2].color = D3DCOLOR_ARGB(0xff, 0, 0, 0);
+
+    v[3].z = 0;
+    v[3].rhw = 1;
+    v[3].color = D3DCOLOR_ARGB(0xff, 0, 0, 0);
+
+    if (screenAspect > projectAspect) {
+        /* vertical */
+        float sw = (float)Render::getHeight() / Scratch::projectHeight * Scratch::projectWidth;
+        float w = Render::getWidth() - sw;
+
+        v[0].x = 0;
+        v[0].y = 0;
+
+        v[1].x = w / 2;
+        v[1].y = 0;
+
+        v[2].x = w / 2;
+        v[2].y = Render::getHeight();
+
+        v[3].x = 0;
+        v[3].y = Render::getHeight();
+
+        IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+        IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+
+        for (i = 0; i < 4; i++) {
+            v[i].x += Render::getWidth() - w / 2;
+        }
+
+        IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+        IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+    } else {
+        /* horizontal */
+        float sh = (float)Render::getWidth() / Scratch::projectWidth * Scratch::projectHeight;
+        float h = Render::getHeight() - sh;
+
+        v[0].x = 0;
+        v[0].y = 0;
+
+        v[1].x = Render::getWidth();
+        v[1].y = 0;
+
+        v[2].x = Render::getWidth();
+        v[2].y = h / 2;
+
+        v[3].x = 0;
+        v[3].y = h / 2;
+
+        IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+        IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+
+        for (i = 0; i < 4; i++) {
+            v[i].y += Render::getHeight() - h / 2;
+        }
+
+        IDirect3DDevice9_SetFVF(pDev, FVF_NOTEXVERTEX);
+        IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_TRIANGLEFAN, 2, v, sizeof(NOTEXVERTEX));
+    }
 }
 
 void Render::renderSprites() {
@@ -548,7 +671,11 @@ void Render::renderSprites() {
             image->render(params);
         }
 
-        if (currentSprite->isStage) Render::renderPenLayer();
+        if (currentSprite->isStage) {
+            IDirect3DDevice9_SetPixelShader(pDev, nullptr);
+            Render::renderPenLayer();
+            IDirect3DDevice9_SetPixelShader(pDev, pPixelShader);
+        }
     }
     IDirect3DDevice9_SetPixelShader(pDev, nullptr);
 
