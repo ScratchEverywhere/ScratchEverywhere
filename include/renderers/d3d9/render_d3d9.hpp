@@ -11,12 +11,5 @@ typedef struct imgvertex {
     float tu, tv;
 } IMGVERTEX;
 
-#define FVF_PENVERTEX (D3DFVF_XYZRHW | D3DFVF_DIFFUSE)
-typedef struct penvertex {
-    float x, y, z;
-    float rhw;
-    D3DCOLOR color;
-} PENVERTEX;
-
 extern IDirect3D9 *pD3D;
 extern IDirect3DDevice9 *pDev;

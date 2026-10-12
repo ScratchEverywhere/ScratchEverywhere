@@ -19,6 +19,133 @@
 #include <windows.h>
 
 #include <d3dx9math.h>
+#include <d3dx9.h>
+
+static const char *kSpriteVert = R"hlsl(
+float4x4 u_model;
+float4x4 u_projection;
+
+struct VS_INPUT {
+    float2 a_pos : POSITION0;
+    float2 a_uv  : TEXCOORD0;
+};
+
+struct VS_OUTPUT {
+    float4 position : POSITION0;
+    float2 v_uv     : TEXCOORD0;
+};
+
+VS_OUTPUT main(VS_INPUT input) {
+    VS_OUTPUT output;
+    float4 pos = float4(input.a_pos, 0.0f, 1.0f);
+    output.position = mul(u_projection, mul(u_model, pos));
+    output.v_uv = input.a_uv;
+    return output;
+}
+)hlsl";
+
+static const char *kSpriteFrag = R"hlsl(
+sampler2D u_tex;
+float u_opacity;
+float u_brightness;
+float u_color;
+float u_fisheye;
+float u_whirl;
+float u_pixelate;
+float u_mosaic;
+float2 u_tex_size;
+
+struct PS_INPUT {
+    float2 v_uv : TEXCOORD0;
+};
+
+float3 rgb2hsv(float3 c) {
+    float4 K = float4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+    float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
+    float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+float3 hsv2rgb(float3 c) {
+    float4 K = float4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+    float3 p = abs(frac(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * lerp(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+float4 main(PS_INPUT input) : COLOR0 {
+    float2 uv = input.v_uv;
+    float epsilon = 1e-3;
+    float2 kCenter = float2(0.5, 0.5);
+
+    if (abs(u_mosaic) > 0.001) {
+        float tiles = clamp(round((abs(u_mosaic) + 10.0) / 10.0 + epsilon), 1.0, 512.0);
+        uv = frac(tiles * uv);
+    }
+
+    if (abs(u_pixelate) > 0.001) {
+        float pixelateAmount = abs(u_pixelate) / 10.0;
+        float2 pixelTexelSize = u_tex_size / max(pixelateAmount, epsilon);
+        uv = (floor(uv * pixelTexelSize) + kCenter) / pixelTexelSize;
+    }
+
+    float2 centered = uv - kCenter;
+
+    if (abs(u_whirl) > 0.001) {
+        float whirlRad = u_whirl * 3.14159265 / 180.0;
+        float kRadius = 0.5;
+        float dist = length(centered);
+        float whirlFactor = max(1.0 - (dist / kRadius), 0.0);
+        float whirlActual = whirlRad * whirlFactor * whirlFactor;
+        float s, cosA;
+        sincos(whirlActual, s, cosA);
+        centered = float2(cosA * centered.x - s * centered.y,
+                          s * centered.x + cosA * centered.y);
+    }
+
+    if (abs(u_fisheye) > 0.001) {
+        float fisheyeAmount = max(0.0, (u_fisheye + 100.0) / 100.0);
+        float2 vec = centered / 0.5;
+        float vecLength = length(vec);
+        if (vecLength > 0.0001) {
+            float r = pow(min(vecLength, 1.0), fisheyeAmount) * max(1.0, vecLength);
+            float2 unit = vec / vecLength;
+            centered = r * unit * 0.5;
+        }
+    }
+
+    uv = centered + kCenter;
+
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+        discard;
+    }
+
+    float4 color = tex2D(u_tex, uv);
+    if (color.a < 0.001) discard;
+
+    if (abs(u_color) > 0.001) {
+        float3 hsv = rgb2hsv(color.rgb);
+
+        const float minLightness = 0.11 / 2.0;
+        const float minSaturation = 0.09;
+        if (hsv.z < minLightness) hsv = float3(0.0, 1.0, minLightness);
+        else if (hsv.y < minSaturation) hsv = float3(0.0, minSaturation, hsv.z);
+
+        hsv.x = frac(hsv.x + u_color / 200.0);
+        color.rgb = hsv2rgb(hsv);
+    }
+
+    if (abs(u_brightness) > 0.001) {
+        float brightnessAmount = clamp(u_brightness, -100.0, 100.0) / 100.0;
+        color.rgb = clamp(color.rgb + float3(brightnessAmount, brightnessAmount, brightnessAmount), 0.0, 1.0);
+    }
+
+    color.a *= u_opacity;
+
+    return color;
+}
+)hlsl";
 
 WindowSE *globalWindow = nullptr;
 
@@ -26,12 +153,31 @@ SpeechManagerD3D9 *speechManager = nullptr;
 
 IDirect3D9 *pD3D = nullptr;
 IDirect3DDevice9 *pDev = nullptr;
-IDirect3DSurface9 *pBackbuffer = nullptr;
-IDirect3DSurface9 *pPenLayerSurface = nullptr;
-IDirect3DTexture9 *pPenLayer = nullptr;
+static IDirect3DSurface9 *pBackbuffer = nullptr;
+static IDirect3DSurface9 *pPenLayerSurface = nullptr;
+static IDirect3DTexture9 *pPenLayer = nullptr;
+static ID3DXLine *pLine;
+static IDirect3DVertexShader9* pVertexShader = nullptr;
+static IDirect3DPixelShader9* pPixelShader = nullptr;
 
 static int penWidth = 480;
 static int penHeight = 360;
+
+static ID3DXBuffer* compileShader(std::string source){
+	ID3DXBuffer* code;
+	ID3DXBuffer* errors = NULL;
+
+	if(FAILED(D3DXCompileShader(source.c_str(), source.size(), nullptr, nullptr, "main", "vs_3_0", 0, &code, &errors, nullptr))){
+        	Log::logCritical("Direct3D HLSL Compilation error!!! Error is following:\n" + std::string((const char*)ID3DXBuffer_GetBufferPointer(errors)), true);
+		ID3DXBuffer_Release(errors);
+
+		return nullptr;
+	}
+
+	if(errors != nullptr) ID3DXBuffer_Release(errors);
+
+	return code;
+}
 
 static void reset(int width, int height) {
     D3DPRESENT_PARAMETERS *dpp = &((WindowWin32 *)globalWindow)->dpp;
@@ -56,6 +202,7 @@ static void reset(int width, int height) {
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
     IDirect3DDevice9_SetTextureStageState(pDev, 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
 
+    ID3DXLine_OnResetDevice(pLine);
     IDirect3DDevice9_GetRenderTarget(pDev, 0, &pBackbuffer);
     IDirect3DDevice9_CreateTexture(pDev, width, height, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &pPenLayer, nullptr);
     IDirect3DTexture9_GetSurfaceLevel(pPenLayer, 0, &pPenLayerSurface);
@@ -84,9 +231,26 @@ static void resized(int width, int height) {
     matrix(width, height);
 }
 
+static void clean(){
+	if(pPixelShader != nullptr) IDirect3DPixelShader9_Release(pPixelShader);
+	if(pVertexShader != nullptr) IDirect3DVertexShader9_Release(pVertexShader);
+
+    IDirect3DSurface9_Release(pPenLayerSurface);
+    IDirect3DTexture9_Release(pPenLayer);
+    IDirect3DSurface9_Release(pBackbuffer);
+    ID3DXLine_Release(pLine);
+
+    if (globalWindow) {
+        globalWindow->cleanup();
+        delete globalWindow;
+        globalWindow = nullptr;
+    }
+}
+
 bool Render::Init() {
     int windowWidth = 480;
     int windowHeight = 360;
+    ID3DXBuffer* code;
 
     globalWindow = new WindowWin32();
     if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
@@ -100,7 +264,24 @@ bool Render::Init() {
 
     debugMode = true;
 
+    D3DXCreateLine(pDev, &pLine);
     resized(windowWidth, windowHeight);
+
+    if((code = compileShader(kSpriteVert)) == nullptr) return false;
+    if(FAILED(IDirect3DDevice9_CreateVertexShader(pDev, (const DWORD*)ID3DXBuffer_GetBufferPointer(code), &pVertexShader))){
+	    ID3DXBuffer_Release(code);
+	    clean();
+	    return false;
+    }
+    ID3DXBuffer_Release(code);
+
+    if((code = compileShader(kSpriteFrag)) == nullptr) return false;
+    if(FAILED(IDirect3DDevice9_CreatePixelShader(pDev, (const DWORD*)ID3DXBuffer_GetBufferPointer(code), &pPixelShader))){
+	    ID3DXBuffer_Release(code);
+	    clean();
+	    return false;
+    }
+    ID3DXBuffer_Release(code);
 
     return true;
 }
@@ -112,15 +293,7 @@ void Render::deInit() {
 
     TextObject::cleanupText();
 
-    IDirect3DSurface9_Release(pPenLayerSurface);
-    IDirect3DTexture9_Release(pPenLayer);
-    IDirect3DSurface9_Release(pBackbuffer);
-
-    if (globalWindow) {
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
-    }
+    clean();
 
     SoundPlayer::deinit();
     ExitProcess(0);
@@ -178,12 +351,12 @@ static void endPen(){
 }
 
 void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-	PENVERTEX v[2];
+	D3DXVECTOR2 v[2];
     double scale = (Render::getHeight() < Render::getWidth()) ? ((float)Scratch::projectHeight / Render::getHeight()) : ((float)Scratch::projectWidth / Render::getWidth());
     double r = sprite->penData.size / scale;
     int y, x;
-    int rW = Render::getWidth();
-    int rH = Render::getHeight();
+    double rW = Render::getWidth();
+    double rH = Render::getHeight();
 
     x1 += rW * scale / 2;
     y1 = -y1 + rH * scale / 2;
@@ -197,19 +370,14 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
 
 	v[0].x = x1;
 	v[0].y = y1;
-	v[0].z = 0;
-	v[0].rhw = 1;
-	v[0].color = 0xff000000;
 
 	v[1].x = x2;
 	v[1].y = y2;
-	v[1].z = 0;
-	v[1].rhw = 1;
-	v[1].color = 0xff000000;
 
 	beginPen();
-	IDirect3DDevice9_SetFVF(pDev, FVF_PENVERTEX);
-	IDirect3DDevice9_DrawPrimitiveUP(pDev, D3DPT_LINELIST, 1, v, sizeof(PENVERTEX));
+	ID3DXLine_Begin(pLine);
+	ID3DXLine_Draw(pLine, v, 2, D3DCOLOR_ARGB(255, 0, 0, 0));
+	ID3DXLine_End(pLine);
 	endPen();
 }
 
@@ -339,6 +507,8 @@ static void drawBlackBars() {
 void Render::renderSprites() {
     Render::beginFrame(0, 255, 255, 255);
 
+    IDirect3DDevice9_SetVertexShader(pDev, pVertexShader);
+    IDirect3DDevice9_SetPixelShader(pDev, pPixelShader);
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
 
@@ -365,6 +535,8 @@ void Render::renderSprites() {
 
         if (currentSprite->isStage) Render::renderPenLayer();
     }
+    IDirect3DDevice9_SetPixelShader(pDev, nullptr);
+    IDirect3DDevice9_SetVertexShader(pDev, nullptr);
 
     if (speechManager) {
         speechManager->render();

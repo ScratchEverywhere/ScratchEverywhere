@@ -3,6 +3,7 @@
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
+#include <libdlgmod/libdlgmod.h>
 
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render_opengl.hpp>
@@ -152,6 +153,10 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
         Log::logCritical("Failed to initialize Win32: Code " + std::to_string(GetLastError()), true);
         return false;
     }
+
+#if defined(_WIN32)
+    widget_set_owner(std::to_string((unsigned long long)(void *)this->hWnd).c_str());
+#endif
 
     setDarkTheme(this->hWnd, isDarkTheme());
 
