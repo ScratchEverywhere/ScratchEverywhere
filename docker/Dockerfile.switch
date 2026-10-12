@@ -3,10 +3,6 @@ ENV CATALOG_NON_INTERACTIVE=1
 ARG RENDERER=opengl_core
 WORKDIR /app
 
-RUN if [ "$RENDERER" = "opengl_core" ]; then \
-        dkp-pacman -S --noconfirm switch-glad; \
-    fi
-
 COPY . .
 
 RUN cmake -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake -DSE_RENDERER=${RENDERER} -B build-nx && cmake --build build-nx -j 2
