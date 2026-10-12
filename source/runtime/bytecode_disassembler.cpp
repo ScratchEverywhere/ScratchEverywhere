@@ -219,6 +219,10 @@ const char *mnemonic(BytecodeOp op) {
         return "BackdropNumberName";
     case BytecodeOp::SetRotationStyle:
         return "SetRotationStyle";
+    case BytecodeOp::SetDragMode:
+        return "SetDragMode";
+    case BytecodeOp::CurrentDateTime:
+        return "CurrentDateTime";
     case BytecodeOp::PopNumber:
         return "PopNumber";
     case BytecodeOp::PopString:
@@ -359,13 +363,24 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
         out << "  ; " << (instr.b == 0 ? "left-right" : (instr.b == 1 ? "don't rotate" : "all around"));
         return;
 
+    case BytecodeOp::SetDragMode:
+        out << "  ; " << (instr.b == 0 ? "not draggable" : "draggable");
+        return;
+
+    case BytecodeOp::CurrentDateTime: {
+        static const char *fields[] = {"YEAR", "MONTH", "DATE", "DAYOFWEEK", "HOUR", "MINUTE", "SECOND"};
+        out << "  ; " << (instr.b < 7 ? fields[instr.b] : "<?>");
+        return;
+    }
+
     default:
         if (isCallNative(instr.op)) {
             out << "  ; " << opcodeNameForSlot(chunk, instr.a) << ", argCount=" << instr.b;
             if (link != nullptr && instr.a < link->positional.size()) {
                 const BytecodePositionalFn &fn = link->positional[instr.a];
                 if (fn.nn_n || fn.n_n || fn.b_b || fn.bb_b || fn.ss_s || fn.ss_b || fn.s_n || fn.ns_s ||
-                    fn.voidFn || fn.n_void || fn.nn_void || fn.s_void) out << " [positional fast path]";
+                    fn.voidFn || fn.n_void || fn.nn_void || fn.s_void || fn.sn_void || fn.c_void ||
+                    fn.spriteS_n || fn.spriteS_b) out << " [positional fast path]";
             }
         }
         return;

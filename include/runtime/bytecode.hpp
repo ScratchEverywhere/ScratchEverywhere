@@ -119,6 +119,9 @@ enum class BytecodeOp : uint8_t {
 
     SetRotationStyle,
 
+    SetDragMode,
+    CurrentDateTime,
+
     PopNumber,
     PopString,
     PopBoolean,
@@ -196,6 +199,11 @@ using BytecodePositionalFnVoid = void (*)(Sprite *);
 using BytecodePositionalFnN_Void = void (*)(Sprite *, double);
 using BytecodePositionalFnNN_Void = void (*)(Sprite *, double, double);
 using BytecodePositionalFnS_Void = void (*)(Sprite *, const std::string &);
+using BytecodePositionalFnSN_Void = void (*)(Sprite *, const std::string &, double);
+using BytecodePositionalFnC_Void = void (*)(Sprite *, Color);
+
+using BytecodePositionalFnSpriteS_N = double (*)(Sprite *, const std::string &);
+using BytecodePositionalFnSpriteS_B = bool (*)(Sprite *, const std::string &);
 
 struct SE_EXPORT BytecodePositionalFn {
     BytecodePositionalFnNN_N nn_n = nullptr;
@@ -211,6 +219,11 @@ struct SE_EXPORT BytecodePositionalFn {
     BytecodePositionalFnN_Void n_void = nullptr;
     BytecodePositionalFnNN_Void nn_void = nullptr;
     BytecodePositionalFnS_Void s_void = nullptr;
+    BytecodePositionalFnSN_Void sn_void = nullptr;
+    BytecodePositionalFnC_Void c_void = nullptr;
+
+    BytecodePositionalFnSpriteS_N spriteS_n = nullptr;
+    BytecodePositionalFnSpriteS_B spriteS_b = nullptr;
 };
 
 enum class BytecodeMathOp : uint8_t {
