@@ -14,12 +14,14 @@ class SE_EXPORT BytecodeCompiler {
 
     explicit BytecodeCompiler(Sprite *sprite) : sprite_(sprite) {}
 
+    void convertIfNeeded(BytecodeStackKind from, BytecodeStackKind to);
     bool isStaticallyKind(const ParsedInput *input, BytecodeStackKind kind);
 
     Sprite *sprite() const { return sprite_; }
     const std::vector<std::string> *currentArgumentNames() const { return currentArgumentNames_; }
 
     BytecodeIndex here() const { return static_cast<BytecodeIndex>(chunk_.instructions.size()); }
+    void emitPushVar(BytecodeIndex slot, BytecodeStackKind wanted);
     BytecodeIndex emit(BytecodeOp op, BytecodeIndex a = invalidBytecodeIndex, BytecodeIndex b = invalidBytecodeIndex);
     void patchJumpTarget(BytecodeIndex jumpInstr, BytecodeIndex target);
 

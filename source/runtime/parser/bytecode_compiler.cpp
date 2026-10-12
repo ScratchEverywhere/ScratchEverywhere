@@ -11,6 +11,48 @@ std::unordered_map<std::string, BytecodeCompiler::CustomCompileFn> &BytecodeComp
     return compilers;
 }
 
+void BytecodeCompiler::convertIfNeeded(BytecodeStackKind from, BytecodeStackKind to) {
+    if (from == to) return;
+
+    if (from != BytecodeStackKind::Value) {
+        switch (from) {
+        case BytecodeStackKind::Number:
+            emit(BytecodeOp::ConvertNumberToValue);
+            break;
+        case BytecodeStackKind::String:
+            emit(BytecodeOp::ConvertStringToValue);
+            break;
+        case BytecodeStackKind::Boolean:
+            emit(BytecodeOp::ConvertBooleanToValue);
+            break;
+        case BytecodeStackKind::Color:
+            emit(BytecodeOp::ConvertColorToValue);
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (to != BytecodeStackKind::Value) {
+        switch (to) {
+        case BytecodeStackKind::Number:
+            emit(BytecodeOp::ConvertValueToNumber);
+            break;
+        case BytecodeStackKind::String:
+            emit(BytecodeOp::ConvertValueToString);
+            break;
+        case BytecodeStackKind::Boolean:
+            emit(BytecodeOp::ConvertValueToBoolean);
+            break;
+        case BytecodeStackKind::Color:
+            emit(BytecodeOp::ConvertValueToColor);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 bool BytecodeCompiler::isStaticallyKind(const ParsedInput *input, BytecodeStackKind kind) {
     if (input == nullptr) return false;
 
@@ -194,48 +236,6 @@ BytecodeStackKind stackKindForType(Type type) {
     }
 }
 
-void convertIfNeeded(BytecodeCompiler &compiler, BytecodeStackKind from, BytecodeStackKind to) {
-    if (from == to) return;
-
-    if (from != BytecodeStackKind::Value) {
-        switch (from) {
-        case BytecodeStackKind::Number:
-            compiler.emit(BytecodeOp::ConvertNumberToValue);
-            break;
-        case BytecodeStackKind::String:
-            compiler.emit(BytecodeOp::ConvertStringToValue);
-            break;
-        case BytecodeStackKind::Boolean:
-            compiler.emit(BytecodeOp::ConvertBooleanToValue);
-            break;
-        case BytecodeStackKind::Color:
-            compiler.emit(BytecodeOp::ConvertColorToValue);
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (to != BytecodeStackKind::Value) {
-        switch (to) {
-        case BytecodeStackKind::Number:
-            compiler.emit(BytecodeOp::ConvertValueToNumber);
-            break;
-        case BytecodeStackKind::String:
-            compiler.emit(BytecodeOp::ConvertValueToString);
-            break;
-        case BytecodeStackKind::Boolean:
-            compiler.emit(BytecodeOp::ConvertValueToBoolean);
-            break;
-        case BytecodeStackKind::Color:
-            compiler.emit(BytecodeOp::ConvertValueToColor);
-            break;
-        default:
-            break;
-        }
-    }
-}
-
 void compileConstant(BytecodeCompiler &compiler, const Value &value, BytecodeStackKind wanted) {
     switch (wanted) {
     case BytecodeStackKind::Number: {
@@ -291,26 +291,6 @@ void compileDefaultConst(BytecodeCompiler &compiler, BytecodeStackKind wanted) {
     }
 }
 
-void emitPushVar(BytecodeCompiler &compiler, BytecodeIndex slot, BytecodeStackKind wanted) {
-    switch (wanted) {
-    case BytecodeStackKind::Number:
-        compiler.emit(BytecodeOp::PushVarNumber, slot);
-        return;
-    case BytecodeStackKind::String:
-        compiler.emit(BytecodeOp::PushVarString, slot);
-        return;
-    case BytecodeStackKind::Boolean:
-        compiler.emit(BytecodeOp::PushVarBoolean, slot);
-        return;
-    case BytecodeStackKind::Color:
-        compiler.emit(BytecodeOp::PushVarColor, slot);
-        return;
-    case BytecodeStackKind::Value:
-        compiler.emit(BytecodeOp::PushVarValue, slot);
-        return;
-    }
-}
-
 void emitCallNative(BytecodeCompiler &compiler, BytecodeIndex opSlot, BytecodeIndex argCount, BytecodeStackKind returnKind) {
     switch (returnKind) {
     case BytecodeStackKind::Number:
@@ -344,7 +324,7 @@ bool tryCompileArgumentReporter(BytecodeCompiler &compiler, Block *block, Byteco
 
     BytecodeIndex argSlot = static_cast<BytecodeIndex>(std::distance(names.begin(), it));
     compiler.emit(BytecodeOp::PushArg, argSlot);
-    convertIfNeeded(compiler, BytecodeStackKind::Value, wanted);
+    compiler.convertIfNeeded(BytecodeStackKind::Value, wanted);
     return true;
 }
 
@@ -358,7 +338,7 @@ void compileReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind
     if (customIt != customCompilers.end()) {
         BytecodeIndex customInstr;
         if (customIt->second(compiler, block, customInstr)) {
-            convertIfNeeded(compiler, stackKindForType(block->blockFunction.type), wanted);
+            compiler.convertIfNeeded(stackKindForType(block->blockFunction.type), wanted);
             return;
         }
     }
@@ -369,7 +349,7 @@ void compileReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind
     if (sigIt == signatures.end()) {
         BytecodeIndex slot = compiler.escapeSlot(block);
         compiler.emit(BytecodeOp::CallLegacyReporter, slot);
-        convertIfNeeded(compiler, BytecodeStackKind::Value, wanted);
+        compiler.convertIfNeeded(BytecodeStackKind::Value, wanted);
         return;
     }
 
@@ -381,10 +361,30 @@ void compileReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind
     BytecodeStackKind nativeKind = stackKindForType(block->blockFunction.type);
     emitCallNative(compiler, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()), nativeKind);
 
-    convertIfNeeded(compiler, nativeKind, wanted);
+    compiler.convertIfNeeded(nativeKind, wanted);
 }
 
 } // namespace
+
+void BytecodeCompiler::emitPushVar(BytecodeIndex slot, BytecodeStackKind wanted) {
+    switch (wanted) {
+    case BytecodeStackKind::Number:
+        emit(BytecodeOp::PushVarNumber, slot);
+        return;
+    case BytecodeStackKind::String:
+        emit(BytecodeOp::PushVarString, slot);
+        return;
+    case BytecodeStackKind::Boolean:
+        emit(BytecodeOp::PushVarBoolean, slot);
+        return;
+    case BytecodeStackKind::Color:
+        emit(BytecodeOp::PushVarColor, slot);
+        return;
+    case BytecodeStackKind::Value:
+        emit(BytecodeOp::PushVarValue, slot);
+        return;
+    }
+}
 
 void BytecodeCompiler::compileOperand(const ParsedInput *input, BytecodeStackKind wanted) {
     if (input == nullptr) {
@@ -401,7 +401,7 @@ void BytecodeCompiler::compileOperand(const ParsedInput *input, BytecodeStackKin
         if (input->list) {
             BytecodeIndex slot = listSlot(input->variableId);
             emit(BytecodeOp::PushList, slot);
-            convertIfNeeded(*this, BytecodeStackKind::Value, wanted);
+            convertIfNeeded(BytecodeStackKind::Value, wanted);
         } else {
             emitPushVar(*this, variableSlot(input->variableId), wanted);
         }
