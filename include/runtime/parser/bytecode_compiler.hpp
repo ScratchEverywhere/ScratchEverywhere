@@ -36,6 +36,11 @@ class SE_EXPORT BytecodeCompiler {
     BytecodeIndex escapeSlot(Block *block);
     BytecodeIndex opcodeSlot(const std::string &opcode, const std::vector<BytecodeInputSignature> &signature);
 
+    BytecodeIndex registerProcedure(Block *definitionBlock, const std::string &proccode);
+    BytecodeIndex procedureSlot(Block *definitionBlock) const;
+
+    bool inStatementContext() const { return statementContext_; }
+
     BytecodeChunk &chunk() { return chunk_; }
     BytecodeLinkTable &link() { return link_; }
     void setCurrentArgumentNames(const std::vector<std::string> *names) { currentArgumentNames_ = names; }
@@ -49,6 +54,8 @@ class SE_EXPORT BytecodeCompiler {
     std::unordered_map<std::string, BytecodeIndex> variableSlotMap_;
     std::unordered_map<std::string, BytecodeIndex> listSlotMap_;
     std::unordered_map<Block *, BytecodeIndex> escapeBlockMap_;
+    std::unordered_map<Block *, BytecodeIndex> procedureSlotMap_;
 
     const std::vector<std::string> *currentArgumentNames_ = nullptr;
+    bool statementContext_ = false;
 };

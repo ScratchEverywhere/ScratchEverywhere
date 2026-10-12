@@ -140,6 +140,8 @@ const char *mnemonic(BytecodeOp op) {
         return "CallNativeValue";
     case BytecodeOp::CallProcedure:
         return "CallProcedure";
+    case BytecodeOp::CallProcedureValue:
+        return "CallProcedureValue";
     case BytecodeOp::Return:
         return "Return";
     case BytecodeOp::CallLegacyReporter:
@@ -282,6 +284,7 @@ void appendOperandDetail(std::ostringstream &out, const BytecodeChunk &chunk, co
         return;
 
     case BytecodeOp::CallProcedure:
+    case BytecodeOp::CallProcedureValue:
         if (instr.a < chunk.procedures.size()) {
             out << "  ; \"" << stringAt(chunk, chunk.procedures[instr.a].procCodeIndex) << "\", argCount=" << instr.b;
         }

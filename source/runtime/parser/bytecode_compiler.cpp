@@ -127,6 +127,36 @@ BytecodeIndex BytecodeCompiler::listSlot(const std::string &listId) {
     return slot;
 }
 
+BytecodeIndex BytecodeCompiler::registerProcedure(Block *definitionBlock, const std::string &proccode) {
+    auto it = procedureSlotMap_.find(definitionBlock);
+    if (it != procedureSlotMap_.end()) return it->second;
+
+    BytecodeIndex slot = static_cast<BytecodeIndex>(chunk_.procedures.size());
+
+    BytecodeProcedure proc;
+    proc.procCodeIndex = chunk_.internString(proccode);
+    proc.argCount = static_cast<BytecodeIndex>(definitionBlock->argumentIDs.size());
+    proc.runWithoutScreenRefresh = definitionBlock->MyBlockWithoutScreenRefresh;
+
+    proc.argumentNamesStart = static_cast<BytecodeIndex>(chunk_.strings.size());
+    for (size_t i = 0; i < definitionBlock->argumentIDs.size(); i++) {
+        const std::string &name = (i < definitionBlock->argumentNames.size())
+                                      ? definitionBlock->argumentNames[i]
+                                      : definitionBlock->argumentIDs[i];
+        chunk_.strings.push_back(name);
+    }
+    proc.argumentNamesCount = static_cast<BytecodeIndex>(definitionBlock->argumentIDs.size());
+
+    chunk_.procedures.push_back(proc);
+    procedureSlotMap_[definitionBlock] = slot;
+    return slot;
+}
+
+BytecodeIndex BytecodeCompiler::procedureSlot(Block *definitionBlock) const {
+    auto it = procedureSlotMap_.find(definitionBlock);
+    return it != procedureSlotMap_.end() ? it->second : invalidBytecodeIndex;
+}
+
 BytecodeIndex BytecodeCompiler::escapeSlot(Block *block) {
     auto it = escapeBlockMap_.find(block);
     if (it != escapeBlockMap_.end()) return it->second;
@@ -382,7 +412,12 @@ void BytecodeCompiler::compileOperand(const ParsedInput *input, BytecodeStackKin
             compileDefaultConst(*this, wanted);
             return;
         }
-        compileReporter(*this, input->block, wanted);
+        {
+            bool savedStatementContext = statementContext_;
+            statementContext_ = false;
+            compileReporter(*this, input->block, wanted);
+            statementContext_ = savedStatementContext;
+        }
         return;
     }
 }
@@ -399,8 +434,13 @@ bool BytecodeCompiler::compileBlockChain(Block *start, Block *stopBlock, Bytecod
         auto &customCompilers = getCustomCompilers();
         auto customIt = customCompilers.find(block->opcode);
         if (customIt != customCompilers.end()) {
+            bool savedStatementContext = statementContext_;
+            statementContext_ = true;
             BytecodeIndex customInstr;
-            if (customIt->second(*this, block, customInstr)) {
+            bool ok = customIt->second(*this, block, customInstr);
+            statementContext_ = savedStatementContext;
+
+            if (ok) {
                 if (firstInstruction == invalidBytecodeIndex) firstInstruction = customInstr;
                 block = block->nextBlock;
                 continue;
@@ -451,6 +491,11 @@ BytecodeIndex compileStatementChain(BytecodeCompiler &compiler, Block *start) {
 void Parser::compileBytecode(Sprite *sprite) {
     BytecodeCompiler compiler(sprite);
 
+    for (const auto &[proccode, definitionBlock] : sprite->customHatBlock) {
+        if (definitionBlock == nullptr) continue;
+        compiler.registerProcedure(definitionBlock, proccode);
+    }
+
     for (const auto &[opcode, hatBlocks] : sprite->hats) {
         for (Block *hat : hatBlocks) {
             if (hat == nullptr) continue;
@@ -465,25 +510,13 @@ void Parser::compileBytecode(Sprite *sprite) {
     for (const auto &[proccode, definitionBlock] : sprite->customHatBlock) {
         if (definitionBlock == nullptr) continue;
 
-        BytecodeProcedure proc;
-        proc.procCodeIndex = compiler.chunk().internString(proccode);
-        proc.argCount = static_cast<BytecodeIndex>(definitionBlock->argumentIDs.size());
-        proc.runWithoutScreenRefresh = definitionBlock->MyBlockWithoutScreenRefresh;
-
-        proc.argumentNamesStart = static_cast<BytecodeIndex>(compiler.chunk().strings.size());
-        for (size_t i = 0; i < definitionBlock->argumentIDs.size(); i++) {
-            const std::string &name = (i < definitionBlock->argumentNames.size())
-                                          ? definitionBlock->argumentNames[i]
-                                          : definitionBlock->argumentIDs[i];
-            compiler.chunk().strings.push_back(name);
-        }
-        proc.argumentNamesCount = static_cast<BytecodeIndex>(definitionBlock->argumentIDs.size());
+        BytecodeIndex slot = compiler.procedureSlot(definitionBlock);
 
         compiler.setCurrentArgumentNames(&definitionBlock->argumentNames);
-        proc.entryInstruction = compileStatementChain(compiler, definitionBlock->nextBlock);
+        BytecodeIndex entry = compileStatementChain(compiler, definitionBlock->nextBlock);
         compiler.setCurrentArgumentNames(nullptr);
 
-        compiler.chunk().procedures.push_back(proc);
+        compiler.chunk().procedures[slot].entryInstruction = entry;
     }
 
     sprite->bytecode = std::make_unique<BytecodeChunk>(std::move(compiler.chunk()));

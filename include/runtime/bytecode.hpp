@@ -74,6 +74,7 @@ enum class BytecodeOp : uint8_t {
     CallNativeValue,
 
     CallProcedure,
+    CallProcedureValue,
     Return,
 
     CallLegacyReporter,
