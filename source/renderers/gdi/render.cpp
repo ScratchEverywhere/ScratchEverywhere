@@ -10,7 +10,7 @@
 #include <image.hpp>
 #include <input.hpp>
 #include <log.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <string>
 #include <unordered_map>
@@ -49,7 +49,7 @@ void WindowWin32::resized(int width, int height) {
     SelectObject(penLayerMask, penLayerMaskBitmap);
 }
 
-bool Render::Init() {
+bool Render::init() {
     int windowWidth = 480;
     int windowHeight = 360;
 

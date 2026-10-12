@@ -4,7 +4,7 @@
 #include <downloader.hpp>
 #include <input.hpp>
 #include <log.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <text.hpp>
 #include <unzip.hpp>
@@ -51,7 +51,7 @@ struct FastPenData {
 
 static std::vector<FastPenData> fastPenQueue;
 
-bool Render::Init() {
+bool Render::init() {
     globalWindow = new Window3DS();
     if (!globalWindow->init(400, 240, "Scratch Everywhere!")) {
         delete globalWindow;

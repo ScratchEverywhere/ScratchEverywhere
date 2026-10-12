@@ -3,7 +3,7 @@
 #include <input.hpp>
 #include <libretro.h>
 #include <log.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <string>
 #include <text.hpp>
 #include <vector>

@@ -8,7 +8,7 @@
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <thread>
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render_opengl.hpp>

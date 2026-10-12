@@ -13,7 +13,7 @@ static retro_environment_t environ_cb;
 #include <cstring>
 
 #include <audiostack.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <renderers/opengl/render_opengl.hpp>
 #include <runtime.hpp>
 #include <unzip.hpp>
@@ -156,7 +156,7 @@ static void context_reset(void) {
 
     update_variables();
 
-    if (!Render::Init()) return;
+    if (!Render::init()) return;
 
     if (!Unzip::load()) return;
 

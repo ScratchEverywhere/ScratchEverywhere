@@ -1,5 +1,5 @@
 #include "text_sdl3.hpp"
-#include <render.hpp>
+#include <renderer.hpp>
 #include <vector>
 
 TextObjectSDL3::TextObjectSDL3(std::string txt, double posX, double posY, std::string fontPath)

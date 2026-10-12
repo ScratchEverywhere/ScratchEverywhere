@@ -20,7 +20,7 @@
 #include <math.h>
 #include <memory>
 #include <os.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <set>
 #include <speech_manager.hpp>
 #include <string>
@@ -108,7 +108,7 @@ bool Scratch::initializeRuntime() {
     Log::deleteLogFile();
     TranslationManager::loadLanguage();
 #ifndef LIBRETRO
-    if (!Render::Init()) {
+    if (!Render::init()) {
         return false;
     }
 #endif

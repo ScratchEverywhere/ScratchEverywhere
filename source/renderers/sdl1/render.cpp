@@ -13,7 +13,7 @@
 #include <image_sdl1.hpp>
 #include <log.hpp>
 #include <math.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <string>
 #include <text.hpp>
@@ -43,7 +43,7 @@ int windowWidth = 480;
 int windowHeight = 360;
 #endif
 
-bool Render::Init() {
+bool Render::init() {
     globalWindow = new WindowSDL1();
     if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
         delete globalWindow;

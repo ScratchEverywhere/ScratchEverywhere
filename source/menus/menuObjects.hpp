@@ -1,7 +1,7 @@
 #pragma once
 #include <image.hpp>
 #include <os.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <se_export.hpp>
 #include <text.hpp>
 

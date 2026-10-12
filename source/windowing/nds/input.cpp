@@ -5,7 +5,7 @@
 #include <nds/arm9/input.h>
 #include <nds/input.h>
 
-#include <render.hpp>
+#include <renderer.hpp>
 
 // Defining The Keys To Check
 static constexpr u16 NDS_KEYS[] = {

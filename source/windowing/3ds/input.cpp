@@ -3,7 +3,7 @@
 #include <blockExecutor.hpp>
 #include <input.hpp>
 #include <log.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 
 #define SCREEN_WIDTH 400
 #define BOTTOM_SCREEN_WIDTH 320

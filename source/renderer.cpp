@@ -1,5 +1,161 @@
-#include "render.hpp"
+#include "renderer.hpp"
 #include <log.hpp>
+#include <memory>
+#ifdef RENDERER_OPENGL_CORE
+#include "renderer_gl_core.hpp"
+#endif
+
+Renderer *globalRenderer = nullptr;
+
+Renderer::Renderer() {}
+
+namespace Render {
+Renderers currentRenderer = Renderers::None;
+bool debugMode = false;
+float renderScale = 1.0f;
+RenderModes renderMode = Render::TOP_SCREEN_ONLY;
+
+std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> monitorTexts;
+std::unordered_map<std::string, ListMonitorRenderObjects> listMonitors;
+std::unordered_map<std::string, Monitor> monitors;
+} // namespace Render
+
+bool Render::init() {
+#ifdef RENDERER_OPENGL_CORE
+    Renderer *renderer = new Renderer_GLCore;
+#else
+#error TODO implement other renderers, also TODO make this a runtime check
+#endif
+
+    if (renderer->error.has_value()) {
+        Log::logCritical("Renderer failed to init: " + renderer->error.value(), true);
+        delete renderer;
+        return false;
+    }
+
+    globalRenderer = renderer;
+    return true;
+}
+
+void Render::deInit() {
+    delete globalRenderer;
+}
+
+bool Render::initPen() {
+    if (globalRenderer)
+        return globalRenderer->initPen();
+    return false;
+}
+
+void Render::setRenderTarget(void *renderTarget) {
+    if (globalRenderer)
+        globalRenderer->setRenderTarget(renderTarget);
+}
+
+void Render::clearRenderTarget() {
+    if (globalRenderer)
+        globalRenderer->clearRenderTarget();
+}
+
+bool Render::createSpeechManager() {
+    if (globalRenderer)
+        return globalRenderer->createSpeechManager();
+    return false;
+}
+
+SpeechManager *Render::getSpeechManager() {
+    if (globalRenderer)
+        return globalRenderer->getSpeechManager();
+    return nullptr;
+}
+
+void Render::destroySpeechManager() {
+    if (globalRenderer)
+        globalRenderer->destroySpeechManager();
+}
+
+void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    if (globalRenderer)
+        globalRenderer->beginFrame(screen, colorR, colorG, colorB);
+}
+
+void Render::endFrame(bool shouldFlush) {
+    if (globalRenderer)
+        globalRenderer->endFrame(shouldFlush);
+}
+
+int Render::getWidth() {
+    if (globalRenderer)
+        return globalRenderer->getWidth();
+    return 0;
+}
+
+int Render::getHeight() {
+    if (globalRenderer)
+        return globalRenderer->getHeight();
+    return 0;
+}
+
+float Render::getPixelDensity() {
+    if (globalRenderer)
+        return globalRenderer->getPixelDensity();
+    return 1.0f;
+}
+
+void Render::renderSprites() {
+    if (globalRenderer)
+        globalRenderer->renderSprites();
+}
+
+void Render::renderPenLayer() {
+    if (globalRenderer)
+        globalRenderer->renderPenLayer();
+}
+
+void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    if (globalRenderer)
+        globalRenderer->drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+}
+void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    if (globalRenderer)
+        globalRenderer->drawRoundedBox(w, h, x, y, radius, colorR, colorG, colorB, colorA);
+}
+
+bool Render::appShouldRun() {
+    if (globalRenderer)
+        return globalRenderer->appShouldRun();
+    return true; // probably
+}
+
+void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    if (globalRenderer)
+        globalRenderer->penMoveFast(x1, y1, x2, y2, sprite);
+}
+
+void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    if (globalRenderer)
+        globalRenderer->penMoveAccurate(x1, y1, x2, y2, sprite);
+}
+
+void Render::penDotFast(Sprite *sprite) {
+    if (globalRenderer)
+        globalRenderer->penDotFast(sprite);
+}
+
+void Render::penDotAccurate(Sprite *sprite) {
+    if (globalRenderer)
+        globalRenderer->penDotAccurate(sprite);
+}
+
+void Render::penStamp(Sprite *sprite) {
+    if (globalRenderer)
+        globalRenderer->penStamp(sprite);
+}
+
+void Render::penClear() {
+    if (globalRenderer)
+        globalRenderer->penClear();
+}
 
 namespace {
 #if defined(__PC__)
@@ -15,14 +171,6 @@ void drawMonitorBox(float w, float h, float x, float y, uint8_t r, uint8_t g, ui
 }
 #endif
 } // namespace
-
-std::unordered_map<std::string, std::pair<std::unique_ptr<TextObject>, std::unique_ptr<TextObject>>> Render::monitorTexts;
-std::unordered_map<std::string, Render::ListMonitorRenderObjects> Render::listMonitors;
-bool Render::debugMode = false;
-float Render::renderScale = 1.0f;
-Render::RenderModes Render::renderMode = Render::TOP_SCREEN_ONLY;
-bool Render::hasFrameBegan;
-std::unordered_map<std::string, Monitor> Render::monitors;
 
 void Render::calculateRenderPosition(Sprite *sprite, const bool isSVG) {
     const int screenWidth = getWidth();

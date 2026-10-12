@@ -5,7 +5,7 @@
 #include <input.hpp>
 #include <log.hpp>
 #include <nds/arm9/dldi.h>
-#include <render.hpp>
+#include <renderer.hpp>
 
 bool WindowNDS::init(int w, int h, const std::string &title) {
     // Render::debugMode = false;

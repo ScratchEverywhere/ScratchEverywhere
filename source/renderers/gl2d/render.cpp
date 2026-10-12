@@ -7,7 +7,7 @@
 #include <input.hpp>
 #include <nds.h>
 #include <nds/arm9/dldi.h>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <unordered_map>
 #include <window.hpp>
 #include <windowing/nds/window_nds.hpp>
@@ -22,7 +22,7 @@ SpeechManagerGL2D *speechManager = nullptr;
 #define SCREEN_HALF_WIDTH 132.5
 #define SCREEN_HALF_HEIGHT 96
 
-bool Render::Init() {
+bool Render::init() {
     globalWindow = new WindowNDS();
     if (!globalWindow->init(256, 192, "Scratch Everywhere!")) {
         delete globalWindow;

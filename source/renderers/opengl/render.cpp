@@ -27,7 +27,7 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <math.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <string>
 #include <types.hpp>
@@ -47,7 +47,7 @@ static unsigned int penTexture = 0;
 static int penWidth = 0;
 static int penHeight = 0;
 
-bool Render::Init() {
+bool Render::init() {
 #if defined(WINDOWING_GLFW)
     globalWindow = new WindowGLFW();
 #elif defined(WINDOWING_SDL1)

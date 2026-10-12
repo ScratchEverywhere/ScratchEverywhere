@@ -1,4 +1,4 @@
-#include <render.hpp>
+#include <renderer.hpp>
 #include <speech_manager.hpp>
 #include <unordered_map>
 #include <window.hpp>
@@ -6,7 +6,7 @@
 
 WindowSE *globalWindow = nullptr;
 
-bool Render::Init() {
+bool Render::init() {
     globalWindow = new WindowHeadless();
     globalWindow->init(0, 0, "");
     return true;

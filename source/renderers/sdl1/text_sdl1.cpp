@@ -2,7 +2,7 @@
 #include "render_sdl1.hpp"
 #include <SDL_rotozoom.h>
 #include <cmath>
-#include <render.hpp>
+#include <renderer.hpp>
 
 TextObjectSDL1::TextObjectSDL1(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {

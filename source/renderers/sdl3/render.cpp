@@ -11,7 +11,7 @@
 #include <input.hpp>
 #include <log.hpp>
 #include <math.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 #include <runtime.hpp>
 #include <string>
 #include <text.hpp>
@@ -44,7 +44,7 @@ SpeechManagerSDL3 *speechManager = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
-bool Render::Init() {
+bool Render::init() {
 #ifdef __SWITCH__
     int windowWidth = 1280;
     int windowHeight = 720;

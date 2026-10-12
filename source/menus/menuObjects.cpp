@@ -2,7 +2,7 @@
 #include "text.hpp"
 #include <input.hpp>
 #include <log.hpp>
-#include <render.hpp>
+#include <renderer.hpp>
 
 #define REFERENCE_WIDTH 400
 #define REFERENCE_HEIGHT 240
