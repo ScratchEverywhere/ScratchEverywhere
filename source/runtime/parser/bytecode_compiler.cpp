@@ -403,7 +403,7 @@ void BytecodeCompiler::compileOperand(const ParsedInput *input, BytecodeStackKin
             emit(BytecodeOp::PushList, slot);
             convertIfNeeded(BytecodeStackKind::Value, wanted);
         } else {
-            emitPushVar(*this, variableSlot(input->variableId), wanted);
+            emitPushVar(variableSlot(input->variableId), wanted);
         }
         return;
 

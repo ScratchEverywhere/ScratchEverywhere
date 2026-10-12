@@ -59,8 +59,7 @@ SCRATCH_BLOCK(data, changevariableby) {
 }
 SCRATCH_BYTECODE_BLOCK(data, changevariableby) {
     const std::string &varId = Scratch::getFieldId(*block, "VARIABLE");
-    Variable *var = BlockExecutor::getVariable(varId, compiler.sprite());
-    if (var == nullptr || !std::holds_alternative<double>(var->value)) return false;
+    if (BlockExecutor::getVariable(varId, compiler.sprite()) == nullptr) return false;
 
     outFirstInstr = compiler.here();
     compiler.compileInput(block, "VALUE", BytecodeStackKind::Number);
