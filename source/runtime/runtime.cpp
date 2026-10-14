@@ -1,6 +1,7 @@
 #include "runtime.hpp"
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
+#include "bytecode_executor.hpp"
 #include "collision.hpp"
 #include "math.hpp"
 #include "nlohmann/json.hpp"

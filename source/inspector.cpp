@@ -307,7 +307,7 @@ void processCommands() {
                     std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
                     std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
                     if (broadcastOption == name) {
-                        BlockExecutor::startThread(spr, hat);
+                        BlockExecutor::startHat(spr, hat);
                     }
                 }
             }

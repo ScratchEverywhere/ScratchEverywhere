@@ -189,8 +189,16 @@ const char *mnemonic(BytecodeOp op) {
         return "ForEachCheck";
     case BytecodeOp::Wait:
         return "Wait";
+    case BytecodeOp::BroadcastAndWait:
+        return "BroadcastAndWait";
+    case BytecodeOp::PlaySoundUntilDone:
+        return "PlaySoundUntilDone";
     case BytecodeOp::RandomInt:
         return "RandomInt";
+    case BytecodeOp::LetterOf:
+        return "LetterOf";
+    case BytecodeOp::LengthOf:
+        return "LengthOf";
     case BytecodeOp::MathOp:
         return "MathOp";
     case BytecodeOp::NumEquals:

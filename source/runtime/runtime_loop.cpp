@@ -1,6 +1,7 @@
 #include "runtime.hpp"
 #include "audiostack.hpp"
 #include "blockExecutor.hpp"
+#include "bytecode_executor.hpp"
 #include "parser/parser.hpp"
 #include "translation.hpp"
 #include "unzip.hpp"
@@ -112,6 +113,7 @@ std::pair<bool, bool> Scratch::stepScratchProject(ScriptThread &monitorDisplayTh
             BlockExecutor::executeWhenGreaterThanHats();
         }
         BlockExecutor::runThreads();
+        BytecodeExecutor::runThreads();
 
 #ifdef ENABLE_INSPECTOR
         if (forcedStep && Inspector::stepsRemaining <= 0) std::cout << "STEP_DONE\n";

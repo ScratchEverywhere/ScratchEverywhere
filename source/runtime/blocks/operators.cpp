@@ -138,6 +138,13 @@ SCRATCH_BLOCK_POSITIONAL_NS_S(operator, letter_of) {
     if (indexD < 0 || indexD >= static_cast<double>(Math::utf16Length(str))) return "";
     return Math::utf16CharAt(str, static_cast<size_t>(indexD));
 }
+SCRATCH_BYTECODE_BLOCK(operator, letter_of) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "LETTER", BytecodeStackKind::Number);
+    compiler.compileInput(block, "STRING", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::LetterOf);
+    return true;
+}
 
 SCRATCH_BLOCK_DOUBLE(operator, length) {
     Value strValue;
@@ -153,6 +160,12 @@ SCRATCH_BLOCK_DOUBLE(operator, length) {
 SCRATCH_BLOCK_SIGNATURE(operator, length, {"STRING", BytecodeStackKind::String});
 SCRATCH_BLOCK_POSITIONAL_S_N(operator, length) {
     return static_cast<double>(Math::utf16Length(str));
+}
+SCRATCH_BYTECODE_BLOCK(operator, length) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "STRING", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::LengthOf);
+    return true;
 }
 
 SCRATCH_BLOCK_DOUBLE(operator, mod) {

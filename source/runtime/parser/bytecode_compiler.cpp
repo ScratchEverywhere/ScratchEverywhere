@@ -130,8 +130,10 @@ BytecodeIndex BytecodeCompiler::opcodeSlot(const std::string &opcode, const std:
     link_.positional.push_back(positionalIt != positional.end() ? positionalIt->second : BytecodePositionalFn{});
 
     chunk_.paramKindsStart.push_back(static_cast<BytecodeIndex>(chunk_.paramKinds.size()));
-    for (const auto &sig : signature)
+    for (const auto &sig : signature) {
         chunk_.paramKinds.push_back(sig.kind);
+        chunk_.paramNames.push_back(chunk_.internString(sig.name));
+    }
     chunk_.paramKindsCount.push_back(static_cast<BytecodeIndex>(signature.size()));
 
     opcodeSlotMap_[opcode] = slot;
@@ -291,6 +293,18 @@ void compileDefaultConst(BytecodeCompiler &compiler, BytecodeStackKind wanted) {
     }
 }
 
+void compileSignatureParam(BytecodeCompiler &compiler, Block *block, const std::string &name, BytecodeStackKind wanted) {
+    const ParsedInput *input = Scratch::getInput(block, name);
+    if (input == nullptr) {
+        const auto field = block->fieldMap.find(name);
+        if (field != block->fieldMap.end()) {
+            compileConstant(compiler, Value(field->second->value), wanted);
+            return;
+        }
+    }
+    compiler.compileOperand(input, wanted);
+}
+
 void emitCallNative(BytecodeCompiler &compiler, BytecodeIndex opSlot, BytecodeIndex argCount, BytecodeStackKind returnKind) {
     switch (returnKind) {
     case BytecodeStackKind::Number:
@@ -354,7 +368,7 @@ void compileReporter(BytecodeCompiler &compiler, Block *block, BytecodeStackKind
     }
 
     for (const auto &sig : sigIt->second) {
-        compiler.compileOperand(Scratch::getInput(block, sig.name), sig.kind);
+        compileSignatureParam(compiler, block, sig.name, sig.kind);
     }
 
     BytecodeIndex opSlot = compiler.opcodeSlot(opcode, sigIt->second);
@@ -423,7 +437,7 @@ void BytecodeCompiler::compileOperand(const ParsedInput *input, BytecodeStackKin
 }
 
 void BytecodeCompiler::compileInput(Block *block, const std::string &inputName, BytecodeStackKind wanted) {
-    compileOperand(Scratch::getInput(block, inputName), wanted);
+    compileSignatureParam(*this, block, inputName, wanted);
 }
 
 bool BytecodeCompiler::compileBlockChain(Block *start, Block *stopBlock, BytecodeIndex &outFirstInstr) {
@@ -457,14 +471,16 @@ bool BytecodeCompiler::compileBlockChain(Block *start, Block *stopBlock, Bytecod
             return false;
         }
 
+        const BytecodeIndex blockStart = here();
+
         for (const auto &sig : sigIt->second) {
-            compileOperand(Scratch::getInput(block, sig.name), sig.kind);
+            compileSignatureParam(*this, block, sig.name, sig.kind);
         }
 
         BytecodeIndex opSlot = opcodeSlot(block->opcode, sigIt->second);
-        BytecodeIndex instrIdx = emit(BytecodeOp::CallNative, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()));
+        emit(BytecodeOp::CallNative, opSlot, static_cast<BytecodeIndex>(sigIt->second.size()));
 
-        if (firstInstruction == invalidBytecodeIndex) firstInstruction = instrIdx;
+        if (firstInstruction == invalidBytecodeIndex) firstInstruction = blockStart;
         block = block->nextBlock;
     }
 
@@ -504,6 +520,7 @@ void Parser::compileBytecode(Sprite *sprite) {
             script.opcodeIndex = compiler.chunk().internString(opcode);
             script.entryInstruction = compileStatementChain(compiler, hat);
             compiler.chunk().scripts.push_back(script);
+            compiler.link().scriptBlocks.push_back(hat);
         }
     }
 

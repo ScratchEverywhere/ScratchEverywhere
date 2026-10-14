@@ -98,8 +98,12 @@ enum class BytecodeOp : uint8_t {
     RepeatCheck,
     ForEachCheck,
     Wait,
+    BroadcastAndWait,
+    PlaySoundUntilDone,
 
     RandomInt,
+    LetterOf,
+    LengthOf,
     MathOp,
 
     NumEquals,
@@ -169,6 +173,7 @@ struct SE_EXPORT BytecodeChunk {
     std::vector<BytecodeIndex> listSlots;
 
     std::vector<BytecodeStackKind> paramKinds;
+    std::vector<BytecodeIndex> paramNames;
     std::vector<BytecodeIndex> paramKindsStart;
     std::vector<BytecodeIndex> paramKindsCount;
 
@@ -265,11 +270,14 @@ struct SE_EXPORT BytecodeLinkTable {
     std::vector<Variable *> variables;
     std::vector<List *> lists;
     std::vector<Block *> escapeBlocks;
+    std::vector<Block *> scriptBlocks;
 };
 
 // runtime stuff:
 
 class Sprite;
+
+struct BytecodeThread;
 
 struct SE_EXPORT BytecodeFrame {
     int completedSteps = 0;
@@ -283,6 +291,8 @@ struct SE_EXPORT BytecodeFrame {
     Timer waitTimer;
     std::vector<uint64_t> threads;
 
+    BytecodeThread *pendingCall = nullptr;
+
     void clear() {
         completedSteps = 0;
         repeatTimes = -1;
@@ -291,6 +301,7 @@ struct SE_EXPORT BytecodeFrame {
         waitTimer = Timer();
         name = "";
         threads.clear();
+        pendingCall = nullptr;
     }
 };
 
@@ -309,6 +320,7 @@ struct SE_EXPORT BytecodeThread {
 
     BytecodeIndex pc = invalidBytecodeIndex;
     BytecodeIndex hatInstruction = invalidBytecodeIndex;
+    Block *hatBlock = nullptr;
 
     int finished = true;
     bool withoutScreenRefresh = false;
@@ -327,6 +339,8 @@ struct SE_EXPORT BytecodeThread {
 
     ScriptThread *legacyThread = nullptr;
     bool escapedToLegacy = false;
+
+    ScriptThread *bridgeThread = nullptr;
 
     bool isRecursiveProcedureCall(BytecodeIndex procedureIndex) const {
         return procedureIndex < activeProcedureCalls.size() && activeProcedureCalls[procedureIndex] > 0;

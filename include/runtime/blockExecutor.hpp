@@ -80,6 +80,17 @@ class SE_EXPORT BlockExecutor {
     static BlockResult runThread(ScriptThread &thread, Sprite &sprite);
     static std::vector<ScriptThread *> threads;
 
+    static uint64_t nextThreadId();
+    static bool isThreadRunning(uint64_t id);
+
+    static uint64_t startHat(Sprite *sprite, Block *hat);
+
+    /**
+     * Starts every "when I receive" hat listening for the given broadcast (case-insensitive).
+     * @return the ids of the threads that were started.
+     */
+    static std::vector<uint64_t> startBroadcastHats(std::string broadcast);
+
     // If true, all sprites will be sorted at the end of the frame.
     static bool sortSprites;
 

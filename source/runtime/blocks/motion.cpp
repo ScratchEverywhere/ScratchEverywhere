@@ -206,7 +206,6 @@ SCRATCH_BLOCK(motion, glideto) {
     goto glide;
     return BlockResult::REPEAT;
 }
-SCRATCH_BLOCK_SIGNATURE(motion, glideto, {"SECS", BytecodeStackKind::Number}, {"TO", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(motion, glidesecstoxy) {
     BlockState *state = thread->getState(block);
@@ -240,7 +239,6 @@ SCRATCH_BLOCK(motion, glidesecstoxy) {
     goto glide;
     return BlockResult::REPEAT;
 }
-SCRATCH_BLOCK_SIGNATURE(motion, glidesecstoxy, {"SECS", BytecodeStackKind::Number}, {"X", BytecodeStackKind::Number}, {"Y", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(motion, pointtowards) {
     std::string objectName;

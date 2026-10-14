@@ -56,7 +56,6 @@ SCRATCH_BLOCK(looks, sayforsecs) {
     }
     return BlockResult::REPEAT;
 }
-SCRATCH_BLOCK_SIGNATURE(looks, sayforsecs, {"SECS", BytecodeStackKind::Number}, {"MESSAGE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(looks, think) {
     if (!Render::createSpeechManager()) return BlockResult::CONTINUE;
@@ -101,7 +100,6 @@ SCRATCH_BLOCK(looks, thinkforsecs) {
 
     return BlockResult::REPEAT;
 }
-SCRATCH_BLOCK_SIGNATURE(looks, thinkforsecs, {"SECS", BytecodeStackKind::Number}, {"MESSAGE", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(looks, show) {
     if (!sprite->visible) Scratch::loadCurrentCostumeImage(sprite);
@@ -175,7 +173,7 @@ static void triggerBackdropSwitchHats() {
         if (spr->hats["event_whenbackdropswitchesto"].empty()) continue;
         for (Block *hat : spr->hats["event_whenbackdropswitchesto"]) {
             if (Math::caseInsensitiveEqual(Scratch::getFieldValue(*hat, "BACKDROP"), currentBackdrop)) {
-                BlockExecutor::startThread(spr, hat);
+                BlockExecutor::startHat(spr, hat);
             }
         }
     }
@@ -286,7 +284,6 @@ SCRATCH_BLOCK(looks, switchbackdroptoandwait) {
     }
     return BlockResult::CONTINUE;
 }
-SCRATCH_BLOCK_SIGNATURE(looks, switchbackdroptoandwait, {"BACKDROP", BytecodeStackKind::Value});
 
 SCRATCH_BLOCK(looks, nextbackdrop) {
     Scratch::switchCostume(Scratch::stageSprite, ++Scratch::stageSprite->currentCostume);

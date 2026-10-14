@@ -40,7 +40,6 @@ SCRATCH_BLOCK(music, playNoteForBeats) {
 
     return BlockResult::CONTINUE;
 }
-SCRATCH_BLOCK_SIGNATURE(music, playNoteForBeats, {"NOTE", BytecodeStackKind::Number}, {"BEATS", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(music, playDrumForBeats) {
     double drum, beats;
@@ -67,7 +66,6 @@ SCRATCH_BLOCK(music, playDrumForBeats) {
 
     return BlockResult::CONTINUE;
 }
-SCRATCH_BLOCK_SIGNATURE(music, playDrumForBeats, {"DRUM", BytecodeStackKind::Number}, {"BEATS", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK_DOUBLE(music, getTempo) {
     *outValue = Scratch::tempo;
@@ -112,4 +110,3 @@ SCRATCH_BLOCK(music, restForBeats) {
     state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
-SCRATCH_BLOCK_SIGNATURE(music, restForBeats, {"BEATS", BytecodeStackKind::Number});

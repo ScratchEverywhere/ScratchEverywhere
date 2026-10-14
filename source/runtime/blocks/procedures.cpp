@@ -144,6 +144,12 @@ BlockResult block_procedures_return_(Block *block, ScriptThread *thread, Sprite 
     thread->finished = true;
     return BlockResult::RETURN;
 }
+SCRATCH_BYTECODE_BLOCK(procedures, return) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "VALUE", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::Return);
+    return true;
+}
 
 SCRATCH_BLOCK(argument, reporter_string_number) {
     std::string name = Scratch::getFieldValue(*block, "VALUE");

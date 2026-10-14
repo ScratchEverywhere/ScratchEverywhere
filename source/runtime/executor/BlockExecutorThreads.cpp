@@ -1,4 +1,5 @@
 #include "blockExecutor.hpp"
+#include "bytecode_executor.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <render.hpp>
@@ -6,9 +7,46 @@
 #include <speech_manager.hpp>
 #include <vector>
 
-ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block, bool shouldRestart) {
+uint64_t BlockExecutor::nextThreadId() {
     static uint64_t id = 0;
+    return ++id;
+}
 
+bool BlockExecutor::isThreadRunning(uint64_t id) {
+    for (ScriptThread *t : threads) {
+        if (t->id == id) return !t->finished;
+    }
+    for (BytecodeThread *t : BytecodeExecutor::threads) {
+        if (t->id == id) return t->escapedToLegacy ? (t->legacyThread != nullptr && !t->legacyThread->finished) : !t->finished;
+    }
+    return false;
+}
+
+uint64_t BlockExecutor::startHat(Sprite *sprite, Block *hat) {
+    if (BytecodeThread *t = BytecodeExecutor::startThread(sprite, hat, true)) {
+        return t->id;
+    }
+    return BlockExecutor::startThread(sprite, hat)->id;
+}
+
+std::vector<uint64_t> BlockExecutor::startBroadcastHats(std::string broadcast) {
+    std::transform(broadcast.begin(), broadcast.end(), broadcast.begin(), ::tolower);
+
+    std::vector<uint64_t> startedThreads;
+    for (auto &spr : Scratch::sprites) {
+        if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
+        for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
+            std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
+            std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
+
+            if (broadcastOption == broadcast) startedThreads.push_back(startHat(spr, hat));
+        }
+    }
+    return startedThreads;
+}
+
+ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block, bool shouldRestart) {
+    if (sprite->name == "Benchmark") fprintf(stderr, "[STARTTHREAD] sprite=Benchmark block=%p shouldRestart=%d\n", (void *)block, shouldRestart);
     size_t restartThreadIndex = -1;
     for (size_t i = 0; i < threads.size(); i++) {
         if (threads[i]->blockHat == block && sprite == threads[i]->sprite) {
@@ -17,6 +55,11 @@ ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block, bool shou
                 break;
             } else return nullptr;
         }
+    }
+
+    if (BytecodeExecutor::isRunning(sprite, block)) {
+        if (!shouldRestart) return nullptr;
+        BytecodeExecutor::stopThread(sprite, block);
     }
 
     ScriptThread *newThread = nullptr;
@@ -31,7 +74,7 @@ ScriptThread *BlockExecutor::startThread(Sprite *sprite, Block *block, bool shou
     newThread->nextBlock = block;
     newThread->parentThread = nullptr;
     newThread->finished = false;
-    newThread->id = ++id;
+    newThread->id = nextThreadId();
     newThread->sprite = sprite;
 
     if (restartThreadIndex == -1) {
@@ -105,6 +148,8 @@ BlockResult BlockExecutor::runThread(ScriptThread &thread, Sprite &sprite) {
     unsigned int blocksSinceTimeCheck = 0;
     constexpr unsigned int timeCheckInterval = 64;
     do {
+        fprintf(stderr, "[LEGACY] sprite=%s opcode=%s\n", sprite.name.c_str(), thread.nextBlock->opcode.c_str());
+
         currentBlock = thread.nextBlock;
         thread.nextBlock = currentBlock->nextBlock;
 
@@ -159,8 +204,11 @@ void BlockExecutor::runAllBlocksByOpcode(const std::string &opcode, std::vector<
 void BlockExecutor::runAllBlocksByOpcodeInSprite(const std::string &opcode, Sprite *sprite, std::vector<ScriptThread *> *out) {
     if (sprite->hats[opcode].empty()) return;
     std::vector<Block *> tempHats(sprite->hats[opcode].begin(), sprite->hats[opcode].end());
+
     for (auto it = tempHats.rbegin(); it != tempHats.rend(); ++it) {
         auto &hat = *it;
+
+        if (out == nullptr && BytecodeExecutor::startThread(sprite, hat, true) != nullptr) continue;
 
         ScriptThread *thread = BlockExecutor::startThread(sprite, hat);
         if (out) out->push_back(thread);
