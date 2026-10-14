@@ -1,6 +1,7 @@
 #include "collision.hpp"
 #include "image.hpp"
 #include "math.hpp"
+#include "renderer.hpp"
 #include "runtime.hpp"
 #include "types.hpp"
 #include <algorithm>
@@ -30,50 +31,50 @@ std::shared_ptr<CollisionMask> collision::generateCollisionMask(Sprite *sprite, 
 
     uint32_t *pixels = (uint32_t *)imgData.pixels;
 
-#if defined(RENDERER_CITRO2D) || defined(RENDERER_GL2D)
-    mask->alphaPixels.resize(mask->width * mask->height, 0);
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D) {
+        mask->alphaPixels.resize(mask->width * mask->height, 0);
 
-    for (int y = 0; y < (int)mask->height; y++) {
-        for (int x = 0; x < (int)mask->width; x++) {
-            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
+        for (int y = 0; y < (int)mask->height; y++) {
+            for (int x = 0; x < (int)mask->width; x++) {
+                const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-            const uint8_t alpha = px & 0xFF;
+                const uint8_t alpha = px & 0xFF;
 #else
-            const uint8_t alpha = (px >> 24) & 0xFF;
+                const uint8_t alpha = (px >> 24) & 0xFF;
 #endif
-            if (alpha > 0) {
-                mask->alphaPixels[y * mask->width + x] = alpha;
+                if (alpha > 0) {
+                    mask->alphaPixels[y * mask->width + x] = alpha;
 
-                const float dx = x - centerX;
-                const float dy = y - centerY;
-                const float distSq = dx * dx + dy * dy;
-                if (distSq > maxDistSq) maxDistSq = distSq;
+                    const float dx = x - centerX;
+                    const float dy = y - centerY;
+                    const float distSq = dx * dx + dy * dy;
+                    if (distSq > maxDistSq) maxDistSq = distSq;
+                }
+            }
+        }
+
+        free(imgData.pixels);
+    } else {
+        mask->image = imgFind->second;
+        mask->imgScaleFactor = scaleFactor;
+
+        for (int y = 0; y < (int)mask->height; y++) {
+            for (int x = 0; x < (int)mask->width; x++) {
+                const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
+#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+                const uint8_t alpha = px & 0xFF;
+#else
+                const uint8_t alpha = (px >> 24) & 0xFF;
+#endif
+                if (alpha > 0) {
+                    const float dx = x - centerX;
+                    const float dy = y - centerY;
+                    const float distSq = dx * dx + dy * dy;
+                    if (distSq > maxDistSq) maxDistSq = distSq;
+                }
             }
         }
     }
-
-    free(imgData.pixels);
-#else
-    mask->image = imgFind->second;
-    mask->imgScaleFactor = scaleFactor;
-
-    for (int y = 0; y < (int)mask->height; y++) {
-        for (int x = 0; x < (int)mask->width; x++) {
-            const uint32_t px = pixels[(y * scaleFactor) * imgData.width + (x * scaleFactor)];
-#if defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-            const uint8_t alpha = px & 0xFF;
-#else
-            const uint8_t alpha = (px >> 24) & 0xFF;
-#endif
-            if (alpha > 0) {
-                const float dx = x - centerX;
-                const float dy = y - centerY;
-                const float distSq = dx * dx + dy * dy;
-                if (distSq > maxDistSq) maxDistSq = distSq;
-            }
-        }
-    }
-#endif
 
     mask->maxRadius = std::sqrt(maxDistSq) * mask->scaleFactor;
     return mask;

@@ -440,11 +440,11 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
 
         Scratch::FPS = config.value("framerate", 30);
         if (Scratch::FPS == 0) { // 0 FPS enables V-Sync
-#if defined(RENDERER_SDL2)
-            Scratch::FPS = 255; // SDL2's vsync will figure it out
-#else
-            Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
-#endif
+            if (Render::currentRenderer == Renderers::SDL2) {
+                Scratch::FPS = 255; // SDL2's vsync will figure it out
+            } else {
+                Scratch::FPS = 60; // most platforms on other renderers are 60hz anyway
+            }
         }
 
         Scratch::turbo = config.value("turbo", false);
@@ -460,44 +460,41 @@ void Parser::loadAdvancedProjectSettingsSb3(const nlohmann::json &json) {
         }
     }
 
-#ifdef RENDERER_CITRO2D
-    if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
-        Render::renderMode = Render::BOTH_SCREENS;
-    else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
-        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
-    else {
+    if (Render::currentRenderer == Renderers::Citro2D) {
+        if (Scratch::projectWidth == 400 && Scratch::projectHeight == 480)
+            Render::renderMode = Render::BOTH_SCREENS;
+        else if (Scratch::projectWidth == 320 && Scratch::projectHeight == 240)
+            Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+        else {
+            auto bottomScreen = Unzip::getSetting("bottomScreen");
+            if (!bottomScreen.is_null() && bottomScreen.get<bool>())
+                Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
+            else
+                Render::renderMode = Render::TOP_SCREEN_ONLY;
+        }
+    } else if (Render::currentRenderer == Renderers::GL2D) {
         auto bottomScreen = Unzip::getSetting("bottomScreen");
         if (!bottomScreen.is_null() && bottomScreen.get<bool>())
             Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
         else
             Render::renderMode = Render::TOP_SCREEN_ONLY;
-    }
-#elif defined(RENDERER_GL2D)
-    auto bottomScreen = Unzip::getSetting("bottomScreen");
-    if (!bottomScreen.is_null() && bottomScreen.get<bool>())
-        Render::renderMode = Render::BOTTOM_SCREEN_ONLY;
-    else
+    } else {
         Render::renderMode = Render::TOP_SCREEN_ONLY;
-#else
-    Render::renderMode = Render::TOP_SCREEN_ONLY;
-#endif
+    }
 
     auto accuratePen = Unzip::getSetting("accuratePen");
-    if (!accuratePen.is_null())
+    if (!accuratePen.is_null()) {
         Scratch::accuratePen = accuratePen.get<bool>();
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    else Scratch::accuratePen = true;
-#else
-    else Scratch::accuratePen = false;
-#endif
+    } else {
+        if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3) Scratch::accuratePen = true;
+        else Scratch::accuratePen = false;
+    }
 
     auto accurateCollision = Unzip::getSetting("accurateCollision");
     if (accurateCollision.is_null()) {
-#ifdef __NDS__
-        Scratch::accurateCollision = false;
-#else
-        Scratch::accurateCollision = true;
-#endif
+        if (Render::currentRenderer == Renderers::GL2D) {
+            Scratch::accurateCollision = false;
+        } else Scratch::accurateCollision = true;
     } else Scratch::accurateCollision = accurateCollision.get<bool>();
 
     auto debugVars = Unzip::getSetting("debugVars");

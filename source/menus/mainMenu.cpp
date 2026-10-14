@@ -1,5 +1,6 @@
 #include "mainMenu.hpp"
 #include "projectMenu.hpp"
+#include "renderer.hpp"
 #include "settings.hpp"
 #include "settingsMenu.hpp"
 #include "unpackMenu.hpp"
@@ -80,29 +81,33 @@ MainMenu::~MainMenu() {
 }
 
 void MainMenu::init() {
-#if defined(RENDERER_HEADLESS) || !defined(ENABLE_SVG) || !defined(ENABLE_BITMAP)
-    // let the user type what project they want to open
-    std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
+#if defined(ENABLE_SVG) && defined(ENABLE_BITMAP)
+    if (Render::currentRenderer == Renderers::Headless) {
+#endif
+        // let the user type what project they want to open
+        std::string answer = Input::openSoftwareKeyboard(TranslationManager::getTranslation("ui.headless.projectPrompt").c_str());
 
-    for (const std::string &ext : {".sb3", ".sb2", ".sb"}) {
-        if (answer.size() >= ext.size() &&
-            answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
-            answer = answer.substr(0, answer.size() - ext.size());
-            break;
+        for (const std::string &ext : {".sb3", ".sb2", ".sb"}) {
+            if (answer.size() >= ext.size() &&
+                answer.compare(answer.size() - ext.size(), ext.size(), ext) == 0) {
+                answer = answer.substr(0, answer.size() - ext.size());
+                break;
+            }
         }
-    }
 
-    ProjectFormat format;
-    std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + answer, format);
-    if (!resolved.empty()) {
-        Unzip::filePath = resolved;
-    } else {
-        Unzip::filePath = OS::getScratchFolderLocation() + answer;
-        Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", answer);
-    }
+        ProjectFormat format;
+        std::string resolved = Unzip::resolveZipProjectPath(OS::getScratchFolderLocation() + answer, format);
+        if (!resolved.empty()) {
+            Unzip::filePath = resolved;
+        } else {
+            Unzip::filePath = OS::getScratchFolderLocation() + answer;
+            Unzip::unpackedFormatHint = UnpackMenu::getUnpackedFormat(OS::getScratchFolderLocation() + "UnpackedGames.json", answer);
+        }
 
-    MenuManager::loadProject();
-    return;
+        MenuManager::loadProject();
+        return;
+#if defined(ENABLE_SVG) && defined(ENABLE_BITMAP)
+    }
 #endif
 
     Input::applyControls();
@@ -114,24 +119,24 @@ void MainMenu::init() {
 
     std::string versionStr;
     switch (SE_VERSION_TYPE) {
-        case SE_VERSION_TYPE_RELEASE:
-            versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_BETA:
-            versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_ALPHA:
-            versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_RELEASE_CANDIDATE:
-            versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
-            break;
-        case SE_VERSION_TYPE_NIGHTLY:
-            versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
-            break;
-        default:
-            versionStr = TranslationManager::getTranslation("version.prefix.dev");
-            break;
+    case SE_VERSION_TYPE_RELEASE:
+        versionStr = TranslationManager::getTranslation("version.prefix.release") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_BETA:
+        versionStr = TranslationManager::getTranslation("version.prefix.beta") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_ALPHA:
+        versionStr = TranslationManager::getTranslation("version.prefix.alpha") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_RELEASE_CANDIDATE:
+        versionStr = TranslationManager::getTranslation("version.prefix.releaseCanidate") + " " + SE_VERSION_DISPLAY;
+        break;
+    case SE_VERSION_TYPE_NIGHTLY:
+        versionStr = TranslationManager::getTranslation("version.prefix.nightly") + " " + SE_VERSION_DISPLAY;
+        break;
+    default:
+        versionStr = TranslationManager::getTranslation("version.prefix.dev");
+        break;
     }
     versionNumber = createTextObject(versionStr, 0, 0, "gfx/menu/Ubuntu-Bold");
     versionNumber->setCenterAligned(false);

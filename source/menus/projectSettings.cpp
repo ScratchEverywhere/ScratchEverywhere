@@ -1,6 +1,7 @@
 #include "projectSettings.hpp"
 #include "controlsMenu.hpp"
 #include "projectMenu.hpp"
+#include "renderer.hpp"
 #include "settings.hpp"
 #include "translation.hpp"
 #include "unpackMenu.hpp"
@@ -117,15 +118,16 @@ void ProjectSettings::init() {
     settingsControl->setScrollLimits();
 
     nlohmann::json settings = SettingsManager::getProjectSettings(projectPath);
-#if defined(__3DS__) || defined(__NDS__)
-    bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
-#endif
 
-#if defined(RENDERER_SDL2) || defined(RENDERER_SDL3)
-    penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
-#else
-    penModeButton->text->setText(createSettingsText("ui.settings.penMode", !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
-#endif
+    if (Render::currentRenderer == Renderers::Citro2D || Render::currentRenderer == Renderers::GL2D) {
+        bottomScreenButton->text->setText(createSettingsText("ui.settings.bottom", !settings.is_null() && !settings["settings"].is_null() && !settings["settings"]["bottomScreen"].is_null() && settings["settings"]["bottomScreen"].get<bool>()));
+    }
+
+    if (Render::currentRenderer == Renderers::SDL2 || Render::currentRenderer == Renderers::SDL3) {
+        penModeButton->text->setText(createSettingsText("ui.settings.penMode", settings["settings"]["accuratePen"].is_null() || settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
+    } else {
+        penModeButton->text->setText(createSettingsText("ui.settings.penMode", !settings["settings"]["accuratePen"].is_null() && settings["settings"]["accuratePen"].get<bool>(), SettingType::Accuracy));
+    }
 
     if (settings["settings"]["accurateCollision"].is_null()) {
 #if defined(__NDS__)

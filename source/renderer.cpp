@@ -116,7 +116,10 @@ bool Render::init() {
         }
         }
 
-        if (globalRenderer == nullptr || globalRenderer->error.has_value()) {
+        if (globalRenderer == nullptr) {
+            Log::logError("Renderer failed to init.");
+            return false;
+        } else if (globalRenderer->error.has_value()) {
             Log::logError("Renderer failed to init: " + globalRenderer->error.value());
             delete globalRenderer;
         } else break;

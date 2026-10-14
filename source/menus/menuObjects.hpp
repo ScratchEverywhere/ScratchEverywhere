@@ -30,46 +30,46 @@ class SE_EXPORT JollySnow {
   public:
     std::shared_ptr<Image> image;
     JollySnow() {
-#ifndef RENDERER_HEADLESS
-        oldWindowWidth = Render::getWidth();
-        oldWindowHeight = Render::getHeight();
+        if (Render::currentRenderer != Renderers::Headless) {
+            oldWindowWidth = Render::getWidth();
+            oldWindowHeight = Render::getHeight();
 
-        for (size_t i = 0; i < 30; i++) {
-            SnowFall ball = {
-                .x = (float)(rand() % Render::getWidth()),
-                .y = (float)(rand() % Render::getHeight()),
-                .fallSpeed = ((float)rand() / RAND_MAX) * 1.1f + 0.2f};
-            snow.push_back(std::move(ball));
+            for (size_t i = 0; i < 30; i++) {
+                SnowFall ball = {
+                    .x = (float)(rand() % Render::getWidth()),
+                    .y = (float)(rand() % Render::getHeight()),
+                    .fallSpeed = ((float)rand() / RAND_MAX) * 1.1f + 0.2f};
+                snow.push_back(std::move(ball));
+            }
         }
-#endif
     }
 
     void render(float xOffset = 0.0f, float yOffset = 0.0f) {
-#ifndef RENDERER_HEADLESS
-        for (auto &ball : snow) {
-
-            ImageRenderParams params;
-            params.x = ball.x + xOffset;
-            params.y = ball.y + yOffset;
-            params.centered = true;
-
-            image->render(params);
-            ball.y += ball.fallSpeed;
-            if (ball.y > Render::getHeight() + 20 - yOffset) {
-                ball.y = -20 - yOffset;
-                ball.x = (float)(rand() % Render::getWidth());
-            }
-        }
-
-        if (oldWindowWidth != Render::getWidth() || oldWindowHeight != Render::getHeight()) {
-            oldWindowWidth = Render::getWidth();
-            oldWindowHeight = Render::getHeight();
+        if (Render::currentRenderer != Renderers::Headless) {
             for (auto &ball : snow) {
-                ball.x = (float)(rand() % Render::getWidth());
-                ball.y = (float)(rand() % Render::getHeight());
+
+                ImageRenderParams params;
+                params.x = ball.x + xOffset;
+                params.y = ball.y + yOffset;
+                params.centered = true;
+
+                image->render(params);
+                ball.y += ball.fallSpeed;
+                if (ball.y > Render::getHeight() + 20 - yOffset) {
+                    ball.y = -20 - yOffset;
+                    ball.x = (float)(rand() % Render::getWidth());
+                }
+            }
+
+            if (oldWindowWidth != Render::getWidth() || oldWindowHeight != Render::getHeight()) {
+                oldWindowWidth = Render::getWidth();
+                oldWindowHeight = Render::getHeight();
+                for (auto &ball : snow) {
+                    ball.x = (float)(rand() % Render::getWidth());
+                    ball.y = (float)(rand() % Render::getHeight());
+                }
             }
         }
-#endif
     }
 };
 
