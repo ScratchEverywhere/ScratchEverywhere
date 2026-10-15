@@ -34,6 +34,8 @@ struct SE_EXPORT Parser {
     static void setSubstackSb3(Block *startBlock, Block *stopBlock = nullptr);
     static void loadAdvancedProjectSettingsSb3(const nlohmann::json &json);
     static void resolveVariableTypes(Sprite *sprite);
+    static void compileBytecode(Sprite *sprite);
+    static void clearSpriteBlockOpcodes(Sprite *sprite);
 
     static void loadSpritesSb2(const nlohmann::json &json);
     static void parseSb2Scripts(Sprite *sprite, const nlohmann::json &object);

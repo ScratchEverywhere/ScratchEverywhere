@@ -60,6 +60,13 @@ class SE_EXPORT Scratch {
     static std::string getListName(Block &block);
     static std::vector<Value> *getListItems(Block &block, Sprite *sprite);
 
+    static bool resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName);
+
+    /**
+     * Starts the sound `fullName` at the sprite's volume so that "play sound until done" can wait on it with `Mixer::isSoundPlaying`.
+     */
+    static void startSoundUntilDone(Sprite *sprite, const std::string &fullName);
+
     /**
      * Frees every Sprite from memory.
      */

@@ -308,6 +308,8 @@ void Parser::loadSpritesSb3(const nlohmann::json &json) {
             }
 
             resolveVariableTypes(newSprite);
+            compileBytecode(newSprite);
+            clearSpriteBlockOpcodes(newSprite);
         }
 
         Scratch::sprites.push_back(newSprite);
@@ -880,9 +882,41 @@ void Parser::setSubstackSb3(Block *startBlock, Block *stopBlock) {
             }
         }
 
-        if (!current->shadow) current->opcode.clear();
         if (current->isEndBlock) break;
         current = current->nextBlock;
+    }
+}
+
+static void clearBlockOpcodes(Block *startBlock, Block *stopBlock = nullptr) {
+    Block *current = startBlock;
+
+    while (current != nullptr && current != stopBlock) {
+        for (const std::string &stackName : {"SUBSTACK", "SUBSTACK2"}) {
+            Block *firstSubBlock = nullptr;
+            for (auto &[name, input] : current->inputs) {
+                if (input.block != nullptr && name == stackName) {
+                    firstSubBlock = input.block;
+                    break;
+                }
+            }
+            if (firstSubBlock != nullptr) clearBlockOpcodes(firstSubBlock, current);
+        }
+
+        bool wasEndBlock = current->isEndBlock;
+        if (!current->shadow) current->opcode.clear();
+        if (wasEndBlock) break;
+        current = current->nextBlock;
+    }
+}
+
+void Parser::clearSpriteBlockOpcodes(Sprite *sprite) {
+    for (const auto &[opcode, hatBlocks] : sprite->hats) {
+        for (Block *hat : hatBlocks) {
+            if (hat != nullptr) clearBlockOpcodes(hat);
+        }
+    }
+    for (const auto &[proccode, definitionBlock] : sprite->customHatBlock) {
+        if (definitionBlock != nullptr) clearBlockOpcodes(definitionBlock);
     }
 }
 

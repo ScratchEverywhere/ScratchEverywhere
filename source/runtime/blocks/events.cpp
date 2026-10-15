@@ -5,40 +5,35 @@
 SCRATCH_BLOCK(event, whenflagclicked) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenflagclicked);
 
 SCRATCH_BLOCK(event, whenbackdropswitchesto) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenbackdropswitchesto);
 
 SCRATCH_BLOCK(event, whenthisspriteclicked) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenthisspriteclicked);
 
 SCRATCH_BLOCK(event, whenstageclicked) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenstageclicked);
 
+SCRATCH_BLOCK_POSITIONAL_S_VOID(event, broadcast) {
+    BlockExecutor::startBroadcastHats(str);
+}
 SCRATCH_BLOCK(event, broadcast) {
     std::string broadcast;
 
     if (!Scratch::getInputValueAs(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
-    std::transform(broadcast.begin(), broadcast.end(), broadcast.begin(), ::tolower);
-
-    for (auto &spr : Scratch::sprites) {
-        if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
-        for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
-
-            std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
-            std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
-
-            if (broadcastOption == broadcast) {
-                BlockExecutor::startThread(spr, hat);
-            }
-        }
-    }
+    block_event_broadcast_pos_(sprite, broadcast);
 
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, broadcast, {"BROADCAST_INPUT", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(event, broadcastandwait) {
     BlockState *state = thread->getState(block);
@@ -46,20 +41,11 @@ SCRATCH_BLOCK(event, broadcastandwait) {
         std::string broadcast;
 
         if (!Scratch::getInputValueAs(block, "BROADCAST_INPUT", thread, sprite, broadcast)) return BlockResult::REPEAT;
-        std::transform(broadcast.begin(), broadcast.end(), broadcast.begin(), ::tolower);
+        state->threads = BlockExecutor::startBroadcastHats(broadcast);
 
-        for (auto &spr : Scratch::sprites) {
-            if (spr->hats["event_whenbroadcastreceived"].empty()) continue;
-            for (Block *hat : spr->hats["event_whenbroadcastreceived"]) {
-
-                std::string broadcastOption = Scratch::getFieldValue(*hat, "BROADCAST_OPTION");
-                std::transform(broadcastOption.begin(), broadcastOption.end(), broadcastOption.begin(), ::tolower);
-
-                if (broadcastOption == broadcast) {
-                    state->threads.push_back(BlockExecutor::startThread(spr, hat)->id);
-                }
-            }
-        }
+        fprintf(stderr, "[BCWAIT] start '%s' threads=%zu ids=", broadcast.c_str(), state->threads.size());
+        for (auto id : state->threads) fprintf(stderr, "%llu,", (unsigned long long)id);
+        fprintf(stderr, "\n");
 
         state->completedSteps = 1;
         if (state->threads.empty()) {
@@ -70,22 +56,28 @@ SCRATCH_BLOCK(event, broadcastandwait) {
     }
 
     for (auto &stateID : state->threads) {
-        for (auto &spriteThread : BlockExecutor::threads) {
-            if (spriteThread->id != stateID) continue;
-            if (!spriteThread->finished) return BlockResult::REPEAT;
-        }
+        if (BlockExecutor::isThreadRunning(stateID)) return BlockResult::REPEAT;
     }
+    fprintf(stderr, "[BCWAIT] done\n");
     thread->eraseState(block);
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(event, broadcastandwait) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "BROADCAST_INPUT", BytecodeStackKind::String);
+    compiler.emit(BytecodeOp::BroadcastAndWait);
+    return true;
 }
 
 // FIXME: This is currently very poorly optimized. Please fix it, thank you.
 SCRATCH_BLOCK(event, whenkeypressed) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenkeypressed);
 
 SCRATCH_BLOCK(event, whenbroadcastreceived) {
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(event, whenbroadcastreceived);
 
 SCRATCH_SHADOW_BLOCK(event_touchingobjectmenu, TOUCHINGOBJECTMENU)

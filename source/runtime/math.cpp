@@ -416,6 +416,17 @@ std::string Math::utf16CharAt(std::string_view str, size_t index) {
     return "";
 }
 
+std::vector<uint32_t> Math::utf16Index(std::string_view str) {
+    std::vector<uint32_t> offsets;
+    size_t pos = 0;
+    while (pos < str.size()) {
+        offsets.push_back(static_cast<uint32_t>(pos));
+        pos += utf16UnitByteLen(str, pos);
+    }
+    offsets.push_back(static_cast<uint32_t>(pos));
+    return offsets;
+}
+
 namespace {
 constexpr size_t utf16IndexCacheLimit = 256;
 std::unordered_map<std::shared_ptr<const std::string>, std::vector<uint32_t>> utf16IndexCache;

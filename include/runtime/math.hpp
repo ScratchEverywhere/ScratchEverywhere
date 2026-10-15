@@ -16,6 +16,7 @@ SE_EXPORT nonstd::expected<double, std::string> parseNumber(std::string_view str
 
 SE_EXPORT size_t utf16Length(std::string_view str);
 SE_EXPORT std::string utf16CharAt(std::string_view str, size_t utf16Index);
+SE_EXPORT std::vector<uint32_t> utf16Index(std::string_view str);
 SE_EXPORT size_t utf16Length(const std::shared_ptr<const std::string> &str);
 SE_EXPORT std::string utf16CharAt(const std::shared_ptr<const std::string> &str, size_t utf16Index);
 

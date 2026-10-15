@@ -8,6 +8,39 @@
 #include <unzip.hpp>
 #include <value.hpp>
 
+bool Scratch::resolveSoundName(Sprite *sprite, const Value &soundValue, std::string &outFullName) {
+    if (soundValue.isString()) {
+        for (const Sound &sound : sprite->sounds) {
+            if (sound.name == soundValue.get<std::string>()) {
+                outFullName = sound.fullName;
+                return true;
+            }
+        }
+    }
+
+    if (soundValue.isNaN() || !soundValue.isNumeric() || sprite->sounds.empty()) return false;
+    double index = std::trunc(soundValue.get<double>());
+    double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
+    outFullName = sprite->sounds[soundIndex].fullName;
+    return true;
+}
+
+void Scratch::startSoundUntilDone(Sprite *sprite, const std::string &fullName) {
+#ifdef ENABLE_AUDIO
+    SoundStream *strm;
+    if (Scratch::projectType == ProjectType::UNZIPPED)
+        strm = new SoundStream(fullName);
+    else
+        strm = new SoundStream(Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, fullName);
+    if (strm->error.has_value()) {
+        Log::logError("[Sound] " + strm->error.value());
+        delete strm;
+    }
+
+    Mixer::setSoundVolume(fullName, sprite->volume);
+#endif
+}
+
 SCRATCH_BLOCK(sound, playuntildone) {
 #ifdef ENABLE_AUDIO
     BlockState *state = thread->getState(block);
@@ -15,58 +48,30 @@ SCRATCH_BLOCK(sound, playuntildone) {
         Value soundValue;
         if (!Scratch::getInputValue(block, "SOUND_MENU", thread, sprite, soundValue)) return BlockResult::REPEAT;
 
-        // Find sound by name first
-        bool soundFound = false;
-
-        if (soundValue.isString()) {
-            for (const Sound &sound : sprite->sounds) {
-                if (sound.name == soundValue.get<std::string>()) {
-                    state->name = sound.fullName;
-                    soundFound = true;
-                    break;
-                }
-            }
+        if (!Scratch::resolveSoundName(sprite, soundValue, state->name)) {
+            thread->eraseState(block);
+            return BlockResult::CONTINUE;
         }
 
-        // If not found by name and input is a number, try index-based lookup
-        if (!soundFound) {
-            if (soundValue.isNaN() || !soundValue.isNumeric() || sprite->sounds.empty()) return BlockResult::CONTINUE;
-            double index = std::trunc(soundValue.get<double>());
-            double soundIndex = index - (std::floor((index - 1) / sprite->sounds.size()) * sprite->sounds.size()) - 1;
-            state->name = sprite->sounds[soundIndex].fullName;
-            soundFound = true;
-        }
-
-        if (soundFound) {
-            SoundStream *strm;
-            if (Scratch::projectType == ProjectType::UNZIPPED)
-                strm = new SoundStream(state->name);
-            else
-                strm = new SoundStream(Scratch::sb3InRam ? Unzip::zipArchive.get() : nullptr, state->name);
-            if (strm->error.has_value()) {
-                Log::logError("[Sound] " + strm->error.value());
-                delete strm;
-            }
-
-            Mixer::setSoundVolume(state->name, sprite->volume);
-        }
+        Scratch::startSoundUntilDone(sprite, state->name);
 
         state->completedSteps = 1;
         return BlockResult::REPEAT;
     }
-    std::string checkSoundName = state->name;
 
-    if (!checkSoundName.empty() && Mixer::isSoundPlaying(checkSoundName)) {
-        return BlockResult::REPEAT;
-    }
+    if (!state->name.empty() && Mixer::isSoundPlaying(state->name)) return BlockResult::REPEAT;
 
-    if (!checkSoundName.empty() && Mixer::isSoundPlaying(checkSoundName)) return BlockResult::REPEAT;
-
-    Mixer::setAutoClean(checkSoundName, true);
+    Mixer::setAutoClean(state->name, true);
 
     thread->eraseState(block);
 #endif
     return BlockResult::CONTINUE;
+}
+SCRATCH_BYTECODE_BLOCK(sound, playuntildone) {
+    outFirstInstr = compiler.here();
+    compiler.compileInput(block, "SOUND_MENU", BytecodeStackKind::Value);
+    compiler.emit(BytecodeOp::PlaySoundUntilDone);
+    return true;
 }
 
 SCRATCH_BLOCK(sound, play) {
@@ -115,8 +120,9 @@ SCRATCH_BLOCK(sound, play) {
 #endif
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, play, {"SOUND_MENU", BytecodeStackKind::Value});
 
-SCRATCH_BLOCK(sound, stopallsounds) {
+SCRATCH_BLOCK_POSITIONAL_VOID(sound, stopallsounds) {
 #ifdef ENABLE_AUDIO
     for (auto &currentSprite : Scratch::sprites) {
         for (Sound sound : currentSprite->sounds) {
@@ -125,17 +131,24 @@ SCRATCH_BLOCK(sound, stopallsounds) {
         }
     }
 #endif
+}
+SCRATCH_BLOCK(sound, stopallsounds) {
+    block_sound_stopallsounds_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, stopallsounds);
 
 SCRATCH_BLOCK(sound, changeeffectby) {
     BlockState *state = thread->getState(block);
-    if (state->completedSteps != 0) return BlockResult::CONTINUE;
+    if (state->completedSteps != 0) {
+        thread->eraseState(block);
+        return BlockResult::CONTINUE;
+    }
 
     double amount;
-    if (!Scratch::getInputValueAs(block, "VALUE", thread, sprite, amount)) return BlockResult::REPEAT;
-
-    const std::string effect = Scratch::getFieldValue(*block, "EFFECT");
+    std::string effect;
+    if (!Scratch::getInputValueAs(block, "VALUE", thread, sprite, amount) ||
+        !Scratch::getInputValueAs(block, "EFFECT", thread, sprite, effect)) return BlockResult::REPEAT;
 
     if (effect == "PITCH") {
         sprite->pitch += amount;
@@ -153,12 +166,13 @@ SCRATCH_BLOCK(sound, changeeffectby) {
     state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(sound, changeeffectby, {"VALUE", BytecodeStackKind::Number}, {"EFFECT", BytecodeStackKind::String});
 
 SCRATCH_BLOCK(sound, seteffectto) {
     double amount;
-    if (!Scratch::getInputValueAs(block, "VALUE", thread, sprite, amount)) return BlockResult::REPEAT;
-
-    const std::string effect = Scratch::getFieldValue(*block, "EFFECT");
+    std::string effect;
+    if (!Scratch::getInputValueAs(block, "VALUE", thread, sprite, amount) ||
+        !Scratch::getInputValueAs(block, "EFFECT", thread, sprite, effect)) return BlockResult::REPEAT;
 
     if (effect == "PITCH") {
         sprite->pitch = amount;
@@ -175,16 +189,21 @@ SCRATCH_BLOCK(sound, seteffectto) {
     }
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, seteffectto, {"VALUE", BytecodeStackKind::Number}, {"EFFECT", BytecodeStackKind::String});
 
-SCRATCH_BLOCK(sound, cleareffects) {
+SCRATCH_BLOCK_POSITIONAL_VOID(sound, cleareffects) {
     sprite->pitch = 0.0f;
     sprite->pan = 0.0f;
     for (Sound sound : sprite->sounds) {
         Mixer::setPitch(sound.fullName, sprite->pitch);
         Mixer::setPan(sound.fullName, sprite->pan);
     }
+}
+SCRATCH_BLOCK(sound, cleareffects) {
+    block_sound_cleareffects_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, cleareffects);
 
 SCRATCH_BLOCK(sound, changevolumeby) {
     BlockState *state = thread->getState(block);
@@ -199,11 +218,12 @@ SCRATCH_BLOCK(sound, changevolumeby) {
     double inputValue = volume;
     sprite->volume = std::clamp(sprite->volume + inputValue, 0.0, 100.0);
     for (Sound sound : sprite->sounds) {
-        Mixer::setSoundVolume(sound.fullName, sprite->volume + inputValue);
+        Mixer::setSoundVolume(sound.fullName, sprite->volume);
     }
     state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(sound, changevolumeby, {"VOLUME", BytecodeStackKind::Number});
 
 SCRATCH_BLOCK(sound, setvolumeto) {
     BlockState *state = thread->getState(block);
@@ -223,10 +243,15 @@ SCRATCH_BLOCK(sound, setvolumeto) {
     state->completedSteps = 1;
     return BlockResult::REPEAT;
 }
+SCRATCH_BLOCK_BLOCKING_SIGNATURE(sound, setvolumeto, {"VOLUME", BytecodeStackKind::Number});
 
+SCRATCH_BLOCK_POSITIONAL_SPRITE_N(sound, volume) {
+    return sprite->volume;
+}
 SCRATCH_BLOCK_DOUBLE(sound, volume) {
-    *outValue = sprite->volume;
+    *outValue = block_sound_volume_pos_(sprite);
     return BlockResult::CONTINUE;
 }
+SCRATCH_BLOCK_SIGNATURE(sound, volume);
 
 SCRATCH_SHADOW_BLOCK(sound_sounds_menu, SOUND_MENU)
