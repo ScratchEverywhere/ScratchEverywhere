@@ -1,0 +1,45 @@
+name: PS2 Nightly Build
+
+on:
+  push:
+    paths:
+      - CMakeLists.txt
+      - source/runtime/**
+      - source/renderers/sdl3/**
+      - source/*
+      - source/menus/**
+      - source/audio/sdl3/**
+      - gfx/ps2/**
+      - gfx/menu/**
+      - include/**
+      - .github/workflows/nightly-ps2.yml
+      - docker/Dockerfile.ps2
+      - source/main.cpp
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create `romfs` directory
+        run: mkdir romfs
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.ps2
+          target: exporter
+          outputs: type=local,dest=.
+      - name: Upload Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scratch Everywhere! PS2 Nightly
+          path: scratch-ps2.elf
