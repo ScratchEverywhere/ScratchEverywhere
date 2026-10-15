@@ -1,7 +1,41 @@
+diff --git a/nxdk_glue/audio/SDL_xboxaudio.c b/nxdk_glue/audio/SDL_xboxaudio.c
+index db1494a..a9cd6de 100644
+--- a/nxdk_glue/audio/SDL_xboxaudio.c
++++ b/nxdk_glue/audio/SDL_xboxaudio.c
+@@ -127,7 +127,7 @@ static bool XBOXAUDIO_OpenDevice(SDL_AudioDevice *device)
+         nxAudioBufferInitialize(&audio_data->buffers[i], audio_data->buffer_mem[i], audio_data->buffer_size);
+     }
+ 
+-    KeInitializeSemaphore(&audio_data->playsem, 1, SDL_XBOXAUDIO_BUFFER_COUNT);
++    KeInitializeSemaphore(&audio_data->playsem, 0, SDL_XBOXAUDIO_BUFFER_COUNT);
+     nxAudioBufferSetCallback(&audio_data->voice, xbox_audio_callback, (void *)audio_data);
+ 
+     // Prime the voice with the initial buffer
+@@ -169,6 +169,9 @@ static bool XBOXAUDIO_PlayDevice(SDL_AudioDevice *device, const Uint8 *buffer, i
+     int idx = audio_data->next_buffer;
+     nxAudioBufferInitialize(&audio_data->buffers[idx], audio_data->buffer_mem[idx], buflen);
+     nxAudioBufferQueue(&audio_data->voice, &audio_data->buffers[idx]);
++    if (nxAudioVoiceGetState(&audio_data->voice) != NX_PLAYING) {
++        nxAudioVoiceStart(&audio_data->voice);
++    }
+     audio_data->next_buffer = (audio_data->next_buffer + 1) % SDL_XBOXAUDIO_BUFFER_COUNT;
+     return true;
+ }
 diff --git a/nxdk_glue/render/SDL_render_xgu.c b/nxdk_glue/render/SDL_render_xgu.c
-index df82129..fb937ca 100644
+index df82129..061e6ae 100644
 --- a/nxdk_glue/render/SDL_render_xgu.c
 +++ b/nxdk_glue/render/SDL_render_xgu.c
+@@ -163,8 +163,8 @@ static bool XBOX_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL
+ 
+     // Swizzled textures next to be in a power of 2 size container
+     if (xgu_texture->swizzled) {
+-        xgu_texture->data_width = npot2pot(texture->w);
+-        xgu_texture->data_height = npot2pot(texture->h);
++        xgu_texture->data_width = SDL_max(16, npot2pot(texture->w));
++        xgu_texture->data_height = SDL_max(8, npot2pot(texture->h));
+ 
+         // Texture coordinates need to be normalised for swizzled textures
+         xgu_texture->u_scale = (float)xgu_texture->tex_width / (float)xgu_texture->data_width;
 @@ -319,6 +319,50 @@ static bool XBOX_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture)
          format = XGU_MASK(NV097_SET_SURFACE_FORMAT_COLOR, surface_format);
      }

@@ -21,7 +21,7 @@ bool ZipProjectLoader::load(std::istream *file) {
         auto setting = Unzip::getSetting("sb3InRam");
         bool keepInRam;
         if (setting.is_null()) {
-#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE)
+#if defined(__NDS__) || defined(__PSP__) || defined(GAMECUBE) || defined(__XBOX__)
             keepInRam = false;
 #else
             keepInRam = true;

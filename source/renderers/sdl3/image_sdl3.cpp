@@ -12,6 +12,8 @@
 #include <vector>
 
 void Image_SDL3::render(ImageRenderParams &params) {
+    if (!texture) return;
+
     const float &x = params.x;
     const float &y = params.y;
     const int &brightness = params.brightness;
@@ -84,6 +86,8 @@ void Image_SDL3::render(ImageRenderParams &params) {
 
 // I doubt you want to mess with this...
 void Image_SDL3::renderNineslice(double xPos, double yPos, double width, double height, double padding, bool centered) {
+    if (!texture) return;
+
     const float destX = xPos - (centered ? width / 2.0f : 0);
     const float destY = yPos - (centered ? height / 2.0f : 0);
     const float srcPadding = std::max(1.0f, std::min(std::min(static_cast<float>(padding), getWidth() / 2.0f), static_cast<float>(getHeight())) / 2.0f);
@@ -151,11 +155,10 @@ nonstd::expected<void, std::string> Image_SDL3::setInitialTexture() {
         return nonstd::make_unexpected("Failed to update texture: " + std::string(SDL_GetError()));
     }
 
-    /** some platforms may need this to be freed due to RAM limits,
-     *  but they then wont be able to support Image::getPixels()
-     *  */
-    // free(imgData.pixels);
-    // imgData.pixels = nullptr;
+#if defined(__XBOX__)
+    free(imgData.pixels);
+    imgData.pixels = nullptr;
+#endif
     return {};
 }
 

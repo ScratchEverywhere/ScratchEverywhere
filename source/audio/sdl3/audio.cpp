@@ -16,7 +16,10 @@ extern "C" void SDLCALL callback(void *userdata, SDL_AudioStream *astream, int a
 #if defined(__XBOX__)
     while (additional_amount > 0) {
         int bytes = SDL_min(additional_amount, 4096);
-        int frames = bytes / (sizeof(short) * 2);
+        int frames = (bytes + (sizeof(short) * 2 - 1)) / (sizeof(short) * 2);
+        if (frames <= 0) {
+            break;
+        }
 
         if ((int)audioBuffer.size() < frames * 2) {
             audioBuffer.resize(frames * 2);
@@ -33,7 +36,10 @@ extern "C" void SDLCALL callback(void *userdata, SDL_AudioStream *astream, int a
 
     while (additional_amount > 0) {
         int bytes = SDL_min(additional_amount, (int)sizeof(samples));
-        int frames = bytes / (sizeof(short) * 2);
+        int frames = (bytes + (sizeof(short) * 2 - 1)) / (sizeof(short) * 2);
+        if (frames <= 0) {
+            break;
+        }
 
         Mixer::requestSound(samples, frames);
         SDL_PutAudioStreamData(astream, samples, frames * sizeof(short) * 2);
