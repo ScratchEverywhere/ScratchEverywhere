@@ -40,7 +40,6 @@ Renderer::Renderer() {}
 
 namespace Render {
 Renderers currentRenderer = Renderers::Headless;
-bool debugMode = false;
 float renderScale = 1.0f;
 RenderModes renderMode = Render::TOP_SCREEN_ONLY;
 

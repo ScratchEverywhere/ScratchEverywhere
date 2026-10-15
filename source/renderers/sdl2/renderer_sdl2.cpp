@@ -141,8 +141,6 @@ Renderer_SDL2::Renderer_SDL2() {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
     }
-
-    Render::debugMode = true;
 }
 
 Renderer_SDL2::~Renderer_SDL2() {

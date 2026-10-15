@@ -108,7 +108,6 @@ extern Renderer *globalRenderer;
 
 namespace Render {
 extern Renderers currentRenderer;
-extern bool debugMode;
 extern float renderScale;
 
 // bool hasFrameBegan = false;

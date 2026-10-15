@@ -110,8 +110,6 @@ Renderer_GDI::Renderer_GDI() {
     SelectObject(penLayerMask, penLayerMaskBitmap);
 
     penClear();
-
-    Render::debugMode = true;
 }
 
 Renderer_GDI::~Renderer_GDI() {

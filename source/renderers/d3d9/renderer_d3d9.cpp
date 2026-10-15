@@ -388,8 +388,6 @@ Renderer_D3D9::Renderer_D3D9() {
     pD3D = ((WindowWin32 *)window)->pD3D;
     pDev = ((WindowWin32 *)window)->pDev;
 
-    Render::debugMode = true;
-
     resized(windowWidth, windowHeight, (WindowWin32 *)window);
 
     if ((code = compileShader(kSpritePixel, &pPixelShaderConstantTable, false)) == nullptr) {

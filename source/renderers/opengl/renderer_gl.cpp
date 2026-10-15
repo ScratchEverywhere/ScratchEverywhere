@@ -166,8 +166,6 @@ Renderer_GL::Renderer_GL() {
     glLoadIdentity();
 
     // Render::setRenderScale();
-
-    Render::debugMode = true;
 }
 
 Renderer_GL::~Renderer_GL() {

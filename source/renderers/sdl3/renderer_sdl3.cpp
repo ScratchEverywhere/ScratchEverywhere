@@ -102,8 +102,6 @@ Renderer_SDL3::Renderer_SDL3() {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
     }
-
-    Render::debugMode = true;
 }
 
 Renderer_SDL3::~Renderer_SDL3() {

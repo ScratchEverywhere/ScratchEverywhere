@@ -651,8 +651,6 @@ Renderer_GLCore::Renderer_GLCore() {
 
     setupQuadGeometry();
     // setRenderScale();
-
-    // debugMode = true;
 }
 
 Renderer_GLCore::~Renderer_GLCore() {

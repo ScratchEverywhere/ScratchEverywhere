@@ -9,7 +9,6 @@
 #include <renderer.hpp>
 
 WindowNDS::WindowNDS(int w, int h, const std::string &title) {
-    // Render::debugMode = false;
     Input::setGlobalInputDevice(new InputDevice_NDS);
 
     glScreen2D();
@@ -25,7 +24,6 @@ WindowNDS::WindowNDS(int w, int h, const std::string &title) {
         vramSetBankC(VRAM_C_TEXTURE);
         vramSetBankD(VRAM_D_TEXTURE);
         vramSetBankF(VRAM_F_TEX_PALETTE);
-        Render::debugMode = true;
     }
 }
 

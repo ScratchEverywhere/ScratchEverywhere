@@ -378,7 +378,7 @@ void SettingsMenu::render() {
 
     if (AudioEngineButton->isPressed({"a"})) {
         audioIdx = (audioIdx + 1) % validAudioBackends.size();
-        windowingOption = validAudioBackends[audioIdx].name;
+        audioOption = validAudioBackends[audioIdx].name;
         updateButtonStates();
     }
 
@@ -456,6 +456,7 @@ void SettingsMenu::cleanup() {
     json["UseDectalk"] = UseDectalk;
     json["Renderer"] = rendererOption;
     json["Windowing"] = windowingOption;
+    json["AudioEngine"] = audioOption;
     SettingsManager::saveConfigSettings(json);
 
     isInitialized = false;

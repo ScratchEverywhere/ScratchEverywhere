@@ -206,16 +206,14 @@ void Log::logCritical(std::string message, bool fatal) {
 }
 
 void Log::writeToFile(std::string message) {
-    if (Render::debugMode) {
-        std::string filePath = OS::getScratchFolderLocation() + "log.txt";
-        std::ofstream logFile;
-        logFile.open(filePath, std::ios::app);
-        if (logFile.is_open()) {
-            logFile << message << std::endl;
-            logFile.close();
-        } else {
-            std::cerr << "Could not open log file: " << filePath << std::endl;
-        }
+    std::string filePath = OS::getScratchFolderLocation() + "log.txt";
+    std::ofstream logFile;
+    logFile.open(filePath, std::ios::app);
+    if (logFile.is_open()) {
+        logFile << message << std::endl;
+        logFile.close();
+    } else {
+        std::cerr << "Could not open log file: " << filePath << std::endl;
     }
 }
 

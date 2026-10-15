@@ -83,7 +83,6 @@ Renderer_SDL1::Renderer_SDL1() {
     }
 
     mainSurface = reinterpret_cast<SDL_Surface *>(window->getHandle());
-    Render::debugMode = true;
 }
 
 Renderer_SDL1::~Renderer_SDL1() {

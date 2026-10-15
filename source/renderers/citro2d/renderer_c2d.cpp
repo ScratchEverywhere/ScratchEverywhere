@@ -117,7 +117,6 @@ Renderer_C2D::Renderer_C2D() {
     u32 kDown = hidKeysHeld();
     if (kDown & KEY_SELECT) {
         consoleInit(GFX_BOTTOM, NULL);
-        Render::debugMode = true;
         isConsoleInit = true;
     }
     osSetSpeedupEnable(true);
