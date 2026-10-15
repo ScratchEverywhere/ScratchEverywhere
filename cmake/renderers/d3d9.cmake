@@ -1,8 +1,3 @@
-if(TARGET renderer_interface)
-    return()
-endif()
-add_library(renderer_interface INTERFACE)
-
 target_link_libraries(renderer_interface INTERFACE d3d9 d3dx9)
 
 list(APPEND SE_WINDOWING_VALID_OPTIONS "win32")
