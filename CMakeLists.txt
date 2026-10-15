@@ -162,7 +162,11 @@ cmake_dependent_option(SE_INSPECTOR "Enables the runtime Inspector." ON "SE_PLAT
 
 list(APPEND SE_RENDERER_VALID_OPTIONS "headless")
 if(NOT DEFINED SE_RENDERER_PRIORITY)
+<<<<<<< HEAD
     set(SE_RENDERER_PRIORITY "opengl_core" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
+=======
+	set(SE_RENDERER_PRIORITY "d3d9" "opengl_core" "sdl2" "sdl3" "opengl" "gdi" "sdl1" "citro2d" "gl2d" "headless")
+>>>>>>> upstream/main
 endif()
 set_preferred_cache_var(SE_RENDERER "${SE_RENDERER_PRIORITY}" "${SE_RENDERER_VALID_OPTIONS}" "Select the desired renderer backend.")
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/renderers/${SE_RENDERER}.cmake")
@@ -337,7 +341,11 @@ if(SE_EXECUTABLE)
     # TODO: Move to cmake/platforms/wasm.cmake
     if(EMSCRIPTEN)
         set_target_properties(scratch-everywhere PROPERTIES SUFFIX ".html")
-        target_link_options(scratch-everywhere PRIVATE "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins" "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
+        set(PRELOAD_OPTIONS)
+        if(NOT SE_BUNDLE)
+            set(PRELOAD_OPTIONS "--preload-file" "${CMAKE_CURRENT_SOURCE_DIR}/romfs@/romfs" "--use-preload-plugins")
+        endif()
+        target_link_options(scratch-everywhere PRIVATE ${PRELOAD_OPTIONS} "-sALLOW_MEMORY_GROWTH=1" "-sASYNCIFY" "-sEXPORTED_RUNTIME_METHODS=[ccall,HEAPU8,FS]" "-sEXPORTED_FUNCTIONS=[_main,_malloc,_free]" "--shell-file" "${CMAKE_CURRENT_SOURCE_DIR}/gfx/wasm/shell.html" "-sNO_DISABLE_EXCEPTION_CATCHING")
     endif()
 endif()
 
@@ -355,9 +363,30 @@ if(SE_BUNDLE)
         NAME bundle_cmake
         DOWNLOAD_ONLY
         REPO https://github.com/gradylink/bundle.cmake.git
-        REF f487bad435e5a839a95bdf77923bb68ea63c9b2c
+        REF 21611e9b619952e64eb6d8f57f1c521eccf49b03
     )
     include("${CL_SOURCE_DIR}/cmake/bundle.cmake")
+
+    function(_bundle_ensure_runtime_target)
+        if(TARGET bundle_runtime)
+            return()
+        endif()
+
+        _bundle_ensure_catalog()
+        cl_repo("${CMAKE_CURRENT_SOURCE_DIR}/cmake/recipes")
+
+        add_library(bundle_runtime STATIC "${_BUNDLE_ROOT_DIR}/src/bundle_runtime.c")
+        target_include_directories(bundle_runtime PUBLIC "${_BUNDLE_ROOT_DIR}/src")
+
+        if(BUNDLE_USE_ZLIB)
+            cl_add_dep(bundle_runtime zlib PUBLIC)
+            target_compile_definitions(bundle_runtime PUBLIC BUNDLE_USE_ZLIB=1)
+            _bundle_log(STATUS "using zlib (via Catalog) for DEFLATE decompression")
+        else()
+            cl_add_dep(bundle_runtime miniz PUBLIC STATIC)
+            _bundle_log(STATUS "using miniz (via Catalog) for DEFLATE decompression")
+        endif()
+    endfunction()
 
     set(SE_ROMFS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/romfs")
 

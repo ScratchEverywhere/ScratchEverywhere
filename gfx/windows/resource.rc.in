@@ -55,13 +55,13 @@ BEGIN
     BEGIN
         BLOCK "080004b0"
         BEGIN
-            VALUE "CompanyName", "scratcheverywhere.github.io"
-            VALUE "FileDescription", "Custom Scratch Runtime made in C++!"
+            VALUE "CompanyName", "@SE_APP_AUTHOR@"
+            VALUE "FileDescription", "@SE_APP_DESCRIPTION@"
             VALUE "FileVersion", "@SE_APP_VERSION@"
-            VALUE "InternalName", "Scratch Everywhere!"
-            VALUE "LegalCopyright", "Copyright (C) 2026 Scratch Everywhere! contributors"
+            VALUE "InternalName", "@SE_APP_NAME@"
+            VALUE "LegalCopyright", "Copyright (C) 2026 @SE_APP_AUTHOR@"
             VALUE "OriginalFilename", "scratch-everywhere.exe"
-            VALUE "ProductName", "Scratch Everywhere!"
+            VALUE "ProductName", "@SE_APP_NAME@"
             VALUE "ProductVersion", "@SE_APP_VERSION@"
         END
     END

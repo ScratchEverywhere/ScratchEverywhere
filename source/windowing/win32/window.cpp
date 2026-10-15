@@ -3,15 +3,22 @@
 #include <log.hpp>
 #include <math.hpp>
 #include <render.hpp>
+#include <libdlgmod/libdlgmod.h>
 
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/render_opengl.hpp>
 
+#define NO_SOFT_SWAPBUFFERS
 #define SWAPBUFFERS
 #elif defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/render_opengl_core.hpp>
 
+#define NO_SOFT_SWAPBUFFERS
 #define SWAPBUFFERS
+#elif defined(RENDERER_D3D9)
+#include <renderers/d3d9/render_d3d9.hpp>
+
+#define NO_SOFT_SWAPBUFFERS
 #endif
 
 #include "../../../gfx/windows/resource.h"
@@ -62,7 +69,7 @@ static LRESULT CALLBACK wndproc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
 
         GetClientRect(hWnd, &r);
 
-#ifndef SWAPBUFFERS
+#ifndef NO_SOFT_SWAPBUFFERS
         BitBlt(hDC, 0, 0, self->getWidth(), self->getHeight(), self->hDC, 0, 0, SRCCOPY);
 #endif
         EndPaint(hWnd, &ps);
@@ -111,6 +118,10 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
     int pf;
     PFNWGLSWAPINTERVALEXT swap_interval_ext = NULL;
 #endif
+#if defined(RENDERER_D3D9)
+    HRESULT hr;
+    D3DDISPLAYMODE dmode;
+#endif
 
     this->shouldCloseFlag = 0;
 
@@ -143,9 +154,13 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
         return false;
     }
 
+#if defined(_WIN32)
+    widget_set_owner(std::to_string((unsigned long long)(void *)this->hWnd).c_str());
+#endif
+
     setDarkTheme(this->hWnd, isDarkTheme());
 
-#ifdef SWAPBUFFERS
+#ifdef NO_SOFT_SWAPBUFFERS
     this->winDC = GetDC(this->hWnd);
     this->hDC = this->winDC;
 #else
@@ -182,6 +197,39 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 #endif
 #endif
 
+#if defined(RENDERER_D3D9)
+    if ((this->pD3D = Direct3DCreate9(D3D_SDK_VERSION)) == nullptr) {
+        Log::logCritical("Failed to create Direct3D 9 context", true);
+        return false;
+    }
+
+    if (FAILED(IDirect3D9_GetAdapterDisplayMode(this->pD3D, D3DADAPTER_DEFAULT, &dmode))) {
+        Log::logCritical("Failed to create Direct3D 9 display mode", true);
+        return false;
+    }
+
+    memset(&this->dpp, 0, sizeof(this->dpp));
+    this->dpp.BackBufferFormat = dmode.Format;
+    this->dpp.BackBufferCount = 1;
+    this->dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    this->dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+    this->dpp.Windowed = TRUE;
+    this->dpp.EnableAutoDepthStencil = TRUE;
+    this->dpp.AutoDepthStencilFormat = D3DFMT_D16;
+    this->dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
+
+    if (FAILED((hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &this->dpp, &this->pDev)))) {
+        if (FAILED((hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &this->dpp, &this->pDev)))) {
+            hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &this->dpp, &this->pDev);
+        }
+    }
+
+    if (FAILED(hr)) {
+        Log::logCritical("Failed to create Direct3D 9 device", true);
+        return false;
+    }
+#endif
+
     SetWindowLongPtr(this->hWnd, GWLP_USERDATA, (LPARAM)this);
 
     this->resize(width, height);
@@ -195,9 +243,12 @@ bool WindowWin32::init(int width, int height, const std::string &title) {
 void WindowWin32::cleanup() {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
     wglMakeCurrent(NULL, NULL);
+#elif defined(RENDERER_D3D9)
+    IDirect3DDevice9_Release(this->pDev);
+    IDirect3D9_Release(this->pD3D);
 #endif
 
-#ifndef SWAPBUFFERS
+#ifndef NO_SOFT_SWAPBUFFERS
     DeleteObject(this->hBitmap);
     DeleteDC(this->hDC);
 #endif
@@ -225,11 +276,15 @@ void WindowWin32::pollEvents() {
 }
 
 void WindowWin32::swapBuffers() {
-#ifdef SWAPBUFFERS
-    SwapBuffers(this->hDC);
+#if defined(RENDERER_D3D9)
+    IDirect3DDevice9_Present(this->pDev, nullptr, nullptr, nullptr, nullptr);
 #else
+#if defined(SWAPBUFFERS)
+    SwapBuffers(this->hDC);
+#elif !defined(NO_SOFT_SWAPBUFFERS)
     InvalidateRect(this->hWnd, nullptr, FALSE);
     this->pollEvents(); /* this is to pump WM_PAINT */
+#endif
 #endif
 }
 
@@ -246,13 +301,13 @@ void WindowWin32::resize(int width, int height) {
     rc.bottom = height;
     AdjustWindowRect(&rc, GetWindowLongPtr(this->hWnd, GWL_STYLE), FALSE);
 
-#ifndef SWAPBUFFERS
+#ifndef NO_SOFT_SWAPBUFFERS
     DeleteObject(this->hBitmap);
     this->hBitmap = CreateCompatibleBitmap(this->winDC, width, height);
     SelectObject(this->hDC, this->hBitmap);
-
-    this->resized(width, height);
 #endif
+
+    this->resized = true;
 
     GetWindowRect(this->hWnd, &wrc);
     if ((wrc.right - wrc.left) != (rc.right - rc.left) || (wrc.bottom - wrc.top) != (rc.bottom - rc.top)) {

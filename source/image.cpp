@@ -33,6 +33,8 @@
 #include <image_gl_core.hpp>
 #elif defined(RENDERER_GDI)
 #include <image_gdi.hpp>
+#elif defined(RENDERER_D3D9)
+#include <image_d3d9.hpp>
 #elif defined(RENDERER_HEADLESS)
 #include <image_headless.hpp>
 #endif
@@ -107,6 +109,8 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromFile(std::s
     Image *rawImg = new Image_GLCore(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_GDI)
     Image *rawImg = new Image_GDI(filePath, fromScratchProject, bitmapHalfQuality, scale);
+#elif defined(RENDERER_D3D9)
+    Image *rawImg = new Image_D3D9(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #elif defined(RENDERER_HEADLESS)
     Image *rawImg = new Image_Headless(filePath, fromScratchProject, bitmapHalfQuality, scale);
 #else
@@ -154,6 +158,8 @@ nonstd::expected<std::shared_ptr<Image>, std::string> createImageFromZip(std::st
     Image *rawImg = new Image_GLCore(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_GDI)
     Image *rawImg = new Image_GDI(filePath, zip, bitmapHalfQuality, scale);
+#elif defined(RENDERER_D3D9)
+    Image *rawImg = new Image_D3D9(filePath, zip, bitmapHalfQuality, scale);
 #elif defined(RENDERER_HEADLESS)
     Image *rawImg = new Image_Headless(filePath, zip, bitmapHalfQuality, scale);
 #else

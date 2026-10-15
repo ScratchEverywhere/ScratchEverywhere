@@ -45,6 +45,9 @@ std::string OS::getScratchFolderLocation() {
 }
 
 std::string OS::getRomFSLocation() {
+#ifdef USE_BUNDLE
+    return "";
+#endif
     return "romfs:/";
 }
 
