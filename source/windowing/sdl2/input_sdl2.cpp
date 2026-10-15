@@ -164,8 +164,8 @@ void InputDevice_SDL2::getInput() {
             Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(scratch_key)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
             if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER)) {
-                mousePointer.x += x;
-                mousePointer.y += y;
+                Input::mousePointer.x += x;
+                Input::mousePointer.y += y;
             }
 #endif
         }
@@ -216,7 +216,7 @@ void InputDevice_SDL2::getInput() {
     if (SDL_GameControllerGetButton(controller, SDL2_GAMEPAD_KEYS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_R)])) {
         Input::buttonPress(CONTROLLER_STRINGS[static_cast<int>(SCRATCH_KEY_INDEX::SHOULDER_R)]);
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
-        if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) && Input::mousePointer.isMoving) mousePointer.isPressed = true;
+        if (SDL_GameControllerGetButton(controller, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER) && Input::mousePointer.isMoving) Input::mousePointer.isPressed = true;
 #endif
     }
     button_handler(SCRATCH_KEY_INDEX::START, SDL_CONTROLLER_BUTTON_INVALID);
