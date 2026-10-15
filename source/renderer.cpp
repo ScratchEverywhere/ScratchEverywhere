@@ -128,7 +128,7 @@ bool Render::init() {
         case Renderers::OpenGL: {
 #ifdef RENDERER_OPENGL
             Render::currentRenderer = Renderers::OpenGL;
-            globalRenderer = new Renderer_OpenGL;
+            globalRenderer = new Renderer_GL;
             break;
 #else
             Log::logWarning("OpenGL Renderer unavailable.");

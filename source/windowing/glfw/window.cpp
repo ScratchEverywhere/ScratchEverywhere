@@ -14,7 +14,7 @@
 #include <log.hpp>
 #include <math.hpp>
 #include <renderer.hpp>
-#include <renderers/opengl/render_opengl.hpp>
+#include <renderers/opengl/renderer_gl.hpp>
 #include <text.hpp>
 
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {

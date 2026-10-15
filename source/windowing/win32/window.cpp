@@ -5,7 +5,7 @@
 #include <renderer.hpp>
 
 #ifdef RENDERER_OPENGL
-#include <renderers/opengl/render_opengl.hpp>
+#include <renderers/opengl/renderer_gl.hpp>
 
 #define SWAPBUFFERS
 #elif defined(RENDERER_OPENGL_CORE)

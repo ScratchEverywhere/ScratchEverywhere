@@ -11,7 +11,7 @@
 #include <renderer.hpp>
 #include <thread>
 #ifdef RENDERER_OPENGL
-#include <renderers/opengl/render_opengl.hpp>
+#include <renderers/opengl/renderer_gl.hpp>
 #else
 #include <renderers/sdl1/render_sdl1.hpp>
 #endif

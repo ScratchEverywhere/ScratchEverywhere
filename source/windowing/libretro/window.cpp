@@ -6,7 +6,7 @@
 #include <iostream>
 #include <math.hpp>
 #include <renderer.hpp>
-#include <renderers/opengl/render_opengl.hpp>
+#include <renderers/opengl/renderer_gl.hpp>
 #include <text.hpp>
 
 static retro_video_refresh_t video_refresh_cb;

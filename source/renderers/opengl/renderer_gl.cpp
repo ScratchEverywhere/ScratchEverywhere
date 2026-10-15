@@ -1,8 +1,9 @@
-#include "render_opengl.hpp"
+#include "renderer_gl.hpp"
 #include "speech_manager_gl.hpp"
 #include <image_gl.hpp>
 #include <log.hpp>
 #include <window.hpp>
+
 #if defined(WINDOWING_GLFW)
 #include <windowing/glfw/window_glfw.hpp>
 #elif defined(WINDOWING_SDL1)
@@ -18,8 +19,8 @@
 #else
 #error "No windowing backend defined"
 #endif
+
 #include <algorithm>
-#include <audio.hpp>
 #include <chrono>
 #include <cmath>
 #include <color.hpp>
@@ -27,9 +28,9 @@
 #include <downloader.hpp>
 #include <image.hpp>
 #include <math.hpp>
-#include <renderer.hpp>
 #include <runtime.hpp>
 #include <string>
+#include <text.hpp>
 #include <types.hpp>
 #include <unordered_map>
 #include <unzip.hpp>
@@ -39,154 +40,12 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-WindowSE *globalWindow = nullptr;
-
-SpeechManagerGL *speechManager = nullptr;
-
 static unsigned int penTexture = 0;
 static int penWidth = 0;
 static int penHeight = 0;
 
-bool Render::init() {
-#if defined(WINDOWING_GLFW)
-    globalWindow = new WindowGLFW();
-#elif defined(WINDOWING_SDL1)
-    globalWindow = new WindowSDL1();
-#elif defined(WINDOWING_SDL2)
-    globalWindow = new WindowSDL2();
-#elif defined(WINDOWING_SDL3)
-    globalWindow = new WindowSDL3();
-#elif defined(WINDOWING_LIBRETRO)
-    globalWindow = new WindowLibretro();
-#elif defined(WINDOWING_WIN32)
-    globalWindow = new WindowWin32();
-#else
-#error "No windowing backend defined"
-#endif
-
-    if (!globalWindow->init(480, 360, "Scratch Everywhere!")) {
-        delete globalWindow;
-        globalWindow = nullptr;
-        return false;
-    }
-
-    glEnable(GL_TEXTURE_2D);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_CULL_FACE);
-
-    glViewport(0, 0, getWidth(), getHeight());
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glOrtho(0, getWidth(), getHeight(), 0, -1, 1);
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    setRenderScale();
-
-    debugMode = true;
-
-    return true;
-}
-
-void Render::deInit() {
-    if (penTexture != 0) {
-        glDeleteTextures(1, &penTexture);
-        penTexture = 0;
-    }
-    SoundPlayer::deinit();
-    TextObject::cleanupText();
-
-    if (speechManager) {
-        delete speechManager;
-        speechManager = nullptr;
-    }
-
-    if (globalWindow) {
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
-    }
-}
-
-void *Render::getRenderer() {
-    return nullptr;
-}
-
-void Render::setRenderTarget(void *renderTarget) {
-    Log::logWarning("Render::setRenderTarget is not supported by the legacy OpenGL renderer");
-}
-
-void Render::clearRenderTarget() {
-}
-
-bool Render::createSpeechManager() {
-    if (speechManager == nullptr) speechManager = new SpeechManagerGL();
-    return speechManager != nullptr;
-}
-
-void Render::destroySpeechManager() {
-    delete speechManager;
-    speechManager = nullptr;
-}
-
-SpeechManager *Render::getSpeechManager() {
-    return speechManager;
-}
-
-int Render::getWidth() {
-    if (globalWindow) return globalWindow->getWidth();
-    return 540;
-}
-
-int Render::getHeight() {
-    if (globalWindow) return globalWindow->getHeight();
-    return 405;
-}
-
-float Render::getPixelDensity() {
-    if (globalWindow) return globalWindow->getPixelDensity();
-    return 1.0f;
-}
-
-bool Render::initPen() {
-    if (penTexture != 0) return true;
-
-    if (Scratch::hqpen) {
-        if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight())) {
-            penWidth = Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight));
-            penHeight = getHeight();
-        } else {
-            penWidth = getWidth();
-            penHeight = Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth));
-        }
-    } else {
-        penWidth = Scratch::projectWidth;
-        penHeight = Scratch::projectHeight;
-    }
-
-    glGenTextures(1, &penTexture);
-    glBindTexture(GL_TEXTURE_2D, penTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    std::vector<uint8_t> emptyData(penWidth * penHeight * 4, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, emptyData.data());
-
-    return true;
-}
-
-void Render::penClear() {
-    if (penTexture == 0) return;
-    std::vector<uint8_t> emptyData(penWidth * penHeight * 4, 0);
-    glBindTexture(GL_TEXTURE_2D, penTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, emptyData.data());
-}
-
-static void drawCircle(float x, float y, float radius, ColorRGBA color, uint8_t alpha) {
+namespace {
+void drawCircle(float x, float y, float radius, ColorRGBA color, uint8_t alpha) {
     int segments = 20;
     glBegin(GL_TRIANGLE_FAN);
     glColor4ub((uint8_t)color.r, (uint8_t)color.g, (uint8_t)color.b, alpha);
@@ -198,7 +57,7 @@ static void drawCircle(float x, float y, float radius, ColorRGBA color, uint8_t 
     glEnd();
 }
 
-static void preparePenDrawing() {
+void preparePenDrawing() {
     glPushAttrib(GL_VIEWPORT_BIT | GL_COLOR_BUFFER_BIT | GL_ENABLE_BIT | GL_TEXTURE_BIT);
 
     glViewport(0, 0, penWidth, penHeight);
@@ -233,7 +92,7 @@ static void preparePenDrawing() {
     glEnd();
 }
 
-static void finishPenDrawing() {
+void finishPenDrawing() {
     glBindTexture(GL_TEXTURE_2D, penTexture);
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, penWidth, penHeight);
 
@@ -243,187 +102,6 @@ static void finishPenDrawing() {
     glMatrixMode(GL_MODELVIEW);
 
     glPopAttrib();
-}
-
-void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    penMoveAccurate(x1, y1, x2, y2, sprite);
-}
-
-void Render::penDotFast(Sprite *sprite) {
-    penDotAccurate(sprite);
-}
-
-void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
-
-    preparePenDrawing();
-
-    glDisable(GL_TEXTURE_2D);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-    float px1 = (float)(x1 * scale + penWidth / 2.0f);
-    float py1 = (float)(-y1 * scale + penHeight / 2.0f);
-    float px2 = (float)(x2 * scale + penWidth / 2.0f);
-    float py2 = (float)(-y2 * scale + penHeight / 2.0f);
-    float radius = (float)((sprite->penData.size / 2.0f) * scale);
-
-    glColor4ub((uint8_t)rgbColor.r, (uint8_t)rgbColor.g, (uint8_t)rgbColor.b, alpha);
-
-    // Draw line quad
-    float dx = px2 - px1;
-    float dy = py2 - py1;
-    float length = std::sqrt(dx * dx + dy * dy);
-    if (length > 0) {
-        float nx = -dy / length * radius;
-        float ny = dx / length * radius;
-        glBegin(GL_QUADS);
-        glVertex2f(px1 + nx, py1 + ny);
-        glVertex2f(px1 - nx, py1 - ny);
-        glVertex2f(px2 - nx, py2 - ny);
-        glVertex2f(px2 + nx, py2 + ny);
-        glEnd();
-    }
-
-    // Draw caps
-    drawCircle(px1, py1, radius, rgbColor, alpha);
-    drawCircle(px2, py2, radius, rgbColor, alpha);
-
-    finishPenDrawing();
-}
-
-void Render::penDotAccurate(Sprite *sprite) {
-    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
-    uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
-
-    preparePenDrawing();
-
-    glDisable(GL_TEXTURE_2D);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-    float px = (float)(sprite->xPosition * scale + penWidth / 2.0f);
-    float py = (float)(-sprite->yPosition * scale + penHeight / 2.0f);
-    float radius = (float)((sprite->penData.size / 2.0f) * scale);
-
-    drawCircle(px, py, radius, rgbColor, alpha);
-
-    finishPenDrawing();
-}
-
-void Render::penStamp(Sprite *sprite) {
-    const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
-    if (imgFind == Scratch::costumeImages.end()) {
-        Log::logWarning("Invalid Image for Stamp");
-        return;
-    }
-
-    Image_GL *image = reinterpret_cast<Image_GL *>(imgFind->second.get());
-
-    preparePenDrawing();
-    glEnable(GL_TEXTURE_2D);
-
-    glBindTexture(GL_TEXTURE_2D, image->textureID);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
-    Render::calculateRenderPosition(sprite, isSVG);
-
-    auto cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
-    float penX = cords.first + Scratch::projectWidth / 2.0f;
-    float penY = -cords.second + Scratch::projectHeight / 2.0f;
-
-    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
-    if (Scratch::hqpen) {
-        penX *= scale;
-        penY *= scale;
-    }
-
-    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / 100.0f;
-
-    ImageRenderParams params;
-    params.centered = true;
-    params.x = penX;
-    params.y = penY;
-    params.scale = renderScale;
-    params.rotation = sprite->renderInfo.renderRotation;
-    params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
-    params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
-    params.brightness = sprite->brightnessEffect;
-
-    image->render(params);
-
-    finishPenDrawing();
-}
-
-void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
-    if (!hasFrameBegan) {
-        glViewport(0, 0, getWidth(), getHeight());
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0, getWidth(), getHeight(), 0, -1, 1);
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-
-        glClearColor(colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        hasFrameBegan = true;
-    }
-}
-
-void Render::endFrame(bool shouldFlush) {
-    if (globalWindow) globalWindow->swapBuffers();
-    hasFrameBegan = false;
-}
-
-void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    glDisable(GL_TEXTURE_2D);
-    glColor4ub(colorR, colorG, colorB, colorA);
-    glBegin(GL_QUADS);
-    glVertex2f(x - (w / 2.0f), y - (h / 2.0f));
-    glVertex2f(x + (w / 2.0f), y - (h / 2.0f));
-    glVertex2f(x + (w / 2.0f), y + (h / 2.0f));
-    glVertex2f(x - (w / 2.0f), y + (h / 2.0f));
-    glEnd();
-    glEnable(GL_TEXTURE_2D);
-}
-
-void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    radius = std::clamp(radius, 0, std::min(w, h) / 2);
-    if (radius <= 0) {
-        drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
-        return;
-    }
-
-    const float left = x - w / 2.0f, right = x + w / 2.0f;
-    const float top = y - h / 2.0f, bottom = y + h / 2.0f;
-    const float r = static_cast<float>(radius);
-
-    constexpr int cornerSegments = 4;
-
-    glDisable(GL_TEXTURE_2D);
-    glColor4ub(colorR, colorG, colorB, colorA);
-    glBegin(GL_TRIANGLE_FAN);
-
-    auto addArc = [&](float cx, float cy, float startAngle) {
-        for (int i = 0; i <= cornerSegments; ++i) {
-            const float a = startAngle + (static_cast<float>(M_PI) / 2.0f) * (i / static_cast<float>(cornerSegments));
-            glVertex2f(cx + std::cos(a) * r, cy + std::sin(a) * r);
-        }
-    };
-
-    addArc(right - r, top + r, -static_cast<float>(M_PI) / 2.0f);
-    addArc(right - r, bottom - r, 0.0f);
-    addArc(left + r, bottom - r, static_cast<float>(M_PI) / 2.0f);
-    addArc(left + r, top + r, static_cast<float>(M_PI));
-
-    glEnd();
-    glEnable(GL_TEXTURE_2D);
 }
 
 void drawBlackBars(int screenWidth, int screenHeight) {
@@ -478,8 +156,324 @@ void drawBlackBars(int screenWidth, int screenHeight) {
     }
     glEnable(GL_TEXTURE_2D);
 }
+} // namespace
 
-void Render::renderPenLayer() {
+Renderer_GL::Renderer_GL() {
+#if defined(WINDOWING_GLFW)
+    window = new WindowGLFW();
+#elif defined(WINDOWING_SDL1)
+    window = new WindowSDL1();
+#elif defined(WINDOWING_SDL2)
+    window = new WindowSDL2();
+#elif defined(WINDOWING_SDL3)
+    window = new WindowSDL3();
+#elif defined(WINDOWING_LIBRETRO)
+    window = new WindowLibretro();
+#elif defined(WINDOWING_WIN32)
+    window = new WindowWin32();
+#else
+#error "No windowing backend defined"
+#endif
+
+    if (!window->init(480, 360, "Scratch Everywhere!")) {
+        delete window;
+        window = nullptr;
+        error = "Failed to init window.";
+        return;
+    }
+
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+
+    glViewport(0, 0, getWidth(), getHeight());
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, getWidth(), getHeight(), 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+    // Render::setRenderScale();
+
+    Render::debugMode = true;
+}
+
+Renderer_GL::~Renderer_GL() {
+    if (penTexture != 0) {
+        glDeleteTextures(1, &penTexture);
+        penTexture = 0;
+    }
+
+    // SoundPlayer::deinit();
+    TextObject::cleanupText();
+
+    if (speechManager) {
+        delete speechManager;
+        speechManager = nullptr;
+    }
+
+    if (window) {
+        window->cleanup();
+        delete window;
+        window = nullptr;
+    }
+}
+
+void Renderer_GL::setRenderTarget(void *renderTarget) {
+    Log::logWarning("Renderer_GL::setRenderTarget is not supported by the legacy OpenGL renderer");
+}
+
+void Renderer_GL::clearRenderTarget() {}
+
+bool Renderer_GL::createSpeechManager() {
+    if (speechManager == nullptr) speechManager = new SpeechManagerGL();
+    return speechManager != nullptr;
+}
+
+void Renderer_GL::destroySpeechManager() {
+    delete speechManager;
+    speechManager = nullptr;
+}
+
+SpeechManager *Renderer_GL::getSpeechManager() {
+    return speechManager;
+}
+
+int Renderer_GL::getWidth() {
+    if (window) return window->getWidth();
+    return 540;
+}
+
+int Renderer_GL::getHeight() {
+    if (window) return window->getHeight();
+    return 405;
+}
+
+float Renderer_GL::getPixelDensity() {
+    if (window) return window->getPixelDensity();
+    return 1.0f;
+}
+
+bool Renderer_GL::initPen() {
+    if (penTexture != 0) return true;
+
+    if (Scratch::hqpen) {
+        if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight())) {
+            penWidth = Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight));
+            penHeight = getHeight();
+        } else {
+            penWidth = getWidth();
+            penHeight = Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth));
+        }
+    } else {
+        penWidth = Scratch::projectWidth;
+        penHeight = Scratch::projectHeight;
+    }
+
+    glGenTextures(1, &penTexture);
+    glBindTexture(GL_TEXTURE_2D, penTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    std::vector<uint8_t> emptyData(penWidth * penHeight * 4, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, emptyData.data());
+
+    return true;
+}
+
+void Renderer_GL::penClear() {
+    if (penTexture == 0) return;
+    std::vector<uint8_t> emptyData(penWidth * penHeight * 4, 0);
+    glBindTexture(GL_TEXTURE_2D, penTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, penWidth, penHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, emptyData.data());
+}
+
+void Renderer_GL::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    penMoveAccurate(x1, y1, x2, y2, sprite);
+}
+
+void Renderer_GL::penDotFast(Sprite *sprite) {
+    penDotAccurate(sprite);
+}
+
+void Renderer_GL::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
+
+    preparePenDrawing();
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    float px1 = (float)(x1 * scale + penWidth / 2.0f);
+    float py1 = (float)(-y1 * scale + penHeight / 2.0f);
+    float px2 = (float)(x2 * scale + penWidth / 2.0f);
+    float py2 = (float)(-y2 * scale + penHeight / 2.0f);
+    float radius = (float)((sprite->penData.size / 2.0f) * scale);
+
+    glColor4ub((uint8_t)rgbColor.r, (uint8_t)rgbColor.g, (uint8_t)rgbColor.b, alpha);
+
+    // Draw line quad
+    float dx = px2 - px1;
+    float dy = py2 - py1;
+    float length = std::sqrt(dx * dx + dy * dy);
+    if (length > 0) {
+        float nx = -dy / length * radius;
+        float ny = dx / length * radius;
+        glBegin(GL_QUADS);
+        glVertex2f(px1 + nx, py1 + ny);
+        glVertex2f(px1 - nx, py1 - ny);
+        glVertex2f(px2 - nx, py2 - ny);
+        glVertex2f(px2 + nx, py2 + ny);
+        glEnd();
+    }
+
+    // Draw caps
+    drawCircle(px1, py1, radius, rgbColor, alpha);
+    drawCircle(px2, py2, radius, rgbColor, alpha);
+
+    finishPenDrawing();
+}
+
+void Renderer_GL::penDotAccurate(Sprite *sprite) {
+    const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
+    uint8_t alpha = (uint8_t)((100.0f - sprite->penData.color.transparency) / 100.0f * 255.0f);
+
+    preparePenDrawing();
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    float px = (float)(sprite->xPosition * scale + penWidth / 2.0f);
+    float py = (float)(-sprite->yPosition * scale + penHeight / 2.0f);
+    float radius = (float)((sprite->penData.size / 2.0f) * scale);
+
+    drawCircle(px, py, radius, rgbColor, alpha);
+
+    finishPenDrawing();
+}
+
+void Renderer_GL::penStamp(Sprite *sprite) {
+    const auto &imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
+    if (imgFind == Scratch::costumeImages.end()) {
+        Log::logWarning("Invalid Image for Stamp");
+        return;
+    }
+
+    Image_GL *image = reinterpret_cast<Image_GL *>(imgFind->second.get());
+
+    preparePenDrawing();
+    glEnable(GL_TEXTURE_2D);
+
+    glBindTexture(GL_TEXTURE_2D, image->textureID);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    const bool isSVG = sprite->costumes[sprite->currentCostume].isSVG;
+    Render::calculateRenderPosition(sprite, isSVG);
+
+    auto cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
+    float penX = cords.first + Scratch::projectWidth / 2.0f;
+    float penY = -cords.second + Scratch::projectHeight / 2.0f;
+
+    const double scale = (penHeight / static_cast<double>(Scratch::projectHeight));
+    if (Scratch::hqpen) {
+        penX *= scale;
+        penY *= scale;
+    }
+
+    float renderScale = Scratch::hqpen ? sprite->renderInfo.renderScaleY : sprite->size / 100.0f;
+
+    ImageRenderParams params;
+    params.centered = true;
+    params.x = penX;
+    params.y = penY;
+    params.scale = renderScale;
+    params.rotation = sprite->renderInfo.renderRotation;
+    params.flip = (sprite->rotationStyle == sprite->LEFT_RIGHT && sprite->rotation < 0);
+    params.opacity = 1.0f - (std::clamp(sprite->ghostEffect, 0.0f, 100.0f) * 0.01f);
+    params.brightness = sprite->brightnessEffect;
+
+    image->render(params);
+
+    finishPenDrawing();
+}
+
+void Renderer_GL::beginFrame(int screen, int colorR, int colorG, int colorB) {
+    if (!hasFrameBegan) {
+        glViewport(0, 0, getWidth(), getHeight());
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(0, getWidth(), getHeight(), 0, -1, 1);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+
+        glClearColor(colorR / 255.0f, colorG / 255.0f, colorB / 255.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        hasFrameBegan = true;
+    }
+}
+
+void Renderer_GL::endFrame(bool shouldFlush) {
+    if (window) window->swapBuffers();
+    hasFrameBegan = false;
+}
+
+void Renderer_GL::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    glDisable(GL_TEXTURE_2D);
+    glColor4ub(colorR, colorG, colorB, colorA);
+    glBegin(GL_QUADS);
+    glVertex2f(x - (w / 2.0f), y - (h / 2.0f));
+    glVertex2f(x + (w / 2.0f), y - (h / 2.0f));
+    glVertex2f(x + (w / 2.0f), y + (h / 2.0f));
+    glVertex2f(x - (w / 2.0f), y + (h / 2.0f));
+    glEnd();
+    glEnable(GL_TEXTURE_2D);
+}
+
+void Renderer_GL::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    radius = std::clamp(radius, 0, std::min(w, h) / 2);
+    if (radius <= 0) {
+        drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+        return;
+    }
+
+    const float left = x - w / 2.0f, right = x + w / 2.0f;
+    const float top = y - h / 2.0f, bottom = y + h / 2.0f;
+    const float r = static_cast<float>(radius);
+
+    constexpr int cornerSegments = 4;
+
+    glDisable(GL_TEXTURE_2D);
+    glColor4ub(colorR, colorG, colorB, colorA);
+    glBegin(GL_TRIANGLE_FAN);
+
+    auto addArc = [&](float cx, float cy, float startAngle) {
+        for (int i = 0; i <= cornerSegments; ++i) {
+            const float a = startAngle + (static_cast<float>(M_PI) / 2.0f) * (i / static_cast<float>(cornerSegments));
+            glVertex2f(cx + std::cos(a) * r, cy + std::sin(a) * r);
+        }
+    };
+
+    addArc(right - r, top + r, -static_cast<float>(M_PI) / 2.0f);
+    addArc(right - r, bottom - r, 0.0f);
+    addArc(left + r, bottom - r, static_cast<float>(M_PI) / 2.0f);
+    addArc(left + r, top + r, static_cast<float>(M_PI));
+
+    glEnd();
+    glEnable(GL_TEXTURE_2D);
+}
+
+void Renderer_GL::renderPenLayer() {
     if (penTexture == 0) return;
 
     float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
@@ -517,7 +511,7 @@ void Render::renderPenLayer() {
     glEnd();
 }
 
-void Render::renderSprites() {
+void Renderer_GL::renderSprites() {
     glViewport(0, 0, getWidth(), getHeight());
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -539,7 +533,7 @@ void Render::renderSprites() {
             glBindTexture(GL_TEXTURE_2D, image->textureID);
 
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
-            calculateRenderPosition(currentSprite, isSVG);
+            Render::calculateRenderPosition(currentSprite, isSVG);
             if (!currentSprite->visible) continue;
 
             ImageRenderParams params;
@@ -563,19 +557,19 @@ void Render::renderSprites() {
     }
 
     drawBlackBars(getWidth(), getHeight());
-    renderMonitors();
+    Render::renderMonitors();
 
     endFrame(true);
 }
 
-bool Render::appShouldRun() {
+bool Renderer_GL::appShouldRun() {
     if (OS::toExit) return false;
-    if (globalWindow) {
-        globalWindow->pollEvents();
+    if (window) {
+        window->pollEvents();
 
         static int lastW = 0, lastH = 0;
-        int currentW = globalWindow->getWidth();
-        int currentH = globalWindow->getHeight();
+        int currentW = window->getWidth();
+        int currentH = window->getHeight();
 
         if (lastW != currentW || lastH != currentH) {
             lastW = currentW;
@@ -589,7 +583,7 @@ bool Render::appShouldRun() {
             }
         }
 
-        return !globalWindow->shouldClose();
+        return !window->shouldClose();
     }
     return false;
 }
