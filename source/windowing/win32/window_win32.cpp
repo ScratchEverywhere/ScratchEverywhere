@@ -1,4 +1,5 @@
 #include "window_win32.hpp"
+#include "renderers/d3d9/renderer_d3d9.hpp"
 #include <input_win32.hpp>
 #include <libdlgmod/libdlgmod.h>
 #include <log.hpp>
@@ -7,18 +8,18 @@
 
 #ifdef RENDERER_OPENGL
 #include <renderers/opengl/renderer_gl.hpp>
-
-#define NO_SOFT_SWAPBUFFERS
-#define SWAPBUFFERS
-#elif defined(RENDERER_OPENGL_CORE)
+#endif
+#if defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
-
-#define NO_SOFT_SWAPBUFFERS
-#define SWAPBUFFERS
-#elif defined(RENDERER_D3D9)
+#endif
+#if defined(RENDERER_D3D9)
 #include <renderers/d3d9/renderer_d3d9.hpp>
-
+#endif
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE) || defined(RENDERER_D3D9)
 #define NO_SOFT_SWAPBUFFERS
+#endif
+#if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
+#define SWAPBUFFERS
 #endif
 
 #include "../../../gfx/windows/resource.h"
@@ -114,15 +115,19 @@ typedef BOOL(APIENTRY *PFNWGLSWAPINTERVALEXT)(int);
 WindowWin32::WindowWin32(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_Win32);
     WNDCLASSEX wc;
+    if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
-    PIXELFORMATDESCRIPTOR pfd;
-    int pf;
-    PFNWGLSWAPINTERVALEXT swap_interval_ext = NULL;
+        PIXELFORMATDESCRIPTOR pfd;
+        int pf;
+        PFNWGLSWAPINTERVALEXT swap_interval_ext = NULL;
 #endif
+    }
+    if (Render::currentRenderer == Renderers::D3D9) {
 #if defined(RENDERER_D3D9)
-    HRESULT hr;
-    D3DDISPLAYMODE dmode;
+        HRESULT hr;
+        D3DDISPLAYMODE dmode;
 #endif
+    }
 
     this->shouldCloseFlag = 0;
 
@@ -171,65 +176,71 @@ WindowWin32::WindowWin32(int width, int height, const std::string &title) {
     SelectObject(this->hDC, this->hBitmap);
 #endif
 
+    if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
-    memset(&pfd, 0, sizeof(pfd));
-    pfd.nSize = sizeof(pfd);
-    pfd.nVersion = 1;
-    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-    pfd.cDepthBits = 32;
-    pfd.cColorBits = 32;
+        memset(&pfd, 0, sizeof(pfd));
+        pfd.nSize = sizeof(pfd);
+        pfd.nVersion = 1;
+        pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+        pfd.cDepthBits = 32;
+        pfd.cColorBits = 32;
 
-    pf = ChoosePixelFormat(this->hDC, &pfd);
-    SetPixelFormat(this->hDC, pf, &pfd);
+        pf = ChoosePixelFormat(this->hDC, &pfd);
+        SetPixelFormat(this->hDC, pf, &pfd);
 
-    this->hGLRC = wglCreateContext(this->hDC);
-    wglMakeCurrent(this->hDC, this->hGLRC);
+        this->hGLRC = wglCreateContext(this->hDC);
+        wglMakeCurrent(this->hDC, this->hGLRC);
 
-    if ((swap_interval_ext =
-             (PFNWGLSWAPINTERVALEXT)wglGetProcAddress("wglSwapIntervalEXT")) != NULL) {
-        swap_interval_ext(1);
-    }
-
-#ifdef RENDERER_OPENGL_CORE
-    if (!gladLoaderLoadGL()) {
-        error = "Failed to initialize GLAD";
-        return;
-    }
-#endif
-#endif
-
-#if defined(RENDERER_D3D9)
-    if ((this->pD3D = Direct3DCreate9(D3D_SDK_VERSION)) == nullptr) {
-        error = "Failed to create Direct3D 9 context";
-        return;
-    }
-
-    if (FAILED(IDirect3D9_GetAdapterDisplayMode(this->pD3D, D3DADAPTER_DEFAULT, &dmode))) {
-        error = "Failed to create Direct3D 9 display mode";
-        return;
-    }
-
-    memset(&this->dpp, 0, sizeof(this->dpp));
-    this->dpp.BackBufferFormat = dmode.Format;
-    this->dpp.BackBufferCount = 1;
-    this->dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    this->dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-    this->dpp.Windowed = TRUE;
-    this->dpp.EnableAutoDepthStencil = TRUE;
-    this->dpp.AutoDepthStencilFormat = D3DFMT_D16;
-    this->dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
-
-    if (FAILED((hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &this->dpp, &this->pDev)))) {
-        if (FAILED((hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &this->dpp, &this->pDev)))) {
-            hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &this->dpp, &this->pDev);
+        if ((swap_interval_ext =
+                 (PFNWGLSWAPINTERVALEXT)wglGetProcAddress("wglSwapIntervalEXT")) != NULL) {
+            swap_interval_ext(1);
         }
+
+        if (Render::currentRenderer == Renderers::OpenGLCore) {
+#ifdef RENDERER_OPENGL_CORE
+            if (!gladLoaderLoadGL()) {
+                error = "Failed to initialize GLAD";
+                return;
+            }
+#endif
+        }
+#endif
     }
 
-    if (FAILED(hr)) {
-        error = "Failed to create Direct3D 9 device";
-        return;
-    }
+    if (Render::currentRenderer == Renderers::D3D9) {
+#if defined(RENDERER_D3D9)
+        if ((this->pD3D = Direct3DCreate9(D3D_SDK_VERSION)) == nullptr) {
+            error = "Failed to create Direct3D 9 context";
+            return;
+        }
+
+        if (FAILED(IDirect3D9_GetAdapterDisplayMode(this->pD3D, D3DADAPTER_DEFAULT, &dmode))) {
+            error = "Failed to create Direct3D 9 display mode";
+            return;
+        }
+
+        memset(&this->dpp, 0, sizeof(this->dpp));
+        this->dpp.BackBufferFormat = dmode.Format;
+        this->dpp.BackBufferCount = 1;
+        this->dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+        this->dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+        this->dpp.Windowed = TRUE;
+        this->dpp.EnableAutoDepthStencil = TRUE;
+        this->dpp.AutoDepthStencilFormat = D3DFMT_D16;
+        this->dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
+
+        if (FAILED((hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &this->dpp, &this->pDev)))) {
+            if (FAILED((hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &this->dpp, &this->pDev)))) {
+                hr = IDirect3D9_CreateDevice(this->pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_REF, this->hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &this->dpp, &this->pDev);
+            }
+        }
+
+        if (FAILED(hr)) {
+            error = "Failed to create Direct3D 9 device";
+            return;
+        }
 #endif
+    }
 
     SetWindowLongPtr(this->hWnd, GWLP_USERDATA, (LPARAM)this);
 
@@ -240,12 +251,17 @@ WindowWin32::WindowWin32(int width, int height, const std::string &title) {
 }
 
 void WindowWin32::cleanup() {
+    if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
-    wglMakeCurrent(NULL, NULL);
-#elif defined(RENDERER_D3D9)
-    IDirect3DDevice9_Release(this->pDev);
-    IDirect3D9_Release(this->pD3D);
+        wglMakeCurrent(NULL, NULL);
+    }
 #endif
+    else if (Render::currentRenderer == Renderers::D3D9) {
+#if defined(RENDERER_D3D9)
+        IDirect3DDevice9_Release(this->pDev);
+        IDirect3D9_Release(this->pD3D);
+#endif
+    }
 
 #ifndef NO_SOFT_SWAPBUFFERS
     DeleteObject(this->hBitmap);
@@ -253,9 +269,11 @@ void WindowWin32::cleanup() {
 #endif
     ReleaseDC(this->hWnd, this->winDC);
 
+    if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
-    wglDeleteContext(this->hGLRC);
+        wglDeleteContext(this->hGLRC);
 #endif
+    }
 
     DestroyWindow(this->hWnd);
     /* we dont unregister class here because it would destroy eveyrthing if there are multiple windows */
@@ -275,16 +293,18 @@ void WindowWin32::pollEvents() {
 }
 
 void WindowWin32::swapBuffers() {
+    if (Render::currentRenderer == Renderers::D3D9) {
 #if defined(RENDERER_D3D9)
-    IDirect3DDevice9_Present(this->pDev, nullptr, nullptr, nullptr, nullptr);
-#else
+        IDirect3DDevice9_Present(this->pDev, nullptr, nullptr, nullptr, nullptr);
+#endif
+    } else {
 #if defined(SWAPBUFFERS)
-    SwapBuffers(this->hDC);
+        SwapBuffers(this->hDC);
 #elif !defined(NO_SOFT_SWAPBUFFERS)
-    InvalidateRect(this->hWnd, nullptr, FALSE);
-    this->pollEvents(); /* this is to pump WM_PAINT */
+            InvalidateRect(this->hWnd, nullptr, FALSE);
+            this->pollEvents(); /* this is to pump WM_PAINT */
 #endif
-#endif
+    }
 }
 
 void WindowWin32::resize(int width, int height) {
