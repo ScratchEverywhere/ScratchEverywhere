@@ -46,7 +46,7 @@ static constexpr uint32_t GLFW_GAMEPAD_KEYS[] = {
 static GLFWwindow *inputWindow() {
     return Input::inputWindowHandleOverride
                ? (GLFWwindow *)Input::inputWindowHandleOverride
-               : (GLFWwindow *)globalWindow->getHandle();
+               : (GLFWwindow *)Render::getGlobalRenderer()->window->getHandle();
 }
 
 std::array<int, 2> Input::getTouchPosition() {
@@ -61,13 +61,14 @@ std::array<int, 2> Input::getTouchPosition() {
 }
 
 void Input::getInput() {
+    Renderer *renderer = Render::getGlobalRenderer();
     inputButtons.clear();
     inputKeys.clear();
     mousePointer.isPressed = (glfwGetMouseButton(inputWindow(), GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
     mousePointer.mouseButton = Mouse::LEFT; // TODO: support multiple mouse buttons
 
     std::array<int, 2> touchPos = getTouchPosition();
-    auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], globalWindow->getWidth(), globalWindow->getHeight());
+    auto coords = Scratch::screenToScratchCoords((float)touchPos[0], (float)touchPos[1], renderer->window->getWidth(), renderer->window->getHeight());
     mousePointer.x = (int)coords.first;
     mousePointer.y = (int)coords.second;
 

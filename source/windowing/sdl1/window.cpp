@@ -113,6 +113,7 @@ void WindowSDL1::pollEvents() {
 }
 
 void WindowSDL1::swapBuffers() {
+#ifdef RENDERER_OPENGL
     if (Render::currentRenderer == Renderers::OpenGL) {
         SDL_GL_SwapBuffers();
         // Frame rate limiting for SDL1 OpenGL (VSync-like behavior)
@@ -126,6 +127,7 @@ void WindowSDL1::swapBuffers() {
         }
         lastFrameTime = std::chrono::high_resolution_clock::now();
     }
+#endif
 }
 
 void WindowSDL1::resize(int width, int height) {
@@ -134,7 +136,9 @@ void WindowSDL1::resize(int width, int height) {
     if (Render::currentRenderer == Renderers::OpenGL) {
         window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE | SDL_OPENGL);
         if (window) {
+#ifdef RENDERER_OPENGL
             glViewport(0, 0, width, height);
+#endif
         }
     } else {
         window = SDL_SetVideoMode(width, height, 32, SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_RESIZABLE);

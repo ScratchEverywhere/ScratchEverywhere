@@ -18,7 +18,7 @@
 #include <text.hpp>
 
 static void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-    globalWindow->resize(width, height);
+    Render::getGlobalRenderer()->window->resize(width, height);
     glViewport(0, 0, width, height);
 }
 

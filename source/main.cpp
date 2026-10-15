@@ -41,7 +41,9 @@
 #endif
 
 static void exitApp() {
+#ifdef ENABLE_AUDIO
     SoundPlayer::deinit();
+#endif
     Render::deInit();
     OS::deinit();
 }

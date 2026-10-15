@@ -50,7 +50,7 @@ void Input::getInput() {
     inputKeys.clear();
     mousePointer.isPressed = false;
     mousePointer.isMoving = false;
-    if (globalWindow) globalWindow->pollEvents();
+    scanKeys();
     uint16_t kHeld = keysHeld() & 0x0000FFFF;
 
     touchRead(&touch);

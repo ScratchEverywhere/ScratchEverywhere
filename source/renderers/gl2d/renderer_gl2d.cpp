@@ -1,4 +1,6 @@
+#include "renderer_gl2d.hpp"
 #include "speech_manager_gl2d.hpp"
+
 #include <audio.hpp>
 #include <fat.h>
 #include <filesystem.h>
@@ -7,13 +9,8 @@
 #include <input.hpp>
 #include <nds.h>
 #include <nds/arm9/dldi.h>
-#include <renderer.hpp>
 #include <unordered_map>
-#include <window.hpp>
 #include <windowing/nds/window_nds.hpp>
-
-WindowSE *globalWindow = nullptr;
-SpeechManagerGL2D *speechManager = nullptr;
 
 #define SCREEN_WIDTH 256
 #define BOTTOM_SCREEN_WIDTH 256
@@ -22,56 +19,52 @@ SpeechManagerGL2D *speechManager = nullptr;
 #define SCREEN_HALF_WIDTH 132.5
 #define SCREEN_HALF_HEIGHT 96
 
-bool Render::init() {
-    globalWindow = new WindowNDS();
-    if (!globalWindow->init(256, 192, "Scratch Everywhere!")) {
-        delete globalWindow;
-        globalWindow = nullptr;
-        return false;
+Renderer_GL2D::Renderer_GL2D() {
+    window = new WindowNDS();
+    if (!window->init(256, 192, "Scratch Everywhere!")) {
+        delete window;
+        window = nullptr;
+        error = "Failed to init window.";
+        return;
     }
-    return true;
 }
 
-void Render::deInit() {
+Renderer_GL2D::~Renderer_GL2D() {
     if (speechManager) {
         delete speechManager;
         speechManager = nullptr;
     }
     TextObject::cleanupText();
 
-    if (globalWindow) {
-        globalWindow->cleanup();
-        delete globalWindow;
-        globalWindow = nullptr;
+    if (window) {
+        window->cleanup();
+        delete window;
+        window = nullptr;
     }
     SoundPlayer::deinit();
 }
 
-void *Render::getRenderer() {
-    return nullptr;
+void Renderer_GL2D::setRenderTarget(void *renderTarget) {
 }
 
-void Render::setRenderTarget(void *renderTarget) {
+void Renderer_GL2D::clearRenderTarget() {
 }
 
-void Render::clearRenderTarget() {
-}
-
-bool Render::createSpeechManager() {
+bool Renderer_GL2D::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerGL2D();
     return speechManager != nullptr;
 }
 
-void Render::destroySpeechManager() {
+void Renderer_GL2D::destroySpeechManager() {
     delete speechManager;
     speechManager = nullptr;
 }
 
-SpeechManager *Render::getSpeechManager() {
+SpeechManager *Renderer_GL2D::getSpeechManager() {
     return speechManager;
 }
 
-void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+void Renderer_GL2D::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (hasFrameBegan) return;
     glBegin2D();
     int r5 = colorR >> 3;
@@ -81,48 +74,48 @@ void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
     hasFrameBegan = true;
 }
 
-void Render::endFrame(bool shouldFlush) {
+void Renderer_GL2D::endFrame(bool shouldFlush) {
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
     hasFrameBegan = false;
 }
 
-int Render::getWidth() {
+int Renderer_GL2D::getWidth() {
     return SCREEN_WIDTH;
 }
 
-int Render::getHeight() {
+int Renderer_GL2D::getHeight() {
     return SCREEN_HEIGHT;
 }
 
-float Render::getPixelDensity() {
+float Renderer_GL2D::getPixelDensity() {
     return 1.0f;
 }
 
-bool Render::initPen() {
+bool Renderer_GL2D::initPen() {
     return false;
 }
 
-void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Renderer_GL2D::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
 }
 
-void Render::penDotAccurate(Sprite *sprite) {
+void Renderer_GL2D::penDotAccurate(Sprite *sprite) {
 }
 
-void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Renderer_GL2D::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
 }
 
-void Render::penDotFast(Sprite *sprite) {
+void Renderer_GL2D::penDotFast(Sprite *sprite) {
 }
 
-void Render::penStamp(Sprite *sprite) {
+void Renderer_GL2D::penStamp(Sprite *sprite) {
 }
 
-void Render::penClear() {
+void Renderer_GL2D::penClear() {
 }
 
-void Render::renderSprites() {
-    if (renderMode == BOTTOM_SCREEN_ONLY) lcdMainOnBottom();
+void Renderer_GL2D::renderSprites() {
+    if (Render::renderMode == Render::BOTTOM_SCREEN_ONLY) lcdMainOnBottom();
     glBegin2D();
     glClearColor(31, 31, 31, 31);
 
@@ -136,7 +129,7 @@ void Render::renderSprites() {
             glBindTexture(GL_TEXTURE_2D, image->textureID);
 
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
-            calculateRenderPosition(currentSprite, isSVG);
+            Render::calculateRenderPosition(currentSprite, isSVG);
             if (!currentSprite->visible) continue;
 
             ImageRenderParams params;
@@ -163,16 +156,22 @@ void Render::renderSprites() {
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
     }
 
-    renderMonitors();
+    Render::renderMonitors();
     glEnd2D();
     glFlush(GL_TRANS_MANUALSORT);
 }
 
-void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+void Renderer_GL2D::renderPenLayer() {
+}
 
+void Renderer_GL2D::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     glBoxFilled(x - w / 2, y - h / 2, x + w / 2, y + h / 2, Math::color(colorR, colorG, colorB, colorA));
 }
 
-bool Render::appShouldRun() {
+void Renderer_GL2D::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
+}
+
+bool Renderer_GL2D::appShouldRun() {
     return true;
 }
