@@ -217,24 +217,46 @@ int main(int argc, char **argv) {
     }
 #endif
 
-    if (!initApp()) {
-        exitApp();
-        return 1;
-    }
-
-    srand(time(NULL));
-
     bool enableInspector = false;
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--inspector") {
             enableInspector = true;
+        } else if (arg == "--glcore") {
+            Render::currentRenderer = Renderers::OpenGLCore;
+        } else if (arg == "--opengl") {
+            Render::currentRenderer = Renderers::OpenGL;
+        } else if (arg == "--d3d9") {
+            Render::currentRenderer = Renderers::D3D9;
+        } else if (arg == "--gdi") {
+            Render::currentRenderer = Renderers::GDI;
+        } else if (arg == "--headless") {
+            Render::currentRenderer = Renderers::Headless;
+        } else if (arg == "--sdl1") {
+            Render::currentRenderer = Renderers::SDL1;
+        } else if (arg == "--sdl2") {
+            Render::currentRenderer = Renderers::SDL2;
+        } else if (arg == "--sdl3") {
+            Render::currentRenderer = Renderers::SDL3;
+        }
+        // these will never ever be used but like consistency i guess
+        else if (arg == "--c2d") {
+            Render::currentRenderer = Renderers::Citro2D;
+        } else if (arg == "--gl2d") {
+            Render::currentRenderer = Renderers::GL2D;
         } else if (Unzip::filePath.empty()) {
 #if defined(__PC__)
             Unzip::filePath = arg;
 #endif
         }
     }
+
+    if (!initApp()) {
+        exitApp();
+        return 1;
+    }
+
+    srand(time(NULL));
 
 #ifdef ENABLE_INSPECTOR
     if (enableInspector) Inspector::init();

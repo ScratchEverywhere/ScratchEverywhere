@@ -39,7 +39,7 @@ Renderer *globalRenderer = nullptr;
 Renderer::Renderer() {}
 
 namespace Render {
-Renderers currentRenderer = Renderers::Headless;
+Renderers currentRenderer = Renderers::_count;
 float renderScale = 1.0f;
 RenderModes renderMode = Render::TOP_SCREEN_ONLY;
 
@@ -100,7 +100,13 @@ bool Render::init() {
     uint8_t startIndex = 0;
     bool found = false;
 
-    if (j.contains("Renderer") && j["Renderer"].is_string()) {
+    // usually only a run argument would change currentRenderer at this point
+    if (currentRenderer != Renderers::_count) {
+        startIndex = static_cast<uint8_t>(currentRenderer);
+        found = true;
+    }
+
+    if (!found && j.contains("Renderer") && j["Renderer"].is_string()) {
         const std::string rendererString = j["Renderer"].get<std::string>();
         for (auto &r : RendererNames) {
             if (r == rendererString) {
