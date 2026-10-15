@@ -69,13 +69,6 @@ function(_recipe_SDL3_source)
             REF "nxaudio"
             PATCHES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/nxdk-sdl3.patch"
         )
-
-        if(NOT TARGET SDL3 AND TARGET SDL3-static)
-            add_library(SDL3 ALIAS SDL3-static)
-        endif()
-        if(NOT TARGET SDL3::SDL3 AND TARGET SDL3-static)
-            add_library(SDL3::SDL3 ALIAS SDL3-static)
-        endif()
         return()
     endif()
 

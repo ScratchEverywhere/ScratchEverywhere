@@ -104,13 +104,16 @@ SE_Mutex::~SE_Mutex() {
 }
 
 void SE_Mutex::lock() {
+    if (!impl) init();
     EnterCriticalSection(&impl->mtx);
 }
 
 void SE_Mutex::unlock() {
+    if (!impl) return;
     LeaveCriticalSection(&impl->mtx);
 }
 
 bool SE_Mutex::tryLock() {
+    if (!impl) init();
     return TryEnterCriticalSection(&impl->mtx) != 0;
 }

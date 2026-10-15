@@ -67,6 +67,7 @@ macro(package_platform)
     target_link_libraries(scratch-everywhere PUBLIC ${NXDK_DIR}/lib/libnxdk_automount_d.lib)
     target_link_options(scratch-everywhere PRIVATE "-include:_automount_d_drive")
     target_link_options(scratch-everywhere PRIVATE "-safeseh:no")
+    target_link_options(scratch-everywhere PRIVATE "/STACK:0x400000,0x20000")
 
     add_custom_command(TARGET scratch-everywhere POST_BUILD
         COMMAND ${NXDK_DIR}/bin/cxbe
