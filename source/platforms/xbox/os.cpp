@@ -95,7 +95,7 @@ void OS::deInitWifi() {
 }
 
 std::string OS::getUsername() {
-    return "EggsBox";
+    return "Player";
 }
 
 // Patches to fopen and mkdir to support xbox paths

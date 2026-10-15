@@ -146,9 +146,9 @@ bool Render::initPen() {
     if (penTexture != nullptr) return true;
 
 #if defined(__XBOX__)
-    const auto penFormat = SDL_PIXELFORMAT_RGBA32;
+    constexpr auto penFormat = SDL_PIXELFORMAT_RGBA32;
 #else
-    const auto penFormat = SDL_PIXELFORMAT_RGBA8888;
+    constexpr auto penFormat = SDL_PIXELFORMAT_RGBA8888;
 #endif
 
     if (Scratch::hqpen) {
