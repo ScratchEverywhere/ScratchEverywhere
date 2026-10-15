@@ -12,6 +12,7 @@
 #include <log.hpp>
 #include <parser.hpp>
 #include <translation.hpp>
+#include <font_atlas.hpp>
 
 #include <nlohmann/json.hpp>
 
@@ -71,6 +72,7 @@ void MenuManager::cleanup() {
         delete previousMenu;
         previousMenu = nullptr;
     }
+    FontManager::cleanup();
 }
 
 MainMenu::MainMenu() {
@@ -145,13 +147,12 @@ void MainMenu::init() {
     splashText = createTextObject(TranslationManager::getSplashText(), 0, 0, "gfx/menu/Ubuntu-Bold");
     splashText->setCenterAligned(true);
     splashText->setColor(Math::color(255, 255, 255, 128));
-    if (splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
+    if (logo && logo->image && splashText->getSize()[0] > logo->image->getWidth() * 0.95) {
         splashTextOriginalScale = (float)logo->image->getWidth() / (splashText->getSize()[0] * 1.15);
         splashText->scale = splashTextOriginalScale;
     } else {
         splashTextOriginalScale = splashText->scale;
     }
-
     loadButton = new ButtonObject("", "gfx/menu/play.svg", 100, 180, "gfx/menu/Ubuntu-Bold");
     loadButton->isSelected = true;
     settingsButton = new ButtonObject("", "gfx/menu/settings.svg", 300, 180, "gfx/menu/Ubuntu-Bold");
@@ -182,13 +183,16 @@ void MainMenu::render() {
                 Mixer::setAutoClean("gfx/nds/mm_ds.wav", true);
         }
 #else
-        if (!Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
+        static bool menuMusicFailed = false;
+        if (!menuMusicFailed && !Mixer::isSoundPlaying("gfx/menu/mm_splash.ogg")) {
             SoundStream *strm = new SoundStream("gfx/menu/mm_splash.ogg");
             if (strm->error.has_value()) {
                 Log::log(strm->error.value());
                 delete strm;
-            } else
+                menuMusicFailed = true;
+            } else {
                 Mixer::setAutoClean("gfx/menu/mm_splash.ogg", true);
+            }
         }
 #endif
     }
@@ -209,6 +213,7 @@ void MainMenu::render() {
     splashText->scale = splashTextOriginalScale + splashZoom;
     logo->y = 75 + bobbingOffset;
     logo->render();
+
     versionNumber->render(Render::getWidth() * 0.01, Render::getHeight() * 0.900);
     splashText->render(logo->renderX, logo->renderY + ((logo->image->getHeight() * 0.7) * MenuObject::getScaleFactor()));
 

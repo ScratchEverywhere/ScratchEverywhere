@@ -77,6 +77,9 @@ Renderer_SDL3::Renderer_SDL3() {
 #elif defined(VITA)
     int windowWidth = 960;
     int windowHeight = 544;
+#elif defined(__XBOX__)
+    int windowWidth = 640;
+    int windowHeight = 480;
 #else
     int windowWidth = 480;
     int windowHeight = 360;
@@ -89,8 +92,11 @@ Renderer_SDL3::Renderer_SDL3() {
         window = nullptr;
         return;
     }
-
+#ifdef __XBOX__
+    Sdlrenderer = static_cast<SDL_Renderer *>(static_cast<WindowSDL3 *>(globalWindow)->getRenderer());
+#else
     Sdlrenderer = SDL_CreateRenderer((SDL_Window *)window->getHandle(), "");
+#endif
     if (Sdlrenderer == nullptr) {
         error = "Could not create renderer: " + std::string(SDL_GetError());
         return;
@@ -161,12 +167,18 @@ float Renderer_SDL3::getPixelDensity() {
 bool Renderer_SDL3::initPen() {
     if (penTexture != nullptr) return true;
 
+#if defined(__XBOX__)
+    constexpr auto penFormat = SDL_PIXELFORMAT_RGBA32;
+#else
+    constexpr auto penFormat = SDL_PIXELFORMAT_RGBA8888;
+#endif
+
     if (Scratch::hqpen) {
         if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
-            penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
+            penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
         else
-            penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
-    } else penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+            penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
+    } else penTexture = SDL_CreateTexture(Sdlrenderer, penFormat, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
 
     // Clear the texture
     SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);

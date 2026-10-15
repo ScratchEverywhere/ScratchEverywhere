@@ -1,0 +1,200 @@
+diff --git a/lib/xboxrt/libc_extensions/stdlib_ext_.c b/lib/xboxrt/libc_extensions/stdlib_ext_.c
+index e07f0f6..c4a61fd 100644
+--- a/lib/xboxrt/libc_extensions/stdlib_ext_.c
++++ b/lib/xboxrt/libc_extensions/stdlib_ext_.c
+@@ -86,22 +86,189 @@ unsigned __int64 _byteswap_uint64 (unsigned __int64 val)
+ }
+ 
+ 
++#include <ctype.h>
++#include <math.h>
++#include <stdbool.h>
++#include <string.h>
++
++static bool match_ic(const char **pp, const char *target)
++{
++    const char *p = *pp;
++    while (*target) {
++        if (tolower((unsigned char)*p) != tolower((unsigned char)*target)) {
++            return false;
++        }
++        p++;
++        target++;
++    }
++    *pp = p;
++    return true;
++}
++
+ double strtod( const char * _PDCLIB_restrict nptr, char * * _PDCLIB_restrict endptr )
+ {
+-    assert(0);
+-    return 0.0;
++    const char *p = nptr;
++    if (!p) {
++        if (endptr) *endptr = NULL;
++        return 0.0;
++    }
++
++    // Skip leading whitespace
++    while (isspace((unsigned char)*p)) {
++        p++;
++    }
++
++    // Optional sign
++    bool negative = false;
++    if (*p == '-') {
++        negative = true;
++        p++;
++    } else if (*p == '+') {
++        p++;
++    }
++
++    // Special cases: NAN and INF
++    const char *spec_p = p;
++    if (match_ic(&spec_p, "nan")) {
++        p = spec_p;
++        if (*p == '(') {
++            const char *ep = p + 1;
++            while (*ep && *ep != ')') ep++;
++            if (*ep == ')') p = ep + 1;
++        }
++        if (endptr) *endptr = (char *)p;
++        return negative ? -NAN : NAN;
++    }
++
++    spec_p = p;
++    if (match_ic(&spec_p, "infinity") || match_ic(&spec_p, "inf")) {
++        p = spec_p;
++        if (endptr) *endptr = (char *)p;
++        return negative ? -HUGE_VAL : HUGE_VAL;
++    }
++
++    // Hexadecimal float format: 0x...
++    if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
++        p += 2;
++        double val = 0.0;
++        bool has_digits = false;
++
++        while (isxdigit((unsigned char)*p)) {
++            has_digits = true;
++            int digit = isdigit((unsigned char)*p) ? (*p - '0') : (tolower((unsigned char)*p) - 'a' + 10);
++            val = val * 16.0 + digit;
++            p++;
++        }
++
++        if (*p == '.') {
++            p++;
++            double factor = 1.0 / 16.0;
++            while (isxdigit((unsigned char)*p)) {
++                has_digits = true;
++                int digit = isdigit((unsigned char)*p) ? (*p - '0') : (tolower((unsigned char)*p) - 'a' + 10);
++                val += digit * factor;
++                factor /= 16.0;
++                p++;
++            }
++        }
++
++        if (!has_digits) {
++            if (endptr) *endptr = (char *)nptr;
++            return 0.0;
++        }
++
++        // Binary exponent 'p' or 'P'
++        if (*p == 'p' || *p == 'P') {
++            p++;
++            bool exp_neg = false;
++            if (*p == '-') { exp_neg = true; p++; }
++            else if (*p == '+') { p++; }
++
++            int exp_val = 0;
++            bool exp_digits = false;
++            while (isdigit((unsigned char)*p)) {
++                exp_digits = true;
++                exp_val = exp_val * 10 + (*p - '0');
++                p++;
++            }
++
++            if (exp_digits) {
++                val *= pow(2.0, exp_neg ? -exp_val : exp_val);
++            }
++        }
++
++        if (endptr) *endptr = (char *)p;
++        return negative ? -val : val;
++    }
++
++    // Standard decimal float format
++    double val = 0.0;
++    bool has_digits = false;
++    int exp_adjust = 0;
++
++    // Parse integer digits
++    while (isdigit((unsigned char)*p)) {
++        has_digits = true;
++        val = val * 10.0 + (*p - '0');
++        p++;
++    }
++
++    // Parse fractional digits
++    if (*p == '.') {
++        p++;
++        while (isdigit((unsigned char)*p)) {
++            has_digits = true;
++            val = val * 10.0 + (*p - '0');
++            exp_adjust--;
++            p++;
++        }
++    }
++
++    if (!has_digits) {
++        if (endptr) *endptr = (char *)nptr;
++        return 0.0;
++    }
++
++    // Parse exponent part: 'e' or 'E'
++    if (*p == 'e' || *p == 'E') {
++        const char *exp_start = p;
++        p++;
++        bool exp_neg = false;
++        if (*p == '-') { exp_neg = true; p++; }
++        else if (*p == '+') { p++; }
++
++        int exp_val = 0;
++        bool exp_digits = false;
++        while (isdigit((unsigned char)*p)) {
++            exp_digits = true;
++            exp_val = exp_val * 10 + (*p - '0');
++            p++;
++        }
++
++        if (exp_digits) {
++            exp_adjust += (exp_neg ? -exp_val : exp_val);
++        } else {
++            // Revert if no digits followed 'e'/'E'
++            p = exp_start;
++        }
++    }
++
++    if (exp_adjust != 0) {
++        val *= pow(10.0, exp_adjust);
++    }
++
++    if (endptr) *endptr = (char *)p;
++    return negative ? -val : val;
+ }
+ 
+ float strtof( const char * _PDCLIB_restrict nptr, char * * _PDCLIB_restrict endptr )
+ {
+-    assert(0);
+-    return 0.0;
++    return (float)strtod(nptr, endptr);
+ }
+ 
+ long double strtold( const char * _PDCLIB_restrict nptr, char * * _PDCLIB_restrict endptr )
+ {
+-    assert(0);
+-    return 0.0;
++    return (long double)strtod(nptr, endptr);
+ }
+ 
+ int mbtowc (wchar_t *pwc, const char *string, size_t n)

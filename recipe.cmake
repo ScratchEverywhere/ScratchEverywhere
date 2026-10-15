@@ -1,5 +1,5 @@
 function(_recipe_ScratchEverywhere_source)
-	set(SE_TAG "1.2")
+	set(SE_TAG "1.2.1")
 	if(CL_REQ_VERSION)
 		set(SE_TAG "${CL_REQ_VERSION}")
 	endif()

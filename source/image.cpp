@@ -8,7 +8,7 @@
 #include <string_view>
 #include <unzip.hpp>
 #ifdef ENABLE_BITMAP
-#ifdef __WIIU__
+#if defined(__WIIU__) || defined(__XBOX__)
 #define STBI_NO_THREAD_LOCALS
 #endif
 #define STB_IMAGE_IMPLEMENTATION
@@ -71,7 +71,9 @@ constexpr unsigned int maxScale = 5; // TODO: Make project setting, set to 0 to 
 bool Image::loadFont(const std::string &family) {
 #ifdef ENABLE_SVG
     auto it = loadedFonts.find(family);
-    if (it == loadedFonts.end()) return false;
+    if (it == loadedFonts.end()) {
+        return false;
+    }
     if (it->second.isLoaded) return true;
 
     const std::string &path = it->second.path;
@@ -86,7 +88,6 @@ bool Image::loadFont(const std::string &family) {
 #else
     if (!lunasvg_add_font_face_from_file(family.c_str(), false, false, (OS::getRomFSLocation() + path + ".ttf").c_str())) return false;
 #endif
-
     it->second.isLoaded = true;
     return true;
 #endif
@@ -339,11 +340,56 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         }
     }
 
+#if defined(__XBOX__)
+    std::string svgData(data, size);
+    size_t endPos = svgData.rfind("</svg>");
+    if (endPos == std::string::npos) {
+        endPos = svgData.rfind("</SVG>");
+    }
+    if (endPos != std::string::npos) {
+        svgData.resize(endPos + 6);
+    }
+
+    svgDocument = lunasvg::Document::loadFromData(svgData.c_str());
+    if (!svgDocument) {
+        return nonstd::make_unexpected("LunaSVG failed to parse SVG");
+    }
+
+    float docW = svgDocument->width();
+    float docH = svgDocument->height();
+
+    if (docW <= 0.0f || docH <= 0.0f) {
+        width = 1;
+        height = 1;
+        imgData.scale = 1.0f;
+        imgData.pitch = 4;
+        unsigned char *dst = (unsigned char *)calloc(1, 4);
+        if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+        return dst;
+    }
+
+    const float targetWidth = docW * scale;
+    const float targetHeight = docH * scale;
+#else
     svgDocument = lunasvg::Document::loadFromData(std::string(data, size).c_str());
     if (!svgDocument) return nonstd::make_unexpected("LunaSVG failed to parse SVG");
 
+    float docW = svgDocument->width();
+    float docH = svgDocument->height();
+
+    if (docW <= 0.0f || docH <= 0.0f) {
+        width = 1;
+        height = 1;
+        imgData.scale = 1.0f;
+        imgData.pitch = 4;
+        unsigned char *dst = (unsigned char *)calloc(1, 4);
+        if (!dst) return nonstd::make_unexpected("Failed to allocate SVG pixels buffer");
+        return dst;
+    }
+
     const float targetWidth = svgDocument->width() * scale;
     const float targetHeight = svgDocument->height() * scale;
+#endif
 
     const auto [maxWidth, maxHeight] = maxTextureSize;
     float finalScale = scale;
@@ -355,12 +401,23 @@ nonstd::expected<unsigned char *, std::string> Image::loadSVGFromMemory(const ch
         }
     }
 
+#if defined(__XBOX__)
+    width = std::max(1, (int)(docW * finalScale));
+    height = std::max(1, (int)(docH * finalScale));
+    imgData.scale = finalScale;
+
+    auto bitmap = svgDocument->renderToBitmap(width, height);
+    if (!bitmap.valid()) {
+        return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
+    }
+#else
     width = std::max(1, (int)(svgDocument->width() * finalScale));
     height = std::max(1, (int)(svgDocument->height() * finalScale));
     imgData.scale = finalScale;
 
     auto bitmap = svgDocument->renderToBitmap(width, height);
     if (!bitmap.valid()) return nonstd::make_unexpected("LunaSVG failed to render SVG to bitmap");
+#endif
 
     unsigned char *src = bitmap.data();
     const size_t pixelsSize = width * height * 4;
@@ -387,6 +444,7 @@ nonstd::expected<void, std::string> Image::resizeSVG(float scale) {
         if (scale > maxScale) scale = maxScale;
 
     if (!svgDocument || scale <= imgData.scale) return {};
+    if (svgDocument->width() <= 0.0f || svgDocument->height() <= 0.0f) return {};
 
     // TODO: De-duplicate code.
 
@@ -463,27 +521,52 @@ nonstd::expected<unsigned char *, std::string> Image::loadRasterFromMemory(const
 #ifdef ENABLE_BITMAP
     int channels;
     unsigned char *pixels = stbi_load_from_memory(data, size, &width, &height, &channels, 4);
+#if defined(__XBOX__)
+    if (!pixels) {
+        const char *reason = stbi_failure_reason();
+        return nonstd::make_unexpected(std::string("Failed to decode raster image: ") + (reason ? reason : "unknown"));
+    }
+#else
     if (!pixels) return nonstd::make_unexpected("Failed to decode raster image");
+#endif
     imgData.pitch = width * 4;
 
 #ifdef __OGC__ // may break getPixels()
     stbi__vertical_flip(pixels, width, height, 4);
 #endif
 
+    unsigned char *resultPixels = pixels;
     if (bitmapHalfQuality) {
         int resizedW, resizedH;
-        unsigned char *resizedPixels = resizeRaster(pixels, width, height, resizedW, resizedH);
+        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
 
         imgData.pitch = resizedW * 4;
         width = resizedW;
         height = resizedH;
 
-        stbi_image_free(pixels);
-
-        return resizedPixels;
-    } else {
-        return pixels;
+        stbi_image_free(resultPixels);
+        resultPixels = resizedPixels;
     }
+
+#if defined(__XBOX__)
+    while (width > 1024 || height > 1024) {
+        int resizedW, resizedH;
+        unsigned char *resizedPixels = resizeRaster(resultPixels, width, height, resizedW, resizedH);
+
+        imgData.pitch = resizedW * 4;
+        width = resizedW;
+        height = resizedH;
+
+        if (resultPixels == pixels) {
+            stbi_image_free(resultPixels);
+        } else {
+            free(resultPixels);
+        }
+        resultPixels = resizedPixels;
+    }
+#endif
+
+    return resultPixels;
 #endif
     width = 0;
     height = 0;

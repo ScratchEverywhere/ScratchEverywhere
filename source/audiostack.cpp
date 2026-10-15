@@ -133,26 +133,40 @@ bool SoundStream::loadFromBuffer() {
 
 nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cached, bool on_disk) {
 #ifdef ENABLE_AUDIO
+    bool isSystemAsset = (path.rfind("gfx/", 0) == 0);
     std::string prefix = "";
     bool useProjectBundle = false;
-    if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
-    else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
 
-    if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) {
-        prefix += "project/";
-        useProjectBundle = true;
+    if (isSystemAsset) {
+        prefix = OS::getRomFSLocation();
+        useProjectBundle = false;
+    } else {
+        if (!cached && !Unzip::UnpackedInSD && !on_disk) prefix = OS::getRomFSLocation();
+        else if (Unzip::UnpackedInSD && !on_disk) prefix = Unzip::filePath;
+
+        if (!on_disk && !Unzip::UnpackedInSD && (!Unzip::filePath.empty() || Scratch::projectType == ProjectType::UNZIPPED)) {
+            prefix += "project/";
+            useProjectBundle = true;
+        }
     }
 
-#ifdef USE_BUNDLE
-    if (cached || Unzip::UnpackedInSD || on_disk) {
+#if defined(__XBOX__)
+    std::string fullAudioPath = OS::normalizePath(prefix + path);
+#else
+    std::string fullAudioPath = prefix + path;
 #endif
-        std::ifstream ifs(prefix + path, std::ios::binary);
+
+#ifdef USE_BUNDLE
+    bool loadFromDisk = !isSystemAsset && (cached || Unzip::UnpackedInSD || on_disk);
+    if (loadFromDisk) {
+#endif
+        std::ifstream ifs(fullAudioPath, std::ios::binary);
 
         ifs.seekg(0, std::ios::end);
         this->buffer_size = ifs.tellg();
         ifs.seekg(0);
 
-        if (!ifs) return nonstd::make_unexpected("Could not open audio file: " + prefix + path);
+        if (!ifs) return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
 
         this->buffer = (unsigned char *)malloc(this->buffer_size);
         ifs.read((char *)this->buffer, this->buffer_size);
@@ -162,13 +176,26 @@ nonstd::expected<void, std::string> SoundStream::init(std::string path, bool cac
     } else {
         auto archive = useProjectBundle ? Bundle::project() : Bundle::assets();
         auto entry = archive.find(prefix + path);
-        if (!entry) return nonstd::make_unexpected("Audio file not found.");
-
-        this->buffer_size = entry->size();
-        this->buffer = (unsigned char *)malloc(this->buffer_size);
-        if (bundle_read_all(&entry->raw(), this->buffer, this->buffer_size) < 0) {
-            free(this->buffer);
-            return nonstd::make_unexpected("Failed to decompress audio file: " + prefix + path);
+        if (!entry) {
+            // Fallback to disk if not in bundle archive
+            std::ifstream ifs(fullAudioPath, std::ios::binary);
+            if (ifs) {
+                ifs.seekg(0, std::ios::end);
+                this->buffer_size = ifs.tellg();
+                ifs.seekg(0);
+                this->buffer = (unsigned char *)malloc(this->buffer_size);
+                ifs.read((char *)this->buffer, this->buffer_size);
+                ifs.close();
+            } else {
+                return nonstd::make_unexpected("Could not open audio file: " + fullAudioPath);
+            }
+        } else {
+            this->buffer_size = entry->size();
+            this->buffer = (unsigned char *)malloc(this->buffer_size);
+            if (bundle_read_all(&entry->raw(), this->buffer, this->buffer_size) < 0) {
+                free(this->buffer);
+                return nonstd::make_unexpected("Failed to decompress audio file: " + prefix + path);
+            }
         }
     }
 #endif
@@ -238,7 +265,7 @@ nonstd::expected<void, std::string> SoundStream::init(ZipArchive *zip, std::stri
 
 SoundStream::SoundStream(ZipArchive *zip, std::string path) {
     auto potentialError = init(zip, path);
-    if (error.has_value()) error = potentialError.error();
+    if (!potentialError.has_value()) error = potentialError.error();
 }
 
 SoundStream::~SoundStream() {
@@ -316,7 +343,12 @@ void Mixer::initMusic() {
         bundle_read_all(&entry->raw(), Mixer::sf2_buffer, size);
     }
 #else
+#if defined(__XBOX__)
+    std::string fullSF2Path = OS::normalizePath(path);
+    std::ifstream ifs(fullSF2Path, std::ios::binary);
+#else
     std::ifstream ifs(path, std::ios::binary);
+#endif
 
     ifs.seekg(0, std::ios::end);
     size = ifs.tellg();

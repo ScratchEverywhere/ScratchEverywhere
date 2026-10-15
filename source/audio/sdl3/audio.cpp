@@ -7,23 +7,53 @@
 #include <vector>
 
 static SDL_AudioStream *sdl_stream;
+#if defined(__XBOX__)
+// Audio buffer allocated on the heap instead of the stack
+static std::vector<short> audioBuffer;
+#endif
 
 extern "C" void SDLCALL callback(void *userdata, SDL_AudioStream *astream, int additional_amount, int total_amount) {
+#if defined(__XBOX__)
+    while (additional_amount > 0) {
+        int bytes = SDL_min(additional_amount, 4096);
+        int frames = (bytes + (sizeof(short) * 2 - 1)) / (sizeof(short) * 2);
+        if (frames <= 0) {
+            break;
+        }
+
+        if ((int)audioBuffer.size() < frames * 2) {
+            audioBuffer.resize(frames * 2);
+        }
+
+        short *samples = audioBuffer.data();
+        Mixer::requestSound(samples, frames);
+        SDL_PutAudioStreamData(astream, samples, frames * sizeof(short) * 2);
+
+        additional_amount -= frames * sizeof(short) * 2;
+    }
+#else
     short samples[2048];
 
     while (additional_amount > 0) {
         int bytes = SDL_min(additional_amount, (int)sizeof(samples));
-        int frames = bytes / (sizeof(short) * 2);
+        int frames = (bytes + (sizeof(short) * 2 - 1)) / (sizeof(short) * 2);
+        if (frames <= 0) {
+            break;
+        }
 
         Mixer::requestSound(samples, frames);
         SDL_PutAudioStreamData(astream, samples, frames * sizeof(short) * 2);
 
         additional_amount -= frames * sizeof(short) * 2;
     }
+#endif
 }
 
 bool SoundPlayer::init() {
 #ifdef ENABLE_AUDIO
+#if defined(__XBOX__)
+    audioBuffer.resize(2048);
+#endif
     SDL_AudioSpec spac;
 
     if (!SDL_Init(SDL_INIT_AUDIO)) {
@@ -54,6 +84,10 @@ void SoundPlayer::deinit() {
     //    SDL_DestroyAudioStream(sdl_stream);
 #if !defined(RENDERER_SDL3) && !defined(WINDOWING_SDL3)
     SDL_Quit();
+#endif
+#if defined(__XBOX__)
+    audioBuffer.clear();
+    audioBuffer.shrink_to_fit();
 #endif
 #endif
 }
