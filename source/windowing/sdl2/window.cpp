@@ -12,7 +12,7 @@
 #elif defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
 #else
-#include <renderers/sdl2/render_sdl2.hpp>
+#include <renderers/sdl2/renderer_sdl2.hpp>
 #endif
 
 #ifdef __PS4__

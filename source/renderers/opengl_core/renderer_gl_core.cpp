@@ -30,9 +30,6 @@ extern struct retro_hw_render_callback hw_render;
 #define M_PI 3.14159265358979323846
 #endif
 
-// WindowSE *globalWindow = nullptr;
-// SpeechManagerGLCore *speechManager = nullptr;
-
 GLuint spriteProgram = 0;
 static GLuint solidProgram = 0;
 

@@ -1,20 +1,19 @@
-#include "render_sdl2.hpp"
-#include "speech_manager.hpp"
+#include "renderer_sdl2.hpp"
 #include "speech_manager_sdl2.hpp"
-#include "types.hpp"
-#include <SDL.h>
+#include <windowing/sdl2/window_sdl2.hpp>
+
 #include <algorithm>
 #include <audio.hpp>
 #include <cmath>
 #include <image.hpp>
 #include <input.hpp>
 #include <log.hpp>
-#include <renderer.hpp>
 #include <runtime.hpp>
 #include <string>
+#include <text.hpp>
+#include <types.hpp>
 #include <unordered_map>
 #include <vector>
-#include <windowing/sdl2/window_sdl2.hpp>
 
 #ifdef __WIIU__
 #include <coreinit/debug.h>
@@ -49,7 +48,6 @@ char nickname[0x21];
 #endif
 
 WindowSE *globalWindow = nullptr;
-SDL_Renderer *renderer = nullptr;
 static SDL_Texture *mainRenderTarget = nullptr;
 SDL_Texture *penTexture = nullptr;
 
@@ -57,7 +55,38 @@ SpeechManagerSDL2 *speechManager = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 
-bool Render::init() {
+void drawBlackBars(SDL_Renderer *renderer, int screenWidth, int screenHeight) {
+    float screenAspect = static_cast<float>(screenWidth) / screenHeight;
+    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
+
+    if (screenAspect > projectAspect) {
+        // Vertical bars,,,
+        float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
+        float scaledProjectWidth = Scratch::projectWidth * scale;
+        float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_Rect leftBar = {0, 0, static_cast<int>(std::ceil(barWidth)), screenHeight};
+        SDL_Rect rightBar = {static_cast<int>(std::floor(screenWidth - barWidth)), 0, static_cast<int>(std::ceil(barWidth)), screenHeight};
+
+        SDL_RenderFillRect(renderer, &leftBar);
+        SDL_RenderFillRect(renderer, &rightBar);
+    } else if (screenAspect < projectAspect) {
+        // Horizontal bars,,,
+        float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
+        float scaledProjectHeight = Scratch::projectHeight * scale;
+        float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
+
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_Rect topBar = {0, 0, screenWidth, static_cast<int>(std::ceil(barHeight))};
+        SDL_Rect bottomBar = {0, static_cast<int>(std::floor(screenHeight - barHeight)), screenWidth, static_cast<int>(std::ceil(barHeight))};
+
+        SDL_RenderFillRect(renderer, &topBar);
+        SDL_RenderFillRect(renderer, &bottomBar);
+    }
+}
+
+Renderer_SDL2::Renderer_SDL2() {
 #ifdef __WIIU__
     int windowWidth = 854;
     int windowHeight = 480;
@@ -80,8 +109,8 @@ bool Render::init() {
 #elif defined(WEBOS)
     // SDL has to be initialized before window creation on webOS
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER | SDL_INIT_EVENTS) < 0) {
-        Log::logCritical("Failed to initialize SDL2: " + std::string(SDL_GetError()), true);
-        return false;
+        error = "Failed to initialize SDL2: " + std::string(SDL_GetError());
+        return;
     }
 
     int windowWidth = 800;
@@ -102,33 +131,33 @@ bool Render::init() {
     if (!globalWindow->init(windowWidth, windowHeight, "Scratch Everywhere!")) {
         delete globalWindow;
         globalWindow = nullptr;
-        return false;
+        error = "Failed to init window.";
+        return;
     }
 #if defined(WEBOS) || defined(__PSP__) || defined(__PS4__)
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED;
 #else
     uint32_t sdlFlags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 #endif
-    renderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, sdlFlags);
-    if (renderer == nullptr) {
-        Log::logCritical("Could not create renderer: " + std::string(SDL_GetError()), true);
-        return false;
+    Sdlrenderer = SDL_CreateRenderer((SDL_Window *)globalWindow->getHandle(), -1, sdlFlags);
+    if (Sdlrenderer == nullptr) {
+        error = "Could not create renderer: " + std::string(SDL_GetError());
+        return;
     }
 
-    debugMode = true;
-
-    return true;
+    Render::debugMode = true;
 }
-void Render::deInit() {
+
+Renderer_SDL2::~Renderer_SDL2() {
     if (speechManager) {
         delete speechManager;
         speechManager = nullptr;
     }
 
-    SDL_DestroyTexture(penTexture);
+    if (penTexture != nullptr) SDL_DestroyTexture(penTexture);
 
     TextObject::cleanupText();
-    SDL_DestroyRenderer(renderer);
+    SDL_DestroyRenderer(Sdlrenderer);
 
     if (globalWindow) {
         globalWindow->cleanup();
@@ -136,73 +165,68 @@ void Render::deInit() {
         globalWindow = nullptr;
     }
 
-    SoundPlayer::deinit();
     SDL_Quit();
 }
 
-void *Render::getRenderer() {
-    return static_cast<void *>(renderer);
-}
-
-void Render::setRenderTarget(void *renderTarget) {
+void Renderer_SDL2::setRenderTarget(void *renderTarget) {
     mainRenderTarget = static_cast<SDL_Texture *>(renderTarget);
-    SDL_SetRenderTarget(renderer, mainRenderTarget);
+    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 }
 
-void Render::clearRenderTarget() {
+void Renderer_SDL2::clearRenderTarget() {
     mainRenderTarget = nullptr;
-    SDL_SetRenderTarget(renderer, mainRenderTarget);
+    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 }
 
-bool Render::createSpeechManager() {
+bool Renderer_SDL2::createSpeechManager() {
     if (speechManager == nullptr) speechManager = new SpeechManagerSDL2();
     return speechManager != nullptr;
 }
 
-void Render::destroySpeechManager() {
+void Renderer_SDL2::destroySpeechManager() {
     delete speechManager;
     speechManager = nullptr;
 }
 
-SpeechManager *Render::getSpeechManager() {
+SpeechManager *Renderer_SDL2::getSpeechManager() {
     return speechManager;
 }
 
-int Render::getWidth() {
+int Renderer_SDL2::getWidth() {
     if (globalWindow) return globalWindow->getWidth();
     return 540;
 }
 
-int Render::getHeight() {
+int Renderer_SDL2::getHeight() {
     if (globalWindow) return globalWindow->getHeight();
     return 405;
 }
 
-float Render::getPixelDensity() {
+float Renderer_SDL2::getPixelDensity() {
     if (globalWindow) return globalWindow->getPixelDensity();
     return 1.0f;
 }
 
-bool Render::initPen() {
+bool Renderer_SDL2::initPen() {
     if (penTexture != nullptr) return true;
 
     if (Scratch::hqpen) {
         if (Scratch::projectWidth / static_cast<double>(getWidth()) < Scratch::projectHeight / static_cast<double>(getHeight()))
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
+            penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (getHeight() / static_cast<double>(Scratch::projectHeight)), getHeight());
         else
-            penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
-    } else penTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
+            penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, getWidth(), Scratch::projectHeight * (getWidth() / static_cast<double>(Scratch::projectWidth)));
+    } else penTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth, Scratch::projectHeight);
 
     // Clear the texture
     SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderTarget(renderer, penTexture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, mainRenderTarget);
+    SDL_SetRenderTarget(Sdlrenderer, penTexture);
+    SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
+    SDL_RenderClear(Sdlrenderer);
+    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
     return true;
 }
 
-void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Renderer_SDL2::penMoveFast(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
@@ -249,7 +273,7 @@ void Render::penMoveFast(double x1, double y1, double x2, double y2, Sprite *spr
     penVerts.push_back(v2);
 }
 
-void Render::penDotFast(Sprite *sprite) {
+void Renderer_SDL2::penDotFast(Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
@@ -285,7 +309,7 @@ void Render::penDotFast(Sprite *sprite) {
     penVerts.push_back(v2);
 }
 
-void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
+void Renderer_SDL2::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = (100.0 - sprite->penData.color.transparency) / 100.0 * 255.0;
 
@@ -365,7 +389,7 @@ void Render::penMoveAccurate(double x1, double y1, double x2, double y2, Sprite 
     }
 }
 
-void Render::penDotAccurate(Sprite *sprite) {
+void Renderer_SDL2::penDotAccurate(Sprite *sprite) {
     const ColorRGBA rgbColor = CSBT2RGBA(sprite->penData.color);
     const uint8_t alpha = static_cast<Uint8>((100.0 - sprite->penData.color.transparency) / 100.0 * 255.0);
 
@@ -408,7 +432,7 @@ void Render::penDotAccurate(Sprite *sprite) {
     }
 }
 
-void Render::penStamp(Sprite *sprite) {
+void Renderer_SDL2::penStamp(Sprite *sprite) {
     auto imgFind = Scratch::costumeImages.find(sprite->costumes[sprite->currentCostume].fullName);
     if (imgFind == Scratch::costumeImages.end()) {
         Log::logWarning("Invalid Image for Stamp");
@@ -417,20 +441,20 @@ void Render::penStamp(Sprite *sprite) {
 
     const Costume &costume = sprite->costumes[sprite->currentCostume];
 
-    SDL_SetRenderTarget(renderer, penTexture);
+    SDL_SetRenderTarget(Sdlrenderer, penTexture);
 
     // clear line draw queue so stamp can be rendered on top
     if (!penVerts.empty()) {
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
+        SDL_RenderGeometry(Sdlrenderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
+        SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_NONE);
         penVerts.clear();
     }
 
     Image *image = imgFind->second.get();
 
     const bool isSVG = costume.isSVG;
-    calculateRenderPosition(sprite, isSVG);
+    Render::calculateRenderPosition(sprite, isSVG);
 
     // Pen mapping stuff
     const auto &cords = Scratch::screenToScratchCoords(sprite->renderInfo.renderX, sprite->renderInfo.renderY, getWidth(), getHeight());
@@ -463,39 +487,39 @@ void Render::penStamp(Sprite *sprite) {
 
     image->render(params);
 
-    SDL_SetRenderTarget(renderer, mainRenderTarget);
+    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
 }
 
-void Render::penClear() {
+void Renderer_SDL2::penClear() {
     if (!penTexture || penTexture == nullptr) return;
-    SDL_SetRenderTarget(renderer, penTexture);
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-    SDL_RenderClear(renderer);
-    SDL_SetRenderTarget(renderer, mainRenderTarget);
+    SDL_SetRenderTarget(Sdlrenderer, penTexture);
+    SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 0);
+    SDL_RenderClear(Sdlrenderer);
+    SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
     if (!penVerts.empty()) penVerts.clear();
 }
 
-void Render::beginFrame(int screen, int colorR, int colorG, int colorB) {
+void Renderer_SDL2::beginFrame(int screen, int colorR, int colorG, int colorB) {
     if (!hasFrameBegan) {
-        SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, 255);
-        SDL_RenderClear(renderer);
+        SDL_SetRenderDrawColor(Sdlrenderer, colorR, colorG, colorB, 255);
+        SDL_RenderClear(Sdlrenderer);
         hasFrameBegan = true;
     }
 }
 
-void Render::endFrame(bool shouldFlush) {
-    SDL_RenderPresent(renderer);
+void Renderer_SDL2::endFrame(bool shouldFlush) {
+    SDL_RenderPresent(Sdlrenderer);
     SDL_Delay(16);
     hasFrameBegan = false;
 }
 
-void Render::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
-    SDL_SetRenderDrawColor(renderer, colorR, colorG, colorB, colorA);
+void Renderer_SDL2::drawBox(int w, int h, int x, int y, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+    SDL_SetRenderDrawColor(Sdlrenderer, colorR, colorG, colorB, colorA);
     SDL_Rect rect = {x - (w / 2), y - (h / 2), w, h};
-    SDL_RenderFillRect(renderer, &rect);
+    SDL_RenderFillRect(Sdlrenderer, &rect);
 }
 
-void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
+void Renderer_SDL2::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colorR, uint8_t colorG, uint8_t colorB, uint8_t colorA) {
     radius = std::clamp(radius, 0, std::min(w, h) / 2);
     if (radius <= 0) {
         drawBox(w, h, x, y, colorR, colorG, colorB, colorA);
@@ -531,43 +555,12 @@ void Render::drawRoundedBox(int w, int h, int x, int y, int radius, uint8_t colo
         verts.push_back({outline[i + 1], col, {0.0f, 0.0f}});
     }
 
-    SDL_RenderGeometry(renderer, nullptr, verts.data(), static_cast<int>(verts.size()), nullptr, 0);
+    SDL_RenderGeometry(Sdlrenderer, nullptr, verts.data(), static_cast<int>(verts.size()), nullptr, 0);
 }
 
-void drawBlackBars(int screenWidth, int screenHeight) {
-    float screenAspect = static_cast<float>(screenWidth) / screenHeight;
-    float projectAspect = static_cast<float>(Scratch::projectWidth) / Scratch::projectHeight;
-
-    if (screenAspect > projectAspect) {
-        // Vertical bars,,,
-        float scale = static_cast<float>(screenHeight) / Scratch::projectHeight;
-        float scaledProjectWidth = Scratch::projectWidth * scale;
-        float barWidth = (screenWidth - scaledProjectWidth) / 2.0f;
-
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_Rect leftBar = {0, 0, static_cast<int>(std::ceil(barWidth)), screenHeight};
-        SDL_Rect rightBar = {static_cast<int>(std::floor(screenWidth - barWidth)), 0, static_cast<int>(std::ceil(barWidth)), screenHeight};
-
-        SDL_RenderFillRect(renderer, &leftBar);
-        SDL_RenderFillRect(renderer, &rightBar);
-    } else if (screenAspect < projectAspect) {
-        // Horizontal bars,,,
-        float scale = static_cast<float>(screenWidth) / Scratch::projectWidth;
-        float scaledProjectHeight = Scratch::projectHeight * scale;
-        float barHeight = (screenHeight - scaledProjectHeight) / 2.0f;
-
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_Rect topBar = {0, 0, screenWidth, static_cast<int>(std::ceil(barHeight))};
-        SDL_Rect bottomBar = {0, static_cast<int>(std::floor(screenHeight - barHeight)), screenWidth, static_cast<int>(std::ceil(barHeight))};
-
-        SDL_RenderFillRect(renderer, &topBar);
-        SDL_RenderFillRect(renderer, &bottomBar);
-    }
-}
-
-void Render::renderSprites() {
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    SDL_RenderClear(renderer);
+void Renderer_SDL2::renderSprites() {
+    SDL_SetRenderDrawColor(Sdlrenderer, 255, 255, 255, 255);
+    SDL_RenderClear(Sdlrenderer);
 
     for (auto it = Scratch::sprites.rbegin(); it != Scratch::sprites.rend(); ++it) {
         Sprite *currentSprite = *it;
@@ -576,7 +569,7 @@ void Render::renderSprites() {
             Image *image = imgFind->second.get();
 
             const bool isSVG = currentSprite->costumes[currentSprite->currentCostume].isSVG;
-            calculateRenderPosition(currentSprite, isSVG);
+            Render::calculateRenderPosition(currentSprite, isSVG);
             if (!currentSprite->visible) continue;
 
             ImageRenderParams params;
@@ -593,19 +586,19 @@ void Render::renderSprites() {
         }
         // Draw collision points (for debugging)
         // std::vector<std::pair<double, double>> collisionPoints = Scratch::getCollisionPoints(currentSprite);
-        // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black points
+        // SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 0, 255); // Black points
 
         // for (const auto &point : collisionPoints) {
-        //     double screenX = (point.first * renderScale) + (getWidth() / 2);
-        //     double screenY = (point.second * -renderScale) + (getHeight() / 2);
+        //     double screenX = (point.first * Render::renderScale) + (getWidth() / 2);
+        //     double screenY = (point.second * -Render::renderScale) + (getHeight() / 2);
 
         //     SDL_Rect debugPointRect;
-        //     debugPointRect.x = static_cast<int>(screenX - renderScale); // center it a bit
-        //     debugPointRect.y = static_cast<int>(screenY - renderScale);
-        //     debugPointRect.w = static_cast<int>(2 * renderScale);
-        //     debugPointRect.h = static_cast<int>(2 * renderScale);
+        //     debugPointRect.x = static_cast<int>(screenX - Render::renderScale); // center it a bit
+        //     debugPointRect.y = static_cast<int>(screenY - Render::renderScale);
+        //     debugPointRect.w = static_cast<int>(2 * Render::renderScale);
+        //     debugPointRect.h = static_cast<int>(2 * Render::renderScale);
 
-        //     SDL_RenderFillRect(renderer, &debugPointRect);
+        //     SDL_RenderFillRect(Sdlrenderer, &debugPointRect);
         // }
 
         if (currentSprite->isStage) renderPenLayer();
@@ -615,35 +608,35 @@ void Render::renderSprites() {
         speechManager->render();
     }
 
-    drawBlackBars(getWidth(), getHeight());
-    renderMonitors();
+    drawBlackBars(Sdlrenderer, getWidth(), getHeight());
+    Render::renderMonitors();
 
 #if !defined(PLATFORM_HAS_MOUSE) && !defined(PLATFORM_HAS_TOUCH)
     if (Input::mousePointer.isMoving) {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        SDL_SetRenderDrawColor(Sdlrenderer, 0, 0, 255, 255);
         SDL_Rect rect;
         rect.w = rect.h = 5;
-        rect.x = (Input::mousePointer.x * renderScale) + (globalWindow->getWidth() * 0.5);
-        rect.y = (Input::mousePointer.y * -1 * renderScale) + (globalWindow->getHeight() * 0.5);
+        rect.x = (Input::mousePointer.x * Render::renderScale) + (globalWindow->getWidth() * 0.5);
+        rect.y = (Input::mousePointer.y * -1 * Render::renderScale) + (globalWindow->getHeight() * 0.5);
         Input::mousePointer.x = std::clamp((float)Input::mousePointer.x, -Scratch::projectWidth * 0.5f, Scratch::projectWidth * 0.5f);
         Input::mousePointer.y = std::clamp((float)Input::mousePointer.y, -Scratch::projectHeight * 0.5f, Scratch::projectHeight * 0.5f);
-        SDL_RenderDrawRect(renderer, &rect);
+        SDL_RenderDrawRect(Sdlrenderer, &rect);
     }
 #endif
 
-    SDL_RenderPresent(renderer);
+    SDL_RenderPresent(Sdlrenderer);
 }
 
-void Render::renderPenLayer() {
+void Renderer_SDL2::renderPenLayer() {
     if (!penVerts.empty()) {
-        SDL_SetRenderTarget(renderer, penTexture);
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderTarget(Sdlrenderer, penTexture);
+        SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_BLEND);
 
-        SDL_RenderGeometry(renderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
+        SDL_RenderGeometry(Sdlrenderer, nullptr, penVerts.data(), penVerts.size(), nullptr, 0);
         penVerts.clear();
 
-        SDL_SetRenderTarget(renderer, mainRenderTarget);
-        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
+        SDL_SetRenderDrawBlendMode(Sdlrenderer, SDL_BLENDMODE_NONE);
     }
 
     SDL_Rect renderRect = {0, 0, 0, 0};
@@ -658,10 +651,10 @@ void Render::renderPenLayer() {
         renderRect.w = getWidth();
     }
 
-    SDL_RenderCopy(renderer, penTexture, nullptr, &renderRect);
+    SDL_RenderCopy(Sdlrenderer, penTexture, nullptr, &renderRect);
 }
 
-bool Render::appShouldRun() {
+bool Renderer_SDL2::appShouldRun() {
     if (OS::toExit) return false;
     if (globalWindow) {
         globalWindow->pollEvents();
@@ -677,15 +670,15 @@ bool Render::appShouldRun() {
             if (Scratch::hqpen) {
                 SDL_Texture *newTexture;
                 if (Scratch::projectWidth / static_cast<double>(currentW) < Scratch::projectHeight / static_cast<double>(currentH))
-                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (currentH / static_cast<double>(Scratch::projectHeight)), currentH);
+                    newTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, Scratch::projectWidth * (currentH / static_cast<double>(Scratch::projectHeight)), currentH);
                 else
-                    newTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, currentW, Scratch::projectHeight * (currentW / static_cast<double>(Scratch::projectWidth)));
+                    newTexture = SDL_CreateTexture(Sdlrenderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, currentW, Scratch::projectHeight * (currentW / static_cast<double>(Scratch::projectWidth)));
 
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_NONE);
                 SDL_SetTextureBlendMode(penTexture, SDL_BLENDMODE_NONE);
-                SDL_SetRenderTarget(renderer, newTexture);
-                SDL_RenderCopy(renderer, penTexture, nullptr, nullptr);
-                SDL_SetRenderTarget(renderer, mainRenderTarget);
+                SDL_SetRenderTarget(Sdlrenderer, newTexture);
+                SDL_RenderCopy(Sdlrenderer, penTexture, nullptr, nullptr);
+                SDL_SetRenderTarget(Sdlrenderer, mainRenderTarget);
                 SDL_SetTextureBlendMode(newTexture, SDL_BLENDMODE_BLEND);
                 SDL_DestroyTexture(penTexture);
                 penTexture = newTexture;

@@ -34,10 +34,8 @@ char nickname[0x21];
 #include <psp2/touch.h>
 #endif
 
-// WindowSE *globalWindow = nullptr;
 static SDL_Texture *mainRenderTarget = nullptr;
 SDL_Texture *penTexture = nullptr;
-// SpeechManagerSDL3 *speechManager = nullptr;
 
 static std::vector<SDL_Vertex> penVerts;
 

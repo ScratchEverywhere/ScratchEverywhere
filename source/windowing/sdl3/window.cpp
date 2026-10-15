@@ -13,7 +13,7 @@
 #elif defined(RENDERER_OPENGL_CORE)
 #include <renderers/opengl_core/renderer_gl_core.hpp>
 #else
-#include <renderers/sdl3/render_sdl3.hpp>
+#include <renderers/sdl3/renderer_sdl3.hpp>
 #endif
 
 #ifdef PLATFORM_HAS_CONTROLLER
