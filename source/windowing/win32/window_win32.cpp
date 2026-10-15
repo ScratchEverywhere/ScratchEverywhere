@@ -115,19 +115,15 @@ typedef BOOL(APIENTRY *PFNWGLSWAPINTERVALEXT)(int);
 WindowWin32::WindowWin32(int width, int height, const std::string &title) {
     Input::setGlobalInputDevice(new InputDevice_Win32);
     WNDCLASSEX wc;
-    if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
-        PIXELFORMATDESCRIPTOR pfd;
-        int pf;
-        PFNWGLSWAPINTERVALEXT swap_interval_ext = NULL;
+    PIXELFORMATDESCRIPTOR pfd;
+    int pf;
+    PFNWGLSWAPINTERVALEXT swap_interval_ext = NULL;
 #endif
-    }
-    if (Render::currentRenderer == Renderers::D3D9) {
 #if defined(RENDERER_D3D9)
-        HRESULT hr;
-        D3DDISPLAYMODE dmode;
+    HRESULT hr;
+    D3DDISPLAYMODE dmode;
 #endif
-    }
 
     this->shouldCloseFlag = 0;
 
@@ -254,9 +250,8 @@ void WindowWin32::cleanup() {
     if (Render::currentRenderer == Renderers::OpenGL || Render::currentRenderer == Renderers::OpenGLCore) {
 #if defined(RENDERER_OPENGL) || defined(RENDERER_OPENGL_CORE)
         wglMakeCurrent(NULL, NULL);
-    }
 #endif
-    else if (Render::currentRenderer == Renderers::D3D9) {
+    } else if (Render::currentRenderer == Renderers::D3D9) {
 #if defined(RENDERER_D3D9)
         IDirect3DDevice9_Release(this->pDev);
         IDirect3D9_Release(this->pD3D);
@@ -301,8 +296,8 @@ void WindowWin32::swapBuffers() {
 #if defined(SWAPBUFFERS)
         SwapBuffers(this->hDC);
 #elif !defined(NO_SOFT_SWAPBUFFERS)
-            InvalidateRect(this->hWnd, nullptr, FALSE);
-            this->pollEvents(); /* this is to pump WM_PAINT */
+        InvalidateRect(this->hWnd, nullptr, FALSE);
+        this->pollEvents(); /* this is to pump WM_PAINT */
 #endif
     }
 }
