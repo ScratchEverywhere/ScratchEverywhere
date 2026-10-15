@@ -2,6 +2,12 @@
 #include <render.hpp>
 #include <vector>
 
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+#define SDL_HAS_GEOMETRY 1
+#else
+#define SDL_HAS_GEOMETRY 0
+#endif
+
 TextObjectSDL2::TextObjectSDL2(std::string txt, double posX, double posY, std::string fontPath)
     : TextObjectBase(txt, posX, posY, fontPath, 30.0f) {
     setRenderer(Render::getRenderer());
@@ -93,6 +99,35 @@ void TextObjectSDL2::render(int xPos, int yPos) {
     }
 
     if (!verts.empty()) {
+    #if SDL_HAS_GEOMETRY
         SDL_RenderGeometry(renderer, tex, verts.data(), (int)verts.size(), indices.data(), (int)indices.size());
+    #else
+        SDL_SetTextureColorMod(tex, col.r, col.g, col.b);
+        SDL_SetTextureAlphaMod(tex, col.a);
+
+        for (size_t li = 0; li < layoutLines.size(); ++li) {
+            const auto &glyphs = layoutLines[li];
+            if (glyphs.empty()) continue;
+
+            float lineX = drawX;
+            float lineY = drawY + (float)li * lineHeight + gen.ascent * glyphScale;
+
+            for (const GlyphQuad &q : glyphs) {
+                SDL_Rect src;
+                src.x = (int)(q.s0 * gen.atlasWidth);
+                src.y = (int)(q.t0 * gen.atlasHeight);
+                src.w = (int)((q.s1 - q.s0) * gen.atlasWidth);
+                src.h = (int)((q.t1 - q.t0) * gen.atlasHeight);
+
+                SDL_Rect dst;
+                dst.x = (int)(lineX + q.x0 * glyphScale);
+                dst.y = (int)(lineY + q.y0 * glyphScale);
+                dst.w = (int)((q.x1 - q.x0) * glyphScale);
+                dst.h = (int)((q.y1 - q.y0) * glyphScale);
+
+                SDL_RenderCopy(renderer, tex, &src, &dst);
+            }
+        }
+    #endif
     }
 }

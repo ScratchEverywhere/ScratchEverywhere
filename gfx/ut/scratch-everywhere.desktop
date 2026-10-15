@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Scratch Everywhere!
+Exec=sh -c 'env LD_LIBRARY_PATH=lib scratch-ut "$@" >> "/home/phablet/.local/share/scratch-everywhere/scratch-ut.log" 2>&1' dummy %U
+Icon=assets/logo.svg
+Terminal=false
+Type=Application
+X-Ubuntu-Touch=true
+X-Lomiri-Touch=true
+X-Ubuntu-XMir-Enable=true

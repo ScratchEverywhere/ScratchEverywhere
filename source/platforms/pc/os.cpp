@@ -37,7 +37,11 @@ void OS::deinit() {
 }
 
 std::string OS::getPlatform() {
+#if defined(__UBUNTUTOUCH__)
+    return "Ubuntu Touch device";
+#else
     return "PC";
+#endif
 }
 
 bool OS::isEnhancedPlatform() {
